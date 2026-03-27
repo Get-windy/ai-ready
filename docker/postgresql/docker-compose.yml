@@ -1,0 +1,128 @@
+# PostgreSQL Docker 配置
+
+## docker-compose.yml
+
+```yaml
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres:14
+    container_name: ai-ready-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: Dev@2026#Local
+      POSTGRES_DB: devdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - ai-ready-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devuser -d devdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:6
+    container_name: ai-ready-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ai-ready.local
+      PGADMIN_DEFAULT_PASSWORD: Admin@2026#Local
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgresql
+    networks:
+      - ai-ready-network
+
+volumes:
+  postgres_data:
+
+networks:
+  ai-ready-network:
+    driver: bridge
+```
+
+## 启动命令
+
+```bash
+# 启动 PostgreSQL
+docker-compose up -d
+
+# 查看状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+```
+
+## 备份与恢复
+
+### 备份数据库
+
+```bash
+# 备份整个数据库
+docker exec ai-ready-postgres pg_dump -U devuser devdb > backup.sql
+
+# 备份单个表
+docker exec ai-ready-postgres pg_dump -U devuser devdb -t users > users_backup.sql
+```
+
+### 恢复数据库
+
+```bash
+# 恢复整个数据库
+docker exec -i ai-ready-postgres psql -U devuser -d devdb < backup.sql
+
+# 恢复单个表
+docker exec -i ai-ready-postgres psql -U devuser -d devdb -t users < users_backup.sql
+```
+
+## 监控与管理
+
+### 查看数据库大小
+
+```sql
+-- 查看所有数据库大小
+SELECT datname, pg_size_pretty(pg_database_size(datname)) 
+FROM pg_database ORDER BY pg_database_size(datname) DESC;
+
+-- 查看表大小
+SELECT relname, pg_size_pretty(pg_relation_size(relid)) 
+FROM pg_stat_user_tables ORDER BY pg_relation_size(relid) DESC;
+```
+
+### 查看连接数
+
+```sql
+-- 查看当前连接数
+SELECT count(*) FROM pg_stat_activity;
+
+-- 查看最大连接数
+SHOW max_connections;
+
+-- 查看连接使用情况
+SELECT state, count(*) FROM pg_stat_activity GROUP BY state;
+```
+
+### 查看慢查询
+
+```sql
+-- 查看执行时间最长的查询
+SELECT query, calls, total_time, mean_time 
+FROM pg_stat_statements 
+ORDER BY mean_time DESC 
+LIMIT 10;
+```
