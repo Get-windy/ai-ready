@@ -100,7 +100,9 @@ I:\AI-Ready
 3. 配置数据库连接
 4. 启动服务
 
-详细步骤请参考 [开发指南](docs/development-guide.md)。
+详细步骤请参考 [环境搭建指南](docs/ENVIRONMENT_SETUP.md)。
+
+更多文档请查看 [文档索引](docs/DOCUMENT_INDEX.md)。
 
 ## 开发计划
 
