@@ -1,0 +1,13 @@
+{
+  "remotes": {
+    "gitee": {
+      "url": "https://gitee.com/CozyNook/ai-ready.git",
+      "push": true
+    },
+    "github": {
+      "url": "https://github.com/Get-windy/ai-ready.git",
+      "push": true
+    }
+  },
+  "defaultRemote": "gitee"
+}
