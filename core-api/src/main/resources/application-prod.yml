@@ -1,0 +1,14 @@
+# 生产环境配置
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:aiready}
+    username: ${DB_USER:produser}
+    password: ${DB_PASSWORD:}
+
+logging:
+  level:
+    root: WARN
+    cn.aiedge: INFO
