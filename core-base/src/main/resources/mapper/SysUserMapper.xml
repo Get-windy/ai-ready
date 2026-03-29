@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.base.mapper.SysUserMapper">
+
+    <!-- 根据用户名查询用户 -->
+    <select id="selectByUsername" resultType="cn.aiedge.base.entity.SysUser">
+        SELECT * FROM sys_user 
+        WHERE username = #{username} 
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 根据手机号查询用户 -->
+    <select id="selectByPhone" resultType="cn.aiedge.base.entity.SysUser">
+        SELECT * FROM sys_user 
+        WHERE phone = #{phone} 
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 根据邮箱查询用户 -->
+    <select id="selectByEmail" resultType="cn.aiedge.base.entity.SysUser">
+        SELECT * FROM sys_user 
+        WHERE email = #{email} 
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 查询用户的角色列表 -->
+    <select id="selectRoleCodesByUserId" resultType="java.lang.String">
+        SELECT r.role_code 
+        FROM sys_role r
+        INNER JOIN sys_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+        AND r.deleted = 0
+    </select>
+
+    <!-- 查询用户的权限列表 -->
+    <select id="selectPermissionCodesByUserId" resultType="java.lang.String">
+        SELECT DISTINCT p.permission_code
+        FROM sys_permission p
+        INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
+        INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
+        WHERE ur.user_id = #{userId}
+        AND p.deleted = 0
+    </select>
+
+    <!-- 查询用户的菜单ID列表 -->
+    <select id="selectMenuIdsByUserId" resultType="java.lang.Long">
+        SELECT DISTINCT m.id
+        FROM sys_menu m
+        INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
+        INNER JOIN sys_user_role ur ON rm.role_id = ur.role_id
+        WHERE ur.user_id = #{userId}
+        AND m.deleted = 0
+    </select>
+
+    <!-- 分页查询用户列表 -->
+    <select id="selectUserPage" resultType="cn.aiedge.base.entity.SysUser">
+        SELECT * FROM sys_user 
+        WHERE deleted = 0
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        <if test="username != null and username != ''">
+            AND username LIKE CONCAT('%', #{username}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="deptId != null">
+            AND dept_id = #{deptId}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 更新最后登录信息 -->
+    <update id="updateLoginInfo">
+        UPDATE sys_user 
+        SET last_login_time = NOW(),
+            last_login_ip = #{loginIp}
+        WHERE id = #{userId}
+    </update>
+
+</mapper>

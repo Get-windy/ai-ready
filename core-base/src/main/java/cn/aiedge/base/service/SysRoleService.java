@@ -30,53 +30,37 @@ public interface SysRoleService extends IService<SysRole> {
     void deleteRole(Long roleId);
 
     /**
-     * 批量删除角色
-     */
-    void batchDeleteRoles(List<Long> roleIds);
-
-    /**
-     * 分页查询角色
-     */
-    Page<SysRole> pageRoles(Page<SysRole> page, Long tenantId,
-                            String roleName, Integer status);
-
-    /**
-     * 获取角色详情
-     */
-    SysRole getRoleDetail(Long roleId);
-
-    /**
-     * 获取所有角色（下拉选择用）
-     */
-    List<SysRole> listAllRoles(Long tenantId);
-
-    /**
-     * 分配菜单权限
-     */
-    void assignMenus(Long roleId, List<Long> menuIds);
-
-    /**
-     * 分配API权限
+     * 分配权限
      */
     void assignPermissions(Long roleId, List<Long> permissionIds);
 
     /**
-     * 获取角色的菜单ID列表
+     * 分配菜单
+     */
+    void assignMenus(Long roleId, List<Long> menuIds);
+
+    /**
+     * 分页查询角色
+     */
+    Page<SysRole> pageRoles(Page<SysRole> page, Long tenantId, String roleName, Integer status);
+
+    /**
+     * 获取角色权限列表
+     */
+    List<Long> getRolePermissionIds(Long roleId);
+
+    /**
+     * 获取角色菜单列表
      */
     List<Long> getRoleMenuIds(Long roleId);
 
     /**
-     * 获取角色的权限ID列表
+     * 获取用户角色列表
      */
-    List<Long> getRolePermissionIds(Long roleId);
+    List<SysRole> getUserRoles(Long userId);
 
     /**
      * 启用/禁用角色
      */
     void updateRoleStatus(Long roleId, Integer status);
-
-    /**
-     * 检查角色编码是否存在
-     */
-    boolean checkRoleCodeExists(String roleCode, Long tenantId, Long excludeId);
 }

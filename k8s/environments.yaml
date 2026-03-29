@@ -1,0 +1,289 @@
+# AI-Ready Kubernetes Environment Configurations
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+
+# Development Environment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-dev
+  labels:
+    app: ai-ready-api
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-ready-api
+      env: dev
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        env: dev
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/CozyNook/ai-ready:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "development"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres.ai-ready-dev.svc.cluster.local:5432/ai-ready"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_REDIS_HOST
+              value: "redis.ai-ready-dev.svc.cluster.local"
+            - name: SPRING_REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-dev
+  labels:
+    env: dev
+spec:
+  selector:
+    app: ai-ready-api
+    env: dev
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+# Staging Environment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-staging
+  labels:
+    app: ai-ready-api
+    env: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-ready-api
+      env: staging
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        env: staging
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/CozyNook/ai-ready:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres.ai-ready-staging.svc.cluster.local:5432/ai-ready"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_REDIS_HOST
+              value: "redis.ai-ready-staging.svc.cluster.local"
+            - name: SPRING_REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-staging
+  labels:
+    env: staging
+spec:
+  selector:
+    app: ai-ready-api
+    env: staging
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+# Production Environment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+  labels:
+    app: ai-ready-api
+    env: prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-ready-api
+      env: prod
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        env: prod
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/CozyNook/ai-ready:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres.ai-ready-prod.svc.cluster.local:5432/ai-ready"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_REDIS_HOST
+              value: "redis.ai-ready-prod.svc.cluster.local"
+            - name: SPRING_REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-Xms1024m -Xmx2048m -XX:+UseG1GC"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1000m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+  labels:
+    env: prod
+spec:
+  selector:
+    app: ai-ready-api
+    env: prod
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+# Horizontal Pod Autoscaler for Production
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

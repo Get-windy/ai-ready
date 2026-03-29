@@ -1,0 +1,193 @@
+# AlertManager Configuration for AI-Ready Project
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+
+global:
+  resolve_timeout: 5m
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  wechat_api_secret: 'your-wechat-secret-here'
+  wechat_api_corp_id: 'your-corp-id-here'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'wehcom-default'
+  routes:
+    # Critical alerts go to WeCom and email
+    - match:
+        severity: critical
+      receiver: 'wehcom-critical'
+      continue: true
+    - match:
+        severity: critical
+      receiver: 'email-critical'
+
+    # Warning alerts go to WeCom
+    - match:
+        severity: warning
+      receiver: 'wehcom-warning'
+
+    # Business alerts go to business team
+    - match:
+        team: business
+      receiver: 'wehcom-business'
+
+    # DevOps alerts go to devops team
+    - match:
+        team: devops
+      receiver: 'wehcom-devops'
+
+    # Backend alerts go to backend team
+    - match:
+        team: backend
+      receiver: 'wehcom-backend'
+
+    # AI team alerts
+    - match:
+        team: ai
+      receiver: 'wehcom-ai'
+
+receivers:
+  # Default WeCom receiver
+  - name: 'wehcom-default'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '1'
+        message: '【{{ .Status | toUpper }}】{{ .CommonAnnotations.summary }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # Critical alerts to WeCom (immediate notification)
+  - name: 'wehcom-critical'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '1'
+        message: '【{{ .Status | toUpper }}】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+      - send_resolved: true
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+        message: '【P0 - 紧急】{{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+
+  # Warning alerts to WeCom
+  - name: 'wehcom-warning'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '1'
+        message: '【WARNING】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # Business team alerts
+  - name: 'wehcom-business'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '2'
+        message: '【业务告警】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # DevOps team alerts
+  - name: 'wehcom-devops'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '3'
+        message: '【运维告警】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # Backend team alerts
+  - name: 'wehcom-backend'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '4'
+        message: '【后端告警】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # AI team alerts
+  - name: 'wehcom-ai'
+    wechat_configs:
+      - send_resolved: true
+        to_party: '5'
+        message: '【AI告警】[{{ .CommonAnnotations.team }}] {{ .CommonAnnotations.summary }}'
+        description: '{{ .CommonAnnotations.description }}'
+        url: '{{ .CommonAnnotations.runbook_url }}'
+        agent_id: '1000002'
+        api_secret: '{{ .global.wechat_api_secret }}'
+        corp_id: '{{ .global.wechat_api_corp_id }}'
+
+  # Email receiver for critical alerts
+  - name: 'email-critical'
+    email_configs:
+      - to: 'devops@ai-ready.io,backend@ai-ready.io'
+        from: 'alertmanager@ai-ready.io'
+        smarthost: 'smtp.ai-ready.io:587'
+        auth_username: 'alertmanager@ai-ready.io'
+        auth_password: 'your-smtp-password-here'
+        send_resolved: true
+        headers:
+          Subject: '【P0 - 紧急】{{ .CommonAnnotations.summary }}'
+          Priority: 'high'
+
+# Inhibition rules (notify only the most specific alert)
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+# Time intervals for notification silence
+time_intervals:
+  - name: 'business-hours'
+    time_intervals:
+      - weekdays: ['monday:friday']
+        times:
+          - start_time: '09:00'
+            end_time: '18:00'
+
+  - name: 'after-hours'
+    time_intervals:
+      - weekdays: ['monday:friday']
+        times:
+          - start_time: '18:00'
+            end_time: '09:00'
+      - weekdays: ['saturday:sunday']
+
+# Contact details for notifications
+contact_configs:
+  - name: 'devops-oncall'
+    contact:
+      wechat:
+        - to_party: '3'
+          agent_id: '1000002'
+      email:
+        - devops@ai-ready.io
+      page:
+        - url: 'https://pagerduty.ai-ready.io/'

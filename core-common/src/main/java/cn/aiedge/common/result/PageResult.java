@@ -16,19 +16,6 @@ public record PageResult<T>(
     long pages
 ) {
     /**
-     * 从MyBatis-Plus Page转换
-     */
-    public static <T> PageResult<T> of(com.baomidou.mybatisplus.extension.plugins.pagination.Page<T> page) {
-        return new PageResult<>(
-            page.getRecords(),
-            page.getTotal(),
-            page.getCurrent(),
-            page.getSize(),
-            page.getPages()
-        );
-    }
-
-    /**
      * 创建空分页
      */
     public static <T> PageResult<T> empty(long current, long size) {

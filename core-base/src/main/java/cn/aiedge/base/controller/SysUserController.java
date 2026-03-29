@@ -105,7 +105,9 @@ public class SysUserController {
     @GetMapping("/page")
     @SaCheckPermission("user:list")
     public Result<Page<SysUser>> pageUsers(UserDTO.Query query) {
-        Page<SysUser> page = new Page<>(query.pageNum(), query.pageSize());
+        int pageNum = query.pageNum() != null ? query.pageNum() : 1;
+        int pageSize = query.pageSize() != null ? query.pageSize() : 10;
+        Page<SysUser> page = new Page<>(pageNum, pageSize);
         Page<SysUser> result = userService.pageUsers(page, query.tenantId(),
                 query.username(), query.status(), query.deptId());
         return Result.ok(result);

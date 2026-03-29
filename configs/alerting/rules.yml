@@ -1,0 +1,239 @@
+# Alert Rules for AI-Ready Project
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+
+groups:
+  # System Metrics Alerts
+  - name: system-alerts
+    rules:
+      # CPU Usage Alert
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 80% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/system-cpu-high"
+
+      # Memory Usage Alert
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "High memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 85% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/system-memory-high"
+
+      # Disk Usage Alert
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "High disk usage detected on {{ $labels.instance }}"
+          description: "Disk usage is above 80% on {{ $labels.mountpoint }} (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/system-disk-high"
+
+      # Network Traffic Alert
+      - alert: HighNetworkTraffic
+        expr: sum by(instance) (rate(node_network_receive_bytes_total[5m])) > 100000000
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "High network traffic detected on {{ $labels.instance }}"
+          description: "Network traffic is above 100MB/s (current value: {{ $value | humanize }}B/s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/system-network-high"
+
+  # Application Metrics Alerts
+  - name: application-alerts
+    rules:
+      # API Response Time Alert
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, instance)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High API latency detected on {{ $labels.instance }}"
+          description: "P99 API response time is above 2s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/app-api-latency-high"
+
+      # API Error Rate Alert
+      - alert: HighAPIErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / sum(rate(http_server_requests_seconds_count[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High API error rate detected on {{ $labels.instance }}"
+          description: "API error rate is above 5% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/app-api-error-high"
+
+      # Thread Pool Usage Alert
+      - alert: HighThreadPoolUsage
+        expr: spring_thread_pool_active_threads > 500
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High thread pool usage detected on {{ $labels.instance }}"
+          description: "Thread pool active threads is above 500 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/app-threadpool-high"
+
+      # Database Connection Pool Alert
+      - alert: HighDatabaseConnectionUsage
+        expr: spring_datasource_connections_active > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High database connection usage detected on {{ $labels.instance }}"
+          description: "Database connection pool usage is above 80% (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/app-db-connection-high"
+
+  # Redis Alerts
+  - name: redis-alerts
+    rules:
+      # Redis Memory Alert
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High Redis memory usage detected on {{ $labels.instance }}"
+          description: "Redis memory usage is above 80% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/redis-memory-high"
+
+      # Redis Connections Alert
+      - alert: HighRedisConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High Redis connections detected on {{ $labels.instance }}"
+          description: "Redis connected clients is above 100 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/redis-connections-high"
+
+  # PostgreSQL Alerts
+  - name: postgresql-alerts
+    rules:
+      # PostgreSQL Connections Alert
+      - alert: HighPostgresConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High PostgreSQL connections detected on {{ $labels.instance }}"
+          description: "PostgreSQL active connections is above 80 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/postgres-connections-high"
+
+      # PostgreSQL Replication Lag Alert
+      - alert: PostgresReplicationLag
+        expr: pg_replication_lag > 10
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "PostgreSQL replication lag detected on {{ $labels.instance }}"
+          description: "Replication lag is above 10s (current value: {{ $value }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/postgres-replication-lag"
+
+      # PostgreSQL Deadlocks Alert
+      - alert: PostgresDeadlocks
+        expr:increase(pg_stat_database_deadlocks[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "PostgreSQL deadlocks detected on {{ $labels.instance }}"
+          description: "Deadlocks occurred in the last 5 minutes"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/postgres-deadlocks"
+
+  # Business Metrics Alerts
+  - name: business-alerts
+    rules:
+      # Order Creation Success Rate
+      - alert: LowOrderSuccessRate
+        expr: rate(order_create_success_total[5m]) / rate(order_create_total[5m]) * 100 < 99
+        for: 5m
+        labels:
+          severity: critical
+          team: business
+        annotations:
+          summary: "Low order creation success rate detected"
+          description: "Order creation success rate is below 99% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/business-order-success-low"
+
+      # Payment Success Rate
+      - alert: LowPaymentSuccessRate
+        expr: rate(payment_success_total[5m]) / rate(payment_total[5m]) * 100 < 95
+        for: 5m
+        labels:
+          severity: critical
+          team: business
+        annotations:
+          summary: "Low payment success rate detected"
+          description: "Payment success rate is below 95% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/business-payment-success-low"
+
+      # Agent Call Success Rate
+      - alert: LowAgentCallSuccessRate
+        expr: rate(agent_call_success_total[5m]) / rate(agent_call_total[5m]) * 100 < 99
+        for: 5m
+        labels:
+          severity: critical
+          team: ai
+        annotations:
+          summary: "Low Agent call success rate detected"
+          description: "Agent call success rate is below 99% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/business-agent-call-success-low"
+
+  # Service Availability Alerts
+  - name: availability-alerts
+    rules:
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/availability-service-down"
+
+      # Service High Latency
+      - alert: ServiceHighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, instance)) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "Service {{ $labels.instance }} has high latency"
+          description: "P95 response time is above 5s"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/availability-service-latency-high"

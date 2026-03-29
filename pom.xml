@@ -29,11 +29,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
         <!-- Spring Boot -->
-        <spring-boot.version>3.2.5</spring-boot.version>
+        <spring-boot.version>3.2.12</spring-boot.version>
         
         <!-- 数据库 -->
         <postgresql.version>42.7.3</postgresql.version>
-        <mybatis-plus.version>3.5.5</mybatis-plus.version>
+        <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
         
         <!-- 安全 -->
         <sa-token.version>1.37.0</sa-token.version>
@@ -68,10 +68,10 @@
                 <version>${postgresql.version}</version>
             </dependency>
 
-            <!-- MyBatis-Plus -->
+            <!-- MyBatis-Plus (Spring Boot 3 Starter) -->
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <dependency>
@@ -179,6 +179,7 @@
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <encoding>${project.build.sourceEncoding}</encoding>
+                        <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
@@ -217,5 +218,6 @@
         <module>core-common</module>
         <module>core-base</module>
         <module>core-api</module>
+        <module>crm-customer</module>
     </modules>
 </project>

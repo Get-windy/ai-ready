@@ -1,0 +1,374 @@
+# AI-Ready CI/CD Pipeline
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+
+name: AI-Ready CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/*
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'Dockerfile*'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'Dockerfile*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+  NPM_REGISTRY: 'https://registry.npmjs.org'
+
+jobs:
+  # 1. 代码检查
+  lint:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Maven Code Analysis
+        run: |
+          mvn clean verify -B \
+            -Dpmd.skip=false \
+            -Dcheckstyle.skip=false \
+            -Dspotbugs.skip=false \
+            -Djacoco.skip=false \
+            -Dsonar.skip=true
+
+  # 2. 单元测试
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Unit Tests
+        run: |
+          mvn test -B
+          echo "Test results: ${{ needs.test.outputs.coverage }}"
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          retention-days: 7
+
+  # 3. 构建应用
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        id: build
+        run: |
+          mvn clean package -B -DskipTests
+          echo "Build completed successfully"
+
+      - name: Set version from pom.xml
+        id: version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Application version: ${VERSION}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-ready-app
+          path: target/*.jar
+          retention-days: 7
+
+  # 4. Docker构建
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ needs.build.outputs.version }}
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=long
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 5. 部署到开发环境
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+    environment:
+      name: dev
+      url: https://dev.ai-ready.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-ready-app
+          path: target
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_DEV }}
+
+      - name: Deploy to Dev
+        run: |
+          kubectl apply -f k8s/dev/
+          kubectl rollout status deployment/ai-ready-api -n dev -w --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n dev -l app=ai-ready-api
+          kubectl get svc -n dev ai-ready-api
+
+  # 6. 部署到预发布环境
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build, deploy-dev]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.ai-ready.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-ready-app
+          path: target
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Deploy to Staging
+        run: |
+          kubectl apply -f k8s/staging/
+          kubectl rollout status deployment/ai-ready-api -n staging -w --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n staging -l app=ai-ready-api
+          kubectl get svc -n staging ai-ready-api
+
+  # 7. 部署到生产环境
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, deploy-staging]
+    if: github.event.inputs.environment == 'prod'
+    environment:
+      name: prod
+      url: https://prod.ai-ready.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-ready-app
+          path: target
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PROD }}
+
+      - name: Deploy to Production
+        run: |
+          kubectl apply -f k8s/prod/
+          kubectl rollout status deployment/ai-ready-api -n prod -w --timeout=600s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n prod -l app=ai-ready-api
+          kubectl get svc -n prod ai-ready-api
+
+  # 8. 后端构建（Maven）
+  maven-build:
+    name: Maven Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: |
+          mvn clean package -B -DskipTests -Dmaven.test.skip=true
+          echo "Maven build completed"
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: core-api/target/*.jar
+          retention-days: 7
+
+  # 9. 前端构建（npm）
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: ${{ env.NPM_REGISTRY }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build:prod
+        env:
+          CI: false
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist
+          retention-days: 7
+
+  # 10. 集成测试
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [build, docker-build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Integration Tests
+        run: |
+          mvn verify -B -Dtest=**/it/** -Dfailsafe.rerunFailingTestsCount=2
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: target/failsafe-reports/
+          retention-days: 7

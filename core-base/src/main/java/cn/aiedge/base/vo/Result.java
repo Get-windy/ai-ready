@@ -1,7 +1,5 @@
 package cn.aiedge.base.vo;
 
-import lombok.Data;
-
 /**
  * 统一响应结果
  * 使用 Java 17 Sealed Interface
@@ -14,7 +12,6 @@ public sealed interface Result<T> permits Result.Success, Result.Failure {
     /**
      * 成功响应
      */
-    @Data
     record Success<T>(int code, String message, T data) implements Result<T> {
         public Success(T data) {
             this(200, "操作成功", data);
@@ -28,7 +25,6 @@ public sealed interface Result<T> permits Result.Success, Result.Failure {
     /**
      * 失败响应
      */
-    @Data
     record Failure<T>(int code, String message, T data) implements Result<T> {
         public Failure(String message) {
             this(500, message, null);

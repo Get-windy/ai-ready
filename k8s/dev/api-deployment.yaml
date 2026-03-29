@@ -1,0 +1,159 @@
+# AI-Ready API Deployment - Kubernetes
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/CozyNook/ai-ready:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres.ai-ready.svc.cluster.local:5432/ai-ready"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_REDIS_HOST
+              value: "redis.ai-ready.svc.cluster.local"
+            - name: SPRING_REDIS_PORT
+              value: "6379"
+            - name: SPRING_ROCKETMQ_NAME_SERVER
+              value: "rocketmq-namesrv.ai-ready.svc.cluster.local:9876"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ai-ready-config
+        - name: logs
+          emptyDir: {}
+---
+# API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+spec:
+  selector:
+    app: ai-ready-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-ready-ingress
+  namespace: ai-ready
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: ai-ready.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-ready-api
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - ai-ready.local
+      secretName: ai-ready-tls

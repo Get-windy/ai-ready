@@ -2,7 +2,6 @@ package cn.aiedge.base.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 
 /**
  * 用户数据传输对象
@@ -16,7 +15,6 @@ public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.
     /**
      * 创建用户DTO
      */
-    @Data
     record Create(
             Long tenantId,
             @NotBlank(message = "用户名不能为空")
@@ -38,7 +36,6 @@ public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.
     /**
      * 更新用户DTO
      */
-    @Data
     record Update(
             Long id,
             String nickname,
@@ -53,7 +50,6 @@ public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.
     /**
      * 查询用户DTO
      */
-    @Data
     record Query(
             Long tenantId,
             String username,
@@ -66,7 +62,6 @@ public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.
     /**
      * 登录DTO
      */
-    @Data
     record Login(
             @NotBlank(message = "用户名不能为空")
             String username,

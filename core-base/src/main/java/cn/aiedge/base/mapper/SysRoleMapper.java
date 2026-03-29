@@ -41,4 +41,14 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
     int checkRoleCodeExists(@Param("roleCode") String roleCode, 
                             @Param("tenantId") Long tenantId,
                             @Param("excludeId") Long excludeId);
+
+    /**
+     * 获取角色的权限ID列表
+     */
+    List<Long> selectPermissionIdsByRoleId(@Param("roleId") Long roleId);
+
+    /**
+     * 获取角色的菜单ID列表
+     */
+    List<Long> selectMenuIdsByRoleId(@Param("roleId") Long roleId);
 }
