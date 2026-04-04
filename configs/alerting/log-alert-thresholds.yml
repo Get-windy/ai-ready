@@ -1,0 +1,210 @@
+# AI-Ready Log Alert Thresholds Configuration
+# 日志告警阈值配置
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+# ========================================
+# 告警阈值配置
+# ========================================
+
+thresholds:
+  # ========================================
+  # 错误日志阈值
+  # ========================================
+  error-logs:
+    # 每分钟错误日志数量阈值
+    error_rate_per_minute:
+      warning: 10      # 警告级别阈值
+      critical: 50     # 严重级别阈值
+      
+    # 每小时错误日志数量阈值
+    error_rate_per_hour:
+      warning: 300
+      critical: 1000
+      
+    # 特定错误关键词阈值
+    critical_errors:
+      NullPointerException: 1      # 任何数量都触发
+      OutOfMemoryError: 1
+      StackOverflowError: 1
+      DatabaseConnectionError: 3
+      RedisConnectionError: 3
+      
+  # ========================================
+  # 异常日志阈值
+  # ========================================
+  exception-logs:
+    # 异常类型阈值 (5分钟内)
+    exception_rate_5m:
+      NullPointerException: 3
+      SQLException: 5
+      TimeoutException: 10
+      IOException: 10
+      
+    # 异常频率增长率阈值
+    exception_growth_rate:
+      warning: 50%     # 相比上一周期增长50%
+      critical: 100%   # 相比上一周期增长100%
+
+  # ========================================
+  # 安全日志阈值
+  # ========================================
+  security-logs:
+    # 认证失败阈值 (5分钟内)
+    auth_failure_rate_5m:
+      warning: 10
+      critical: 50
+      
+    # 可疑活动阈值
+    suspicious_activity:
+      sql_injection_pattern: 1     # 任何SQL注入模式
+      xss_pattern: 1               # 任何XSS模式
+      brute_force_attempts: 10     # 10次暴力破解尝试
+      
+    # IP黑名单命中阈值
+    ip_blacklist_hits:
+      warning: 5
+      critical: 20
+
+  # ========================================
+  # 性能日志阈值
+  # ========================================
+  performance-logs:
+    # 响应时间阈值 (ms)
+    response_time:
+      warning: 3000    # 3秒
+      critical: 10000  # 10秒
+      
+    # 慢请求阈值 (5分钟内)
+    slow_requests_5m:
+      warning: 10
+      critical: 50
+      
+    # GC相关阈值
+    gc_duration_ms:
+      warning: 500
+      critical: 2000
+      
+    # 内存使用率阈值 (%)
+    memory_usage_percent:
+      warning: 80
+      critical: 90
+
+  # ========================================
+  # 业务日志阈值
+  # ========================================
+  business-logs:
+    # 订单处理失败阈值 (5分钟内)
+    order_failures_5m:
+      warning: 5
+      critical: 20
+      
+    # 支付处理失败阈值 (5分钟内)
+    payment_failures_5m:
+      warning: 1
+      critical: 5
+      
+    # AI模型推理失败阈值 (5分钟内)
+    ai_inference_failures_5m:
+      warning: 5
+      critical: 20
+
+  # ========================================
+  # 系统日志阈值
+  # ========================================
+  system-logs:
+    # 服务重启次数 (1小时内)
+    service_restart_1h:
+      warning: 3
+      critical: 10
+      
+    # 配置变更次数 (1小时内)
+    config_changes_1h:
+      warning: 5
+      critical: 20
+
+# ========================================
+# 告警抑制配置
+# ========================================
+inhibition:
+  # 同一告警重复通知间隔 (分钟)
+  repeat_interval:
+    critical: 5
+    warning: 30
+    info: 60
+    
+  # 告警聚合窗口 (秒)
+  group_wait: 10
+  group_interval: 30
+  
+  # 告警抑制规则
+  rules:
+    # 当严重告警触发时，抑制同类型的警告告警
+    - source_match:
+        severity: critical
+      target_match:
+        severity: warning
+      equal: [alertname, service]
+      
+    # 当服务不可用时，抑制该服务的其他告警
+    - source_match:
+        alertname: ServiceDown
+      target_match_re:
+        alertname: ".*"
+      equal: [service]
+      
+    # 维护窗口抑制
+    - source_match:
+        maintenance: "true"
+      target_match_re:
+        alertname: ".*"
+
+# ========================================
+# 告警级别配置
+# ========================================
+severity_levels:
+  critical:
+    name: "严重"
+    color: "#FF0000"
+    sound: true
+    sms: true
+    phone: true
+    response_time: "5分钟"
+    
+  warning:
+    name: "警告"
+    color: "#FFA500"
+    sound: true
+    sms: true
+    phone: false
+    response_time: "30分钟"
+    
+  info:
+    name: "信息"
+    color: "#00FF00"
+    sound: false
+    sms: false
+    phone: false
+    response_time: "2小时"
+
+# ========================================
+# 告警时间段配置
+# ========================================
+time_windows:
+  # 工作时间 (09:00-18:00)
+  business_hours:
+    start: "09:00"
+    end: "18:00"
+    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    
+  # 非工作时间
+  after_hours:
+    start: "18:00"
+    end: "09:00"
+    weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    
+  # 静默时间 (仅通知critical级别)
+  silent_hours:
+    start: "22:00"
+    end: "07:00"
+    suppress_below: critical

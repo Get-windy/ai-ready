@@ -1,0 +1,130 @@
+# AI-Ready GitLab CI/CD 配置
+# 完整镜像构建流水线
+
+stages:
+  - build
+  - test
+  - package
+  - security
+  - deploy
+
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
+  IMAGE_TAG: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+  IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:latest
+
+# ============ 缓存配置 ============
+cache:
+  key: ${CI_JOB_NAME}
+  paths:
+    - .m2/repository/
+
+# ============ 构建阶段 ============
+build:
+  stage: build
+  image: eclipse-temurin:21-jdk-alpine
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS compile -DskipTests
+  artifacts:
+    paths:
+      - core-api/target/classes/
+    expire_in: 1 hour
+
+# ============ 测试阶段 ============
+test:
+  stage: test
+  image: eclipse-temurin:21-jdk-alpine
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    reports:
+      junit:
+        - core-api/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+
+# ============ 打包阶段 ============
+package:
+  stage: package
+  image: eclipse-temurin:21-jdk-alpine
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    paths:
+      - core-api/target/*.jar
+    expire_in: 1 day
+
+# ============ Docker镜像构建 ============
+docker-build:
+  stage: package
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
+        TAGS="$IMAGE_TAG $IMAGE_LATEST"
+      else
+        TAGS="$IMAGE_TAG"
+      fi
+    - docker build
+      --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      --build-arg VERSION=$CI_COMMIT_REF_NAME
+      -t $IMAGE_TAG
+      -t $IMAGE_LATEST
+      -f docker/Dockerfile.api
+      .
+    - docker push $IMAGE_TAG
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
+        docker push $IMAGE_LATEST
+      fi
+  only:
+    - main
+    - develop
+    - tags
+
+# ============ 安全扫描 ============
+security-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE_TAG
+  allow_failure: true
+  only:
+    - main
+    - develop
+
+# ============ 部署到开发环境 ============
+deploy-dev:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl config use-context dev-cluster
+    - kubectl set image deployment/ai-ready-api ai-ready-api=$IMAGE_TAG -n ai-ready-dev
+    - kubectl rollout status deployment/ai-ready-api -n ai-ready-dev
+  environment:
+    name: development
+    url: https://dev.ai-ready.cn
+  only:
+    - develop
+
+# ============ 部署到生产环境 ============
+deploy-prod:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl config use-context prod-cluster
+    - kubectl set image deployment/ai-ready-api ai-ready-api=$IMAGE_TAG -n ai-ready-prod
+    - kubectl rollout status deployment/ai-ready-api -n ai-ready-prod
+  environment:
+    name: production
+    url: https://prod.ai-ready.cn
+  when: manual
+  only:
+    - tags

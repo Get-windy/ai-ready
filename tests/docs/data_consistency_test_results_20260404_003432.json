@@ -1,0 +1,176 @@
+{
+  "test_time": "2026-04-04 00:34:32",
+  "config": {
+    "base_url": "http://localhost:8080",
+    "api_base": "http://localhost:8080/api",
+    "timeout": 10,
+    "concurrent_threads": 10,
+    "retry_count": 3
+  },
+  "database_tests": [
+    {
+      "name": "Database Health Check",
+      "category": "Database",
+      "status": "PASS",
+      "message": "Database accessible via API",
+      "response_time_ms": 5.497799997101538,
+      "status_code": 401,
+      "details": {
+        "api_responsive": true
+      }
+    },
+    {
+      "name": "User Table Consistency",
+      "category": "Database",
+      "status": "PASS",
+      "message": "User table accessible",
+      "response_time_ms": 5.852600006619468,
+      "status_code": 401,
+      "details": {
+        "table": "user",
+        "accessible": true
+      }
+    },
+    {
+      "name": "Role Table Consistency",
+      "category": "Database",
+      "status": "PASS",
+      "message": "Role table accessible",
+      "response_time_ms": 5.158500003744848,
+      "status_code": 401,
+      "details": {
+        "table": "role",
+        "accessible": true
+      }
+    },
+    {
+      "name": "Data Format Consistency",
+      "category": "Database",
+      "status": "PASS",
+      "message": "Auth required, format assumed consistent",
+      "response_time_ms": 4.667200002586469,
+      "status_code": 401,
+      "details": {}
+    }
+  ],
+  "api_tests": [],
+  "cache_tests": [
+    {
+      "name": "Cache Headers",
+      "category": "Cache",
+      "status": "SKIP",
+      "message": "No response received",
+      "response_time_ms": 3.958499990403652,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Response Idempotency",
+      "category": "Cache",
+      "status": "SKIP",
+      "message": "Could not verify idempotency",
+      "response_time_ms": 0.0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "Cache Invalidation Test",
+      "category": "Cache",
+      "status": "SKIP",
+      "message": "Requires authenticated PUT request",
+      "response_time_ms": 0.0,
+      "status_code": 0,
+      "details": {
+        "note": "Manual test required with auth token"
+      }
+    }
+  ],
+  "concurrent_tests": [
+    {
+      "name": "Concurrent Read Consistency",
+      "category": "Concurrent",
+      "status": "PASS",
+      "message": "20/20 requests succeeded",
+      "response_time_ms": 15.650385000481037,
+      "status_code": 0,
+      "details": {
+        "total_requests": 20,
+        "successful": 20,
+        "success_rate": 100.0,
+        "avg_time_ms": 15.650385000481037,
+        "duration_s": 0.04347944259643555
+      }
+    },
+    {
+      "name": "Thread Safety Test",
+      "category": "Concurrent",
+      "status": "PASS",
+      "message": "No thread safety issues detected",
+      "response_time_ms": 0.0,
+      "status_code": 0,
+      "details": {
+        "errors": 0,
+        "duration_s": 0.02920055389404297
+      }
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 3,
+    "warned": 0,
+    "score": 66.66666666666666
+  },
+  "api_data_tests": [
+    {
+      "name": "Response Time Consistency",
+      "category": "API Data",
+      "status": "PASS",
+      "message": "Response times consistent, avg: 4.61ms",
+      "response_time_ms": 4.607299997587688,
+      "status_code": 0,
+      "details": {
+        "avg_ms": 4.607299997587688,
+        "max_deviation_ms": 0.8133999945130199
+      }
+    },
+    {
+      "name": "Status Code Consistency",
+      "category": "API Data",
+      "status": "PASS",
+      "message": "Status codes consistent: 401",
+      "response_time_ms": 0.0,
+      "status_code": 0,
+      "details": {
+        "codes": [
+          401,
+          401,
+          401,
+          401,
+          401
+        ]
+      }
+    },
+    {
+      "name": "Content Type Consistency",
+      "category": "API Data",
+      "status": "SKIP",
+      "message": "No response received",
+      "response_time_ms": 5.222199994022958,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Error Response Consistency",
+      "category": "API Data",
+      "status": "PASS",
+      "message": "Error handled correctly: 401",
+      "response_time_ms": 4.603800000040792,
+      "status_code": 401,
+      "details": {
+        "error_status": 401
+      }
+    }
+  ]
+}

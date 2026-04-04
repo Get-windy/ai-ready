@@ -1,0 +1,254 @@
+# AI-Ready 完整容器编排配置
+# Version: v2.0.0
+# 适用于开发/测试/生产环境
+
+version: '3.8'
+
+# ==================== 全局配置 ====================
+x-common-env: &common-env
+  TZ: Asia/Shanghai
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+
+x-healthcheck-config: &healthcheck-config
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 60s
+
+# ==================== 服务配置 ====================
+services:
+  # ============ 核心API服务 ============
+  api:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.api
+      args:
+        - BUILD_DATE=${BUILD_DATE:-2026-04-04}
+        - VERSION=${VERSION:-1.0.0}
+    image: ai-ready/api:${VERSION:-latest}
+    container_name: ai-ready-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      <<: *common-env
+      JAVA_OPTS: >-
+        -Xms512m -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+UseStringDeduplication
+        -Dspring.datasource.url=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ai_ready}
+        -Dspring.datasource.username=${POSTGRES_USER:-ai_ready}
+        -Dspring.datasource.password=${POSTGRES_PASSWORD:-ai_ready2026}
+        -Dspring.redis.host=redis
+        -Dspring.redis.port=6379
+        -Dspring.redis.password=${REDIS_PASSWORD:-}
+        -Dnacos.server-addr=nacos:8848
+    volumes:
+      - api-logs:/app/logs
+      - api-config:/app/config:ro
+    networks:
+      - ai-ready-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck-config
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # ============ PostgreSQL 数据库 ============
+  postgres:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ai_ready}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_ready2026}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_ready}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ai-ready-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_ready} -d ${POSTGRES_DB:-ai_ready}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ============ Redis 缓存 ============
+  redis:
+    image: redis:7-alpine
+    container_name: ai-ready-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis-data:/data
+    networks:
+      - ai-ready-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============ Nacos 配置中心 ============
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: ai-ready-nacos
+    restart: unless-stopped
+    ports:
+      - "${NACOS_PORT:-8848}:8848"
+      - "9848:9848"
+      - "9849:9849"
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nacos?useUnicode=true&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ai_ready}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ai_ready2026}
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-SecretKey012345678901234567890123456789012345678901234567890123456789}
+      NACOS_AUTH_IDENTITY_KEY: serverIdentity
+      NACOS_AUTH_IDENTITY_VALUE: security
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+    volumes:
+      - nacos-logs:/home/nacos/logs
+    networks:
+      - ai-ready-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============ Agent 服务 (可选) ============
+  # agent:
+  #   build:
+  #     context: ../core-agent
+  #     dockerfile: ../docker/Dockerfile.agent
+  #   image: ai-ready/agent:${VERSION:-latest}
+  #   container_name: ai-ready-agent
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${AGENT_PORT:-8000}:8000"
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  #     REDIS_URL: redis://redis:6379
+  #     NACOS_ADDR: nacos:8848
+  #   networks:
+  #     - ai-ready-net
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+  # ============ Nginx 网关 (可选) ============
+  nginx:
+    image: nginx:alpine
+    container_name: ai-ready-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    networks:
+      - ai-ready-net
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ==================== 网络配置 ====================
+networks:
+  ai-ready-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+# ==================== 数据卷配置 ====================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  nacos-logs:
+    driver: local
+  api-logs:
+    driver: local
+  api-config:
+    driver: local
+  nginx-logs:
+    driver: local

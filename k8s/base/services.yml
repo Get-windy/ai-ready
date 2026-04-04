@@ -1,0 +1,88 @@
+# AI-Ready K8s Services - 服务发现配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-ready-api
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  - port: 8081
+    targetPort: 8081
+    name: management
+---
+# Headless Service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api-headless
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: ai-ready-api
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: ai-ready
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: ai-ready
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: redis
+---
+# AI Engine Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-engine
+  namespace: ai-ready
+  labels:
+    app: ai-engine
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-engine
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http

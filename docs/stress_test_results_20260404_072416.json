@@ -1,0 +1,110 @@
+{
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%",
+    "start_time": "2026-04-04T07:23:34.198605",
+    "end_time": "2026-04-04T07:24:16.337687"
+  },
+  "tests": [
+    {
+      "category": "并发压力测试",
+      "name": "50并发100请求",
+      "status": "PASS",
+      "message": "成功率: 100.0%, 平均响应: 66.36ms",
+      "duration_ms": 241.56,
+      "timestamp": "2026-04-04T07:23:34.440303",
+      "metrics": {
+        "success_rate": 100.0,
+        "avg_response_ms": 66.35679960250854
+      }
+    },
+    {
+      "category": "并发压力测试",
+      "name": "100并发200请求",
+      "status": "PASS",
+      "message": "成功率: 100.0%, 平均响应: 60.00ms",
+      "duration_ms": 423.11,
+      "timestamp": "2026-04-04T07:23:34.863446",
+      "metrics": {
+        "success_rate": 100.0,
+        "avg_response_ms": 59.99603629112244
+      }
+    },
+    {
+      "category": "持续负载测试",
+      "name": "10秒持续负载",
+      "status": "PASS",
+      "message": "RPS: 161.44, 成功: 1615, 失败: 0",
+      "duration_ms": 10003.84,
+      "timestamp": "2026-04-04T07:23:44.867845",
+      "metrics": {
+        "rps": 161.43808139764204,
+        "success": 1615,
+        "errors": 0
+      }
+    },
+    {
+      "category": "持续负载测试",
+      "name": "30秒持续负载",
+      "status": "PASS",
+      "message": "RPS: 177.75, 成功: 5333, 失败: 0",
+      "duration_ms": 30002.8,
+      "timestamp": "2026-04-04T07:24:14.870687",
+      "metrics": {
+        "rps": 177.75008520682528,
+        "success": 5333,
+        "errors": 0
+      }
+    },
+    {
+      "category": "峰值压力测试",
+      "name": "突发100请求",
+      "status": "PASS",
+      "message": "成功率: 100.0%, P95: 57.53ms",
+      "duration_ms": 182.89,
+      "timestamp": "2026-04-04T07:24:15.053662",
+      "metrics": {
+        "success_rate": 100.0,
+        "p95_ms": 57.52825736999512
+      }
+    },
+    {
+      "category": "峰值压力测试",
+      "name": "突发500请求",
+      "status": "PASS",
+      "message": "成功率: 100.0%, P95: 134.91ms",
+      "duration_ms": 863.37,
+      "timestamp": "2026-04-04T07:24:15.917118",
+      "metrics": {
+        "success_rate": 100.0,
+        "p95_ms": 134.91058349609375
+      }
+    },
+    {
+      "category": "混合场景压力测试",
+      "name": "读写混合150请求",
+      "status": "PASS",
+      "message": "读取成功: 100/100, 写入成功: 50/50",
+      "duration_ms": 258.1,
+      "timestamp": "2026-04-04T07:24:16.176571",
+      "metrics": {
+        "read_success": 100,
+        "write_success": 50
+      }
+    },
+    {
+      "category": "混合场景压力测试",
+      "name": "API混合100请求",
+      "status": "PASS",
+      "message": "处理数: 100/100",
+      "duration_ms": 160.7,
+      "timestamp": "2026-04-04T07:24:16.337298",
+      "metrics": {
+        "handled": 100
+      }
+    }
+  ]
+}

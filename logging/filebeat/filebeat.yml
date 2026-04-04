@@ -1,0 +1,169 @@
+# AI-Ready Filebeat Configuration
+# Version: v1.0
+# 用于收集应用日志并发送到Logstash/Elasticsearch
+
+# ===================
+# 全局设置
+# ===================
+name: "ai-ready-filebeat"
+
+# ===================
+# 日志输入配置
+# ===================
+filebeat.inputs:
+  # 应用日志 (JSON格式)
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ai-ready/*.log
+      - /var/log/ai-ready/application/*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    json.overwrite_keys: true
+    fields:
+      service: ai-ready-api
+      log_type: application
+    fields_under_root: true
+    multiline:
+      pattern: '^\d{4}-\d{2}-\d{2}'
+      negate: true
+      match: after
+
+  # 访问日志 (Nginx风格)
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+    fields:
+      service: nginx
+      log_type: access
+    fields_under_root: true
+    exclude_lines: ['\.health-check', 'actuator/health']
+
+  # 错误日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ai-ready/error/*.log
+      - /var/log/ai-ready/exceptions/*.log
+    fields:
+      service: ai-ready-api
+      log_type: error
+      priority: high
+    fields_under_root: true
+
+  # GC日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ai-ready/gc/*.log
+    fields:
+      service: ai-ready-api
+      log_type: gc
+    fields_under_root: true
+    multiline:
+      pattern: '^\[GC|^\[Full GC|^\[ParNew|^\[CMS'
+      negate: true
+      match: after
+
+# ===================
+# 处理器配置
+# ===================
+processors:
+  # 添加主机信息
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+
+  # 添加Docker元数据
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      match_fields:
+        - "log.file.path"
+      match_pids:
+        - "process.pid"
+        - "pid"
+
+  # 添加K8s元数据
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+
+  # 解析时间戳
+  - timestamp:
+      field: timestamp
+      layouts:
+        - '2006-01-02T15:04:05.000Z0700'
+        - '2006-01-02 15:04:05'
+      ignore_missing: true
+
+  # 删除敏感字段
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.id", "agent.name", "ecs"]
+      ignore_missing: true
+
+# ===================
+# 输出配置
+# ===================
+# 方式1: 输出到Logstash (推荐)
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  bulk_max_size: 2048
+  compression_level: 3
+  index: "ai-ready"
+
+# 方式2: 直接输出到Elasticsearch (可选)
+# output.elasticsearch:
+#   hosts: ["http://elasticsearch:9200"]
+#   index: "ai-ready-%{[agent.version]}-%{+yyyy.MM.dd}"
+#   username: "${ELASTICSEARCH_USERNAME}"
+#   password: "${ELASTICSEARCH_PASSWORD}"
+
+# 方式3: 输出到Kafka (高吞吐量场景)
+# output.kafka:
+#   hosts: ["kafka1:9092", "kafka2:9092"]
+#   topic: "ai-ready-logs"
+#   partition.round_robin:
+#     reachable_only: true
+#   required_acks: 1
+#   compression: gzip
+
+# ===================
+# 索引模板设置
+# ===================
+setup.template.name: "ai-ready"
+setup.template.pattern: "ai-ready-*"
+setup.template.settings:
+  index.number_of_shards: 3
+  index.number_of_replicas: 1
+  index.refresh_interval: "5s"
+
+# ===================
+# Kibana设置
+# ===================
+setup.kibana:
+  host: "kibana:5601"
+  # username: "${ELASTICSEARCH_USERNAME}"
+  # password: "${ELASTICSEARCH_PASSWORD}"
+
+# ===================
+# 日志设置
+# ===================
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# ===================
+# 监控设置
+# ===================
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]

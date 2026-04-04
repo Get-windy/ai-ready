@@ -1,0 +1,79 @@
+# Prometheus Exporter Configuration for AI-Ready
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+# PostgreSQL Exporter
+postgres_exporter:
+  image: wrouesnel/postgres_exporter:v0.15.0
+  container_name: ai-ready-postgres-exporter
+  ports:
+    - "9187:9187"
+  environment:
+    DATA_SOURCE_NAME: "postgresql://devuser:Dev@2026#Local@postgres:5432/devdb?sslmode=disable"
+  depends_on:
+    - postgres
+  restart: unless-stopped
+
+# Redis Exporter
+redis_exporter:
+  image: oliver006/redis_exporter:v1.55.0
+  container_name: ai-ready-redis-exporter
+  ports:
+    - "9121:9121"
+  environment:
+    REDIS_ADDR: "redis://redis:6379"
+    REDIS_PASSWORD: ""
+  depends_on:
+    - redis
+  restart: unless-stopped
+
+# Node Exporter
+node_exporter:
+  image: prom/node-exporter:v1.6.1
+  container_name: ai-ready-node-exporter
+  ports:
+    - "9100:9100"
+  volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+  command:
+    - '--path.procfs=/host/proc'
+    - '--path.sysfs=/host/sys'
+  restart: unless-stopped
+
+# RocketMQ Exporter
+rocketmq_exporter:
+  image:Iterator/rocketmq-exporter:latest
+  container_name: ai-ready-rocketmq-exporter
+  ports:
+    - "50070:50070"
+  environment:
+    ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
+  depends_on:
+    - rocketmq-namesrv
+  restart: unless-stopped
+
+# AI Model Metrics Exporter (Custom)
+ai_metrics_exporter:
+  image: python:3.11-slim
+  container_name: ai-ready-ai-metrics-exporter
+  ports:
+    - "9200:9200"
+  volumes:
+    - ./configs/metrics/ai_metrics_exporter.py:/app/ai_metrics_exporter.py
+  command: python /app/ai_metrics_exporter.py
+  environment:
+    PROMETHEUS_multiprocess_mode: "true"
+  restart: unless-stopped
+
+#-blackbox_exporter for HTTP/TCP checks
+blackbox_exporter:
+  image: prom/blackbox-exporter:v0.25.0
+  container_name: ai-ready-blackbox-exporter
+  ports:
+    - "9115:9115"
+  volumes:
+    - ./configs/alerting/blackbox.yml:/etc/blackbox_exporter/blackbox.yml
+  restart: unless-stopped

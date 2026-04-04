@@ -1,0 +1,121 @@
+# AI-Ready Deployment with optimized health checks
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: ai-ready-api
+        image: ghcr.io/ai-ready/ai-ready-api:latest
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        
+        # 资源配置
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        
+        # 存活探针 - 检测死锁等严重问题
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # 就绪探针 - 检测服务是否可接收流量
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        # 启动探针 - 处理慢启动
+        startupProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30  # 最多等待150秒启动
+        
+        # 环境变量
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "health,info,metrics,prometheus"
+        - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+          value: "never"
+        - name: MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED
+          value: "true"
+        - name: MANAGEMENT_HEALTH_READINESSSTATE_ENABLED
+          value: "true"
+        
+        # 存储卷挂载
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log/ai-ready
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: ai-ready-config
+      
+      # 优雅关闭
+      terminationGracePeriodSeconds: 60
+      
+      # 安全上下文
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+---
+# 健康检查报告文档
+# 优化要点：
+# 1. 三探针分离: liveness/readiness/startup
+# 2. 启动探针处理慢启动(150s)
+# 3. 就绪探针快速检测(5s周期)
+# 4. 存活探针故障容忍(3次失败)
+# 5. 优雅关闭(60s grace period)

@@ -1,0 +1,48 @@
+# AI-Ready Kibana Configuration
+# Log Visualization and Discovery
+# Version: v1.0
+
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "${ELASTICSEARCH_USERNAME:-elastic}"
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD:-changeme}"
+
+# Security (Disabled for Dev)
+xpack.security.enabled: false
+
+# Discovery (Single Node)
+discovery.type: single-node
+
+# Logging
+logging.dest: /var/log/kibana/kibana.log
+logging.verbose: false
+
+# Dashboard Presets
+dashboard:
+  defaults:
+    timeRestore: true
+    refreshInterval:
+      display: "5 seconds"
+      pause: false
+      value: 5000
+
+# Index Patterns
+contexts:
+  options:
+    showIndexPatternCreator: true
+    showOpenIndexPattern: true
+    showFilterBar: true
+
+# Advanced Settings
+telemetry.enabled: false
+usageCollector.enabled: false
+monitoring.ui.enabled: true
+monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# KQL (Kibana Query Language)
+kibana:
+  defaultIndex: "ai-ready-logs-*"
+  defaultRoute: "/app/discover"

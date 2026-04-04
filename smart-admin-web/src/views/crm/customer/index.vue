@@ -1,145 +1,102 @@
 <template>
-  <div class="crm-customer-page">
-    <!-- 搜索表单 -->
-    <a-card class="search-card" title="客户搜索" :bordered="false">
-      <a-form layout="inline" :model="queryParams" @finish="handleSearch">
-        <a-form-item label="客户名称">
-          <a-input v-model:value="queryParams.name" placeholder="请输入客户名称" allow-clear />
-        </a-form-item>
-        <a-form-item label="客户来源">
-          <a-select v-model:value="queryParams.source" placeholder="请选择客户来源" allow-clear style="width: 150px">
-            <a-select-option value="online">在线广告</a-select-option>
-            <a-select-option value="referer">网站引荐</a-select-option>
-            <a-select-option value="social">社交媒体</a-select-option>
-            <a-select-option value="recommend">口碑推荐</a-select-option>
-            <a-select-option value="expo">展会会议</a-select-option>
-            <a-select-option value="other">其他</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="客户等级">
-          <a-select v-model:value="queryParams.level" placeholder="请选择客户等级" allow-clear style="width: 120px">
-            <a-select-option value="A">A - 重要客户</a-select-option>
-            <a-select-option value="B">B - 潜在客户</a-select-option>
-            <a-select-option value="C">C - 普通客户</a-select-option>
-            <a-select-option value="D">D - 低价值客户</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="状态">
-          <a-select v-model:value="queryParams.status" placeholder="请选择状态" allow-clear style="width: 100px">
-            <a-select-option value="active">活跃</a-select-option>
-            <a-select-option value="inactive">休眠</a-select-option>
-            <a-select-option value="lost">流失</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" html-type="submit">查询</a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-form-item>
+  <div class="customer-management">
+    <!-- 搜索区域 -->
+    <a-card class="search-card" :bordered="false">
+      <a-form layout="inline" :model="searchForm">
+        <a-row :gutter="16" style="width: 100%">
+          <a-col :xs="24" :sm="12" :md="6">
+            <a-form-item label="客户名称">
+              <a-input v-model:value="searchForm.name" placeholder="请输入客户名称" allow-clear />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :md="6">
+            <a-form-item label="客户等级">
+              <a-select v-model:value="searchForm.level" placeholder="请选择等级" allow-clear style="width: 100%">
+                <a-select-option :value="1">VIP客户</a-select-option>
+                <a-select-option :value="2">重要客户</a-select-option>
+                <a-select-option :value="3">普通客户</a-select-option>
+                <a-select-option :value="4">潜在客户</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :md="6">
+            <a-form-item label="状态">
+              <a-select v-model:value="searchForm.status" placeholder="请选择状态" allow-clear style="width: 100%">
+                <a-select-option :value="0">正常</a-select-option>
+                <a-select-option :value="1">停用</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :md="6">
+            <a-form-item>
+              <a-space>
+                <a-button type="primary" @click="handleSearch">搜索</a-button>
+                <a-button @click="handleReset">重置</a-button>
+              </a-space>
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </a-card>
 
-    <!-- 工具栏 -->
-    <a-card class="action-bar" :bordered="false">
-      <div class="action-left">
-        <a-button type="primary" @click="handleAdd">
-          <template #icon><PlusOutlined /></template>
-          新建客户
-        </a-button>
-        <a-button @click="handleImport">
-          <template #icon><ImportOutlined /></template>
-          导入客户
-        </a-button>
-        <a-button @click="handleExport">
-          <template #icon><ExportOutlined /></template>
-          导出客户
-        </a-button>
-      </div>
-      <div class="action-right">
-        <a-space>
-          <a-select v-model:value="queryParams.viewType" style="width: 120px">
-            <a-select-option value="list">列表视图</a-select-option>
-            <a-select-option value="grid">网格视图</a-select-option>
-          </a-select>
-          <a-switch checked-children="仅活跃" un-checked-children="全部" v-model:checked="queryParams.activeOnly" />
-        </a-space>
-      </div>
-    </a-card>
+    <!-- 表格区域 -->
+    <a-card class="table-card" :bordered="false">
+      <template #title>
+        <div class="table-header">
+          <span>客户列表</span>
+          <a-space>
+            <a-button type="primary" @click="handleAdd">新增客户</a-button>
+            <a-button @click="handleExport">导出</a-button>
+          </a-space>
+        </div>
+      </template>
 
-    <!-- 数据表格 -->
-    <a-card>
       <a-table
         :columns="columns"
-        :data-source="dataSource"
+        :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
-        :scroll="{ x: 1200 }"
-        @change="handleTableChange"
         row-key="id"
-        :row-selection="rowSelection"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'name'">
-            <div class="customer-name-cell">
-              <a-avatar
-                :size="32"
-                :src="getAvatarUrl(record.name)"
-                :style="{ marginRight: '8px', backgroundColor: '#1890ff' }"
-              >
-                {{ record.name.charAt(0) }}
+            <a-space>
+              <a-avatar :style="{ backgroundColor: getLevelColor(record.level) }">
+                {{ record.name?.charAt(0) }}
               </a-avatar>
               <div>
-                <a @click="handleView(record)">{{ record.name }}</a>
-                <a-tag v-if="record.level" :color="getLevelColor(record.level)" style="margin-left: 4px">
-                  {{ getLevelText(record.level) }}
-                </a-tag>
+                <div class="customer-name">{{ record.name }}</div>
+                <div class="customer-code">{{ record.code }}</div>
               </div>
-            </div>
+            </a-space>
           </template>
-          <template v-else-if="column.key === 'phone'">
-            <div>
-              <div>{{ record.phone }}</div>
-              <a v-if="record.mobile" style="font-size: 12px; color: #999">{{ record.mobile }}</a>
-            </div>
-          </template>
-          <template v-else-if="column.key === 'source'">
-            <a-badge :text="getSourceText(record.source)" :color="getSourceColor(record.source)" />
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
+          
+          <template v-else-if="column.key === 'level'">
+            <a-tag :color="getLevelColor(record.level)">
+              {{ getLevelName(record.level) }}
             </a-tag>
           </template>
-          <template v-else-if="column.key === 'lastFollowUp'">
-            <div>
-              <div>{{ formatDate(record.lastFollowUp) }}</div>
-              <a-typography-text type="secondary" style="font-size: 12px">
-                {{ getFollowUpTimeAgo(record.lastFollowUp) }}
-              </a-typography-text>
-            </div>
+          
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+              {{ record.status === 0 ? '正常' : '停用' }}
+            </a-tag>
           </template>
+          
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a @click="handleEdit(record)">编辑</a>
-              <a @click="handleAssign(record)">分配</a>
-              <a @click="handleFollow(record)">跟进</a>
+              <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+              <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+              <a-button type="link" size="small" @click="handleFollow(record)">跟进</a-button>
               <a-dropdown>
-                <a>
-                  更多
-                  <DownOutlined />
-                </a>
+                <a-button type="link" size="small">更多</a-button>
                 <template #overlay>
                   <a-menu>
-                    <a-menu-item key="delete">
-                      <a-popconfirm title="确定要删除吗？" @confirm="handleDelete(record)">
-                        <span class="danger">删除</span>
-                      </a-popconfirm>
-                    </a-menu-item>
-                    <a-menu-item key="merge">
-                      <a @click="handleMerge(record)">合并</a>
-                    </a-menu-item>
+                    <a-menu-item @click="handleViewFollows(record)">跟进记录</a-menu-item>
+                    <a-menu-item @click="handleViewOrders(record)">订单记录</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item danger @click="handleDelete(record)">删除</a-menu-item>
                   </a-menu>
                 </template>
               </a-dropdown>
@@ -148,235 +105,335 @@
         </template>
       </a-table>
     </a-card>
+
+    <!-- 客户表单弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="modalTitle"
+      :confirm-loading="modalLoading"
+      @ok="handleModalOk"
+      width="700px"
+    >
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="客户名称" name="name">
+              <a-input v-model:value="formState.name" placeholder="请输入客户名称" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="客户编码" name="code">
+              <a-input v-model:value="formState.code" placeholder="请输入客户编码" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="联系人" name="contactPerson">
+              <a-input v-model:value="formState.contactPerson" placeholder="请输入联系人" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="联系电话" name="phone">
+              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="邮箱" name="email">
+              <a-input v-model:value="formState.email" placeholder="请输入邮箱" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="客户等级" name="level">
+              <a-select v-model:value="formState.level" placeholder="请选择等级">
+                <a-select-option :value="1">VIP客户</a-select-option>
+                <a-select-option :value="2">重要客户</a-select-option>
+                <a-select-option :value="3">普通客户</a-select-option>
+                <a-select-option :value="4">潜在客户</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="行业" name="industry">
+              <a-select v-model:value="formState.industry" placeholder="请选择行业">
+                <a-select-option value="IT">IT/互联网</a-select-option>
+                <a-select-option value="制造业">制造业</a-select-option>
+                <a-select-option value="金融">金融</a-select-option>
+                <a-select-option value="零售">零售</a-select-option>
+                <a-select-option value="其他">其他</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="状态" name="status">
+              <a-radio-group v-model:value="formState.status">
+                <a-radio :value="0">正常</a-radio>
+                <a-radio :value="1">停用</a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </a-col>
+          <a-col :span="24">
+            <a-form-item label="地址" name="address" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
+              <a-input v-model:value="formState.address" placeholder="请输入地址" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="24">
+            <a-form-item label="备注" name="description" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
+              <a-textarea v-model:value="formState.description" placeholder="请输入备注" :rows="3" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
+    <!-- 跟进记录弹窗 -->
+    <a-modal
+      v-model:open="followModalVisible"
+      title="添加跟进记录"
+      :confirm-loading="followModalLoading"
+      @ok="handleFollowModalOk"
+      width="600px"
+    >
+      <a-form
+        :model="followForm"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="跟进类型" required>
+          <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型">
+            <a-select-option :value="1">电话</a-select-option>
+            <a-select-option :value="2">拜访</a-select-option>
+            <a-select-option :value="3">邮件</a-select-option>
+            <a-select-option :value="4">微信</a-select-option>
+            <a-select-option :value="5">其他</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="跟进内容" required>
+          <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="4" />
+        </a-form-item>
+        <a-form-item label="跟进结果">
+          <a-select v-model:value="followForm.result" placeholder="请选择跟进结果">
+            <a-select-option :value="1">有意向</a-select-option>
+            <a-select-option :value="2">无意向</a-select-option>
+            <a-select-option :value="3">待跟进</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="下次跟进时间">
+          <a-date-picker v-model:value="followForm.nextFollowTime" style="width: 100%" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import {
-  PlusOutlined,
-  ImportOutlined,
-  ExportOutlined,
-  DownOutlined
-} from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
+import type { TableProps, FormInstance } from 'ant-design-vue'
 
-interface Customer {
-  id: number
-  name: string
-  phone: string
-  mobile?: string
-  email?: string
-  source: string
-  level: string
-  status: string
-  lastFollowUp?: string
-  score?: number
-  contactPerson?: string
-  companyName?: string
-}
-
-const loading = ref(false)
-const dataSource = ref<Customer[]>([])
-
-const queryParams = reactive({
+// 搜索表单
+const searchForm = reactive({
   name: '',
-  source: undefined as string | undefined,
-  level: undefined as string | undefined,
-  status: undefined as string | undefined,
-  viewType: 'list' as 'list' | 'grid',
-  activeOnly: false
+  level: undefined as number | undefined,
+  status: undefined as number | undefined
 })
 
+// 表格数据
+const tableData = ref<any[]>([])
+const loading = ref(false)
+
+// 分页配置
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
   showSizeChanger: true,
-  showTotal: (total: number) => `共 ${total} 条客户`
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条`
 })
 
-const columns = [
-  { 
-    title: '客户名称', 
-    dataIndex: 'name', 
-    key: 'name',
-    width: 200,
-    fixed: 'left'
-  },
-  { title: '联系方式', dataIndex: 'phone', key: 'phone', width: 150 },
-  { title: '客户来源', dataIndex: 'source', key: 'source', width: 120 },
-  { title: '客户等级', dataIndex: 'level', key: 'level', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '最后跟进', dataIndex: 'lastFollowUp', key: 'lastFollowUp', width: 160 },
-  { title: '负责人', dataIndex: 'contactPerson', key: 'contactPerson', width: 120 },
-  { title: '公司', dataIndex: 'companyName', key: 'companyName' },
-  { title: '操作', key: 'action', fixed: 'right', width: 220 }
+// 表格列定义
+const columns: TableProps['columns'] = [
+  { title: '客户信息', key: 'name', width: 200 },
+  { title: '联系人', dataIndex: 'contactPerson', width: 100 },
+  { title: '联系电话', dataIndex: 'phone', width: 120 },
+  { title: '客户等级', key: 'level', width: 100 },
+  { title: '行业', dataIndex: 'industry', width: 100 },
+  { title: '状态', key: 'status', width: 80 },
+  { title: '创建时间', dataIndex: 'createTime', width: 160 },
+  { title: '操作', key: 'action', width: 200, fixed: 'right' }
 ]
 
-const rowSelection = computed(() => ({
-  columnWidth: 48,
-  selectedRowKeys: [],
-  onChange: (selectedRowKeys: number[]) => {
-    console.log('selectedRowKeys:', selectedRowKeys)
-  }
-}))
+// 弹窗相关
+const modalVisible = ref(false)
+const modalLoading = ref(false)
+const modalTitle = computed(() => isEdit.value ? '编辑客户' : '新增客户')
+const isEdit = ref(false)
+const formRef = ref<FormInstance>()
 
-// 辅助函数
-const getAvatarUrl = (name: string) => {
-  return `https://api.dicebear.com/7.x/avataaars/svg?name=${name}`
+const formState = reactive({
+  id: 0,
+  name: '',
+  code: '',
+  contactPerson: '',
+  phone: '',
+  email: '',
+  address: '',
+  level: 3,
+  industry: '',
+  status: 0,
+  description: ''
+})
+
+const formRules = {
+  name: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }]
 }
 
-const getLevelColor = (level: string) => {
-  const colors = { A: 'gold', B: 'blue', C: 'green', D: 'grey' }
-  return colors[level] || 'default'
-}
+// 跟进相关
+const followModalVisible = ref(false)
+const followModalLoading = ref(false)
+const currentCustomerId = ref(0)
+const followForm = reactive({
+  followType: 1,
+  content: '',
+  result: 3,
+  nextFollowTime: null as any
+})
 
-const getLevelText = (level: string) => {
-  const texts = { A: '重要客户', B: '潜在客户', C: '普通客户', D: '低价值客户' }
-  return texts[level] || level
-}
-
-const getSourceColor = (source: string) => {
-  const colors: Record<string, string> = {
-    online: 'blue',
-    referer: 'purple',
-    social: 'lime',
-    recommend: 'geekblue',
-    expo: 'orange',
-    other: 'default'
-  }
-  return colors[source] || 'default'
-}
-
-const getSourceText = (source: string) => {
-  const texts: Record<string, string> = {
-    online: '在线广告',
-    referer: '网站引荐',
-    social: '社交媒体',
-    recommend: '口碑推荐',
-    expo: '展会会议',
-    other: '其他'
-  }
-  return texts[source] || source
-}
-
-const getStatusColor = (status: string) => {
-  const colors = { active: 'success', inactive: 'warning', lost: 'error' }
-  return colors[status] || 'default'
-}
-
-const getStatusText = (status: string) => {
-  const texts = { active: '活跃', inactive: '休眠', lost: '流失' }
-  return texts[status] || status
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN')
-}
-
-const getFollowUpTimeAgo = (dateStr: string) => {
-  if (!dateStr) return '从未跟进'
-  const date = new Date(dateStr)
-  const now = Date.now()
-  const diff = now - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  return `${days}天前`
-}
-
-// 处理函数
+// 数据加载
 const fetchData = async () => {
   loading.value = true
-  try {
-    // 模拟数据
-    const mockData: Customer[] = Array.from({ length: 20 }).map((_, i) => ({
-      id: i + 1,
-      name: `客户${i + 1}`,
-      phone: `13${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
-      email: `customer${i + 1}@example.com`,
-      source: ['online', 'referer', 'social', 'recommend'][Math.floor(Math.random() * 4)],
-      level: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
-      status: ['active', 'inactive', 'lost'][Math.floor(Math.random() * 3)],
-      lastFollowUp: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 3600000).toISOString(),
-      score: Math.floor(Math.random() * 100),
-      contactPerson: `负责人${i + 1}`
-    }))
-    dataSource.value = mockData
-    pagination.total = 20
-  } catch (error) {
-    message.error('获取数据失败')
-  } finally {
+  // 模拟数据
+  setTimeout(() => {
+    tableData.value = [
+      { id: 1, name: '腾讯科技', code: 'C001', contactPerson: '张三', phone: '13800138001', level: 1, industry: 'IT', status: 0, createTime: '2024-01-15' },
+      { id: 2, name: '阿里巴巴', code: 'C002', contactPerson: '李四', phone: '13800138002', level: 1, industry: 'IT', status: 0, createTime: '2024-01-16' },
+      { id: 3, name: '华为技术', code: 'C003', contactPerson: '王五', phone: '13800138003', level: 2, industry: '制造业', status: 0, createTime: '2024-01-17' },
+      { id: 4, name: '京东集团', code: 'C004', contactPerson: '赵六', phone: '13800138004', level: 2, industry: '零售', status: 0, createTime: '2024-01-18' },
+      { id: 5, name: '小米科技', code: 'C005', contactPerson: '钱七', phone: '13800138005', level: 3, industry: 'IT', status: 1, createTime: '2024-01-19' }
+    ]
+    pagination.total = 5
     loading.value = false
-  }
+  }, 500)
 }
 
+// 搜索相关
 const handleSearch = () => {
   pagination.current = 1
   fetchData()
 }
 
 const handleReset = () => {
-  queryParams.name = ''
-  queryParams.source = undefined
-  queryParams.level = undefined
-  queryParams.status = undefined
+  Object.assign(searchForm, { name: '', level: undefined, status: undefined })
   handleSearch()
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+// 表格操作
+const handleTableChange: TableProps['onChange'] = (pag) => {
+  pagination.current = pag.current || 1
+  pagination.pageSize = pag.pageSize || 10
   fetchData()
 }
 
+// 新增客户
 const handleAdd = () => {
-  message.info('新建客户')
+  isEdit.value = false
+  Object.assign(formState, {
+    id: 0, name: '', code: '', contactPerson: '', phone: '', email: '', address: '', level: 3, industry: '', status: 0, description: ''
+  })
+  modalVisible.value = true
 }
 
-const handleView = (record: Customer) => {
+// 编辑客户
+const handleEdit = (record: any) => {
+  isEdit.value = true
+  Object.assign(formState, record)
+  modalVisible.value = true
+}
+
+// 查看客户
+const handleView = (record: any) => {
   message.info(`查看客户: ${record.name}`)
 }
 
-const handleEdit = (record: Customer) => {
-  message.info(`编辑客户: ${record.name}`)
-}
-
-const handleAssign = (record: Customer) => {
-  message.info(`分配客户: ${record.name}`)
-}
-
-const handleFollow = (record: Customer) => {
-  message.info(`跟进客户: ${record.name}`)
-}
-
-const handleImport = () => {
-  message.info('导入客户')
-}
-
-const handleExport = () => {
-  message.info('导出客户')
-}
-
-const handleDelete = async (record: Customer) => {
+// 提交表单
+const handleModalOk = async () => {
   try {
-    // 模拟删除
-    dataSource.value = dataSource.value.filter(c => c.id !== record.id)
-    pagination.total--
-    message.success('删除成功')
+    await formRef.value?.validate()
+    modalLoading.value = true
+    setTimeout(() => {
+      message.success(isEdit.value ? '更新成功' : '创建成功')
+      modalVisible.value = false
+      fetchData()
+      modalLoading.value = false
+    }, 500)
   } catch (error) {
-    message.error('删除失败')
+    modalLoading.value = false
   }
 }
 
-const handleMerge = (record: Customer) => {
-  message.info(`合并客户: ${record.name}`)
+// 删除客户
+const handleDelete = (record: any) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除客户"${record.name}"吗？`,
+    onOk() {
+      message.success('删除成功')
+      fetchData()
+    }
+  })
+}
+
+// 添加跟进
+const handleFollow = (record: any) => {
+  currentCustomerId.value = record.id
+  Object.assign(followForm, { followType: 1, content: '', result: 3, nextFollowTime: null })
+  followModalVisible.value = true
+}
+
+// 提交跟进
+const handleFollowModalOk = () => {
+  if (!followForm.content) {
+    message.error('请输入跟进内容')
+    return
+  }
+  followModalLoading.value = true
+  setTimeout(() => {
+    message.success('跟进记录添加成功')
+    followModalVisible.value = false
+    followModalLoading.value = false
+  }, 500)
+}
+
+// 查看跟进记录
+const handleViewFollows = (record: any) => {
+  message.info(`查看跟进记录: ${record.name}`)
+}
+
+// 查看订单记录
+const handleViewOrders = (record: any) => {
+  message.info(`查看订单记录: ${record.name}`)
+}
+
+// 导出
+const handleExport = () => {
+  message.info('导出功能开发中')
+}
+
+// 辅助方法
+const getLevelColor = (level: number) => {
+  const colors: Record<number, string> = { 1: '#ff4d4f', 2: '#faad14', 3: '#1890ff', 4: '#52c41a' }
+  return colors[level] || '#999'
+}
+
+const getLevelName = (level: number) => {
+  const names: Record<number, string> = { 1: 'VIP客户', 2: '重要客户', 3: '普通客户', 4: '潜在客户' }
+  return names[level] || '未知'
 }
 
 onMounted(() => {
@@ -385,7 +442,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.crm-customer-page {
+.customer-management {
   padding: 0;
 }
 
@@ -393,27 +450,19 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.action-bar {
-  margin-bottom: 16px;
+.table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
-.action-left,
-.action-right {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.customer-name-cell {
-  display: flex;
-  align-items: center;
+.customer-name {
   font-weight: 500;
 }
 
-.danger {
-  color: #ff4d4f;
+.customer-code {
+  font-size: 12px;
+  color: #999;
 }
 </style>

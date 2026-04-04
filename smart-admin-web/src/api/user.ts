@@ -28,19 +28,27 @@ export interface LoginForm {
 
 // 用户查询参数
 export interface UserQuery {
-  tenantId: number
+  tenantId?: number
   username?: string
+  nickname?: string
+  phone?: string
   status?: number
   deptId?: number
   pageNum?: number
   pageSize?: number
 }
 
-// 用户API
+// 用户API - 修复版
 export const userApi = {
   // 登录
   login(data: LoginForm): Promise<ApiResponse<string>> {
-    return request.post('/user/login', data)
+    return request.post('/user/login', null, {
+      params: {
+        username: data.username,
+        password: data.password,
+        tenantId: data.tenantId || 1
+      }
+    })
   },
 
   // 登出
@@ -48,7 +56,7 @@ export const userApi = {
     return request.post('/user/logout')
   },
 
-  // 获取用户信息
+  // 获取当前用户信息 - 新增
   getUserInfo(): Promise<ApiResponse<UserInfo>> {
     return request.get('/user/info')
   },
@@ -64,43 +72,43 @@ export const userApi = {
   },
 
   // 创建用户
-  create(data: Partial<UserInfo> & { password: string }): Promise<ApiResponse<number>> {
+  create(data: Partial<UserInfo> & { password: string }): Promise<ApiResponse<boolean>> {
     return request.post('/user', data)
   },
 
   // 更新用户
-  update(id: number, data: Partial<UserInfo>): Promise<ApiResponse<void>> {
+  update(id: number, data: Partial<UserInfo>): Promise<ApiResponse<boolean>> {
     return request.put(`/user/${id}`, data)
   },
 
   // 删除用户
-  delete(id: number): Promise<ApiResponse<void>> {
+  delete(id: number): Promise<ApiResponse<boolean>> {
     return request.delete(`/user/${id}`)
   },
 
   // 批量删除用户
-  batchDelete(ids: number[]): Promise<ApiResponse<void>> {
+  batchDelete(ids: number[]): Promise<ApiResponse<boolean>> {
     return request.delete('/user/batch', { data: ids })
   },
 
-  // 重置密码
-  resetPassword(id: number, newPassword: string): Promise<ApiResponse<void>> {
-    return request.put(`/user/${id}/password/reset`, null, { params: { newPassword } })
+  // 重置密码 - 修复: 使用PATCH
+  resetPassword(id: number, newPassword: string): Promise<ApiResponse<boolean>> {
+    return request.patch(`/user/${id}/password/reset`, null, { params: { newPassword } })
   },
 
   // 修改密码
-  changePassword(id: number, oldPassword: string, newPassword: string): Promise<ApiResponse<void>> {
-    return request.put(`/user/${id}/password/change`, null, { params: { oldPassword, newPassword } })
+  changePassword(id: number, oldPassword: string, newPassword: string): Promise<ApiResponse<boolean>> {
+    return request.patch(`/user/${id}/password/change`, null, { params: { oldPassword, newPassword } })
   },
 
   // 分配角色
-  assignRoles(id: number, roleIds: number[]): Promise<ApiResponse<void>> {
+  assignRoles(id: number, roleIds: number[]): Promise<ApiResponse<boolean>> {
     return request.post(`/user/${id}/roles`, roleIds)
   },
 
-  // 更新用户状态
-  updateStatus(id: number, status: number): Promise<ApiResponse<void>> {
-    return request.put(`/user/${id}/status`, null, { params: { status } })
+  // 更新用户状态 - 修复: 使用PATCH
+  updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
+    return request.patch(`/user/${id}/status`, null, { params: { status } })
   }
 }
 

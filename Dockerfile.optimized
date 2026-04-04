@@ -1,0 +1,138 @@
+# AI-Ready Dockerfile - Optimized Version
+# Version: v2.0
+# Optimization: Layered JAR + Distroless + Minimal Attack Surface
+# 
+# Build: docker build -t ai-ready:optimized -f Dockerfile.optimized .
+# Analyze: docker history ai-ready:optimized
+
+# ============================================
+# Stage 1: Dependencies (Cached Layer)
+# ============================================
+FROM maven:3.9-eclipse-temurin-17-alpine AS deps
+
+WORKDIR /build
+
+# Copy only pom files first for better caching
+COPY pom.xml ./
+COPY core-common/pom.xml core-common/
+COPY core-base/pom.xml core-base/
+COPY core-api/pom.xml core-api/
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B --batch-mode \
+    && rm -rf ~/.m2/repository/*/maven-metadata-*.xml
+
+# ============================================
+# Stage 2: Build
+# ============================================
+FROM maven:3.9-eclipse-temurin-17-alpine AS build
+
+WORKDIR /build
+
+# Copy dependencies from cached stage
+COPY --from=deps /root/.m2 /root/.m2
+
+# Copy pom files
+COPY pom.xml ./
+COPY core-common/pom.xml core-common/
+COPY core-base/pom.xml core-base/
+COPY core-api/pom.xml core-api/
+
+# Copy source code
+COPY core-common/src core-common/src
+COPY core-base/src core-base/src
+COPY core-api/src core-api/src
+
+# Build with optimizations
+RUN mvn clean package -DskipTests -Dmaven.test.skip=true -B --batch-mode \
+    -Dmaven.compiler.fork=false \
+    -Dmaven.compiler.executable=/usr/bin/javac
+
+# Extract layered JAR for better layer caching
+RUN java -Djarmode=layertools -jar core-api/target/*.jar extract --destination extracted
+
+# ============================================
+# Stage 3: Runtime (Distroless - Minimal)
+# ============================================
+# Using distroless for minimal attack surface (~100MB smaller than Alpine JRE)
+FROM gcr.io/distroless/java17-debian11:latest AS runtime
+
+# Note: distroless has no shell, so we use CMD instead of ENTRYPOINT with shell
+
+WORKDIR /app
+
+# Copy layers in order of change frequency (least changing first)
+# This enables efficient layer caching during deployments
+
+COPY --from=build /build/extracted/dependencies/ ./
+COPY --from=build /build/extracted/spring-boot-loader/ ./
+COPY --from=build /build/extracted/snapshot-dependencies/ ./
+COPY --from=build /build/extracted/application/ ./
+
+# Environment variables (set at runtime via K8s ConfigMap/Secret)
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+ENV SPRING_PROFILES_ACTIVE="production"
+ENV TZ="Asia/Shanghai"
+
+# Expose port
+EXPOSE 8080
+
+# Health check endpoint (K8s will use liveness/readiness probes)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD ["/usr/bin/java", "-cp", ".", "org.springframework.boot.loader.JarLauncher", "--health-check"]
+
+# Non-root execution (distroless runs as non-root by default)
+USER nonroot:nonroot
+
+# Spring Boot Layered JAR Launcher
+CMD ["java", "-Xms256m", "-Xmx512m", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=200", \
+     "-Djava.security.egd=file:/dev/./urandom", \
+     "-Dspring.profiles.active=production", \
+     "org.springframework.boot.loader.JarLauncher"]
+
+# ============================================
+# Alternative: Alpine-based Runtime (if distroless is unavailable)
+# ============================================
+FROM eclipse-temurin:17-jre-alpine AS runtime-alpine
+
+# Install minimal dependencies for health checks
+RUN apk add --no-cache curl && \
+    addgroup -S appgroup && adduser -S -G appgroup appuser && \
+    mkdir -p /app/logs /app/config && \
+    chown -R appuser:appgroup /app && \
+    rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Copy layered JAR
+COPY --from=build --chown=appuser:appgroup /build/extracted/dependencies/ ./
+COPY --from=build --chown=appuser:appgroup /build/extracted/spring-boot-loader/ ./
+COPY --from=build --chown=appuser:appgroup /build/extracted/snapshot-dependencies/ ./
+COPY --from=build --chown=appuser:appgroup /build/extracted/application/ ./
+
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+ENV SPRING_PROFILES_ACTIVE="production"
+ENV TZ="Asia/Shanghai"
+
+EXPOSE 8080
+
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+CMD ["java", "-Xms256m", "-Xmx512m", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=200", \
+     "-Djava.security.egd=file:/dev/./urandom", \
+     "-Dspring.profiles.active=production", \
+     "org.springframework.boot.loader.JarLauncher"]
+
+# ============================================
+# Labels (OCI Image Spec)
+# ============================================
+LABEL maintainer="ai-ready-team@ai-ready.cn"
+LABEL version="2.0.0"
+LABEL description="AI-Ready Enterprise Management System - Optimized"
+LABEL org.opencontainers.image.title="AI-Ready API"
+LABEL org.opencontainers.image.description="Lightweight, secure container for AI-Ready"
+LABEL org.opencontainers.image.source="https://github.com/ai-ready/ai-ready"
+LABEL org.opencontainers.image.vendor="AI-Ready Team"

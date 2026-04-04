@@ -1,0 +1,277 @@
+{
+  "summary": {
+    "total": 33,
+    "passed": 32,
+    "failed": 1,
+    "skipped": 0,
+    "pass_rate": "97.0%",
+    "start_time": "2026-04-04T04:10:47.315143",
+    "end_time": "2026-04-04T04:10:47.649881"
+  },
+  "tests": [
+    {
+      "category": "API版本兼容性",
+      "name": "API v1端点可访问性",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 16.41,
+      "timestamp": "2026-04-04T04:10:47.331711"
+    },
+    {
+      "category": "API版本兼容性",
+      "name": "API无版本前缀端点",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.74,
+      "timestamp": "2026-04-04T04:10:47.335492"
+    },
+    {
+      "category": "API版本兼容性",
+      "name": "Actuator端点兼容性",
+      "status": "PASS",
+      "message": "健康检查端点正常",
+      "duration_ms": 11.06,
+      "timestamp": "2026-04-04T04:10:47.346584"
+    },
+    {
+      "category": "API版本兼容性",
+      "name": "API版本响应头",
+      "status": "PASS",
+      "message": "版本头: 未定义",
+      "duration_ms": 8.86,
+      "timestamp": "2026-04-04T04:10:47.355471"
+    },
+    {
+      "category": "参数格式兼容性",
+      "name": "Query参数格式",
+      "status": "PASS",
+      "message": "参数传递成功, 状态码: 401",
+      "duration_ms": 3.29,
+      "timestamp": "2026-04-04T04:10:47.358826"
+    },
+    {
+      "category": "参数格式兼容性",
+      "name": "JSON Body参数格式",
+      "status": "PASS",
+      "message": "JSON参数传递成功, 状态码: 401",
+      "duration_ms": 3.34,
+      "timestamp": "2026-04-04T04:10:47.362199"
+    },
+    {
+      "category": "参数格式兼容性",
+      "name": "Form Data参数格式",
+      "status": "PASS",
+      "message": "Form参数传递成功, 状态码: 401",
+      "duration_ms": 3.07,
+      "timestamp": "2026-04-04T04:10:47.365291"
+    },
+    {
+      "category": "参数格式兼容性",
+      "name": "Path参数格式",
+      "status": "PASS",
+      "message": "Path参数传递成功, 状态码: 401",
+      "duration_ms": 2.69,
+      "timestamp": "2026-04-04T04:10:47.368008"
+    },
+    {
+      "category": "参数格式兼容性",
+      "name": "数组参数格式",
+      "status": "PASS",
+      "message": "数组参数传递成功, 状态码: 401",
+      "duration_ms": 3.2,
+      "timestamp": "2026-04-04T04:10:47.371235"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: application/json",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.95,
+      "timestamp": "2026-04-04T04:10:47.374242"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: application/x-www-form-urlencoded",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.81,
+      "timestamp": "2026-04-04T04:10:47.377073"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: text/plain",
+      "status": "PASS",
+      "message": "正确处理不支持的类型, 状态码: 401",
+      "duration_ms": 3.51,
+      "timestamp": "2026-04-04T04:10:47.380611"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: text/html",
+      "status": "PASS",
+      "message": "正确处理不支持的类型, 状态码: 401",
+      "duration_ms": 3.31,
+      "timestamp": "2026-04-04T04:10:47.383938"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: application/xml",
+      "status": "PASS",
+      "message": "正确处理不支持的类型, 状态码: 401",
+      "duration_ms": 2.65,
+      "timestamp": "2026-04-04T04:10:47.386610"
+    },
+    {
+      "category": "Content-Type兼容性",
+      "name": "Content-Type: multipart/form-data",
+      "status": "PASS",
+      "message": "正确处理不支持的类型, 状态码: 401",
+      "duration_ms": 101.01,
+      "timestamp": "2026-04-04T04:10:47.487643"
+    },
+    {
+      "category": "响应格式兼容性",
+      "name": "JSON响应格式",
+      "status": "FAIL",
+      "message": "Content-Type: application/vnd.spring-boot.actuator.v3+json",
+      "duration_ms": 10.48,
+      "timestamp": "2026-04-04T04:10:47.498184"
+    },
+    {
+      "category": "响应格式兼容性",
+      "name": "响应结构一致性",
+      "status": "PASS",
+      "message": "包含status: True, 包含components: True",
+      "duration_ms": 10.28,
+      "timestamp": "2026-04-04T04:10:47.508507"
+    },
+    {
+      "category": "响应格式兼容性",
+      "name": "Accept头兼容性",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 9.95,
+      "timestamp": "2026-04-04T04:10:47.518480"
+    },
+    {
+      "category": "响应格式兼容性",
+      "name": "错误响应格式",
+      "status": "PASS",
+      "message": "错误状态码: 401",
+      "duration_ms": 3.07,
+      "timestamp": "2026-04-04T04:10:47.521566"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: GET",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.64,
+      "timestamp": "2026-04-04T04:10:47.524251"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: POST",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.35,
+      "timestamp": "2026-04-04T04:10:47.527637"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: PUT",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.04,
+      "timestamp": "2026-04-04T04:10:47.531710"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: DELETE",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.93,
+      "timestamp": "2026-04-04T04:10:47.534665"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: PATCH",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.71,
+      "timestamp": "2026-04-04T04:10:47.537399"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: HEAD",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.48,
+      "timestamp": "2026-04-04T04:10:47.540905"
+    },
+    {
+      "category": "HTTP方法兼容性",
+      "name": "HTTP方法: OPTIONS",
+      "status": "PASS",
+      "message": "状态码: 401, Allow: ",
+      "duration_ms": 2.86,
+      "timestamp": "2026-04-04T04:10:47.543785"
+    },
+    {
+      "category": "字符编码兼容性",
+      "name": "UTF-8编码支持",
+      "status": "PASS",
+      "message": "中文参数处理成功, 状态码: 401",
+      "duration_ms": 3.93,
+      "timestamp": "2026-04-04T04:10:47.547789"
+    },
+    {
+      "category": "字符编码兼容性",
+      "name": "响应编码声明",
+      "status": "PASS",
+      "message": "编码: unknown",
+      "duration_ms": 8.12,
+      "timestamp": "2026-04-04T04:10:47.555934"
+    },
+    {
+      "category": "字符编码兼容性",
+      "name": "特殊字符处理",
+      "status": "PASS",
+      "message": "特殊字符处理测试",
+      "duration_ms": 27.72,
+      "timestamp": "2026-04-04T04:10:47.583682"
+    },
+    {
+      "category": "HTTP头部兼容性",
+      "name": "自定义请求头",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.33,
+      "timestamp": "2026-04-04T04:10:47.586070"
+    },
+    {
+      "category": "HTTP头部兼容性",
+      "name": "User-Agent兼容性",
+      "status": "PASS",
+      "message": "多UA测试",
+      "duration_ms": 44.03,
+      "timestamp": "2026-04-04T04:10:47.630129"
+    },
+    {
+      "category": "HTTP头部兼容性",
+      "name": "Authorization头格式",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 11.39,
+      "timestamp": "2026-04-04T04:10:47.641552"
+    },
+    {
+      "category": "HTTP头部兼容性",
+      "name": "响应头完整性",
+      "status": "PASS",
+      "message": "找到: ['Content-Type', 'Date']",
+      "duration_ms": 8.24,
+      "timestamp": "2026-04-04T04:10:47.649830"
+    }
+  ]
+}

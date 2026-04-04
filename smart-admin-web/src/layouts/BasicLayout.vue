@@ -8,7 +8,7 @@
     >
       <div class="logo">
         <img src="@/assets/logo.svg" alt="logo" v-if="!collapsed" />
-        <span v-if="!collapsed">AI-Ready</span>
+        <span v-if="!collapsed">{{ t('app.name') }}</span>
       </div>
       
       <a-menu
@@ -17,37 +17,51 @@
         mode="inline"
         theme="dark"
       >
-        <a-menu-item key="dashboard">
+        <a-menu-item key="dashboard" @click="navigateTo('/dashboard')">
           <DashboardOutlined />
-          <span>工作台</span>
+          <span>{{ t('menu.dashboard') }}</span>
         </a-menu-item>
 
         <a-sub-menu key="erp">
           <template #icon>
             <ShopOutlined />
           </template>
-          <template #title>ERP管理</template>
-          <a-menu-item key="purchase">采购订单</a-menu-item>
-          <a-menu-item key="sale">销售订单</a-menu-item>
-          <a-menu-item key="stock">库存管理</a-menu-item>
+          <template #title>{{ t('menu.erp') }}</template>
+          <a-menu-item key="purchase" @click="navigateTo('/erp/purchase')">
+            {{ t('menu.purchase') }}
+          </a-menu-item>
+          <a-menu-item key="sale" @click="navigateTo('/erp/sale')">
+            {{ t('menu.sale') }}
+          </a-menu-item>
+          <a-menu-item key="stock" @click="navigateTo('/erp/stock')">
+            {{ t('menu.stock') }}
+          </a-menu-item>
         </a-sub-menu>
 
         <a-sub-menu key="crm">
           <template #icon>
             <TeamOutlined />
           </template>
-          <template #title>CRM管理</template>
-          <a-menu-item key="lead">线索管理</a-menu-item>
-          <a-menu-item key="customer">客户管理</a-menu-item>
+          <template #title>{{ t('menu.crm') }}</template>
+          <a-menu-item key="lead" @click="navigateTo('/crm/lead')">
+            {{ t('menu.lead') }}
+          </a-menu-item>
+          <a-menu-item key="customer" @click="navigateTo('/crm/customer')">
+            {{ t('menu.customer') }}
+          </a-menu-item>
         </a-sub-menu>
 
         <a-sub-menu key="system">
           <template #icon>
             <SettingOutlined />
           </template>
-          <template #title>系统设置</template>
-          <a-menu-item key="user">用户管理</a-menu-item>
-          <a-menu-item key="role">角色管理</a-menu-item>
+          <template #title>{{ t('menu.system') }}</template>
+          <a-menu-item key="user" @click="navigateTo('/system/user')">
+            {{ t('menu.user') }}
+          </a-menu-item>
+          <a-menu-item key="role" @click="navigateTo('/system/role')">
+            {{ t('menu.role') }}
+          </a-menu-item>
         </a-sub-menu>
       </a-menu>
     </a-layout-sider>
@@ -66,12 +80,16 @@
             @click="collapsed = !collapsed"
           />
           <a-breadcrumb>
-            <a-breadcrumb-item>首页</a-breadcrumb-item>
+            <a-breadcrumb-item>{{ t('menu.dashboard') }}</a-breadcrumb-item>
             <a-breadcrumb-item>{{ currentTitle }}</a-breadcrumb-item>
           </a-breadcrumb>
         </div>
 
         <div class="header-right">
+          <!-- 语言切换 -->
+          <LocaleSwitcher />
+          
+          <!-- 用户下拉菜单 -->
           <a-dropdown>
             <div class="user-info">
               <a-avatar :src="userStore.userInfo?.avatar">
@@ -81,11 +99,15 @@
             </div>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="profile">个人中心</a-menu-item>
-                <a-menu-item key="settings">系统设置</a-menu-item>
+                <a-menu-item key="profile" @click="navigateTo('/profile')">
+                  {{ t('user.profile') }}
+                </a-menu-item>
+                <a-menu-item key="settings">
+                  {{ t('menu.system') }}
+                </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item key="logout" @click="handleLogout">
-                  退出登录
+                  {{ t('login.logoutSuccess') }}
                 </a-menu-item>
               </a-menu>
             </template>
@@ -107,6 +129,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined,
   ShopOutlined,
@@ -116,8 +139,10 @@ import {
   MenuUnfoldOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
+import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 const userStore = useUserStore()
 
 const collapsed = ref(false)
@@ -126,17 +151,21 @@ const openKeys = ref(['erp'])
 
 const currentTitle = computed(() => {
   const menuMap: Record<string, string> = {
-    dashboard: '工作台',
-    purchase: '采购订单',
-    sale: '销售订单',
-    stock: '库存管理',
-    lead: '线索管理',
-    customer: '客户管理',
-    user: '用户管理',
-    role: '角色管理'
+    dashboard: t('menu.dashboard'),
+    purchase: t('menu.purchase'),
+    sale: t('menu.sale'),
+    stock: t('menu.stock'),
+    lead: t('menu.lead'),
+    customer: t('menu.customer'),
+    user: t('menu.user'),
+    role: t('menu.role')
   }
   return menuMap[selectedKeys.value[0]] || ''
 })
+
+const navigateTo = (path: string) => {
+  router.push(path)
+}
 
 const handleLogout = async () => {
   await userStore.logout()
@@ -193,6 +222,7 @@ const handleLogout = async () => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
 }
 
 .user-info {

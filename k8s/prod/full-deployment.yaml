@@ -1,0 +1,277 @@
+# AI-Ready Kubernetes 生产环境部署配置
+# Version: v2.0.0
+# 包含完整的容器编排配置
+
+# ============ 命名空间 ============
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-ready-prod
+  labels:
+    name: ai-ready-prod
+    environment: production
+
+---
+# ============ Secret ============
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-ready-secrets
+  namespace: ai-ready-prod
+type: Opaque
+stringData:
+  db-url: "jdbc:postgresql://postgres:5432/ai_ready"
+  db-user: "ai_ready"
+  db-password: "${DB_PASSWORD}"
+  redis-host: "redis"
+  redis-port: "6379"
+  redis-password: "${REDIS_PASSWORD}"
+  nacos-addr: "nacos:8848"
+  jwt-secret: "${JWT_SECRET}"
+
+---
+# ============ ConfigMap ============
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-ready-config
+  namespace: ai-ready-prod
+data:
+  application.yml: |
+    spring:
+      profiles:
+        active: production
+      datasource:
+        url: jdbc:postgresql://postgres:5432/ai_ready
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+      redis:
+        host: redis
+        port: 6379
+      jpa:
+        show-sql: false
+        hibernate:
+          ddl-auto: validate
+      logging:
+        level:
+          root: WARN
+          cn.aiedge: INFO
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+
+---
+# ============ Deployment ============
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+  labels:
+    app: ai-ready-api
+    version: v2.0.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        version: v2.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: ai-ready-sa
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ai-ready-api
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: ai-ready-api
+          image: ghcr.io/ai-ready/ai-ready-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: JAVA_OPTS
+              value: "-Xms1024m -Xmx2048m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-url
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-password
+            - name: SPRING_REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-host
+            - name: SPRING_REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-port
+            - name: SPRING_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-password
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            - name: log-volume
+              mountPath: /app/logs
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ai-ready-config
+        - name: log-volume
+          emptyDir: {}
+      terminationGracePeriodSeconds: 60
+
+---
+# ============ Service ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: ai-ready-api
+
+---
+# ============ HorizontalPodAutoscaler ============
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# ============ Ingress ============
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-ready-api-ingress
+  namespace: ai-ready-prod
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - api.ai-ready.cn
+      secretName: ai-ready-tls
+  rules:
+    - host: api.ai-ready.cn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-ready-api
+                port:
+                  number: 8080
+
+---
+# ============ PodDisruptionBudget ============
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-ready-api-pdb
+  namespace: ai-ready-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ai-ready-api

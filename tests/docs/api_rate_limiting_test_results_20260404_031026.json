@@ -1,0 +1,77 @@
+{
+  "test_time": "2026-04-04 03:10:26",
+  "base_url": "http://localhost:8080",
+  "tests": [
+    {
+      "name": "Normal Request Rate",
+      "total_requests": 10,
+      "successful_requests": 10,
+      "rate_limited_requests": 0,
+      "rate_limit_detected": false,
+      "status_codes": {
+        "401": 10
+      },
+      "avg_response_time_ms": 6.459449998510536,
+      "status": "PASS",
+      "message": "All 10 requests handled successfully"
+    },
+    {
+      "name": "Burst Requests",
+      "total_requests": 20,
+      "successful_requests": 20,
+      "rate_limited_requests": 0,
+      "rate_limit_detected": false,
+      "status_codes": {
+        "401": 20
+      },
+      "avg_response_time_ms": 3.8860000007844064,
+      "status": "PASS",
+      "message": "All 20 burst requests handled (no rate limiting)"
+    },
+    {
+      "name": "Concurrent Burst",
+      "total_requests": 30,
+      "successful_requests": 30,
+      "rate_limited_requests": 0,
+      "rate_limit_detected": false,
+      "status_codes": {
+        "401": 30
+      },
+      "avg_response_time_ms": 23.347896666867502,
+      "status": "PASS",
+      "message": "All 30 concurrent requests handled"
+    },
+    {
+      "name": "Rate Limit Recovery",
+      "total_requests": 5,
+      "successful_requests": 5,
+      "rate_limited_requests": 0,
+      "rate_limit_detected": false,
+      "status_codes": {
+        "401": 5
+      },
+      "avg_response_time_ms": 5.784339999081567,
+      "status": "PASS",
+      "message": "System recovered and handling requests normally"
+    },
+    {
+      "name": "Sustained Load",
+      "total_requests": 50,
+      "successful_requests": 50,
+      "rate_limited_requests": 0,
+      "rate_limit_detected": false,
+      "status_codes": {
+        "401": 50
+      },
+      "avg_response_time_ms": 4.985154001333285,
+      "status": "PASS",
+      "message": "Sustained load handled: 50/50 succeeded"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "warned": 0
+  }
+}

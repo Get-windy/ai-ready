@@ -1,0 +1,239 @@
+{
+  "test_time": "2026-04-03 20:27:11",
+  "base_url": "http://localhost:8080",
+  "contract_version": "OpenAPI 3.0.1",
+  "tests": [
+    {
+      "test_name": "GET /api/user/page",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/user/page",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "pageUsers"
+      }
+    },
+    {
+      "test_name": "POST /api/user/login",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/user/login",
+      "method": "POST",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 400,
+      "contract_compliant": true,
+      "message": "Status: 400",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "login"
+      }
+    },
+    {
+      "test_name": "GET /api/role/page",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/role/page",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "pageRoles"
+      }
+    },
+    {
+      "test_name": "GET /api/menu/tree",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/menu/tree",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "getMenuTree"
+      }
+    },
+    {
+      "test_name": "GET /api/permission/tree",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/permission/tree",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "getPermissionTree"
+      }
+    },
+    {
+      "test_name": "POST /api/auth/login",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "login_1"
+      }
+    },
+    {
+      "test_name": "GET /api/auth/userinfo",
+      "category": "Endpoint Contract",
+      "endpoint": "/api/auth/userinfo",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": true,
+        "operation_id": "getUserInfo"
+      }
+    },
+    {
+      "test_name": "GET /v3/api-docs",
+      "category": "Endpoint Contract",
+      "endpoint": "/v3/api-docs",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 200,
+      "contract_compliant": true,
+      "message": "Status: 200",
+      "details": {
+        "contract_defined": false,
+        "operation_id": "",
+        "response_valid_json": true,
+        "response_keys": [
+          "openapi",
+          "info",
+          "servers",
+          "tags",
+          "paths",
+          "components",
+          "x-openapi"
+        ]
+      }
+    },
+    {
+      "test_name": "GET /actuator/health",
+      "category": "Endpoint Contract",
+      "endpoint": "/actuator/health",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 200,
+      "contract_compliant": true,
+      "message": "Status: 200",
+      "details": {
+        "contract_defined": false,
+        "operation_id": "",
+        "response_valid_json": true,
+        "response_keys": [
+          "status",
+          "components"
+        ]
+      }
+    },
+    {
+      "test_name": "GET /swagger-ui/index.html",
+      "category": "Endpoint Contract",
+      "endpoint": "/swagger-ui/index.html",
+      "method": "GET",
+      "expected_status_codes": [
+        200,
+        401,
+        403,
+        400,
+        404,
+        500
+      ],
+      "actual_status_code": 401,
+      "contract_compliant": true,
+      "message": "Status: 401",
+      "details": {
+        "contract_defined": false,
+        "operation_id": ""
+      }
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0,
+    "pass_rate": 100.0,
+    "contract_compliance": "PASS"
+  }
+}

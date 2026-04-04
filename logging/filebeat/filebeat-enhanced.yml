@@ -1,0 +1,419 @@
+# AI-Ready Filebeat Enhanced Configuration
+# Version: v2.0.0
+# Date: 2026-04-04
+# Author: devops-engineer
+# Description: 完整的日志采集配置，支持多日志源、多输出目标
+
+# ==================== 全局配置 ====================
+name: "ai-ready-filebeat"
+tags: ["ai-ready", "production"]
+
+# 环境变量
+path.config: /etc/filebeat
+path.data: /var/lib/filebeat
+path.logs: /var/log/filebeat
+path.home: /usr/share/filebeat
+
+# ==================== 日志输入配置 ====================
+filebeat.inputs:
+
+  # --- 核心应用日志 (JSON格式) ---
+  - type: log
+    id: ai-ready-application
+    enabled: true
+    paths:
+      - /var/log/ai-ready/application.log
+      - /var/log/ai-ready/application/*.log
+    json:
+      keys_under_root: true
+      add_error_key: true
+      message_key: message
+      overwrite_keys: true
+    fields:
+      project: ai-ready
+      service: core-api
+      log_type: application
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    multiline:
+      pattern: '^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}'
+      negate: true
+      match: after
+      timeout: 5s
+      max_lines: 500
+    scan_frequency: 10s
+    close_removed: true
+    close_renamed: true
+    clean_removed: true
+    ignore_older: 72h
+    tail_files: true
+
+  # --- 错误日志 (高优先级) ---
+  - type: log
+    id: ai-ready-error
+    enabled: true
+    paths:
+      - /var/log/ai-ready/error.log
+      - /var/log/ai-ready/error/*.log
+      - /var/log/ai-ready/exceptions/*.log
+    json:
+      keys_under_root: true
+      add_error_key: true
+    fields:
+      project: ai-ready
+      service: core-api
+      log_type: error
+      priority: high
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    multiline:
+      pattern: '^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}|^[A-Z]{3,5}\s+\d{4}'
+      negate: true
+      match: after
+      timeout: 10s
+      max_lines: 1000
+
+  # --- 访问日志 (HTTP请求) ---
+  - type: log
+    id: ai-ready-access
+    enabled: true
+    paths:
+      - /var/log/ai-ready/access.log
+      - /var/log/nginx/access.log
+    fields:
+      project: ai-ready
+      service: api-gateway
+      log_type: access
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    exclude_lines: ['\.health-check', 'actuator/health', 'favicon.ico', 'robots.txt']
+    include_lines: ['.*']
+    scan_frequency: 5s
+
+  # --- 审计日志 (安全合规) ---
+  - type: log
+    id: ai-ready-audit
+    enabled: true
+    paths:
+      - /var/log/ai-ready/audit.log
+      - /var/log/ai-ready/audit/*.log
+    json:
+      keys_under_root: true
+      add_error_key: true
+    fields:
+      project: ai-ready
+      service: security
+      log_type: audit
+      retention: long-term
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+
+  # --- Agent服务日志 ---
+  - type: log
+    id: ai-ready-agent
+    enabled: true
+    paths:
+      - /var/log/ai-ready/agent/*.log
+      - /var/log/ai-ready/core-agent/*.log
+    json:
+      keys_under_root: true
+      add_error_key: true
+    fields:
+      project: ai-ready
+      service: agent-engine
+      log_type: agent
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    multiline:
+      pattern: '^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}'
+      negate: true
+      match: after
+
+  # --- SQL日志 ---
+  - type: log
+    id: ai-ready-sql
+    enabled: true
+    paths:
+      - /var/log/ai-ready/sql.log
+      - /var/log/ai-ready/sql/*.log
+    fields:
+      project: ai-ready
+      service: database
+      log_type: sql
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    multiline:
+      pattern: '^\d{4}-\d{2}-\d{2}'
+      negate: true
+      match: after
+
+  # --- GC日志 (Java垃圾回收) ---
+  - type: log
+    id: ai-ready-gc
+    enabled: true
+    paths:
+      - /var/log/ai-ready/gc/*.log
+    fields:
+      project: ai-ready
+      service: jvm
+      log_type: gc
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    multiline:
+      pattern: '^\[GC|^\[Full GC|^\[ParNew|^\[CMS|^\[G1'
+      negate: true
+      match: after
+      timeout: 30s
+
+  # --- Docker容器日志 ---
+  - type: docker
+    id: ai-ready-containers
+    enabled: true
+    containers:
+      path: /var/lib/docker/containers
+      stream: all
+      ids:
+        - "*"
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - decode_json_fields:
+          fields: ["message"]
+          process_array: true
+          max_depth: 2
+          target: json
+          overwrite_keys: true
+
+  # --- 性能监控日志 ---
+  - type: log
+    id: ai-ready-performance
+    enabled: true
+    paths:
+      - /var/log/ai-ready/performance/*.log
+      - /var/log/ai-ready/metrics/*.log
+    fields:
+      project: ai-ready
+      service: monitoring
+      log_type: performance
+      environment: ${ENVIRONMENT:production}
+    fields_under_root: true
+    json:
+      keys_under_root: true
+
+# ==================== 处理器配置 ====================
+processors:
+  # 添加主机元数据
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      netinfo.enabled: true
+      cache.enabled: true
+      geolocation:
+        enabled: true
+
+  # 添加云元数据
+  - add_cloud_metadata:
+      enabled: true
+      timeout: 3s
+      overwrite: true
+
+  # 添加Docker元数据
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      match_fields:
+        - "log.file.path"
+      match_pids:
+        - "process.pid"
+        - "pid"
+
+  # 添加Kubernetes元数据
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME:}
+      matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+
+  # 解析时间戳
+  - timestamp:
+      field: timestamp
+      layouts:
+        - '2006-01-02T15:04:05.999Z0700'
+        - '2006-01-02T15:04:05.999Z'
+        - '2006-01-02 15:04:05'
+        - '2006/01/02 15:04:05'
+      ignore_missing: true
+      ignore_failure: true
+
+  # 添加项目标签
+  - add_fields:
+      target: ''
+      fields:
+        log_collection_version: "2.0.0"
+        collected_at: "${COLLECTED_AT:unknown}"
+
+  # 过滤敏感信息
+  - script:
+      lang: javascript
+      id: filter_sensitive_info
+      source: >
+        function process(event) {
+          var msg = event.Get("message");
+          if (msg) {
+            // 过滤密码
+            msg = msg.replace(/(password|passwd|pwd)[=:]\s*[^\s\"']+/gi, "$1=***REDACTED***");
+            // 过滤Token
+            msg = msg.replace(/(token|jwt|bearer|authorization)[=:]\s*[^\s\"']+/gi, "$1=***REDACTED***");
+            // 过滤API密钥
+            msg = msg.replace(/(api_key|apikey|secret_key|secretkey)[=:]\s*[^\s\"']+/gi, "$1=***REDACTED***");
+            // 过滤身份证号
+            msg = msg.replace(/\d{17}[\dXx]/g, "******************");
+            // 过滤手机号
+            msg = msg.replace(/1[3-9]\d{9}/g, "1**********");
+            event.Put("message", msg);
+          }
+        }
+
+  # 丢弃健康检查日志
+  - drop_event:
+      when:
+        or:
+          - regexp:
+              message: ".*(health.?check|actuator/health|metrics|favicon|robots\\.txt).*"
+          - regexp:
+              path: ".*(health|metrics).*"
+
+  # 删除不必要的字段
+  - drop_fields:
+      fields:
+        - agent.ephemeral_id
+        - agent.id
+        - agent.name
+        - agent.version
+        - ecs.version
+        - input.type
+        - log.offset
+        - log.flags
+      ignore_missing: true
+
+# ==================== 输出配置 ====================
+# 主输出: Logstash (推荐)
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  ttl: 30s
+  bulk_max_size: 2048
+  compression_level: 3
+  timeout: 30s
+  max_retries: 3
+  index: "ai-ready"
+  pipelining: 2
+  pipelining.batch_size: 1000
+  pipelining.batch_timeout: 1s
+
+# 备用输出: Elasticsearch (直接)
+# output.elasticsearch:
+#   enabled: false
+#   hosts: ["http://elasticsearch:9200"]
+#   index: "ai-ready-%{[log_type]}-%{+yyyy.MM.dd}"
+#   pipeline: "ai-ready-pipeline"
+#   bulk_max_size: 2048
+#   worker: 4
+#   timeout: 30s
+#   max_retries: 3
+
+# 备用输出: Kafka (高吞吐场景)
+# output.kafka:
+#   enabled: false
+#   hosts: ["kafka1:9092", "kafka2:9092", "kafka3:9092"]
+#   topic: "ai-ready-logs"
+#   partition.round_robin:
+#     reachable_only: true
+#   required_acks: 1
+#   compression: gzip
+#   max_message_bytes: 1000000
+
+# ==================== 性能调优 ====================
+queue:
+  mem:
+    events: 4096
+    flush.min_events: 512
+    flush.timeout: 1s
+
+spooler:
+  flush_interval: 1s
+  batch_size: 2048
+  batch_timeout: 10s
+
+# ==================== 索引模板设置 ====================
+setup.template:
+  name: "ai-ready"
+  pattern: "ai-ready-*"
+  enabled: true
+  overwrite: false
+  settings:
+    index.number_of_shards: 2
+    index.number_of_replicas: 1
+    index.refresh_interval: "5s"
+    index.lifecycle.name: "ai-ready-policy"
+    index.lifecycle.rollover_alias: "ai-ready"
+
+# ==================== Kibana设置 ====================
+setup.kibana:
+  host: "kibana:5601"
+  protocol: "http"
+  path: ""
+  ssl.enabled: false
+
+# ==================== 监控设置 ====================
+monitoring:
+  enabled: true
+  cluster_uuid: "ai-ready-cluster"
+  elasticsearch:
+    hosts: ["http://elasticsearch:9200"]
+    # username: "${ELASTICSEARCH_USERNAME}"
+    # password: "${ELASTICSEARCH_PASSWORD}"
+  metrics:
+    enabled: true
+    period: 30s
+  state:
+    enabled: true
+    period: 60s
+
+# ==================== 日志配置 ====================
+logging:
+  level: info
+  to_files: true
+  files:
+    path: /var/log/filebeat
+    name: filebeat.log
+    keepfiles: 7
+    permissions: 0644
+    interval: 0
+  selectors: ["*"]
+  metrics:
+    enabled: true
+    period: 30s
+
+# ==================== HTTP端点 (健康检查) ====================
+http:
+  enabled: true
+  host: 0.0.0.0
+  port: 5066
+
+# ==================== 资源限制 ====================
+# process:
+#   capabilities:
+#     - chown
+#     - dac_override
+#     - fowner
+#     - fsetid
+#     - kill
+#     - setgid
+#     - setuid
+#     - setpcap
+#     - net_bind_service
+#     - net_raw
+#     - sys_chroot
+#     - mknod
+#     - audit_write
+#     - setfcap

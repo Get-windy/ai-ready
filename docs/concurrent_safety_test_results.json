@@ -1,0 +1,74 @@
+{
+  "test_time": "2026-04-04 04:35:51",
+  "config": {
+    "thread_counts": [
+      10,
+      50,
+      100
+    ],
+    "iterations_per_thread": 10,
+    "timeout_seconds": 30
+  },
+  "results": [
+    {
+      "test_name": "并发读测试",
+      "total_requests": 1600,
+      "success_count": 1600,
+      "fail_count": 0,
+      "success_rate": 100.0,
+      "status_codes": {
+        "401": 1600
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "并发写测试",
+      "total_requests": 150,
+      "success_count": 0,
+      "fail_count": 150,
+      "success_rate": 0.0,
+      "status_codes": {
+        "500": 150
+      },
+      "status": "FAIL"
+    },
+    {
+      "test_name": "读写冲突测试",
+      "read_requests": 100,
+      "write_requests": 25,
+      "read_success": 100,
+      "write_success": 0,
+      "status": "PASS"
+    },
+    {
+      "test_name": "死锁检测",
+      "total_requests": 100,
+      "timeout_count": 0,
+      "execution_time_s": 0.42,
+      "deadlock_detected": false,
+      "status": "PASS"
+    },
+    {
+      "test_name": "原子性测试",
+      "total_requests": 100,
+      "success_count": 100,
+      "partial_failure_count": 0,
+      "status": "PASS"
+    },
+    {
+      "test_name": "数据一致性测试",
+      "threads_tested": 30,
+      "violations": 0,
+      "status": "PASS"
+    }
+  ],
+  "issues": [
+    {
+      "type": "WRITE_CONFLICT",
+      "severity": "HIGH",
+      "description": "并发写入存在冲突: {500: 150}",
+      "scenario": "多线程同时创建资源",
+      "recommendation": "实现唯一约束或分布式锁"
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+# AI-Ready Prometheus Alert Rules - Enhanced Version
+# Version: v2.0.0
+# Last Updated: 2026-04-04
+# Author: devops-engineer
+
+groups:
+  # ═══════════════════════════════════════════════════════════
+  # 应用层告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-application
+    interval: 30s
+    rules:
+      # 服务可用性告警
+      - alert: AIReadyServiceDown
+        expr: up{job="ai-ready-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: platform
+          priority: P0
+        annotations:
+          summary: "AI-Ready服务不可用"
+          description: "实例 {{ $labels.instance }} 已经停止响应超过30秒"
+          runbook_url: "https://docs.ai-ready.cn/runbook/service-down"
+
+      # 高错误率告警 - 分级
+      - alert: AIReadyHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="ai-ready-api", status=~"5.."}[5m])) 
+          / sum(rate(http_server_requests_seconds_count{application="ai-ready-api"}[5m])) * 100 > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: platform
+          priority: P0
+        annotations:
+          summary: "AI-Ready错误率严重过高"
+          description: "5xx错误率 {{ $value | printf \"%.2f\" }}% 超过10%，持续时间2分钟"
+
+      - alert: AIReadyErrorRateWarning
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="ai-ready-api", status=~"5.."}[5m])) 
+          / sum(rate(http_server_requests_seconds_count{application="ai-ready-api"}[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P1
+        annotations:
+          summary: "AI-Ready错误率偏高"
+          description: "5xx错误率 {{ $value | printf \"%.2f\" }}% 超过5%，持续时间5分钟"
+
+      # 响应时间告警 - 分级
+      - alert: AIReadySlowResponseCritical
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application="ai-ready-api"}[5m])) by (le)) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: platform
+          priority: P0
+        annotations:
+          summary: "AI-Ready响应时间严重过长"
+          description: "P95响应时间 {{ $value | printf \"%.2f\" }}秒 超过5秒"
+
+      - alert: AIReadySlowResponseWarning
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application="ai-ready-api"}[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P2
+        annotations:
+          summary: "AI-Ready响应时间过长"
+          description: "P95响应时间 {{ $value | printf \"%.2f\" }}秒 超过2秒"
+
+      # 请求量异常告警
+      - alert: AIReadyLowTraffic
+        expr: sum(rate(http_server_requests_seconds_count{application="ai-ready-api"}[10m])) < 0.1
+        for: 15m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P2
+        annotations:
+          summary: "AI-Ready请求量异常低"
+          description: "过去15分钟QPS接近0，请检查服务状态"
+
+      - alert: AIReadyHighTraffic
+        expr: sum(rate(http_server_requests_seconds_count{application="ai-ready-api"}[5m])) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P2
+        annotations:
+          summary: "AI-Ready请求量异常高"
+          description: "QPS {{ $value | printf \"%.0f\" }} 超过1000，考虑扩容"
+
+  # ═══════════════════════════════════════════════════════════
+  # JVM层告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-jvm
+    interval: 30s
+    rules:
+      # 堆内存使用率告警 - 分级
+      - alert: AIReadyHeapMemoryCritical
+        expr: |
+          jvm_memory_used_bytes{application="ai-ready-api", area="heap"} 
+          / jvm_memory_max_bytes{application="ai-ready-api", area="heap"} * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: platform
+          priority: P0
+        annotations:
+          summary: "AI-Ready堆内存即将溢出"
+          description: "堆内存使用率 {{ $value | printf \"%.1f\" }}% 超过95%，可能导致OOM"
+          runbook_url: "https://docs.ai-ready.cn/runbook/heap-memory"
+
+      - alert: AIReadyHeapMemoryWarning
+        expr: |
+          jvm_memory_used_bytes{application="ai-ready-api", area="heap"} 
+          / jvm_memory_max_bytes{application="ai-ready-api", area="heap"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P1
+        annotations:
+          summary: "AI-Ready堆内存使用率过高"
+          description: "堆内存使用率 {{ $value | printf \"%.1f\" }}% 超过85%"
+
+      # 非堆内存告警
+      - alert: AIReadyNonHeapMemoryHigh
+        expr: |
+          jvm_memory_used_bytes{application="ai-ready-api", area="nonheap"} > 536870912
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P2
+        annotations:
+          summary: "AI-Ready非堆内存使用过高"
+          description: "非堆内存使用 {{ $value | humanize1024 }} 超过512MB"
+
+      # GC频率告警
+      - alert: AIReadyGCFrequent
+        expr: |
+          rate(jvm_gc_pause_seconds_count{application="ai-ready-api"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P1
+        annotations:
+          summary: "AI-Ready GC频率过高"
+          description: "GC频率 {{ $value | printf \"%.1f\" }}次/秒，可能需要调优"
+
+      # GC暂停时间告警
+      - alert: AIReadyGCLongPause
+        expr: |
+          histogram_quantile(0.99, rate(jvm_gc_pause_seconds_bucket{application="ai-ready-api"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: platform
+          priority: P0
+        annotations:
+          summary: "AI-Ready GC暂停时间严重过长"
+          description: "P99 GC暂停时间 {{ $value | printf \"%.2f\" }}秒 超过1秒"
+
+      # 线程数告警
+      - alert: AIReadyThreadCountHigh
+        expr: jvm_threads_current{application="ai-ready-api"} > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: platform
+          priority: P2
+        annotations:
+          summary: "AI-Ready线程数过多"
+          description: "当前线程数 {{ $value }} 超过500，可能存在线程泄漏"
+
+  # ═══════════════════════════════════════════════════════════
+  # 数据库层告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-database
+    interval: 30s
+    rules:
+      # 连接池耗尽告警
+      - alert: AIReadyConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active{application="ai-ready-api"} 
+          / hikaricp_connections_max{application="ai-ready-api"} * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-ready-api
+          team: dba
+          priority: P0
+        annotations:
+          summary: "AI-Ready数据库连接池即将耗尽"
+          description: "活动连接占比 {{ $value | printf \"%.1f\" }}% 超过90%"
+
+      # 连接等待告警
+      - alert: AIReadyConnectionPending
+        expr: hikaricp_connections_pending{application="ai-ready-api"} > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: dba
+          priority: P1
+        annotations:
+          summary: "AI-Ready数据库连接等待"
+          description: "{{ $value }} 个连接正在等待"
+
+      # 慢查询告警
+      - alert: AIReadySlowDatabaseQuery
+        expr: |
+          histogram_quantile(0.95, rate(spring_data_repository_invocations_seconds_bucket{application="ai-ready-api"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-ready-api
+          team: dba
+          priority: P2
+        annotations:
+          summary: "AI-Ready数据库查询缓慢"
+          description: "P95查询时间 {{ $value | printf \"%.2f\" }}秒"
+
+  # ═══════════════════════════════════════════════════════════
+  # Redis缓存告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-redis
+    interval: 30s
+    rules:
+      - alert: AIReadyRedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: redis
+          team: platform
+          priority: P0
+        annotations:
+          summary: "Redis服务不可用"
+          description: "Redis实例 {{ $labels.instance }} 已经停止响应"
+
+      - alert: AIReadyRedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          team: platform
+          priority: P1
+        annotations:
+          summary: "Redis内存使用率过高"
+          description: "Redis内存使用率 {{ $value | printf \"%.1f\" }}%"
+
+      - alert: AIReadyRedisConnectionHigh
+        expr: redis_connected_clients / redis_config_maxclients * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          team: platform
+          priority: P2
+        annotations:
+          summary: "Redis连接数过高"
+          description: "Redis连接数使用率 {{ $value | printf \"%.1f\" }}%"
+
+      - alert: AIReadyRedisHitRateLow
+        expr: |
+          rate(redis_keyspace_hits_total[5m]) 
+          / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) * 100 < 80
+        for: 10m
+        labels:
+          severity: warning
+          service: redis
+          team: platform
+          priority: P2
+        annotations:
+          summary: "Redis命中率过低"
+          description: "缓存命中率 {{ $value | printf \"%.1f\" }}% 低于80%"
+
+  # ═══════════════════════════════════════════════════════════
+  # 系统层告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-system
+    interval: 30s
+    rules:
+      - alert: AIReadyCPUHigh
+        expr: |
+          100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          priority: P0
+        annotations:
+          summary: "CPU使用率严重过高"
+          description: "CPU使用率 {{ $value | printf \"%.1f\" }}% 超过90%"
+
+      - alert: AIReadyCPUWarning
+        expr: |
+          100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          priority: P2
+        annotations:
+          summary: "CPU使用率过高"
+          description: "CPU使用率 {{ $value | printf \"%.1f\" }}% 超过80%"
+
+      - alert: AIReadyMemoryHigh
+        expr: |
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          priority: P0
+        annotations:
+          summary: "系统内存即将耗尽"
+          description: "内存使用率 {{ $value | printf \"%.1f\" }}% 超过90%"
+
+      - alert: AIReadyDiskHigh
+        expr: |
+          (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}) 
+          / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          priority: P0
+        annotations:
+          summary: "磁盘空间即将耗尽"
+          description: "磁盘 {{ $labels.mountpoint }} 使用率 {{ $value | printf \"%.1f\" }}%"
+
+  # ═══════════════════════════════════════════════════════════
+  # 业务层告警
+  # ═══════════════════════════════════════════════════════════
+  - name: ai-ready-business
+    interval: 1m
+    rules:
+      - alert: AIReadyAIEngineTimeout
+        expr: |
+          rate(ai_engine_request_timeout_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-engine
+          team: ai
+          priority: P1
+        annotations:
+          summary: "AI引擎请求超时率过高"
+          description: "AI引擎超时率 {{ $value | printf \"%.2f\" }}次/秒"
+
+      - alert: AIReadyAITokenExhausted
+        expr: ai_engine_tokens_remaining < 10000
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-engine
+          team: ai
+          priority: P0
+        annotations:
+          summary: "AI Token即将耗尽"
+          description: "剩余Token数量 {{ $value }}，请及时充值"

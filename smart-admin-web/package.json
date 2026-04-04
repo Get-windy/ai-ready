@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
+    "build:analyze": "vite-bundle-visualizer",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "lint:console": "eslint . --ext .vue,.js,.ts --rule 'no-console: error'",
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   },
@@ -15,6 +17,7 @@
     "vue": "^3.4.0",
     "vue-router": "^4.3.0",
     "pinia": "^2.1.7",
+    "vue-i18n": "^9.9.0",
     "ant-design-vue": "^4.1.0",
     "@ant-design/icons-vue": "^7.0.1",
     "axios": "^1.6.0",
@@ -37,6 +40,9 @@
     "vitest": "^1.2.0",
     "@vue/test-utils": "^2.4.4",
     "unplugin-auto-import": "^0.17.5",
-    "unplugin-vue-components": "^0.26.0"
+    "unplugin-vue-components": "^0.26.0",
+    "vite-plugin-compression": "^0.5.1",
+    "terser": "^5.30.0",
+    "pinia-plugin-persistedstate": "^3.2.0"
   }
 }

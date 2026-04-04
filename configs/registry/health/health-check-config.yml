@@ -1,0 +1,125 @@
+# AI-Ready Service Health Check Configuration
+# Comprehensive health check for all registered services
+# Version: v1.0
+
+health-check:
+  # 全局配置
+  global:
+    enabled: true
+    interval: 10s
+    timeout: 5s
+    retries: 3
+    deregister-after: 30s
+    
+  # 服务健康检查配置
+  services:
+    ai-ready-api:
+      name: ai-ready-api
+      check:
+        type: http
+        endpoint: /actuator/health
+        interval: 10s
+        timeout: 5s
+        deregister-after: 30s
+        
+        # 自定义健康指标
+        indicators:
+          - name: database
+            critical: true
+            threshold:
+              connection-timeout: 5000
+              query-timeout: 1000
+              
+          - name: redis
+            critical: true
+            threshold:
+              connection-timeout: 3000
+              
+          - name: disk
+            critical: false
+            threshold:
+              min-free-space: 1GB
+              
+          - name: memory
+            critical: false
+            threshold:
+              max-usage: 90%
+
+    ai-ready-agent:
+      name: ai-ready-agent
+      check:
+        type: tcp
+        port: 8081
+        interval: 10s
+        timeout: 3s
+        
+    ai-ready-crm:
+      name: ai-ready-crm
+      check:
+        type: http
+        endpoint: /actuator/health
+        interval: 10s
+        timeout: 5s
+        
+    ai-ready-erp:
+      name: ai-ready-erp
+      check:
+        type: http
+        endpoint: /actuator/health
+        interval: 10s
+        timeout: 5s
+
+  # 依赖健康检查
+  dependencies:
+    postgres:
+      check:
+        type: tcp
+        port: 5432
+        interval: 30s
+        timeout: 5s
+        
+    redis:
+      check:
+        type: tcp
+        port: 6379
+        interval: 30s
+        timeout: 3s
+        
+    rocketmq:
+      check:
+        type: tcp
+        port: 9876
+        interval: 30s
+        timeout: 5s
+
+# Kubernetes 健康检查配置
+k8s-health:
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+    
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+    
+  startupProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+    successThreshold: 1

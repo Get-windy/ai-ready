@@ -1,0 +1,397 @@
+// Jenkins Pipeline for AI-Ready
+// Project: 智企连·AI-Ready
+// Compatible with Jenkins 2.400+ with Pipeline plugin
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml '''
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              labels:
+                app: ai-ready-build
+            spec:
+              containers:
+              - name: maven
+                image: maven:3.9-eclipse-temurin-17
+                command: ["cat"]
+                tty: true
+                resources:
+                  limits:
+                    memory: "2Gi"
+                    cpu: "2"
+                  requests:
+                    memory: "1Gi"
+                    cpu: "1"
+                volumeMounts:
+                - name: m2-cache
+                  mountPath: /root/.m2/repository
+              - name: docker
+                image: docker:24-cli
+                command: ["cat"]
+                tty: true
+                volumeMounts:
+                - name: docker-sock
+                  mountPath: /var/run/docker.sock
+              - name: kubectl
+                image: bitnami/kubectl:latest
+                command: ["cat"]
+                tty: true
+              volumes:
+              - name: m2-cache
+                persistentVolumeClaim:
+                  claimName: m2-cache-pvc
+              - name: docker-sock
+                hostPath:
+                  path: /var/run/docker.sock
+                  type: Socket
+            '''
+        }
+    }
+
+    environment {
+        DOCKER_REGISTRY = 'registry.cn-hangzhou.aliyuncs.com'
+        DOCKER_IMAGE = "${DOCKER_REGISTRY}/ai-ready/ai-ready-api"
+        JAVA_VERSION = '17'
+        SONAR_URL = credentials('sonar-url')
+        SONAR_TOKEN = credentials('sonar-token')
+        KUBE_CONFIG_DEV = credentials('kube-config-dev')
+        KUBE_CONFIG_STAGING = credentials('kube-config-staging')
+        KUBE_CONFIG_PROD = credentials('kube-config-prod')
+    }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timestamps()
+        ansiColor('xterm')
+        retry(2)
+    }
+
+    triggers {
+        githubPush()
+        pollSCM('H/5 * * * *')
+    }
+
+    stages {
+        // ==========================================
+        // Stage: Checkout & Setup
+        // ==========================================
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.APP_VERSION = sh(
+                        script: 'mvn help:evaluate -Dexpression=project.version -q -DforceStdout',
+                        returnStdout: true
+                    ).trim()
+                    env.BUILD_TAG = "${env.APP_VERSION}-${env.BUILD_NUMBER}"
+                    echo "Building version: ${env.APP_VERSION}"
+                    echo "Build tag: ${env.BUILD_TAG}"
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Code Quality Analysis
+        // ==========================================
+        stage('Code Quality') {
+            parallel {
+                stage('Checkstyle') {
+                    steps {
+                        container('maven') {
+                            sh '''
+                                mvn checkstyle:check -B || true
+                            '''
+                        }
+                    }
+                    post {
+                        always {
+                            recordIssues(
+                                tools: [checkstyle(pattern: 'target/checkstyle-result.xml')],
+                                qualityGates: [[threshold: 100, type: 'TOTAL', unstable: true]]
+                            )
+                        }
+                    }
+                }
+                stage('SpotBugs') {
+                    steps {
+                        container('maven') {
+                            sh '''
+                                mvn spotbugs:spotbugs -B || true
+                            '''
+                        }
+                    }
+                    post {
+                        always {
+                            recordIssues(
+                                tools: [spotBugs(pattern: 'target/spotbugsXml.xml')],
+                                qualityGates: [[threshold: 10, type: 'TOTAL_HIGH', unstable: true]]
+                            )
+                        }
+                    }
+                }
+                stage('SonarQube') {
+                    when {
+                        branch 'main'
+                    }
+                    steps {
+                        container('maven') {
+                            sh """
+                                mvn sonar:sonar \
+                                    -Dsonar.host.url=${SONAR_URL} \
+                                    -Dsonar.login=${SONAR_TOKEN} \
+                                    -Dsonar.projectKey=ai-ready \
+                                    -Dsonar.projectName='AI-Ready'
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Build & Test
+        // ==========================================
+        stage('Build') {
+            steps {
+                container('maven') {
+                    sh '''
+                        mvn clean package -B -DskipTests
+                    '''
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'core-api/target/*.jar', fingerprint: true
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                container('maven') {
+                    sh '''
+                        mvn test -B
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                    publishHTML([
+                        reportDir: 'target/site/jacoco',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            steps {
+                container('maven') {
+                    sh '''
+                        mvn verify -B -Dtest.skip=true -Dfailsafe.rerunFailingTestsCount=2
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit 'target/failsafe-reports/*.xml'
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Docker Build & Push
+        // ==========================================
+        stage('Docker Build') {
+            steps {
+                container('docker') {
+                    script {
+                        docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-credentials') {
+                            def customImage = docker.build("${DOCKER_IMAGE}:${env.BUILD_TAG}", ".")
+                            customImage.push("${env.BUILD_TAG}")
+                            customImage.push('latest')
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Scan') {
+            steps {
+                container('docker') {
+                    sh '''
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                            aquasec/trivy:latest image --exit-code 1 --severity HIGH,CRITICAL \
+                            ${DOCKER_IMAGE}:${BUILD_TAG} || true
+                    '''
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Deploy to Development
+        // ==========================================
+        stage('Deploy Dev') {
+            when {
+                branch 'develop'
+            }
+            environment {
+                KUBE_NAMESPACE = 'ai-ready-dev'
+            }
+            steps {
+                container('kubectl') {
+                    sh '''
+                        kubectl config use-context dev
+                        kubectl apply -f k8s/base/ -n ${KUBE_NAMESPACE}
+                        kubectl apply -f k8s/dev/ -n ${KUBE_NAMESPACE}
+                        kubectl set image deployment/ai-ready-api \
+                            ai-ready-api=${DOCKER_IMAGE}:${BUILD_TAG} \
+                            -n ${KUBE_NAMESPACE}
+                        kubectl rollout status deployment/ai-ready-api \
+                            -n ${KUBE_NAMESPACE} --timeout=300s
+                    '''
+                }
+            }
+            post {
+                success {
+                    script {
+                        env.DEV_DEPLOYED = 'true'
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Deploy to Staging
+        // ==========================================
+        stage('Deploy Staging') {
+            when {
+                branch 'main'
+            }
+            environment {
+                KUBE_NAMESPACE = 'ai-ready-staging'
+            }
+            steps {
+                container('kubectl') {
+                    sh '''
+                        kubectl config use-context staging
+                        kubectl apply -f k8s/base/ -n ${KUBE_NAMESPACE}
+                        kubectl apply -f k8s/staging/ -n ${KUBE_NAMESPACE}
+                        kubectl set image deployment/ai-ready-api \
+                            ai-ready-api=${DOCKER_IMAGE}:${BUILD_TAG} \
+                            -n ${KUBE_NAMESPACE}
+                        kubectl rollout status deployment/ai-ready-api \
+                            -n ${KUBE_NAMESPACE} --timeout=300s
+                        
+                        # Health check
+                        for i in {1..10}; do
+                            STATUS=$(kubectl exec -n ${KUBE_NAMESPACE} deployment/ai-ready-api \
+                                -- curl -s http://localhost:8080/actuator/health | grep -o "UP" || echo "down")
+                            if [ "$STATUS" = "UP" ]; then
+                                echo "Health check passed"
+                                break
+                            fi
+                            sleep 10
+                        done
+                    '''
+                }
+            }
+        }
+
+        // ==========================================
+        // Stage: Deploy to Production (Manual Approval)
+        // ==========================================
+        stage('Deploy Production') {
+            when {
+                tag 'release/*'
+            }
+            environment {
+                KUBE_NAMESPACE = 'ai-ready-prod'
+            }
+            steps {
+                // Manual approval gate
+                input {
+                    message "Deploy ${env.BUILD_TAG} to Production?"
+                    ok "Deploy to Production"
+                    submitter "prod-deployers"
+                    parameters {
+                        booleanParam(name: 'PERFORM_BACKUP', defaultValue: true, description: 'Backup before deployment')
+                        booleanParam(name: 'ENABLE_MONITORING', defaultValue: true, description: 'Enable enhanced monitoring')
+                    }
+                }
+                
+                container('kubectl') {
+                    script {
+                        if (params.PERFORM_BACKUP) {
+                            sh '''
+                                # Backup current deployment
+                                kubectl get deployment ai-ready-api -n ${KUBE_NAMESPACE} -o yaml > backup-deployment.yaml
+                                kubectl get svc -n ${KUBE_NAMESPACE} -o yaml > backup-service.yaml
+                                kubectl get configmap -n ${KUBE_NAMESPACE} -o yaml > backup-configmap.yaml
+                            '''
+                        }
+                        
+                        sh '''
+                            kubectl config use-context prod
+                            kubectl apply -f k8s/base/ -n ${KUBE_NAMESPACE}
+                            kubectl apply -f k8s/prod/ -n ${KUBE_NAMESPACE}
+                            kubectl set image deployment/ai-ready-api \
+                                ai-ready-api=${DOCKER_IMAGE}:${BUILD_TAG} \
+                                -n ${KUBE_NAMESPACE}
+                            kubectl rollout status deployment/ai-ready-api \
+                                -n ${KUBE_NAMESPACE} --timeout=600s
+                            
+                            # Post-deployment verification
+                            kubectl get pods -n ${KUBE_NAMESPACE} -l app=ai-ready-api
+                            kubectl logs -n ${KUBE_NAMESPACE} -l app=ai-ready-api --tail=50
+                        '''
+                        
+                        if (params.ENABLE_MONITORING) {
+                            sh '''
+                                # Enable enhanced monitoring
+                                kubectl annotate deployment ai-ready-api \
+                                    monitoring.enhanced=true \
+                                    monitoring.since=${BUILD_TAG} \
+                                    -n ${KUBE_NAMESPACE}
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // Post Actions
+    // ==========================================
+    post {
+        success {
+            script {
+                // Send success notification
+                sh '''
+                    curl -X POST ${WEBHOOK_URL} \
+                        -H "Content-Type: application/json" \
+                        -d '{"text":"✅ AI-Ready Pipeline Success: ${BUILD_TAG}"}'
+                '''
+            }
+        }
+        failure {
+            script {
+                // Send failure notification
+                sh '''
+                    curl -X POST ${WEBHOOK_URL} \
+                        -H "Content-Type: application/json" \
+                        -d '{"text":"❌ AI-Ready Pipeline Failed: ${BUILD_TAG} - Stage: ${STAGE_NAME}"}'
+                '''
+            }
+        }
+        cleanup {
+            cleanWs()
+        }
+    }
+}

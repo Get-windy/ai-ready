@@ -78,17 +78,19 @@ mybatis-plus:
       insert-strategy: not_null
       update-strategy: not_null
 
-# Sa-Token配置
+# Sa-Token配置（安全加固）
 sa-token:
   token-name: Authorization
-  timeout: 86400
-  active-timeout: -1
-  is-concurrent: true
-  is-share: true
-  token-style: uuid
-  is-log: false
+  timeout: 7200
+  active-timeout: 1800
+  is-concurrent: false
+  is-share: false
+  token-style: jwt
+  is-log: true
   is-read-header: true
   is-read-cookie: false
+  jwt-secret-key: AiReady2026SecretKeyForJWT!@#$%^&*VeryLongAndSecure
+  token-prefix: Bearer
 
 # Knife4j API文档配置
 knife4j:

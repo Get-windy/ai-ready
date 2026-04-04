@@ -1,0 +1,55 @@
+{
+  "trigger": {
+    "schedule": {
+      "interval": "5m"
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "indices": ["ai-ready-access-*"],
+        "body": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                { "range": { "http_status": { "gte": 500 } } },
+                { "range": { "@timestamp": { "gte": "now-5m" } } }
+              ]
+            }
+          },
+          "aggs": {
+            "by_status": {
+              "terms": { "field": "http_status", "size": 10 }
+            },
+            "by_uri": {
+              "terms": { "field": "request_uri.keyword", "size": 10 }
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gt": 50
+      }
+    }
+  },
+  "actions": {
+    "dingtalk_webhook": {
+      "webhook": {
+        "scheme": "https",
+        "host": "oapi.dingtalk.com",
+        "port": 443,
+        "method": "post",
+        "path": "/robot/send?access_token={{ctx.metadata.dingtalk_token}}",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"msgtype\":\"markdown\",\"markdown\":{\"title\":\"AI-Ready HTTP 5xx告警\",\"text\":\"## AI-Ready HTTP 5xx 告警\\n\\n**告警时间**: {{ctx.execution_time}}\\n\\n**5xx错误数**: {{ctx.payload.hits.total}} 次\\n\\n**时间范围**: 最近5分钟\\n\\n### 状态码分布\\n\\n| 状态码 | 次数 |\\n|--------|------|\\n{{#ctx.payload.aggregations.by_status.buckets}}| {{key}} | {{doc_count}} |\\n{{/ctx.payload.aggregations.by_status.buckets}}\\n\\n### 错误URI Top 10\\n\\n{{#ctx.payload.aggregations.by_uri.buckets}}- {{key}}: {{doc_count}} 次\\n{{/ctx.payload.aggregations.by_uri.buckets}}\\n\\n> 请立即排查服务状态！\"}}"
+      }
+    }
+  }
+}

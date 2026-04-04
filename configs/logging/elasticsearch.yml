@@ -1,0 +1,149 @@
+# AI-Ready Elasticsearch Configuration
+# Log Storage and Index Management
+# Version: v1.0
+
+# Cluster Name
+cluster.name: ai-ready-logs
+
+# Node Name
+node.name: ai-ready-es-node
+
+# Network
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# Discovery (Single Node)
+discovery.type: single-node
+
+# Data Paths
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# Memory Settings
+indices.memory.index_buffer_size: 20%
+
+# Index Settings
+action.destructive_requires_name: true
+
+# Security (Disabled for Dev)
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+
+# Index Lifecycle Policy
+xpack:
+ ilm:
+    enabled: true
+    DEFAULT_POLL_INTERVAL: 10m
+
+# Indices Lifecycle Policy
+PUT _ilm/policy/ai-ready-logs-policy
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "min_age": "0ms",
+        "actions": {
+          "rollover": {
+            "max_size": "50GB",
+            "max_age": "7d"
+          },
+          "set_priority": {
+            "priority": 100
+          }
+        }
+      },
+      "warm": {
+        "min_age": "7d",
+        "actions": {
+          "set_priority": {
+            "priority": 50
+          },
+          "shrink": {
+            "number_of_shards": 1
+          },
+          "forcemerge": {
+            "max_num_segments": 1
+          }
+        }
+      },
+      "cold": {
+        "min_age": "30d",
+        "actions": {
+          "set_priority": {
+            "priority": 0
+          },
+          "readonly": {}
+        }
+      },
+      "delete": {
+        "min_age": "90d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+
+# Index Template
+PUT _index_template/ai-ready-logs-template
+{
+  "index_patterns": ["ai-ready-logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "ai-ready-logs-policy",
+      "index.codec": "best_compression",
+      "index.refresh_interval": "30s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "log_level": {
+          "type": "keyword"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "request_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "request.method": {
+          "type": "keyword"
+        },
+        "request.path": {
+          "type": "keyword"
+        },
+        "response.status": {
+          "type": "integer"
+        },
+        "response.time": {
+          "type": "scaled_float",
+          "scaling_factor": 1000
+        }
+      }
+    }
+  }
+}

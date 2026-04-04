@@ -1,0 +1,241 @@
+# AI-Ready Extended Alert Rules
+# Performance Monitoring & AI Engine Alerts
+# Version: v1.0
+
+groups:
+  - name: ai-performance-alerts
+    rules:
+      # API Performance Metrics
+      - alert: HighAPIp99Latency
+        expr: histogram_quantile(0.99, sum(rate(ai_ready_http_server_requests_seconds_bucket[5m])) by (le, instance)) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI API p99 latency detected on {{ $labels.instance }}"
+          description: "AI API p99 response time is above 3s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-api-latency-p99"
+
+      - alert: HighAPIp95Latency
+        expr: histogram_quantile(0.95, sum(rate(ai_ready_http_server_requests_seconds_bucket[5m])) by (le, instance)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI API p95 latency detected on {{ $labels.instance }}"
+          description: "AI API p95 response time is above 2s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-api-latency-p95"
+
+      # AI Engine Performance
+      - alert: HighAIGPUUtilization
+        expr: ai_ready_gpu_utilization > 90
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI GPU utilization detected on {{ $labels.instance }}"
+          description: "AI GPU utilization is above 90% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-gpu-utilization-high"
+
+      - alert: HighAI MemoryUtilization
+        expr: ai_ready_gpu_memory_used_bytes / ai_ready_gpu_memory_total_bytes * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI GPU memory usage detected on {{ $labels.instance }}"
+          description: "AI GPU memory usage is above 85% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-gpu-memory-high"
+
+      # AI Model Performance
+      - alert: HighAI InferenceTime
+        expr: ai_ready_model_inference_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI inference time detected"
+          description: "AI model inference time is above 5s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-inference-time-high"
+
+      - alert: LowAI Throughput
+        expr: rate(ai_ready_model_requests_total[5m]) < 10
+        for: 15m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "Low AI model throughput"
+          description: "AI model throughput is below 10req/s (current value: {{ $value | humanize }}req/s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-throughput-low"
+
+      # AI Cache Performance
+      - alert: HighAICacheMissRate
+        expr: rate(ai_ready_cache_miss_total[5m]) / rate(ai_ready_cache_requests_total[5m]) * 100 > 20
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: performance
+        annotations:
+          summary: "High AI cache miss rate"
+          description: "AI cache miss rate is above 20% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-cache-miss-high"
+
+  - name: ai-business-alerts
+    rules:
+      # AI Query Processing
+      - alert: HighAIQueryProcessingTime
+        expr: ai_ready_query_processing_seconds > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: business
+        annotations:
+          summary: "High AI query processing time"
+          description: "AI query processing time is above 10s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-query-processing-high"
+
+      # AI Content Generation
+      - alert: HighAIContentGenerationTime
+        expr: ai_ready_content_generation_seconds > 15
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: business
+        annotations:
+          summary: "High AI content generation time"
+          description: "AI content generation time is above 15s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-content-generation-high"
+
+      # AI Search Performance
+      - alert: HighAISearchLatency
+        expr: ai_ready_search_seconds > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: business
+        annotations:
+          summary: "High AI search latency"
+          description: "AI search latency is above 3s (current value: {{ $value | humanize }}s)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-search-latency-high"
+
+  - name: ai-resource-alerts
+    rules:
+      # AI Container Resources
+      - alert: HighAICPUUsage
+        expr: ai_ready_container_cpu_usage_percent > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: resources
+        annotations:
+          summary: "High AI container CPU usage"
+          description: "AI container CPU usage is above 85% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-container-cpu-high"
+
+      - alert: HighAIMemoryUsage
+        expr: ai_ready_container_memory_usage_percent > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: resources
+        annotations:
+          summary: "High AI container memory usage"
+          description: "AI container memory usage is above 85% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-container-memory-high"
+
+      # AI Scaling
+      - alert: AIReplicaScalingDown
+        expr: ai_ready_replica_count < 2
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: scaling
+        annotations:
+          summary: "AI replica count below minimum"
+          description: "AI replica count is below 2 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-replica-scaling-down"
+
+      - alert: AIReplicaScalingUp
+        expr: ai_ready_replica_count >= 10
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: scaling
+        annotations:
+          summary: "AI replica count at maximum"
+          description: "AI replica count is at maximum 10 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-replica-scaling-up"
+
+  - name: ai-exception-alerts
+    rules:
+      # AI Model Errors
+      - alert: HighAI ModelErrorRate
+        expr: rate(ai_ready_model_errors_total[5m]) / rate(ai_ready_model_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: ai
+          category: exceptions
+        annotations:
+          summary: "High AI model error rate"
+          description: "AI model error rate is above 5% (current value: {{ $value | humanize }}%)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-model-errors-high"
+
+      # AI Data Validation
+      - alert: HighAI DataValidationErrors
+        expr: rate(ai_ready_validation_errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: exceptions
+        annotations:
+          summary: "High AI data validation errors"
+          description: "AI data validation errors are above 10/min (current value: {{ $value | humanize }}/min)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-validation-errors-high"
+
+      # AI Rate Limiting
+      - alert: HighAIRateLimitHits
+        expr: rate(ai_ready_rate_limit_hits_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+          category: exceptions
+        annotations:
+          summary: "High AI rate limit hits"
+          description: "AI rate limit hits are above 50/min (current value: {{ $value | humanize }}/min)"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-rate-limit-high"
+
+      # AI Queue Backlog
+      - alert: HighAIQueueBacklog
+        expr: ai_ready_queue_length > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+          category: exceptions
+        annotations:
+          summary: "High AI queue backlog"
+          description: "AI queue backlog is above 100 (current value: {{ $value }})"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/ai-queue-backlog-high"

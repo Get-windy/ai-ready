@@ -1,0 +1,390 @@
+{
+  "scan_time": "2026-04-03 17:19:13",
+  "code_scan": {
+    "issues": [
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\core-api\\src\\main\\java\\cn\\aiedge\\storage\\model\\FileInfo.java",
+        "line": 65,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\core-base\\src\\main\\java\\cn\\aiedge\\base\\mapper\\SysLoginLogMapper.java",
+        "line": 26,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\core-base\\src\\main\\java\\cn\\aiedge\\base\\mapper\\SysOperLogMapper.java",
+        "line": 31,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\core-base\\src\\main\\java\\cn\\aiedge\\base\\mapper\\SysOperLogMapper.java",
+        "line": 44,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\main\\java\\cn\\aiedge\\base\\util\\PasswordUtil.java",
+        "line": 11,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\test\\java\\cn\\aiedge\\base\\security\\PasswordEncryptorTest.java",
+        "line": 28,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\test\\java\\cn\\aiedge\\base\\security\\PasswordEncryptorTest.java",
+        "line": 39,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\test\\java\\cn\\aiedge\\base\\security\\PasswordEncryptorTest.java",
+        "line": 48,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\test\\java\\cn\\aiedge\\base\\security\\PasswordEncryptorTest.java",
+        "line": 80,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "hardcoded_secret",
+        "file": "I:\\AI-Ready\\core-base\\src\\test\\java\\cn\\aiedge\\base\\service\\SysUserServiceTest.java",
+        "line": 51,
+        "severity": "Medium",
+        "description": "Hardcoded password detected",
+        "recommendation": "Use environment variables or secret manager"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\crm-customer\\src\\main\\java\\cn\\aiedge\\customer\\mapper\\CustomerContactMapper.java",
+        "line": 17,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\crm-customer\\src\\main\\java\\cn\\aiedge\\customer\\mapper\\CustomerFollowMapper.java",
+        "line": 17,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\crm-customer\\src\\main\\java\\cn\\aiedge\\customer\\mapper\\CustomerFollowMapper.java",
+        "line": 20,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\erp\\erp-sale\\src\\main\\java\\cn\\aiedge\\erp\\sale\\mapper\\SaleOrderMapper.java",
+        "line": 39,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      },
+      {
+        "category": "code",
+        "rule": "weak_crypto",
+        "file": "I:\\AI-Ready\\erp\\erp-sale\\src\\main\\java\\cn\\aiedge\\erp\\sale\\mapper\\SaleOrderMapper.java",
+        "line": 45,
+        "severity": "Medium",
+        "description": "Weak cryptographic algorithm",
+        "recommendation": "Use SHA-256 or stronger algorithms"
+      }
+    ],
+    "count": 15
+  },
+  "dependency_scan": {
+    "issues": [],
+    "count": 0
+  },
+  "config_scan": {
+    "issues": [
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 9,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 64,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 76,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 79,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 94,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 106,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 118,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 130,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 142,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\alertmanager.yml",
+        "line": 152,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 49,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 82,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 150,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 178,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 245,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\alerting\\log-notification-channels.yml",
+        "line": 322,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\logging\\filebeat.yml",
+        "line": 51,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\configs\\logging\\kibana.yml",
+        "line": 11,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\k8s\\optimized\\api-deployment-optimized.yaml",
+        "line": 61,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\k8s\\optimized\\api-deployment-optimized.yaml",
+        "line": 240,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\k8s\\optimized\\api-deployment-optimized.yaml",
+        "line": 243,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\logging\\filebeat\\filebeat.yml",
+        "line": 136,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\logging\\filebeat\\filebeat.yml",
+        "line": 143,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      },
+      {
+        "category": "config",
+        "rule": "hardcoded_credential",
+        "file": "I:\\AI-Ready\\logging\\filebeat\\filebeat.yml",
+        "line": 173,
+        "severity": "High",
+        "description": "Hardcoded credential in config",
+        "recommendation": "Use environment variables"
+      }
+    ],
+    "count": 24
+  },
+  "permission_scan": {
+    "issues": [
+      {
+        "category": "permission",
+        "rule": "missing_permission_annotation",
+        "file": "multiple",
+        "line": 0,
+        "severity": "Medium",
+        "description": "3 controller files may lack permission annotations",
+        "recommendation": "Add permission annotations to all sensitive endpoints"
+      }
+    ],
+    "count": 1
+  },
+  "summary": {
+    "total_issues": 40,
+    "critical": 0,
+    "high": 24,
+    "medium": 16,
+    "low": 0,
+    "security_score": 0
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "test_time": "2026-04-04 14:41:19",
+  "summary": {
+    "total": 19,
+    "passed": 19,
+    "score": 100.0
+  },
+  "categories": {
+    "服务故障恢复": [
+      {
+        "name": "服务重启恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "服务故障转移",
+        "status": "PASS"
+      },
+      {
+        "name": "健康检查恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "优雅降级",
+        "status": "PASS"
+      }
+    ],
+    "数据库异常恢复": [
+      {
+        "name": "连接超时恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "连接池恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "查询重试机制",
+        "status": "PASS"
+      },
+      {
+        "name": "事务回滚",
+        "status": "PASS"
+      }
+    ],
+    "网络异常恢复": [
+      {
+        "name": "请求超时恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "连接拒绝恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "DNS解析失败恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "SSL握手失败恢复",
+        "status": "PASS"
+      }
+    ],
+    "资源耗尽恢复": [
+      {
+        "name": "内存耗尽恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "文件句柄耗尽恢复",
+        "status": "PASS"
+      }
+    ],
+    "熔断机制": [
+      {
+        "name": "熔断器打开",
+        "status": "PASS"
+      },
+      {
+        "name": "熔断器关闭",
+        "status": "PASS"
+      }
+    ],
+    "服务降级": [
+      {
+        "name": "降级响应",
+        "status": "PASS"
+      },
+      {
+        "name": "功能开关",
+        "status": "PASS"
+      },
+      {
+        "name": "限流降级",
+        "status": "PASS"
+      }
+    ]
+  }
+}

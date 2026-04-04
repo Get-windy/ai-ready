@@ -1,0 +1,278 @@
+# AI-Ready 自动化测试配置
+# 集成到CI/CD流水线的测试配置
+# Version: v2.0.0
+
+name: AI-Ready Automated Tests
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Test environment'
+        required: false
+        default: 'test'
+        type: string
+      test-type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - e2e
+          - performance
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  # ============ 单元测试 ============
+  unit-tests:
+    name: 单元测试
+    runs-on: ubuntu-latest
+    if: inputs.test-type == 'all' || inputs.test-type == 'unit'
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Java环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 运行单元测试
+        run: |
+          ./mvnw test \
+            -Dtest.groups=unit \
+            -Dmaven.test.failure.ignore=false \
+            -Djacoco.skip=false \
+            -B
+
+      - name: 生成覆盖率报告
+        run: ./mvnw jacoco:report -B
+
+      - name: 上传覆盖率到Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: '**/target/site/jacoco/jacoco.xml'
+          flags: unit
+
+      - name: 发布测试报告
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Test Results
+          path: '**/target/surefire-reports/TEST-*.xml'
+          reporter: java-junit
+
+  # ============ 集成测试 ============
+  integration-tests:
+    name: 集成测试
+    runs-on: ubuntu-latest
+    if: inputs.test-type == 'all' || inputs.test-type == 'integration'
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Java环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 运行集成测试
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          SPRING_REDIS_HOST: localhost
+          SPRING_REDIS_PORT: 6379
+          SPRING_PROFILES_ACTIVE: integration-test
+        run: |
+          ./mvnw verify \
+            -Dtest.groups=integration \
+            -Dspring.profiles.active=integration-test \
+            -B
+
+      - name: 发布测试报告
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Integration Test Results
+          path: '**/target/failsafe-reports/TEST-*.xml'
+          reporter: java-junit
+
+  # ============ E2E测试 ============
+  e2e-tests:
+    name: E2E测试
+    runs-on: ubuntu-latest
+    if: inputs.test-type == 'all' || inputs.test-type == 'e2e'
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: e2e_db
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Java环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 设置Node.js环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'tests/e2e/package-lock.json'
+
+      - name: 安装E2E测试依赖
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: 启动应用
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/e2e_db
+          SPRING_DATASOURCE_USERNAME: e2e
+          SPRING_DATASOURCE_PASSWORD: e2e
+          SPRING_REDIS_HOST: localhost
+          SPRING_REDIS_PORT: 6379
+        run: |
+          ./mvnw spring-boot:run -Dspring-boot.run.profiles=e2e &
+          sleep 60
+          curl -f http://localhost:8080/actuator/health || exit 1
+
+      - name: 运行Playwright E2E测试
+        working-directory: tests/e2e
+        run: |
+          npx playwright install --with-deps
+          npx playwright test --reporter=html
+
+      - name: 上传E2E测试报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-report
+          path: tests/e2e/playwright-report/
+          retention-days: 30
+
+  # ============ 性能测试 ============
+  performance-tests:
+    name: 性能测试
+    runs-on: ubuntu-latest
+    if: inputs.test-type == 'performance'
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置Java环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 安装JMeter
+        run: |
+          wget -q https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.2.tgz
+          tar -xzf apache-jmeter-5.6.2.tgz
+          echo "$PWD/apache-jmeter-5.6.2/bin" >> $GITHUB_PATH
+
+      - name: 运行性能测试
+        run: |
+          jmeter -n -t tests/performance/api-load-test.jmx \
+            -l tests/performance/results.jtl \
+            -e -o tests/performance/report/
+        continue-on-error: true
+
+      - name: 上传性能测试报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-report
+          path: tests/performance/report/
+          retention-days: 30
+
+      - name: 分析性能测试结果
+        run: |
+          # 检查响应时间是否超过阈值
+          python3 scripts/analyze_performance.py tests/performance/results.jtl
+
+  # ============ 测试汇总 ============
+  test-summary:
+    name: 测试汇总
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    steps:
+      - name: 下载所有测试报告
+        uses: actions/download-artifact@v4
+        with:
+          path: test-reports
+
+      - name: 生成测试汇总报告
+        run: |
+          echo "## 测试汇总报告" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 测试类型 | 状态 |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 单元测试 | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 集成测试 | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E测试 | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: 检查测试是否全部通过
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.integration-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-tests.result }}" != "success" ]]; then
+            echo "部分测试失败"
+            exit 1
+          fi

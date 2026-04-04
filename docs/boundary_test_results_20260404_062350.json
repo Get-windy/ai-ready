@@ -1,0 +1,389 @@
+{
+  "summary": {
+    "total": 47,
+    "passed": 47,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%",
+    "start_time": "2026-04-04T06:23:50.362489",
+    "end_time": "2026-04-04T06:23:50.537874"
+  },
+  "tests": [
+    {
+      "category": "数值边界",
+      "name": "分页参数 page=0",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 14.89,
+      "timestamp": "2026-04-04T06:23:50.377518"
+    },
+    {
+      "category": "数值边界",
+      "name": "分页参数 page=1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.02,
+      "timestamp": "2026-04-04T06:23:50.380559"
+    },
+    {
+      "category": "数值边界",
+      "name": "分页参数 page=-1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.8,
+      "timestamp": "2026-04-04T06:23:50.383384"
+    },
+    {
+      "category": "数值边界",
+      "name": "分页参数 page=999999",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.61,
+      "timestamp": "2026-04-04T06:23:50.386013"
+    },
+    {
+      "category": "数值边界",
+      "name": "大小参数 size=0",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.59,
+      "timestamp": "2026-04-04T06:23:50.388632"
+    },
+    {
+      "category": "数值边界",
+      "name": "大小参数 size=1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.87,
+      "timestamp": "2026-04-04T06:23:50.391524"
+    },
+    {
+      "category": "数值边界",
+      "name": "大小参数 size=100",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.28,
+      "timestamp": "2026-04-04T06:23:50.393815"
+    },
+    {
+      "category": "数值边界",
+      "name": "大小参数 size=1000",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.24,
+      "timestamp": "2026-04-04T06:23:50.396071"
+    },
+    {
+      "category": "数值边界",
+      "name": "大小参数 size=-1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.16,
+      "timestamp": "2026-04-04T06:23:50.398250"
+    },
+    {
+      "category": "字符串边界",
+      "name": "空字符串",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.17,
+      "timestamp": "2026-04-04T06:23:50.400494"
+    },
+    {
+      "category": "字符串边界",
+      "name": "单字符",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.15,
+      "timestamp": "2026-04-04T06:23:50.402664"
+    },
+    {
+      "category": "字符串边界",
+      "name": "1000字符",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.25,
+      "timestamp": "2026-04-04T06:23:50.404928"
+    },
+    {
+      "category": "字符串边界",
+      "name": "10000字符",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.38,
+      "timestamp": "2026-04-04T06:23:50.407324"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符1",
+      "status": "PASS",
+      "message": "字符: '<', 状态码: 401",
+      "duration_ms": 2.44,
+      "timestamp": "2026-04-04T06:23:50.409787"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符2",
+      "status": "PASS",
+      "message": "字符: '>', 状态码: 401",
+      "duration_ms": 2.83,
+      "timestamp": "2026-04-04T06:23:50.412633"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符3",
+      "status": "PASS",
+      "message": "字符: '&', 状态码: 401",
+      "duration_ms": 2.81,
+      "timestamp": "2026-04-04T06:23:50.415475"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符4",
+      "status": "PASS",
+      "message": "字符: \"'\", 状态码: 401",
+      "duration_ms": 2.14,
+      "timestamp": "2026-04-04T06:23:50.417642"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符5",
+      "status": "PASS",
+      "message": "字符: '\"', 状态码: 401",
+      "duration_ms": 2.87,
+      "timestamp": "2026-04-04T06:23:50.420542"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符6",
+      "status": "PASS",
+      "message": "字符: '\\n', 状态码: 401",
+      "duration_ms": 2.71,
+      "timestamp": "2026-04-04T06:23:50.423268"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符7",
+      "status": "PASS",
+      "message": "字符: '\\t', 状态码: 401",
+      "duration_ms": 2.25,
+      "timestamp": "2026-04-04T06:23:50.425532"
+    },
+    {
+      "category": "字符串边界",
+      "name": "特殊字符8",
+      "status": "PASS",
+      "message": "字符: '\\x00', 状态码: 401",
+      "duration_ms": 2.46,
+      "timestamp": "2026-04-04T06:23:50.428004"
+    },
+    {
+      "category": "ID边界",
+      "name": "ID=0",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.17,
+      "timestamp": "2026-04-04T06:23:50.430215"
+    },
+    {
+      "category": "ID边界",
+      "name": "ID=1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.11,
+      "timestamp": "2026-04-04T06:23:50.432339"
+    },
+    {
+      "category": "ID边界",
+      "name": "ID=-1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.07,
+      "timestamp": "2026-04-04T06:23:50.434418"
+    },
+    {
+      "category": "ID边界",
+      "name": "ID=999999999",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.03,
+      "timestamp": "2026-04-04T06:23:50.436467"
+    },
+    {
+      "category": "ID边界",
+      "name": "ID=Long.MAX",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.26,
+      "timestamp": "2026-04-04T06:23:50.438747"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID abc",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.16,
+      "timestamp": "2026-04-04T06:23:50.440925"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID null",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.27,
+      "timestamp": "2026-04-04T06:23:50.443214"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID undefined",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.1,
+      "timestamp": "2026-04-04T06:23:50.445325"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID 1.5",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 38.78,
+      "timestamp": "2026-04-04T06:23:50.484121"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID 1e10",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.06,
+      "timestamp": "2026-04-04T06:23:50.487200"
+    },
+    {
+      "category": "ID边界",
+      "name": "非数字ID 1;2",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.4,
+      "timestamp": "2026-04-04T06:23:50.491614"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 0",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.0,
+      "timestamp": "2026-04-04T06:23:50.494662"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.86,
+      "timestamp": "2026-04-04T06:23:50.497541"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 2",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.04,
+      "timestamp": "2026-04-04T06:23:50.500599"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 -1",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.92,
+      "timestamp": "2026-04-04T06:23:50.504546"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 999",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.07,
+      "timestamp": "2026-04-04T06:23:50.508638"
+    },
+    {
+      "category": "状态值边界",
+      "name": "状态值 255",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.29,
+      "timestamp": "2026-04-04T06:23:50.511949"
+    },
+    {
+      "category": "时间边界",
+      "name": "当前时间",
+      "status": "PASS",
+      "message": "日期: 2026-04-04, 状态码: 401",
+      "duration_ms": 2.64,
+      "timestamp": "2026-04-04T06:23:50.514658"
+    },
+    {
+      "category": "时间边界",
+      "name": "过去日期",
+      "status": "PASS",
+      "message": "日期: 2020-01-01, 状态码: 401",
+      "duration_ms": 2.3,
+      "timestamp": "2026-04-04T06:23:50.516973"
+    },
+    {
+      "category": "时间边界",
+      "name": "未来日期",
+      "status": "PASS",
+      "message": "日期: 2099-12-31, 状态码: 401",
+      "duration_ms": 2.36,
+      "timestamp": "2026-04-04T06:23:50.519348"
+    },
+    {
+      "category": "时间边界",
+      "name": "边界日期",
+      "status": "PASS",
+      "message": "日期: 1970-01-01, 状态码: 401",
+      "duration_ms": 2.71,
+      "timestamp": "2026-04-04T06:23:50.522086"
+    },
+    {
+      "category": "时间边界",
+      "name": "无效日期",
+      "status": "PASS",
+      "message": "日期: invalid-date, 状态码: 401",
+      "duration_ms": 4.04,
+      "timestamp": "2026-04-04T06:23:50.526151"
+    },
+    {
+      "category": "时间边界",
+      "name": "空日期",
+      "status": "PASS",
+      "message": "日期: , 状态码: 401",
+      "duration_ms": 3.36,
+      "timestamp": "2026-04-04T06:23:50.529538"
+    },
+    {
+      "category": "数组边界",
+      "name": "空数组",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.06,
+      "timestamp": "2026-04-04T06:23:50.532659"
+    },
+    {
+      "category": "数组边界",
+      "name": "单元素数组",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.68,
+      "timestamp": "2026-04-04T06:23:50.535354"
+    },
+    {
+      "category": "数组边界",
+      "name": "1000元素数组",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.45,
+      "timestamp": "2026-04-04T06:23:50.537818"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "test_time": "2026-04-03 18:11:53",
+  "summary": {
+    "total_requests": 200,
+    "failed_requests": 200,
+    "error_rate": 100.0,
+    "throughput": 4.889285212724008,
+    "duration": 40.90577483177185
+  }
+}

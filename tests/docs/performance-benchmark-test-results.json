@@ -1,0 +1,179 @@
+{
+  "test_time": "2026-04-03 18:25:01",
+  "base_url": "http://localhost:8080",
+  "baseline": {
+    "api_response_time_avg": 100,
+    "api_response_time_p95": 200,
+    "api_response_time_p99": 500,
+    "throughput_min": 100,
+    "concurrent_users": 100,
+    "error_rate_max": 1
+  },
+  "summary": {
+    "total": 11,
+    "passed": 8,
+    "failed": 3,
+    "skipped": 0,
+    "score": 72.72727272727273
+  },
+  "results": [
+    {
+      "name": "API响应时间: /user/page",
+      "category": "API性能",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 7.63,
+      "unit": "ms",
+      "message": "平均7.63ms < 基线100ms",
+      "details": {
+        "samples": 50,
+        "avg_ms": 7.63,
+        "p95_ms": 8.2,
+        "p99_ms": 44.26,
+        "min_ms": 5.31,
+        "max_ms": 44.26
+      }
+    },
+    {
+      "name": "API响应时间: /role/page",
+      "category": "API性能",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 6.16,
+      "unit": "ms",
+      "message": "平均6.16ms < 基线100ms",
+      "details": {
+        "samples": 50,
+        "avg_ms": 6.16,
+        "p95_ms": 8.18,
+        "p99_ms": 9.22,
+        "min_ms": 4.66,
+        "max_ms": 9.22
+      }
+    },
+    {
+      "name": "API响应时间: /v3/api-docs",
+      "category": "API性能",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 6.28,
+      "unit": "ms",
+      "message": "平均6.28ms < 基线100ms",
+      "details": {
+        "samples": 50,
+        "avg_ms": 6.28,
+        "p95_ms": 7.97,
+        "p99_ms": 23.6,
+        "min_ms": 4.63,
+        "max_ms": 23.6
+      }
+    },
+    {
+      "name": "数据库查询性能",
+      "category": "数据库性能",
+      "status": "FAIL",
+      "baseline_target": 100,
+      "actual_value": 0,
+      "unit": "ms",
+      "message": "无有效测试数据",
+      "details": {
+        "performance_by_page_size": {}
+      }
+    },
+    {
+      "name": "页面加载: 首页",
+      "category": "前端性能",
+      "status": "FAIL",
+      "baseline_target": 3000,
+      "actual_value": 0,
+      "unit": "ms",
+      "message": "页面加载失败",
+      "details": {}
+    },
+    {
+      "name": "页面加载: Swagger UI",
+      "category": "前端性能",
+      "status": "FAIL",
+      "baseline_target": 3000,
+      "actual_value": 0,
+      "unit": "ms",
+      "message": "页面加载失败",
+      "details": {}
+    },
+    {
+      "name": "页面加载: API文档",
+      "category": "前端性能",
+      "status": "PASS",
+      "baseline_target": 3000,
+      "actual_value": 27.57,
+      "unit": "ms",
+      "message": "加载时间28ms",
+      "details": {
+        "content_length": 1892,
+        "avg_load_time_ms": 27.57,
+        "samples": 5
+      }
+    },
+    {
+      "name": "10并发处理",
+      "category": "并发能力",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 425.85,
+      "unit": "req/s",
+      "message": "吞吐量425.85 req/s, 错误率0.00%",
+      "details": {
+        "throughput_req_s": 425.85,
+        "success_rate": 100.0,
+        "error_rate": 0.0,
+        "avg_response_ms": 17.88
+      }
+    },
+    {
+      "name": "50并发处理",
+      "category": "并发能力",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 430.11,
+      "unit": "req/s",
+      "message": "吞吐量430.11 req/s, 错误率0.00%",
+      "details": {
+        "throughput_req_s": 430.11,
+        "success_rate": 100.0,
+        "error_rate": 0.0,
+        "avg_response_ms": 57.07
+      }
+    },
+    {
+      "name": "100并发处理",
+      "category": "并发能力",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 438.09,
+      "unit": "req/s",
+      "message": "吞吐量438.09 req/s, 错误率0.00%",
+      "details": {
+        "throughput_req_s": 438.09,
+        "success_rate": 100.0,
+        "error_rate": 0.0,
+        "avg_response_ms": 76.52
+      }
+    },
+    {
+      "name": "压力测试(持续30秒)",
+      "category": "压力测试",
+      "status": "PASS",
+      "baseline_target": 100,
+      "actual_value": 19.72,
+      "unit": "req/s",
+      "message": "持续30秒, 592请求, 错误率0.00%",
+      "details": {
+        "total_requests": 592,
+        "duration_s": 30.02,
+        "throughput_req_s": 19.72,
+        "success_rate": 100.0,
+        "error_rate": 0.0
+      }
+    }
+  ]
+}

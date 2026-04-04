@@ -1,0 +1,107 @@
+# AI-Ready Docker Ignore
+# Exclude unnecessary files from Docker build context
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+
+# Build outputs (rebuilt in container)
+target/
+!core-api/target/*.jar
+build/
+dist/
+out/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# CI/CD configs (not needed in image)
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+azure-pipelines.yml
+
+# Docker files (prevent recursive build)
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# Kubernetes configs (deployed separately)
+k8s/
+helm/
+
+# Environment files (use ConfigMap/Secret)
+.env
+.env.*
+*.env
+
+# Node modules (frontend separate build)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test files (not needed in production image)
+**/test/
+**/tests/
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+**/itest/
+
+# Development configs
+.editorconfig
+.eslintrc*
+.prettierrc*
+tsconfig.json
+jest.config.*
+webpack.config.*
+
+# Backup and archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z

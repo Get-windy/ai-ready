@@ -1,0 +1,189 @@
+{
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%",
+    "start_time": "2026-04-04T05:41:52.504071",
+    "end_time": "2026-04-04T05:41:52.585913"
+  },
+  "tests": [
+    {
+      "category": "健康检查接口",
+      "name": "健康检查接口",
+      "status": "PASS",
+      "message": "状态码: 200, 包含status字段: True",
+      "duration_ms": 21.66,
+      "timestamp": "2026-04-04T05:41:52.525882"
+    },
+    {
+      "category": "健康检查接口",
+      "name": "详细健康检查",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 8.64,
+      "timestamp": "2026-04-04T05:41:52.534556"
+    },
+    {
+      "category": "健康检查接口",
+      "name": "数据库健康检查",
+      "status": "PASS",
+      "message": "数据库状态: UP",
+      "duration_ms": 6.58,
+      "timestamp": "2026-04-04T05:41:52.541158"
+    },
+    {
+      "category": "健康检查接口",
+      "name": "Redis健康检查",
+      "status": "PASS",
+      "message": "Redis状态: UP",
+      "duration_ms": 6.61,
+      "timestamp": "2026-04-04T05:41:52.541179"
+    },
+    {
+      "category": "用户管理接口",
+      "name": "获取用户列表",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.64,
+      "timestamp": "2026-04-04T05:41:52.543891"
+    },
+    {
+      "category": "用户管理接口",
+      "name": "获取单个用户",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.62,
+      "timestamp": "2026-04-04T05:41:52.546530"
+    },
+    {
+      "category": "用户管理接口",
+      "name": "创建用户",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.73,
+      "timestamp": "2026-04-04T05:41:52.550291"
+    },
+    {
+      "category": "用户管理接口",
+      "name": "更新用户",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.97,
+      "timestamp": "2026-04-04T05:41:52.553287"
+    },
+    {
+      "category": "用户管理接口",
+      "name": "删除用户",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.25,
+      "timestamp": "2026-04-04T05:41:52.555553"
+    },
+    {
+      "category": "角色管理接口",
+      "name": "获取角色列表",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.14,
+      "timestamp": "2026-04-04T05:41:52.557738"
+    },
+    {
+      "category": "角色管理接口",
+      "name": "获取单个角色",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.24,
+      "timestamp": "2026-04-04T05:41:52.559989"
+    },
+    {
+      "category": "角色管理接口",
+      "name": "创建角色",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.09,
+      "timestamp": "2026-04-04T05:41:52.562098"
+    },
+    {
+      "category": "认证接口",
+      "name": "登录接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.84,
+      "timestamp": "2026-04-04T05:41:52.564976"
+    },
+    {
+      "category": "认证接口",
+      "name": "登出接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.34,
+      "timestamp": "2026-04-04T05:41:52.567328"
+    },
+    {
+      "category": "认证接口",
+      "name": "刷新Token接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.29,
+      "timestamp": "2026-04-04T05:41:52.569629"
+    },
+    {
+      "category": "业务接口",
+      "name": "客户列表接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.11,
+      "timestamp": "2026-04-04T05:41:52.571777"
+    },
+    {
+      "category": "业务接口",
+      "name": "订单列表接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.07,
+      "timestamp": "2026-04-04T05:41:52.573859"
+    },
+    {
+      "category": "业务接口",
+      "name": "产品列表接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.05,
+      "timestamp": "2026-04-04T05:41:52.575929"
+    },
+    {
+      "category": "业务接口",
+      "name": "库存列表接口",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.1,
+      "timestamp": "2026-04-04T05:41:52.578041"
+    },
+    {
+      "category": "分页过滤功能",
+      "name": "分页参数测试",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.52,
+      "timestamp": "2026-04-04T05:41:52.580608"
+    },
+    {
+      "category": "分页过滤功能",
+      "name": "排序参数测试",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.93,
+      "timestamp": "2026-04-04T05:41:52.583557"
+    },
+    {
+      "category": "分页过滤功能",
+      "name": "过滤参数测试",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.27,
+      "timestamp": "2026-04-04T05:41:52.585858"
+    }
+  ]
+}

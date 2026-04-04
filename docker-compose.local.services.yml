@@ -1,0 +1,29 @@
+# AI-Ready Docker Compose Configuration (Minimal - Local Services)
+# Project: 智企连·AI-Ready
+# Local deployment using host.docker.internal to connect to local services
+# Last Updated: 2026-04-01
+
+services:
+  # AI-Ready API Service
+  api:
+    build:
+      context: I:\AI-Ready
+      dockerfile: Dockerfile
+    image: ai-ready:local
+    container_name: ai-ready-api
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/devdb
+      SPRING_DATASOURCE_USERNAME: devuser
+      SPRING_DATASOURCE_PASSWORD: Dev@2026#Local
+      SPRING_REDIS_HOST: host.docker.internal
+      SPRING_REDIS_PORT: "6379"
+      SPRING_ROCKETMQ_NAME_SERVER: "localhost:9876"
+      JAVA_OPTS: -Xms512m -Xmx1024m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - I:\AI-Ready\logs:/app/logs
+    restart: unless-stopped

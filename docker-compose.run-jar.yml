@@ -1,0 +1,26 @@
+# AI-Ready Docker Compose Configuration (Run Existing JAR)
+# Project: 智企连·AI-Ready
+# Run existing built JAR file directly in Docker
+# Last Updated: 2026-04-01
+
+services:
+  # AI-Ready API Service
+  api:
+    image: eclipse-temurin:17-jre-alpine
+    container_name: ai-ready-api
+    ports:
+      - "8080:8080"
+    working_dir: /app
+    volumes:
+      - I:/AI-Ready:/opt/ai-ready
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      JAVA_OPTS: -Xms512m -Xmx1024m
+    entrypoint: |
+      sh -c "
+        echo '======================================' &&
+        echo 'AI-Ready 启动中...' &&
+        echo '======================================' &&
+        java -jar /opt/ai-ready/core-api/target/core-api-1.0.0-SNAPSHOT.jar
+      "
+    restart: unless-stopped

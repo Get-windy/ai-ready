@@ -1,9 +1,7 @@
 # AI-Ready Docker Compose Configuration
 # Project: 智企连·AI-Ready
 # Version: v1.0
-# Last Updated: 2026-03-28
-
-version: '3.8'
+# Last Updated: 2026-04-01 (Fixed RocketMQ dependency issue)
 
 services:
   # AI-Ready API Service
@@ -22,15 +20,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-Dev@2026#Local}
       SPRING_REDIS_HOST: ${SPRING_REDIS_HOST:-redis}
       SPRING_REDIS_PORT: ${SPRING_REDIS_PORT:-6379}
-      SPRING_ROCKETMQ_NAME_SERVER: ${SPRING_ROCKETMQ_NAME_SERVER:-rocketmq:9876}
+      SPRING_ROCKETMQ_NAME_SERVER: ${SPRING_ROCKETMQ_NAME_SERVER:-rocketmq-namesrv:9876}
       JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rocketmq:
-        condition: service_healthy
+      rocketmq-namesrv:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s

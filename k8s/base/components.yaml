@@ -1,156 +1,201 @@
-# AI-Ready Kubernetes Deployment Files
-# Project: 智企连·AI-Ready
+# AI-Ready Kubernetes Base Configuration
+# Single source of truth for K8s resources
 # Version: v1.0
-# Last Updated: 2026-03-28
 
-# Common configurations
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-ready
+  labels:
+    name: ai-ready
+    managed-by: devops
+    env: shared
+
+---
+# ConfigMap - Application Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ai-ready-config
   namespace: ai-ready
+  labels:
+    app: ai-ready-api
 data:
-  SPRING_PROFILES_ACTIVE: "production"
-  JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+  application.yml: |
+    spring:
+      application:
+        name: ai-ready-api
+      cloud:
+        nacos:
+          discovery:
+            server-addr: ${NACOS_SERVER_ADDR}
+            namespace: ${NACOS_NAMESPACE}
+          config:
+            server-addr: ${NACOS_SERVER_ADDR}
+    
+    server:
+      servlet:
+        context-path: /api
+  
+  application-production.yml: |
+    spring:
+      datasource:
+        url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+        username: ${DB_USER}
+        password: ${DB_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+      redis:
+        host: ${REDIS_HOST}
+        port: ${REDIS_PORT}
+        password: ${REDIS_PASSWORD}
+    logging:
+      level:
+        root: INFO
+
 ---
+# Secret - Sensitive Data
 apiVersion: v1
 kind: Secret
 metadata:
   name: ai-ready-secrets
   namespace: ai-ready
+  labels:
+    app: ai-ready-api
 type: Opaque
-stringData:
-  SPRING_DATASOURCE_USERNAME: "ai-ready"
-  SPRING_DATASOURCE_PASSWORD: "YourStrongPasswordHere"
+data:
+  # Base64 encoded values
+  db-password: cHJvZC1wYXNzd29yZA==
+  redis-password: cmVkaXMtcGFzc3dvcmQ=
+  jwt-secret:南-aeidon-ai-ready-secret-key-2026
+  nacos-auth-token: U2VjcmV0S2V5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODk=
+
 ---
-# PostgreSQL YAML
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: ai-ready
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:14
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: ai-ready-secrets
-                  key: SPRING_DATASOURCE_USERNAME
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: ai-ready-secrets
-                  key: SPRING_DATASOURCE_PASSWORD
-            - name: POSTGRES_DB
-              value: "ai-ready"
-          volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
-          livenessProbe:
-            exec:
-              command: ["pg_isready", "-U", "ai-ready"]
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "ai-ready"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
-  volumeClaimTemplates:
-    - metadata:
-        name: postgres-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 10Gi
----
-# Redis YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
-  namespace: ai-ready
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redis
-  template:
-    metadata:
-      labels:
-        app: redis
-    spec:
-      containers:
-        - name: redis
-          image: redis:7-alpine
-          ports:
-            - containerPort: 6379
-          command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          livenessProbe:
-            exec:
-              command: ["redis-cli", "ping"]
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command: ["redis-cli", "ping"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
----
-# PostgreSQL Service
+# ServiceAccount
 apiVersion: v1
-kind: Service
+kind: ServiceAccount
 metadata:
-  name: postgres
+  name: ai-ready-sa
   namespace: ai-ready
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
-  type: ClusterIP
+  labels:
+    app: ai-ready-api
+
 ---
-# Redis Service
-apiVersion: v1
-kind: Service
+# Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
 metadata:
-  name: redis
+  name: ai-ready-role
+  namespace: ai-ready
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ai-ready-rolebinding
+  namespace: ai-ready
+subjects:
+  - kind: ServiceAccount
+    name: ai-ready-sa
+    namespace: ai-ready
+roleRef:
+  kind: Role
+  name: ai-ready-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-ready-network-policy
   namespace: ai-ready
 spec:
-  selector:
-    app: redis
-  ports:
-    - port: 6379
-      targetPort: 6379
-  type: ClusterIP
+  podSelector:
+    matchLabels:
+      app: ai-ready-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: nacos
+      ports:
+        - protocol: TCP
+          port: 8848
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,156 @@
+# AI-Ready 日志收集系统 Docker Compose 配置
+# Version: v2.0.0
+# Date: 2026-04-04
+# Author: devops-engineer
+
+version: '3.8'
+
+services:
+  # ==================== Elasticsearch ====================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    container_name: ai-ready-elasticsearch
+    environment:
+      - node.name=ai-ready-es01
+      - cluster.name=ai-ready-logs
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./elasticsearch/index-lifecycle-policy-enhanced.json:/usr/share/elasticsearch/config/ilm-policy.json:ro
+      - ./elasticsearch/index-template.json:/usr/share/elasticsearch/config/index-template.json:ro
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - ai-ready-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # ==================== Kibana ====================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.0
+    container_name: ai-ready-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=ai-ready-kibana
+      - SERVER_HOST=0.0.0.0
+      - I18N_LOCALE=zh-CN
+    ports:
+      - "5601:5601"
+    networks:
+      - ai-ready-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==================== Logstash ====================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.0
+    container_name: ai-ready-logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ENVIRONMENT=production
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - logstash_data:/usr/share/logstash/data
+    ports:
+      - "5044:5044"   # Beats input
+      - "5000:5000"   # TCP input
+      - "5045:5045"   # HTTP input
+    networks:
+      - ai-ready-logging
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  # ==================== Filebeat ====================
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.0
+    container_name: ai-ready-filebeat
+    user: root
+    environment:
+      - ENVIRONMENT=production
+    volumes:
+      - ./filebeat/filebeat-enhanced.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log/ai-ready:/var/log/ai-ready:ro
+      - /var/log/nginx:/var/log/nginx:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - filebeat_data:/usr/share/filebeat/data
+    command: filebeat -e -strict.perms=false
+    networks:
+      - ai-ready-logging
+    depends_on:
+      - logstash
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 128m
+
+  # ==================== Curator (日志清理) ====================
+  curator:
+    image: untergeek/curator:5.8.3
+    container_name: ai-ready-curator
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+    volumes:
+      - ./curator/curator.yml:/curator/curator.yml:ro
+      - ./curator/actions.yml:/curator/actions.yml:ro
+    networks:
+      - ai-ready-logging
+    depends_on:
+      - elasticsearch
+    entrypoint:
+      - /usr/local/bin/curator
+      - --config
+      - /curator/curator.yml
+      - /curator/actions.yml
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  logstash_data:
+    driver: local
+  filebeat_data:
+    driver: local
+
+networks:
+  ai-ready-logging:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

@@ -1,0 +1,25 @@
+# AI-Ready Docker Compose Configuration (Windows Host Mode)
+# Project: 智企连·AI-Ready
+# Direct Java application execution on Windows host
+# Last Updated: 2026-04-01
+
+services:
+  # AI-Ready API Service (Windows Host Mode)
+  api:
+    image: eclipse-temurin:17-jre-alpine
+    container_name: ai-ready-api
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - I:/AI-Ready:/AI-Ready
+      - I:/AI-Ready/logs:/app/logs
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      JAVA_OPTS: -Xms512m -Xmx1024m
+      # 因为使用 network_mode: host, PostgreSQL 和 Redis 在 host 上
+    entrypoint: |
+      sh -c "
+        echo 'AI-Ready 启动中...' &&
+        java -jar /AI-Ready/core-api/target/*.jar
+      "
+    restart: unless-stopped

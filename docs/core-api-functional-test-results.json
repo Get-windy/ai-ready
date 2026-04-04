@@ -1,0 +1,204 @@
+{
+  "test_time": "2026-03-30 05:07:52",
+  "base_url": "http://localhost:8080",
+  "summary": {
+    "total": 21,
+    "passed": 2,
+    "failed": 5,
+    "skipped": 14,
+    "score": 42.857142857142854
+  },
+  "results": [
+    {
+      "name": "用户分页查询",
+      "module": "用户管理",
+      "status": "PASS",
+      "message": "成功获取用户列表",
+      "response_time_ms": 17.14,
+      "status_code": 200,
+      "details": {}
+    },
+    {
+      "name": "用户登录",
+      "module": "用户管理",
+      "status": "SKIP",
+      "message": "登录返回无Token，可能需要先创建用户",
+      "response_time_ms": 138.58,
+      "status_code": 200,
+      "details": {
+        "response": "{'code': 200, 'message': '登录成功', 'data': '0c23e6d2-696d-4683-a416-ad3dbb815eed'}"
+      }
+    },
+    {
+      "name": "用户详情查询",
+      "module": "用户管理",
+      "status": "FAIL",
+      "message": "请求失败",
+      "response_time_ms": 5.7,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "创建用户",
+      "module": "用户管理",
+      "status": "FAIL",
+      "message": "请求失败",
+      "response_time_ms": 364.26,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "用户登出",
+      "module": "用户管理",
+      "status": "PASS",
+      "message": "登出成功",
+      "response_time_ms": 4.78,
+      "status_code": 200,
+      "details": {}
+    },
+    {
+      "name": "角色分页查询",
+      "module": "权限管理",
+      "status": "FAIL",
+      "message": "请求失败",
+      "response_time_ms": 5.4,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "创建角色",
+      "module": "权限管理",
+      "status": "FAIL",
+      "message": "请求失败",
+      "response_time_ms": 17.48,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "角色权限查询",
+      "module": "权限管理",
+      "status": "FAIL",
+      "message": "请求失败",
+      "response_time_ms": 5.41,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "产品列表查询",
+      "module": "ERP模块",
+      "status": "SKIP",
+      "message": "产品接口可能未实现",
+      "response_time_ms": 7.74,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "销售订单列表",
+      "module": "ERP模块",
+      "status": "SKIP",
+      "message": "销售订单接口可能未实现",
+      "response_time_ms": 5.37,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "库存查询",
+      "module": "ERP模块",
+      "status": "SKIP",
+      "message": "库存接口可能未实现",
+      "response_time_ms": 5.87,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "采购订单查询",
+      "module": "ERP模块",
+      "status": "SKIP",
+      "message": "采购订单接口可能未实现",
+      "response_time_ms": 5.47,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "ERP报表查询",
+      "module": "ERP模块",
+      "status": "SKIP",
+      "message": "报表接口可能未实现",
+      "response_time_ms": 5.28,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "客户列表查询",
+      "module": "CRM模块",
+      "status": "SKIP",
+      "message": "客户接口可能未实现",
+      "response_time_ms": 6.5,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "线索列表查询",
+      "module": "CRM模块",
+      "status": "SKIP",
+      "message": "线索接口可能未实现",
+      "response_time_ms": 5.26,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "商机列表查询",
+      "module": "CRM模块",
+      "status": "SKIP",
+      "message": "商机接口可能未实现",
+      "response_time_ms": 5.29,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "活动记录查询",
+      "module": "CRM模块",
+      "status": "SKIP",
+      "message": "活动记录接口可能未实现",
+      "response_time_ms": 5.22,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "Agent列表查询",
+      "module": "Agent服务",
+      "status": "SKIP",
+      "message": "Agent接口可能未实现",
+      "response_time_ms": 6.34,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "Agent能力注册",
+      "module": "Agent服务",
+      "status": "SKIP",
+      "message": "Agent注册接口可能未实现",
+      "response_time_ms": 5.4,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "Agent调用测试",
+      "module": "Agent服务",
+      "status": "SKIP",
+      "message": "Agent调用接口可能未实现",
+      "response_time_ms": 5.17,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "JSON-RPC接口",
+      "module": "Agent服务",
+      "status": "SKIP",
+      "message": "JSON-RPC接口可能未实现",
+      "response_time_ms": 5.01,
+      "status_code": 0,
+      "details": {}
+    }
+  ]
+}

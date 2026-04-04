@@ -1,0 +1,377 @@
+# AI-Ready Kubernetes Production Configuration
+# Environment: Production
+# Version: v1.0
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+  labels:
+    app: ai-ready-api
+    version: v1.0.0
+    env: prod
+spec:
+  replicas: 3  # High availability
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        version: v1.0.0
+        env: prod
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+        checksum/config: "production"
+        checksum/secrets: "production"
+    spec:
+      serviceAccountName: ai-ready-sa
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ai-ready-api
+                topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/worker
+                    operator: Exists
+      containers:
+        - name: ai-ready-api
+          image: ghcr.io/ai-ready/ai-ready-api:prod-v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            # Application Config
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            
+            # Database Config
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-url
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: db-password
+            
+            # Redis Config
+            - name: SPRING_REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-host
+            - name: SPRING_REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-port
+            - name: SPRING_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: redis-password
+            
+            # Nacos Config
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: nacos-addr
+            - name: NACOS_NAMESPACE
+              value: "ai-ready-prod"
+            
+            # JWT Secret
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: jwt-secret
+            
+            # JVM Options
+            - name: JAVA_OPTS
+              value: "-Xms1024m -Xmx2048m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs/heap-dump.hprof"
+            
+            # App Version
+            - name: APP_VERSION
+              value: "1.0.0"
+            
+            # Timezone
+            - name: TZ
+              value: "Asia/Shanghai"
+            
+            # Logging
+            - name: LOGGING_LEVEL_ROOT
+              value: "WARN"
+            
+            # Security - Disable actuator endpoints not needed in prod
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,metrics"
+            
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            - name: log-volume
+              mountPath: /app/logs
+            - name: secret-volume
+              mountPath: /etc/secrets
+              readOnly: true
+          
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ai-ready-config
+        - name: log-volume
+          persistentVolumeClaim:
+            claimName: ai-ready-api-pvc
+        - name: secret-volume
+          secret:
+            secretName: ai-ready-secrets
+            defaultMode: 0400
+      
+      terminationGracePeriodSeconds: 60
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready-prod
+  labels:
+    app: ai-ready-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-ready-api
+
+---
+# Ingress (Production - HTTPS)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-ready-api-ingress
+  namespace: ai-ready-prod
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://prod.ai-ready.cn"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - prod.ai-ready.cn
+      secretName: ai-ready-prod-tls
+  rules:
+    - host: prod.ai-ready.cn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-ready-api
+                port:
+                  number: 8080
+
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-ready-api-pvc
+  namespace: ai-ready-prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+  volumeMode: Filesystem
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-ready-api-pdb
+  namespace: ai-ready-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ai-ready-api
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-ready-api-network-policy
+  namespace: ai-ready-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: ai-ready-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: ai-ready-prod
+          podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: ai-ready-prod
+          podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: ai-ready-prod
+          podSelector:
+            matchLabels:
+              app: nacos
+      ports:
+        - protocol: TCP
+          port: 8848
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# ResourceQuota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ai-ready-prod-quota
+  namespace: ai-ready-prod
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "4Gi"
+    limits.cpu: "8"
+    limits.memory: "8Gi"
+    pods: "20"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+    replicationcontrollers: "10"
+    resourcequotas: "1"
+    services.loadbalancers: "2"
+    services.nodeports: "5"

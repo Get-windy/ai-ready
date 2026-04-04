@@ -1,0 +1,63 @@
+{
+  "test_time": "2026-04-03 19:50:57",
+  "config": {
+    "warmup_users": 10,
+    "test_levels": [
+      100,
+      500,
+      1000
+    ],
+    "duration_per_level_seconds": 30,
+    "ramp_up_seconds": 5,
+    "timeout_seconds": 10
+  },
+  "results": {
+    "100": {
+      "concurrent_users": 100,
+      "total_requests": 15997,
+      "throughput_rps": 508.5217245207874,
+      "avg_response_time_ms": 184.03241854500322,
+      "error_rate_percent": 0.0,
+      "status": "PASS"
+    },
+    "500": {
+      "concurrent_users": 500,
+      "total_requests": 22708,
+      "throughput_rps": 410.5799131389837,
+      "avg_response_time_ms": 1010.1425387142451,
+      "error_rate_percent": 35.278316011978156,
+      "status": "FAIL"
+    },
+    "1000": {
+      "concurrent_users": 1000,
+      "total_requests": 53051,
+      "throughput_rps": 353.88473868681194,
+      "avg_response_time_ms": 2085.782069116912,
+      "error_rate_percent": 46.992516634936194,
+      "status": "FAIL"
+    }
+  },
+  "summary": {
+    "max_supported_users": 100,
+    "breaking_point_users": 0,
+    "optimal_users": 70,
+    "performance_degradation": [
+      {
+        "from_users": 100,
+        "to_users": 500,
+        "response_time_increase_percent": 448.8938018098291,
+        "throughput_change_percent": -19.260103680742553
+      },
+      {
+        "from_users": 500,
+        "to_users": 1000,
+        "response_time_increase_percent": 106.4839356009885,
+        "throughput_change_percent": -13.80856019446332
+      }
+    ],
+    "recommendations": [
+      "推荐最大并发: 100 用户",
+      "推荐最优并发: 70 用户 (70%负载)"
+    ]
+  }
+}

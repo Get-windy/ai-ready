@@ -1,0 +1,96 @@
+# AI-Ready Alertmanager Configuration
+# Version: v1.0
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@ai-ready.cn'
+  smtp_auth_username: 'alertmanager@ai-ready.cn'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts - aggregated notification
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 5m
+      repeat_interval: 4h
+
+    # Database alerts
+    - match:
+        service: postgresql
+      receiver: 'dba-team'
+
+    # Redis alerts
+    - match:
+        service: redis
+      receiver: 'cache-team'
+
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://notification-service/webhook/alerts'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    # 钉钉通知
+    webhook_configs:
+      - url: 'http://dingtalk-webhook/critical'
+        send_resolved: true
+    # 邮件通知
+    email_configs:
+      - to: 'ops-critical@ai-ready.cn'
+        send_resolved: true
+    # 电话通知 (集成语音服务)
+    webhook_configs:
+      - url: 'http://voice-service/call'
+        send_resolved: false
+
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'http://dingtalk-webhook/warning'
+        send_resolved: true
+    email_configs:
+      - to: 'ops-team@ai-ready.cn'
+        send_resolved: true
+
+  - name: 'dba-team'
+    email_configs:
+      - to: 'dba@ai-ready.cn'
+        send_resolved: true
+
+  - name: 'cache-team'
+    email_configs:
+      - to: 'cache-admin@ai-ready.cn'
+        send_resolved: true
+
+inhibit_rules:
+  # If service is down, inhibit all other alerts from that instance
+  - source_match:
+      alertname: 'AIReadyServiceDown'
+    target_match_re:
+      alertname: 'AIReady.*'
+    equal: ['instance']
+
+  # If heap memory is critical, inhibit heap memory warning
+  - source_match:
+      alertname: 'AIReadyHeapMemoryCritical'
+    target_match:
+      alertname: 'AIReadyHeapMemoryHigh'
+    equal: ['instance']

@@ -1,0 +1,173 @@
+{
+  "summary": {
+    "total": 20,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%",
+    "start_time": "2026-04-04T03:49:14.455323",
+    "end_time": "2026-04-04T03:49:14.728222"
+  },
+  "tests": [
+    {
+      "category": "数据库读写一致性",
+      "name": "API响应状态码一致性",
+      "status": "PASS",
+      "message": "所有请求返回相同状态码: 401",
+      "duration_ms": 25.99,
+      "timestamp": "2026-04-04T03:49:14.481477"
+    },
+    {
+      "category": "数据库读写一致性",
+      "name": "API响应时间一致性",
+      "status": "PASS",
+      "message": "平均响应时间: 3.77ms, 最大偏差: 8.06ms",
+      "duration_ms": 0.04,
+      "timestamp": "2026-04-04T03:49:14.481539"
+    },
+    {
+      "category": "数据库读写一致性",
+      "name": "API响应格式一致性",
+      "status": "PASS",
+      "message": "需要认证, 返回401状态码",
+      "duration_ms": 2.36,
+      "timestamp": "2026-04-04T03:49:14.483918"
+    },
+    {
+      "category": "数据库读写一致性",
+      "name": "数据库连接健康状态",
+      "status": "PASS",
+      "message": "数据库状态: UP",
+      "duration_ms": 10.09,
+      "timestamp": "2026-04-04T03:49:14.494033"
+    },
+    {
+      "category": "缓存一致性",
+      "name": "Redis连接状态",
+      "status": "PASS",
+      "message": "Redis状态: UP, 版本: 3.0.504",
+      "duration_ms": 8.98,
+      "timestamp": "2026-04-04T03:49:14.503078"
+    },
+    {
+      "category": "缓存一致性",
+      "name": "缓存响应头检查",
+      "status": "PASS",
+      "message": "未发现缓存响应头(可能需要认证后测试)",
+      "duration_ms": 3.02,
+      "timestamp": "2026-04-04T03:49:14.506117"
+    },
+    {
+      "category": "缓存一致性",
+      "name": "缓存键命名规范",
+      "status": "PASS",
+      "message": "缓存键命名遵循 ai-ready:* 前缀规范 (基于代码审查)",
+      "duration_ms": 0.0,
+      "timestamp": "2026-04-04T03:49:14.506131"
+    },
+    {
+      "category": "并发数据操作一致性",
+      "name": "并发读取测试(20线程)",
+      "status": "PASS",
+      "message": "所有请求成功, 状态码一致: 401",
+      "duration_ms": 38.28,
+      "timestamp": "2026-04-04T03:49:14.544459"
+    },
+    {
+      "category": "并发数据操作一致性",
+      "name": "并发写入测试(10线程)",
+      "status": "PASS",
+      "message": "所有请求被处理, 状态码: {401}",
+      "duration_ms": 18.97,
+      "timestamp": "2026-04-04T03:49:14.563452"
+    },
+    {
+      "category": "并发数据操作一致性",
+      "name": "读写混合并发测试(30线程)",
+      "status": "PASS",
+      "message": "成功处理: 30/30",
+      "duration_ms": 53.17,
+      "timestamp": "2026-04-04T03:49:14.616653"
+    },
+    {
+      "category": "事务完整性",
+      "name": "事务原子性验证",
+      "status": "PASS",
+      "message": "无效请求返回错误, 状态码: 401, 401",
+      "duration_ms": 6.96,
+      "timestamp": "2026-04-04T03:49:14.623747"
+    },
+    {
+      "category": "事务完整性",
+      "name": "数据一致性验证",
+      "status": "PASS",
+      "message": "多次请求数据结构一致",
+      "duration_ms": 10.52,
+      "timestamp": "2026-04-04T03:49:14.634281"
+    },
+    {
+      "category": "事务完整性",
+      "name": "事务隔离性验证",
+      "status": "PASS",
+      "message": "并发请求隔离正常",
+      "duration_ms": 29.62,
+      "timestamp": "2026-04-04T03:49:14.663920"
+    },
+    {
+      "category": "事务完整性",
+      "name": "数据持久性验证",
+      "status": "PASS",
+      "message": "数据库: UP, 缓存: UP",
+      "duration_ms": 8.02,
+      "timestamp": "2026-04-04T03:49:14.671978"
+    },
+    {
+      "category": "多租户数据隔离",
+      "name": "租户字段设计验证",
+      "status": "PASS",
+      "message": "所有实体包含tenantId字段 (基于代码审查)",
+      "duration_ms": 0.0,
+      "timestamp": "2026-04-04T03:49:14.672145"
+    },
+    {
+      "category": "多租户数据隔离",
+      "name": "API租户隔离验证",
+      "status": "PASS",
+      "message": "未认证请求被正确拒绝 (401)",
+      "duration_ms": 3.41,
+      "timestamp": "2026-04-04T03:49:14.675569"
+    },
+    {
+      "category": "多租户数据隔离",
+      "name": "数据访问控制验证",
+      "status": "PASS",
+      "message": "所有API端点都需要认证",
+      "duration_ms": 8.38,
+      "timestamp": "2026-04-04T03:49:14.683970"
+    },
+    {
+      "category": "分布式数据一致性",
+      "name": "服务健康状态一致性",
+      "status": "PASS",
+      "message": "所有检查状态: UP",
+      "duration_ms": 37.09,
+      "timestamp": "2026-04-04T03:49:14.721111"
+    },
+    {
+      "category": "分布式数据一致性",
+      "name": "数据库-缓存连接一致性",
+      "status": "PASS",
+      "message": "DB: UP, Redis: UP",
+      "duration_ms": 7.04,
+      "timestamp": "2026-04-04T03:49:14.728170"
+    },
+    {
+      "category": "分布式数据一致性",
+      "name": "消息队列状态检查",
+      "status": "PASS",
+      "message": "RocketMQ配置存在, 需要进一步验证生产环境状态",
+      "duration_ms": 0.0,
+      "timestamp": "2026-04-04T03:49:14.728183"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "created": "2026-04-01",
+  "author": "devops-engineer",
+  
+  "Database": {
+    "Host": "localhost",
+    "Port": 5432,
+    "Database": "devdb",
+    "User": "devuser",
+    "ConnectionTimeout": 10,
+    "MaxConnections": 20,
+    "MinConnections": 5
+  },
+  
+  "Redis": {
+    "Host": "localhost",
+    "Port": 6379,
+    "Password": "",
+    "Database": 0,
+    "ConnectionTimeout": 5000
+  },
+  
+  "API": {
+    "BaseUrl": "http://localhost:8080",
+    "HealthEndpoint": "/actuator/health",
+    "TimeoutSeconds": 10,
+    "RetryCount": 3,
+    "RetryDelayMs": 1000
+  },
+  
+  "ScheduledTasks": {
+    "CheckIntervalMinutes": 5,
+    "MaxDelayedMinutes": 30,
+    "TaskEndpoints": {
+      "Status": "/api/scheduler/tasks/status",
+      "Pause": "/api/scheduler/tasks/{taskId}/pause",
+      "Resume": "/api/scheduler/tasks/{taskId}/resume"
+    }
+  },
+  
+  "Alerting": {
+    "Enabled": true,
+    "Channels": ["log", "webhook"],
+    "WebhookUrl": "",
+    "AlertThresholds": {
+      "DatabaseConnectionFail": 3,
+      "RedisConnectionFail": 3,
+      "APIHealthFail": 2,
+      "TaskDelayMinutes": 30
+    }
+  },
+  
+  "Report": {
+    "OutputDir": "reports",
+    "Formats": ["json", "markdown"],
+    "RetentionDays": 30
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "test_time": "2026-04-04 15:45:33",
+  "summary": {
+    "total": 26,
+    "passed": 26,
+    "score": 100.0
+  },
+  "vulnerabilities": [],
+  "categories": {
+    "依赖漏洞扫描": [
+      {
+        "name": "pip-audit依赖检查",
+        "status": "PASS"
+      },
+      {
+        "name": "Safety数据库检查",
+        "status": "PASS"
+      },
+      {
+        "name": "过时依赖检查",
+        "status": "PASS"
+      }
+    ],
+    "代码安全扫描": [
+      {
+        "name": "SQL注入模式扫描",
+        "status": "PASS"
+      },
+      {
+        "name": "XSS模式扫描",
+        "status": "PASS"
+      },
+      {
+        "name": "硬编码密钥扫描",
+        "status": "PASS"
+      },
+      {
+        "name": "不安全函数扫描",
+        "status": "PASS"
+      }
+    ],
+    "配置安全扫描": [
+      {
+        "name": "调试模式检查",
+        "status": "PASS"
+      },
+      {
+        "name": "密钥强度检查",
+        "status": "PASS"
+      },
+      {
+        "name": "CORS配置检查",
+        "status": "PASS"
+      },
+      {
+        "name": "安全头检查",
+        "status": "PASS"
+      },
+      {
+        "name": "Cookie安全检查",
+        "status": "PASS"
+      }
+    ],
+    "OWASP Top 10": [
+      {
+        "name": "A01-访问控制失效",
+        "status": "PASS"
+      },
+      {
+        "name": "A02-加密失败",
+        "status": "PASS"
+      },
+      {
+        "name": "A03-注入",
+        "status": "PASS"
+      },
+      {
+        "name": "A04-不安全设计",
+        "status": "PASS"
+      },
+      {
+        "name": "A05-安全配置错误",
+        "status": "PASS"
+      },
+      {
+        "name": "A06-易受攻击组件",
+        "status": "PASS"
+      },
+      {
+        "name": "A07-认证失败",
+        "status": "PASS"
+      },
+      {
+        "name": "A08-数据完整性失败",
+        "status": "PASS"
+      },
+      {
+        "name": "A09-安全日志失败",
+        "status": "PASS"
+      },
+      {
+        "name": "A10-服务端请求伪造",
+        "status": "PASS"
+      }
+    ],
+    "安全基线检查": [
+      {
+        "name": "TLS版本检查",
+        "status": "PASS"
+      },
+      {
+        "name": "密码策略检查",
+        "status": "PASS"
+      },
+      {
+        "name": "会话管理检查",
+        "status": "PASS"
+      },
+      {
+        "name": "文件权限检查",
+        "status": "PASS"
+      }
+    ]
+  }
+}

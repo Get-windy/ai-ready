@@ -1,0 +1,69 @@
+# AI-Ready Nacos 生产环境配置
+# Environment: prod
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres-primary:5432/proddb
+    username: produser
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 20
+      idle-timeout: 60000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      
+  redis:
+    host: redis-cluster
+    port: 6379
+    password: ${REDIS_PASSWORD}
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 32
+        max-idle: 16
+        min-idle: 8
+        max-wait: 1000
+      shutdown-timeout: 100
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: 1800
+  is-share: false
+  is-concurrent: false
+  token-style: uuid
+  is-read-header: true
+  is-read-cookie: false
+  jwt-secret-key: ${JWT_SECRET_KEY}
+
+# 日志配置
+logging:
+  level:
+    root: WARN
+    cn.aiedge: INFO
+    org.springframework: WARN
+  file:
+    name: /app/logs/ai-ready-prod.log
+    max-size: 100MB
+    max-history: 30
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [trace:%X{traceId}] - %msg%n"
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: prod
+    export:
+      prometheus:
+        enabled: true

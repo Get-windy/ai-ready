@@ -1,0 +1,147 @@
+{
+  "test_time": "2026-04-03 22:29:35",
+  "config": {
+    "base_url": "http://localhost:8080",
+    "timeout_seconds": 10,
+    "test_scenarios": [
+      {
+        "name": "baseline",
+        "concurrent_users": 1,
+        "requests_per_user": 20
+      },
+      {
+        "name": "low_concurrent",
+        "concurrent_users": 50,
+        "requests_per_user": 10
+      },
+      {
+        "name": "medium_concurrent",
+        "concurrent_users": 100,
+        "requests_per_user": 10
+      },
+      {
+        "name": "high_concurrent",
+        "concurrent_users": 200,
+        "requests_per_user": 5
+      },
+      {
+        "name": "stress_test",
+        "concurrent_users": 500,
+        "requests_per_user": 3
+      }
+    ]
+  },
+  "results": [
+    {
+      "scenario_name": "baseline",
+      "concurrent_users": 1,
+      "total_requests": 20,
+      "successful_requests": 20,
+      "failed_requests": 0,
+      "avg_response_time_ms": 5.800940000335686,
+      "min_response_time_ms": 3.519399993820116,
+      "max_response_time_ms": 26.777200007927604,
+      "p50_response_time_ms": 4.787199999555014,
+      "p95_response_time_ms": 26.777200007927604,
+      "p99_response_time_ms": 26.777200007927604,
+      "throughput_rps": 172.38585469633068,
+      "error_rate_percent": 0.0,
+      "duration_seconds": 0.12144017219543457,
+      "status": "PASS"
+    },
+    {
+      "scenario_name": "low_concurrent",
+      "concurrent_users": 50,
+      "total_requests": 500,
+      "successful_requests": 500,
+      "failed_requests": 0,
+      "avg_response_time_ms": 85.4149916000897,
+      "min_response_time_ms": 9.176599996862933,
+      "max_response_time_ms": 153.39469999889843,
+      "p50_response_time_ms": 88.9891999977408,
+      "p95_response_time_ms": 125.24169999232981,
+      "p99_response_time_ms": 142.7317000052426,
+      "throughput_rps": 11.707546664430623,
+      "error_rate_percent": 0.0,
+      "duration_seconds": 1.1292564868927002,
+      "status": "PASS"
+    },
+    {
+      "scenario_name": "medium_concurrent",
+      "concurrent_users": 100,
+      "total_requests": 1000,
+      "successful_requests": 1000,
+      "failed_requests": 0,
+      "avg_response_time_ms": 151.22940809998545,
+      "min_response_time_ms": 6.339600004139356,
+      "max_response_time_ms": 313.3049000025494,
+      "p50_response_time_ms": 152.27920000324957,
+      "p95_response_time_ms": 242.28159998892806,
+      "p99_response_time_ms": 272.1202000102494,
+      "throughput_rps": 6.612470501364716,
+      "error_rate_percent": 0.0,
+      "duration_seconds": 2.429576873779297,
+      "status": "PASS"
+    },
+    {
+      "scenario_name": "high_concurrent",
+      "concurrent_users": 200,
+      "total_requests": 1000,
+      "successful_requests": 1000,
+      "failed_requests": 0,
+      "avg_response_time_ms": 168.5601141998486,
+      "min_response_time_ms": 4.8100999993039295,
+      "max_response_time_ms": 392.0464999973774,
+      "p50_response_time_ms": 158.87519999523647,
+      "p95_response_time_ms": 301.69769999338314,
+      "p99_response_time_ms": 353.1801000062842,
+      "throughput_rps": 5.932601581026327,
+      "error_rate_percent": 0.0,
+      "duration_seconds": 2.291692018508911,
+      "status": "PASS"
+    },
+    {
+      "scenario_name": "stress_test",
+      "concurrent_users": 500,
+      "total_requests": 1500,
+      "successful_requests": 1500,
+      "failed_requests": 0,
+      "avg_response_time_ms": 196.90865086665144,
+      "min_response_time_ms": 13.976699992781505,
+      "max_response_time_ms": 474.7720000013942,
+      "p50_response_time_ms": 199.15609998861328,
+      "p95_response_time_ms": 318.80769999406766,
+      "p99_response_time_ms": 379.87440000870265,
+      "throughput_rps": 5.078497037071318,
+      "error_rate_percent": 0.0,
+      "duration_seconds": 2.9849469661712646,
+      "status": "PASS"
+    }
+  ],
+  "analysis": {
+    "overall_status": "PASS",
+    "max_supported_concurrent": 500,
+    "performance_degradation": [
+      {
+        "scenario": "low_concurrent",
+        "response_time_increase_percent": 1372.433633086137
+      },
+      {
+        "scenario": "medium_concurrent",
+        "response_time_increase_percent": 2506.9810770536187
+      },
+      {
+        "scenario": "high_concurrent",
+        "response_time_increase_percent": 2805.737935405201
+      },
+      {
+        "scenario": "stress_test",
+        "response_time_increase_percent": 3294.426607674908
+      }
+    ],
+    "bottlenecks": [],
+    "recommendations": [
+      "System performance is excellent, supports 200+ concurrent users"
+    ]
+  }
+}

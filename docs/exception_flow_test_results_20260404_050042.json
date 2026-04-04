@@ -1,0 +1,189 @@
+{
+  "summary": {
+    "total": 22,
+    "passed": 21,
+    "failed": 1,
+    "skipped": 0,
+    "pass_rate": "95.5%",
+    "start_time": "2026-04-04T05:00:42.336264",
+    "end_time": "2026-04-04T05:00:42.430152"
+  },
+  "tests": [
+    {
+      "category": "输入验证异常",
+      "name": "空用户名验证",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 16.1,
+      "timestamp": "2026-04-04T05:00:42.352521"
+    },
+    {
+      "category": "输入验证异常",
+      "name": "空密码验证",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 5.26,
+      "timestamp": "2026-04-04T05:00:42.357819"
+    },
+    {
+      "category": "输入验证异常",
+      "name": "无效邮箱验证",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.69,
+      "timestamp": "2026-04-04T05:00:42.361537"
+    },
+    {
+      "category": "输入验证异常",
+      "name": "SQL注入防护",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.22,
+      "timestamp": "2026-04-04T05:00:42.364784"
+    },
+    {
+      "category": "输入验证异常",
+      "name": "XSS防护",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.91,
+      "timestamp": "2026-04-04T05:00:42.367709"
+    },
+    {
+      "category": "权限异常",
+      "name": "无Token访问",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.0,
+      "timestamp": "2026-04-04T05:00:42.370766"
+    },
+    {
+      "category": "权限异常",
+      "name": "无效Token访问",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.71,
+      "timestamp": "2026-04-04T05:00:42.375500"
+    },
+    {
+      "category": "权限异常",
+      "name": "过期Token格式",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.55,
+      "timestamp": "2026-04-04T05:00:42.380070"
+    },
+    {
+      "category": "资源不存在异常",
+      "name": "不存在的用户ID",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.56,
+      "timestamp": "2026-04-04T05:00:42.382681"
+    },
+    {
+      "category": "资源不存在异常",
+      "name": "不存在的端点",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.31,
+      "timestamp": "2026-04-04T05:00:42.385003"
+    },
+    {
+      "category": "资源不存在异常",
+      "name": "无效ID格式",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.23,
+      "timestamp": "2026-04-04T05:00:42.387246"
+    },
+    {
+      "category": "参数边界异常",
+      "name": "超长字符串",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.82,
+      "timestamp": "2026-04-04T05:00:42.390107"
+    },
+    {
+      "category": "参数边界异常",
+      "name": "负数ID",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.9,
+      "timestamp": "2026-04-04T05:00:42.394037"
+    },
+    {
+      "category": "参数边界异常",
+      "name": "超大页码",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.12,
+      "timestamp": "2026-04-04T05:00:42.398185"
+    },
+    {
+      "category": "参数边界异常",
+      "name": "无效分页参数",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.87,
+      "timestamp": "2026-04-04T05:00:42.401081"
+    },
+    {
+      "category": "请求格式异常",
+      "name": "无效JSON格式",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.38,
+      "timestamp": "2026-04-04T05:00:42.403503"
+    },
+    {
+      "category": "请求格式异常",
+      "name": "空JSON对象",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.26,
+      "timestamp": "2026-04-04T05:00:42.405781"
+    },
+    {
+      "category": "请求格式异常",
+      "name": "null请求体",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.35,
+      "timestamp": "2026-04-04T05:00:42.408147"
+    },
+    {
+      "category": "请求格式异常",
+      "name": "数组代替对象",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.63,
+      "timestamp": "2026-04-04T05:00:42.410792"
+    },
+    {
+      "category": "服务错误处理",
+      "name": "服务健康检查",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 9.3,
+      "timestamp": "2026-04-04T05:00:42.420142"
+    },
+    {
+      "category": "服务错误处理",
+      "name": "错误响应格式",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 2.99,
+      "timestamp": "2026-04-04T05:00:42.423153"
+    },
+    {
+      "category": "服务错误处理",
+      "name": "方法不允许处理",
+      "status": "FAIL",
+      "message": "状态码: 500",
+      "duration_ms": 6.91,
+      "timestamp": "2026-04-04T05:00:42.430086"
+    }
+  ]
+}

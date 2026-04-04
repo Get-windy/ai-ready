@@ -1,0 +1,315 @@
+/* 无障碍访问样式 */
+
+/* 屏幕阅读器专用类 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* 高对比度模式 */
+.high-contrast {
+  --text-color: #000;
+  --background-color: #fff;
+  --primary-color: #000;
+  --border-color: #000;
+}
+
+.high-contrast body {
+  color: #000 !important;
+  background: #fff !important;
+}
+
+.high-contrast a {
+  color: #000 !important;
+  text-decoration: underline !important;
+}
+
+.high-contrast button,
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  border: 2px solid #000 !important;
+  background: #fff !important;
+  color: #000 !important;
+}
+
+.high-contrast .ant-btn {
+  border: 2px solid #000 !important;
+}
+
+.high-contrast .ant-btn-primary {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.high-contrast .ant-table {
+  border: 2px solid #000 !important;
+}
+
+.high-contrast .ant-table th,
+.high-contrast .ant-table td {
+  border: 1px solid #000 !important;
+}
+
+.high-contrast img {
+  filter: none !important;
+}
+
+/* 减少动画模式 */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* 焦点样式 */
+:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* 跳过链接 */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #1890ff;
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 9999;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* 键盘导航指示 */
+[role="button"]:focus,
+[role="link"]:focus,
+[role="menuitem"]:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* ARIA 标签隐藏 */
+[aria-hidden="true"] {
+  display: none;
+}
+
+/* 禁用状态 */
+[disabled],
+[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 活动状态指示 */
+[aria-expanded="true"]::after {
+  content: ' ▲';
+}
+
+[aria-expanded="false"]::after {
+  content: ' ▼';
+}
+
+/* 当前项指示 */
+[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* 选中项指示 */
+[aria-selected="true"] {
+  background: #e6f7ff;
+}
+
+/* 有效的输入 */
+[aria-invalid="false"] {
+  border-color: #52c41a;
+}
+
+/* 无效的输入 */
+[aria-invalid="true"] {
+  border-color: #ff4d4f;
+}
+
+/* 必填项标记 */
+[aria-required="true"]::after {
+  content: ' *';
+  color: #ff4d4f;
+}
+
+/* 加载状态 */
+[aria-busy="true"] {
+  position: relative;
+}
+
+[aria-busy="true"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 弹窗焦点陷阱 */
+.modal-focus-trap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+}
+
+/* 工具提示无障碍 */
+[role="tooltip"] {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 250px;
+  z-index: 1050;
+}
+
+/* 菜单无障碍 */
+[role="menu"] {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+[role="menuitem"] {
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+[role="menuitem"]:hover,
+[role="menuitem"]:focus {
+  background: #f5f5f5;
+}
+
+/* 标签页无障碍 */
+[role="tablist"] {
+  display: flex;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+[role="tab"] {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+[role="tab"]:hover,
+[role="tab"]:focus {
+  color: #1890ff;
+}
+
+[role="tab"][aria-selected="true"] {
+  color: #1890ff;
+  border-bottom-color: #1890ff;
+}
+
+/* 对话框无障碍 */
+[role="dialog"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  z-index: 1000;
+}
+
+[role="dialog"] h2:first-child {
+  margin-top: 0;
+}
+
+/* 警告框无障碍 */
+[role="alert"] {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+[role="alert"].error {
+  background: #fff1f0;
+  border: 1px solid #ffa39e;
+  color: #cf1322;
+}
+
+[role="alert"].warning {
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #ad8b00;
+}
+
+[role="alert"].success {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+}
+
+/* 进度条无障碍 */
+[role="progressbar"] {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+[role="progressbar"] > div {
+  height: 100%;
+  background: #1890ff;
+  transition: width 0.3s ease;
+}

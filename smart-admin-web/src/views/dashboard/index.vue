@@ -1,149 +1,159 @@
 <template>
   <div class="dashboard-page">
     <!-- 统计卡片区域 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :xs="24" :sm="12" :md="6" v-for="item in stats" :key="item.title">
-        <a-card class="stats-card" hoverable>
-          <a-statistic
-            :title="item.title"
-            :value="item.value"
-            :prefix="item.prefix"
-            :suffix="item.suffix"
-          >
-            <template #prefix>
-              <div class="stat-icon">
-                <component :is="item.icon" />
+    <a-row :gutter="[16, 16]">
+      <a-col :xs="24" :sm="12" :md="6" v-for="item in statsCards" :key="item.key">
+        <a-card class="stats-card" :loading="statsLoading" hoverable>
+          <div class="stats-content">
+            <div class="stats-icon" :style="{ background: item.color }">
+              <component :is="item.icon" />
+            </div>
+            <div class="stats-info">
+              <div class="stats-title">{{ item.title }}</div>
+              <div class="stats-value">
+                <CountUp :end-val="item.value" :duration="1.5" />
+                <span class="stats-suffix">{{ item.suffix }}</span>
               </div>
-            </template>
-          </a-statistic>
-          <div class="stat-trend" v-if="item.trend">
-            <span :class="['trend-badge', item.trend.type]">
-              {{ item.trend.type === 'up' ? '↑' : '↓' }} {{ item.trend.value }}
-            </span>
-            <span class="trend-text">{{ item.trend.label }}</span>
+              <div class="stats-trend" :class="item.trend > 0 ? 'up' : 'down'">
+                <RiseOutlined v-if="item.trend > 0" />
+                <FallOutlined v-else />
+                <span>{{ Math.abs(item.trend) }}%</span>
+                <span class="trend-label">较昨日</span>
+              </div>
+            </div>
           </div>
         </a-card>
       </a-col>
     </a-row>
 
-    <!-- 图表区域 -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :xs="24" :md="16">
-        <a-card class="chart-card" title="销售趋势" :loading="chartLoading">
-          <div class="chart-container">
-            <LineChartOutlined style="font-size: 64px; color: #1890ff; margin-bottom: 16px" />
-            <a-typography-text type="secondary">
-              暂无数据，请先配置数据源
-            </a-typography-text>
-          </div>
+    <!-- 图表区域第一行 -->
+    <a-row :gutter="[16, 16]" class="chart-row">
+      <a-col :xs="24" :lg="16">
+        <a-card title="销售趋势" :loading="salesLoading" class="chart-card">
+          <template #extra>
+            <a-radio-group v-model:value="salesPeriod" size="small" @change="handleSalesPeriodChange">
+              <a-radio-button value="week">本周</a-radio-button>
+              <a-radio-button value="month">本月</a-radio-button>
+              <a-radio-button value="year">全年</a-radio-button>
+            </a-radio-group>
+          </template>
+          <div ref="salesChartRef" class="chart-container" style="height: 320px"></div>
         </a-card>
       </a-col>
-      <a-col :xs="24" :md="8">
-        <a-card class="chart-card" title="客户分布">
-          <div class="chart-container">
-            <PieChartOutlined style="font-size: 64px; color: #52c41a; margin-bottom: 16px" />
-            <a-typography-text type="secondary">
-              暂无数据，请先配置数据源
-            </a-typography-text>
-          </div>
+      <a-col :xs="24" :lg="8">
+        <a-card title="客户分布" :loading="customerLoading" class="chart-card">
+          <template #extra>
+            <a-button type="link" size="small">详情</a-button>
+          </template>
+          <div ref="customerChartRef" class="chart-container" style="height: 320px"></div>
         </a-card>
       </a-col>
     </a-row>
 
-    <!-- 动态区域 -->
-    <a-row :gutter="16">
-      <a-col :xs="24" :md="16">
-        <a-card title="待办事项" extra="<a class='view-all' href='javascript:void(0)'>查看全部</a>">
-          <a-list :data-source="todos" size="large" :pagination="pagination">
+    <!-- 图表区域第二行 -->
+    <a-row :gutter="[16, 16]" class="chart-row">
+      <a-col :xs="24" :lg="12">
+        <a-card title="订单状态分布" :loading="orderLoading" class="chart-card">
+          <div ref="orderChartRef" class="chart-container" style="height: 280px"></div>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :lg="12">
+        <a-card title="产品销售排行" :loading="productLoading" class="chart-card">
+          <template #extra>
+            <a-select v-model:value="productRankType" size="small" style="width: 100px" @change="handleProductTypeChange">
+              <a-select-option value="quantity">按数量</a-select-option>
+              <a-select-option value="amount">按金额</a-select-option>
+            </a-select>
+          </template>
+          <div ref="productChartRef" class="chart-container" style="height: 280px"></div>
+        </a-card>
+      </a-col>
+    </a-row>
+
+    <!-- 实时数据区域 -->
+    <a-row :gutter="[16, 16]">
+      <a-col :xs="24" :lg="16">
+        <a-card title="待办事项" :loading="todoLoading" class="todo-card">
+          <template #extra>
+            <a-space>
+              <a-badge :count="todoStats.pending" :overflow-count="99">
+                <a-button type="link" size="small">待处理</a-button>
+              </a-badge>
+              <a-button type="primary" size="small" @click="handleAddTodo">
+                <PlusOutlined /> 新建
+              </a-button>
+            </a-space>
+          </template>
+          <a-list :data-source="todos" size="small">
             <template #renderItem="{ item }">
               <a-list-item>
                 <a-list-item-meta>
+                  <template #avatar>
+                    <a-avatar :style="{ backgroundColor: getPriorityColor(item.priority) }">
+                      {{ item.title.charAt(0) }}
+                    </a-avatar>
+                  </template>
                   <template #title>
-                    <div class="todo-title">
-                      <a-space>
-                        <a-badge :status="item.priority === 'high' ? 'error' : item.priority === 'medium' ? 'warning' : 'default'" />
-                        <a @click="handleTodo(item)">{{ item.title }}</a>
-                      </a-space>
-                    </div>
+                    <a-space>
+                      <span>{{ item.title }}</span>
+                      <a-tag :color="getPriorityTagColor(item.priority)" size="small">
+                        {{ getPriorityLabel(item.priority) }}
+                      </a-tag>
+                    </a-space>
                   </template>
                   <template #description>
-                    <div class="todo-meta">
-                      <span class="todo-time">{{ item.time }}</span>
-                      <span class="todo-priority" v-if="item.priority">
-                        {{ item.priority === 'high' ? '高频' : item.priority === 'medium' ? '中频' : '低频' }}
-                      </span>
-                    </div>
-                    <a-typography-paragraph
-                      :ellipsis="{ rows: 1, tooltip: true }"
-                      style="margin-bottom: 0"
-                    >
-                      {{ item.description }}
-                    </a-typography-paragraph>
+                    <a-space split="">
+                      <span><ClockCircleOutlined /> {{ item.time }}</span>
+                      <span><UserOutlined /> {{ item.assignee }}</span>
+                    </a-space>
                   </template>
                 </a-list-item-meta>
-                <div class="todo-actions">
-                  <a-button type="link" size="small" @click="handleComplete(item)">
-                    完成
-                  </a-button>
-                  <a-button type="link" size="small" @click="handleEdit(item)">
-                    编辑
-                  </a-button>
-                </div>
+                <template #actions>
+                  <a-button type="link" size="small" @click="handleCompleteTodo(item)">完成</a-button>
+                  <a-button type="link" size="small" @click="handleViewTodo(item)">查看</a-button>
+                </template>
               </a-list-item>
             </template>
           </a-list>
         </a-card>
       </a-col>
-      <a-col :xs="24" :md="8">
-        <a-card title="系统状态">
-          <a-descriptions :column="1" size="small" bordered>
+      <a-col :xs="24" :lg="8">
+        <!-- 系统状态 -->
+        <a-card title="系统状态" class="status-card">
+          <a-descriptions :column="1" size="small">
             <a-descriptions-item label="API服务">
               <a-badge status="success" text="运行中" />
             </a-descriptions-item>
             <a-descriptions-item label="数据库">
               <a-badge status="success" text="正常" />
             </a-descriptions-item>
-            <a-descriptions-item label="缓存服务">
-              <a-badge status="processing" text="连接中" />
+            <a-descriptions-item label="缓存">
+              <a-badge status="success" text="已连接" />
             </a-descriptions-item>
-            <a-descriptions-item label="消息队列">
-              <a-badge status="default" text="已启用" />
+            <a-descriptions-item label="CPU使用率">
+              <a-progress :percent="35" :stroke-color=" '#52c41a'" size="small" />
+            </a-descriptions-item>
+            <a-descriptions-item label="内存使用率">
+              <a-progress :percent="58" :stroke-color="'#1890ff'" size="small" />
             </a-descriptions-item>
           </a-descriptions>
-          
-          <div class="system-danger">
-            <a-alert type="warning" message="待处理告警" :show-icon="false">
-              <template #description>
-                <a-list :data-source="alarms" size="small">
-                  <template #renderItem="{ item }">
-                    <a-list-item>
-                      <a-space>
-                        <a-icon :type="item.type === 'error' ? 'warning' : 'info'" :style="{ color: item.color }" />
-                        <span>{{ item.message }}</span>
-                      </a-space>
-                    </a-list-item>
-                  </template>
-                </a-list>
-              </template>
-            </a-alert>
-          </div>
         </a-card>
-        
+
+        <!-- 快捷操作 -->
         <a-card title="快捷操作" style="margin-top: 16px">
-          <a-grid :gutter="8">
-            <a-grid-row>
-              <a-grid-col :span="8" v-for="action in quickActions" :key="action.label">
-                <a-button 
-                  type="default" 
-                  block 
-                  @click="handleQuickAction(action)"
-                  :icon="action.icon"
-                >
-                  {{ action.label }}
-                </a-button>
-              </a-grid-col>
-            </a-grid-row>
-          </a-grid>
+          <a-row :gutter="[8, 8]">
+            <a-col :span="12" v-for="action in quickActions" :key="action.key">
+              <a-button block @click="handleQuickAction(action)">
+                <component :is="action.icon" />
+                {{ action.label }}
+              </a-button>
+            </a-col>
+          </a-row>
+        </a-card>
+
+        <!-- 实时通知 -->
+        <a-card title="最新动态" style="margin-top: 16px" :loading="activityLoading">
+          <a-timeline mode="left" :items="activities" />
         </a-card>
       </a-col>
     </a-row>
@@ -151,109 +161,283 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
+import type { ECharts } from 'echarts'
 import {
   ShoppingCartOutlined,
   UserOutlined,
   TeamOutlined,
   DollarOutlined,
-  LineChartOutlined,
-  PieChartOutlined,
-  WarningOutlined,
-  InfoCircleOutlined
+  RiseOutlined,
+  FallOutlined,
+  PlusOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  BarChartOutlined,
+  SettingOutlined,
+  BellOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import type { ListProps } from 'ant-design-vue'
 
-interface Todo {
-  id: number
-  title: string
-  time: string
-  description?: string
-  priority?: 'high' | 'medium' | 'low'
-  status?: 'pending' | 'completed'
-}
+// 图表引用
+const salesChartRef = ref<HTMLElement>()
+const customerChartRef = ref<HTMLElement>()
+const orderChartRef = ref<HTMLElement>()
+const productChartRef = ref<HTMLElement>()
 
-const chartLoading = ref(false)
-const stats = ref([
-  { 
-    title: '今日订单', 
-    value: 128, 
-    icon: ShoppingCartOutlined,
-    trend: { type: 'up', value: '12%', label: '较昨日' }
-  },
-  { 
-    title: '新增客户', 
-    value: 32, 
-    icon: UserOutlined,
-    trend: { type: 'up', value: '8%', label: '较昨日' }
-  },
-  { 
-    title: '待处理线索', 
-    value: 15, 
-    icon: TeamOutlined,
-    trend: { type: 'down', value: '3', label: '较昨日' }
-  },
-  { 
-    title: '本月销售额', 
-    value: 125600, 
-    prefix: '¥', 
-    icon: DollarOutlined,
-    trend: { type: 'up', value: '15%', label: '较上月' }
-  }
+// 图表实例
+let salesChart: ECharts | null = null
+let customerChart: ECharts | null = null
+let orderChart: ECharts | null = null
+let productChart: ECharts | null = null
+
+// 加载状态
+const statsLoading = ref(false)
+const salesLoading = ref(false)
+const customerLoading = ref(false)
+const orderLoading = ref(false)
+const productLoading = ref(false)
+const todoLoading = ref(false)
+const activityLoading = ref(false)
+
+// 数据状态
+const salesPeriod = ref('month')
+const productRankType = ref('amount')
+
+// 统计卡片数据
+const statsCards = ref([
+  { key: 'orders', title: '今日订单', value: 128, suffix: '单', trend: 12.5, color: '#1890ff', icon: ShoppingCartOutlined },
+  { key: 'customers', title: '新增客户', value: 32, suffix: '人', trend: 8.3, color: '#52c41a', icon: UserOutlined },
+  { key: 'leads', title: '待处理线索', value: 15, suffix: '条', trend: -5.2, color: '#faad14', icon: TeamOutlined },
+  { key: 'revenue', title: '本月销售额', value: 125600, suffix: '元', trend: 15.8, color: '#eb2f96', icon: DollarOutlined }
 ])
 
-const todos = ref<Todo[]>([
-  { id: 1, title: '审批采购订单 #[REDACTED]', time: '10分钟前', description: '供应商A的采购订单，金额 ¥45,000', priority: 'high' },
-  { id: 2, title: '跟进客户"张三"的询价', time: '30分钟前', description: '客户有意向购买企业版套餐', priority: 'medium' },
-  { id: 3, title: '处理库存预警', time: '1小时前', description: '产品编号P001库存低于安全线', priority: 'high' },
-  { id: 4, title: '确认销售订单发货', time: '2小时前', description: '订单 #[REDACTED] 待发货', priority: 'medium' },
-  { id: 5, title: '生成月度销售报告', time: '3小时前', description: '统计4月份销售数据', priority: 'low' },
-  { id: 6, title: '更新产品价格表', time: '半天前', description: '根据市场情况调整价格', priority: 'medium' }
+// 待办数据
+const todoStats = ref({ pending: 8, completed: 12 })
+const todos = ref([
+  { id: 1, title: '审批采购订单', time: '10分钟前', assignee: '张三', priority: 'high' },
+  { id: 2, title: '跟进客户询价', time: '30分钟前', assignee: '李四', priority: 'medium' },
+  { id: 3, title: '处理库存预警', time: '1小时前', assignee: '王五', priority: 'high' },
+  { id: 4, title: '确认订单发货', time: '2小时前', assignee: '赵六', priority: 'low' },
+  { id: 5, title: '生成销售报告', time: '3小时前', assignee: '张三', priority: 'medium' }
 ])
 
-const pagination = ref<ListProps['pagination']>({
-  pageSize: 4,
-  showSizeChanger: false,
-  showTotal: (total: number) => `共 ${total} 条待办`
-})
-
-const alarms = ref([
-  { type: 'warning', message: '客户"李四"的线索已超时24小时', color: '#faad14' },
-  { type: 'error', message: '数据库连接池接近上限 (85%)', color: '#ff4d4f' }
-])
-
+// 快捷操作
 const quickActions = ref([
-  { label: '新建订单', icon: ShoppingCartOutlined, action: 'newOrder' },
-  { label: '添加客户', icon: UserOutlined, action: 'addCustomer' },
-  { label: '创建线索', icon: TeamOutlined, action: 'createLead' },
-  { label: '查看报表', icon: LineChartOutlined, action: 'viewReport' }
+  { key: 'order', label: '新建订单', icon: ShoppingCartOutlined },
+  { key: 'customer', label: '添加客户', icon: UserOutlined },
+  { key: 'report', label: '查看报表', icon: BarChartOutlined },
+  { key: 'settings', label: '系统设置', icon: SettingOutlined }
 ])
 
-const handleTodo = (item: Todo) => {
-  message.info(`处理: ${item.title}`)
-}
+// 动态数据
+const activities = ref([
+  { color: 'green', label: '新订单 #1234 已创建', children: '5分钟前' },
+  { color: 'blue', label: '客户"张三"完成下单', children: '10分钟前' },
+  { color: 'orange', label: '库存预警: 产品P001', children: '1小时前' },
+  { color: 'gray', label: '系统备份完成', children: '2小时前' }
+])
 
-const handleComplete = (item: Todo) => {
-  message.success(`完成: ${item.title}`)
-  // 标记为完成
-  const index = todos.value.findIndex(t => t.id === item.id)
-  if (index !== -1) {
-    todos.value[index].status = 'completed'
+// 简单的数字动画组件
+const CountUp = {
+  props: ['endVal', 'duration'],
+  template: '<span>{{ displayValue }}</span>',
+  setup(props: any) {
+    const displayValue = ref(0)
+    const start = () => {
+      const step = props.endVal / (props.duration * 60)
+      let current = 0
+      const timer = setInterval(() => {
+        current += step
+        if (current >= props.endVal) {
+          displayValue.value = props.endVal
+          clearInterval(timer)
+        } else {
+          displayValue.value = Math.floor(current)
+        }
+      }, 1000 / 60)
+    }
+    onMounted(start)
+    return { displayValue }
   }
 }
 
-const handleEdit = (item: Todo) => {
-  message.info(`编辑: ${item.title}`)
+// 初始化销售趋势图表
+const initSalesChart = () => {
+  if (!salesChartRef.value) return
+  salesChart = echarts.init(salesChartRef.value)
+  
+  const option = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+    legend: { data: ['销售额', '订单数'], bottom: 0 },
+    grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: ['1日', '5日', '10日', '15日', '20日', '25日', '30日'] },
+    yAxis: [
+      { type: 'value', name: '销售额(万)', position: 'left' },
+      { type: 'value', name: '订单数', position: 'right' }
+    ],
+    series: [
+      { name: '销售额', type: 'line', smooth: true, areaStyle: { opacity: 0.3 }, data: [12, 15, 18, 22, 25, 28, 32], itemStyle: { color: '#1890ff' } },
+      { name: '订单数', type: 'line', smooth: true, yAxisIndex: 1, data: [80, 95, 110, 130, 145, 160, 180], itemStyle: { color: '#52c41a' } }
+    ]
+  }
+  salesChart.setOption(option)
+}
+
+// 初始化客户分布图表
+const initCustomerChart = () => {
+  if (!customerChartRef.value) return
+  customerChart = echarts.init(customerChartRef.value)
+  
+  const option = {
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { orient: 'vertical', right: '5%', top: 'center' },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['35%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+      label: { show: false },
+      emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+      labelLine: { show: false },
+      data: [
+        { value: 1048, name: '企业客户', itemStyle: { color: '#1890ff' } },
+        { value: 735, name: '个人客户', itemStyle: { color: '#52c41a' } },
+        { value: 580, name: '渠道客户', itemStyle: { color: '#faad14' } },
+        { value: 484, name: 'VIP客户', itemStyle: { color: '#eb2f96' } }
+      ]
+    }]
+  }
+  customerChart.setOption(option)
+}
+
+// 初始化订单状态图表
+const initOrderChart = () => {
+  if (!orderChartRef.value) return
+  orderChart = echarts.init(orderChartRef.value)
+  
+  const option = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
+    xAxis: { type: 'value' },
+    yAxis: { type: 'category', data: ['已取消', '待支付', '待发货', '已发货', '已完成'] },
+    series: [{
+      type: 'bar',
+      data: [
+        { value: 12, itemStyle: { color: '#ff4d4f' } },
+        { value: 28, itemStyle: { color: '#faad14' } },
+        { value: 45, itemStyle: { color: '#1890ff' } },
+        { value: 68, itemStyle: { color: '#722ed1' } },
+        { value: 156, itemStyle: { color: '#52c41a' } }
+      ],
+      barWidth: '60%',
+      label: { show: true, position: 'right' }
+    }]
+  }
+  orderChart.setOption(option)
+}
+
+// 初始化产品排行图表
+const initProductChart = () => {
+  if (!productChartRef.value) return
+  productChart = echarts.init(productChartRef.value)
+  
+  const option = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '3%', containLabel: true },
+    xAxis: { type: 'value' },
+    yAxis: { type: 'category', data: ['产品A', '产品B', '产品C', '产品D', '产品E'] },
+    series: [{
+      type: 'bar',
+      data: [320, 280, 220, 180, 150],
+      barWidth: '50%',
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#1890ff' },
+          { offset: 1, color: '#36cfc9' }
+        ])
+      },
+      label: { show: true, position: 'right' }
+    }]
+  }
+  productChart.setOption(option)
+}
+
+// 处理窗口大小变化
+const handleResize = () => {
+  salesChart?.resize()
+  customerChart?.resize()
+  orderChart?.resize()
+  productChart?.resize()
+}
+
+// 事件处理
+const handleSalesPeriodChange = (e: any) => {
+  salesLoading.value = true
+  setTimeout(() => {
+    salesLoading.value = false
+    // 更新图表数据
+  }, 500)
+}
+
+const handleProductTypeChange = () => {
+  productLoading.value = true
+  setTimeout(() => {
+    productLoading.value = false
+    // 更新图表数据
+  }, 500)
+}
+
+const handleAddTodo = () => {
+  message.info('新建待办')
+}
+
+const handleCompleteTodo = (item: any) => {
+  message.success(`已完成: ${item.title}`)
+}
+
+const handleViewTodo = (item: any) => {
+  message.info(`查看: ${item.title}`)
 }
 
 const handleQuickAction = (action: any) => {
   message.info(`快捷操作: ${action.label}`)
-  // 这里可以添加实际的导航或操作逻辑
 }
 
-onMounted(() => {
-  chartLoading.value = false
+// 辅助方法
+const getPriorityColor = (priority: string) => {
+  const colors: Record<string, string> = { high: '#ff4d4f', medium: '#faad14', low: '#52c41a' }
+  return colors[priority] || '#1890ff'
+}
+
+const getPriorityTagColor = (priority: string) => {
+  const colors: Record<string, string> = { high: 'error', medium: 'warning', low: 'success' }
+  return colors[priority] || 'default'
+}
+
+const getPriorityLabel = (priority: string) => {
+  const labels: Record<string, string> = { high: '紧急', medium: '中等', low: '普通' }
+  return labels[priority] || '未知'
+}
+
+// 生命周期
+onMounted(async () => {
+  await nextTick()
+  initSalesChart()
+  initCustomerChart()
+  initOrderChart()
+  initProductChart()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  salesChart?.dispose()
+  customerChart?.dispose()
+  orderChart?.dispose()
+  productChart?.dispose()
 })
 </script>
 
@@ -266,85 +450,93 @@ onMounted(() => {
   height: 100%;
 }
 
-.stat-icon {
-  font-size: 24px;
-  margin-right: 8px;
-}
-
-.stat-trend {
-  margin-top: 12px;
+.stats-content {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 16px;
 }
 
-.trend-badge {
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.trend-badge.up {
-  background-color: #f6ffed;
-  color: #52c41a;
-}
-
-.trend-badge.down {
-  background-color: #fff2f0;
-  color: #ff4d4f;
-}
-
-.chart-card {
-  min-height: 200px;
-}
-
-.chart-container {
+.stats-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  align-items: center;
-  height: 200px;
-  color: #999;
+  color: #fff;
+  font-size: 24px;
 }
 
-.todo-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.stats-info {
+  flex: 1;
 }
 
-.todo-meta {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
+.stats-title {
+  color: #666;
+  font-size: 14px;
   margin-bottom: 4px;
 }
 
-.todo-time {
+.stats-value {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stats-suffix {
+  font-size: 14px;
+  color: #999;
+  margin-left: 4px;
+}
+
+.stats-trend {
+  font-size: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-trend.up {
+  color: #52c41a;
+}
+
+.stats-trend.down {
+  color: #ff4d4f;
+}
+
+.trend-label {
   color: #999;
 }
 
-.todo-priority {
-  padding: 2px 6px;
-  border-radius: 3px;
-  background-color: #f5f5f5;
+.chart-card {
+  height: 100%;
 }
 
-.system-danger {
-  margin-top: 16px;
+.chart-container {
+  width: 100%;
 }
 
-.system-danger .ant-alert {
-  border: none;
-  background-color: #fffbe6;
+.chart-row {
+  margin-top: 0;
 }
 
-.system-danger .ant-list-item {
-  padding: 8px 12px;
+.todo-card :deep(.ant-list-item) {
+  padding: 12px 0;
 }
 
-.view-all {
-  font-size: 13px;
+.status-card :deep(.ant-descriptions-item-label) {
+  width: 80px;
+}
+
+@media (max-width: 768px) {
+  .stats-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stats-info {
+    text-align: center;
+  }
 }
 </style>

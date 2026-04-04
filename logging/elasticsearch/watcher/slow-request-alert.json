@@ -1,0 +1,57 @@
+{
+  "trigger": {
+    "schedule": {
+      "interval": "5m"
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "indices": ["ai-ready-access-*"],
+        "body": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                { "exists": { "field": "response_time" } },
+                { "range": { "response_time": { "gt": 5000 } } },
+                { "range": { "@timestamp": { "gte": "now-5m" } } }
+              ]
+            }
+          },
+          "aggs": {
+            "by_uri": {
+              "terms": { "field": "request_uri.keyword", "size": 10 },
+              "aggs": {
+                "avg_time": { "avg": { "field": "response_time" } },
+                "max_time": { "max": { "field": "response_time" } }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "compare": {
+      "ctx.payload.hits.total": {
+        "gt": 10
+      }
+    }
+  },
+  "actions": {
+    "dingtalk_webhook": {
+      "webhook": {
+        "scheme": "https",
+        "host": "oapi.dingtalk.com",
+        "port": 443,
+        "method": "post",
+        "path": "/robot/send?access_token={{ctx.metadata.dingtalk_token}}",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"msgtype\":\"text\",\"text\":{\"content\":\"【AI-Ready 慢请求告警】\\n时间: {{ctx.execution_time}}\\n慢请求数: {{ctx.payload.hits.total}} 次 (>5秒)\\n时间范围: 最近5分钟\\n请检查数据库查询和API性能！\"}}"
+      }
+    }
+  }
+}

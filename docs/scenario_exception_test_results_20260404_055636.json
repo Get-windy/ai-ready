@@ -1,0 +1,125 @@
+{
+  "summary": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%",
+    "start_time": "2026-04-04T05:56:35.347129",
+    "end_time": "2026-04-04T05:56:36.925011"
+  },
+  "tests": [
+    {
+      "category": "网络超时场景",
+      "name": "短超时请求",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 24.44,
+      "timestamp": "2026-04-04T05:56:35.371736"
+    },
+    {
+      "category": "网络超时场景",
+      "name": "长超时请求",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 8.55,
+      "timestamp": "2026-04-04T05:56:35.380315"
+    },
+    {
+      "category": "大数据量场景",
+      "name": "大数据请求体",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.55,
+      "timestamp": "2026-04-04T05:56:35.383917"
+    },
+    {
+      "category": "大数据量场景",
+      "name": "大请求头",
+      "status": "PASS",
+      "message": "状态码: 200",
+      "duration_ms": 7.38,
+      "timestamp": "2026-04-04T05:56:35.391318"
+    },
+    {
+      "category": "大数据量场景",
+      "name": "大查询参数",
+      "status": "PASS",
+      "message": "状态码: 400",
+      "duration_ms": 58.21,
+      "timestamp": "2026-04-04T05:56:35.449548"
+    },
+    {
+      "category": "并发冲突场景",
+      "name": "高并发读取",
+      "status": "PASS",
+      "message": "成功率: 100.0%",
+      "duration_ms": 120.93,
+      "timestamp": "2026-04-04T05:56:35.570537"
+    },
+    {
+      "category": "并发冲突场景",
+      "name": "并发写入冲突",
+      "status": "PASS",
+      "message": "处理数: 20/20",
+      "duration_ms": 43.75,
+      "timestamp": "2026-04-04T05:56:35.614314"
+    },
+    {
+      "category": "资源耗尽场景",
+      "name": "连续快速请求",
+      "status": "PASS",
+      "message": "成功: 100/100",
+      "duration_ms": 834.35,
+      "timestamp": "2026-04-04T05:56:36.448888"
+    },
+    {
+      "category": "资源耗尽场景",
+      "name": "连接复用测试",
+      "status": "PASS",
+      "message": "成功: 50/50",
+      "duration_ms": 434.02,
+      "timestamp": "2026-04-04T05:56:36.882940"
+    },
+    {
+      "category": "数据状态冲突场景",
+      "name": "删除不存在资源",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 4.05,
+      "timestamp": "2026-04-04T05:56:36.887279"
+    },
+    {
+      "category": "数据状态冲突场景",
+      "name": "更新不存在资源",
+      "status": "PASS",
+      "message": "状态码: 401",
+      "duration_ms": 3.3,
+      "timestamp": "2026-04-04T05:56:36.890608"
+    },
+    {
+      "category": "数据状态冲突场景",
+      "name": "重复创建资源",
+      "status": "PASS",
+      "message": "两次状态码: 401, 401",
+      "duration_ms": 8.05,
+      "timestamp": "2026-04-04T05:56:36.898696"
+    },
+    {
+      "category": "错误恢复场景",
+      "name": "错误后恢复",
+      "status": "PASS",
+      "message": "正常请求状态码: 200",
+      "duration_ms": 16.03,
+      "timestamp": "2026-04-04T05:56:36.914876"
+    },
+    {
+      "category": "错误恢复场景",
+      "name": "请求重试机制",
+      "status": "PASS",
+      "message": "重试1次后成功",
+      "duration_ms": 10.02,
+      "timestamp": "2026-04-04T05:56:36.924932"
+    }
+  ]
+}

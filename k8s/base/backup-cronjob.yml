@@ -1,0 +1,215 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-ready-backup
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # 每日02:00执行
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 14400  # 4小时超时
+      template:
+        metadata:
+          labels:
+            app: ai-ready-backup
+        spec:
+          serviceAccountName: backup-sa
+          restartPolicy: OnFailure
+          
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            command:
+            - /bin/bash
+            - /scripts/full-backup.sh
+            env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: DB_HOST
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "ai_ready_prod"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: REDIS_PASSWORD
+            - name: BACKUP_ROOT
+              value: "/backup"
+            - name: REMOTE_BACKUP_ENABLED
+              value: "true"
+            - name: REMOTE_HOST
+              value: "backup-server.ai-ready.cn"
+            - name: REMOTE_USER
+              value: "backup"
+            - name: NOTIFY_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-secrets
+                  key: DINGTALK_WEBHOOK
+            
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backup
+            - name: ssh-keys
+              mountPath: /root/.ssh
+              readOnly: true
+            
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi
+              limits:
+                cpu: 1000m
+                memory: 1Gi
+          
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: backup-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+          - name: ssh-keys
+            secret:
+              secretName: backup-ssh-keys
+              defaultMode: 0600
+---
+# 增量备份 CronJob (每6小时)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-ready-incremental-backup
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: backup
+spec:
+  schedule: "0 */6 * * *"  # 每6小时执行
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600  # 1小时超时
+      template:
+        spec:
+          serviceAccountName: backup-sa
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            command:
+            - /bin/bash
+            - /scripts/pg-backup.sh
+            - --incremental
+            envFrom:
+            - configMapRef:
+                name: backup-config
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backup
+            volumes:
+            - name: backup-scripts
+              configMap:
+                name: backup-scripts
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-pvc
+---
+# 备份存储PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: ai-ready
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 500Gi
+---
+# 备份脚本ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: ai-ready
+data:
+  full-backup.sh: |
+    #!/bin/bash
+    # 完整备份脚本内容...
+    # (内容从full-backup.sh复制)
+  pg-backup.sh: |
+    #!/bin/bash
+    # PostgreSQL备份脚本...
+    # (内容从pg-backup.sh复制)
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-sa
+  namespace: ai-ready
+---
+# RBAC
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-role
+  namespace: ai-ready
+rules:
+- apiGroups: [""]
+  resources: ["pods", "secrets", "configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-rolebinding
+  namespace: ai-ready
+subjects:
+- kind: ServiceAccount
+  name: backup-sa
+  namespace: ai-ready
+roleRef:
+  kind: Role
+  name: backup-role
+  apiGroup: rbac.authorization.k8s.io

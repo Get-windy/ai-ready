@@ -1,0 +1,176 @@
+{
+  "index_patterns": ["ai-ready-*"],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "2",
+        "number_of_replicas": "1",
+        "refresh_interval": "5s",
+        "lifecycle.name": "ai-ready-policy",
+        "lifecycle.rollover_alias": "ai-ready",
+        "analysis": {
+          "analyzer": {
+            "default": {
+              "type": "standard"
+            },
+            "log_analyzer": {
+              "type": "pattern",
+              "pattern": "[\\W]+",
+              "lowercase": true
+            }
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "processed_at": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "log_level": {
+          "type": "keyword"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "service_name": {
+          "type": "keyword"
+        },
+        "project": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "logger_name": {
+          "type": "keyword"
+        },
+        "http_method": {
+          "type": "keyword"
+        },
+        "http_status": {
+          "type": "integer"
+        },
+        "request_uri": {
+          "type": "keyword"
+        },
+        "response_time": {
+          "type": "float"
+        },
+        "response_bytes": {
+          "type": "long"
+        },
+        "client_ip": {
+          "type": "ip"
+        },
+        "geoip": {
+          "properties": {
+            "city_name": { "type": "keyword" },
+            "country_name": { "type": "keyword" },
+            "region_name": { "type": "keyword" },
+            "location": { "type": "geo_point" },
+            "timezone": { "type": "keyword" }
+          }
+        },
+        "exception_class": {
+          "type": "keyword"
+        },
+        "exception_message": {
+          "type": "text"
+        },
+        "stack_class": {
+          "type": "keyword"
+        },
+        "stack_method": {
+          "type": "keyword"
+        },
+        "stack_file": {
+          "type": "keyword"
+        },
+        "stack_line": {
+          "type": "integer"
+        },
+        "sql_operation": {
+          "type": "keyword"
+        },
+        "sql_duration": {
+          "type": "float"
+        },
+        "sql_rows": {
+          "type": "integer"
+        },
+        "gc_type": {
+          "type": "keyword"
+        },
+        "gc_before": {
+          "type": "long"
+        },
+        "gc_after": {
+          "type": "long"
+        },
+        "gc_time": {
+          "type": "float"
+        },
+        "agent_id": {
+          "type": "keyword"
+        },
+        "task_id": {
+          "type": "keyword"
+        },
+        "agent_action": {
+          "type": "keyword"
+        },
+        "audit_action": {
+          "type": "keyword"
+        },
+        "audit_actor": {
+          "type": "keyword"
+        },
+        "audit_resource": {
+          "type": "keyword"
+        },
+        "audit_result": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "priority": {
+          "type": "keyword"
+        }
+      }
+    },
+    "aliases": {
+      "ai-ready-search": {}
+    }
+  },
+  "priority": 100,
+  "version": 1
+}

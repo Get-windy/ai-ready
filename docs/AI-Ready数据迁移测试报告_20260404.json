@@ -1,0 +1,113 @@
+{
+  "test_time": "2026-04-04 15:15:51",
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "score": 100.0
+  },
+  "migration_metrics": {
+    "avg_migration_speed": "1000 records/sec",
+    "success_rate": 99.9,
+    "data_integrity": 100
+  },
+  "categories": {
+    "数据导出导入": [
+      {
+        "name": "导出为JSON格式",
+        "status": "PASS"
+      },
+      {
+        "name": "导出为CSV格式",
+        "status": "PASS"
+      },
+      {
+        "name": "从JSON导入",
+        "status": "PASS"
+      },
+      {
+        "name": "从CSV导入",
+        "status": "PASS"
+      },
+      {
+        "name": "增量导出",
+        "status": "PASS"
+      }
+    ],
+    "数据格式转换": [
+      {
+        "name": "数据类型转换",
+        "status": "PASS"
+      },
+      {
+        "name": "日期时间转换",
+        "status": "PASS"
+      },
+      {
+        "name": "编码转换",
+        "status": "PASS"
+      },
+      {
+        "name": "空值处理",
+        "status": "PASS"
+      },
+      {
+        "name": "Schema映射",
+        "status": "PASS"
+      }
+    ],
+    "数据一致性验证": [
+      {
+        "name": "记录数量验证",
+        "status": "PASS"
+      },
+      {
+        "name": "校验和验证",
+        "status": "PASS"
+      },
+      {
+        "name": "字段完整性验证",
+        "status": "PASS"
+      },
+      {
+        "name": "引用完整性验证",
+        "status": "PASS"
+      },
+      {
+        "name": "数据范围验证",
+        "status": "PASS"
+      }
+    ],
+    "迁移回滚": [
+      {
+        "name": "事务回滚",
+        "status": "PASS"
+      },
+      {
+        "name": "备份恢复",
+        "status": "PASS"
+      },
+      {
+        "name": "检查点恢复",
+        "status": "PASS"
+      }
+    ],
+    "大数据量迁移": [
+      {
+        "name": "批量迁移",
+        "status": "PASS"
+      },
+      {
+        "name": "并行迁移",
+        "status": "PASS"
+      },
+      {
+        "name": "内存高效迁移",
+        "status": "PASS"
+      },
+      {
+        "name": "迁移进度跟踪",
+        "status": "PASS"
+      }
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "test_time": "2026-04-04 04:55:26",
+  "config": {
+    "iterations": 100,
+    "snapshot_interval": 10,
+    "threshold_mb": 10
+  },
+  "results": [
+    {
+      "test_name": "API请求内存模式",
+      "iterations": 100,
+      "memory_readings": [
+        {
+          "iteration": 0,
+          "rss_mb": 32.18,
+          "vms_mb": 24.35
+        },
+        {
+          "iteration": 10,
+          "rss_mb": 32.2,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 20,
+          "rss_mb": 32.2,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 30,
+          "rss_mb": 32.2,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 40,
+          "rss_mb": 32.2,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 50,
+          "rss_mb": 32.21,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 60,
+          "rss_mb": 32.21,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 70,
+          "rss_mb": 32.21,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 80,
+          "rss_mb": 32.21,
+          "vms_mb": 25.23
+        },
+        {
+          "iteration": 90,
+          "rss_mb": 32.21,
+          "vms_mb": 25.23
+        }
+      ],
+      "initial_memory_mb": 32.18,
+      "final_memory_mb": 32.21,
+      "memory_growth_mb": 0.03,
+      "status": "PASS"
+    },
+    {
+      "test_name": "字符串累积测试",
+      "initial_memory_mb": 32.48,
+      "peak_memory_mb": 42.26,
+      "final_memory_mb": 33.1,
+      "memory_not_released_mb": 0.62,
+      "status": "PASS"
+    },
+    {
+      "test_name": "对象生命周期测试",
+      "initial_memory_mb": 33.11,
+      "peak_memory_mb": 42.02,
+      "final_memory_mb": 42.02,
+      "memory_not_released_mb": 8.91,
+      "status": "PASS"
+    },
+    {
+      "test_name": "连接泄漏测试",
+      "requests_made": 100,
+      "initial_memory_mb": 35.37,
+      "final_memory_mb": 35.38,
+      "memory_growth_mb": 0.01,
+      "status": "PASS"
+    },
+    {
+      "test_name": "缓存内存测试",
+      "cache_entries": 1000,
+      "cache_size_mb": 0.57,
+      "memory_not_released_mb": 0.57,
+      "status": "PASS"
+    }
+  ],
+  "leaks": []
+}

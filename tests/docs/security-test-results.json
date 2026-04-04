@@ -1,0 +1,240 @@
+{
+  "test_time": "2026-03-30 06:04:13",
+  "base_url": "http://localhost:8080",
+  "summary": {
+    "total": 17,
+    "passed": 10,
+    "warned": 4,
+    "failed": 0,
+    "skipped": 3,
+    "score": 84.11764705882354,
+    "vulnerabilities": {
+      "critical": 0,
+      "high": 1,
+      "medium": 1,
+      "low": 2
+    }
+  },
+  "results": [
+    {
+      "name": "用户查询SQL注入",
+      "category": "SQL注入",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "未检测到SQL注入漏洞",
+      "response_time_ms": 0,
+      "status_code": 200,
+      "vulnerability": "",
+      "details": {
+        "tests": [
+          {
+            "payload": "' OR '1'='1",
+            "status": 200,
+            "has_error": false
+          },
+          {
+            "payload": "' OR '1'='1' --",
+            "status": 200,
+            "has_error": false
+          },
+          {
+            "payload": "' OR '1'='1' /*",
+            "status": 200,
+            "has_error": false
+          },
+          {
+            "payload": "1; DROP TABLE users--",
+            "status": 200,
+            "has_error": false
+          },
+          {
+            "payload": "' UNION SELECT NULL--",
+            "status": 200,
+            "has_error": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "登录SQL注入",
+      "category": "SQL注入",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "登录未检测到SQL注入漏洞",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "ID参数SQL注入",
+      "category": "SQL注入",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "ID参数未检测到SQL注入",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "用户输入XSS",
+      "category": "XSS漏洞",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "用户输入已正确处理",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "查询参数XSS",
+      "category": "XSS漏洞",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "查询参数已正确编码",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "Content-Type安全头",
+      "category": "XSS漏洞",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "Content-Type正确设置为application/json",
+      "response_time_ms": 3.82,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "CSRF Token检查",
+      "category": "CSRF防护",
+      "status": "WARN",
+      "severity": "MEDIUM",
+      "message": "未检测到CSRF防护机制",
+      "response_time_ms": 4.74,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "无Token状态变更",
+      "category": "CSRF防护",
+      "status": "SKIP",
+      "severity": "INFO",
+      "message": "无响应",
+      "response_time_ms": 4.84,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "CORS配置检查",
+      "category": "CSRF防护",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "CORS未配置或限制严格",
+      "response_time_ms": 7.28,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {
+        "cors_origin": "",
+        "cors_methods": ""
+      }
+    },
+    {
+      "name": "未认证访问测试",
+      "category": "API安全",
+      "status": "WARN",
+      "severity": "LOW",
+      "message": "接口可能不需要认证",
+      "response_time_ms": 5.21,
+      "status_code": 200,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "越权访问测试",
+      "category": "API安全",
+      "status": "SKIP",
+      "severity": "INFO",
+      "message": "无响应",
+      "response_time_ms": 3.87,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "敏感端点暴露",
+      "category": "API安全",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "无敏感端点暴露",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {
+        "exposed_endpoints": []
+      }
+    },
+    {
+      "name": "速率限制检查",
+      "category": "API安全",
+      "status": "WARN",
+      "severity": "LOW",
+      "message": "未检测到速率限制",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "密码传输安全",
+      "category": "数据加密",
+      "status": "WARN",
+      "severity": "HIGH",
+      "message": "未使用HTTPS，密码可能明文传输",
+      "response_time_ms": 6.79,
+      "status_code": 0,
+      "vulnerability": "Cleartext Password Transmission",
+      "details": {}
+    },
+    {
+      "name": "密码存储检查",
+      "category": "数据加密",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "API响应未泄露密码",
+      "response_time_ms": 4.6,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "敏感数据脱敏",
+      "category": "数据加密",
+      "status": "PASS",
+      "severity": "INFO",
+      "message": "敏感数据已脱敏或未返回",
+      "response_time_ms": 3.45,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    },
+    {
+      "name": "安全响应头",
+      "category": "数据加密",
+      "status": "SKIP",
+      "severity": "INFO",
+      "message": "无响应",
+      "response_time_ms": 5.78,
+      "status_code": 0,
+      "vulnerability": "",
+      "details": {}
+    }
+  ]
+}

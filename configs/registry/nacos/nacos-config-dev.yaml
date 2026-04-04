@@ -1,0 +1,61 @@
+# AI-Ready Nacos 开发环境配置
+# 用于 Nacos 配置中心的配置文件
+# Environment: dev
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/devdb
+    username: devuser
+    password: Dev@2026#Local
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      
+  redis:
+    host: redis
+    port: 6379
+    password: 
+    database: 0
+    timeout: 3000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-share: true
+  is-concurrent: true
+  token-style: uuid
+  is-read-header: true
+  is-read-cookie: false
+  jwt-secret-key: ai-ready-dev-jwt-secret-2026
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.aiedge: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 监控配置
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: dev

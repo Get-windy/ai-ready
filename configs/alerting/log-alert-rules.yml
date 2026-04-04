@@ -1,0 +1,264 @@
+# AI-Ready Log-Based Alert Rules
+# Elasticsearch/Kibana Alerting Configuration
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+groups:
+  - name: log-error-alerts
+    rules:
+      # ========================================
+      # 错误日志告警规则
+      # ========================================
+      
+      - alert: HighErrorLogRate
+        expr: |
+          sum(rate({app="ai-ready-api"} |= "ERROR" [5m])) > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+          category: log-error
+          environment: production
+        annotations:
+          summary: "AI-Ready 高错误日志率"
+          description: "在过去5分钟内，ai-ready-api服务的错误日志率超过10条/秒。当前值: {{ $value }} 条/秒"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/high-error-log-rate"
+          log_query: '{app="ai-ready-api"} |= "ERROR"'
+          
+      - alert: ErrorLogSpike
+        expr: |
+          sum(rate({app="ai-ready-api"} |= "ERROR" [1m])) > 50
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+          category: log-spike
+        annotations:
+          summary: "AI-Ready 错误日志突增"
+          description: "在过去1分钟内，错误日志数量突增，超过50条/秒。请立即检查。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/error-log-spike"
+          
+      - alert: CriticalErrorDetected
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(critical|fatal|exception)" [5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+          category: critical-error
+        annotations:
+          summary: "AI-Ready 检测到严重错误"
+          description: "在过去5分钟内检测到超过5个严重错误。请立即检查日志详情。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/critical-error-detected"
+
+  - name: log-exception-alerts
+    rules:
+      # ========================================
+      # 异常日志告警规则
+      # ========================================
+      
+      - alert: NullPointerExceptionDetected
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "NullPointerException" [5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: backend
+          category: exception
+        annotations:
+          summary: "AI-Ready NullPointerException异常"
+          description: "检测到NullPointerException异常，请检查代码空指针问题。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/null-pointer-exception"
+          
+      - alert: DatabaseConnectionError
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(connection.*failed|cannot.*connect.*database)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: devops
+          category: database
+        annotations:
+          summary: "AI-Ready 数据库连接失败"
+          description: "检测到数据库连接失败错误。请检查数据库服务和连接配置。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/database-connection-error"
+          
+      - alert: RedisConnectionError
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(redis.*connection.*failed|cannot.*connect.*redis)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: devops
+          category: redis
+        annotations:
+          summary: "AI-Ready Redis连接失败"
+          description: "检测到Redis连接失败错误。请检查Redis服务状态。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/redis-connection-error"
+
+  - name: log-security-alerts
+    rules:
+      # ========================================
+      # 安全日志告警规则
+      # ========================================
+      
+      - alert: AuthenticationFailure
+        expr: |
+          sum(rate({app="ai-ready-api"} |= "Authentication failed" [5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          team: security
+          category: auth
+        annotations:
+          summary: "AI-Ready 频繁认证失败"
+          description: "在过去5分钟内，认证失败次数超过5次/秒。可能存在暴力破解攻击。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/authentication-failure"
+          
+      - alert: SQLInjectionAttempt
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(union.*select|or.*1=1|drop.*table|insert.*into)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          category: sql-injection
+        annotations:
+          summary: "AI-Ready SQL注入尝试检测"
+          description: "检测到可能的SQL注入攻击尝试。请立即检查相关请求和IP。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/sql-injection-attempt"
+          
+      - alert: XSSAttempt
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(<script|javascript:|onerror=|onload=)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: security
+          category: xss
+        annotations:
+          summary: "AI-Ready XSS攻击尝试检测"
+          description: "检测到可能的XSS攻击尝试。请检查输入过滤逻辑。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/xss-attempt"
+
+  - name: log-performance-alerts
+    rules:
+      # ========================================
+      # 性能日志告警规则
+      # ========================================
+      
+      - alert: SlowAPIDetected
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "response.*time.*[0-9]{4,}ms" [5m]) > 10
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+          category: performance
+        annotations:
+          summary: "AI-Ready API响应时间过长"
+          description: "检测到多个API响应时间超过10秒。请检查性能瓶颈。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/slow-api-detected"
+          
+      - alert: HighMemoryUsageLog
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(out.*of.*memory|heap.*space.*error)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: devops
+          category: memory
+        annotations:
+          summary: "AI-Ready 内存溢出错误"
+          description: "检测到内存溢出错误。请检查JVM内存配置和内存泄漏问题。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/high-memory-usage-log"
+          
+      - alert: ThreadPoolExhausted
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(thread.*pool.*exhausted|rejected.*execution)" [5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: backend
+          category: thread
+        annotations:
+          summary: "AI-Ready 线程池耗尽"
+          description: "检测到线程池耗尽错误。请检查线程池配置和请求量。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/thread-pool-exhausted"
+
+  - name: log-business-alerts
+    rules:
+      # ========================================
+      # 业务日志告警规则
+      # ========================================
+      
+      - alert: OrderProcessingFailure
+        expr: |
+          count_over_time({app="ai-ready-api"} |= "order.*failed" [5m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+          team: business
+          category: order
+        annotations:
+          summary: "AI-Ready 订单处理失败"
+          description: "检测到多个订单处理失败。请检查订单服务和相关依赖。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/order-processing-failure"
+          
+      - alert: PaymentProcessingFailure
+        expr: |
+          count_over_time({app="ai-ready-api"} |= "payment.*failed" [5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+          team: business
+          category: payment
+        annotations:
+          summary: "AI-Ready 支付处理失败"
+          description: "检测到支付处理失败。请立即检查支付网关连接和配置。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/payment-processing-failure"
+          
+      - alert: AIModelInferenceFailure
+        expr: |
+          count_over_time({app="ai-ready-api"} |= "ai.*model.*error" [5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: ai
+          category: ai-model
+        annotations:
+          summary: "AI-Ready AI模型推理失败"
+          description: "检测到AI模型推理失败。请检查模型服务和GPU资源。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/ai-model-inference-failure"
+
+  - name: log-integration-alerts
+    rules:
+      # ========================================
+      # 第三方集成告警规则
+      # ========================================
+      
+      - alert: DingTalkAPIFailure
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(dingtalk.*error|钉钉.*失败)" [5m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+          category: integration
+        annotations:
+          summary: "AI-Ready 钉钉API调用失败"
+          description: "检测到钉钉API调用失败。请检查钉钉Token和API配置。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/dingtalk-api-failure"
+          
+      - alert: ExternalAPITimeout
+        expr: |
+          count_over_time({app="ai-ready-api"} |~ "(?i)(timeout.*external|external.*api.*timeout)" [5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+          category: integration
+        annotations:
+          summary: "AI-Ready 外部API超时"
+          description: "检测到多个外部API调用超时。请检查网络连接和外部服务状态。"
+          runbook_url: "https://wiki.ai-ready.cn/runbooks/external-api-timeout"

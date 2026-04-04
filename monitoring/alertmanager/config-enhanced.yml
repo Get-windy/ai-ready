@@ -1,0 +1,218 @@
+# AI-Ready Alertmanager Configuration - Enhanced Version
+# Version: v2.0.0
+# Author: devops-engineer
+
+global:
+  resolve_timeout: 5m
+  # SMTP配置
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${SMTP_FROM}'
+  smtp_auth_username: '${SMTP_USER}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ═══════════════════════════════════════════════════════════
+# 路由配置
+# ═══════════════════════════════════════════════════════════
+route:
+  # 全局分组
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+
+  # 子路由
+  routes:
+    # ─── P0级别告警 - 立即通知 ───
+    - match:
+        priority: P0
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 30m
+      continue: true
+
+    # ─── P1级别告警 ───
+    - match:
+        priority: P1
+      receiver: 'warning-alerts'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 2h
+      continue: true
+
+    # ─── P2级别告警 ───
+    - match:
+        priority: P2
+      receiver: 'info-alerts'
+      group_wait: 5m
+      group_interval: 10m
+      repeat_interval: 12h
+
+    # ─── 按团队路由 ───
+    - match:
+        team: dba
+      receiver: 'dba-team'
+      continue: true
+
+    - match:
+        team: ai
+      receiver: 'ai-team'
+      continue: true
+
+    # ─── 按服务路由 ───
+    - match:
+        service: redis
+      receiver: 'cache-team'
+      continue: true
+
+    # ─── 按严重级别路由 ───
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+# ═══════════════════════════════════════════════════════════
+# 接收器配置
+# ═══════════════════════════════════════════════════════════
+receivers:
+  # 默认接收器
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: '${WEBHOOK_URL}/alerts'
+        send_resolved: true
+        max_alerts: 50
+
+  # P0级别告警接收器 - 多渠道通知
+  - name: 'critical-alerts'
+    # 钉钉通知
+    webhook_configs:
+      - url: '${DINGTALK_WEBHOOK}/critical'
+        send_resolved: true
+        http_config:
+          headers:
+            Content-Type: application/json
+
+    # 飞书通知
+    webhook_configs:
+      - url: '${FEISHU_WEBHOOK}/critical'
+        send_resolved: true
+
+    # 邮件通知
+    email_configs:
+      - to: '${OPS_EMAIL}'
+        send_resolved: true
+        headers:
+          Subject: '[P0] AI-Ready 告警: {{ .GroupLabels.alertname }}'
+
+    # 电话通知（集成语音服务）
+    webhook_configs:
+      - url: '${VOICE_SERVICE_URL}/call'
+        send_resolved: false
+
+  # P1级别告警接收器
+  - name: 'warning-alerts'
+    # 钉钉通知
+    webhook_configs:
+      - url: '${DINGTALK_WEBHOOK}/warning'
+        send_resolved: true
+
+    # 飞书通知
+    webhook_configs:
+      - url: '${FEISHU_WEBHOOK}/warning'
+        send_resolved: true
+
+    # 邮件通知
+    email_configs:
+      - to: '${OPS_EMAIL}'
+        send_resolved: true
+        headers:
+          Subject: '[P1] AI-Ready 告警: {{ .GroupLabels.alertname }}'
+
+  # P2级别告警接收器
+  - name: 'info-alerts'
+    # 钉钉通知
+    webhook_configs:
+      - url: '${DINGTALK_WEBHOOK}/info'
+        send_resolved: true
+
+  # DBA团队接收器
+  - name: 'dba-team'
+    email_configs:
+      - to: '${DBA_EMAIL}'
+        send_resolved: true
+    webhook_configs:
+      - url: '${DINGTALK_WEBHOOK}/dba'
+        send_resolved: true
+
+  # AI团队接收器
+  - name: 'ai-team'
+    email_configs:
+      - to: '${AI_EMAIL}'
+        send_resolved: true
+    webhook_configs:
+      - url: '${DINGTALK_WEBHOOK}/ai'
+        send_resolved: true
+
+  # 缓存团队接收器
+  - name: 'cache-team'
+    email_configs:
+      - to: '${CACHE_EMAIL}'
+        send_resolved: true
+
+# ═══════════════════════════════════════════════════════════
+# 告警抑制规则
+# ═══════════════════════════════════════════════════════════
+inhibit_rules:
+  # 服务不可用时，抑制该服务的所有其他告警
+  - source_match:
+      alertname: 'AIReadyServiceDown'
+    target_match_re:
+      alertname: 'AIReady.*'
+    equal: ['instance']
+
+  # 堆内存严重告警时，抑制堆内存警告
+  - source_match:
+      alertname: 'AIReadyHeapMemoryCritical'
+    target_match:
+      alertname: 'AIReadyHeapMemoryWarning'
+    equal: ['instance']
+
+  # CPU严重告警时，抑制CPU警告
+  - source_match:
+      alertname: 'AIReadyCPUHigh'
+    target_match:
+      alertname: 'AIReadyCPUWarning'
+    equal: ['instance']
+
+  # Redis不可用时，抑制Redis其他告警
+  - source_match:
+      alertname: 'AIReadyRedisDown'
+    target_match_re:
+      alertname: 'AIReadyRedis.*'
+    equal: ['instance']
+
+  # 内存严重告警时，抑制内存警告
+  - source_match:
+      alertname: 'AIReadyMemoryHigh'
+    target_match_re:
+      alertname: 'AIReady.*Memory.*'
+    equal: ['instance']
+
+# ═══════════════════════════════════════════════════════════
+# 时间静默配置（维护窗口）
+# ═══════════════════════════════════════════════════════════
+time_intervals:
+  - name: maintenance_window
+    time_intervals:
+      - times:
+          - start_time: '02:00'
+            end_time: '04:00'
+        weekdays: ['sunday']

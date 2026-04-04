@@ -1,0 +1,176 @@
+{
+  "test_time": "2026-04-04 14:13:40",
+  "platform": {
+    "system": "Windows",
+    "release": "10",
+    "python": "3.14.0",
+    "architecture": "AMD64"
+  },
+  "summary": {
+    "total": 34,
+    "passed": 33,
+    "score": 97.05882352941177
+  },
+  "categories": {
+    "浏览器兼容性": [
+      {
+        "name": "Chrome最新版",
+        "status": "PASS"
+      },
+      {
+        "name": "Firefox最新版",
+        "status": "PASS"
+      },
+      {
+        "name": "Safari最新版",
+        "status": "PASS"
+      },
+      {
+        "name": "Edge Chromium",
+        "status": "PASS"
+      },
+      {
+        "name": "浏览器API一致性",
+        "status": "PASS"
+      },
+      {
+        "name": "CSS前缀兼容性",
+        "status": "PASS"
+      }
+    ],
+    "数据库兼容性": [
+      {
+        "name": "PostgreSQL兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "MySQL兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "SQLite兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "SQL方言兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "ORM兼容性",
+        "status": "PASS"
+      }
+    ],
+    "操作系统兼容性": [
+      {
+        "name": "Windows兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "Linux兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "macOS兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "跨平台路径处理",
+        "status": "PASS"
+      },
+      {
+        "name": "换行符处理",
+        "status": "PASS"
+      }
+    ],
+    "API版本兼容性": [
+      {
+        "name": "API版本控制",
+        "status": "PASS"
+      },
+      {
+        "name": "向后兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "API废弃策略",
+        "status": "PASS"
+      },
+      {
+        "name": "Content-Type兼容性",
+        "status": "PASS"
+      }
+    ],
+    "依赖包兼容性": [
+      {
+        "name": "Python版本兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "框架兼容性",
+        "status": "FAIL",
+        "error": "FastAPI版本范围无效"
+      },
+      {
+        "name": "依赖库兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "包冲突检测",
+        "status": "PASS"
+      }
+    ],
+    "移动端兼容性": [
+      {
+        "name": "iOS Safari兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "Android Chrome兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "微信浏览器兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "响应式断点",
+        "status": "PASS"
+      }
+    ],
+    "编码兼容性": [
+      {
+        "name": "UTF-8支持",
+        "status": "PASS"
+      },
+      {
+        "name": "JSON编码",
+        "status": "PASS"
+      },
+      {
+        "name": "字符集头",
+        "status": "PASS"
+      }
+    ],
+    "安全兼容性": [
+      {
+        "name": "TLS版本兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "CORS兼容性",
+        "status": "PASS"
+      },
+      {
+        "name": "CSP兼容性",
+        "status": "PASS"
+      }
+    ]
+  },
+  "recommendations": [
+    "保持对主流浏览器的持续支持",
+    "定期更新依赖版本以修复安全漏洞",
+    "确保API向后兼容性",
+    "支持TLS 1.2及以上版本",
+    "统一使用UTF-8编码"
+  ]
+}

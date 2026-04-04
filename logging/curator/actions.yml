@@ -1,0 +1,56 @@
+# Curator Actions
+# 日志清理动作配置
+
+actions:
+  1:
+    action: delete_indices
+    description: "删除超过90天的日志索引"
+    options:
+      ignore_empty_list: True
+      disable_action: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: ai-ready-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 90
+
+  2:
+    action: close
+    description: "关闭超过30天的索引"
+    options:
+      ignore_empty_list: True
+      disable_action: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: ai-ready-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 30
+
+  3:
+    action: forcemerge
+    description: "强制合并超过7天的索引段"
+    options:
+      max_num_segments: 1
+      delay: 120
+      ignore_empty_list: True
+      disable_action: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: ai-ready-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 7
