@@ -1,0 +1,18 @@
+# 临时修改文件说明
+
+需要在 I:\AI-Ready\smart-admin-web\src\router\index.ts 文件中的系统设置模块里，在角色管理和菜单管理之间添加权限管理路由：
+
+```typescript
+{
+  path: 'permission',
+  name: 'SystemPermission',
+  component: () => import('@/views/system/permission/index.vue'),
+  meta: {
+    title: '权限管理',
+    icon: 'KeyOutlined',
+    permissions: ['system:permission:view']
+  }
+},
+```
+
+具体位置在 "角色管理" (SystemRole) 和 "菜单管理" (SystemMenu) 之间。

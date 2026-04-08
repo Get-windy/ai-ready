@@ -286,6 +286,16 @@ export const asyncRoutes: RouteRecordRaw[] = [
             }
           },
           {
+            path: 'permission',
+            name: 'SystemPermission',
+            component: () => import('@/views/system/permission/index.vue'),
+            meta: { 
+              title: '权限管理', 
+              icon: 'KeyOutlined',
+              permissions: ['system:permission:view']
+            }
+          },
+          {
             path: 'menu',
             name: 'SystemMenu',
             component: () => import('@/views/system/menu/index.vue'),

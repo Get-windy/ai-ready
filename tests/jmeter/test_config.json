@@ -1,0 +1,98 @@
+{
+  "testConfig": {
+    "name": "AI-Ready API Performance Test",
+    "version": "1.0",
+    "description": "AI-Ready项目API性能测试配置"
+  },
+  "server": {
+    "baseUrl": "localhost",
+    "port": 8080,
+    "protocol": "http",
+    "timeout": 10000
+  },
+  "scenarios": {
+    "light": {
+      "threads": 50,
+      "rampup": 10,
+      "duration": 60,
+      "loops": 50,
+      "description": "轻量级负载测试 - 50并发用户"
+    },
+    "medium": {
+      "threads": 100,
+      "rampup": 20,
+      "duration": 120,
+      "loops": 50,
+      "description": "中等级负载测试 - 100并发用户"
+    },
+    "heavy": {
+      "threads": 200,
+      "rampup": 30,
+      "duration": 180,
+      "loops": 50,
+      "description": "重量级负载测试 - 200并发用户"
+    },
+    "stress": {
+      "threads": 500,
+      "rampup": 60,
+      "duration": 300,
+      "loops": 50,
+      "description": "压力测试 - 500并发用户"
+    }
+  },
+  "endpoints": [
+    {
+      "name": "用户列表查询",
+      "path": "/api/user/page",
+      "method": "GET",
+      "params": {
+        "pageNum": 1,
+        "pageSize": 10,
+        "tenantId": 1
+      },
+      "expectedMaxTime": 200,
+      "weight": 0.4
+    },
+    {
+      "name": "角色列表查询",
+      "path": "/api/role/page",
+      "method": "GET",
+      "params": {
+        "pageNum": 1,
+        "pageSize": 10
+      },
+      "expectedMaxTime": 100,
+      "weight": 0.3
+    },
+    {
+      "name": "健康检查",
+      "path": "/api/health",
+      "method": "GET",
+      "params": {},
+      "expectedMaxTime": 50,
+      "weight": 0.3
+    }
+  ],
+  "baseline": {
+    "avgResponseTime": 100,
+    "p95ResponseTime": 200,
+    "p99ResponseTime": 500,
+    "throughput": 100,
+    "errorRate": 1,
+    "concurrentUsers": 100
+  },
+  "assertions": {
+    "responseCode": 200,
+    "responseTime": {
+      "userPage": 200,
+      "rolePage": 100,
+      "health": 50
+    }
+  },
+  "reportConfig": {
+    "outputDir": "results",
+    "formats": ["jtl", "json", "html"],
+    "includeSummary": true,
+    "includeDetails": true
+  }
+}
