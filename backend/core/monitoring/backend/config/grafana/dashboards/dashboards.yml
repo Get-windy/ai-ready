@@ -1,0 +1,115 @@
+# Grafana 仪表板配置
+# 版本: v1.0.0
+# 环境: AI-Ready 测试环境
+# 创建日期: 2026-04-30
+
+apiVersion: 1
+
+providers:
+  # ==================== 基础设施监控仪表板 ====================
+  - name: 'infrastructure-dashboards'
+    orgId: 1
+    folder: '基础设施监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/infrastructure
+      foldersFromFilesStructure: true
+
+  # ==================== 应用服务监控仪表板 ====================
+  - name: 'application-dashboards'
+    orgId: 1
+    folder: '应用服务监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/application
+      foldersFromFilesStructure: true
+
+  # ==================== 数据库监控仪表板 ====================
+  - name: 'database-dashboards'
+    orgId: 1
+    folder: '数据库监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/database
+      foldersFromFilesStructure: true
+
+  # ==================== 缓存服务监控仪表板 ====================
+  - name: 'cache-dashboards'
+    orgId: 1
+    folder: '缓存服务监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/cache
+      foldersFromFilesStructure: true
+
+  # ==================== 消息队列监控仪表板 ====================
+  - name: 'message-queue-dashboards'
+    orgId: 1
+    folder: '消息队列监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/message-queue
+      foldersFromFilesStructure: true
+
+  # ==================== 业务监控仪表板 ====================
+  - name: 'business-dashboards'
+    orgId: 1
+    folder: '业务监控'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/business
+      foldersFromFilesStructure: true
+
+  # ==================== 监控系统自身仪表板 ====================
+  - name: 'monitoring-system-dashboards'
+    orgId: 1
+    folder: '监控系统'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/monitoring
+      foldersFromFilesStructure: true
+
+  # ==================== 告警管理仪表板 ====================
+  - name: 'alert-management-dashboards'
+    orgId: 1
+    folder: '告警管理'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/alerts
+      foldersFromFilesStructure: true
+
+  # ==================== 默认仪表板 ====================
+  - name: 'default-dashboards'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/default
+      foldersFromFilesStructure: true

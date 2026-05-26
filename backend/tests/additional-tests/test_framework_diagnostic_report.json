@@ -1,0 +1,762 @@
+{
+  "timestamp": "2026-04-30T10:48:30.265916",
+  "config_analysis": {
+    "pytest_configs": [
+      "qa\\automation\\test-env\\pytest.ini",
+      "backend\\tests\\tests\\pytest.ini",
+      "backend\\tests\\tests\\monitoring-alerting-automation\\pytest.ini"
+    ],
+    "conftest_files": [
+      "qa\\automation\\test-env\\tests\\conftest.py",
+      "backend\\tests\\tests\\conftest.py",
+      "backend\\tests\\tests\\api\\conftest.py",
+      "backend\\tests\\tests\\automation\\conftest.py",
+      "backend\\tests\\tests\\e2e\\conftest.py",
+      "backend\\tests\\tests\\integration\\conftest.py"
+    ],
+    "test_scripts": [
+      "backend\\tests\\scripts\\test-execution-script.sh",
+      "backend\\tests\\tests\\performance\\scripts\\setup-test-data.sh",
+      "backend\\tests\\tests\\performance\\scripts\\verify-test-environment.sh"
+    ],
+    "ci_configs": [
+      "ai-monitoring\\docker-compose.yml",
+      "frontend\\docker-compose.test.yml",
+      "resource-monitoring-cost-analysis\\docker-compose.yml",
+      "test-application\\docker-compose.yml",
+      "tests\\test-monitoring-config\\docker-compose.yml",
+      "scripts\\monitoring\\postgres-exporter\\docker-compose-postgres-exporter.yml",
+      "monitoring\\backend\\docker-compose.yml",
+      "infra\\docker\\docker-compose.test.yml",
+      "infra\\docker\\compose\\docker-compose.optimized.yml",
+      "deploy\\auth-service\\docker-compose-auth.yml",
+      "deploy\\erp-modules\\docker-compose.yml",
+      "deploy\\high-availability\\docker-compose-loadbalancer.yml",
+      "deploy\\monitoring-alerts\\docker-compose.yml",
+      "deploy\\templates\\docker-compose.optimized.yml",
+      "deploy\\test-environment\\docker-compose.optimized.yml",
+      "backend\\ai\\docker-compose.test.yml",
+      "backend\\order\\docker-compose-modified.yml",
+      "backend\\order\\docker-compose.infra.yml",
+      "backend\\order\\docker-compose.yml",
+      "backend\\user\\docker-compose.yml",
+      "backend\\tests\\docker\\docker-compose.test-env.yml",
+      "backend\\infrastructure\\docker\\docker-compose-sprint-27-1.yml",
+      "backend\\infrastructure\\docker\\docker-compose-test.backup.yml",
+      "backend\\infrastructure\\docker\\docker-compose-test.yml",
+      "backend\\infrastructure\\monitoring\\docker-compose.monitoring-optimized.yml",
+      "backend\\infrastructure\\monitoring\\sprint28-alerting\\docker-compose.yml",
+      "backend\\infrastructure\\docker\\docker\\docker-compose.full.yml",
+      "backend\\infrastructure\\docker\\test-environment\\docker-compose-simple.yml",
+      "backend\\infrastructure\\docker\\test-environment\\docker-compose.yml",
+      "backend\\infrastructure\\docker\\docker\\logging\\docker-compose-logging.yml",
+      "backend\\infrastructure\\docker\\docker\\postgresql\\docker-compose.yml",
+      "backend\\infrastructure\\docker\\docker\\registry\\nacos-docker-compose.yml",
+      "backend\\erp\\erp-purchase\\docker-compose.yml",
+      "backend\\configs\\configs\\exporters\\docker-compose-exporters.yml",
+      "backend\\configs\\configs\\logging\\docker-compose-elk.yml",
+      "backend\\ai\\monitoring\\intelligent-analysis\\docker-compose.yml",
+      "ai\\test\\environment\\sprint27-plus1\\docker-compose.optimized.yml",
+      "ai\\test\\environment\\sprint27-plus1\\docker-compose.yml",
+      "backend\\tests\\docker\\Jenkinsfile",
+      "backend\\tests\\tests\\automation\\Jenkinsfile",
+      "backend\\tests\\docker\\.github-workflows-test.yml",
+      "backend\\tests\\docker\\.gitlab-ci.yml"
+    ]
+  },
+  "performance_metrics": {
+    "estimated_execution_time": {
+      "unit_tests": "~30 seconds",
+      "api_tests": "~2 minutes",
+      "integration_tests": "~5 minutes",
+      "e2e_tests": "~10 minutes",
+      "total": "~18 minutes"
+    },
+    "parallel_execution": "Not configured",
+    "test_isolation": "Unknown",
+    "resource_usage": "Unknown"
+  },
+  "stability_issues": [],
+  "optimization_recommendations": [
+    {
+      "priority": "high",
+      "title": "统一pytest配置",
+      "description": "发现多个pytest.ini文件，建议创建统一的中央配置",
+      "action": "合并所有pytest.ini配置到一个文件中"
+    },
+    {
+      "priority": "medium",
+      "title": "启用并行测试执行",
+      "description": "测试没有配置并行执行，可能影响执行效率",
+      "action": "在pytest配置中添加'-n auto'选项启用自动并行执行"
+    },
+    {
+      "priority": "low",
+      "title": "完善测试标记系统",
+      "description": "测试标记有助于分类和执行管理",
+      "action": "为所有测试添加适当的标记（unit, integration, e2e, slow, etc.）"
+    },
+    {
+      "priority": "medium",
+      "title": "优化测试报告生成",
+      "description": "清晰的测试报告有助于问题诊断",
+      "action": "配置HTML报告和JUnit XML报告输出"
+    },
+    {
+      "priority": "high",
+      "title": "创建测试框架维护文档",
+      "description": "缺乏测试框架的维护文档",
+      "action": "创建TEST_FRAMEWORK_MAINTENANCE.md文档"
+    }
+  ],
+  "structure_analysis": {
+    "total_test_files": 143,
+    "test_types": {
+      "other": 107,
+      "api": 13,
+      "unit": 6,
+      "performance": 2,
+      "e2e": 4,
+      "integration": 11
+    },
+    "test_file_sizes": [
+      {
+        "file": "resource-monitoring-cost-analysis\\test_module.py",
+        "size_kb": 14.31
+      },
+      {
+        "file": "tests\\test_batch_sn_regression.py",
+        "size_kb": 37.7
+      },
+      {
+        "file": "tests\\test_framework_diagnostic.py",
+        "size_kb": 15.14
+      },
+      {
+        "file": "tests\\test_inquiry_quote_e2e.py",
+        "size_kb": 25.25
+      },
+      {
+        "file": "tests\\test_monitoring_regression.py",
+        "size_kb": 32.79
+      },
+      {
+        "file": "tests\\test_monitor_service.py",
+        "size_kb": 24.63
+      },
+      {
+        "file": "tests\\test_order_collaboration_e2e.py",
+        "size_kb": 8.29
+      },
+      {
+        "file": "tests\\test_purchase_order_e2e.py",
+        "size_kb": 37.8
+      },
+      {
+        "file": "tests\\test_supplier_quotation.py",
+        "size_kb": 30.26
+      },
+      {
+        "file": "tests\\test_supplier_registration_e2e.py",
+        "size_kb": 21.54
+      },
+      {
+        "file": "test_env\\security_scripts\\test_security_validation.py",
+        "size_kb": 14.37
+      },
+      {
+        "file": "test_env\\test_framework\\test_runner.py",
+        "size_kb": 6.49
+      },
+      {
+        "file": "tests\\finance\\test_finance_module.py",
+        "size_kb": 27.94
+      },
+      {
+        "file": "tests\\stability\\test_stability.py",
+        "size_kb": 31.07
+      },
+      {
+        "file": "qa\\api-tests\\test_utils.py",
+        "size_kb": 12.19
+      },
+      {
+        "file": "qa\\scripts\\order-management\\test_order_management.py",
+        "size_kb": 13.34
+      },
+      {
+        "file": "qa\\performance\\benchmark\\scripts\\test_order_service.py",
+        "size_kb": 8.44
+      },
+      {
+        "file": "qa\\performance\\benchmark\\scripts\\test_stock_service.py",
+        "size_kb": 8.48
+      },
+      {
+        "file": "qa\\end-to-end-testing\\data\\test_data_manager.py",
+        "size_kb": 16.17
+      },
+      {
+        "file": "qa\\end-to-end-testing\\scenarios\\business-flow\\test_business_process_flow.py",
+        "size_kb": 15.44
+      },
+      {
+        "file": "qa\\end-to-end-testing\\scenarios\\data-flow\\test_data_create_query.py",
+        "size_kb": 8.13
+      },
+      {
+        "file": "qa\\end-to-end-testing\\scenarios\\recovery-flow\\test_exception_recovery_flow.py",
+        "size_kb": 14.87
+      },
+      {
+        "file": "qa\\end-to-end-testing\\scenarios\\user-flow\\test_user_registration_login.py",
+        "size_kb": 8.53
+      },
+      {
+        "file": "qa\\automation\\test-env\\test_env_automation.py",
+        "size_kb": 23.13
+      },
+      {
+        "file": "qa\\automation\\test-env\\tests\\unit\\test_example.py",
+        "size_kb": 7.53
+      },
+      {
+        "file": "qa\\api-tests\\file-upload\\test_file_upload_api.py",
+        "size_kb": 34.23
+      },
+      {
+        "file": "qa\\api-tests\\graphql\\test_graphql_api.py",
+        "size_kb": 27.23
+      },
+      {
+        "file": "qa\\api-tests\\restful\\test_restful_api.py",
+        "size_kb": 29.74
+      },
+      {
+        "file": "qa\\api-tests\\websocket\\test_websocket_api.py",
+        "size_kb": 30.91
+      },
+      {
+        "file": "backend\\tests\\tests\\test_agent_manager.py",
+        "size_kb": 6.5
+      },
+      {
+        "file": "backend\\tests\\tests\\test_api_comprehensive.py",
+        "size_kb": 33.51
+      },
+      {
+        "file": "backend\\tests\\tests\\test_api_integration.py",
+        "size_kb": 11.05
+      },
+      {
+        "file": "backend\\tests\\tests\\test_api_performance.py",
+        "size_kb": 24.79
+      },
+      {
+        "file": "backend\\tests\\tests\\test_auth_security.py",
+        "size_kb": 7.94
+      },
+      {
+        "file": "backend\\tests\\tests\\test_compatibility.py",
+        "size_kb": 12.39
+      },
+      {
+        "file": "backend\\tests\\tests\\test_compatibility_full.py",
+        "size_kb": 29.35
+      },
+      {
+        "file": "backend\\tests\\tests\\test_concurrent_stress.py",
+        "size_kb": 34.44
+      },
+      {
+        "file": "backend\\tests\\tests\\test_core_api.py",
+        "size_kb": 18.81
+      },
+      {
+        "file": "backend\\tests\\tests\\test_core_api_unit.py",
+        "size_kb": 5.31
+      },
+      {
+        "file": "backend\\tests\\tests\\test_core_base_unit.py",
+        "size_kb": 6.46
+      },
+      {
+        "file": "backend\\tests\\tests\\test_crm_unit.py",
+        "size_kb": 9.88
+      },
+      {
+        "file": "backend\\tests\\tests\\test_database_integration.py",
+        "size_kb": 2.74
+      },
+      {
+        "file": "backend\\tests\\tests\\test_data_migration.py",
+        "size_kb": 23.47
+      },
+      {
+        "file": "backend\\tests\\tests\\test_erp_unit.py",
+        "size_kb": 8.38
+      },
+      {
+        "file": "backend\\tests\\tests\\test_exception_recovery.py",
+        "size_kb": 30.71
+      },
+      {
+        "file": "backend\\tests\\tests\\test_inventory_management_functional.py",
+        "size_kb": 20.43
+      },
+      {
+        "file": "backend\\tests\\tests\\test_load.py",
+        "size_kb": 11.52
+      },
+      {
+        "file": "backend\\tests\\tests\\test_order_management_functional.py",
+        "size_kb": 17.99
+      },
+      {
+        "file": "backend\\tests\\tests\\test_permission_audit.py",
+        "size_kb": 19.4
+      },
+      {
+        "file": "backend\\tests\\tests\\test_permission_inheritance.py",
+        "size_kb": 15.59
+      },
+      {
+        "file": "backend\\tests\\tests\\test_permission_manager.py",
+        "size_kb": 6.81
+      },
+      {
+        "file": "backend\\tests\\tests\\test_regression.py",
+        "size_kb": 29.19
+      },
+      {
+        "file": "backend\\tests\\tests\\test_role_manager.py",
+        "size_kb": 6.14
+      },
+      {
+        "file": "backend\\tests\\tests\\test_role_permission_matrix.py",
+        "size_kb": 13.29
+      },
+      {
+        "file": "backend\\tests\\tests\\test_security.py",
+        "size_kb": 20.95
+      },
+      {
+        "file": "backend\\tests\\tests\\test_template.py",
+        "size_kb": 6.06
+      },
+      {
+        "file": "backend\\tests\\tests\\test_user_info.py",
+        "size_kb": 6.03
+      },
+      {
+        "file": "backend\\tests\\tests\\test_user_information_management.py",
+        "size_kb": 15.29
+      },
+      {
+        "file": "backend\\tests\\tests\\test_user_login.py",
+        "size_kb": 4.46
+      },
+      {
+        "file": "backend\\tests\\tests\\test_user_manager.py",
+        "size_kb": 9.64
+      },
+      {
+        "file": "backend\\tests\\tests\\test_user_permission_management.py",
+        "size_kb": 18.15
+      },
+      {
+        "file": "backend\\tests\\tests\\test_vulnerability_scan.py",
+        "size_kb": 18.96
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_ai_approval.py",
+        "size_kb": 8.55
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_api_automation.py",
+        "size_kb": 12.4
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_crm_api.py",
+        "size_kb": 8.97
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_erp_api.py",
+        "size_kb": 7.75
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_permission_api_supplement.py",
+        "size_kb": 13.26
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_purchase_inquiry_api.py",
+        "size_kb": 9.21
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_report_api_supplement.py",
+        "size_kb": 7.59
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_supplier_management_api.py",
+        "size_kb": 16.57
+      },
+      {
+        "file": "backend\\tests\\tests\\api\\test_user_api.py",
+        "size_kb": 7.51
+      },
+      {
+        "file": "backend\\tests\\tests\\api_performance\\test_api_performance.py",
+        "size_kb": 13.3
+      },
+      {
+        "file": "backend\\tests\\tests\\api_security\\test_api_authorization.py",
+        "size_kb": 11.48
+      },
+      {
+        "file": "backend\\tests\\tests\\api_security\\test_api_security.py",
+        "size_kb": 16.4
+      },
+      {
+        "file": "backend\\tests\\tests\\automation\\test_api_automation.py",
+        "size_kb": 5.79
+      },
+      {
+        "file": "backend\\tests\\tests\\automation\\test_security_automation.py",
+        "size_kb": 5.95
+      },
+      {
+        "file": "backend\\tests\\tests\\automation\\test_ui_automation.py",
+        "size_kb": 6.8
+      },
+      {
+        "file": "backend\\tests\\tests\\backup_recovery\\test_backup_recovery.py",
+        "size_kb": 12.22
+      },
+      {
+        "file": "backend\\tests\\tests\\boundary\\test_comprehensive_boundary.py",
+        "size_kb": 9.82
+      },
+      {
+        "file": "backend\\tests\\tests\\compatibility\\test_compatibility.py",
+        "size_kb": 16.05
+      },
+      {
+        "file": "backend\\tests\\tests\\concurrency\\test_concurrent_safety.py",
+        "size_kb": 23.31
+      },
+      {
+        "file": "backend\\tests\\tests\\config\\test_config_validation.py",
+        "size_kb": 13.85
+      },
+      {
+        "file": "backend\\tests\\tests\\data\\test_data_generator.py",
+        "size_kb": 16.0
+      },
+      {
+        "file": "backend\\tests\\tests\\data\\test_data_manager_api.py",
+        "size_kb": 11.56
+      },
+      {
+        "file": "backend\\tests\\tests\\data\\test_data_version_manager.py",
+        "size_kb": 10.86
+      },
+      {
+        "file": "backend\\tests\\tests\\data\\test_version_manager_unittest.py",
+        "size_kb": 5.05
+      },
+      {
+        "file": "backend\\tests\\tests\\database_performance\\test_database_performance.py",
+        "size_kb": 21.05
+      },
+      {
+        "file": "backend\\tests\\tests\\data_security\\test_data_security.py",
+        "size_kb": 18.87
+      },
+      {
+        "file": "backend\\tests\\tests\\documentation\\test_api_documentation.py",
+        "size_kb": 13.33
+      },
+      {
+        "file": "backend\\tests\\tests\\e2e\\test_e2e_business_flow.py",
+        "size_kb": 31.64
+      },
+      {
+        "file": "backend\\tests\\tests\\e2e\\test_e2e_flows.py",
+        "size_kb": 23.28
+      },
+      {
+        "file": "backend\\tests\\tests\\e2e\\test_e2e_payment_flow.py",
+        "size_kb": 43.97
+      },
+      {
+        "file": "backend\\tests\\tests\\error_handling\\test_error_handling.py",
+        "size_kb": 19.99
+      },
+      {
+        "file": "backend\\tests\\tests\\exception\\test_exception_handling.py",
+        "size_kb": 18.56
+      },
+      {
+        "file": "backend\\tests\\tests\\exception\\test_exception_scenarios.py",
+        "size_kb": 24.7
+      },
+      {
+        "file": "backend\\tests\\tests\\idempotency\\test_api_idempotency_comprehensive.py",
+        "size_kb": 17.56
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_customer_management_integration.py",
+        "size_kb": 7.94
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_integration.py",
+        "size_kb": 6.0
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_order_creation_flow.py",
+        "size_kb": 23.89
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_order_management_integration.py",
+        "size_kb": 12.11
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_third_party_integration.py",
+        "size_kb": 25.44
+      },
+      {
+        "file": "backend\\tests\\tests\\integration\\test_user_management_integration.py",
+        "size_kb": 6.64
+      },
+      {
+        "file": "backend\\tests\\tests\\integration-framework\\test_agent_2_integration.py",
+        "size_kb": 15.43
+      },
+      {
+        "file": "backend\\tests\\tests\\integration-framework\\test_e2e_verification.py",
+        "size_kb": 7.05
+      },
+      {
+        "file": "backend\\tests\\tests\\integration-framework\\test_report_generator.py",
+        "size_kb": 23.6
+      },
+      {
+        "file": "backend\\tests\\tests\\integration-framework\\test_report_generator_simple.py",
+        "size_kb": 9.11
+      },
+      {
+        "file": "backend\\tests\\tests\\integration-framework\\test_script_integration.py",
+        "size_kb": 15.85
+      },
+      {
+        "file": "backend\\tests\\tests\\memory_leak\\test_memory_leak.py",
+        "size_kb": 16.41
+      },
+      {
+        "file": "backend\\tests\\tests\\monitoring-alerting-automation\\test_monitoring_alerting_functional.py",
+        "size_kb": 7.73
+      },
+      {
+        "file": "backend\\tests\\tests\\monitoring-alerting-automation\\test_monitoring_alerting_performance.py",
+        "size_kb": 7.93
+      },
+      {
+        "file": "backend\\tests\\tests\\monitoring-alerting-automation\\test_monitoring_alerting_security.py",
+        "size_kb": 20.03
+      },
+      {
+        "file": "backend\\tests\\tests\\monitoring-module\\test_monitoring_api.py",
+        "size_kb": 21.03
+      },
+      {
+        "file": "backend\\tests\\tests\\monitoring-module\\test_monitoring_performance.py",
+        "size_kb": 17.2
+      },
+      {
+        "file": "backend\\tests\\tests\\performance\\test_performance_regression_mock.py",
+        "size_kb": 19.82
+      },
+      {
+        "file": "backend\\tests\\tests\\permission_boundary\\test_permission_boundary.py",
+        "size_kb": 17.92
+      },
+      {
+        "file": "backend\\tests\\tests\\purchase-management\\test_purchase_management.py",
+        "size_kb": 19.3
+      },
+      {
+        "file": "backend\\tests\\tests\\scripts\\test_data_cleanup.py",
+        "size_kb": 2.9
+      },
+      {
+        "file": "backend\\tests\\tests\\scripts\\test_data_generator.py",
+        "size_kb": 8.74
+      },
+      {
+        "file": "backend\\tests\\tests\\scripts\\test_data_version.py",
+        "size_kb": 5.41
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_ai_module_security.py",
+        "size_kb": 11.57
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_api_security.py",
+        "size_kb": 4.99
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_business_logic_bypass.py",
+        "size_kb": 6.87
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_order_management_security.py",
+        "size_kb": 21.57
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_penetration.py",
+        "size_kb": 22.61
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_replay_attack.py",
+        "size_kb": 18.82
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_sensitive_audit.py",
+        "size_kb": 14.6
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_user_management_security.py",
+        "size_kb": 31.61
+      },
+      {
+        "file": "backend\\tests\\tests\\security\\test_user_permissions.py",
+        "size_kb": 14.9
+      },
+      {
+        "file": "backend\\tests\\tests\\security_compliance\\test_security_compliance.py",
+        "size_kb": 15.07
+      },
+      {
+        "file": "backend\\tests\\tests\\stress_test\\test_stress.py",
+        "size_kb": 13.45
+      },
+      {
+        "file": "backend\\tests\\tests\\timeout\\test_api_timeout.py",
+        "size_kb": 15.96
+      },
+      {
+        "file": "backend\\tests\\tests\\unit\\test_business_modules.py",
+        "size_kb": 28.09
+      },
+      {
+        "file": "backend\\tests\\tests\\unit\\test_crm_unit.py",
+        "size_kb": 14.24
+      },
+      {
+        "file": "backend\\tests\\tests\\unit\\test_erp_unit.py",
+        "size_kb": 4.23
+      },
+      {
+        "file": "backend\\tests\\tests\\unit\\test_permission_unit.py",
+        "size_kb": 4.08
+      },
+      {
+        "file": "backend\\tests\\tests\\unit\\test_user_unit.py",
+        "size_kb": 8.49
+      },
+      {
+        "file": "backend\\tests\\tests\\utils\\test_data_manager.py",
+        "size_kb": 11.82
+      },
+      {
+        "file": "backend\\tests\\tests\\utils\\test_helpers.py",
+        "size_kb": 10.17
+      },
+      {
+        "file": "backend\\tests\\tests\\vulnerability_scan\\test_vulnerability_scan.py",
+        "size_kb": 11.9
+      },
+      {
+        "file": "backend\\tests\\tests\\performance\\python\\test_data_generator.py",
+        "size_kb": 12.26
+      },
+      {
+        "file": "backend\\tests\\tests\\data\\e2e\\test_data_cleaner.py",
+        "size_kb": 9.06
+      },
+      {
+        "file": "backend\\ai\\monitoring\\intelligent-analysis\\tests\\test_anomaly_detection.py",
+        "size_kb": 2.91
+      },
+      {
+        "file": "ai\\test\\environment\\sprint27-plus1\\test\\test_ai_service_integration.py",
+        "size_kb": 16.34
+      }
+    ],
+    "test_modules": [
+      "qa\\end-to-end-testing\\scenarios\\business-flow",
+      "backend\\tests\\tests\\data_security",
+      "backend\\tests\\tests\\performance",
+      "backend\\tests\\tests\\security_compliance",
+      "backend\\tests\\tests\\api_performance",
+      "backend\\tests\\tests",
+      "qa\\api-tests\\graphql",
+      "resource-monitoring-cost-analysis",
+      "backend\\tests\\tests\\vulnerability_scan",
+      "backend\\tests\\tests\\integration-framework",
+      "backend\\tests\\tests\\data",
+      "qa\\end-to-end-testing\\scenarios\\data-flow",
+      "tests\\stability",
+      "backend\\tests\\tests\\performance\\python",
+      "backend\\tests\\tests\\integration",
+      "backend\\tests\\tests\\scripts",
+      "qa\\scripts\\order-management",
+      "qa\\api-tests\\websocket",
+      "qa\\api-tests\\restful",
+      "backend\\tests\\tests\\automation",
+      "test_env\\test_framework",
+      "backend\\tests\\tests\\memory_leak",
+      "tests\\finance",
+      "backend\\tests\\tests\\stress_test",
+      "backend\\tests\\tests\\documentation",
+      "test_env\\security_scripts",
+      "qa\\end-to-end-testing\\data",
+      "backend\\tests\\tests\\idempotency",
+      "backend\\ai\\monitoring\\intelligent-analysis\\tests",
+      "backend\\tests\\tests\\e2e",
+      "qa\\automation\\test-env\\tests\\unit",
+      "qa\\automation\\test-env",
+      "backend\\tests\\tests\\concurrency",
+      "backend\\tests\\tests\\backup_recovery",
+      "backend\\tests\\tests\\permission_boundary",
+      "backend\\tests\\tests\\api",
+      "backend\\tests\\tests\\utils",
+      "backend\\tests\\tests\\compatibility",
+      "qa\\api-tests\\file-upload",
+      "qa\\performance\\benchmark\\scripts",
+      "backend\\tests\\tests\\api_security",
+      "backend\\tests\\tests\\timeout",
+      "backend\\tests\\tests\\unit",
+      "ai\\test\\environment\\sprint27-plus1\\test",
+      "backend\\tests\\tests\\database_performance",
+      "backend\\tests\\tests\\purchase-management",
+      "qa\\end-to-end-testing\\scenarios\\user-flow",
+      "backend\\tests\\tests\\monitoring-alerting-automation",
+      "backend\\tests\\tests\\exception",
+      "backend\\tests\\tests\\data\\e2e",
+      "qa\\api-tests",
+      "backend\\tests\\tests\\error_handling",
+      "backend\\tests\\tests\\security",
+      "backend\\tests\\tests\\monitoring-module",
+      "backend\\tests\\tests\\config",
+      "qa\\end-to-end-testing\\scenarios\\recovery-flow",
+      "tests",
+      "backend\\tests\\tests\\boundary"
+    ],
+    "average_file_size_kb": 15.65,
+    "largest_test_file": {
+      "file": "backend\\tests\\tests\\e2e\\test_e2e_payment_flow.py",
+      "size_kb": 43.97
+    }
+  }
+}

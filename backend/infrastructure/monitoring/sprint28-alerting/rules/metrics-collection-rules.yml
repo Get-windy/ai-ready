@@ -1,0 +1,188 @@
+# Sprint 28 监控告警模块 - 指标采集监控规则
+# 版本: v1.0
+# 最后更新: 2026-04-26
+
+groups:
+  - name: metrics-collector-health
+    interval: 15s
+    rules:
+      # 指标采集服务健康状态
+      - alert: MetricsCollectorDown
+        expr: up{job="alerting-metrics-collector"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集服务不可用"
+          description: "指标采集服务 {{ $labels.instance }} 已宕机超过1分钟"
+
+      # 指标采集服务内存使用率
+      - alert: MetricsCollectorHighMemoryUsage
+        expr: |
+          (
+            jvm_memory_used_bytes{job="alerting-metrics-collector", area="heap"} /
+            jvm_memory_max_bytes{job="alerting-metrics-collector", area="heap"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集服务内存使用率过高: {{ $value | humanize }}%"
+          description: "指标采集服务 {{ $labels.instance }} 堆内存使用率超过80%"
+
+      # 指标采集服务线程池使用率
+      - alert: MetricsCollectorHighThreadPoolUsage
+        expr: |
+          (
+            spring_thread_pool_active_threads{job="alerting-metrics-collector"} /
+            spring_thread_pool_max_threads{job="alerting-metrics-collector"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集服务线程池使用率过高: {{ $value | humanize }}%"
+          description: "指标采集服务 {{ $labels.instance }} 线程池使用率超过80%"
+
+  - name: metrics-collection-performance
+    interval: 15s
+    rules:
+      # 指标采集吞吐量
+      - alert: MetricsCollectorLowThroughput
+        expr: |
+          rate(alerting_metrics_collected_total{job="alerting-metrics-collector"}[5m]) < 10000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集吞吐量低: {{ $value | humanize }}指标/秒"
+          description: "指标采集服务 {{ $labels.instance }} 采集速率低于10000指标/秒"
+
+      # 指标采集延迟
+      - alert: MetricsCollectorHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(alerting_metrics_collection_duration_seconds_bucket{job="alerting-metrics-collector"}[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集延迟过高: {{ $value | humanize }}s"
+          description: "指标采集服务 {{ $labels.instance }} P95采集延迟超过5秒"
+
+      # 指标采集失败率
+      - alert: MetricsCollectorHighErrorRate
+        expr: |
+          (
+            rate(alerting_metrics_collection_errors_total{job="alerting-metrics-collector"}[5m]) /
+            rate(alerting_metrics_collected_total{job="alerting-metrics-collector"}[5m])
+          ) * 100 > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标采集错误率过高: {{ $value | humanize }}%"
+          description: "指标采集服务 {{ $labels.instance }} 采集错误率超过0.1%"
+
+      # 指标队列积压
+      - alert: MetricsCollectorQueueBacklog
+        expr: |
+          alerting_metrics_queue_size{job="alerting-metrics-collector"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标队列积压: {{ $value | humanize }}个指标"
+          description: "指标采集服务 {{ $labels.instance }} 待处理指标队列超过10000个"
+
+      # 指标写入数据库延迟
+      - alert: MetricsCollectorHighWriteLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(alerting_metrics_write_duration_seconds_bucket{job="alerting-metrics-collector"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "指标写入延迟过高: {{ $value | humanize }}s"
+          description: "指标采集服务 {{ $labels.instance }} P95写入延迟超过1秒"
+
+  - name: metrics-collection-batch
+    interval: 30s
+    rules:
+      # 批量处理效率
+      - alert: MetricsCollectorLowBatchEfficiency
+        expr: |
+          (
+            rate(alerting_metrics_batch_processed_total{job="alerting-metrics-collector"}[5m]) /
+            rate(alerting_metrics_batch_total{job="alerting-metrics-collector"}[5m])
+          ) * 100 < 90
+        for: 10m
+        labels:
+          severity: warning
+          module: alerting
+          component: metrics-collector
+        annotations:
+          summary: "批量处理效率低: {{ $value | humanize }}%"
+          description: "指标采集服务 {{ $labels.instance }} 批量处理成功率低于90%"
+
+      # 指标压缩率
+      - record: alerting:metrics_compression_ratio
+        expr: |
+          1 - (
+            alerting_metrics_compressed_bytes{job="alerting-metrics-collector"} /
+            alerting_metrics_raw_bytes{job="alerting-metrics-collector"}
+          )
+
+      # 指标采集服务健康评分 (0-100)
+      - record: alerting:metrics_collector_health_score
+        expr: |
+          (
+            (up{job="alerting-metrics-collector"} * 30) +
+            (clamp_max(
+              rate(alerting_metrics_collected_total{job="alerting-metrics-collector"}[5m]) / 10000 * 20,
+              20
+            )) +
+            (clamp_max(
+              (1 - (
+                rate(alerting_metrics_collection_errors_total{job="alerting-metrics-collector"}[5m]) /
+                rate(alerting_metrics_collected_total{job="alerting-metrics-collector"}[5m])
+              )) * 25,
+              25
+            )) +
+            (clamp_max(
+              (1 / histogram_quantile(0.95,
+                sum(rate(alerting_metrics_collection_duration_seconds_bucket{job="alerting-metrics-collector"}[5m])) by (le)
+              )) * 25,
+              25
+            ))
+          )
+
+      # 每秒采集指标数
+      - record: alerting:metrics_collection_rate
+        expr: rate(alerting_metrics_collected_total{job="alerting-metrics-collector"}[5m])
+
+      # 指标数据源健康状态
+      - record: alerting:metrics_source_health
+        expr: |
+          group by (source) (
+            rate(alerting_metrics_collection_errors_total{job="alerting-metrics-collector"}[5m]) == 0
+          )

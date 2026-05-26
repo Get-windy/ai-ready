@@ -1,0 +1,391 @@
+# AI-Ready Redis高可用配置
+# 哨兵模式：1主2从 + 3哨兵
+
+version: '3.8'
+
+networks:
+  ai-ready-ha-network:
+    external: true
+    name: ai-ready-ha-network
+  ai-ready-test-network:
+    external: true
+    name: ai-ready-test-network
+
+volumes:
+  redis-master-data:
+    driver: local
+  redis-slave1-data:
+    driver: local
+  redis-slave2-data:
+    driver: local
+  redis-config:
+    driver: local
+
+services:
+  # ============ Redis 主节点 ============
+  redis-master:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-master
+    restart: unless-stopped
+    hostname: redis-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-master-data:/data
+      - ./redis/master/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.10
+      ai-ready-test-network:
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass redis_password_2026 --masterauth redis_password_2026
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      REDIS_REPLICATION_MODE: master
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password_2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-master"
+
+  # ============ Redis 从节点1 ============
+  redis-slave1:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-slave1
+    restart: unless-stopped
+    hostname: redis-slave1
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-slave1-data:/data
+      - ./redis/slave/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.11
+      ai-ready-test-network:
+    command: >
+      sh -c '
+      # 等待主节点启动
+      until redis-cli -h redis-master -p 6379 -a redis_password_2026 ping | grep -q PONG; do
+        echo "Waiting for redis-master to start..."
+        sleep 2
+      done
+      
+      # 配置为主节点的从节点
+      exec redis-server /usr/local/etc/redis/redis.conf \
+        --requirepass redis_password_2026 \
+        --masterauth redis_password_2026 \
+        --slaveof redis-master 6379
+      '
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      REDIS_REPLICATION_MODE: slave
+      REDIS_MASTER_HOST: redis-master
+      REDIS_MASTER_PORT: 6379
+      REDIS_MASTER_PASSWORD: redis_password_2026
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password_2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 384M
+        reservations:
+          cpus: '0.2'
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-slave1"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  # ============ Redis 从节点2 ============
+  redis-slave2:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-slave2
+    restart: unless-stopped
+    hostname: redis-slave2
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-slave2-data:/data
+      - ./redis/slave/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.12
+      ai-ready-test-network:
+    command: >
+      sh -c '
+      # 等待主节点启动
+      until redis-cli -h redis-master -p 6379 -a redis_password_2026 ping | grep -q PONG; do
+        echo "Waiting for redis-master to start..."
+        sleep 2
+      done
+      
+      # 配置为主节点的从节点
+      exec redis-server /usr/local/etc/redis/redis.conf \
+        --requirepass redis_password_2026 \
+        --masterauth redis_password_2026 \
+        --slaveof redis-master 6379
+      '
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      REDIS_REPLICATION_MODE: slave
+      REDIS_MASTER_HOST: redis-master
+      REDIS_MASTER_PORT: 6379
+      REDIS_MASTER_PASSWORD: redis_password_2026
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password_2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 384M
+        reservations:
+          cpus: '0.2'
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-slave2"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  # ============ Redis 哨兵1 ============
+  redis-sentinel1:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-sentinel1
+    restart: unless-stopped
+    hostname: redis-sentinel1
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./redis/sentinel/sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.20
+      ai-ready-test-network:
+    command: >
+      sh -c '
+      # 等待Redis主节点启动
+      until redis-cli -h redis-master -p 6379 -a redis_password_2026 ping | grep -q PONG; do
+        echo "Waiting for redis-master to start..."
+        sleep 2
+      done
+      
+      # 启动哨兵
+      exec redis-sentinel /usr/local/etc/redis/sentinel.conf --sentinel
+      '
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      SENTINEL_QUORUM: 2
+      SENTINEL_DOWN_AFTER_MILLISECONDS: 5000
+      SENTINEL_FAILOVER_TIMEOUT: 10000
+      SENTINEL_PARALLEL_SYNCS: 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-sentinel1"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+
+  # ============ Redis 哨兵2 ============
+  redis-sentinel2:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-sentinel2
+    restart: unless-stopped
+    hostname: redis-sentinel2
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./redis/sentinel/sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.21
+      ai-ready-test-network:
+    command: >
+      sh -c '
+      # 等待Redis主节点启动
+      until redis-cli -h redis-master -p 6379 -a redis_password_2026 ping | grep -q PONG; do
+        echo "Waiting for redis-master to start..."
+        sleep 2
+      done
+      
+      # 启动哨兵
+      exec redis-sentinel /usr/local/etc/redis/sentinel.conf --sentinel
+      '
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      SENTINEL_QUORUM: 2
+      SENTINEL_DOWN_AFTER_MILLISECONDS: 5000
+      SENTINEL_FAILOVER_TIMEOUT: 10000
+      SENTINEL_PARALLEL_SYNCS: 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-sentinel2"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+
+  # ============ Redis 哨兵3 ============
+  redis-sentinel3:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-sentinel3
+    restart: unless-stopped
+    hostname: redis-sentinel3
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./redis/sentinel/sentinel.conf:/usr/local/etc/redis/sentinel.conf:ro
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.22
+      ai-ready-test-network:
+    command: >
+      sh -c '
+      # 等待Redis主节点启动
+      until redis-cli -h redis-master -p 6379 -a redis_password_2026 ping | grep -q PONG; do
+        echo "Waiting for redis-master to start..."
+        sleep 2
+      done
+      
+      # 启动哨兵
+      exec redis-sentinel /usr/local/etc/redis/sentinel.conf --sentinel
+      '
+    environment:
+      REDIS_PASSWORD: redis_password_2026
+      SENTINEL_QUORUM: 2
+      SENTINEL_DOWN_AFTER_MILLISECONDS: 5000
+      SENTINEL_FAILOVER_TIMEOUT: 10000
+      SENTINEL_PARALLEL_SYNCS: 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-sentinel3"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_healthy
+
+  # ============ Redis 监控 ============
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: ai-ready-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    networks:
+      ai-ready-ha-network:
+        ipv4_address: 172.31.2.30
+      ai-ready-test-network:
+    environment:
+      REDIS_ADDR: redis://redis-master:6379
+      REDIS_PASSWORD: redis_password_2026
+      REDIS_EXPORTER_CHECK_KEYS: ""
+      REDIS_EXPORTER_LOG_FORMAT: txt
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        tag: "redis-exporter"
+    depends_on:
+      redis-master:
+        condition: service_healthy

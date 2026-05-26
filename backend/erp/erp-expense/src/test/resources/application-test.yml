@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    hikari:
+      maximum-pool-size: 10
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data.sql
+      schema-locations: classpath:sql/init_expense_schema.sql
+
+server:
+  port: 0  # 随机端口，避免冲突
+
+logging:
+  level:
+    cn.aiedge.erp.expense: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+
+# 禁用不需要的组件
+spring.autoconfigure.exclude:
+  - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  - org.springframework.boot.autoconfigure.activiti.ActivitiAutoConfiguration
+
+# 测试配置
+test:
+  mock:
+    enabled: true

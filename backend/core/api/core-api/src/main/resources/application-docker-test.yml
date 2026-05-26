@@ -1,0 +1,138 @@
+# Docker测试环境配置
+# 用于docker-compose.test.yml中的Spring Boot应用服务
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: ai-ready-gateway
+    
+  # PostgreSQL数据库配置
+  datasource:
+    url: jdbc:postgresql://postgres-test:5432/ai_ready_test
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      validation-query: SELECT 1
+      
+  # JPA/Hibernate 配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20
+          
+  # Redis 配置
+  redis:
+    host: redis-test
+    port: 6379
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+        
+  # Kafka 配置
+  kafka:
+    bootstrap-servers: kafka-test:29093
+    consumer:
+      group-id: ai-ready-test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+# 网关配置 (简化版)
+gateway:
+  routes:
+    enable-dynamic: false
+  rate-limit:
+    enabled: false
+  security:
+    enable-auth: false     # 测试环境禁用认证
+    enable-black-white-list: false
+    enable-cors: true
+  monitor:
+    enable-access-log: false
+    enable-metrics: false
+
+# Sa-Token配置 (测试环境禁用认证)
+sa-token:
+  token-name: satoken
+  timeout: 2592000        # 30天
+  active-timeout: -1      # 永久有效
+  is-concurrent: true     # 允许并发登录
+  is-share: true          # 共享token
+  is-log: true            # 打印日志
+  jwt-enabled: false      # 测试环境禁用JWT
+
+# 服务发现配置 (禁用)
+eureka:
+  client:
+    enabled: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: false
+    fetch-registry: false
+  instance:
+    prefer-ip-address: true
+    hostname: localhost
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.aiedge: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/ai-ready-app.log
+    path: /var/log/ai-ready
+
+# 测试环境特定配置
+test:
+  environment:
+    name: docker-test
+    skip-auth: true
+    skip-validation: true
+    skip-rate-limit: true
+  database:
+    init-schema: true
+    init-data: false
+  cache:
+    enabled: true
+    type: redis
+  messaging:
+    enabled: true
+    type: kafka

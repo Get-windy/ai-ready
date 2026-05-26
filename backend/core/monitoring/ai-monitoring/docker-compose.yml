@@ -1,0 +1,115 @@
+# AI模型质量监控系统 - Docker Compose配置
+# 用于一键部署完整的监控系统
+
+version: '3.8'
+
+services:
+  # AI模型监控服务
+  ai-model-monitor:
+    build: .
+    container_name: ai-model-monitor
+    ports:
+      - "8000:8000"  # 监控API端口
+    environment:
+      - MODEL_NAME=ai_ready_model
+      - MONITOR_PORT=8000
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ALERTMANAGER_URL=http://alertmanager:9093
+    volumes:
+      - ./logs:/app/logs
+      - ./evaluations:/app/evaluations
+      - ./config:/app/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - monitoring-network
+
+  # Prometheus - 指标存储和告警规则
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+
+  # AlertManager - 告警管理
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+
+  # Grafana - 监控仪表盘
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana-datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    depends_on:
+      - prometheus
+
+  # 示例数据生成器（用于测试）
+  data-generator:
+    build: .
+    container_name: ai-data-generator
+    command: python scripts/data_generator.py
+    environment:
+      - MONITOR_URL=http://ai-model-monitor:8000
+      - GENERATION_INTERVAL=30
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    depends_on:
+      - ai-model-monitor
+
+# 网络配置
+networks:
+  monitoring-network:
+    driver: bridge
+
+# 数据卷配置
+volumes:
+  prometheus-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  grafana-data:
+    driver: local

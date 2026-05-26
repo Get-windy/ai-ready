@@ -1,0 +1,120 @@
+{
+  "summary": {
+    "total_tests": 5,
+    "passed_tests": 3,
+    "failed_tests": 1,
+    "skipped_tests": 1,
+    "total_duration": 8.6,
+    "start_time": "2026-04-24 16:40:47.205987",
+    "end_time": "2026-04-24 16:50:47.205991",
+    "success_rate": 60.0
+  },
+  "results": [
+    {
+      "test_id": "test_001",
+      "test_name": "用户登录测试",
+      "status": "passed",
+      "duration": 1.2,
+      "start_time": "2026-04-24T16:50:46.005909",
+      "end_time": "2026-04-24T16:50:47.205958",
+      "error_message": null
+    },
+    {
+      "test_id": "test_002",
+      "test_name": "订单创建测试",
+      "status": "passed",
+      "duration": 2.5,
+      "start_time": "2026-04-24T16:50:44.705963",
+      "end_time": "2026-04-24T16:50:47.205969",
+      "error_message": null
+    },
+    {
+      "test_id": "test_003",
+      "test_name": "库存查询测试",
+      "status": "failed",
+      "duration": 3.1,
+      "start_time": "2026-04-24T16:50:44.105971",
+      "end_time": "2026-04-24T16:50:47.205974",
+      "error_message": "测试 test_003 失败"
+    },
+    {
+      "test_id": "test_004",
+      "test_name": "支付流程测试",
+      "status": "passed",
+      "duration": 1.8,
+      "start_time": "2026-04-24T16:50:45.405978",
+      "end_time": "2026-04-24T16:50:47.205980",
+      "error_message": null
+    },
+    {
+      "test_id": "test_005",
+      "test_name": "数据导出测试",
+      "status": "skipped",
+      "duration": 0.0,
+      "start_time": "2026-04-24T16:50:47.205982",
+      "end_time": "2026-04-24T16:50:47.205985",
+      "error_message": "测试 test_005 失败"
+    }
+  ],
+  "metadata": {
+    "project": "AI-Ready",
+    "sprint": "Sprint 27+1",
+    "environment": "test",
+    "test_type": "integration",
+    "start_time": "2026-04-24 16:40:47.205987",
+    "end_time": "2026-04-24 16:50:47.205991"
+  },
+  "generated_at": "2026-04-24T16:50:47.206141",
+  "total_count": 5,
+  "failed_results": [
+    {
+      "test_id": "test_003",
+      "test_name": "库存查询测试",
+      "status": "failed",
+      "duration": 3.1,
+      "start_time": "2026-04-24T16:50:44.105971",
+      "end_time": "2026-04-24T16:50:47.205974",
+      "error_message": "测试 test_003 失败"
+    }
+  ],
+  "passed_results": [
+    {
+      "test_id": "test_001",
+      "test_name": "用户登录测试",
+      "status": "passed",
+      "duration": 1.2,
+      "start_time": "2026-04-24T16:50:46.005909",
+      "end_time": "2026-04-24T16:50:47.205958",
+      "error_message": null
+    },
+    {
+      "test_id": "test_002",
+      "test_name": "订单创建测试",
+      "status": "passed",
+      "duration": 2.5,
+      "start_time": "2026-04-24T16:50:44.705963",
+      "end_time": "2026-04-24T16:50:47.205969",
+      "error_message": null
+    },
+    {
+      "test_id": "test_004",
+      "test_name": "支付流程测试",
+      "status": "passed",
+      "duration": 1.8,
+      "start_time": "2026-04-24T16:50:45.405978",
+      "end_time": "2026-04-24T16:50:47.205980",
+      "error_message": null
+    }
+  ],
+  "skipped_results": [
+    {
+      "test_id": "test_005",
+      "test_name": "数据导出测试",
+      "status": "skipped",
+      "duration": 0.0,
+      "start_time": "2026-04-24T16:50:47.205982",
+      "end_time": "2026-04-24T16:50:47.205985",
+      "error_message": "测试 test_005 失败"
+    }
+  ]
+}

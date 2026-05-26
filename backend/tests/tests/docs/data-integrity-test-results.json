@@ -1,0 +1,176 @@
+{
+  "test_time": "2026-04-04 00:31:47",
+  "base_url": "http://localhost:8080",
+  "summary": {
+    "total": 17,
+    "passed": 1,
+    "failed": 2,
+    "skipped": 14,
+    "score": 47.05882352941177
+  },
+  "results": [
+    {
+      "name": "用户数据创建完整性",
+      "category": "CRUD完整性",
+      "status": "SKIP",
+      "message": "创建用户接口可能未实现",
+      "response_time_ms": 15.78,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "用户数据读取完整性",
+      "category": "CRUD完整性",
+      "status": "SKIP",
+      "message": "无已创建用户可读取",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "用户数据更新完整性",
+      "category": "CRUD完整性",
+      "status": "SKIP",
+      "message": "无已创建用户可更新",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "用户数据删除完整性",
+      "category": "CRUD完整性",
+      "status": "SKIP",
+      "message": "无已创建用户可删除",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "分页数据完整性",
+      "category": "CRUD完整性",
+      "status": "FAIL",
+      "message": "分页查询请求失败",
+      "response_time_ms": 3.54,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "用户-角色关联关系",
+      "category": "数据关联",
+      "status": "SKIP",
+      "message": "用户角色关联接口可能未实现",
+      "response_time_ms": 5.49,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "角色-权限关联关系",
+      "category": "数据关联",
+      "status": "SKIP",
+      "message": "角色权限关联接口可能未实现",
+      "response_time_ms": 2.9,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "角色-菜单关联关系",
+      "category": "数据关联",
+      "status": "SKIP",
+      "message": "角色菜单关联接口可能未实现",
+      "response_time_ms": 2.62,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "租户数据隔离",
+      "category": "数据关联",
+      "status": "SKIP",
+      "message": "租户数据隔离接口可能未实现",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "批量操作事务",
+      "category": "事务处理",
+      "status": "SKIP",
+      "message": "批量操作接口可能未实现",
+      "response_time_ms": 7.1,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "部分失败回滚验证",
+      "category": "事务处理",
+      "status": "SKIP",
+      "message": "验证接口可能未实现",
+      "response_time_ms": 2.88,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "并发写入一致性",
+      "category": "事务处理",
+      "status": "SKIP",
+      "message": "并发写入状态码: [0, 0, 0, 0, 0]",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {
+        "status_codes": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "数据格式一致性",
+      "category": "数据一致性",
+      "status": "FAIL",
+      "message": "数据格式验证请求失败",
+      "response_time_ms": 4.63,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "时间戳一致性",
+      "category": "数据一致性",
+      "status": "SKIP",
+      "message": "时间戳验证接口可能未实现",
+      "response_time_ms": 2.98,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "软删除一致性",
+      "category": "数据一致性",
+      "status": "SKIP",
+      "message": "需要先创建再删除用户以验证软删除",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "唯一约束一致性",
+      "category": "数据一致性",
+      "status": "SKIP",
+      "message": "用户创建接口可能未实现",
+      "response_time_ms": 2.3,
+      "status_code": 0,
+      "details": {}
+    },
+    {
+      "name": "状态码一致性",
+      "category": "数据一致性",
+      "status": "PASS",
+      "message": "状态码一致性检查完成，测试0个端点",
+      "response_time_ms": 0,
+      "status_code": 0,
+      "details": {
+        "endpoints_tested": 0
+      }
+    }
+  ]
+}

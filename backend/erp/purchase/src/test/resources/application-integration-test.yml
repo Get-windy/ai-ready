@@ -1,0 +1,160 @@
+# 集成测试配置文件
+# 使用TestContainers进行端到端集成测试
+
+spring:
+  # 数据源配置（由TestContainers动态注入）
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Redis配置（由TestContainers动态注入）
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  # RabbitMQ配置（由TestContainers动态注入）
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    connection-timeout: 5000
+  
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5分钟
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "purchase:"
+  
+  # 消息配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: purchase-test-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# 应用配置
+app:
+  # 测试配置
+  test:
+    enabled: true
+    integration-test: true
+    
+  # 业务配置
+  purchase:
+    inquiry:
+      default-expiry-days: 30
+      max-items: 100
+    quote:
+      default-valid-days: 7
+      max-quotes-per-inquiry: 10
+    contract:
+      default-warranty-period: "3年"
+      auto-approval-threshold: 50000.00
+  
+  # 集成配置
+  integration:
+    inventory:
+      enabled: true
+      base-url: http://localhost:8081
+      timeout: 5000
+    finance:
+      enabled: true
+      base-url: http://localhost:8082
+      timeout: 5000
+    notification:
+      enabled: true
+      base-url: http://localhost:8083
+      timeout: 3000
+  
+  # 安全配置（测试环境简化）
+  security:
+    jwt:
+      secret: test-jwt-secret-key-for-integration-test-only
+      expiration: 86400000  # 24小时
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.erp.purchase: DEBUG
+    org.springframework.test: INFO
+    org.testcontainers: INFO
+    com.zaxxer.hikari: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# 测试专用配置
+test:
+  containers:
+    enabled: true
+    reuse: false  # 测试间不重用容器
+    cleanup:
+      enabled: true
+      after-test: true
+    postgres:
+      image: postgres:14-alpine
+      init-script-path: classpath:init-test-db.sql
+    redis:
+      image: redis:7-alpine
+    rabbitmq:
+      image: rabbitmq:3-management-alpine
+  
+  # 测试数据配置
+  data:
+    suppliers:
+      count: 5
+    products:
+      count: 10
+    users:
+      count: 3
+    
+  # 性能测试配置
+  performance:
+    concurrent-users: 10
+    ramp-up-time: 5
+    duration: 60
+
+# 监控配置（测试环境）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true

@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-ready-monitor'
+
+# 告警规则文件
+rule_files:
+  - 'rules/*.yml'
+
+# AlertManager 配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# 抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter 主机监控
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Redis 监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: /scrape
+
+  # RabbitMQ 监控
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  # AI-Ready 应用监控
+  - job_name: 'ai-ready-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: 
+        - 'host.docker.internal:8080'
+    scrape_interval: 5s
+
+  # AI Service 监控
+  - job_name: 'ai-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+        - 'host.docker.internal:8000'

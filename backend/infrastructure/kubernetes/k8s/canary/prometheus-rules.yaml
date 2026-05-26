@@ -1,0 +1,126 @@
+# AI-Ready Canary Analysis Prometheus Rules
+# 金丝雀发布监控告警规则
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-ready-canary-analysis
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    release: prometheus
+spec:
+  groups:
+    - name: canary-analysis
+      interval: 30s
+      rules:
+        # 金丝雀版本错误率
+        - alert: CanaryHighErrorRate
+          expr: |
+            (
+              sum(rate(http_requests_total{version="canary",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{version="canary"}[5m]))
+            ) > 0.05
+          for: 2m
+          labels:
+            severity: warning
+            version: canary
+          annotations:
+            summary: "Canary版本错误率过高"
+            description: "Canary版本错误率 {{ $value | humanizePercentage }}，超过阈值5%"
+
+        # 金丝雀版本延迟P99
+        - alert: CanaryHighLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{version="canary"}[5m])) by (le)
+            ) > 2
+          for: 3m
+          labels:
+            severity: warning
+            version: canary
+          annotations:
+            summary: "Canary版本延迟过高"
+            description: "Canary版本P99延迟 {{ $value }}s，超过阈值2s"
+
+        # 金丝雀版本与稳定版本错误率对比
+        - alert: CanaryErrorRateDeviation
+          expr: |
+            (
+              sum(rate(http_requests_total{version="canary",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{version="canary"}[5m]))
+            )
+            >
+            2 * (
+              sum(rate(http_requests_total{version="stable",status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total{version="stable"}[5m]))
+            )
+          for: 5m
+          labels:
+            severity: critical
+            version: canary
+          annotations:
+            summary: "Canary版本错误率显著高于Stable版本"
+            description: "Canary错误率是Stable版本的2倍以上"
+
+        # 金丝雀版本成功率
+        - record: canary:success_rate
+          expr: |
+            sum(rate(http_requests_total{version="canary",status=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{version="canary"}[5m]))
+
+        # 稳定版本成功率
+        - record: stable:success_rate
+          expr: |
+            sum(rate(http_requests_total{version="stable",status=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{version="stable"}[5m]))
+
+        # 金丝雀发布健康评分 (0-100)
+        - record: canary:health_score
+          expr: |
+            (
+              canary:success_rate * 50
+            )
+            +
+            (
+              (1 - (
+                histogram_quantile(0.99,
+                  sum(rate(http_request_duration_seconds_bucket{version="canary"}[5m])) by (le)
+                ) / 2
+              )) * 50
+            )
+---
+# ServiceMonitor for metrics collection
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ai-ready-api-canary
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  namespaceSelector:
+    matchNames:
+      - ai-ready
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: 'jvm_.*'
+          targetLabel: component
+          replacement: 'jvm'
+        - sourceLabels: [__name__]
+          regex: 'http_.*'
+          targetLabel: component
+          replacement: 'http'

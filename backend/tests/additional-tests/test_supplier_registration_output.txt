@@ -1,0 +1,38 @@
+============================================================
+供应商注册流程端到端测试
+============================================================
+
+=== 测试步骤1: 注册页面访问 ===
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 88, in test_01_registration_page_access
+    return self.log_test_step("供应商门户首页访问", False, f"状态码: {response.status_code}")
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 73, in log_test_step
+    print(f"{status} {step_name}: {details}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 526, in run_e2e_tests
+    method()
+    ~~~~~~^^
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 92, in test_01_registration_page_access
+    return self.log_test_step("供应商门户首页访问", False, f"异常: {str(e)}")
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 73, in log_test_step
+    print(f"{status} {step_name}: {details}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 556, in <module>
+    run_e2e_tests()
+    ~~~~~~~~~~~~~^^
+  File "I:\AI-Ready\tests\test_supplier_registration_e2e.py", line 530, in run_e2e_tests
+    print(f"\u274c {method_name} 执行异常: {e}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence

@@ -1,0 +1,78 @@
+{
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "tests": [
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderSQLInjection::test_order_creation_sql_injection_detection",
+      "outcome": "passed",
+      "duration": 0.05
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderSQLInjection::test_order_search_sql_injection_protection",
+      "outcome": "passed",
+      "duration": 0.04
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderXSSVulnerability::test_order_notes_xss_detection",
+      "outcome": "passed",
+      "duration": 0.03
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderXSSVulnerability::test_customer_name_xss_detection",
+      "outcome": "passed",
+      "duration": 0.03
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderCSRFProtection::test_order_creation_without_csrf_token",
+      "outcome": "passed",
+      "duration": 0.02
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderCSRFProtection::test_order_update_with_invalid_csrf_token",
+      "outcome": "passed",
+      "duration": 0.03
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderAuthenticationAuthorization::test_authentication_required_for_order_access",
+      "outcome": "passed",
+      "duration": 0.04
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderAuthenticationAuthorization::test_authorization_required_for_order_access",
+      "outcome": "passed",
+      "duration": 0.04
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderAuthenticationAuthorization::test_order_modification_requires_ownership",
+      "outcome": "passed",
+      "duration": 0.04
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderSensitiveDataProtection::test_payment_info_should_be_masked",
+      "outcome": "passed",
+      "duration": 0.03
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderSensitiveDataProtection::test_customer_personal_info_protection",
+      "outcome": "passed",
+      "duration": 0.03
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderRateLimiting::test_order_creation_rate_limiting",
+      "outcome": "passed",
+      "duration": 0.02
+    },
+    {
+      "nodeid": "tests/security/test_order_management_security.py::TestOrderRateLimiting::test_order_search_rate_limiting",
+      "outcome": "passed",
+      "duration": 0.02
+    }
+  ]
+}

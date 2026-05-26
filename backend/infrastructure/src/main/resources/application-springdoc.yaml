@@ -1,0 +1,167 @@
+# SpringDoc OpenAPI 配置
+springdoc:
+  # API文档端点配置
+  api-docs:
+    path: /api-docs
+    enabled: true
+  # JSON格式配置
+  api-docs.resolve-schema-properties: true
+  api-docs.groups:
+    enabled: true
+  # Swagger UI配置
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    display-request-duration: true
+    filter: true
+    tags-sorter: alpha
+    urls:
+      - url: /api-docs
+        name: ERP系统API
+  # 扫描配置
+  packages-to-scan: cn.aiedge.erp
+  paths-to-match: /api/erp/v1/**
+  # 缓存配置
+  cache:
+    disabled: true
+  # 默认响应配置
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  # 模型配置
+  model-and-view-allowed: false
+  # 分组配置
+  group-configs:
+    - group: erp-api
+      display-name: ERP系统API
+      paths-to-match: /api/erp/v1/**
+      packages-to-scan: cn.aiedge.erp
+  # 安全配置
+  show-actuator: false
+  # 国际化支持
+  i18n:
+    enabled: true
+    default-locale: zh-CN
+    supported-locales: zh-CN, en-US
+
+# SpringDoc扩展配置
+springdoc:
+  override-with-generic-response: false
+  use-fqn: false
+  remove-broken-reference-definitions: true
+  writer-with-default-pretty-printer: true
+  # 响应包装配置
+  wrap-with-resource:
+    enabled: false
+  # 时间格式化
+  date-time-format: "yyyy-MM-dd HH:mm:ss"
+  date-format: "yyyy-MM-dd"
+  # 响应码说明
+  response-messages:
+    200: 请求成功
+    201: 资源创建成功
+    204: 资源删除成功
+    400: 请求参数错误
+    401: 身份认证失败
+    403: 权限不足
+    404: 资源不存在
+    409: 资源冲突
+    500: 服务器内部错误
+    503: 服务暂时不可用
+
+# 全局参数配置
+springdoc:
+  global-parameters:
+    - name: X-Request-ID
+      description: 请求ID，用于链路追踪
+      required: false
+      in: header
+      schema:
+        type: string
+        example: "req_1234567890"
+    - name: X-Client-Version
+      description: 客户端版本号
+      required: false
+      in: header
+      schema:
+        type: string
+        example: "1.0.0"
+    - name: X-User-ID
+      description: 用户ID
+      required: false
+      in: header
+      schema:
+        type: string
+        example: "user_001"
+
+# 全局响应头配置
+springdoc:
+  global-response-headers:
+    - name: X-Request-ID
+      description: 请求ID
+      schema:
+        type: string
+        example: "req_1234567890"
+    - name: X-Response-Time
+      description: 响应时间（毫秒）
+      schema:
+        type: integer
+        example: 152
+    - name: X-RateLimit-Limit
+      description: 每分钟请求限制
+      schema:
+        type: integer
+        example: 1000
+    - name: X-RateLimit-Remaining
+      description: 剩余请求次数
+      schema:
+        type: integer
+        example: 987
+
+# 安全配置
+springdoc:
+  security-schemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearer-format: JWT
+      description: "JWT认证令牌，格式：Bearer {token}"
+  security-requirements:
+    - bearerAuth: []
+
+# 高级配置
+springdoc:
+  # 自定义转换器
+  customizers:
+    operation-customizer:
+      enabled: true
+    schema-customizer:
+      enabled: true
+  # 模型继承
+  support-inheritance: true
+  # 枚举处理
+  enum-as-ref: true
+  # 泛型处理
+  use-getter-for-schema-property: true
+  # 示例数据
+  examples-enabled: true
+  # 响应包装
+  wrapper-response-enabled: false
+
+# 监控端点配置（仅开发环境启用）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name:erp-api}
+    export:
+      prometheus:
+        enabled: true

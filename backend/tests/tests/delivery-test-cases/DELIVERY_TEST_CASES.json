@@ -1,0 +1,408 @@
+{
+  "module": "delivery",
+  "description": "企智连配送模块测试用例",
+  "version": "1.0.0",
+  "testSuites": [
+    {
+      "suiteId": "DELIVERY_DRIVER_001",
+      "suiteName": "配送员管理测试",
+      "description": "测试配送员管理功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_DRIVER_001_001",
+          "title": "配送员注册测试",
+          "description": "验证配送员能够完成注册流程",
+          "steps": [
+            "1. 进入配送员注册页面",
+            "2. 填写个人信息（姓名、电话）",
+            "3. 上传身份证和驾驶证",
+            "4. 提交注册申请"
+          ],
+          "expectedResult": "注册成功，提交审核",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_DRIVER_001_002",
+          "title": "配送员认证测试",
+          "description": "验证配送员能够完成认证流程",
+          "steps": [
+            "1. 进入认证页面",
+            "2. 上传身份证、驾驶证、健康证",
+            "3. 填写认证信息",
+            "4. 提交认证"
+          ],
+          "expectedResult": "认证提交成功，等待审核",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_DRIVER_001_003",
+          "title": "配送员档案管理测试",
+          "description": "验证能够管理配送员档案",
+          "steps": [
+            "1. 进入配送员档案页面",
+            "2. 查看配送员信息",
+            "3. 修改联系信息"
+          ],
+          "expectedResult": "档案信息正确显示和修改",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_DRIVER_001_004",
+          "title": "排班管理测试",
+          "description": "验证排班管理功能",
+          "steps": [
+            "1. 进入排班管理页面",
+            "2. 设置配送员排班",
+            "3. 查看排班表"
+          ],
+          "expectedResult": "排班设置成功，排班表正确显示",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_DRIVER_001_005",
+          "title": "绩效考核测试",
+          "description": "验证绩效考核功能",
+          "steps": [
+            "1. 进入绩效考核页面",
+            "2. 查看配送员绩效",
+            "3. 设置考核标准"
+          ],
+          "expectedResult": "绩效数据正确显示",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_DRIVER_001_006",
+          "title": "配送员重复手机号注册测试",
+          "description": "验证重复手机号无法注册",
+          "steps": [
+            "1. 使用已存在的手机号",
+            "2. 尝试注册"
+          ],
+          "expectedResult": "系统提示手机号已存在",
+          "priority": "high",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "DELIVERY_TASK_002",
+      "suiteName": "配送任务管理测试",
+      "description": "测试配送任务管理功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_TASK_002_001",
+          "title": "任务分配策略测试",
+          "description": "验证任务分配策略正确",
+          "steps": [
+            "1. 检查最近订单",
+            "2. 查看分配记录"
+          ],
+          "expectedResult": "任务按策略分配给配送员",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TASK_002_002",
+          "title": "任务状态流转测试",
+          "description": "验证任务状态正确流转",
+          "steps": [
+            "1. 查看任务列表",
+            "2. 验证任务状态（待接单/已接单/配送中/已完成）"
+          ],
+          "expectedResult": "任务状态按流程流转",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TASK_002_003",
+          "title": "任务重新分配测试",
+          "description": "验证任务可重新分配",
+          "steps": [
+            "1. 选择待分配任务",
+            "2. 重新分配给其他配送员"
+          ],
+          "expectedResult": "任务重新分配成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TASK_002_004",
+          "title": "任务合并测试",
+          "description": "验证任务可合并",
+          "steps": [
+            "1. 选择多个同一区域任务",
+            "2. 点击合并任务"
+          ],
+          "expectedResult": "任务合并成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TASK_002_005",
+          "title": "任务拆分测试",
+          "description": "验证任务可拆分",
+          "steps": [
+            "1. 选择多商品任务",
+            "2. 点击拆分任务"
+          ],
+          "expectedResult": "任务拆分成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TASK_002_006",
+          "title": "任务取消测试",
+          "description": "验证任务可取消",
+          "steps": [
+            "1. 选择待接单任务",
+            "2. 点击取消任务"
+          ],
+          "expectedResult": "任务取消成功",
+          "priority": "high",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "DELIVERY_ROUTE_003",
+      "suiteName": "配送路线优化测试",
+      "description": "测试配送路线优化功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_ROUTE_003_001",
+          "title": "高德API集成测试",
+          "description": "验证能够调用高德地图API",
+          "steps": [
+            "1. 进入路线规划页面",
+            "2. 输入起点和终点",
+            "3. 生成路线"
+          ],
+          "expectedResult": "路线规划成功，显示路线详情",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_ROUTE_003_002",
+          "title": "多点路径规划测试",
+          "description": "验证多点路径规划功能",
+          "steps": [
+            "1. 输入多个配送点",
+            "2. 生成最优路线"
+          ],
+          "expectedResult": "多点路径规划成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_ROUTE_003_003",
+          "title": "实时路况调整测试",
+          "description": "验证能够根据实时路况调整路线",
+          "steps": [
+            "1. 开始配送",
+            "2. 触发路况变化",
+            "3. 验证路线更新"
+          ],
+          "expectedResult": "路线根据路况自动调整",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_ROUTE_003_004",
+          "title": "导航功能测试",
+          "description": "验证导航功能正常",
+          "steps": [
+            "1. 选择配送任务",
+            "2. 点击导航按钮",
+            "3. 启动导航"
+          ],
+          "expectedResult": "导航应用启动，显示正确路线"
+        }
+      ]
+    },
+    {
+      "suiteId": "DELIVERY_TRACK_004",
+      "suiteName": "配送跟踪测试",
+      "description": "测试配送跟踪功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_TRACK_004_001",
+          "title": "GPS实时定位测试",
+          "description": "验证能够获取实时定位",
+          "steps": [
+            "1. 开启GPS定位",
+            "2. 查看配送员位置"
+          ],
+          "expectedResult": "实时位置正确显示",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TRACK_004_002",
+          "title": "配送进度跟踪测试",
+          "description": "验证能够跟踪配送进度",
+          "steps": [
+            "1. 进入配送任务详情",
+            "2. 查看配送进度"
+          ],
+          "expectedResult": "配送进度正确显示",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TRACK_004_003",
+          "title": "异常处理测试",
+          "description": "验证异常情况处理",
+          "steps": [
+            "1. 触发异常（如客户不在家）",
+            "2. 上报异常"
+          ],
+          "expectedResult": "异常上报成功，状态更新",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_TRACK_004_004",
+          "title": "客户通知测试",
+          "description": "验证能够通知客户",
+          "steps": [
+            "1. 选择配送任务",
+            "2. 点击通知客户"
+          ],
+          "expectedResult": "客户收到通知",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "DELIVERY_SIGN_005",
+      "suiteName": "电子签收测试",
+      "description": "测试电子签收功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_SIGN_005_001",
+          "title": "电子签名测试",
+          "description": "验证能够完成电子签名",
+          "steps": [
+            "1. 进入签收页面",
+            "2. 绘制签名",
+            "3. 确认签名"
+          ],
+          "expectedResult": "签名保存成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_SIGN_005_002",
+          "title": "拍照签收测试",
+          "description": "验证能够拍照签收",
+          "steps": [
+            "1. 进入签收页面",
+            "2. 拍照上传",
+            "3. 确认签收"
+          ],
+          "expectedResult": "照片上传成功，签收完成",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_SIGN_005_003",
+          "title": "签收记录查询测试",
+          "description": "验证能够查询签收记录",
+          "steps": [
+            "1. 进入签收记录页面",
+            "2. 选择查询条件",
+            "3. 查看签收记录"
+          ],
+          "expectedResult": "签收记录正确显示",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_SIGN_005_004",
+          "title": "配送评价测试",
+          "description": "验证能够进行配送评价",
+          "steps": [
+            "1. 完成配送任务",
+            "2. 进入评价页面",
+            "3. 填写评价"
+          ],
+          "expectedResult": "评价提交成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "DELIVERY_SIGN_005_005",
+          "title": "电子签收空签名测试",
+          "description": "验证空签名无法提交",
+          "steps": [
+            "1. 进入签收页面",
+            "2. 不绘制签名",
+            "3. 尝试提交"
+          ],
+          "expectedResult": "系统提示请绘制签名",
+          "priority": "high",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "DELIVERY_AUTH_006",
+      "suiteName": "权限测试",
+      "description": "测试配送模块权限控制",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "DELIVERY_AUTH_006_001",
+          "title": "不同角色配送权限测试",
+          "description": "验证不同角色的配送权限",
+          "steps": [
+            "1. 使用配送员角色登录",
+            "2. 尝试查看其他配送员信息",
+            "3. 尝试修改订单"
+          ],
+          "expectedResult": "只能操作自己的数据",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "DELIVERY_AUTH_006_002",
+          "title": "配送员数据隔离测试",
+          "description": "验证配送员数据隔离",
+          "steps": [
+            "1. 使用配送员A账号登录",
+            "2. 尝试查看配送员B的数据"
+          ],
+          "expectedResult": "无法查看配送员B的数据",
+          "priority": "high",
+          "type": "permission"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalTestCases": 25,
+    "functionalTests": 18,
+    "boundaryTests": 2,
+    "permissionTests": 2,
+    "totalSuites": 6,
+    "testDate": "2026-04-14"
+  },
+  "metadata": {
+    "projectId": "ai-ready",
+    "projectName": "AI-Ready企智连",
+    "moduleName": "配送模块",
+    "version": "1.0",
+    "testEnvironment": "test"
+  }
+}

@@ -1,0 +1,186 @@
+# 企智连项目监控配置
+# ServiceMonitor 和告警规则
+
+---
+# ServiceMonitor - 用于 Prometheus 自动发现
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ai-ready-backend-metrics
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: ai-ready
+      component: backend
+  namespaceSelector:
+    matchNames:
+      - ai-ready
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+---
+# PrometheusRule - 告警规则
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ai-ready-alerts
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: monitoring
+spec:
+  groups:
+    - name: ai-ready-backend
+      rules:
+        # 高错误率告警
+        - alert: BackendHighErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{status=~"5..",namespace="ai-ready"}[5m]))
+              /
+              sum(rate(http_server_requests_seconds_count{namespace="ai-ready"}[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            team: backend
+          annotations:
+            summary: "企智连后端服务错误率过高"
+            description: "错误率超过 5%，当前值: {{ $value | humanizePercentage }}"
+            runbook_url: "https://wiki.example.com/runbooks/backend-high-error-rate"
+        
+        # 响应时间过长告警
+        - alert: BackendHighLatency
+          expr: |
+            histogram_quantile(0.95, 
+              sum(rate(http_server_requests_seconds_bucket{namespace="ai-ready"}[5m])) by (le)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            team: backend
+          annotations:
+            summary: "企智连后端服务响应时间过长"
+            description: "P95 响应时间超过 2秒，当前值: {{ $value }}s"
+        
+        # Pod 重启频繁告警
+        - alert: BackendPodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace="ai-ready",container="backend"}[10m]) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+            team: backend
+          annotations:
+            summary: "后端 Pod 频繁重启"
+            description: "Pod {{ $labels.pod }} 在过去10分钟内重启超过 {{ $value }} 次"
+        
+        # JVM 内存告警
+        - alert: BackendHighMemoryUsage
+          expr: |
+            (
+              jvm_memory_used_bytes{area="heap",namespace="ai-ready"}
+              /
+              jvm_memory_max_bytes{area="heap",namespace="ai-ready"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            team: backend
+          annotations:
+            summary: "后端 JVM 堆内存使用率过高"
+            description: "堆内存使用率超过 85%，当前值: {{ $value | humanizePercentage }}"
+    
+    - name: ai-ready-infrastructure
+      rules:
+        # Pod 不可用告警
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{namespace="ai-ready",condition="false"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Pod 未就绪"
+            description: "Pod {{ $labels.pod }} 未处于就绪状态"
+        
+        # HPA 达到最大副本数
+        - alert: HPAMaxReplicasReached
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="ai-ready"}
+            ==
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="ai-ready"}
+          for: 10m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "HPA 已达到最大副本数"
+            description: "HPA {{ $labels.horizontalpodautoscaler }} 已达到最大副本数 {{ $value }}"
+        
+        # PVC 使用率告警
+        - alert: PersistentVolumeClaimHighUsage
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes{namespace="ai-ready"}
+              /
+              kubelet_volume_stats_capacity_bytes{namespace="ai-ready"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "PVC 使用率过高"
+            description: "PVC {{ $labels.persistentvolumeclaim }} 使用率超过 85%"
+---
+# PodMonitor - 用于监控没有 Service 的 Pod
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ai-ready-postgres-metrics
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: ai-ready
+      component: database
+  namespaceSelector:
+    matchNames:
+      - ai-ready
+  podMetricsEndpoints:
+    - port: postgres-exporter
+      path: /metrics
+      interval: 30s
+---
+# 自定义指标配置（可选）
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: custom-metrics-config
+#   namespace: ai-ready
+# data:
+#   custom-metrics.yaml: |
+#     rules:
+#       - seriesQuery: '{__name__=~"^container_.*",container!="POD",namespace!=""}'
+#         resources:
+#           overrides:
+#             namespace:
+#               resource: namespace
+#             pod:
+#               resource: pod
+#         name:
+#           matches: ^container_(.*)_seconds_total$
+#           as: ""
+#         metricsQuery: sum(rate(<<.Series>>{<<.LabelMatchers>>,container!="POD"}[5m])) by (<<.GroupBy>>)

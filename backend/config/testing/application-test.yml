@@ -1,0 +1,257 @@
+# 测试环境配置
+spring:
+  # 数据源配置
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        show_sql: false
+        jdbc:
+          batch_size: 20
+          fetch_size: 100
+    open-in-view: false
+  
+  # Redis配置（测试环境使用嵌入式Redis）
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  # Kafka配置（测试环境使用内存Kafka）
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: test-group
+      auto-offset-reset: earliest
+  
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
+      cache-null-values: false
+  
+  # Web配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  
+  # 测试专用配置
+  test:
+    database:
+      replace: none
+    mockmvc:
+      print: on_error
+
+# 测试框架配置
+testing:
+  framework:
+    # 测试模式
+    mode: unit  # unit, integration, e2e
+    
+    # 测试数据配置
+    data:
+      generate-on-startup: true
+      cleanup-after-test: true
+      sample-size: 100
+    
+    # 性能测试配置
+    performance:
+      enabled: true
+      threshold:
+        response-time: 1000ms  # 响应时间阈值
+        memory-usage: 512MB    # 内存使用阈值
+        cpu-usage: 80          # CPU使用率阈值
+    
+    # 覆盖率配置
+    coverage:
+      enabled: true
+      minimum:
+        line: 70
+        branch: 60
+        instruction: 70
+        method: 70
+    
+    # 架构验证配置
+    architecture:
+      validate-on-startup: true
+      rules:
+        directory-structure: true
+        package-naming: true
+        api-paths: true
+        module-boundaries: true
+        circular-dependencies: true
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.erp: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.testcontainers: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/test-application.log
+    max-size: 10MB
+    max-history: 7
+
+# ERP测试配置
+erp:
+  testing:
+    # 模块测试配置
+    modules:
+      enabled:
+        - batch-management
+        - order-management
+        - inventory-management
+        - supplier-management
+      
+      # 测试数据生成配置
+      test-data:
+        batch:
+          count: 50
+          quality-statuses: ["PASSED", "PENDING", "FAILED"]
+        
+        order:
+          count: 100
+          statuses: ["PENDING", "PROCESSING", "COMPLETED", "CANCELLED"]
+        
+        product:
+          count: 200
+          categories: ["ELECTRONICS", "CLOTHING", "FOOD", "BOOKS"]
+    
+    # API测试配置
+    api:
+      base-url: http://localhost:8080
+      version: v1
+      timeout: 30000
+      retry:
+        max-attempts: 3
+        backoff-delay: 1000
+    
+    # 数据库测试配置
+    database:
+      schema-validation: true
+      data-validation: true
+      constraint-checking: true
+      
+      # 测试数据清理策略
+      cleanup:
+        strategy: transactional  # transactional, truncate, delete
+        tables:
+          - batch_management
+          - order_details
+          - product_inventory
+          - user_accounts
+          - transaction_logs
+    
+    # 集成测试配置
+    integration:
+      external-services:
+        mock: true
+        timeout: 5000
+        retry-count: 2
+      
+      messaging:
+        kafka:
+          topics:
+            test-topic: erp.test
+          groups:
+            test-group: test-consumer-group
+
+# 安全测试配置
+security:
+  testing:
+    enabled: true
+    users:
+      - username: test-admin
+        password: admin123
+        roles: [ADMIN, USER]
+      
+      - username: test-user
+        password: user123
+        roles: [USER]
+    
+    # 权限测试配置
+    permissions:
+      validate: true
+      required-roles:
+        batch-management: [ADMIN, MANAGER]
+        order-management: [USER, MANAGER]
+        report-view: [USER, MANAGER, ADMIN]
+
+# 监控测试配置
+monitoring:
+  testing:
+    metrics:
+      enabled: true
+      export:
+        prometheus: true
+        influxdb: false
+      
+      # 性能指标阈值
+      thresholds:
+        response-time-p95: 500ms
+        error-rate: 0.01  # 1%
+        throughput: 100   # 请求/秒
+    
+    health:
+      enabled: true
+      components:
+        database: true
+        redis: true
+        kafka: true
+        disk-space: true
+
+# 测试报告配置
+reporting:
+  test:
+    format: html  # html, json, xml
+    output-directory: target/test-reports
+    trends:
+      enabled: true
+      history: 10
+    
+    # 覆盖率报告
+    coverage:
+      format: html
+      output-directory: target/coverage-reports
+    
+    # 架构合规性报告
+    architecture:
+      format: markdown
+      output-directory: target/architecture-reports
+    
+    # 性能测试报告
+    performance:
+      format: json
+      output-directory: target/performance-reports

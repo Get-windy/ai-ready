@@ -1,0 +1,138 @@
+# AI-Ready 生产环境配置
+
+spring:
+  # 数据库配置
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:prod-db-master}:${DB_PORT:5432}/${DB_NAME:ai_ready_prod}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      pool-name: AIReadyHikariPool
+  
+  # Redis配置
+  data:
+    redis:
+      host: ${REDIS_HOST:prod-redis-cluster}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+        shutdown-timeout: 200ms
+      timeout: 5000ms
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:kafka1:9092,kafka2:9092,kafka3:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: ai-ready-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# AI引擎配置
+ai:
+  engine:
+    endpoint: ${AI_ENGINE_ENDPOINT:http://ai-engine-service:8080}
+    api-key: ${AI_API_KEY}
+    model: ${AI_MODEL:gpt-4}
+    timeout: 60000
+    retry:
+      max-attempts: 3
+      backoff: 2000
+
+# 外部服务配置
+services:
+  dingtalk:
+    webhook: ${DINGTALK_WEBHOOK}
+    app-key: ${DINGTALK_APP_KEY}
+    app-secret: ${DINGTALK_APP_SECRET}
+  
+  sms:
+    provider: aliyun
+    access-key: ${SMS_ACCESS_KEY}
+    secret-key: ${SMS_SECRET_KEY}
+    sign-name: AI-Ready
+    template-code: ${SMS_TEMPLATE_CODE}
+
+# 日志配置
+logging:
+  level:
+    root: WARN
+    com.ai.ready: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.jdbc.core: INFO
+  file:
+    path: /var/log/ai-ready
+    name: ${logging.file.path}/application.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 10GB
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http_server_requests: true
+      percentiles:
+        http_server_requests: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
+      environment: prod
+
+# 业务配置
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: 86400000
+      refresh-expiration: 604800000
+    cors:
+      allowed-origins: https://ai-ready.cn,https://www.ai-ready.cn
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+  
+  rate-limit:
+    enabled: true
+    requests-per-minute: 100
+    burst: 20
+  
+  cache:
+    ttl:
+      default: 3600
+      user: 7200
+      config: 86400

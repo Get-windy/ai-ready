@@ -1,0 +1,89 @@
+# AI-Ready Consul 服务注册配置（备选方案）
+# Spring Cloud Consul Discovery Configuration
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+spring:
+  application:
+    name: ai-ready-api
+  cloud:
+    consul:
+      # Consul 服务地址
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      
+      # 服务发现配置
+      discovery:
+        enabled: true
+        register: true
+        deregister: true
+        instance-id: ${spring.application.name}:${spring.cloud.client.ip-address}:${server.port}}
+        service-name: ${spring.application.name}
+        port: ${server.port}
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+        health-check-timeout: 5s
+        health-check-critical-timeout: 30s
+        health-check-tls-skip-verify: false
+        prefer-ip-address: true
+        ip-address: ${spring.cloud.client.ip-address}
+        lifecycle:
+          enabled: true
+        
+        # 服务元数据
+        tags:
+          - version=${APP_VERSION:1.0.0-SNAPSHOT}
+          - env=${SPRING_PROFILES_ACTIVE:dev}
+          - region=${REGION:cn-east}
+          - zone=${ZONE:zone-a}
+          - secure=false
+          - urlprefix-/api
+        
+        # 元数据属性
+        metadata:
+          version: ${APP_VERSION:1.0.0-SNAPSHOT}
+          module: api
+          team: ai-ready-team
+          owner: devops
+          monitor: enabled
+          
+      # Consul 配置中心
+      config:
+        enabled: true
+        prefix: config
+        default-context: application
+        profile-separator: '-'
+        data-key: data
+        format: yaml
+        watch:
+          enabled: true
+          delay: 1000
+        acl-token: ${CONSUL_TOKEN:}
+        
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,consul,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    consul:
+      enabled: true
+  health:
+    consul:
+      enabled: true
+      check:
+        enabled: true
+
+# Ribbon 配置（Consul 服务发现）
+ribbon:
+  consul:
+    enabled: true
+  ReadTimeout: 30000
+  ConnectTimeout: 3000
+  MaxAutoRetries: 1
+  MaxAutoRetriesNextServer: 2

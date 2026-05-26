@@ -1,0 +1,114 @@
+{
+  "test_time": "2026-04-04 02:30:51",
+  "base_url": "http://localhost:8080",
+  "tests": [
+    {
+      "name": "GET /",
+      "endpoint": "/",
+      "method": "GET",
+      "iterations": 5,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 7.486620004056022,
+      "status": "PASS",
+      "message": "GET idempotent: 5 requests returned consistent status 401"
+    },
+    {
+      "name": "GET /api/user/page",
+      "endpoint": "/api/user/page",
+      "method": "GET",
+      "iterations": 5,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 5.234660001588054,
+      "status": "PASS",
+      "message": "GET idempotent: 5 requests returned consistent status 401"
+    },
+    {
+      "name": "GET /api/role/page",
+      "endpoint": "/api/role/page",
+      "method": "GET",
+      "iterations": 5,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 5.130140000255778,
+      "status": "PASS",
+      "message": "GET idempotent: 5 requests returned consistent status 401"
+    },
+    {
+      "name": "GET /api/nonexistent12345",
+      "endpoint": "/api/nonexistent12345",
+      "method": "GET",
+      "iterations": 3,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 5.270266662895058,
+      "status": "PASS",
+      "message": "GET idempotent: 3 requests returned consistent status 401"
+    },
+    {
+      "name": "DELETE Idempotency",
+      "endpoint": "/api/user/99999",
+      "method": "DELETE",
+      "iterations": 3,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 5.1635999940723805,
+      "status": "PASS",
+      "message": "DELETE idempotent: consistent status 401"
+    },
+    {
+      "name": "POST Without Idempotency Key",
+      "endpoint": "/api/user",
+      "method": "POST",
+      "iterations": 3,
+      "identical_responses": true,
+      "identical_status_codes": true,
+      "status_codes": [
+        401,
+        401,
+        401
+      ],
+      "avg_response_time_ms": 5.15119999666543,
+      "status": "PASS",
+      "message": "POST handled consistently: 401 (auth required)"
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "warned": 0
+  }
+}

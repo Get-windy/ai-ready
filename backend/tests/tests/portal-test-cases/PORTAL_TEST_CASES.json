@@ -1,0 +1,352 @@
+{
+  "module": "portal",
+  "description": "企智连客户门户模块测试用例",
+  "version": "1.0.0",
+  "testSuites": [
+    {
+      "suiteId": "PORTAL_PRODUCT_001",
+      "suiteName": "商品浏览功能测试",
+      "description": "测试客户门户商品浏览功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "PORTAL_PRODUCT_001_001",
+          "title": "商品列表展示测试",
+          "description": "验证客户门户能够正确展示商品列表",
+          "steps": [
+            "1. 打开客户门户首页",
+            "2. 进入商品列表页面",
+            "3. 验证商品列表展示"
+          ],
+          "expectedResult": "商品列表正确展示，包含商品名称、价格、图片",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_PRODUCT_001_002",
+          "title": "商品分类筛选测试",
+          "description": "验证商品分类筛选功能",
+          "steps": [
+            "1. 进入商品列表页面",
+            "2. 选择商品分类",
+            "3. 验证筛选结果"
+          ],
+          "expectedResult": "只显示选中分类的商品",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_PRODUCT_001_003",
+          "title": "商品详情展示测试",
+          "description": "验证商品详情页面功能",
+          "steps": [
+            "1. 点击商品列表中的商品",
+            "2. 进入商品详情页面",
+            "3. 验证详情内容"
+          ],
+          "expectedResult": "商品详情包含名称、价格、规格、图片、库存、描述",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_PRODUCT_001_004",
+          "title": "商品搜索功能测试",
+          "description": "验证商品搜索功能",
+          "steps": [
+            "1. 在搜索框输入关键词",
+            "2. 点击搜索按钮",
+            "3. 验证搜索结果"
+          ],
+          "expectedResult": "显示包含关键词的商品列表",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_PRODUCT_001_005",
+          "title": "商品分页测试",
+          "description": "验证商品列表分页功能",
+          "steps": [
+            "1. 进入商品列表页面",
+            "2. 点击下一页",
+            "3. 验证分页切换"
+          ],
+          "expectedResult": "分页切换成功，商品列表更新",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "PORTAL_CART_002",
+      "suiteName": "购物车功能测试",
+      "description": "测试客户门户购物车功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "PORTAL_CART_002_001",
+          "title": "添加商品到购物车测试",
+          "description": "验证能够正确添加商品到购物车",
+          "steps": [
+            "1. 进入商品详情页面",
+            "2. 点击加入购物车按钮",
+            "3. 选择商品数量",
+            "4. 确认添加"
+          ],
+          "expectedResult": "商品成功添加到购物车，购物车数量更新",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_CART_002_002",
+          "title": "修改购物车商品数量测试",
+          "description": "验证能够修改购物车中商品数量",
+          "steps": [
+            "1. 进入购物车页面",
+            "2. 修改商品数量",
+            "3. 验证价格更新"
+          ],
+          "expectedResult": "商品数量修改成功，小计价格相应更新",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_CART_002_003",
+          "title": "删除购物车商品测试",
+          "description": "验证能够删除购物车中的商品",
+          "steps": [
+            "1. 进入购物车页面",
+            "2. 点击删除按钮",
+            "3. 确认删除"
+          ],
+          "expectedResult": "商品从购物车中移除",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_CART_002_004",
+          "title": "购物车结算测试",
+          "description": "验证购物车结算功能",
+          "steps": [
+            "1. 进入购物车页面",
+            "2. 点击去结算按钮",
+            "3. 验证跳转订单确认页面"
+          ],
+          "expectedResult": "成功跳转到订单确认页面，商品信息正确",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_CART_002_005",
+          "title": "购物车数量超库存测试",
+          "description": "验证购物车数量超库存时处理",
+          "steps": [
+            "1. 查看商品库存",
+            "2. 添加大于库存的数量到购物车",
+            "3. 尝试结算"
+          ],
+          "expectedResult": "系统提示库存不足",
+          "priority": "high",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "PORTAL_ORDER_003",
+      "suiteName": "在线下单功能测试",
+      "description": "测试客户门户在线下单功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "PORTAL_ORDER_003_001",
+          "title": "订单确认流程测试",
+          "description": "验证订单确认流程完整",
+          "steps": [
+            "1. 点击去结算",
+            "2. 确认商品信息",
+            "3. 选择收货地址",
+            "4. 选择支付方式",
+            "5. 提交订单"
+          ],
+          "expectedResult": "订单提交成功，生成订单号",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_ORDER_003_002",
+          "title": "收货地址选择测试",
+          "description": "验证能够选择收货地址",
+          "steps": [
+            "1. 进入订单确认页面",
+            "2. 选择已保存的收货地址",
+            "3. 确认地址"
+          ],
+          "expectedResult": "收货地址选择成功，页面显示所选地址",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_ORDER_003_003",
+          "title": "新增收货地址测试",
+          "description": "验证能够新增收货地址",
+          "steps": [
+            "1. 进入订单确认页面",
+            "2. 点击新增收货地址",
+            "3. 填写地址信息",
+            "4. 保存地址"
+          ],
+          "expectedResult": "新地址保存成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_ORDER_003_004",
+          "title": "支付方式选择测试",
+          "description": "验证能够选择支付方式",
+          "steps": [
+            "1. 进入订单确认页面",
+            "2. 选择支付方式",
+            "3. 确认支付"
+          ],
+          "expectedResult": "支付方式选择成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_ORDER_003_005",
+          "title": "订单提交空地址测试",
+          "description": "验证未填写收货地址时无法提交订单",
+          "steps": [
+            "1. 进入订单确认页面",
+            "2. 不填写收货地址",
+            "3. 尝试提交订单"
+          ],
+          "expectedResult": "系统提示请填写收货地址",
+          "priority": "high",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "PORTAL_TRACK_004",
+      "suiteName": "订单追踪功能测试",
+      "description": "测试客户门户订单追踪功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "PORTAL_TRACK_004_001",
+          "title": "订单状态展示测试",
+          "description": "验证订单状态正确展示",
+          "steps": [
+            "1. 登录客户门户",
+            "2. 进入我的订单",
+            "3. 查看订单列表"
+          ],
+          "expectedResult": "订单列表显示订单状态（待付款/待发货/待收货/已完成）",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_TRACK_004_002",
+          "title": "物流信息追踪测试",
+          "description": "验证物流信息追踪功能",
+          "steps": [
+            "1. 进入订单详情页面",
+            "2. 点击查看物流",
+            "3. 验证物流信息"
+          ],
+          "expectedResult": "显示物流公司、运单号、物流轨迹",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_TRACK_004_003",
+          "title": "订单详情查看测试",
+          "description": "验证订单详情页面功能",
+          "steps": [
+            "1. 点击订单列表中的订单",
+            "2. 进入订单详情页面",
+            "3. 验证详情内容"
+          ],
+          "expectedResult": "订单详情包含商品信息、收货地址、支付信息、物流信息",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "PORTAL_TRACK_004_004",
+          "title": "确认收货测试",
+          "description": "验证确认收货功能",
+          "steps": [
+            "1. 进入待收货订单",
+            "2. 点击确认收货",
+            "3. 确认收货"
+          ],
+          "expectedResult": "订单状态更新为已完成",
+          "priority": "high",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "PORTAL_AUTH_005",
+      "suiteName": "权限测试",
+      "description": "测试客户门户权限控制",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "PORTAL_AUTH_005_001",
+          "title": "未登录用户访问控制测试",
+          "description": "验证未登录用户无法访问需授权的页面",
+          "steps": [
+            "1. 未登录状态下访问购物车",
+            "2. 未登录状态下访问订单列表",
+            "3. 未登录状态下访问下单页面"
+          ],
+          "expectedResult": "跳转到登录页面",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "PORTAL_AUTH_005_002",
+          "title": "已登录用户功能访问测试",
+          "description": "验证已登录用户可以正常使用功能",
+          "steps": [
+            "1. 登录客户门户",
+            "2. 访问购物车",
+            "3. 访问订单列表"
+          ],
+          "expectedResult": "功能正常使用",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "PORTAL_AUTH_005_003",
+          "title": "会话过期测试",
+          "description": "验证会话过期后重新登录",
+          "steps": [
+            "1. 登录客户门户",
+            "2. 等待会话过期",
+            "3. 尝试访问需授权页面"
+          ],
+          "expectedResult": "跳转到登录页面，登录后返回原页面",
+          "priority": "medium",
+          "type": "permission"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalTestCases": 21,
+    "functionalTests": 16,
+    "boundaryTests": 2,
+    "permissionTests": 3,
+    "totalSuites": 5,
+    "testDate": "2026-04-14"
+  },
+  "metadata": {
+    "projectId": "ai-ready",
+    "projectName": "AI-Ready企智连",
+    "moduleName": "客户门户模块",
+    "version": "1.0",
+    "testEnvironment": "test"
+  }
+}

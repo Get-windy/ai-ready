@@ -1,0 +1,26 @@
+# 临时配置 - 完全禁用JWT以进行首次登录
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devdb
+    username: devuser
+    password: [REDACTED]
+    driver-class-name: org.postgresql.Driver
+
+# 完全覆盖Sa-Token配置
+sa-token:
+  token-name: Authorization
+  timeout: 7200
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: true
+  # 重要：不使用JWT，使用简单token
+  token-style: uuid
+  is-log: true
+  is-read-header: true
+  is-read-cookie: false
+  token-prefix: Bearer
+  # 移除JWT密钥配置
+  # jwt-secret-key:  # 不设置此值

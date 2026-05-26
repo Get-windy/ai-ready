@@ -1,0 +1,85 @@
+{
+  "test_time": "2026-04-26 14:56:40",
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "score": 75.0,
+    "system_stable": false,
+    "all_errors_handled": false
+  },
+  "results": [
+    {
+      "test_name": "连接失败异常处理测试",
+      "exception_type": "ConnectionFailure",
+      "status": "FAIL",
+      "message": "未捕获的异常导致系统不稳定: 'MockConnectionPool' object has no attribute 'system_stable'",
+      "execution_time_ms": 0.03,
+      "error_handled_correctly": false,
+      "system_stable": false,
+      "details": {
+        "success": false,
+        "connection": null,
+        "error_message": "连接池不可用",
+        "failed_connections_count": 1,
+        "exception_type": "AttributeError",
+        "system_crashed": true
+      }
+    },
+    {
+      "test_name": "连接超时异常处理测试",
+      "exception_type": "ConnectionTimeout",
+      "status": "PASS",
+      "message": "连接超时正确处理：在 0.50s 后返回超时错误",
+      "execution_time_ms": 503.51,
+      "error_handled_correctly": true,
+      "system_stable": true,
+      "details": {
+        "timeout_configured": 0.5,
+        "actual_timeout": 0.5,
+        "error_message": "获取连接超时 (等待 0.5s)",
+        "timeout_count": 1,
+        "final_active_connections": 0,
+        "system_stability": "系统保持稳定"
+      }
+    },
+    {
+      "test_name": "资源耗尽异常处理测试",
+      "exception_type": "ResourceExhaustion",
+      "status": "PASS",
+      "message": "资源耗尽正确处理：允许3个连接，拒绝2个请求",
+      "execution_time_ms": 201.83,
+      "error_handled_correctly": true,
+      "system_stable": true,
+      "details": {
+        "max_connections": 3,
+        "allowed_connections": 3,
+        "rejected_requests": 2,
+        "active_connections": 3,
+        "resource_cleanup": "资源正确释放",
+        "system_stability": "系统保持稳定",
+        "no_memory_leak": true
+      }
+    },
+    {
+      "test_name": "并发连接压力测试",
+      "exception_type": "ConcurrentStress",
+      "status": "PASS",
+      "message": "并发测试通过：成功5，超时5，失败0",
+      "execution_time_ms": 2517.44,
+      "error_handled_correctly": true,
+      "system_stable": true,
+      "details": {
+        "total_threads": 10,
+        "max_pool_size": 5,
+        "results": {
+          "success": 5,
+          "timeout": 5,
+          "failed": 0
+        },
+        "success_rate": "50.0%",
+        "system_stability": "并发场景下系统稳定"
+      }
+    }
+  ]
+}

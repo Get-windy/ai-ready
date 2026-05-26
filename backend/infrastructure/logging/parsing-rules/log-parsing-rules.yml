@@ -1,0 +1,287 @@
+# 日志解析规则配置
+# 版本: 1.0.0
+# 环境: test
+# Sprint: 27+1
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-parsing-rules
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    type: parsing-rules
+data:
+  # JSON日志解析规则
+  json-parsing-rules.json: |
+    {
+      "rules": {
+        "docker": {
+          "pattern": "^\\{.*\\}$",
+          "parser": "json",
+          "fields": {
+            "timestamp": "$.time",
+            "level": "$.level",
+            "message": "$.msg",
+            "container_id": "$.container_id",
+            "container_name": "$.container_name",
+            "image": "$.image",
+            "stream": "$.stream"
+          },
+          "timestamp_format": "RFC3339"
+        },
+        "application": {
+          "pattern": "^\\{.*\\}$",
+          "parser": "json",
+          "fields": {
+            "timestamp": "$.timestamp",
+            "level": "$.level",
+            "logger": "$.logger",
+            "thread": "$.thread",
+            "message": "$.message",
+            "exception": "$.exception",
+            "stack_trace": "$.stack_trace",
+            "application": "$.app",
+            "environment": "$.env"
+          },
+          "timestamp_format": "ISO8601"
+        },
+        "nginx": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+ - \\[.*\\] \".*\" \\d+ \\d+ \".*\" \".*\"$",
+          "parser": "regex",
+          "regex": "^(?<remote_addr>\\d+\\.\\d+\\.\\d+\\.\\d+) - (?<remote_user>\\S+) \\[(?<time_local>\\d+/\\w+/\\d+:\\d+:\\d+:\\d+ \\+\\d+)\\] \"(?<request>\\S+ \\S+ \\S+)\" (?<status>\\d+) (?<body_bytes_sent>\\d+) \"(?<http_referer>[^\"]*)\" \"(?<http_user_agent>[^\"]*)\"",
+          "timestamp_format": "dd/MMM/yyyy:HH:mm:ss Z"
+        },
+        "postgresql": {
+          "pattern": "^\\d+-\\d+-\\d+ \\d+:\\d+:\\d+\\.\\d+ \\w+ \\[\\d+\\]:",
+          "parser": "regex",
+          "regex": "^(?<timestamp>\\d+-\\d+-\\d+ \\d+:\\d+:\\d+\\.\\d+) (?<timezone>\\w+) \\[(?<process_id>\\d+)\\]: (?<message_type>\\w+):  (?<message>.*)",
+          "timestamp_format": "yyyy-MM-dd HH:mm:ss.SSS"
+        }
+      }
+    }
+  
+  # 日志标签分类规则
+  log-tagging-rules.yml: |
+    tag_rules:
+      # 按应用分类
+      application_tags:
+        - pattern: ".*ai-ready-backend.*"
+          tags: ["application", "backend", "java", "spring-boot"]
+        - pattern: ".*ai-ready-frontend.*"
+          tags: ["application", "frontend", "javascript", "react"]
+        - pattern: ".*ai-module.*"
+          tags: ["application", "ai", "python", "fastapi"]
+      
+      # 按组件分类
+      component_tags:
+        - pattern: ".*postgres.*"
+          tags: ["database", "postgresql", "storage"]
+        - pattern: ".*redis.*"
+          tags: ["cache", "redis", "memory"]
+        - pattern: ".*rabbitmq.*"
+          tags: ["message-queue", "rabbitmq", "messaging"]
+        - pattern: ".*prometheus.*"
+          tags: ["monitoring", "prometheus", "metrics"]
+        - pattern: ".*grafana.*"
+          tags: ["monitoring", "grafana", "visualization"]
+      
+      # 按日志级别分类
+      severity_tags:
+        - pattern: ".*ERROR.*|.*FATAL.*|.*CRITICAL.*"
+          tags: ["severity:error", "alert:required"]
+        - pattern: ".*WARN.*|.*WARNING.*"
+          tags: ["severity:warning", "alert:suggested"]
+        - pattern: ".*INFO.*"
+          tags: ["severity:info", "alert:optional"]
+        - pattern: ".*DEBUG.*|.*TRACE.*"
+          tags: ["severity:debug", "alert:none"]
+      
+      # 按环境分类
+      environment_tags:
+        - pattern: ".*test.*"
+          tags: ["environment:test", "purpose:testing"]
+        - pattern: ".*dev.*"
+          tags: ["environment:development", "purpose:development"]
+        - pattern: ".*prod.*"
+          tags: ["environment:production", "purpose:production"]
+  
+  # 日志字段映射规则
+  field-mapping-rules.yml: |
+    field_mappings:
+      # 时间戳字段映射
+      timestamp_fields:
+        source_fields: ["timestamp", "time", "@timestamp", "log_time"]
+        target_field: "@timestamp"
+        formats: ["RFC3339", "ISO8601", "yyyy-MM-dd HH:mm:ss.SSS", "dd/MMM/yyyy:HH:mm:ss Z"]
+      
+      # 日志级别字段映射
+      level_fields:
+        source_fields: ["level", "severity", "log_level", "priority"]
+        target_field: "level"
+        mappings:
+          "ERROR": "error"
+          "ERR": "error"
+          "FATAL": "error"
+          "CRITICAL": "error"
+          "WARN": "warning"
+          "WARNING": "warning"
+          "INFO": "info"
+          "INFORMATION": "info"
+          "DEBUG": "debug"
+          "TRACE": "trace"
+      
+      # 消息字段映射
+      message_fields:
+        source_fields: ["message", "msg", "log", "content"]
+        target_field: "message"
+      
+      # 应用标识字段映射
+      application_fields:
+        source_fields: ["app", "application", "service", "component"]
+        target_field: "application"
+      
+      # 环境字段映射
+      environment_fields:
+        source_fields: ["env", "environment", "deployment"]
+        target_field: "environment"
+        default: "test"
+      
+      # 主机字段映射
+      host_fields:
+        source_fields: ["host", "hostname", "node", "instance"]
+        target_field: "host"
+      
+      # 请求ID字段映射
+      request_id_fields:
+        source_fields: ["request_id", "req_id", "trace_id", "correlation_id"]
+        target_field: "request_id"
+  
+  # 日志过滤规则
+  log-filtering-rules.yml: |
+    filter_rules:
+      # 排除规则 - 过滤掉不需要的日志
+      exclude_rules:
+        - pattern: ".*healthcheck.*"
+          reason: "健康检查日志过多，无实际价值"
+        - pattern: ".*heartbeat.*"
+          reason: "心跳日志过多，无实际价值"
+        - pattern: ".*DEBUG.*TRACE.*"
+          reason: "调试级别日志在测试环境保留，生产环境过滤"
+        - pattern: ".*password.*|.*secret.*|.*token.*"
+          reason: "安全敏感信息过滤"
+      
+      # 包含规则 - 必须保留的日志
+      include_rules:
+        - pattern: ".*ERROR.*|.*FATAL.*|.*CRITICAL.*"
+          reason: "错误日志必须保留"
+        - pattern: ".*authentication.*failed.*|.*unauthorized.*"
+          reason: "安全相关日志必须保留"
+        - pattern: ".*slow.*query.*|.*timeout.*"
+          reason: "性能相关日志必须保留"
+      
+      # 采样规则 - 对高频日志进行采样
+      sampling_rules:
+        - pattern: ".*INFO.*"
+          sample_rate: 0.1  # 10%采样
+          reason: "INFO级别日志过多，进行采样"
+        - pattern: ".*access.*log.*"
+          sample_rate: 0.05  # 5%采样
+          reason: "访问日志过多，进行采样"
+        - pattern: ".*metric.*"
+          sample_rate: 0.01  # 1%采样
+          reason: "指标日志过多，进行采样"
+      
+      # 截断规则 - 对过长的日志进行截断
+      truncation_rules:
+        - pattern: ".*stack.*trace.*"
+          max_length: 5000
+          reason: "堆栈跟踪可能很长，进行截断"
+        - pattern: ".*sql.*query.*"
+          max_length: 1000
+          reason: "SQL查询可能很长，进行截断"
+        - pattern: ".*json.*response.*"
+          max_length: 2000
+          reason: "JSON响应可能很大，进行截断"
+  
+  # 日志增强规则
+  log-enrichment-rules.yml: |
+    enrichment_rules:
+      # 添加地理信息
+      geoip_enrichment:
+        enabled: true
+        source_field: "remote_addr"
+        target_field: "geoip"
+        database: "/usr/share/GeoIP/GeoLite2-City.mmdb"
+        fields: ["country_code", "country_name", "city_name", "latitude", "longitude"]
+      
+      # 添加用户代理解析
+      user_agent_enrichment:
+        enabled: true
+        source_field: "http_user_agent"
+        target_field: "user_agent"
+        fields: ["name", "version", "os", "device"]
+      
+      # 添加业务上下文
+      business_context_enrichment:
+        enabled: true
+        rules:
+          - pattern: ".*order.*created.*"
+            add_fields:
+              business_event: "order_created"
+              business_domain: "sales"
+              priority: "high"
+          - pattern: ".*payment.*success.*"
+            add_fields:
+              business_event: "payment_success"
+              business_domain: "finance"
+              priority: "high"
+          - pattern: ".*user.*login.*"
+            add_fields:
+              business_event: "user_login"
+              business_domain: "security"
+              priority: "medium"
+      
+      # 添加性能指标
+      performance_enrichment:
+        enabled: true
+        rules:
+          - pattern: ".*response.*time.*"
+            extract_metrics: true
+            metrics:
+              - name: "response_time_ms"
+                pattern: "response time: (\\d+)ms"
+                type: "gauge"
+              - name: "request_size_bytes"
+                pattern: "request size: (\\d+) bytes"
+                type: "gauge"
+          - pattern: ".*query.*duration.*"
+            extract_metrics: true
+            metrics:
+              - name: "query_duration_ms"
+                pattern: "duration: (\\d+)ms"
+                type: "gauge"
+              - name: "rows_returned"
+                pattern: "rows: (\\d+)"
+                type: "counter"
+      
+      # 添加关联ID
+      correlation_enrichment:
+        enabled: true
+        rules:
+          - pattern: ".*request.*id.*"
+            extract_correlation_id: true
+            source_field: "message"
+            pattern: "request id: ([a-f0-9-]+)"
+            target_field: "correlation_id"
+          - pattern: ".*trace.*id.*"
+            extract_correlation_id: true
+            source_field: "message"
+            pattern: "trace id: ([a-f0-9-]+)"
+            target_field: "trace_id"
+          - pattern: ".*session.*id.*"
+            extract_correlation_id: true
+            source_field: "message"
+            pattern: "session id: ([a-f0-9-]+)"
+            target_field: "session_id"

@@ -1,0 +1,18 @@
+# Grafana Dashboard Configuration for AI-Ready Project
+# Project: 智企连·AI-Ready
+# Version: v1.0
+# Last Updated: 2026-03-28
+# Author: devops-engineer
+
+apiVersion: 1
+
+providers:
+  - name: 'ai-ready-dashboards'
+    orgId: 1
+    folder: ''
+    folderUid: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

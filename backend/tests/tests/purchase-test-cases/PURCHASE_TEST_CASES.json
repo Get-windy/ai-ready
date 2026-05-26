@@ -1,0 +1,425 @@
+{
+  "testSuiteId": "PURCHASE_TEST_001",
+  "testSuiteName": "企智连采购模块测试用例",
+  "version": "1.0",
+  "generatedDate": "2026-04-14T12:30:00+08:00",
+  "testCases": [
+    {
+      "testCaseId": "SUP_TEST_001_001",
+      "suiteId": "SUP_TEST_001",
+      "suiteName": "供应商管理测试",
+      "name": "供应商新增测试",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确创建新供应商",
+      "preconditions": [
+        "用户已登录系统",
+        "具有供应商管理权限"
+      ],
+      "steps": [
+        "1. 进入供应商管理页面",
+        "2. 点击新增按钮",
+        "3. 输入供应商信息（名称、联系人、电话、地址等）",
+        "4. 选择供应商分类",
+        "5. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "供应商信息成功保存",
+        "系统显示供应商列表包含新添加的供应商",
+        "供应商代码自动生成",
+        "操作日志记录完整"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": "",
+      "boundaryTest": {
+        "testCases": [
+          {
+            "name": "供应商名称为空",
+            "input": "",
+            "expected": "系统提示供应商名称不能为空"
+          },
+          {
+            "name": "供应商名称超长（1000字符）",
+            "input": "A".repeat(1000),
+            "expected": "系统提示名称长度超出限制"
+          },
+          {
+            "name": "电话号码格式错误",
+            "input": "123",
+            "expected": "系统提示电话号码格式不正确"
+          },
+          {
+            "name": "电话号码超长（50位）",
+            "input": "1" * 50,
+            "expected": "系统提示电话号码长度超出限制"
+          }
+        ]
+      },
+      "exceptionTest": {
+        "testCases": [
+          {
+            "name": "重复供应商名称",
+            "scenario": "输入已存在的供应商名称",
+            "expected": "系统提示供应商已存在"
+          },
+          {
+            "name": "网络中断",
+            "scenario": "保存过程中断网",
+            "expected": "系统提示网络异常，请重试"
+          },
+          {
+            "name": "数据库连接失败",
+            "scenario": "保存时数据库连接中断",
+            "expected": "系统提示服务暂时不可用"
+          }
+        ]
+      }
+    },
+    {
+      "testCaseId": "SUP_TEST_001_002",
+      "suiteId": "SUP_TEST_001",
+      "suiteName": "供应商管理测试",
+      "name": "供应商编辑测试",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确编辑供应商信息",
+      "preconditions": [
+        "系统中已存在供应商数据",
+        "用户具有供应商管理权限"
+      ],
+      "steps": [
+        "1. 进入供应商列表",
+        "2. 选择一个供应商",
+        "3. 点击编辑按钮",
+        "4. 修改供应商信息",
+        "5. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "供应商信息成功更新",
+        "系统显示修改后的供应商信息",
+        "变更历史记录完整",
+        "附近订单不受影响"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": ""
+    },
+    {
+      "testCaseId": "SUP_TEST_001_003",
+      "suiteId": "SUP_TEST_001",
+      "suiteName": "供应商管理测试",
+      "name": "供应商删除测试",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确删除供应商",
+      "preconditions": [
+        "系统中已存在供应商数据",
+        "该供应商无未完成的采购订单",
+        "用户具有供应商管理权限"
+      ],
+      "steps": [
+        "1. 进入供应商列表",
+        "2. 选择一个无关联采购订单的供应商",
+        "3. 点击删除按钮",
+        "4. 确认删除操作"
+      ],
+      "expectedResult": [
+        "供应商成功删除",
+        "供应商不再显示在列表中",
+        "删除操作记录完整",
+        "回收站功能正常"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": "",
+      "boundaryTest": {
+        "testCases": [
+          {
+            "name": "删除关联采购订单的供应商",
+            "scenario": "尝试删除仍有待处理订单的供应商",
+            "expected": "系统提示无法删除，存在关联数据"
+          },
+          {
+            "name": "批量删除（超量）",
+            "scenario": "一次选择1000个供应商删除",
+            "expected": "系统限制批量删除数量"
+          }
+        ]
+      }
+    },
+    {
+      "testCaseId": "PO_TEST_001_001",
+      "suiteId": "PO_TEST_001",
+      "suiteName": "采购订单测试",
+      "name": "采购订单创建测试-单商品",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确创建单商品采购订单",
+      "preconditions": [
+        "系统中已存在商品数据",
+        "系统中已存在供应商数据",
+        "用户具有采购订单创建权限"
+      ],
+      "steps": [
+        "1. 进入采购订单页面",
+        "2. 点击新增按钮",
+        "3. 选择供应商",
+        "4. 选择商品并输入数量",
+        "5. 设置交货日期",
+        "6. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "采购订单创建成功",
+        "订单状态为待审核",
+        "订单号自动生成",
+        "预估成本计算正确"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": "",
+      "boundaryTest": {
+        "testCases": [
+          {
+            "name": "商品数量为0",
+            "input": "0",
+            "expected": "系统提示数量必须大于0"
+          },
+          {
+            "name": "商品数量为负数",
+            "input": "-1",
+            "expected": "系统提示数量必须大于0"
+          },
+          {
+            "name": "商品数量超大（1亿）",
+            "input": "100000000",
+            "expected": "系统提示数量超出合理范围"
+          },
+          {
+            "name": "交货日期为过去",
+            "input": "昨天",
+            "expected": "系统提示交货日期不能早于今天"
+          }
+        ]
+      },
+      "exceptionTest": {
+        "testCases": [
+          {
+            "name": "供应商无采购权限",
+            "scenario": "选择不允许采购的供应商",
+            "expected": "系统提示该供应商不允许采购"
+          },
+          {
+            "name": "商品已停售",
+            "scenario": "选择已停售的商品",
+            "expected": "系统提示该商品已停售"
+          }
+        ]
+      }
+    },
+    {
+      "testCaseId": "PO_TEST_001_002",
+      "suiteId": "PO_TEST_001",
+      "suiteName": "采购订单测试",
+      "name": "采购订单创建测试-多商品",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确创建多商品采购订单",
+      "preconditions": [
+        "系统中已存在多个商品数据",
+        "系统中已存在供应商数据",
+        "用户具有采购订单创建权限"
+      ],
+      "steps": [
+        "1. 进入采购订单页面",
+        "2. 点击新增按钮",
+        "3. 选择供应商",
+        "4. 依次添加3-5种商品",
+        "5. 设置各项商品数量",
+        "6. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "采购订单创建成功",
+        "所有商品信息正确保存",
+        "订单总金额计算正确",
+        "优惠后金额计算正确"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": ""
+    },
+    {
+      "testCaseId": "PO_TEST_001_003",
+      "suiteId": "PO_TEST_001",
+      "suiteName": "采购订单测试",
+      "name": "采购订单审核流程测试",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证采购订单审核流程正常工作",
+      "preconditions": [
+        "系统已配置审批流程",
+        "存在待审核的采购订单",
+        "用户具有审核权限"
+      ],
+      "steps": [
+        "1. 进入待审核订单列表",
+        "2. 选择一个订单",
+        "3. 点击审核按钮",
+        "4. 填写审核意见",
+        "5. 点击确认审核"
+      ],
+      "expectedResult": [
+        "订单状态更新为已审核",
+        "审核意见保存完整",
+        "通知相关人员",
+        "库存预占成功"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": ""
+    },
+    {
+      "testCaseId": "IN_TEST_001_001",
+      "suiteId": "IN_TEST_001",
+      "suiteName": "采购入库测试",
+      "name": "入库单创建测试-关联订单",
+      "type": "functional",
+      "priority": "high",
+      "automated": true,
+      "description": "验证系统能够正确创建关联采购订单的入库单",
+      "preconditions": [
+        "系统中存在已审核的采购订单",
+        "用户具有入库操作权限"
+      ],
+      "steps": [
+        "1. 进入入库单页面",
+        "2. 点击新增按钮",
+        "3. 选择采购订单",
+        "4. 系统自动带入订单商品信息",
+        "5. 输入实际入库数量",
+        "6. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "入库单创建成功",
+        "订单与入库单关联",
+        "库存数量增加",
+        "入库单状态为待质检"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": "",
+      "boundaryTest": {
+        "testCases": [
+          {
+            "name": "入库数量大于订单数量",
+            "input": "订单数量+1",
+            "expected": "系统提示入库数量不能超过订单数量"
+          },
+          {
+            "name": "入库数量为0",
+            "input": "0",
+            "expected": "系统提示入库数量必须大于0"
+          },
+          {
+            "name": "入库数量超大（1亿）",
+            "input": "100000000",
+            "expected": "系统提示入库数量超出合理范围"
+          }
+        ]
+      }
+    },
+    {
+      "testCaseId": "RT_TEST_001_001",
+      "suiteId": "RT_TEST_001",
+      "suiteName": "采购退货测试",
+      "name": "退货单创建测试",
+      "type": "functional",
+      "priority": "medium",
+      "automated": true,
+      "description": "验证系统能够正确创建采购退货单",
+      "preconditions": [
+        "系统中存在已入库的商品",
+        "用户具有退货操作权限"
+      ],
+      "steps": [
+        "1. 进入退货单页面",
+        "2. 点击新增按钮",
+        "3. 选择原入库单",
+        "4. 输入退货数量",
+        "5. 选择退货原因",
+        "6. 点击保存按钮"
+      ],
+      "expectedResult": [
+        "退货单创建成功",
+        "退货单关联原入库单",
+        "退货原因保存完整",
+        "退货单状态为待审批"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": ""
+    },
+    {
+      "testCaseId": "AUTH_TEST_001",
+      "suiteId": "AUTH_TEST",
+      "suiteName": "权限测试",
+      "name": "不同角色采购操作权限测试",
+      "type": "permission",
+      "priority": "high",
+      "automated": false,
+      "description": "验证不同角色的采购模块操作权限",
+      "preconditions": [
+        "系统配置了多个角色（采购员/采购主管/财务/仓管员）",
+        "各角色有明确的权限划分"
+      ],
+      "steps": [
+        "1. 使用采购员角色登录",
+        "2. 尝试创建采购订单",
+        "3. 尝试审核采购订单",
+        "4. 使用采购主管角色登录",
+        "5. 重复上述操作"
+      ],
+      "expectedResult": [
+        "采购员可以创建订单但不能审核",
+        "采购主管可以创建和审核",
+        "财务可以查看和付款",
+        "仓管员可以入库和退货"
+      ],
+      "actualResult": "",
+      "status": "pending",
+      "executionTime": "",
+      "tester": ""
+    }
+  ],
+  "summary": {
+    "totalTestCases": 8,
+    "functionalTests": 7,
+    "boundaryTests": 7,
+    "exceptionTests": 6,
+    "permissionTests": 1,
+    "totalSuites": 4,
+    "testDate": "2026-04-14"
+  },
+  "metadata": {
+    "projectId": "ai-ready",
+    "projectName": "AI-Ready",
+    "moduleName": "采购模块",
+    "version": "1.0",
+    "testEnvironment": "test",
+    "testCaseLanguage": "zh-CN"
+  }
+}

@@ -1,0 +1,234 @@
+# Prometheus 监控配置
+# 版本: v1.0.0
+# 环境: AI-Ready 测试环境
+# 创建日期: 2026-04-30
+
+global:
+  # 全局配置
+  scrape_interval: 15s      # 默认抓取间隔
+  evaluation_interval: 15s  # 规则评估间隔
+  
+  # 外部标签
+  external_labels:
+    cluster: 'ai-ready-test'
+    environment: 'test'
+    region: 'cn-east-1'
+
+# 规则文件配置
+rule_files:
+  - "alerting-rules.yml"
+  - "recording-rules.yml"
+
+# 告警配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+# 抓取配置
+scrape_configs:
+  # ==================== 监控系统自身监控 ====================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    honor_labels: true
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+
+  # ==================== 应用服务监控 ====================
+  - job_name: 'ai-ready-backend'
+    static_configs:
+      - targets:
+        - 'monitoring-backend:8081'
+        - 'ai-ready-erp-service:8080'
+        - 'ai-ready-crm-service:8080'
+        - 'ai-ready-ai-service:8080'
+    scrape_interval: 30s
+    metrics_path: '/actuator/prometheus'
+    scheme: http
+    honor_timestamps: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):(\d+)'
+        replacement: '${1}:${2}'
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - source_labels: [__meta_docker_network_name]
+        target_label: network
+
+  # ==================== 数据库监控 ====================
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    params:
+      collect[]:
+        - standard
+        - database
+        - bgwriter
+        - archiver
+        - locks
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+      - target_label: database
+        replacement: 'monitoring_db'
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    params:
+      check-keys: ''
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+
+  # ==================== 消息队列监控 ====================
+  - job_name: 'rabbitmq-exporter'
+    static_configs:
+      - targets: ['rabbitmq-exporter:9419']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    params:
+      module: [rabbitmq]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+
+  # ==================== 应用性能监控 ====================
+  - job_name: 'jmx-exporter'
+    static_configs:
+      - targets:
+        - 'monitoring-backend:8082'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+
+  # ==================== 业务指标监控 ====================
+  - job_name: 'business-metrics'
+    static_configs:
+      - targets: ['monitoring-backend:8081']
+    scrape_interval: 30s
+    metrics_path: '/api/monitoring/metrics'
+    params:
+      format: ['prometheus']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+
+  # ==================== HTTP探针监控 ====================
+  - job_name: 'http-probe'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - 'http://monitoring-backend:8081/api/monitoring/actuator/health'
+        - 'http://ai-ready-erp-service:8080/actuator/health'
+        - 'http://ai-ready-crm-service:8080/actuator/health'
+        - 'http://ai-ready-ai-service:8080/actuator/health'
+        - 'http://grafana:3000/api/health'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ==================== 黑盒监控 ====================
+  - job_name: 'blackbox'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['blackbox-exporter:9115']
+    scrape_interval: 30s
+    params:
+      module: [http_2xx, tcp_connect]
+
+  # ==================== 自定义服务发现 ====================
+  - job_name: 'docker'
+    docker_sd_configs:
+      - host: 'unix:///var/run/docker.sock'
+        refresh_interval: 30s
+        filters:
+          - name: label
+            values: ['ai-ready.monitoring.enabled=true']
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: container
+      - source_labels: [__meta_docker_container_label_ai_ready_service]
+        target_label: service
+      - source_labels: [__meta_docker_container_label_ai_ready_environment]
+        target_label: environment
+      - source_labels: [__meta_docker_container_network]
+        target_label: network
+
+# 远程写入配置（可选）
+remote_write:
+  - url: "http://thanos-receive:10908/api/v1/receive"
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'up|prometheus_.*'
+        action: keep
+
+# 远程读取配置（可选）
+remote_read:
+  - url: "http://thanos-query:10902/api/v1/read"
+    read_recent: true
+
+# 存储配置
+storage:
+  tsdb:
+    # TSDB配置
+    path: /prometheus
+    retention: 30d
+    min_block_duration: 2h
+    max_block_duration: 24h
+    wal_compression: true
+    stripe_size: 16384
+
+# 查询配置
+query:
+  lookback_delta: 5m
+  max_concurrent: 20
+  timeout: 2m
+
+# Web配置
+web:
+  page_title: "AI-Ready Prometheus"
+  max_connections: 512
+  read_timeout: 5m
+  write_timeout: 5m

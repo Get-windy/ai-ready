@@ -1,0 +1,116 @@
+# Prometheus配置 - 测试监控专用
+global:
+  scrape_interval: 15s  # 默认15秒采集一次
+  evaluation_interval: 15s  # 15秒评估一次告警规则
+  scrape_timeout: 10s  # 10秒超时
+
+# 告警规则配置
+rule_files:
+  - "alerts.yml"
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9094
+
+# 数据采集配置
+scrape_configs:
+  # 测试监控服务自身指标
+  - job_name: 'test-monitor'
+    static_configs:
+      - targets: ['test-monitor:8100']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: true
+
+  # 测试执行引擎指标
+  - job_name: 'test-execution'
+    static_configs:
+      - targets: ['test-runner:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # 测试环境指标
+  - job_name: 'test-environment'
+    static_configs:
+      - targets: ['environment-monitor:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # 测试覆盖率指标
+  - job_name: 'test-coverage'
+    static_configs:
+      - targets: ['coverage-service:8081']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    honor_labels: true
+
+  # 测试缺陷指标
+  - job_name: 'test-defects'
+    static_configs:
+      - targets: ['defect-tracker:8082']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    honor_labels: true
+
+  # Prometheus自身指标
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+
+  # 节点导出器（系统资源）
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+# 远程写入配置（可选）
+remote_write:
+  - url: "http://remote-prometheus:9090/api/v1/write"
+    queue_config:
+      capacity: 10000
+      max_shards: 10
+      min_shards: 1
+      max_samples_per_send: 1000
+
+# 远程读取配置（可选）
+remote_read:
+  - url: "http://remote-prometheus:9090/api/v1/read"
+    read_recent: true
+
+# 存储配置
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 30d  # 保留30天数据
+    wal_compression: true
+    stripe_size: 16384
+    min_block_duration: 2h
+    max_block_duration: 24h
+
+# 查询配置
+query:
+  lookback_delta: 5m
+  max_concurrency: 20
+  timeout: 2m
+
+# 外部标签
+external_labels:
+  cluster: 'test-cluster'
+  environment: 'testing'
+  project: 'ai-ready'
+  monitor_type: 'test-monitoring'

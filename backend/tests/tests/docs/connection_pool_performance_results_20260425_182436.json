@@ -1,0 +1,172 @@
+{
+  "test_time": "2026-04-25 18:24:36",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "score": 100.0,
+    "postgresql_score": 100.0,
+    "mysql_score": 100.0,
+    "best_postgresql": {
+      "name": "PostgreSQL - 中等连接池 (50)",
+      "db_type": "postgresql",
+      "pool_config": {
+        "max_pool_size": 50,
+        "min_idle": 10
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.8,
+      "p95_time_ms": 3.5,
+      "p99_time_ms": 5.1,
+      "message": "平均 1.80ms, P95=3.50ms",
+      "metrics": {
+        "avg": 1.8,
+        "p95": 3.5,
+        "p99": 5.1,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    "best_mysql": {
+      "name": "MySQL - 中等连接池 (50)",
+      "db_type": "mysql",
+      "pool_config": {
+        "max_pool_size": 50,
+        "min_idle": 10
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.6,
+      "p95_time_ms": 3.1,
+      "p99_time_ms": 4.8,
+      "message": "平均 1.60ms, P95=3.10ms",
+      "metrics": {
+        "avg": 1.6,
+        "p95": 3.1,
+        "p99": 4.8,
+        "success_rate": 100.0
+      },
+      "details": {}
+    }
+  },
+  "results": [
+    {
+      "name": "PostgreSQL - 小连接池 (10)",
+      "db_type": "postgresql",
+      "pool_config": {
+        "max_pool_size": 10,
+        "min_idle": 5
+      },
+      "status": "PASS",
+      "avg_time_ms": 2.1,
+      "p95_time_ms": 4.8,
+      "p99_time_ms": 7.2,
+      "message": "平均 2.10ms, P95=4.80ms",
+      "metrics": {
+        "avg": 2.1,
+        "p95": 4.8,
+        "p99": 7.2,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "PostgreSQL - 中等连接池 (50)",
+      "db_type": "postgresql",
+      "pool_config": {
+        "max_pool_size": 50,
+        "min_idle": 10
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.8,
+      "p95_time_ms": 3.5,
+      "p99_time_ms": 5.1,
+      "message": "平均 1.80ms, P95=3.50ms",
+      "metrics": {
+        "avg": 1.8,
+        "p95": 3.5,
+        "p99": 5.1,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "PostgreSQL - 大连接池 (100)",
+      "db_type": "postgresql",
+      "pool_config": {
+        "max_pool_size": 100,
+        "min_idle": 20
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.9,
+      "p95_time_ms": 3.8,
+      "p99_time_ms": 5.5,
+      "message": "平均 1.90ms, P95=3.80ms",
+      "metrics": {
+        "avg": 1.9,
+        "p95": 3.8,
+        "p99": 5.5,
+        "success_rate": 99.8
+      },
+      "details": {}
+    },
+    {
+      "name": "MySQL - 小连接池 (10)",
+      "db_type": "mysql",
+      "pool_config": {
+        "max_pool_size": 10,
+        "min_idle": 5
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.9,
+      "p95_time_ms": 4.2,
+      "p99_time_ms": 6.5,
+      "message": "平均 1.90ms, P95=4.20ms",
+      "metrics": {
+        "avg": 1.9,
+        "p95": 4.2,
+        "p99": 6.5,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "MySQL - 中等连接池 (50)",
+      "db_type": "mysql",
+      "pool_config": {
+        "max_pool_size": 50,
+        "min_idle": 10
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.6,
+      "p95_time_ms": 3.1,
+      "p99_time_ms": 4.8,
+      "message": "平均 1.60ms, P95=3.10ms",
+      "metrics": {
+        "avg": 1.6,
+        "p95": 3.1,
+        "p99": 4.8,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "MySQL - 大连接池 (100)",
+      "db_type": "mysql",
+      "pool_config": {
+        "max_pool_size": 100,
+        "min_idle": 20
+      },
+      "status": "PASS",
+      "avg_time_ms": 1.7,
+      "p95_time_ms": 3.4,
+      "p99_time_ms": 5.2,
+      "message": "平均 1.70ms, P95=3.40ms",
+      "metrics": {
+        "avg": 1.7,
+        "p95": 3.4,
+        "p99": 5.2,
+        "success_rate": 99.9
+      },
+      "details": {}
+    }
+  ]
+}

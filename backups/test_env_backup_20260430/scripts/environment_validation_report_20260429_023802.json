@@ -1,0 +1,138 @@
+{
+  "timestamp": "2026-04-29T02:38:00.418541",
+  "environment": "test",
+  "services": {
+    "API Gateway": {
+      "status": "unhealthy",
+      "response_time_ms": 2350.32,
+      "error": "Cannot connect to host localhost:8080 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8080/"
+      }
+    },
+    "User Service 1": {
+      "status": "unhealthy",
+      "response_time_ms": 2339.32,
+      "error": "Cannot connect to host localhost:8081 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8081/actuator/health"
+      }
+    },
+    "User Service 2": {
+      "status": "unhealthy",
+      "response_time_ms": 2333.54,
+      "error": "Cannot connect to host localhost:8082 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8082/actuator/health"
+      }
+    },
+    "Order Service 1": {
+      "status": "healthy",
+      "response_time_ms": 40.12,
+      "error": "",
+      "details": {
+        "status": "UP",
+        "url": "http://localhost:8083/actuator/health"
+      }
+    },
+    "Order Service 2": {
+      "status": "unhealthy",
+      "response_time_ms": 2346.72,
+      "error": "Cannot connect to host localhost:8084 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8084/actuator/health"
+      }
+    },
+    "Inventory Service": {
+      "status": "unhealthy",
+      "response_time_ms": 2332.01,
+      "error": "Cannot connect to host localhost:8085 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8085/actuator/health"
+      }
+    },
+    "Monitoring Service": {
+      "status": "healthy",
+      "response_time_ms": 298.34,
+      "error": "",
+      "details": {
+        "status": "UP",
+        "url": "http://localhost:8086/actuator/health"
+      }
+    },
+    "PostgreSQL": {
+      "status": "healthy",
+      "response_time_ms": 25.28,
+      "error": "",
+      "details": {
+        "port": 5432
+      }
+    },
+    "Redis": {
+      "status": "healthy",
+      "response_time_ms": 24.67,
+      "error": "",
+      "details": {
+        "port": 6379
+      }
+    },
+    "Kafka": {
+      "status": "healthy",
+      "response_time_ms": 23.81,
+      "error": "",
+      "details": {
+        "port": 9092
+      }
+    },
+    "ZooKeeper": {
+      "status": "healthy",
+      "response_time_ms": 23.3,
+      "error": "",
+      "details": {
+        "port": 2181
+      }
+    },
+    "Nacos": {
+      "status": "unhealthy",
+      "response_time_ms": 2341.19,
+      "error": "Cannot connect to host localhost:8848 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:8848/nacos/v1/ns/operator/health"
+      }
+    },
+    "Prometheus": {
+      "status": "healthy",
+      "response_time_ms": 229.24,
+      "error": "",
+      "details": {
+        "status": 200,
+        "url": "http://localhost:9090/-/healthy"
+      }
+    },
+    "Grafana": {
+      "status": "healthy",
+      "response_time_ms": 249.44,
+      "error": "",
+      "details": {
+        "status": "OK",
+        "url": "http://localhost:3000/api/health"
+      }
+    },
+    "Jaeger": {
+      "status": "unhealthy",
+      "response_time_ms": 2305.53,
+      "error": "Cannot connect to host localhost:16686 ssl:default [远程计算机拒绝网络连接。]",
+      "details": {
+        "url": "http://localhost:16686/api/services"
+      }
+    }
+  },
+  "summary": {
+    "total": 15,
+    "healthy": 8,
+    "degraded": 0,
+    "unhealthy": 7,
+    "unknown": 0,
+    "required_healthy": false
+  }
+}

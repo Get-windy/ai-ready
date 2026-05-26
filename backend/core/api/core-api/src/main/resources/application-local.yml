@@ -1,0 +1,128 @@
+# Spring Boot 配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: ai-ready-gateway
+    
+  # Spring Cloud Gateway 配置
+  cloud:
+    gateway:
+      # 禁用动态路由，使用静态配置
+      discovery:
+        locator:
+          enabled: false
+      # 全局过滤器配置（简化版）
+      default-filters:
+        - AddRequestHeader=X-Request-Id, #{UUID.randomUUID().toString()}
+      
+      # 路由配置（简化版 - 直接转发到后端服务URL）
+      routes:
+        # API文档路由
+        - id: api-docs
+          uri: http://localhost:8080
+          predicates:
+            - Path=/v3/api-docs/**
+          filters:
+            - RewritePath=/v3/api-docs/(?<path>.*)/, /${path}
+            
+        # 健康检查路由
+        - id: health
+          uri: http://localhost:8080
+          predicates:
+            - Path=/actuator/health
+          filters:
+            - SetStatus=200
+
+  # Redis 配置 (测试环境 - 可选)
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+    # 如果Redis不可用，可以注释掉
+
+  # 数据库配置 (测试环境使用H2内存数据库)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      validation-query: SELECT 1
+
+  # JPA/Hibernate 配置
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # H2 Console (仅用于开发调试)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# 网关特定配置（简化版）
+gateway:
+  routes:
+    enable-dynamic: false
+  rate-limit:
+    enabled: false
+  security:
+    enable-auth: false
+    enable-black-white-list: false
+    enable-cors: true
+  monitor:
+    enable-access-log: false
+    enable-metrics: false
+
+# 服务发现配置 (测试环境禁用)
+eureka:
+  client:
+    enabled: false
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: false
+    fetch-registry: false
+  instance:
+    prefer-ip-address: true
+    hostname: localhost
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.aiedge: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

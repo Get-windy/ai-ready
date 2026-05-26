@@ -1,0 +1,409 @@
+{
+  "summary": {
+    "total_tests": 26,
+    "passed": 22,
+    "failed": 4,
+    "pass_rate": "84.6%",
+    "total_duration_ms": 496.3850975036621
+  },
+  "by_category": {
+    "单元测试": {
+      "total": 10,
+      "passed": 8
+    },
+    "API测试": {
+      "total": 8,
+      "passed": 6
+    },
+    "业务场景": {
+      "total": 4,
+      "passed": 4
+    },
+    "性能测试": {
+      "total": 4,
+      "passed": 4
+    }
+  },
+  "results": [
+    {
+      "test_id": "UNIT-FT-001",
+      "test_name": "交易编号唯一性验证",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.010967254638671875,
+      "message": "交易编号应唯一",
+      "details": {
+        "tx1": "TX001",
+        "tx2": "TX001"
+      }
+    },
+    {
+      "test_id": "UNIT-FT-002",
+      "test_name": "交易金额非负验证",
+      "category": "单元测试",
+      "passed": false,
+      "duration_ms": 0.0059604644775390625,
+      "message": "金额应为非负数",
+      "details": {
+        "amount": -100.0
+      }
+    },
+    {
+      "test_id": "UNIT-FT-004",
+      "test_name": "交易状态默认值验证",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.005245208740234375,
+      "message": "默认状态验证通过",
+      "details": {
+        "status": 1
+      }
+    },
+    {
+      "test_id": "UNIT-FA-001",
+      "test_name": "账户编码唯一性验证",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.0054836273193359375,
+      "message": "账户编码唯一性验证",
+      "details": {
+        "code1": "ACC001",
+        "code2": "ACC001"
+      }
+    },
+    {
+      "test_id": "UNIT-FA-003",
+      "test_name": "余额精度验证",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.003814697265625,
+      "message": "余额精度验证",
+      "details": {
+        "balance": 100.123
+      }
+    },
+    {
+      "test_id": "UNIT-BCM-001",
+      "test_name": "收入交易余额增加",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.0035762786865234375,
+      "message": "收入余额计算正确",
+      "details": {
+        "initial": 100000.0,
+        "income": 5000.0,
+        "new_balance": 105000.0
+      }
+    },
+    {
+      "test_id": "UNIT-BCM-002",
+      "test_name": "支出交易余额减少",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.0026226043701171875,
+      "message": "支出余额计算正确",
+      "details": {
+        "initial": 100000.0,
+        "expense": 3000.0,
+        "new_balance": 97000.0
+      }
+    },
+    {
+      "test_id": "UNIT-BCM-003",
+      "test_name": "转账交易双方余额",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.0030994415283203125,
+      "message": "转账余额计算正确",
+      "details": {
+        "from_before": 100000.0,
+        "from_after": 90000.0,
+        "to_before": 500000.0,
+        "to_after": 510000.0
+      }
+    },
+    {
+      "test_id": "UNIT-VE-001",
+      "test_name": "金额不能为空验证",
+      "category": "单元测试",
+      "passed": false,
+      "duration_ms": 0.0035762786865234375,
+      "message": "金额不能为空",
+      "details": {}
+    },
+    {
+      "test_id": "UNIT-BE-001",
+      "test_name": "余额不足转账检测",
+      "category": "单元测试",
+      "passed": true,
+      "duration_ms": 0.002384185791015625,
+      "message": "余额不足检测正确",
+      "details": {
+        "balance": 100000.0,
+        "requested": 101000.0
+      }
+    },
+    {
+      "test_id": "API-TX-001",
+      "test_name": "POST /transaction 创建交易",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.118255615234375,
+      "message": "创建交易成功",
+      "details": {
+        "transaction_no": "TX202604295968",
+        "transaction_type": 1,
+        "amount": 5000.0,
+        "transaction_time": "2026-04-29T17:27:26.291352",
+        "credit_account_id": 1,
+        "debit_account_id": null,
+        "biz_type": 2,
+        "biz_id": null,
+        "description": "API测试收入",
+        "status": 1,
+        "voucher_no": "",
+        "attachment_url": "",
+        "approved_by": "",
+        "approved_at": "",
+        "id": null,
+        "created_at": "",
+        "updated_at": ""
+      }
+    },
+    {
+      "test_id": "API-TX-002",
+      "test_name": "GET /transaction/list 查询列表",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.00286102294921875,
+      "message": "查询交易列表成功",
+      "details": {
+        "count": 1
+      }
+    },
+    {
+      "test_id": "API-ACCT-001",
+      "test_name": "GET /account 查询账户",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.0026226043701171875,
+      "message": "查询账户成功",
+      "details": {
+        "account_id": 1,
+        "name": "现金账户"
+      }
+    },
+    {
+      "test_id": "API-ACCT-003",
+      "test_name": "GET /account/balance 余额",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.0021457672119140625,
+      "message": "查询余额成功",
+      "details": {
+        "balance": 100000.0
+      }
+    },
+    {
+      "test_id": "API-VAL-001",
+      "test_name": "缺少必填参数验证",
+      "category": "API测试",
+      "passed": false,
+      "duration_ms": 0.003814697265625,
+      "message": "必填参数缺失应报错",
+      "details": {}
+    },
+    {
+      "test_id": "API-VAL-002",
+      "test_name": "参数类型错误验证",
+      "category": "API测试",
+      "passed": false,
+      "duration_ms": 0.00286102294921875,
+      "message": "参数类型错误应报错",
+      "details": {}
+    },
+    {
+      "test_id": "API-ERR-001",
+      "test_name": "认证失败响应",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.0016689300537109375,
+      "message": "认证失败模拟测试",
+      "details": {
+        "status": 401,
+        "error": "Unauthorized"
+      }
+    },
+    {
+      "test_id": "API-ERR-003",
+      "test_name": "数据不存在响应",
+      "category": "API测试",
+      "passed": true,
+      "duration_ms": 0.001430511474609375,
+      "message": "数据不存在响应测试",
+      "details": {
+        "status": 404,
+        "error": "Not Found"
+      }
+    },
+    {
+      "test_id": "BIZ-ACCT-001",
+      "test_name": "收入记账业务流",
+      "category": "业务场景",
+      "passed": true,
+      "duration_ms": 0.058650970458984375,
+      "message": "收入记账业务流通过",
+      "details": {
+        "transaction": {
+          "transaction_no": "TX202604296661",
+          "transaction_type": 1,
+          "amount": 10000.0,
+          "transaction_time": "2026-04-29T17:27:26.291467",
+          "credit_account_id": 1,
+          "debit_account_id": null,
+          "biz_type": 2,
+          "biz_id": null,
+          "description": "销售收入记账",
+          "status": 1,
+          "voucher_no": "",
+          "attachment_url": "",
+          "approved_by": "",
+          "approved_at": "",
+          "id": null,
+          "created_at": "",
+          "updated_at": ""
+        },
+        "balance_before": 100000.0,
+        "balance_after": 110000.0
+      }
+    },
+    {
+      "test_id": "BIZ-ACCT-002",
+      "test_name": "支出记账业务流",
+      "category": "业务场景",
+      "passed": true,
+      "duration_ms": 0.0705718994140625,
+      "message": "支出记账业务流通过",
+      "details": {
+        "transaction": {
+          "transaction_no": "TX202604291804",
+          "transaction_type": 2,
+          "amount": 5000.0,
+          "transaction_time": "2026-04-29T17:27:26.291540",
+          "credit_account_id": null,
+          "debit_account_id": 1,
+          "biz_type": 3,
+          "biz_id": null,
+          "description": "费用支出记账",
+          "status": 1,
+          "voucher_no": "",
+          "attachment_url": "",
+          "approved_by": "",
+          "approved_at": "",
+          "id": null,
+          "created_at": "",
+          "updated_at": ""
+        },
+        "balance_before": 100000.0,
+        "balance_after": 95000.0
+      }
+    },
+    {
+      "test_id": "BIZ-ACCT-003",
+      "test_name": "转账记账业务流",
+      "category": "业务场景",
+      "passed": true,
+      "duration_ms": 0.06365776062011719,
+      "message": "转账记账业务流通过",
+      "details": {
+        "transaction": {
+          "transaction_no": "TX202604299571",
+          "transaction_type": 3,
+          "amount": 20000.0,
+          "transaction_time": "2026-04-29T17:27:26.291611",
+          "credit_account_id": 2,
+          "debit_account_id": 1,
+          "biz_type": 1,
+          "biz_id": null,
+          "description": "账户间转账",
+          "status": 1,
+          "voucher_no": "",
+          "attachment_url": "",
+          "approved_by": "",
+          "approved_at": "",
+          "id": null,
+          "created_at": "",
+          "updated_at": ""
+        },
+        "from_before": 100000.0,
+        "from_after": 80000.0,
+        "to_before": 500000.0,
+        "to_after": 520000.0
+      }
+    },
+    {
+      "test_id": "BIZ-APPR-001",
+      "test_name": "创建并审核流程",
+      "category": "业务场景",
+      "passed": true,
+      "duration_ms": 0.040531158447265625,
+      "message": "创建并审核流程通过",
+      "details": {
+        "status": 1,
+        "approved_by": "admin"
+      }
+    },
+    {
+      "test_id": "PERF-CONC-001",
+      "test_name": "并发创建交易(100笔)",
+      "category": "性能测试",
+      "passed": true,
+      "duration_ms": 2.6865005493164062,
+      "message": "并发创建100笔交易完成，耗时2.65ms",
+      "details": {
+        "count": 100,
+        "duration_ms": 2.6531219482421875
+      }
+    },
+    {
+      "test_id": "PERF-QUERY-001",
+      "test_name": "百万级交易查询",
+      "category": "性能测试",
+      "passed": true,
+      "duration_ms": 489.2919063568115,
+      "message": "百万级数据查询完成，耗时462.52ms",
+      "details": {
+        "total": 1000000,
+        "filtered": 3999,
+        "duration_ms": 462.5208377838135
+      }
+    },
+    {
+      "test_id": "PERF-CALC-001",
+      "test_name": "余额计算性能",
+      "category": "性能测试",
+      "passed": true,
+      "duration_ms": 0.6432533264160156,
+      "message": "余额计算性能测试完成，耗时0.62ms",
+      "details": {
+        "duration_ms": 0.6244182586669922
+      }
+    },
+    {
+      "test_id": "PERF-CALC-002",
+      "test_name": "统计计算性能",
+      "category": "性能测试",
+      "passed": true,
+      "duration_ms": 3.117799758911133,
+      "message": "统计计算性能测试完成，耗时2.97ms",
+      "details": {
+        "count": 10000,
+        "total": 50729557.647285886,
+        "avg": 5072.955764728588,
+        "duration_ms": 2.974987030029297
+      }
+    }
+  ],
+  "timestamp": "2026-04-29T17:27:26.787816",
+  "mock_mode": true
+}

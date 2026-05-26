@@ -1,0 +1,282 @@
+# AI-Ready Istio Service Mesh Configuration
+# Istio安装和基础配置
+
+# ============================================
+# 1. Istio Operator配置
+# ============================================
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: ai-ready-istio
+  namespace: istio-system
+spec:
+  profile: default
+  components:
+    pilot:
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2048Mi
+        hpaSpec:
+          minReplicas: 2
+          maxReplicas: 5
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        k8s:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          hpaSpec:
+            minReplicas: 2
+            maxReplicas: 10
+          service:
+            ports:
+              - port: 80
+                targetPort: 8080
+                name: http
+              - port: 443
+                targetPort: 8443
+                name: https
+    egressGateways:
+      - name: istio-egressgateway
+        enabled: true
+  meshConfig:
+    enableAutoMtls: true
+    trustDomain: ai-ready.local
+    accessLogFile: /dev/stdout
+    defaultConfig:
+      proxyMetadata:
+        DNS_PROXY: "true"
+      tracing:
+        zipkin:
+          address: zipkin.istio-system:9411
+  values:
+    global:
+      mtls:
+        enabled: true
+      proxy:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+    pilot:
+      autoscaleEnabled: true
+    prometheus:
+      enabled: true
+
+---
+# ============================================
+# 2. Namespace启用Sidecar注入
+# ============================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-ready
+  labels:
+    istio-injection: enabled
+
+---
+# ============================================
+# 3. Gateway配置
+# ============================================
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: ai-ready-gateway
+  namespace: ai-ready
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.ai-ready.com"
+        - "api.ai-ready.com"
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*.ai-ready.com"
+        - "api.ai-ready.com"
+      tls:
+        mode: SIMPLE
+        credentialName: ai-ready-tls-secret
+
+---
+# ============================================
+# 4. DestinationRule - 熔断配置
+# ============================================
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+spec:
+  host: ai-ready-api.ai-ready.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 25
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# ============================================
+# 5. VirtualService - 路由配置
+# ============================================
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+spec:
+  hosts:
+    - api.ai-ready.com
+    - ai-ready-api.ai-ready.svc.cluster.local
+  gateways:
+    - ai-ready-gateway
+  http:
+    - match:
+        - headers:
+            x-version:
+              exact: "v2"
+      route:
+        - destination:
+            host: ai-ready-api
+            subset: v2
+    - match:
+        - uri:
+            prefix: "/api/health"
+        - uri:
+            prefix: "/actuator"
+      route:
+        - destination:
+            host: ai-ready-api
+            port:
+              number: 8080
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+    - route:
+        - destination:
+            host: ai-ready-api
+            port:
+              number: 8080
+            subset: v1
+          weight: 100
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: 5xx,connect-failure,refused-stream
+
+---
+# ============================================
+# 6. ServiceEntry - 外部服务访问
+# ============================================
+
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-postgres
+  namespace: ai-ready
+spec:
+  hosts:
+    - postgres.external
+  location: MESH_EXTERNAL
+  ports:
+    - number: 5432
+      name: tcp
+      protocol: TCP
+  resolution: DNS
+
+---
+# ============================================
+# 7. PeerAuthentication - mTLS配置
+# ============================================
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ai-ready
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# ============================================
+# 8. AuthorizationPolicy - 访问控制
+# ============================================
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: api-policy
+  namespace: ai-ready
+spec:
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  rules:
+    - from:
+        - source:
+            principals: ["cluster.local/ns/ai-ready/sa/ai-ready-api"]
+    - to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE"]
+            paths: ["/api/*"]
+    - when:
+        - key: request.headers[x-api-key]
+          values: ["valid-api-key"]
+
+---
+# ============================================
+# 9. Sidecar配置
+# ============================================
+
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: ai-ready
+spec:
+  egress:
+    - hosts:
+        - "./*"
+        - "istio-system/*"
+  ingress:
+    - port:
+        number: 8080
+        protocol: HTTP
+      defaultEndpoint: 127.0.0.1:8080

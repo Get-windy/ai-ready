@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.aiedge</groupId>
+        <artifactId>ai-ready-backend</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>cn.aiedge</groupId>
+    <artifactId>core</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Core Modules</name>
+    <description>Core modules aggregation</description>
+
+    <modules>
+        <module>base/core-base</module>
+        <module>common/core-common</module>
+        <module>api/core-api</module>
+        <module>web-admin</module>
+        <module>agent/core-agent</module>
+        <module>custom-field/core-custom-field</module>
+        <module>automation/core-automation</module>
+        <module>record-permission/core-record-permission</module>
+        <module>kanban/core-kanban</module>
+        <module>webhook/core-webhook</module>
+    </modules>
+</project>

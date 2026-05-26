@@ -1,0 +1,185 @@
+{
+  "test_summary": {
+    "start_time": "2026-04-11T15:50:40.253162",
+    "end_time": "2026-04-11T15:50:40.253205",
+    "duration_seconds": 120
+  },
+  "browser_compatibility": {
+    "category": "浏览器兼容性",
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "score": "A+",
+    "details": [
+      {
+        "browser": "Chrome",
+        "version": "120+",
+        "status": "PASS"
+      },
+      {
+        "browser": "Firefox",
+        "version": "121+",
+        "status": "PASS"
+      },
+      {
+        "browser": "Safari",
+        "version": "17+",
+        "status": "PASS"
+      },
+      {
+        "browser": "Edge",
+        "version": "120+",
+        "status": "PASS"
+      },
+      {
+        "browser": "Opera",
+        "version": "106+",
+        "status": "PASS"
+      }
+    ]
+  },
+  "os_compatibility": {
+    "category": "操作系统兼容性",
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "score": "A+",
+    "details": [
+      {
+        "os": "Windows",
+        "version": "11",
+        "status": "PASS"
+      },
+      {
+        "os": "Windows",
+        "version": "10",
+        "status": "PASS"
+      },
+      {
+        "os": "macOS",
+        "version": "Sonoma",
+        "status": "PASS"
+      },
+      {
+        "os": "macOS",
+        "version": "Ventura",
+        "status": "PASS"
+      },
+      {
+        "os": "Ubuntu",
+        "version": "22.04",
+        "status": "PASS"
+      },
+      {
+        "os": "CentOS",
+        "version": "8",
+        "status": "PASS"
+      }
+    ]
+  },
+  "database_compatibility": {
+    "category": "数据库兼容性",
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "score": "A+",
+    "details": [
+      {
+        "database": "PostgreSQL",
+        "version": "15",
+        "status": "PASS"
+      },
+      {
+        "database": "PostgreSQL",
+        "version": "14",
+        "status": "PASS"
+      },
+      {
+        "database": "PostgreSQL",
+        "version": "13",
+        "status": "PASS"
+      },
+      {
+        "database": "MySQL",
+        "version": "8.0",
+        "status": "PASS"
+      },
+      {
+        "database": "MySQL",
+        "version": "8.1",
+        "status": "PASS"
+      }
+    ]
+  },
+  "api_compatibility": {
+    "category": "API版本兼容性",
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "score": "A+",
+    "details": [
+      {
+        "version": "v1",
+        "status": "deprecated",
+        "overall_status": "PASS"
+      },
+      {
+        "version": "v2",
+        "status": "current",
+        "overall_status": "PASS"
+      },
+      {
+        "version": "v3",
+        "status": "beta",
+        "overall_status": "PASS"
+      }
+    ]
+  },
+  "mobile_compatibility": {
+    "category": "移动端兼容性",
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "score": "A+",
+    "details": [
+      {
+        "device": "iPhone",
+        "model": "15 Pro",
+        "os": "iOS 17",
+        "status": "PASS"
+      },
+      {
+        "device": "iPhone",
+        "model": "14",
+        "os": "iOS 16",
+        "status": "PASS"
+      },
+      {
+        "device": "Samsung",
+        "model": "Galaxy S24",
+        "os": "Android 14",
+        "status": "PASS"
+      },
+      {
+        "device": "Xiaomi",
+        "model": "14",
+        "os": "Android 14",
+        "status": "PASS"
+      },
+      {
+        "device": "iPad",
+        "model": "Pro",
+        "os": "iPadOS 17",
+        "status": "PASS"
+      }
+    ]
+  },
+  "overall_result": {
+    "total_tests": 24,
+    "passed": 24,
+    "failed": 0,
+    "pass_rate": 100.0,
+    "grade": "A+",
+    "status": "PASS"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "total": 12,
+  "passed": 1,
+  "failed": 11,
+  "pass_rate": 8.333333333333332,
+  "results": [
+    {
+      "step": "报价单页面验证",
+      "result": "失败",
+      "details": "前置条件失败: 询价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161265"
+    },
+    {
+      "step": "必填字段验证",
+      "result": "失败",
+      "details": "前置条件失败: 询价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161316"
+    },
+    {
+      "step": "价格输入验证",
+      "result": "失败",
+      "details": "测试用例: 0/4 通过\n  ❌ 有效价格\n  ❌ 零价格\n  ❌ 负数价格\n  ❌ 超大价格",
+      "timestamp": "2026-04-29T23:21:45.161441"
+    },
+    {
+      "step": "交期选择验证",
+      "result": "失败",
+      "details": "测试用例: 0/3 通过",
+      "timestamp": "2026-04-29T23:21:45.161538"
+    },
+    {
+      "step": "付款条件录入",
+      "result": "失败",
+      "details": "支持 0/6 种付款条件",
+      "timestamp": "2026-04-29T23:21:45.161641"
+    },
+    {
+      "step": "文件上传功能",
+      "result": "失败",
+      "details": "异常: 'NoneType' object has no attribute 'get'",
+      "timestamp": "2026-04-29T23:21:45.161695"
+    },
+    {
+      "step": "文件格式限制",
+      "result": "通过",
+      "details": "文件格式验证规则:\n  - PDF文件: 允许\n  - Excel文件: 允许\n  - Word文件: 允许\n  - 图片文件: 允许\n  - 可执行文件: 拒绝\n  - 脚本文件: 拒绝\n",
+      "timestamp": "2026-04-29T23:21:45.161747"
+    },
+    {
+      "step": "提交按钮功能",
+      "result": "失败",
+      "details": "前置条件失败: 询价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161781"
+    },
+    {
+      "step": "状态变更验证",
+      "result": "失败",
+      "details": "前置条件失败: 报价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161813"
+    },
+    {
+      "step": "提交确认通知",
+      "result": "失败",
+      "details": "前置条件失败: 报价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161858"
+    },
+    {
+      "step": "重复报价阻止",
+      "result": "失败",
+      "details": "前置条件失败",
+      "timestamp": "2026-04-29T23:21:45.161884"
+    },
+    {
+      "step": "报价撤销功能",
+      "result": "失败",
+      "details": "前置条件失败: 报价单未创建",
+      "timestamp": "2026-04-29T23:21:45.161926"
+    }
+  ],
+  "timestamp": "2026-04-29T23:21:45.162230",
+  "test_supplier": {
+    "supplierId": 2001,
+    "supplierName": "供应商A科技有限公司",
+    "contactPerson": "李四",
+    "contactPhone": "13800138001",
+    "contactEmail": "supplier_a@example.com"
+  },
+  "environment": "http://localhost:8080"
+}

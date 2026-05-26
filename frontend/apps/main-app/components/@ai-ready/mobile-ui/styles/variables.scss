@@ -1,0 +1,138 @@
+/**
+ * AI-Ready Mobile UI 组件库样式变量
+ * @package @ai-ready/mobile-ui
+ */
+
+// ==================== 品牌色 ====================
+$color-primary: #1989fa;
+$color-success: #07c160;
+$color-warning: #ff976a;
+$color-danger: #ee0a24;
+$color-info: #969799;
+
+// ==================== 文字色 ====================
+$color-text-primary: #323233;
+$color-text-secondary: #646566;
+$color-text-tertiary: #969799;
+$color-text-quaternary: #c8c9cc;
+
+// ==================== 背景色 ====================
+$color-background: #f7f8fa;
+$color-background-white: #ffffff;
+$color-background-gray: #f2f3f5;
+
+// ==================== 边框色 ====================
+$color-border: #ebedf0;
+$color-border-dark: #dcdee0;
+
+// ==================== 字体大小 ====================
+$font-size-xs: 10px;
+$font-size-sm: 12px;
+$font-size-md: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+$font-size-xxl: 20px;
+
+// ==================== 字体粗细 ====================
+$font-weight-normal: 400;
+$font-weight-bold: 500;
+$font-weight-bolder: 600;
+
+// ==================== 行高 ====================
+$line-height-xs: 14px;
+$line-height-sm: 18px;
+$line-height-md: 20px;
+$line-height-lg: 22px;
+$line-height-xl: 24px;
+
+// ==================== 间距 ====================
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 20px;
+$spacing-xxl: 24px;
+
+// ==================== 圆角 ====================
+$border-radius-sm: 2px;
+$border-radius-md: 4px;
+$border-radius-lg: 8px;
+$border-radius-xl: 12px;
+$border-radius-max: 999px;
+
+// ==================== 阴影 ====================
+$box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+$box-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
+$box-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+
+// ==================== 组件特定变量 ====================
+
+// Button
+$button-height-mini: 24px;
+$button-height-small: 32px;
+$button-height-normal: 44px;
+$button-height-large: 50px;
+$button-padding-mini: 0 12px;
+$button-padding-small: 0 16px;
+$button-padding-normal: 0 20px;
+$button-padding-large: 0 24px;
+$button-font-size-mini: $font-size-xs;
+$button-font-size-small: $font-size-sm;
+$button-font-size-normal: $font-size-md;
+$button-font-size-large: $font-size-lg;
+$button-border-radius: $border-radius-lg;
+
+// Input
+$input-height: 44px;
+$input-padding: 0 12px;
+$input-font-size: $font-size-md;
+$input-placeholder-color: $color-text-tertiary;
+$input-disabled-color: $color-text-quaternary;
+$input-background: $color-background-white;
+$input-border-radius: $border-radius-md;
+
+// Card
+$card-padding: $spacing-lg;
+$card-border-radius: $border-radius-xl;
+$card-background: $color-background-white;
+$card-shadow: $box-shadow-sm;
+
+// List
+$list-item-height: 48px;
+$list-item-padding: 0 $spacing-lg;
+$list-item-font-size: $font-size-md;
+$list-item-active-background: #f2f3f5;
+
+// Toast
+$toast-max-width: 70%;
+$toast-padding: $spacing-md $spacing-lg;
+$toast-font-size: $font-size-md;
+$toast-border-radius: $border-radius-xl;
+$toast-background: rgba(0, 0, 0, 0.7);
+$toast-text-color: #ffffff;
+
+// Loading
+$loading-spinner-size: 30px;
+$loading-spinner-color: $color-primary;
+$loading-text-color: $color-text-tertiary;
+$loading-text-font-size: $font-size-sm;
+
+// Dialog
+$dialog-width: 320px;
+$dialog-border-radius: $border-radius-xl;
+$dialog-background: $color-background-white;
+$dialog-header-padding: $spacing-lg;
+$dialog-content-padding: $spacing-lg;
+$dialog-footer-padding: $spacing-md $spacing-lg;
+
+// ==================== 动画 ====================
+$animation-duration-fast: 0.2s;
+$animation-duration-normal: 0.3s;
+$animation-duration-slow: 0.5s;
+$animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+// ==================== 断点 ====================
+$breakpoint-xs: 320px;
+$breakpoint-sm: 375px;
+$breakpoint-md: 414px;
+$breakpoint-lg: 768px;

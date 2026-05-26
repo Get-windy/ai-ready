@@ -1,0 +1,220 @@
+# 采购合同模块集成测试环境 - Docker Compose配置
+version: '3.8'
+
+services:
+  # 数据库服务
+  mysql-contract:
+    image: mysql:8.0
+    container_name: mysql-contract-test
+    environment:
+      MYSQL_ROOT_PASSWORD: Test@123456
+      MYSQL_DATABASE: contract_db
+      MYSQL_USER: contract_user
+      MYSQL_PASSWORD: Contract@123
+    ports:
+      - "33061:3306"
+    volumes:
+      - mysql-contract-data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - erp-test-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  mysql-supplier:
+    image: mysql:8.0
+    container_name: mysql-supplier-test
+    environment:
+      MYSQL_ROOT_PASSWORD: Test@123456
+      MYSQL_DATABASE: supplier_db
+      MYSQL_USER: supplier_user
+      MYSQL_PASSWORD: Supplier@123
+    ports:
+      - "33062:3306"
+    volumes:
+      - mysql-supplier-data:/var/lib/mysql
+      - ./sql/supplier-init.sql:/docker-entrypoint-initdb.d/supplier-init.sql
+    networks:
+      - erp-test-network
+
+  # 消息队列
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    container_name: rabbitmq-test
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: Admin@123
+    ports:
+      - "5672:5672"   # AMQP协议端口
+      - "15672:15672" # 管理界面端口
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - erp-test-network
+
+  # 缓存服务
+  redis:
+    image: redis:6.2-alpine
+    container_name: redis-test
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - erp-test-network
+    command: redis-server --requirepass Redis@123
+
+  # 应用服务 - 合同模块
+  contract-service:
+    build:
+      context: ./contract-service
+      dockerfile: Dockerfile
+    container_name: contract-service-test
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      DB_HOST: mysql-contract
+      DB_PORT: 3306
+      DB_NAME: contract_db
+      DB_USER: contract_user
+      DB_PASSWORD: Contract@123
+      RABBITMQ_HOST: rabbitmq
+      REDIS_HOST: redis
+      REDIS_PASSWORD: Redis@123
+    depends_on:
+      mysql-contract:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - erp-test-network
+    volumes:
+      - ./logs/contract:/app/logs
+
+  # 应用服务 - 供应商模块
+  supplier-service:
+    build:
+      context: ./supplier-service
+      dockerfile: Dockerfile
+    container_name: supplier-service-test
+    ports:
+      - "8082:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      DB_HOST: mysql-supplier
+      DB_PORT: 3306
+      DB_NAME: supplier_db
+      DB_USER: supplier_user
+      DB_PASSWORD: Supplier@123
+    depends_on:
+      mysql-supplier:
+        condition: service_healthy
+    networks:
+      - erp-test-network
+    volumes:
+      - ./logs/supplier:/app/logs
+
+  # API网关
+  nginx:
+    image: nginx:1.20
+    container_name: nginx-test
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - erp-test-network
+    depends_on:
+      - contract-service
+      - supplier-service
+
+  # 监控服务 - Elasticsearch
+  elasticsearch:
+    image: elasticsearch:7.14.0
+    container_name: elasticsearch-test
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - erp-test-network
+
+  # 监控服务 - Logstash
+  logstash:
+    image: logstash:7.14.0
+    container_name: logstash-test
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    networks:
+      - erp-test-network
+    depends_on:
+      - elasticsearch
+
+  # 监控服务 - Kibana
+  kibana:
+    image: kibana:7.14.0
+    container_name: kibana-test
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - erp-test-network
+    depends_on:
+      - elasticsearch
+
+  # 监控服务 - Prometheus
+  prometheus:
+    image: prom/prometheus:v2.30.0
+    container_name: prometheus-test
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - erp-test-network
+
+  # 监控服务 - Grafana
+  grafana:
+    image: grafana/grafana:8.1.0
+    container_name: grafana-test
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: Grafana@123
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - erp-test-network
+    depends_on:
+      - prometheus
+
+networks:
+  erp-test-network:
+    driver: bridge
+    name: erp-test-network
+
+volumes:
+  mysql-contract-data:
+  mysql-supplier-data:
+  rabbitmq-data:
+  redis-data:
+  elasticsearch-data:
+  prometheus-data:
+  grafana-data:

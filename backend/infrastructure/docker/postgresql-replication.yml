@@ -1,0 +1,346 @@
+# PostgreSQL 主从复制配置
+# 扩展 AI-Ready 测试环境的 PostgreSQL 数据库集群，提供主从复制功能
+# 创建日期: 2026-04-24
+# 版本: v1.0.0
+
+version: '3.8'
+
+# ==================== 数据卷配置 ====================
+volumes:
+  # PostgreSQL 从节点数据卷
+  postgres-main-replica1-data:
+    driver: local
+  postgres-main-replica2-data:
+    driver: local
+  postgres-finance-replica1-data:
+    driver: local
+  postgres-finance-replica2-data:
+    driver: local
+  postgres-inventory-replica1-data:
+    driver: local
+  postgres-inventory-replica2-data:
+    driver: local
+  postgres-ai-replica1-data:
+    driver: local
+  postgres-ai-replica2-data:
+    driver: local
+  postgres-data-replica1-data:
+    driver: local
+  postgres-data-replica2-data:
+    driver: local
+
+# ==================== 服务配置 ====================
+services:
+  # ============ PostgreSQL 主从复制 - Main 数据库 ============
+  postgres-main-replica1:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-main-replica1-test
+    restart: unless-stopped
+    ports:
+      - "5437:5432"
+    environment:
+      POSTGRES_USER: gateway_user
+      POSTGRES_PASSWORD: gateway_pass_2026
+      POSTGRES_DB: gateway_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_gateway
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-main
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-main-replica1-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+      - ./scripts/postgresql-replication/promote-replica.sh:/docker-entrypoint-initdb.d/promote-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-main:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_user -d gateway_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby=on
+      -c hot_standby_feedback=on
+
+  postgres-main-replica2:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-main-replica2-test
+    restart: unless-stopped
+    ports:
+      - "5438:5432"
+    environment:
+      POSTGRES_USER: gateway_user
+      POSTGRES_PASSWORD: gateway_pass_2026
+      POSTGRES_DB: gateway_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_gateway
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-main
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-main-replica2-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+      - ./scripts/postgresql-replication/promote-replica.sh:/docker-entrypoint-initdb.d/promote-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-main:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_user -d gateway_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============ PostgreSQL 主从复制 - Finance 数据库 ============
+  postgres-finance-replica1:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-finance-replica1-test
+    restart: unless-stopped
+    ports:
+      - "5443:5432"
+    environment:
+      POSTGRES_USER: finance_user
+      POSTGRES_PASSWORD: finance_pass_2026
+      POSTGRES_DB: finance_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_finance
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-finance
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-finance-replica1-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-finance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_user -d finance_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-finance-replica2:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-finance-replica2-test
+    restart: unless-stopped
+    ports:
+      - "5444:5432"
+    environment:
+      POSTGRES_USER: finance_user
+      POSTGRES_PASSWORD: finance_pass_2026
+      POSTGRES_DB: finance_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_finance
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-finance
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-finance-replica2-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-finance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_user -d finance_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============ PostgreSQL 主从复制 - Inventory 数据库 ============
+  postgres-inventory-replica1:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-inventory-replica1-test
+    restart: unless-stopped
+    ports:
+      - "5447:5432"
+    environment:
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass_2026
+      POSTGRES_DB: inventory_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_inventory
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-inventory
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-inventory-replica1-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-inventory-replica2:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-inventory-replica2-test
+    restart: unless-stopped
+    ports:
+      - "5448:5432"
+    environment:
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass_2026
+      POSTGRES_DB: inventory_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_inventory
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-inventory
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-inventory-replica2-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============ PostgreSQL 主从复制 - AI 数据库 ============
+  postgres-ai-replica1:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-ai-replica1-test
+    restart: unless-stopped
+    ports:
+      - "5453:5432"
+    environment:
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_pass_2026
+      POSTGRES_DB: ai_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_ai
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-ai
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-ai-replica1-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-ai-replica2:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-ai-replica2-test
+    restart: unless-stopped
+    ports:
+      - "5454:5432"
+    environment:
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_pass_2026
+      POSTGRES_DB: ai_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_ai
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-ai
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-ai-replica2-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============ PostgreSQL 主从复制 - Data 数据库 ============
+  postgres-data-replica1:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-data-replica1-test
+    restart: unless-stopped
+    ports:
+      - "5457:5432"
+    environment:
+      POSTGRES_USER: data_user
+      POSTGRES_PASSWORD: data_pass_2026
+      POSTGRES_DB: data_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_data
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-data
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-data-replica1-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U data_user -d data_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-data-replica2:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-data-replica2-test
+    restart: unless-stopped
+    ports:
+      - "5458:5432"
+    environment:
+      POSTGRES_USER: data_user
+      POSTGRES_PASSWORD: data_pass_2026
+      POSTGRES_DB: data_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      REPLICATION_USER: repuser_data
+      REPLICATION_PASSWORD: rep_pass_2026
+      PRIMARY_HOST: postgres-data
+      PRIMARY_PORT: 5432
+      REPLICATION_MODE: async
+    volumes:
+      - postgres-data-replica2-data:/var/lib/postgresql/data
+      - ./scripts/postgresql-replication/init-replica.sh:/docker-entrypoint-initdb.d/init-replica.sh:ro
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U data_user -d data_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

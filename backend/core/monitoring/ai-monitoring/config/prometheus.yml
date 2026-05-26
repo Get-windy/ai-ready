@@ -1,0 +1,48 @@
+# Prometheus Configuration - AI Model Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-model-monitor'
+    environment: 'test'
+
+scrape_configs:
+  # AI Model Metrics Collection
+  - job_name: 'ai-model-metrics'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    
+  # AI Model Performance Monitoring
+  - job_name: 'ai-model-performance'
+    static_configs:
+      - targets: ['localhost:8001']
+    metrics_path: '/performance-metrics'
+    scrape_interval: 30s
+    
+  # AI Model Drift Monitoring
+  - job_name: 'ai-model-drift'
+    static_configs:
+      - targets: ['localhost:8002']
+    metrics_path: '/drift-metrics'
+    scrape_interval: 60s
+    
+  # AI Inference Service Monitoring
+  - job_name: 'ai-inference-service'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+
+# Alert Rules Files
+rule_files:
+  - 'alerts.yml'
+
+# Alert Manager Configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'localhost:9093'

@@ -1,0 +1,266 @@
+# AI-Ready Kubernetes 优化配置
+# 版本: v2.0
+# 优化内容: HPA自动伸缩、资源优化、安全加固
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    version: v2.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-ready-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: ai-ready-sa
+      # 优先级类 - 确保核心服务优先调度
+      priorityClassName: high-priority
+      # 安全上下文
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      # 节点亲和性 - 分散部署
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: ai-ready-api
+                topologyKey: topology.kubernetes.io/zone
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/worker
+                    operator: Exists
+      # 容忍污点
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "ai-ready"
+          effect: "NoSchedule"
+      # 初始化容器
+      initContainers:
+        - name: init-permissions
+          image: busybox:1.36
+          command: ['sh', '-c', 'chmod 755 /app/logs']
+          volumeMounts:
+            - name: log-volume
+              mountPath: /app/logs
+      containers:
+        - name: ai-ready-api
+          image: ghcr.io/ai-ready/ai-ready-api:v2.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          # 环境变量从ConfigMap/Secret读取
+          envFrom:
+            - configMapRef:
+                name: ai-ready-config
+            - secretRef:
+                name: ai-ready-secrets
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseContainerSupport"
+            - name: TZ
+              value: "Asia/Shanghai"
+          # 资源限制优化
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          # 存活探针
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 就绪探针
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 启动探针
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          # 卷挂载
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            - name: log-volume
+              mountPath: /app/logs
+            - name: tmp-volume
+              mountPath: /tmp
+          # 容器安全
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ai-ready-config
+        - name: log-volume
+          emptyDir: {}
+        - name: tmp-volume
+          emptyDir: {}
+      terminationGracePeriodSeconds: 60
+
+---
+# HorizontalPodAutoscaler - 自动伸缩
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+
+---
+# Service - 负载均衡优化
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api
+  namespace: ai-ready
+  annotations:
+    # 流量优化
+    traffic.sidecar.istio.io/loadBalancer: ROUND_ROBIN
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-ready-api
+  # 会话亲和性（可选）
+  sessionAffinity: None
+
+---
+# ConfigMap - 配置管理
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-ready-config
+  namespace: ai-ready
+data:
+  SPRING_PROFILES_ACTIVE: "production"
+  LOGGING_LEVEL_ROOT: "INFO"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+
+---
+# Secret - 敏感信息（示例）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-ready-secrets
+  namespace: ai-ready
+type: Opaque
+stringData:
+  # 生产环境需使用 sealed-secrets 或外部密钥管理
+  db-url: "jdbc:postgresql://postgres:5432/ai_ready"
+  db-user: "ai_ready"
+  db-password: "${DB_PASSWORD}"  # 从外部注入
+  redis-host: "redis"
+  redis-port: "6379"
+  jwt-secret: "${JWT_SECRET}"
+
+---
+# PodDisruptionBudget - 集群维护保护
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-ready-api-pdb
+  namespace: ai-ready
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ai-ready-api
+
+---
+# PriorityClass - 优先级
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000000
+globalDefault: false
+description: "High priority for AI-Ready core services"

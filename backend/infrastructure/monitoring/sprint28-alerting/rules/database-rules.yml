@@ -1,0 +1,245 @@
+# Sprint 28 监控告警模块 - 数据库监控规则
+# 版本: v1.0
+# 最后更新: 2026-04-26
+
+groups:
+  - name: alerting-database-health
+    interval: 30s
+    rules:
+      # PostgreSQL 告警模块数据库连接数
+      - alert: AlertingPostgresHighConnectionCount
+        expr: |
+          pg_stat_activity_count{job="alerting-postgres"} > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL连接数过多: {{ $value }}个连接"
+          description: "告警模块PostgreSQL数据库活跃连接数超过80，当前: {{ $value }}"
+
+      # PostgreSQL 告警模块数据库连接使用率
+      - alert: AlertingPostgresHighConnectionUsage
+        expr: |
+          (
+            pg_stat_activity_count{job="alerting-postgres"} /
+            pg_settings_max_connections{job="alerting-postgres"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: critical
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL连接使用率过高: {{ $value | humanize }}%"
+          description: "告警模块PostgreSQL数据库连接使用率超过80%，可能导致新连接失败"
+
+      # PostgreSQL 告警模块数据库事务ID使用
+      - alert: AlertingPostgresHighXIDUsage
+        expr: |
+          (
+            pg_stat_database_xact_commit{job="alerting-postgres", datname="alerting"} +
+            pg_stat_database_xact_rollback{job="alerting-postgres", datname="alerting"}
+          ) / 2147483647 * 100 > 70
+        for: 10m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL事务ID使用率过高: {{ $value | humanize }}%"
+          description: "告警模块PostgreSQL事务ID使用率超过70%，需要进行VACUUM操作"
+
+      # PostgreSQL 告警模块数据库死锁
+      - alert: AlertingPostgresDeadlocks
+        expr: |
+          rate(pg_stat_database_deadlocks{job="alerting-postgres", datname="alerting"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL检测到死锁"
+          description: "告警模块PostgreSQL数据库检测到死锁，请检查应用代码"
+
+      # PostgreSQL 告警模块数据库复制延迟
+      - alert: AlertingPostgresReplicationLag
+        expr: |
+          pg_replication_lag{job="alerting-postgres"} > 10
+        for: 5m
+        labels:
+          severity: critical
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL复制延迟过高: {{ $value }}秒"
+          description: "告警模块PostgreSQL从库复制延迟超过10秒，当前: {{ $value }}秒"
+
+  - name: alerting-database-performance
+    interval: 30s
+    rules:
+      # PostgreSQL 告警模块数据库查询延迟
+      - alert: AlertingPostgresHighQueryLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(pg_stat_statements_bucket{job="alerting-postgres"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL查询延迟过高: {{ $value | humanize }}s"
+          description: "告警模块PostgreSQL数据库P95查询延迟超过500ms"
+
+      # PostgreSQL 告警模块数据库慢查询
+      - alert: AlertingPostgresSlowQueries
+        expr: |
+          rate(pg_stat_statements_calls{job="alerting-postgres"}[5m]) > 0
+          and
+          (
+            pg_stat_statements_total_time{job="alerting-postgres"} /
+            pg_stat_statements_calls{job="alerting-postgres"}
+          ) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL检测到慢查询"
+          description: "告警模块PostgreSQL数据库存在平均执行时间超过1秒的慢查询"
+
+      # PostgreSQL 告警模块数据库缓存命中率
+      - alert: AlertingPostgresLowCacheHitRatio
+        expr: |
+          (
+            pg_stat_database_blks_hit{job="alerting-postgres", datname="alerting"} /
+            (
+              pg_stat_database_blks_hit{job="alerting-postgres", datname="alerting"} +
+              pg_stat_database_blks_read{job="alerting-postgres", datname="alerting"}
+            )
+          ) * 100 < 95
+        for: 10m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL缓存命中率过低: {{ $value | humanize }}%"
+          description: "告警模块PostgreSQL数据库缓存命中率低于95%，建议增加shared_buffers"
+
+      # PostgreSQL 告警模块数据库表膨胀
+      - alert: AlertingPostgresTableBloat
+        expr: |
+          (
+            pg_stat_user_tables_n_live_tup{job="alerting-postgres"} /
+            pg_stat_user_tables_n_dead_tup{job="alerting-postgres"}
+          ) < 10
+        for: 10m
+        labels:
+          severity: warning
+          module: alerting
+          component: database
+        annotations:
+          summary: "告警模块PostgreSQL表膨胀严重"
+          description: "告警模块PostgreSQL数据库表死元组比例过高，需要进行VACUUM操作"
+
+  - name: alerting-redis-health
+    interval: 30s
+    rules:
+      # Redis 告警模块内存使用率
+      - alert: AlertingRedisHighMemoryUsage
+        expr: |
+          (
+            redis_memory_used_bytes{job="alerting-redis"} /
+            redis_memory_max_bytes{job="alerting-redis"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis内存使用率过高: {{ $value | humanize }}%"
+          description: "告警模块Redis内存使用率超过80%，当前: {{ $value | humanize }}%"
+
+      # Redis 告警模块连接数
+      - alert: AlertingRedisHighConnectionCount
+        expr: |
+          redis_connected_clients{job="alerting-redis"} > 100
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis连接数过多: {{ $value }}个连接"
+          description: "告警模块Redis连接数超过100，当前: {{ $value }}个连接"
+
+      # Redis 告警模块拒绝连接
+      - alert: AlertingRedisRejectedConnections
+        expr: |
+          rate(redis_rejected_connections_total{job="alerting-redis"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis拒绝连接"
+          description: "告警模块Redis正在拒绝新连接，可能已达到最大连接数限制"
+
+      # Redis 告警模块键驱逐
+      - alert: AlertingRedisKeyEviction
+        expr: |
+          rate(redis_evicted_keys_total{job="alerting-redis"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis正在驱逐键"
+          description: "告警模块Redis内存不足，正在驱逐键以释放空间"
+
+      # Redis 告警模块持久化失败
+      - alert: AlertingRedisRDBSaveFailed
+        expr: |
+          redis_rdb_last_save_status{job="alerting-redis"} != 1
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis RDB持久化失败"
+          description: "告警模块Redis RDB持久化操作失败，请检查磁盘空间和权限"
+
+      # Redis 告警模块复制中断
+      - alert: AlertingRedisReplicationDown
+        expr: |
+          redis_master_link_up{job="alerting-redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: cache
+        annotations:
+          summary: "告警模块Redis主从复制中断"
+          description: "告警模块Redis从库与主库复制连接中断"
+
+  - name: alerting-rabbitmq-health
+    interval: 30s
+    rules:
+      # RabbitMQ 告警模块队列积压
+      - alert: AlertingRabbitMQQueueBacklog
+        expr: |
+          rabbitmq_queue_messages{job="alerting-rabbitmq"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting

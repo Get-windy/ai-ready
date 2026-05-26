@@ -1,0 +1,137 @@
+# 架构合规性检查工具配置
+
+spring:
+  application:
+    name: architecture-compliance-checker
+  banner:
+    location: classpath:banner.txt
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.architecture.checker: DEBUG
+    org.springframework: INFO
+  file:
+    name: logs/architecture-checker.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 架构检查工具配置
+architecture:
+  checker:
+    # 项目配置
+    project:
+      name: ${PROJECT_NAME:default-project}
+      base-path: ${PROJECT_PATH:.}
+      encoding: UTF-8
+      supported-languages:
+        - java
+        - xml
+        - yaml
+        - properties
+        - sql
+      exclude-directories:
+        - .git
+        - .svn
+        - .idea
+        - node_modules
+        - target
+        - build
+        - out
+        - dist
+        - bin
+        - .gradle
+        - .maven
+      exclude-file-patterns:
+        - .*\.log$
+        - .*\.jar$
+        - .*\.class$
+        - .*\.iml$
+        - .*\.zip$
+        - .*\.tar\.gz$
+    
+    # 检查规则配置
+    rules:
+      directory-check-enabled: true
+      package-check-enabled: true
+      api-check-enabled: true
+      code-check-enabled: true
+      strict-mode: false
+      rules-file: .architecture-rules.yaml
+      custom-rules-directory: custom-rules
+      rule-priorities:
+        directory: 100
+        package: 90
+        api: 80
+        code: 70
+        security: 95
+        performance: 85
+    
+    # 输出配置
+    output:
+      format: ${OUTPUT_FORMAT:console}
+      directory: ./reports
+      filename: architecture-compliance-report
+      include-summary: true
+      include-details: true
+      include-suggestions: true
+      include-statistics: true
+      max-issues: 0
+      encoding: UTF-8
+    
+    # 缓存配置
+    cache:
+      enabled: true
+      directory: ./.architecture-checker-cache
+      max-size-mb: 100
+      expire-minutes: 60
+      cleanup-interval-minutes: 30
+      memory-cache-enabled: true
+      memory-cache-max-entries: 1000
+    
+    # 性能配置
+    performance:
+      parallel-threads: ${PARALLEL_THREADS:4}
+      max-file-size-kb: 1024
+      timeout-seconds: 300
+      memory-limit-mb: 512
+      incremental-check: true
+      incremental-cache-days: 7
+      sampling-enabled: false
+      sampling-ratio: 0.1
+
+# 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  info:
+    java:
+      enabled: true
+    os:
+      enabled: true
+
+# 监控配置
+micrometer:
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Spring Boot配置
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

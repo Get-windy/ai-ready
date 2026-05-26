@@ -1,0 +1,58 @@
+package cn.aiedge.finance.entity;
+
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Data
+@EqualsAndHashCode(callSuper = false)
+@TableName("finance_budget_execution")
+public class BudgetExecution {
+    
+    @TableId(type = IdType.ASSIGN_ID)
+    private Long id;
+    
+    private Long budgetId;
+    
+    private String budgetCode;
+    
+    private Long budgetItemId;
+    
+    private String period;
+    
+    private LocalDate executionDate;
+    
+    private BigDecimal amount;
+    
+    private String sourceType;
+    
+    private Long sourceId;
+    
+    private String sourceNo;
+    
+    private String remark;
+    
+    @TableField(fill = FieldFill.INSERT)
+    private Long createBy;
+    
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
+    
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updateBy;
+    
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+    
+    @TableLogic
+    private Integer deleted;
+    
+    private Long tenantId;
+    
+    @Version
+    private Integer version;
+}

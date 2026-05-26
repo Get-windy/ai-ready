@@ -1,0 +1,533 @@
+# Elasticsearch 日志存储配置
+# 版本: 1.0.0
+# 环境: test
+# Sprint: 27+1
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: elasticsearch
+data:
+  elasticsearch.yml: |
+    # 集群配置
+    cluster.name: test-logging-cluster
+    node.name: ${HOSTNAME}
+    network.host: 0.0.0.0
+    http.port: 9200
+    transport.port: 9300
+    
+    # 发现配置
+    discovery.type: single-node
+    
+    # 内存配置
+    bootstrap.memory_lock: true
+    ES_JAVA_OPTS: -Xms512m -Xmx512m
+    
+    # 安全配置
+    xpack.security.enabled: false
+    xpack.security.transport.ssl.enabled: false
+    xpack.security.http.ssl.enabled: false
+    
+    # 监控配置
+    xpack.monitoring.enabled: true
+    xpack.monitoring.collection.enabled: true
+    
+    # 索引配置
+    indices.query.bool.max_clause_count: 1024
+    
+    # 路径配置
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+    
+    # 线程池配置
+    thread_pool.write.queue_size: 1000
+    thread_pool.search.queue_size: 1000
+    
+    # 断路器配置
+    indices.breaker.total.limit: 70%
+    network.breaker.inflight_requests.limit: 100%
+    request.breaker.limit: 60%
+    
+    # 索引设置
+    index.number_of_shards: 1
+    index.number_of_replicas: 0
+    index.refresh_interval: 30s
+    
+    # 日志保留策略
+    indices.lifecycle.poll_interval: 10m
+    
+  # 索引模板配置
+  index-templates.json: |
+    {
+      "index_patterns": ["logs-*"],
+      "template": {
+        "settings": {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+          "refresh_interval": "30s",
+          "index.lifecycle.name": "logs-lifecycle-policy",
+          "index.lifecycle.rollover_alias": "logs"
+        },
+        "mappings": {
+          "dynamic_templates": [
+            {
+              "strings_as_keyword": {
+                "match_mapping_type": "string",
+                "mapping": {
+                  "type": "keyword"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "@timestamp": {
+              "type": "date"
+            },
+            "message": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "level": {
+              "type": "keyword"
+            },
+            "application": {
+              "type": "keyword"
+            },
+            "environment": {
+              "type": "keyword"
+            },
+            "host": {
+              "type": "keyword"
+            },
+            "container_id": {
+              "type": "keyword"
+            },
+            "container_name": {
+              "type": "keyword"
+            },
+            "log_source": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    }
+  
+  # 索引生命周期策略
+  lifecycle-policy.json: |
+    {
+      "policy": {
+        "phases": {
+          "hot": {
+            "min_age": "0ms",
+            "actions": {
+              "rollover": {
+                "max_size": "10gb",
+                "max_age": "1d"
+              },
+              "set_priority": {
+                "priority": 100
+              }
+            }
+          },
+          "warm": {
+            "min_age": "1d",
+            "actions": {
+              "set_priority": {
+                "priority": 50
+              },
+              "shrink": {
+                "number_of_shards": 1
+              },
+              "forcemerge": {
+                "max_num_segments": 1
+              }
+            }
+          },
+          "cold": {
+            "min_age": "7d",
+            "actions": {
+              "set_priority": {
+                "priority": 0
+              }
+            }
+          },
+          "delete": {
+            "min_age": "30d",
+            "actions": {
+              "delete": {}
+            }
+          }
+        }
+      }
+    }
+  
+  # 索引别名配置
+  index-aliases.json: |
+    {
+      "actions": [
+        {
+          "add": {
+            "index": "logs-000001",
+            "alias": "logs",
+            "is_write_index": true
+          }
+        }
+      ]
+    }
+---
+# Elasticsearch StatefulSet配置
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        environment: test
+        component: logging
+    spec:
+      serviceAccountName: elasticsearch
+      initContainers:
+      - name: fix-permissions
+        image: busybox:1.35
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+      - name: increase-vm-max-map
+        image: busybox:1.35
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: increase-fd-ulimit
+        image: busybox:1.35
+        command: ["sh", "-c", "ulimit -n 65536"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: ES_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        - name: xpack.security.enabled
+          value: "false"
+        ports:
+        - containerPort: 9200
+          name: http
+          protocol: TCP
+        - containerPort: 9300
+          name: transport
+          protocol: TCP
+        resources:
+          limits:
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: elasticsearch-config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: elasticsearch-config
+        configMap:
+          name: elasticsearch-config
+          items:
+          - key: elasticsearch.yml
+            path: elasticsearch.yml
+  volumeClaimTemplates:
+  - metadata:
+      name: elasticsearch-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi
+---
+# Elasticsearch Service配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: elasticsearch
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+  - name: http
+    port: 9200
+    targetPort: 9200
+    protocol: TCP
+  - name: transport
+    port: 9300
+    targetPort: 9300
+    protocol: TCP
+  type: ClusterIP
+---
+# Elasticsearch ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch
+  namespace: logging-test
+---
+# Kibana配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: kibana
+data:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0.0.0.0"
+    server.port: 5601
+    elasticsearch.hosts: ["http://elasticsearch:9200"]
+    elasticsearch.username: "elastic"
+    elasticsearch.password: ""
+    logging:
+      root:
+        level: info
+    xpack.security.enabled: false
+    xpack.fleet.enabled: false
+    xpack.apm.enabled: false
+---
+# Kibana Deployment配置
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+        environment: test
+        component: logging
+    spec:
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana:8.10.2
+        env:
+        - name: ELASTICSEARCH_HOSTS
+          value: "http://elasticsearch:9200"
+        ports:
+        - containerPort: 5601
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: kibana-config
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+        livenessProbe:
+          httpGet:
+            path: /api/status
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/status
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: kibana-config
+        configMap:
+          name: kibana-config
+---
+# Kibana Service配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: kibana
+spec:
+  selector:
+    app: kibana
+  ports:
+  - name: http
+    port: 5601
+    targetPort: 5601
+    protocol: TCP
+  type: ClusterIP
+---
+# Curator配置 - 用于索引管理
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: curator-config
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: curator
+data:
+  curator.yml: |
+    client:
+      hosts:
+        - elasticsearch
+      port: 9200
+      use_ssl: False
+      http_auth:
+      timeout: 30
+      master_only: False
+    
+    logging:
+      loglevel: INFO
+      logformat: default
+      blacklist: ['elasticsearch', 'urllib3']
+  
+  action.yml: |
+    actions:
+      1:
+        action: delete_indices
+        description: "删除30天前的索引"
+        options:
+          ignore_empty_list: True
+          disable_action: False
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: logs-
+        - filtertype: age
+          source: creation_date
+          direction: older
+          unit: days
+          unit_count: 30
+        
+      2:
+        action: forcemerge
+        description: "强制合并索引段"
+        options:
+          max_num_segments: 1
+          delay: 120
+          timeout_override: 300
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: logs-
+        - filtertype: age
+          source: creation_date
+          direction: older
+          unit: days
+          unit_count: 7
+        
+      3:
+        action: close
+        description: "关闭14天前的索引"
+        options:
+          delete_aliases: False
+        filters:
+        - filtertype: pattern
+          kind: prefix
+          value: logs-
+        - filtertype: age
+          source: creation_date
+          direction: older
+          unit: days
+          unit_count: 14
+---
+# Curator CronJob配置
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: curator
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: curator
+spec:
+  schedule: "0 2 * * *"  # 每天凌晨2点运行
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: curator
+            image: bitnami/curator:5.8.4
+            command:
+            - curator
+            - --config
+            - /config/curator.yml
+            - /config/action.yml
+            volumeMounts:
+            - name: curator-config
+              mountPath: /config
+          restartPolicy: OnFailure
+          volumes:
+          - name: curator-config
+            configMap:
+              name: curator-config

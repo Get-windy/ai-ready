@@ -1,0 +1,151 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /party
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: erp-party-service
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/erp_party
+    username: party_user
+    password: ${DB_PASSWORD:SecurePassword123!}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+  redis:
+    host: localhost
+    port: 6379
+    password: ${REDIS_PASSWORD:}
+    database: 2
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        max-wait: -1ms
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: party_user
+    password: ${MQ_PASSWORD:SecureMQPass123!}
+    virtual-host: /erp_party
+    publisher-confirms: true
+    publisher-returns: true
+    template:
+      mandatory: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+      cache-null-values: false
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: cn.aiedge.erp.party.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+sa-token:
+  token-name: Authorization
+  timeout: 1800
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false
+  is-print: false
+  jwt-secret-key: erp-party-jwt-key-change-in-production
+
+logging:
+  level:
+    cn.aiedge.erp.party: DEBUG
+    org.springframework.web: INFO
+    org.mybatis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/erp-party.log
+    max-size: 50MB
+    max-history: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
+erp:
+  party:
+    api:
+      prefix: /api/v1/party
+      admin-prefix: /api/admin/party
+      mobile-prefix: /api/mobile/party
+    business:
+      default-currency: CNY
+      approval-threshold: 10000.00
+      auto-approve-enabled: true
+    integration:
+      finance:
+        base-url: http://localhost:8081/finance
+        timeout: 5000
+      purchase:
+        base-url: http://localhost:8081/purchase
+        timeout: 5000
+      sales:
+        base-url: http://localhost:8083/sales
+        timeout: 5000
+    security:
+      allowed-origins: http://localhost:3000,http://localhost:8080
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      max-age: 3600

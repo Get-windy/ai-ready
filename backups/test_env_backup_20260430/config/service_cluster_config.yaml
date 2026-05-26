@@ -1,0 +1,380 @@
+# Sprint 27+1 测试环境服务集群配置
+# 微服务集群部署配置 - 支持多服务并发测试和集成测试
+
+# 服务发现与注册中心配置
+service_registry:
+  type: "nacos"  # 使用Nacos作为服务注册与发现中心
+  host: "localhost"
+  port: 8848
+  namespace: "test"
+  group: "DEFAULT_GROUP"
+  username: "nacos"
+  password: "nacos"
+  health_check:
+    enabled: true
+    interval: 30  # 秒
+    timeout: 5    # 秒
+  
+  config_center:
+    enabled: true
+    data_ids:
+      - "ai-ready-test-application.yml"
+      - "ai-ready-test-database.yml"
+      - "ai-ready-test-redis.yml"
+    refresh_interval: 3000  # 毫秒
+
+# 微服务实例配置
+microservices:
+  # 用户管理服务
+  user-service:
+    enabled: true
+    service_name: "user-service"
+    version: "1.0.0"
+    instances:
+      - id: "user-service-1"
+        host: "localhost"
+        port: 8081
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+      - id: "user-service-2"
+        host: "localhost"
+        port: 8082
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+    
+    endpoints:
+      - path: "/api/users/**"
+        method: ["GET", "POST", "PUT", "DELETE"]
+        rate_limit: 1000  # 每分钟请求数
+      - path: "/api/auth/**"
+        method: ["POST"]
+        rate_limit: 500
+    
+    health_check:
+      path: "/actuator/health"
+      interval: 30
+      timeout: 5
+    
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout_duration: 5000
+      half_open_timeout: 10000
+  
+  # 订单管理服务
+  order-service:
+    enabled: true
+    service_name: "order-service"
+    version: "1.0.0"
+    instances:
+      - id: "order-service-1"
+        host: "localhost"
+        port: 8083
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+      - id: "order-service-2"
+        host: "localhost"
+        port: 8084
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+    
+    endpoints:
+      - path: "/api/orders/**"
+        method: ["GET", "POST", "PUT", "DELETE"]
+        rate_limit: 800
+      - path: "/api/payments/**"
+        method: ["POST", "GET"]
+        rate_limit: 600
+    
+    health_check:
+      path: "/actuator/health"
+      interval: 30
+      timeout: 5
+  
+  # 库存管理服务
+  inventory-service:
+    enabled: true
+    service_name: "inventory-service"
+    version: "1.0.0"
+    instances:
+      - id: "inventory-service-1"
+        host: "localhost"
+        port: 8085
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+    
+    endpoints:
+      - path: "/api/inventory/**"
+        method: ["GET", "POST", "PUT", "DELETE"]
+        rate_limit: 1200
+      - path: "/api/stock/**"
+        method: ["GET", "POST"]
+        rate_limit: 1000
+    
+    health_check:
+      path: "/actuator/health"
+      interval: 30
+      timeout: 5
+  
+  # 监控告警服务
+  monitoring-service:
+    enabled: true
+    service_name: "monitoring-service"
+    version: "1.0.0"
+    instances:
+      - id: "monitoring-service-1"
+        host: "localhost"
+        port: 8086
+        weight: 1
+        healthy: true
+        metadata:
+          zone: "test-zone"
+          version: "1.0.0"
+    
+    endpoints:
+      - path: "/api/monitoring/**"
+        method: ["GET", "POST"]
+        rate_limit: 1500
+      - path: "/api/alerts/**"
+        method: ["GET", "POST", "PUT"]
+        rate_limit: 800
+    
+    health_check:
+      path: "/actuator/health"
+      interval: 30
+      timeout: 5
+
+# 负载均衡配置
+load_balancer:
+  type: "round-robin"  # 轮询策略
+  strategies:
+    - name: "round-robin"
+      description: "轮询负载均衡"
+    - name: "random"
+      description: "随机负载均衡"
+    - name: "weighted"
+      description: "加权负载均衡"
+    - name: "least-connections"
+      description: "最少连接数负载均衡"
+  
+  sticky_sessions:
+    enabled: false
+    cookie_name: "JSESSIONID"
+    timeout: 1800  # 秒
+  
+  retry_policy:
+    enabled: true
+    max_retries: 3
+    retryable_status_codes: [502, 503, 504]
+    backoff_policy: "exponential"
+    initial_delay: 100  # 毫秒
+
+# 服务间调用配置
+service_invocation:
+  timeout: 5000  # 毫秒
+  connect_timeout: 3000
+  read_timeout: 5000
+  write_timeout: 5000
+  
+  retry:
+    enabled: true
+    max_attempts: 3
+    backoff_multiplier: 1.5
+    max_backoff: 10000
+  
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    timeout_duration: 10000
+    half_open_timeout: 30000
+  
+  fallback:
+    enabled: true
+    default_response:
+      status: "SERVICE_UNAVAILABLE"
+      message: "服务暂时不可用，请稍后重试"
+
+# 服务网格配置（可选）
+service_mesh:
+  enabled: false
+  type: "istio"  # 或 "linkerd"
+  version: "1.18.0"
+  features:
+    traffic_management: true
+    security: true
+    observability: true
+
+# 监控与指标配置
+monitoring:
+  metrics:
+    enabled: true
+    exporter: "prometheus"
+    port: 9090
+    scrape_interval: 15
+    
+    endpoints:
+      - path: "/actuator/prometheus"
+        service: "user-service"
+      - path: "/actuator/prometheus"
+        service: "order-service"
+      - path: "/actuator/prometheus"
+        service: "inventory-service"
+      - path: "/actuator/prometheus"
+        service: "monitoring-service"
+  
+  tracing:
+    enabled: true
+    type: "jaeger"
+    host: "localhost"
+    port: 14268
+    sampling_rate: 0.1
+    
+  logging:
+    enabled: true
+    level: "INFO"
+    format: "json"
+    output: "file"
+    file_path: "/logs/microservices.log"
+    rotation:
+      max_size: "100MB"
+      max_files: 10
+      max_age: "7d"
+
+# 安全配置
+security:
+  authentication:
+    enabled: true
+    type: "jwt"
+    issuer: "ai-ready-test"
+    secret_key: "test-jwt-secret-key-2026"
+    expiration: 3600  # 秒
+    
+  authorization:
+    enabled: true
+    rbac_enabled: true
+    roles:
+      - name: "admin"
+        permissions: ["*"]
+      - name: "user"
+        permissions: ["read", "write_own"]
+      - name: "guest"
+        permissions: ["read"]
+  
+  ssl:
+    enabled: false
+    key_store: "/path/to/keystore.jks"
+    key_store_password: "changeit"
+    trust_store: "/path/to/truststore.jks"
+    trust_store_password: "changeit"
+
+# 测试专用配置
+testing:
+  mock_services:
+    enabled: true
+    services:
+      - name: "payment-service"
+        mock_type: "wiremock"
+        port: 8087
+        mappings_dir: "/mocks/payment"
+      
+      - name: "notification-service"
+        mock_type: "wiremock"
+        port: 8088
+        mappings_dir: "/mocks/notification"
+  
+  performance_testing:
+    enabled: true
+    concurrent_users: 50
+    ramp_up_time: 60
+    duration: 600
+    think_time: 1
+    
+  chaos_testing:
+    enabled: false
+    scenarios:
+      - type: "latency"
+        service: "user-service"
+        latency_ms: 1000
+        probability: 0.1
+      - type: "error"
+        service: "order-service"
+        error_rate: 0.05
+        error_codes: [500, 503]
+
+# 部署配置
+deployment:
+  environment: "test"
+  namespace: "ai-ready-test"
+  
+  scaling:
+    auto_scaling: false
+    min_replicas: 1
+    max_replicas: 3
+    cpu_threshold: 80
+    memory_threshold: 80
+  
+  rolling_update:
+    enabled: true
+    max_surge: 1
+    max_unavailable: 0
+    min_ready_seconds: 30
+  
+  health_check:
+    liveness_probe:
+      path: "/actuator/health"
+      initial_delay: 30
+      period: 10
+      timeout: 5
+      success_threshold: 1
+      failure_threshold: 3
+    
+    readiness_probe:
+      path: "/actuator/health/ready"
+      initial_delay: 5
+      period: 5
+      timeout: 3
+      success_threshold: 1
+      failure_threshold: 3
+  
+  resource_limits:
+    cpu: "500m"
+    memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+
+# 环境变量配置
+environment_variables:
+  global:
+    SPRING_PROFILES_ACTIVE: "test"
+    LOGGING_LEVEL_ROOT: "INFO"
+    SPRING_CLOUD_CONFIG_ENABLED: "true"
+    ENABLE_SWAGGER: "true"
+    
+  service_specific:
+    user-service:
+      DB_POOL_SIZE: "10"
+      CACHE_TTL_SECONDS: "300"
+    
+    order-service:
+      DB_POOL_SIZE: "15"
+      PAYMENT_TIMEOUT_SECONDS: "30"
+    
+    inventory-service:
+      DB_POOL_SIZE: "20"
+      STOCK_ALERT_THRESHOLD: "10"

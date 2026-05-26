@@ -1,0 +1,20 @@
+# 日志审计模块配置
+log-audit:
+  enabled: true                    # 是否启用日志审计功能
+  async-enabled: true              # 是否启用异步日志记录
+  retention-days: 90               # 日志保留天数
+  max-export-size: 10000           # 最大导出记录数
+  log-sensitive-info: false        # 是否记录敏感信息
+  exclude-urls:                    # 不记录日志的URL列表
+    - "/api/health"
+    - "/api/monitor/**"
+    - "/actuator/**"
+  include-params: true             # 是否包含请求参数
+  include-response: false          # 是否包含响应结果（谨慎开启，可能包含敏感信息）
+  performance-threshold: 1000      # 性能警告阈值（毫秒）
+  batch-size: 100                  # 批量处理大小
+
+logging:
+  level:
+    cn.aiedge.base.log: INFO       # 日志审计模块日志级别
+    cn.aiedge.base.log.aspect: DEBUG  # 切面日志级别

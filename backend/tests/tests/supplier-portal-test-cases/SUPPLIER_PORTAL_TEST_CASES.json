@@ -1,0 +1,376 @@
+{
+  "module": "supplier-portal",
+  "description": "企智连供应商门户模块测试用例",
+  "version": "1.0.0",
+  "testSuites": [
+    {
+      "suiteId": "SUPP_REG_001",
+      "suiteName": "供应商注册与认证测试",
+      "description": "测试供应商注册与认证功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "SUPP_REG_001_001",
+          "title": "供应商注册流程测试",
+          "description": "验证供应商能够完成注册流程",
+          "steps": [
+            "1. 进入供应商注册页面",
+            "2. 填写企业信息（名称、联系人、电话）",
+            "3. 创建账号密码",
+            "4. 提交注册申请"
+          ],
+          "expectedResult": "注册成功，提交审核",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_REG_001_002",
+          "title": "资质认证上传测试",
+          "description": "验证资质认证文件能够成功上传",
+          "steps": [
+            "1. 进入资质认证页面",
+            "2. 上传营业执照",
+            "3. 上传法人身份证",
+            "4. 上传其他资质文件"
+          ],
+          "expectedResult": "所有文件上传成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_REG_001_003",
+          "title": "审核状态查询测试",
+          "description": "验证能够查询审核状态",
+          "steps": [
+            "1. 进入我的审核页面",
+            "2. 查询审核状态"
+          ],
+          "expectedResult": "正确显示审核状态（待审核/审核中/已通过/已拒绝）",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_REG_001_004",
+          "title": "账号激活测试",
+          "description": "验证审核通过后账号可激活",
+          "steps": [
+            "1. 审核通过后登录",
+            "2. 触发账号激活",
+            "3. 验证功能权限"
+          ],
+          "expectedResult": "账号激活成功，权限正常",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_REG_001_005",
+          "title": "重复企业名称注册测试",
+          "description": "验证重复企业名称无法注册",
+          "steps": [
+            "1. 使用已存在的企业名称",
+            "2. 尝试注册"
+          ],
+          "expectedResult": "系统提示企业已存在",
+          "priority": "medium",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "SUPP_PROD_002",
+      "suiteName": "商品管理功能测试",
+      "description": "测试供应商门户商品管理功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "SUPP_PROD_002_001",
+          "title": "商品发布测试",
+          "description": "验证供应商能够发布商品",
+          "steps": [
+            "1. 进入商品管理页面",
+            "2. 点击发布商品",
+            "3. 填写商品信息",
+            "4. 上传商品图片",
+            "5. 设置价格和库存",
+            "6. 提交发布"
+          ],
+          "expectedResult": "商品发布成功，状态为审核中",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_PROD_002_002",
+          "title": "商品编辑测试",
+          "description": "验证能够编辑已发布商品",
+          "steps": [
+            "1. 选择已发布的商品",
+            "2. 点击编辑按钮",
+            "3. 修改商品信息",
+            "4. 保存修改"
+          ],
+          "expectedResult": "商品信息更新成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_PROD_002_003",
+          "title": "商品上下架测试",
+          "description": "验证商品上下架功能",
+          "steps": [
+            "1. 选择商品",
+            "2. 点击上架/下架按钮",
+            "3. 确认操作"
+          ],
+          "expectedResult": "商品状态更新成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_PROD_002_004",
+          "title": "库存同步测试",
+          "description": "验证库存同步功能",
+          "steps": [
+            "1. 修改商品库存",
+            "2. 验证同步到销售端"
+          ],
+          "expectedResult": "库存同步成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_PROD_002_005",
+          "title": "价格管理测试",
+          "description": "验证价格编辑功能",
+          "steps": [
+            "1. 选择商品",
+            "2. 编辑价格",
+            "3. 保存价格"
+          ],
+          "expectedResult": "价格更新成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_PROD_002_006",
+          "title": "商品库存为负数测试",
+          "description": "验证库存不能为负数",
+          "steps": [
+            "1. 编辑商品库存",
+            "2. 输入负数库存"
+          ],
+          "expectedResult": "系统提示库存不能为负数",
+          "priority": "high",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "SUPP_ORDER_003",
+      "suiteName": "订单处理功能测试",
+      "description": "测试供应商门户订单处理功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "SUPP_ORDER_003_001",
+          "title": "采购订单接收测试",
+          "description": "验证能够接收采购订单",
+          "steps": [
+            "1. 登录供应商门户",
+            "2. 进入订单列表",
+            "3. 查看新订单"
+          ],
+          "expectedResult": "新订单显示在列表中",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_ORDER_003_002",
+          "title": "订单确认测试",
+          "description": "验证能够确认订单",
+          "steps": [
+            "1. 进入订单详情页面",
+            "2. 点击确认订单",
+            "3. 填写发货时间",
+            "4. 提交确认"
+          ],
+          "expectedResult": "订单状态更新为已确认",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_ORDER_003_003",
+          "title": "订单发货测试",
+          "description": "验证能够标记订单为已发货",
+          "steps": [
+            "1. 进入订单详情页面",
+            "2. 点击发货按钮",
+            "3. 填写物流信息",
+            "4. 提交发货"
+          ],
+          "expectedResult": "订单状态更新为已发货",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_ORDER_003_004",
+          "title": "物流信息更新测试",
+          "description": "验证能够更新物流信息",
+          "steps": [
+            "1. 进入订单详情页面",
+            "2. 点击修改物流",
+            "3. 更新物流信息",
+            "4. 保存"
+          ],
+          "expectedResult": "物流信息更新成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_ORDER_003_005",
+          "title": "订单状态跟踪测试",
+          "description": "验证能够跟踪订单状态",
+          "steps": [
+            "1. 进入订单详情页面",
+            "2. 查看订单历史记录"
+          ],
+          "expectedResult": "显示完整的订单状态流转 history",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "SUPP_SETTLE_004",
+      "suiteName": "结算查询功能测试",
+      "description": "测试供应商门户结算查询功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "SUPP_SETTLE_004_001",
+          "title": "对账单查询测试",
+          "description": "验证能够查询对账单",
+          "steps": [
+            "1. 进入结算管理页面",
+            "2. 选择账期",
+            "3. 查看对账单"
+          ],
+          "expectedResult": "正确显示对账单数据",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_SETTLE_004_002",
+          "title": "结算明细查看测试",
+          "description": "验证能够查看结算明细",
+          "steps": [
+            "1. 进入结算明细页面",
+            "2. 选择对账单",
+            "3. 查看明细"
+          ],
+          "expectedResult": "正确显示结算明细列表",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_SETTLE_004_003",
+          "title": "发票管理测试",
+          "description": "验证能够管理和查看发票",
+          "steps": [
+            "1. 进入发票管理页面",
+            "2. 上传发票",
+            "3. 查看已上传发票"
+          ],
+          "expectedResult": "发票管理功能正常",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "SUPP_SETTLE_004_004",
+          "title": "付款记录查询测试",
+          "description": "验证能够查看付款记录",
+          "steps": [
+            "1. 进入付款记录页面",
+            "2. 选择查询条件",
+            "3. 查看付款记录"
+          ],
+          "expectedResult": "正确显示付款记录",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "SUPP_AUTH_005",
+      "suiteName": "权限与安全测试",
+      "description": "测试供应商门户权限与安全",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "SUPP_AUTH_005_001",
+          "title": "角色权限控制测试",
+          "description": "验证不同角色的权限控制",
+          "steps": [
+            "1. 使用供应商角色登录",
+            "2. 尝试访问管理员功能",
+            "3. 试图访问其他供应商数据"
+          ],
+          "expectedResult": "只能访问本供应商数据，无管理员权限",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "SUPP_AUTH_005_002",
+          "title": "数据隔离验证测试",
+          "description": "验证供应商数据隔离",
+          "steps": [
+            "1. 使用供应商A账号登录",
+            "2. 尝试查看供应商B的数据"
+          ],
+          "expectedResult": "无法查看供应商B的数据",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "SUPP_AUTH_005_003",
+          "title": "敏感操作审计测试",
+          "description": "验证敏感操作有审计记录",
+          "steps": [
+            "1. 执行敏感操作（价格修改/库存调整）",
+            "2. 查询操作日志"
+          ],
+          "expectedResult": "操作记录在审计日志中",
+          "priority": "medium",
+          "type": "permission"
+        },
+        {
+          "id": "SUPP_AUTH_005_004",
+          "title": "会话超时测试",
+          "description": "验证会话超时后需要重新登录",
+          "steps": [
+            "1. 登录供应商门户",
+            "2. 等待会话超时",
+            "3. 尝试操作"
+          ],
+          "expectedResult": "跳转到登录页面",
+          "priority": "medium",
+          "type": "permission"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalTestCases": 23,
+    "functionalTests": 17,
+    "boundaryTests": 2,
+    "permissionTests": 4,
+    "totalSuites": 5,
+    "testDate": "2026-04-14"
+  },
+  "metadata": {
+    "projectId": "ai-ready",
+    "projectName": "AI-Ready企智连",
+    "moduleName": "供应商门户模块",
+    "version": "1.0",
+    "testEnvironment": "test"
+  }
+}

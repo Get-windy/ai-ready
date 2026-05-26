@@ -1,0 +1,152 @@
+# AlertManager配置 - AI模型质量监控
+
+global:
+  # 默认SMTP配置
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'ai-monitor@example.com'
+  smtp_auth_username: ''
+  smtp_auth_password: ''
+  
+  # Slack Webhook配置（可选）
+  # slack_api_url: 'https://hooks.slack.com/services/XXX/YYY/ZZZ'
+
+# 路由规则
+route:
+  group_by: ['alertname', 'model_name', 'severity']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'ai-model-team'
+  
+  # 子路由 - 根据标签路由到不同的接收者
+  routes:
+    # 紧急告警 - 直接通知值班人员
+    - match:
+        severity: emergency
+      receiver: 'on-call'
+      group_wait: 0s
+      repeat_interval: 5m
+      
+    # 严重告警 - 通知团队
+    - match:
+        severity: critical
+      receiver: 'ai-model-team'
+      group_wait: 10s
+      repeat_interval: 30m
+      
+    # 警告告警 - 通知相关开发人员
+    - match:
+        severity: warning
+      receiver: 'developers'
+      group_wait: 30s
+      repeat_interval: 2h
+      
+    # 信息告警 - 只记录，不通知
+    - match:
+        severity: info
+      receiver: 'log-only'
+      group_wait: 5m
+
+# 接收者定义
+receivers:
+  # AI模型团队 - 主要接收者
+  - name: 'ai-model-team'
+    email_configs:
+      - to: 'ai-team@example.com'
+        subject: '[AI监控告警] {{ .GroupLabels.model_name }} - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          **告警名称**: {{ .Labels.alertname }}
+          **模型名称**: {{ .Labels.model_name }}
+          **严重程度**: {{ .Labels.severity }}
+          **告警时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          **告警描述**: {{ .Annotations.description }}
+          **影响范围**: {{ .Annotations.impact }}
+          **建议操作**: {{ .Annotations.action }}
+          {{ end }}
+          
+          **当前告警数量**: {{ len .Alerts }}
+    
+    # Webhook通知（可选）
+    webhook_configs:
+      - url: 'http://webhook-receiver:8080/alerts'
+        send_resolved: true
+  
+  # 值班人员 - 紧急告警
+  - name: 'on-call'
+    email_configs:
+      - to: 'oncall@example.com'
+        subject: '[紧急告警] {{ .GroupLabels.alertname }} - {{ .GroupLabels.model_name }}'
+        body: |
+          {{ range .Alerts }}
+          **紧急告警**: {{ .Labels.alertname }}
+          **模型**: {{ .Labels.model_name }}
+          **时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          **描述**: {{ .Annotations.description }}
+          **操作**: {{ .Annotations.action }}
+          **需要立即处理！**
+          {{ end }}
+    
+    # 短信通知（需要配置短信网关）
+    # webhook_configs:
+    #   - url: 'http://sms-gateway/send'
+    #     send_resolved: true
+  
+  # 开发团队 - 警告告警
+  - name: 'developers'
+    email_configs:
+      - to: 'dev-team@example.com'
+        subject: '[警告告警] {{ .GroupLabels.model_name }} - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          **警告**: {{ .Labels.alertname }}
+          **模型**: {{ .Labels.model_name }}
+          **时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          **描述**: {{ .Annotations.description }}
+          **建议**: {{ .Annotations.action }}
+          {{ end }}
+    
+    # Slack通知（可选）
+    # slack_configs:
+    #   - channel: '#ai-model-alerts'
+    #     title: 'AI模型告警'
+    #     text: |
+    #       {{ range .Alerts }}
+    #       *告警*: {{ .Labels.alertname }}
+    #       *模型*: {{ .Labels.model_name }}
+    #       *严重程度*: {{ .Labels.severity }}
+    #       *描述*: {{ .Annotations.description }}
+    #       {{ end }}
+  
+  # 仅记录 - 信息告警
+  - name: 'log-only'
+    webhook_configs:
+      - url: 'http://log-aggregator:8080/logs'
+        send_resolved: true
+
+# 告警抑制规则
+inhibit_rules:
+  # 当有紧急告警时，抑制相同模型的所有警告告警
+  - source_match:
+      severity: 'emergency'
+    target_match:
+      severity: 'warning'
+    equal: ['model_name']
+  
+  # 当有严重告警时，抑制相同模型的相同类别的警告告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['model_name', 'category']
+  
+  # 当服务不可用时，抑制性能相关的告警
+  - source_match:
+      alertname: 'ServiceUnavailable'
+    target_match_re:
+      alertname: 'ModelLatency.*|HighCPUUsage|HighMemoryUsage'
+    equal: ['model_name']
+
+# 模板文件（可选）
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

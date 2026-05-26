@@ -1,0 +1,50 @@
+{
+  "project": "企智连",
+  "module": "工作流引擎模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-15",
+  "totalCases": 17,
+  "categories": [
+    {
+      "name": "流程定义",
+      "description": "流程定义功能测试",
+      "cases": [
+        {"id": "WF-DEF-001", "title": "流程模型创建测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-DEF-002", "title": "流程模型编辑测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-DEF-003", "title": "流程版本管理测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "WF-DEF-004", "title": "流程发布测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-DEF-005", "title": "流程停用测试", "priority": "P0", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "流程实例",
+      "description": "流程实例功能测试",
+      "cases": [
+        {"id": "WF-INST-001", "title": "流程启动测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-INST-002", "title": "任务分配测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-INST-003", "title": "流程同意流转测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-INST-004", "title": "流程拒绝流转测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-INST-005", "title": "流程转办测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "WF-INST-006", "title": "流程终止测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "审批节点",
+      "description": "审批节点功能测试",
+      "cases": [
+        {"id": "WF-APP-001", "title": "单人审批测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "WF-APP-002", "title": "会签审批测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "WF-APP-003", "title": "或签审批测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "边界场景",
+      "description": "边界场景功能测试",
+      "cases": [
+        {"id": "WF-EDGE-001", "title": "循环审批测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "WF-EDGE-002", "title": "超时处理测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "WF-EDGE-003", "title": "并发流程测试", "priority": "P1", "type": "性能测试", "automation": true}
+      ]
+    }
+  ]
+}

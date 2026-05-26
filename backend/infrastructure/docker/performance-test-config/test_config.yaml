@@ -1,0 +1,207 @@
+# Sprint 27+1 数据库性能测试配置
+
+# 测试数据库配置
+databases:
+  main:
+    name: "主数据库"
+    host: "sprint-postgres-main"
+    port: 5432
+    database: "sprint_gateway_db"
+    username: "sprint_gateway_user"
+    password: "sprint_gateway_pass_2026"
+    
+  inventory:
+    name: "库存数据库"
+    host: "sprint-postgres-inventory"
+    port: 5432
+    database: "sprint_inventory_db"
+    username: "sprint_inventory_user"
+    password: "sprint_inventory_pass_2026"
+    
+  finance:
+    name: "财务数据库"
+    host: "sprint-postgres-finance"
+    port: 5432
+    database: "sprint_finance_db"
+    username: "sprint_finance_user"
+    password: "sprint_finance_pass_2026"
+    
+  ai:
+    name: "AI数据库"
+    host: "sprint-postgres-ai"
+    port: 5432
+    database: "sprint_ai_db"
+    username: "sprint_ai_user"
+    password: "sprint_ai_pass_2026"
+
+# 性能测试配置
+performance_test:
+  # 基础查询测试
+  basic_queries:
+    iterations: 1000
+    concurrency: 10
+    queries:
+      - name: "简单查询"
+        sql: "SELECT 1"
+        expected_max_time_ms: 10
+        
+      - name: "表数量查询"
+        sql: "SELECT COUNT(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')"
+        expected_max_time_ms: 50
+        
+      - name: "用户查询"
+        sql: "SELECT usename, usesysid FROM pg_user"
+        expected_max_time_ms: 30
+  
+  # 索引性能测试
+  index_performance:
+    test_table: "performance_test_index"
+    test_records: 10000
+    test_queries:
+      - name: "无索引查询"
+        sql: "SELECT * FROM {table} WHERE value = {target_value}"
+        
+      - name: "有索引查询"
+        sql: "SELECT * FROM {table} WHERE value = {target_value}"
+        index_column: "value"
+    
+  # 连接池测试
+  connection_pool:
+    test_connections: 50
+    max_connections: 100
+    test_duration_seconds: 60
+    
+  # 事务性能测试
+  transaction_performance:
+    test_table: "performance_test_transaction"
+    transactions_per_test: 100
+    operations_per_transaction: 10
+    isolation_levels:
+      - "READ COMMITTED"
+      - "REPEATABLE READ"
+      - "SERIALIZABLE"
+
+# 压力测试配置
+stress_test:
+  # 并发用户测试
+  concurrent_users:
+    levels: [10, 25, 50, 100, 200]
+    ramp_up_time_seconds: 30
+    duration_seconds: 300
+    think_time_seconds: 1
+    
+  # 数据量测试
+  data_volume:
+    small: 10000
+    medium: 100000
+    large: 1000000
+    
+  # 混合负载测试
+  mixed_workload:
+    read_percentage: 70
+    write_percentage: 20
+    update_percentage: 10
+    batch_size: 100
+
+# 监控配置
+monitoring:
+  # Prometheus配置
+  prometheus:
+    enabled: true
+    scrape_interval: "15s"
+    metrics_path: "/metrics"
+    
+  # 健康检查
+  health_check:
+    enabled: true
+    interval_seconds: 30
+    endpoints:
+      - "/health"
+      - "/metrics"
+      - "/status"
+      
+  # 告警阈值
+  alert_thresholds:
+    cpu_usage_percent: 80
+    memory_usage_percent: 85
+    disk_usage_percent: 90
+    connection_usage_percent: 80
+    query_time_ms: 1000
+    error_rate_percent: 1
+
+# 报告配置
+reporting:
+  # 报告格式
+  formats:
+    - "markdown"
+    - "html"
+    - "json"
+    
+  # 报告内容
+  content:
+    summary: true
+    detailed_results: true
+    charts: true
+    recommendations: true
+    
+  # 输出目录
+  output_dir: "/app/results"
+  
+  # 邮件通知
+  email_notification:
+    enabled: false
+    recipients: []
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+
+# 调度配置
+scheduling:
+  # 定时测试
+  scheduled_tests:
+    - name: "每日性能测试"
+      cron: "0 2 * * *"  # 每天凌晨2点
+      test_type: "performance"
+      
+    - name: "每周压力测试"
+      cron: "0 4 * * 0"  # 每周日凌晨4点
+      test_type: "stress"
+      
+    - name: "每月全面测试"
+      cron: "0 6 1 * *"  # 每月1号早上6点
+      test_type: "full"
+  
+  # 保留策略
+  retention:
+    test_results_days: 30
+    performance_metrics_days: 90
+    logs_days: 7
+
+# 高级配置
+advanced:
+  # 调试模式
+  debug_mode: false
+  
+  # 性能采样
+  profiling:
+    enabled: true
+    sample_rate: 0.1
+    
+  # 数据验证
+  data_validation:
+    enabled: true
+    consistency_checks: true
+    integrity_checks: true
+    
+  # 安全配置
+  security:
+    encrypt_sensitive_data: true
+    audit_logging: true
+    access_control: true
+
+# 环境特定配置
+environment: "sprint-27-1"
+version: "1.0.0"
+created_at: "2026-04-27T00:00:00Z"
+updated_at: "2026-04-27T00:00:00Z"
+author: "devops-engineer"
+description: "Sprint 27+1 数据库性能测试配置"

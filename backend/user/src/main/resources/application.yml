@@ -1,0 +1,364 @@
+# ============================================================
+# AI-Ready 用户管理模块配置 (User Management Service)
+# Sprint 27+1 测试环境专用配置
+# 技术栈: Spring Boot 3.2.0, PostgreSQL, Redis
+# ============================================================
+
+server:
+  port: 8081
+  servlet:
+    context-path: /
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 10000
+    accept-count: 100
+    connection-timeout: 20000
+
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # 数据库配置 (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ai_ready_user}
+    username: ${DB_USERNAME:user_admin}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: user-service-pool
+      maximum-pool-size: 30
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
+
+  # JPA 配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
+
+  # Redis 配置 (用于会话缓存和限流)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DB:1}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: -1ms
+
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1小时
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "user:"
+
+  # 消息队列配置 (RabbitMQ)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        concurrency: 5
+        max-concurrency: 20
+        prefetch: 10
+        acknowledge-mode: auto
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000
+          multiplier: 2
+          max-interval: 10000
+
+  # Jackson 配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+      enabled: true
+
+  # 邮件配置 (用于用户通知)
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# 用户管理模块特定配置
+user:
+  management:
+    # 密码策略
+    password:
+      min-length: 8
+      max-length: 32
+      require-uppercase: true
+      require-lowercase: true
+      require-digit: true
+      require-special-char: true
+      expiry-days: 90
+      history-count: 5
+      max-failed-attempts: 5
+      lock-duration-minutes: 30
+
+    # 会话配置
+    session:
+      timeout-minutes: 30
+      max-concurrent-sessions: 3
+      remember-me-days: 7
+
+    # 用户注册配置
+    registration:
+      enabled: true
+      require-email-verification: true
+      require-admin-approval: false
+      default-role: USER
+
+    # 安全策略
+    security:
+      jwt:
+        secret: ${JWT_SECRET:ai-ready-user-jwt-secret-key-change-in-production}
+        expiration-hours: 24
+        refresh-expiration-hours: 168  # 7天
+      cors:
+        allowed-origins: "*"
+        allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allowed-headers: "*"
+        max-age: 3600
+      rate-limit:
+        login-attempts-per-minute: 5
+        api-requests-per-minute: 100
+
+    # 通知配置
+    notification:
+      welcome-email: true
+      password-change-email: true
+      role-change-email: true
+      account-lock-email: true
+
+# API 路由配置
+api:
+  prefix: /api/v1
+  admin-prefix: /api/admin
+  mobile-prefix: /api/mobile
+  public-paths: 
+    - /api/v1/auth/login
+    - /api/v1/auth/register
+    - /api/v1/auth/refresh
+    - /api/v1/auth/forgot-password
+    - /api/v1/auth/reset-password
+    - /api/v1/public/**
+    - /actuator/health
+    - /actuator/info
+    - /swagger-ui/**
+    - /v3/api-docs/**
+
+# 服务发现配置
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      management.context-path: /actuator
+      user.version: 1.0.0
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.aiedge.user: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/user-service.log
+    max-size: 100MB
+    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers,env
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      show-components: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      sla:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s,5s
+    enable:
+      jvm: true
+      process: true
+      system: true
+      tomcat: true
+      jdbc: true
+
+# Prometheus 监控配置 (用于 Sprint 27+1 测试环境)
+prometheus:
+  metrics:
+    export:
+      enabled: true
+      step: 10s
+  monitoring:
+    user:
+      enabled: true
+      metrics:
+        - name: user.total.count
+          description: "总用户数"
+        - name: user.active.count
+          description: "活跃用户数"
+        - name: user.locked.count
+          description: "锁定用户数"
+        - name: user.login.attempts
+          description: "登录尝试次数"
+        - name: user.login.success
+          description: "登录成功次数"
+        - name: user.login.failure
+          description: "登录失败次数"
+        - name: user.session.active
+          description: "活跃会话数"
+        - name: user.registration.count
+          description: "新用户注册数"
+
+# 链路追踪配置 (可选)
+spring.cloud:
+  sleuth:
+    enabled: ${SLEUTH_ENABLED:false}
+    sampler:
+      probability: 0.1
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://localhost:9411/}
+    enabled: ${ZIPKIN_ENABLED:false}
+
+# 文档配置 (SpringDoc OpenAPI)
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: true
+
+---
+# 测试环境特定配置 (application-test.yml)
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ai_ready_test}
+    username: ${DB_USERNAME:devuser}
+    password: ${DB_PASSWORD:Dev@2026#Local}
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema-final.sql
+logging:
+  level:
+    cn.aiedge.user: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# 生产环境特定配置 (application-prod.yml)
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 20
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+  redis:
+    lettuce:
+      pool:
+        max-active: 50
+        max-idle: 25
+logging:
+  level:
+    root: WARN
+    cn.aiedge.user: INFO
+    org.springframework.security: WARN

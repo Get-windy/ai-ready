@@ -1,0 +1,314 @@
+# RabbitMQ 3.12 集群配置 - 测试环境
+# Sprint 27+1 消息队列配置验证
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: ai-ready-test
+data:
+  rabbitmq.conf: |
+    # 集群配置
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+    cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
+    cluster_formation.k8s.address_type = hostname
+    cluster_formation.node_cleanup.interval = 60
+    cluster_formation.node_cleanup.only_log_warning = true
+    
+    # 内存和磁盘阈值
+    vm_memory_high_watermark.relative = 0.6
+    vm_memory_high_watermark_paging_ratio = 0.5
+    disk_free_limit.relative = 2.0
+    
+    # 日志配置
+    log.file.level = info
+    log.console = true
+    log.console.level = info
+    
+    # 管理插件
+    management.tcp.port = 15672
+    management.ssl.port = 15671
+    
+    # AMQP配置
+    listeners.tcp.default = 5672
+    listeners.ssl.default = 5671
+    
+    # 心跳和连接超时
+    heartbeat = 60
+    handshake_timeout = 10000
+    
+    # 队列配置
+    queue_master_locator = min-masters
+    
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-secret
+  namespace: ai-ready-test
+type: Opaque
+data:
+  username: YWRtaW4=  # base64 encoded 'admin'
+  password: cGFzc3dvcmQxMjM=  # base64 encoded 'password123'
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: ai-ready-test
+  labels:
+    app: rabbitmq
+    version: "3.12"
+spec:
+  serviceName: rabbitmq-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - rabbitmq
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.12-management-alpine
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: amqp-ssl
+              containerPort: 5671
+            - name: management
+              containerPort: 15672
+            - name: management-ssl
+              containerPort: 15671
+            - name: epmd
+              containerPort: 4369
+            - name: dist
+              containerPort: 25672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: username
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: password
+            - name: RABBITMQ_ERLANG_COOKIE
+              value: "ai-ready-test-cookie-2024"
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@$(HOSTNAME).rabbitmq-headless.ai-ready-test.svc.cluster.local"
+            - name: K8S_SERVICE_NAME
+              value: "rabbitmq-headless"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+            - name: config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - ping
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - ping
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: rabbitmq-config
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  namespace: ai-ready-test
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: amqp-ssl
+      port: 5671
+      targetPort: 5671
+    - name: epmd
+      port: 4369
+      targetPort: 4369
+    - name: dist
+      port: 25672
+      targetPort: 25672
+  clusterIP: None
+  publishNotReadyAddresses: true
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: ai-ready-test
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: amqp-ssl
+      port: 5671
+      targetPort: 5671
+    - name: management
+      port: 15672
+      targetPort: 15672
+    - name: management-ssl
+      port: 15671
+      targetPort: 15671
+  type: ClusterIP
+
+---
+# 死信队列交换机配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-dlx-config
+  namespace: ai-ready-test
+data:
+  definitions.json: |
+    {
+      "rabbit_version": "3.12.0",
+      "rabbitmq_version": "3.12.0",
+      "product_name": "RabbitMQ",
+      "product_version": "3.12.0",
+      "users": [
+        {
+          "name": "admin",
+          "password_hash": "",
+          "hashing_algorithm": "rabbit_password_hashing_sha256",
+          "tags": "administrator"
+        }
+      ],
+      "vhosts": [
+        {
+          "name": "/"
+        },
+        {
+          "name": "test-vhost"
+        }
+      ],
+      "permissions": [
+        {
+          "user": "admin",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        },
+        {
+          "user": "admin",
+          "vhost": "test-vhost",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        }
+      ],
+      "topic_permissions": [],
+      "parameters": [],
+      "global_parameters": [],
+      "policies": [],
+      "queues": [
+        {
+          "name": "test-queue",
+          "vhost": "test-vhost",
+          "durable": true,
+          "auto_delete": false,
+          "arguments": {
+            "x-dead-letter-exchange": "dlx.exchange",
+            "x-dead-letter-routing-key": "dlx.routing.key"
+          }
+        },
+        {
+          "name": "dlx-queue",
+          "vhost": "test-vhost",
+          "durable": true,
+          "auto_delete": false,
+          "arguments": {}
+        }
+      ],
+      "exchanges": [
+        {
+          "name": "test.exchange",
+          "vhost": "test-vhost",
+          "type": "direct",
+          "durable": true,
+          "auto_delete": false,
+          "internal": false,
+          "arguments": {}
+        },
+        {
+          "name": "dlx.exchange",
+          "vhost": "test-vhost",
+          "type": "direct",
+          "durable": true,
+          "auto_delete": false,
+          "internal": false,
+          "arguments": {}
+        }
+      ],
+      "bindings": [
+        {
+          "source": "test.exchange",

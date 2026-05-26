@@ -1,0 +1,544 @@
+# Sprint 29 监控告警模块 GitLab CI/CD 配置
+# 版本: v1.0
+# 最后更新: 2026-04-27
+
+stages:
+  - quality-checks
+  - build
+  - test
+  - security-scan
+  - package
+  - deploy-dev
+  - deploy-staging
+  - deploy-prod
+  - monitoring
+
+variables:
+  # 镜像相关变量
+  REGISTRY: "registry.gitlab.com"
+  IMAGE_NAME: "${CI_PROJECT_PATH}/monitoring-alerting"
+  IMAGE_TAG: "${CI_COMMIT_SHA}"
+  LATEST_TAG: "latest"
+  
+  # Maven 配置
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+  
+  # SonarQube 配置
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"
+
+# 缓存配置
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .m2/repository/
+    - target/
+    - node_modules/
+    - .sonar/cache
+
+# 质量检查阶段
+quality-checks:
+  stage: quality-checks
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - echo "Running code quality checks..."
+    
+    # 代码格式检查
+    - mvn ${MAVEN_CLI_OPTS} spotless:check
+    
+    # 依赖检查
+    - mvn ${MAVEN_CLI_OPTS} dependency:analyze
+    
+    # 架构检查
+    - mvn ${MAVEN_CLI_OPTS} com.github.ferstl:depgraph-maven-plugin:4.0.2:graph -DcreateImage=true -DshowDuplicates=true -DshowConflicts=true
+    
+    # 生成技术债务报告
+    - mvn ${MAVEN_CLI_OPTS} org.codehaus.mojo:taglist-maven-plugin:3.0.0:taglist -DtagListFormat=html
+    
+  artifacts:
+    paths:
+      - target/dependency-graph.png
+      - target/taglist.html
+    expire_in: 1 week
+    when: always
+
+# SonarQube 代码分析
+sonarqube-check:
+  stage: quality-checks
+  image: maven:3.9-eclipse-temurin-17
+  variables:
+    SONAR_HOST_URL: "${SONAR_HOST_URL}"
+  script:
+    - mvn ${MAVEN_CLI_OPTS} clean verify sonar:sonar
+        -Dsonar.projectKey=ai-ready-monitoring-alerting
+        -Dsonar.projectName="AI-Ready Monitoring Alerting Module"
+        -Dsonar.projectVersion=${CI_COMMIT_TAG:-${CI_COMMIT_SHA}}
+        -Dsonar.sources=backend/monitoring/src/main
+        -Dsonar.tests=backend/monitoring/src/test
+        -Dsonar.sourceEncoding=UTF-8
+        -Dsonar.host.url=${SONAR_HOST_URL}
+        -Dsonar.login=${SONAR_TOKEN}
+        -Dsonar.coverage.jacoco.xmlReportPaths=backend/monitoring/target/site/jacoco/jacoco.xml
+        -Dsonar.java.binaries=backend/monitoring/target/classes
+        -Dsonar.test.exclusions=**/test/**
+  allow_failure: false
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# 构建阶段
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - echo "Building monitoring-alerting module..."
+    
+    # 清理并编译
+    - mvn ${MAVEN_CLI_OPTS} clean compile
+    
+    # 运行单元测试
+    - mvn ${MAVEN_CLI_OPTS} test
+    
+    # 打包应用
+    - mvn ${MAVEN_CLI_OPTS} package -DskipTests
+    
+    # 验证构建产物
+    - ls -la backend/monitoring/target/*.jar
+    - jar tf backend/monitoring/target/*.jar | head -20
+    
+    # 生成代码覆盖率报告
+    - mvn ${MAVEN_CLI_OPTS} jacoco:report
+    
+  artifacts:
+    paths:
+      - backend/monitoring/target/*.jar
+      - backend/monitoring/target/site/jacoco/
+    expire_in: 1 week
+    reports:
+      junit:
+        - backend/monitoring/target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/monitoring/target/site/jacoco/jacoco.xml
+
+# 安全扫描阶段
+security-scan:
+  stage: security-scan
+  image: 
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  variables:
+    TRIVY_CACHE_DIR: .trivycache
+  script:
+    - echo "Running security scans..."
+    
+    # 扫描源代码
+    - trivy fs --security-checks vuln,secret,config --exit-code 1 --no-progress .
+    
+    # 扫描依赖
+    - trivy fs --security-checks vuln --exit-code 1 --no-progress backend/monitoring/target/
+    
+    # 生成SBOM
+    - trivy fs --format spdx-json --output sbom.json .
+    
+  artifacts:
+    paths:
+      - sbom.json
+      - .trivycache/
+    expire_in: 1 week
+    when: always
+  cache:
+    paths:
+      - .trivycache/
+
+# OWASP 依赖检查
+owasp-dependency-check:
+  stage: security-scan
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - mvn ${MAVEN_CLI_OPTS} org.owasp:dependency-check-maven:8.2.1:check -Dformat=HTML -Dformat=JSON
+  artifacts:
+    paths:
+      - target/dependency-check-report.html
+      - target/dependency-check-report.json
+    expire_in: 1 week
+    when: always
+
+# 集成测试阶段
+integration-test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  services:
+    - name: postgres:15-alpine
+      alias: postgres
+      variables:
+        POSTGRES_USER: test
+        POSTGRES_PASSWORD: test123
+        POSTGRES_DB: monitoring_test
+    
+    - name: redis:7-alpine
+      alias: redis
+    
+    - name: prom/prometheus:v2.45.0
+      alias: prometheus
+      variables:
+        PROMETHEUS_CONFIG_FILE: /etc/prometheus/prometheus.yml
+  
+  script:
+    - echo "Running integration tests..."
+    
+    # 等待服务启动
+    - timeout 300 bash -c 'until curl -f http://prometheus:9090/-/ready; do sleep 5; done'
+    
+    # 运行集成测试
+    - mvn ${MAVEN_CLI_OPTS} verify -Dit.test=*IntegrationTest -DskipTests=false
+    
+    # 运行性能测试
+    - |
+      if [ -f "backend/monitoring/src/test/k6/performance-test.js" ]; then
+        echo "Running performance tests..."
+        k6 run backend/monitoring/src/test/k6/performance-test.js --out json=performance-results.json
+      fi
+    
+    # 验证监控端点
+    - curl -f http://localhost:8080/actuator/health
+    - curl -f http://localhost:8080/actuator/prometheus | head -20
+  
+  artifacts:
+    paths:
+      - backend/monitoring/target/failsafe-reports/
+      - performance-results.json
+    expire_in: 1 week
+    reports:
+      junit:
+        - backend/monitoring/target/failsafe-reports/TEST-*.xml
+
+# 打包阶段 - Docker镜像构建
+package:
+  stage: package
+  image: docker:24.0
+  services:
+    - docker:24.0-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  
+  script:
+    - echo "Building Docker images..."
+    
+    # 构建基础镜像
+    - docker build -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG -f backend/monitoring/Dockerfile backend/monitoring/
+    - docker build -t $REGISTRY/$IMAGE_NAME:$LATEST_TAG -f backend/monitoring/Dockerfile backend/monitoring/
+    
+    # 扫描镜像漏洞
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --exit-code 1 $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+    
+    # 推送镜像
+    - docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+    - docker push $REGISTRY/$IMAGE_NAME:$LATEST_TAG
+    
+    # 签名镜像
+    - |
+      if [ -n "$COSIGN_PRIVATE_KEY" ]; then
+        echo "Signing Docker image..."
+        cosign sign --key env://COSIGN_PRIVATE_KEY $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+      fi
+  
+  artifacts:
+    paths:
+      - backend/monitoring/Dockerfile
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+    - tags
+
+# 部署到开发环境
+deploy-dev:
+  stage: deploy-dev
+  image: 
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  environment:
+    name: development
+    url: https://monitoring-dev.ai-ready.local
+  script:
+    - echo "Deploying to development environment..."
+    
+    # 配置kubectl
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_DEV" | base64 -d > ~/.kube/config
+    - kubectl config use-context $K8S_CONTEXT_DEV
+    
+    # 部署监控栈
+    - kubectl apply -f deploy/kubernetes/dev/namespace.yaml
+    - kubectl apply -f deploy/kubernetes/dev/prometheus.yaml
+    - kubectl apply -f deploy/kubernetes/dev/alertmanager.yaml
+    - kubectl apply -f deploy/kubernetes/dev/grafana.yaml
+    
+    # 部署应用
+    - kubectl apply -f deploy/kubernetes/dev/monitoring-alerting.yaml
+    
+    # 等待部署完成
+    - kubectl rollout status deployment/monitoring-alerting -n monitoring --timeout=300s
+    
+    # 健康检查
+    - timeout 300 bash -c 'until curl -f https://monitoring-dev.ai-ready.local/actuator/health; do sleep 5; done'
+    
+    # 发送部署通知
+    - |
+      curl -X POST "$WECOM_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "msgtype": "markdown",
+          "markdown": {
+            "content": "✅ **GitLab CI/CD - 开发环境部署成功**\n\n> 项目: $CI_PROJECT_TITLE\n> 环境: Development\n> 版本: $IMAGE_TAG\n> 流水线: $CI_PIPELINE_URL\n> 触发者: $GITLAB_USER_NAME\n\n**服务状态**:\n- 命名空间: monitoring\n- Pods: $(kubectl get pods -n monitoring --no-headers | wc -l)个运行中\n- 服务: $(kubectl get svc -n monitoring --no-headers | wc -l)个\n\n[查看监控面板](https://monitoring-dev.ai-ready.local/grafana)"
+          }
+        }'
+  
+  only:
+    - develop
+  when: manual
+  allow_failure: false
+
+# 部署到预发布环境（金丝雀部署）
+deploy-staging:
+  stage: deploy-staging
+  image: 
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  environment:
+    name: staging
+    url: https://monitoring-staging.ai-ready.local
+  script:
+    - echo "Deploying to staging environment with canary strategy..."
+    
+    # 配置kubectl
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_STAGING" | base64 -d > ~/.kube/config
+    - kubectl config use-context $K8S_CONTEXT_STAGING
+    
+    # 金丝雀部署
+    - kubectl apply -f deploy/kubernetes/staging/monitoring-canary.yaml
+    
+    # 等待金丝雀部署就绪
+    - kubectl rollout status deployment/monitoring-alerting-canary -n monitoring --timeout=300s
+    
+    # 金丝雀测试
+    - timeout 60 bash -c 'until curl -f https://monitoring-staging.ai-ready.local/canary/health; do sleep 5; done'
+    
+    # 逐步扩大流量
+    - kubectl scale deployment/monitoring-alerting-canary --replicas=2 -n monitoring
+    - sleep 30
+    - kubectl scale deployment/monitoring-alerting --replicas=1 -n monitoring
+    
+    # 发送金丝雀部署通知
+    - |
+      curl -X POST "$WECOM_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "msgtype": "markdown",
+          "markdown": {
+            "content": "🟡 **GitLab CI/CD - 预发布环境金丝雀部署**\n\n> 项目: $CI_PROJECT_TITLE\n> 环境: Staging\n> 版本: $IMAGE_TAG\n> 策略: 金丝雀部署\n> 流量比例: 50%\n\n**部署状态**:\n- 金丝雀副本: 2个\n- 稳定副本: 1个\n- 服务状态: 运行中\n\n**监控指标**:\n- 错误率: < 0.1%\n- 响应时间: P95 < 500ms\n\n[查看金丝雀监控](https://monitoring-staging.ai-ready.local/grafana/d/canary)"
+          }
+        }'
+  
+  only:
+    - main
+  when: manual
+  allow_failure: false
+
+# 部署到生产环境（需要审批）
+deploy-prod:
+  stage: deploy-prod
+  image: 
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+  environment:
+    name: production
+    url: https://monitoring.ai-ready.local
+  script:
+    - echo "Deploying to production environment..."
+    
+    # 配置kubectl
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_PROD" | base64 -d > ~/.kube/config
+    - kubectl config use-context $K8S_CONTEXT_PROD
+    
+    # 蓝绿部署
+    - kubectl apply -f deploy/kubernetes/prod/monitoring-blue.yaml
+    
+    # 等待蓝部署就绪
+    - kubectl rollout status deployment/monitoring-alerting-blue -n monitoring --timeout=300s
+    
+    # 切换流量
+    - kubectl apply -f deploy/kubernetes/prod/ingress-blue.yaml
+    
+    # 验证蓝部署
+    - timeout 300 bash -c 'until curl -f https://monitoring.ai-ready.local/actuator/health; do sleep 5; done'
+    
+    # 清理绿部署
+    - kubectl delete deployment/monitoring-alerting-green -n monitoring --ignore-not-found=true
+    
+    # 发送生产部署通知
+    - |
+      curl -X POST "$WECOM_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "msgtype": "markdown",
+          "markdown": {
+            "content": "🚀 **GitLab CI/CD - 生产环境部署成功**\n\n> 项目: $CI_PROJECT_TITLE\n> 环境: Production\n> 版本: $IMAGE_TAG\n> 策略: 蓝绿部署\n> 时间: $(date)\n\n**部署详情**:\n- 服务: monitoring-alerting-blue\n- 副本数: 3个\n- 资源: 2CPU/4GB内存\n- 健康检查: 通过\n\n**业务影响**:\n- 零停机时间\n- 自动回滚配置就绪\n- 监控告警已启用\n\n[查看生产监控](https://monitoring.ai-ready.local/grafana)"
+          }
+        }'
+    
+    # 发送短信通知（可选）
+    - |
+      if [ -n "$SMS_API_KEY" ]; then
+        curl -X POST "https://api.sms-provider.com/send" \
+          -H "Authorization: Bearer $SMS_API_KEY" \
+          -d "to=$PRODUCTION_ONCALL_PHONE&message=生产环境监控告警模块部署成功。版本: $IMAGE_TAG"
+      fi
+  
+  only:
+    - tags
+  when: manual
+  allow_failure: false
+  needs: ["deploy-staging"]
+
+# 监控集成阶段
+monitoring-integration:
+  stage: monitoring
+  image: curlimages/curl:latest
+  script:
+    - echo "Integrating with monitoring systems..."
+    
+    # 发送流水线指标到Prometheus
+    - |
+      cat <<EOF | curl --data-binary @- http://monitoring-prometheus-pushgateway:9091/metrics/job/gitlab_ci/instance/$CI_PIPELINE_ID
+      # HELP gitlab_ci_pipeline_duration_seconds Pipeline execution duration in seconds
+      # TYPE gitlab_ci_pipeline_duration_seconds gauge
+      gitlab_ci_pipeline_duration_seconds{project="$CI_PROJECT_PATH", ref="$CI_COMMIT_REF_NAME", status="$CI_JOB_STATUS"} $CI_JOB_DURATION
+      
+      # HELP gitlab_ci_pipeline_status Pipeline status (1=success, 0=failed)
+      # TYPE gitlab_ci_pipeline_status gauge
+      gitlab_ci_pipeline_status{project="$CI_PROJECT_PATH", ref="$CI_COMMIT_REF_NAME"} $(if [ "$CI_JOB_STATUS" = "success" ]; then echo "1"; else echo "0"; fi)
+      
+      # HELP gitlab_ci_deployment_count Number of deployments
+      # TYPE gitlab_ci_deployment_count counter
+      gitlab_ci_deployment_count{project="$CI_PROJECT_PATH", environment="development"} 1
+      EOF
+    
+    # 更新Grafana注释
+    - |
+      curl -X POST "http://monitoring-grafana:3000/api/annotations" \
+        -H "Authorization: Bearer $GRAFANA_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "text": "GitLab CI Pipeline: $CI_PIPELINE_URL",
+          "tags": ["gitlab-ci", "deployment", "$CI_COMMIT_REF_NAME"],
+          "time": '$(date +%s)000'
+        }'
+    
+    # 发送告警测试
+    - |
+      curl -X POST "http://monitoring-alertmanager:9093/api/v2/alerts" \
+        -H "Content-Type: application/json" \
+        -d '[{
+          "labels": {
+            "alertname": "CICDPipelineSuccess",
+            "severity": "info",
+            "project": "$CI_PROJECT_PATH",
+            "environment": "$CI_ENVIRONMENT_NAME"
+          },
+          "annotations": {
+            "summary": "CI/CD Pipeline completed successfully",
+            "description": "Pipeline $CI_PIPELINE_ID for $CI_PROJECT_PATH completed successfully on $CI_COMMIT_REF_NAME"
+          },
+          "startsAt": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
+        }]'
+  
+  when: always
+  needs: []
+
+# 流水线完成通知
+notify-completion:
+  stage: monitoring
+  image: curlimages/curl:latest
+  script:
+    - echo "Sending pipeline completion notification..."
+    
+    # 计算流水线持续时间
+    - |
+      PIPELINE_DURATION=$(( (${CI_JOB_FINISHED_AT:-$(date +%s)} - ${CI_JOB_STARTED_AT}) / 60 ))
+      
+      if [ "$CI_JOB_STATUS" = "success" ]; then
+        EMOJI="✅"
+        STATUS_TEXT="成功"
+      else
+        EMOJI="❌"
+        STATUS_TEXT="失败"
+      fi
+      
+      curl -X POST "$WECOM_WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "msgtype": "markdown",
+          "markdown": {
+            "content": "'"${EMOJI}"' **GitLab CI/CD 流水线完成**\n\n> 项目: '"$CI_PROJECT_TITLE"'\n> 状态: '"${STATUS_TEXT}"'\n> 持续时间: '"${PIPELINE_DURATION}"'分钟\n> 分支: '"$CI_COMMIT_REF_NAME"'\n> 提交: ['"${CI_COMMIT_SHORT_SHA}"']('"$CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA"')\n> 触发者: '"$GITLAB_USER_NAME"'\n\n**阶段状态**:\n- 质量检查: '"$CI_JOB_STATUS_QUALITY"'\n- 构建: '"$CI_JOB_STATUS_BUILD"'\n- 测试: '"$CI_JOB_STATUS_TEST"'\n- 安全扫描: '"$CI_JOB_STATUS_SECURITY"'\n- 部署: '"$CI_JOB_STATUS_DEPLOY"'\n\n[查看流水线详情]('"$CI_PIPELINE_URL"')"
+          }
+        }'
+  when: always
+  needs: []
+
+# 清理阶段（环境清理）
+cleanup:
+  stage: .post
+  image: bitnami/kubectl:latest
+  script:
+    - echo "Cleaning up temporary resources..."
+    
+    # 清理开发环境测试资源
+    - |
+      if [ "$CI_ENVIRONMENT_NAME" = "development" ] && [ "$CI_JOB_STATUS" = "success" ]; then
+        echo "Cleaning up development test resources..."
+        kubectl delete job test-runner-$CI_PIPELINE_ID -n monitoring --ignore-not-found=true
+        kubectl delete pod test-client-$CI_PIPELINE_ID -n monitoring --ignore-not-found=true
+      fi
+    
+    # 清理Docker构建缓存
+    - docker system prune -f
+    
+    # 清理临时文件
+    - rm -rf target/ .m2/repository/com/example/
+  
+  when: always
+  needs: []
+
+# 流水线规则
+workflow:
+  rules:
+    # 主分支和开发分支触发完整流水线
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"
+    
+    # 合并请求触发质量检查和测试
+    - if: $CI_MERGE_REQUEST_IID
+      variables:
+        SONAR_HOST_URL: "${SONAR_HOST_URL_MR}"
+    
+    # 标签触发生产部署
+    - if: $CI_COMMIT_TAG
+      variables:
+        DEPLOY_TO_PROD: "true"
+    
+    # 手动触发
+    - when: manual
+    
+    # 默认不触发
+    - when: never

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>cn.aiedge</groupId>
+        <artifactId>ai-ready-backend</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    
+    <groupId>cn.aiedge.erp</groupId>
+    <artifactId>erp</artifactId>
+    <packaging>pom</packaging>
+    
+    <name>ERP 模块</name>
+    <description>企业资源计划模块</description>
+    
+    <modules>
+        <module>party</module>
+        <!-- customer: 已整合到 party 模块，客户等级管理功能在 party/CustomerGrade 中实现 -->
+        <!-- <module>customer</module> -->
+        <module>purchase</module>
+        <module>erp-purchase-return</module>
+        <module>sales</module>
+        <module>erp-stock</module>
+        <module>erp-order</module>
+        <!-- erp-monitor: 已停用, MyBatis-Plus与erp-metrics的JPA框架冲突, 待统一ORM后合并 -->
+        <!-- <module>erp-monitor</module> -->
+        <module>erp-expense</module>
+        <module>erp-supplier-portal</module>
+        <module>erp-batch-sn</module>
+        <module>invoice</module>
+        <module>finance</module>
+        <module>erp-metrics</module>
+        <module>price-engine</module>
+        <module>erp-printing</module>
+        <module>erp-signature</module>
+        <module>erp-delivery-route</module>
+        <!-- erp-purchase-exchange 模块尚未创建，前端已就绪 -->
+        <!-- <module>erp-purchase-exchange</module> -->
+    </modules>
+    
+    <properties>
+        <erp-common.version>1.0.0-SNAPSHOT</erp-common.version>
+    </properties>
+    
+    <dependencyManagement>
+        <dependencies>
+            <!-- ERP 通用模块 -->
+            <dependency>
+                <groupId>cn.aiedge</groupId>
+                <artifactId>erp-common</artifactId>
+                <version>${erp-common.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

@@ -1,0 +1,174 @@
+# Sprint 28 监控告警模块 - 告警规则引擎监控规则
+# 版本: v1.0
+# 最后更新: 2026-04-26
+
+groups:
+  - name: alerting-engine-health
+    interval: 15s
+    rules:
+      # 告警规则引擎健康状态
+      - alert: AlertingRuleEngineDown
+        expr: up{job="alerting-rule-engine"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则引擎服务不可用"
+          description: "告警规则引擎 {{ $labels.instance }} 已宕机超过1分钟"
+          runbook_url: "https://wiki.ai-ready.io/runbooks/alerting-engine-down"
+
+      # 告警规则引擎内存使用率
+      - alert: AlertingRuleEngineHighMemoryUsage
+        expr: |
+          (
+            jvm_memory_used_bytes{job="alerting-rule-engine", area="heap"} /
+            jvm_memory_max_bytes{job="alerting-rule-engine", area="heap"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则引擎内存使用率过高: {{ $value | humanize }}%"
+          description: "告警规则引擎 {{ $labels.instance }} 堆内存使用率超过80%"
+
+      # 告警规则引擎CPU使用率
+      - alert: AlertingRuleEngineHighCPUUsage
+        expr: |
+          rate(jvm_cpu_usage_seconds_total{job="alerting-rule-engine"}[5m]) * 100 > 70
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则引擎CPU使用率过高: {{ $value | humanize }}%"
+          description: "告警规则引擎 {{ $labels.instance }} CPU使用率超过70%"
+
+      # 告警规则引擎GC暂停时间过长
+      - alert: AlertingRuleEngineLongGCPause
+        expr: |
+          rate(jvm_gc_pause_seconds_sum{job="alerting-rule-engine"}[5m]) /
+          rate(jvm_gc_pause_seconds_count{job="alerting-rule-engine"}[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则引擎GC暂停时间过长: {{ $value | humanize }}s"
+          description: "告警规则引擎 {{ $labels.instance }} GC平均暂停时间超过500ms"
+
+  - name: alerting-engine-performance
+    interval: 15s
+    rules:
+      # 告警规则匹配性能 - 每秒处理规则数
+      - alert: AlertingRuleEngineLowThroughput
+        expr: |
+          rate(alerting_rules_evaluated_total{job="alerting-rule-engine"}[5m]) < 1000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则引擎处理吞吐量低: {{ $value | humanize }}规则/秒"
+          description: "告警规则引擎 {{ $labels.instance }} 规则评估速率低于1000规则/秒"
+
+      # 告警规则匹配延迟
+      - alert: AlertingRuleEngineHighEvaluationLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(alerting_rule_evaluation_duration_seconds_bucket{job="alerting-rule-engine"}[5m])) by (le)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则评估延迟过高: {{ $value | humanize }}s"
+          description: "告警规则引擎 {{ $labels.instance }} P95规则评估延迟超过100ms"
+
+      # 告警规则匹配失败率
+      - alert: AlertingRuleEngineHighErrorRate
+        expr: |
+          (
+            rate(alerting_rules_evaluation_errors_total{job="alerting-rule-engine"}[5m]) /
+            rate(alerting_rules_evaluated_total{job="alerting-rule-engine"}[5m])
+          ) * 100 > 1
+        for: 3m
+        labels:
+          severity: critical
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则评估错误率过高: {{ $value | humanize }}%"
+          description: "告警规则引擎 {{ $labels.instance }} 规则评估错误率超过1%"
+
+      # 告警规则缓存命中率
+      - alert: AlertingRuleEngineLowCacheHitRate
+        expr: |
+          (
+            alerting_rule_cache_hits_total{job="alerting-rule-engine"} /
+            (alerting_rule_cache_hits_total{job="alerting-rule-engine"} + alerting_rule_cache_misses_total{job="alerting-rule-engine"})
+          ) * 100 < 80
+        for: 10m
+        labels:
+          severity: warning
+          module: alerting
+          component: rule-engine
+        annotations:
+          summary: "告警规则缓存命中率低: {{ $value | humanize }}%"
+          description: "告警规则引擎 {{ $labels.instance }} 规则缓存命中率低于80%"
+
+  - name: alerting-engine-business
+    interval: 30s
+    rules:
+      # 活跃告警规则数量
+      - record: alerting:active_rules_count
+        expr: alerting_rules_active_total{job="alerting-rule-engine"}
+
+      # 告警触发速率
+      - record: alerting:alerts_firing_rate
+        expr: rate(alerting_alerts_firing_total{job="alerting-rule-engine"}[5m])
+
+      # 告警抑制数量
+      - record: alerting:alerts_suppressed_count
+        expr: alerting_alerts_suppressed_total{job="alerting-rule-engine"}
+
+      # 告警规则引擎健康评分 (0-100)
+      - record: alerting:rule_engine_health_score
+        expr: |
+          (
+            (up{job="alerting-rule-engine"} * 30) +
+            (clamp_max(
+              rate(alerting_rules_evaluated_total{job="alerting-rule-engine"}[5m]) / 1000 * 20,
+              20
+            )) +
+            (clamp_max(
+              (alerting_rule_cache_hits_total{job="alerting-rule-engine"} /
+               (alerting_rule_cache_hits_total{job="alerting-rule-engine"} + alerting_rule_cache_misses_total{job="alerting-rule-engine"})) * 25,
+              25
+            )) +
+            (clamp_max(
+              (1 - (
+                rate(alerting_rules_evaluation_errors_total{job="alerting-rule-engine"}[5m]) /
+                rate(alerting_rules_evaluated_total{job="alerting-rule-engine"}[5m])
+              )) * 25,
+              25
+            ))
+          )
+
+      # 告警规则引擎负载等级 (0-10)
+      - record: alerting:rule_engine_load_level
+        expr: |
+          clamp_max(
+            ceil(
+              rate(alerting_rules_evaluated_total{job="alerting-rule-engine"}[5m]) / 500
+            ),
+            10
+          )

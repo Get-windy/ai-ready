@@ -1,0 +1,177 @@
+# Prometheus配置 - 监控告警模块
+# 文件名: prometheus.yml
+# 版本: v1.0.0
+# 创建日期: 2026-04-27
+
+global:
+  scrape_interval: 30s  # 默认抓取间隔
+  evaluation_interval: 30s  # 规则评估间隔
+  scrape_timeout: 25s  # 抓取超时时间
+  external_labels:
+    cluster: 'ai-ready-monitoring'
+    environment: 'development'
+
+# 告警规则文件
+rule_files:
+  - "rules/*.yml"
+
+# 抓取配置
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    honor_labels: true
+
+  # AlertManager监控
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager-monitoring:9093']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Grafana监控
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana-monitoring:3000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+
+  # 自定义导出器监控
+  - job_name: 'custom-exporter'
+    static_configs:
+      - targets: ['custom-exporter-monitoring:9101']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '(.*):.*'
+        replacement: '${1}'
+
+  # 监控API服务
+  - job_name: 'monitoring-api'
+    static_configs:
+      - targets: ['monitoring-api-service:8080']
+    scrape_interval: 30s
+    metrics_path: /actuator/prometheus
+    scheme: http
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '(.*):.*'
+        replacement: '${1}'
+
+  # 数据库监控 - PostgreSQL
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-monitoring:9187']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      collect[]:
+        - standard
+        - database
+        - bgwriter
+        - archiver
+        - tables
+
+  # 缓存监控 - Redis
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-monitoring:9121']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # 消息队列监控 - RabbitMQ
+  - job_name: 'rabbitmq-exporter'
+    static_configs:
+      - targets: ['rabbitmq-monitoring:9419']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      module: [rabbitmq]
+
+  # 节点监控
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service_type: 'infrastructure'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '(.*):.*'
+        replacement: '${1}'
+
+  # Nginx监控
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-monitoring:9113']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # 业务指标监控 - 通过文件服务发现
+  - job_name: 'business-metrics'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/file_sd/business_targets.yml'
+    scrape_interval: 60s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__meta_filepath]
+        target_label: source_file
+        regex: '.*/([^/]+)\.yml'
+        replacement: '${1}'
+
+  # AI模块监控
+  - job_name: 'ai-module'
+    static_configs:
+      - targets: ['ai-module-service:8080']
+        labels:
+          module: 'ai'
+          service_type: 'backend'
+    scrape_interval: 30s
+    metrics_path: /actuator/prometheus
+
+  # 移动端接口监控
+  - job_name: 'mobile-api'
+    static_configs:
+      - targets: ['mobile-api-service:8080']
+        labels:
+          module: 'mobile'
+          service_type: 'backend'
+    scrape_interval: 30s
+    metrics_path: /actuator/prometheus
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager-monitoring:9093
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+# 远程写入配置（可选，用于长期存储）
+remote_write:
+  - url: "http://victoriametrics:8428/api/v1/write"
+    queue_config:
+      max_samples_per_send: 1000
+      capacity: 5000
+      max_shards: 50
+    write_relabel_configs:
+      - source_labels: [job]
+        regex: "node-exporter"
+        action: keep
+
+# 远程读取配置（可选）
+remote_read:
+  - url: "http://victoriametrics:8428/api/v1/read"
+    read_recent: true

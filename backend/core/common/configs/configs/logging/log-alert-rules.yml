@@ -1,0 +1,96 @@
+# AI-Ready Log Alert Rules Configuration
+# Elasticsearch Watcher + Alertmanager Rules
+# Version: v1.0
+
+# ============ 错误率告警规则 ============
+alerts:
+  # 高错误率告警
+  - name: high_error_rate
+    display_name: "应用错误率过高"
+    description: "过去5分钟内错误日志数量超过阈值"
+    severity: critical
+    condition:
+      type: rate
+      query:
+        index: "ai-ready-logs-*"
+        body:
+          query:
+            bool:
+              must:
+                - range:
+                    "@timestamp":
+                      gte: "now-5m"
+                - terms:
+                    log_level: ["ERROR", "FATAL"]
+      threshold: 10
+      comparison: gt
+    for: 5m
+    labels:
+      severity: critical
+      team: ai-ready
+      service: api
+    annotations:
+      summary: "AI-Ready API 错误率过高"
+      description: "过去5分钟内检测到 {{ $value }} 条错误日志"
+      runbook_url: "https://wiki.ai-ready.com/runbooks/high-error-rate"
+
+  # 异常模式告警
+  - name: exception_spike
+    display_name: "异常数量激增"
+    description: "过去10分钟内异常数量相比前10分钟增长超过100%"
+    severity: warning
+    condition:
+      type: spike
+      query:
+        index: "ai-ready-logs-*"
+        body:
+          query:
+            bool:
+              must:
+                - range:
+                    "@timestamp":
+                      gte: "now-20m"
+                - match:
+                    message: "Exception"
+      threshold: 2.0
+      comparison: gt
+      time_window: 10m
+    for: 5m
+    labels:
+      severity: warning
+      team: ai-ready
+    annotations:
+      summary: "检测到异常数量激增"
+      description: "异常数量增长 {{ $value }} 倍"
+
+  # 慢查询告警
+  - name: slow_query
+    display_name: "数据库慢查询"
+    description: "检测到执行时间超过2秒的查询"
+    severity: warning
+    condition:
+      type: count
+      query:
+        index: "ai-ready-logs-*"
+        body:
+          query:
+            bool:
+              must:
+                - range:
+                    "@timestamp":
+                      gte: "now-5m"
+                - match:
+                    message: "Slow query"
+                - range:
+                    response.time:
+                      gte: 2000
+      threshold: 5
+      comparison: gt
+    for: 5m
+    labels:
+      severity: warning
+      team: ai-ready
+      component: database
+    annotations:
+      summary: "检测到慢查询"
+      description: "过去5分钟内有 {{ $

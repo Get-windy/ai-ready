@@ -1,0 +1,145 @@
+groups:
+  - name: ai_model_quality_alerts
+    interval: 30s
+    rules:
+      # 准确率告警
+      - alert: ModelAccuracyLow
+        expr: ai_model_accuracy < 0.85
+        for: 5m
+        labels:
+          severity: critical
+          category: model_quality
+        annotations:
+          summary: "模型准确率过低"
+          description: "模型 {{ $labels.model_name }} 准确率已降至 {{ $value | humanizePercentage }}"
+          impact: "模型预测性能下降，可能影响业务"
+          action: "检查训练数据质量，考虑重新训练模型"
+      
+      - alert: ModelAccuracyDeclining
+        expr: rate(ai_model_accuracy[10m]) < -0.01
+        for: 10m
+        labels:
+          severity: warning
+          category: model_quality
+        annotations:
+          summary: "模型准确率下降趋势"
+          description: "模型 {{ $labels.model_name }} 准确率呈现下降趋势"
+          action: "监控模型性能，准备重新训练"
+      
+      # 延迟告警
+      - alert: ModelLatencyHigh
+        expr: ai_model_p95_latency > 500
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "模型推理延迟过高"
+          description: "模型 {{ $labels.model_name }} P95延迟为 {{ $value }}ms"
+          threshold: "500ms"
+          action: "检查服务器资源，优化模型或增加计算资源"
+      
+      - alert: ModelLatencyCritical
+        expr: ai_model_p95_latency > 1000
+        for: 1m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "模型推理延迟严重过高"
+          description: "模型 {{ $labels.model_name }} P95延迟为 {{ $value }}ms"
+          action: "立即检查系统，可能需要重启服务"
+      
+      # 错误率告警
+      - alert: HighErrorRate
+        expr: rate(ai_model_errors[5m]) / rate(ai_model_requests[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "模型错误率过高"
+          description: "模型 {{ $labels.model_name }} 错误率为 {{ $value | humanizePercentage }}"
+          threshold: "5%"
+          action: "检查模型输入数据，排查错误原因"
+      
+      # 数据漂移告警
+      - alert: DataDriftDetected
+        expr: ai_data_drift_score > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          category: data_quality
+        annotations:
+          summary: "检测到数据分布漂移"
+          description: "模型 {{ $labels.model_name }} 数据漂移得分为 {{ $value }}"
+          action: "收集新数据，考虑重新训练模型"
+      
+      - alert: DataDriftSevere
+        expr: ai_data_drift_score > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          category: data_quality
+        annotations:
+          summary: "严重数据分布漂移"
+          description: "模型 {{ $labels.model_name }} 数据漂移得分为 {{ $value }}"
+          action: "立即暂停模型使用，重新训练"
+      
+      # 概念漂移告警
+      - alert: ConceptDriftDetected
+        expr: ai_concept_drift_score > 0.25
+        for: 10m
+        labels:
+          severity: warning
+          category: model_quality
+        annotations:
+          summary: "检测到概念漂移"
+          description: "模型 {{ $labels.model_name }} 概念漂移得分为 {{ $value }}"
+          action: "重新评估模型，更新训练策略"
+      
+      # 资源使用告警
+      - alert: HighCPUUsage
+        expr: ai_model_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "模型CPU使用率过高"
+          description: "模型 {{ $labels.model_name }} CPU使用率为 {{ $value | humanizePercentage }}"
+          action: "优化模型或增加计算资源"
+      
+      - alert: HighMemoryUsage
+        expr: ai_model_memory_usage > 0.85
+        for: 5m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "模型内存使用率过高"
+          description: "模型 {{ $labels.model_name }} 内存使用率为 {{ $value | humanizePercentage }}"
+          action: "优化内存使用或增加内存"
+      
+      - alert: ServiceUnavailable
+        expr: up{job="ai-model-metrics"} == 0
+        for: 1m
+        labels:
+          severity: emergency
+          category: availability
+        annotations:
+          summary: "AI模型服务不可用"
+          description: "模型 {{ $labels.model_name }} 服务已宕机"
+          action: "立即检查服务状态，重启服务"
+      
+      # 吞吐量告警
+      - alert: LowThroughput
+        expr: ai_model_throughput < 10
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "模型吞吐量过低"
+          description: "模型 {{ $labels.model_name }} 吞吐量为 {{ $value }} QPS"
+          action: "检查服务负载，优化并发处理"

@@ -1,0 +1,19 @@
+{
+  "testSuiteId": "FINANCE_TEST_001",
+  "testSuiteName": "企智连财务管理模块测试用例",
+  "version": "1.0",
+  "generatedDate": "2026-04-14T11:08:00+08:00",
+  "testCases": [
+    {"testCaseId": "FIN_001", "name": "账单创建测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "FIN_002", "name": "账单查询测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "FIN_003", "name": "账单支付测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "FIN_004", "name": "账单状态更新测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "FIN_005", "name": "财务报表生成测试", "type": "functional", "priority": "medium"},
+    {"testCaseId": "FIN_006", "name": "收入统计测试", "type": "functional", "priority": "medium"},
+    {"testCaseId": "FIN_007", "name": "支出统计测试", "type": "functional", "priority": "medium"},
+    {"testCaseId": "FIN_008", "name": "未授权访问测试", "type": "security", "priority": "high"},
+    {"testCaseId": "FIN_009", "name": "金额边界测试", "type": "boundary", "priority": "medium"},
+    {"testCaseId": "FIN_010", "name": "财务数据一致性测试", "type": "functional", "priority": "high"}
+  ],
+  "summary": {"totalTestCases": 10, "functionalTests": 8, "securityTests": 1, "boundaryTests": 1}
+}

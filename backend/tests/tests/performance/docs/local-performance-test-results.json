@@ -1,0 +1,23 @@
+{
+  "test_time": "2026-04-09 06:18:06",
+  "base_url": "http://localhost:8080",
+  "baseline": {
+    "api_response_time_avg_ms": 100,
+    "api_response_time_p95_ms": 200,
+    "db_query_time_avg_ms": 50,
+    "frontend_load_time_ms": 3000,
+    "throughput_min_req_s": 100,
+    "concurrent_users": 100,
+    "error_rate_max_percent": 1
+  },
+  "summary": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "warned": 0,
+    "score": 0
+  },
+  "api_tests": [],
+  "db_tests": [],
+  "frontend_tests": []
+}

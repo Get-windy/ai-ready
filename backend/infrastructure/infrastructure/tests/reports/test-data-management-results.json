@@ -1,0 +1,129 @@
+{
+  "summary": {
+    "passed": 16,
+    "failed": 0,
+    "warnings": 1,
+    "total": 17
+  },
+  "tests": [
+    {
+      "testName": "测试数据目录存在",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "测试数据目录存在，包含 14 个文件",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据生成脚本存在: generate_anomaly_test_data.py",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "脚本文件存在: I:\\AI-Ready\\AI_TEST_DATA\\generate_anomaly_test_data.py",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据生成脚本存在: generate_business_scenario_data.py",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "脚本文件存在: I:\\AI-Ready\\AI_TEST_DATA\\generate_business_scenario_data.py",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据生成脚本存在: generate_user_behavior_data.py",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "脚本文件存在: I:\\AI-Ready\\AI_TEST_DATA\\generate_user_behavior_data.py",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据文件存在: user_behavior_data.json",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "文件存在: I:\\AI-Ready\\AI_TEST_DATA\\user_behavior_data.json, 大小: 462479 字节",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据文件存在: user_behavior_data.csv",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "文件存在: I:\\AI-Ready\\AI_TEST_DATA\\user_behavior_data.csv, 大小: 105741 字节",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据文件存在: business_scenario_data.json",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "文件存在: I:\\AI-Ready\\AI_TEST_DATA\\business_scenario_data.json, 大小: 401780 字节",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据文件存在: business_scenario_data.csv",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "文件存在: I:\\AI-Ready\\AI_TEST_DATA\\business_scenario_data.csv, 大小: 103631 字节",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据文件存在: anomaly_test_data.json",
+      "category": "数据生成",
+      "status": "passed",
+      "details": "文件存在: I:\\AI-Ready\\AI_TEST_DATA\\anomaly_test_data.json, 大小: 136008 字节",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "备份目录创建",
+      "category": "备份机制",
+      "status": "passed",
+      "details": "成功创建备份目录: I:\\AI-Ready\\testdata-backups",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据备份功能",
+      "category": "备份机制",
+      "status": "passed",
+      "details": "成功备份 5 个文件到 I:\\AI-Ready\\testdata-backups\\20260426_030652",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "数据库隔离配置",
+      "category": "数据隔离",
+      "status": "passed",
+      "details": "发现多数据库隔离配置",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "Redis数据库隔离",
+      "category": "数据隔离",
+      "status": "passed",
+      "details": "发现多Redis实例隔离配置",
+      "timestamp": "2026-04-26 03:06:52"
+    },
+    {
+      "testName": "清理脚本存在",
+      "category": "清理策略",
+      "status": "passed",
+      "details": "在子目录中发现 1 个清理脚本",
+      "timestamp": "2026-04-26 03:06:54"
+    },
+    {
+      "testName": "日志清理配置",
+      "category": "清理策略",
+      "status": "warning",
+      "details": "未找到日志清理配置",
+      "timestamp": "2026-04-26 03:06:54"
+    },
+    {
+      "testName": "数据库初始化脚本",
+      "category": "恢复机制",
+      "status": "passed",
+      "details": "发现 1 个数据库初始化脚本",
+      "timestamp": "2026-04-26 03:06:54"
+    },
+    {
+      "testName": "备份有效性检查",
+      "category": "恢复机制",
+      "status": "passed",
+      "details": "发现最近24小时内创建的备份: business_scenario_data.json",
+      "timestamp": "2026-04-26 03:06:54"
+    }
+  ]
+}

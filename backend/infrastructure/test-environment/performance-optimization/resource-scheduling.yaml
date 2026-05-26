@@ -1,0 +1,305 @@
+# 测试环境性能优化 - 资源调度配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-env-resource-scheduling
+  namespace: ai-ready-test
+data:
+  # 资源分配策略
+  resource-allocation-policy.yaml: |
+    resource_allocation:
+      # 微服务资源配置模板
+      microservice_templates:
+        small:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        medium:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        large:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+
+      # 基础设施资源配置
+      infrastructure:
+        mysql:
+          requests:
+            cpu: "1000m"
+            memory: "2Gi"
+          limits:
+            cpu: "4000m"
+            memory: "8Gi"
+        redis:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+        rabbitmq:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+
+  # 调度策略配置
+  scheduling-policy.yaml: |
+    scheduling_policy:
+      # 节点亲和性策略
+      node_affinity:
+        required:
+          - key: "node-type"
+            operator: "In"
+            values: ["worker"]
+        preferred:
+          - weight: 100
+            preference:
+              key: "zone"
+              operator: "In"
+              values: ["zone-a"]
+
+      # Pod亲和性策略
+      pod_affinity:
+        required:
+          - topology_key: "kubernetes.io/hostname"
+            label_selector:
+              match_labels:
+                app: "database"
+        preferred:
+          - weight: 50
+            pod_affinity_term:
+              topology_key: "kubernetes.io/hostname"
+              label_selector:
+                match_labels:
+                  app: "cache"
+
+      # Pod反亲和性策略
+      pod_anti_affinity:
+        required:
+          - topology_key: "kubernetes.io/hostname"
+            label_selector:
+              match_labels:
+                app: "web"
+        preferred:
+          - weight: 100
+            pod_affinity_term:
+              topology_key: "kubernetes.io/hostname"
+              label_selector:
+                match_labels:
+                  app: "api-gateway"
+
+  # 自动伸缩策略
+  autoscaling-policy.yaml: |
+    autoscaling:
+      # 水平自动伸缩配置
+      horizontal:
+        min_replicas: 2
+        max_replicas: 10
+        metrics:
+          - type: "Resource"
+            resource:
+              name: "cpu"
+              target:
+                type: "Utilization"
+                average_utilization: 70
+          - type: "Resource"
+            resource:
+              name: "memory"
+              target:
+                type: "Utilization"
+                average_utilization: 80
+        behavior:
+          scale_down:
+            stabilization_window_seconds: 300
+            policies:
+              - type: "Pods"
+                value: 1
+                period_seconds: 60
+          scale_up:
+            stabilization_window_seconds: 60
+            policies:
+              - type: "Pods"
+                value: 2
+                period_seconds: 60
+
+      # 垂直自动伸缩配置
+      vertical:
+        update_mode: "Auto"
+        resource_policy:
+          container_policies:
+            - container_name: "*"
+              min_allowed:
+                cpu: "100m"
+                memory: "256Mi"
+              max_allowed:
+                cpu: "2000m"
+                memory: "4Gi"
+              controlled_resources: ["cpu", "memory"]
+
+  # 资源监控配置
+  monitoring-config.yaml: |
+    monitoring:
+      # 性能指标配置
+      metrics:
+        cpu:
+          collection_interval: "15s"
+          retention_period: "7d"
+          thresholds:
+            warning: 70
+            critical: 85
+        memory:
+          collection_interval: "30s"
+          retention_period: "7d"
+          thresholds:
+            warning: 75
+            critical: 90
+        disk:
+          collection_interval: "60s"
+          retention_period: "30d"
+          thresholds:
+            warning: 80
+            critical: 90
+
+      # 告警规则配置
+      alerts:
+        - alert: "HighCPUUsage"
+          expr: "rate(container_cpu_usage_seconds_total[5m]) * 100 > 85"
+          for: "5m"
+          labels:
+            severity: "critical"
+          annotations:
+            summary: "High CPU usage detected"
+            description: "CPU usage is above 85% for 5 minutes"
+
+        - alert: "HighMemoryUsage"
+          expr: "container_memory_working_set_bytes / container_spec_memory_limit_bytes * 100 > 90"
+          for: "5m"
+          labels:
+            severity: "critical"
+          annotations:
+            summary: "High memory usage detected"
+            description: "Memory usage is above 90% for 5 minutes"
+
+        - alert: "PodRestartFrequently"
+          expr: "rate(kube_pod_container_status_restarts_total[15m]) > 0.1"
+          for: "10m"
+          labels:
+            severity: "warning"
+          annotations:
+            summary: "Pod restarting frequently"
+            description: "Pod has restarted more than 0.1 times per minute in the last 15 minutes"
+---
+# 性能优化部署
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: performance-optimizer
+  namespace: ai-ready-test
+  labels:
+    app: performance-optimizer
+    component: optimization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: performance-optimizer
+  template:
+    metadata:
+      labels:
+        app: performance-optimizer
+    spec:
+      serviceAccountName: performance-optimizer
+      containers:
+        - name: optimizer
+          image: performance-optimizer:1.0.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: OPTIMIZATION_MODE
+              value: "test-environment"
+            - name: MONITORING_ENABLED
+              value: "true"
+            - name: AUTO_OPTIMIZATION
+              value: "true"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/performance-optimizer
+            - name: data
+              mountPath: /var/lib/performance-optimizer
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: test-env-resource-scheduling
+        - name: data
+          emptyDir: {}
+---
+# 性能优化服务账户
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: performance-optimizer
+  namespace: ai-ready-test
+---
+# 性能优化角色
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: performance-optimizer-role
+  namespace: ai-ready-test
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# 性能优化角色绑定
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: performance-optimizer-binding
+  namespace: ai-ready-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: performance-optimizer-role
+subjects:
+  - kind: ServiceAccount
+    name: performance-optimizer
+    namespace: ai-ready-test

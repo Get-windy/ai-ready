@@ -1,0 +1,61 @@
+# AI-Ready Nacos 预发布环境配置
+# Environment: staging
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres-staging:5432/stagingdb
+    username: staginguser
+    password: Staging@2026#Ready
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      
+  redis:
+    host: redis-staging
+    port: 6379
+    password: RedisStaging@2026
+    database: 0
+    timeout: 3000
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 4
+        max-wait: -1
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-share: true
+  is-concurrent: true
+  token-style: uuid
+  is-read-header: true
+  is-read-cookie: false
+  jwt-secret-key: ai-ready-staging-jwt-secret-2026
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.aiedge: INFO
+  file:
+    name: /app/logs/ai-ready-staging.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: staging

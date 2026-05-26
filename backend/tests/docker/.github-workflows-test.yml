@@ -1,0 +1,321 @@
+name: AI-Ready Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # 每晚2点执行回归测试
+    - cron: '0 18 * * *'
+
+env:
+  PYTHON_VERSION: '3.11'
+  TEST_ENV: 'test'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+
+  smoke-tests:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Start test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml up -d
+          sleep 30
+      
+      - name: Run smoke tests
+        run: |
+          cd tests/tests
+          pytest -m smoke -v --tb=short
+            --html=../../reports/smoke-report.html
+            --self-contained-html
+            --json-report
+            --json-report-file=../../reports/smoke-report.json
+      
+      - name: Upload smoke test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-report
+          path: reports/smoke-report.*
+
+  api-tests:
+    needs: smoke-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Start test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml up -d
+          sleep 30
+      
+      - name: Run API tests
+        run: |
+          cd tests/tests
+          pytest tests/api -v --tb=short -n auto
+            --html=../../reports/api-report.html
+            --self-contained-html
+            --json-report
+            --json-report-file=../../reports/api-report.json
+            --cov=src
+            --cov-report=xml:../../reports/coverage.xml
+      
+      - name: Upload API test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-report
+          path: |
+            reports/api-report.*
+            reports/coverage.xml
+
+  integration-tests:
+    needs: api-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Start test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml up -d
+          sleep 30
+      
+      - name: Run integration tests
+        run: |
+          cd tests/tests
+          pytest tests/integration -v --tb=short
+            --html=../../reports/integration-report.html
+            --self-contained-html
+            --json-report
+            --json-report-file=../../reports/integration-report.json
+      
+      - name: Upload integration test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-report
+          path: reports/integration-report.*
+
+  e2e-tests:
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Start test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml up -d
+          sleep 30
+      
+      - name: Run E2E tests
+        run: |
+          cd tests/tests
+          pytest tests/e2e -v --tb=short
+            --html=../../reports/e2e-report.html
+            --self-contained-html
+            --json-report
+            --json-report-file=../../reports/e2e-report.json
+        continue-on-error: true
+      
+      - name: Upload E2E test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-report
+          path: reports/e2e-report.*
+
+  performance-tests:
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r tests/docker/requirements-test.txt
+      
+      - name: Start test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml up -d
+          sleep 30
+      
+      - name: Run performance tests
+        run: |
+          cd tests/tests
+          pytest tests/performance -v --tb=short
+            --benchmark-only
+            --benchmark-json=../../reports/benchmark.json
+        continue-on-error: true
+      
+      - name: Upload performance test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-report
+          path: reports/benchmark.json
+
+  generate-report:
+    needs: [smoke-tests, api-tests, integration-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+      
+      - name: Generate combined report
+        run: |
+          cd tests/tests
+          python report_generator.py
+      
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-test-report
+          path: reports/
+
+  cleanup:
+    needs: generate-report
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cleanup test environment
+        run: |
+          cd tests/docker
+          docker-compose -f docker-compose.test-env.yml down -v
+
+  notify:
+    needs: [smoke-tests, api-tests, integration-tests]
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "测试执行失败",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*测试执行失败*\n项目: ${{ github.repository }}\n分支: ${{ github.ref }}\n提交: ${{ github.sha }}\n作者: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

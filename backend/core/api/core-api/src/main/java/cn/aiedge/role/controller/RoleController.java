@@ -1,0 +1,92 @@
+package cn.aiedge.role.controller;
+
+import cn.aiedge.base.service.RoleService;
+import cn.aiedge.common.dto.role.*;
+import cn.aiedge.common.result.ApiResponse;
+import cn.aiedge.common.result.PageResult;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 角色管理控制器
+ */
+@Tag(name = "角色管理", description = "角色增删改查接口")
+@RestController
+@RequestMapping("/api/role")
+@RequiredArgsConstructor
+public class RoleController {
+
+    private final RoleService roleService;
+
+    @Operation(summary = "分页查询角色")
+    @GetMapping("/page")
+    public ApiResponse<PageResult<RoleDetailVO>> pageList(RoleQueryRequest request) {
+        return ApiResponse.ok(roleService.pageList(request));
+    }
+
+    @Operation(summary = "获取所有角色列表")
+    @GetMapping("/list")
+    public ApiResponse<List<RoleDetailVO>> listAll() {
+        return ApiResponse.ok(roleService.listAll());
+    }
+
+    @Operation(summary = "获取角色详情")
+    @GetMapping("/{id}")
+    public ApiResponse<RoleDetailVO> getDetail(
+            @Parameter(description = "角色ID") @PathVariable Long id) {
+        return ApiResponse.ok(roleService.getDetail(id));
+    }
+
+    @Operation(summary = "创建角色")
+    @PostMapping
+    public ApiResponse<Long> create(@Valid @RequestBody RoleCreateRequest request) {
+        Long roleId = roleService.create(request);
+        return ApiResponse.ok(roleId, "创建成功");
+    }
+
+    @Operation(summary = "更新角色")
+    @PutMapping
+    public ApiResponse<Void> update(@Valid @RequestBody RoleUpdateRequest request) {
+        roleService.update(request);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "删除角色")
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(
+            @Parameter(description = "角色ID") @PathVariable Long id) {
+        roleService.delete(id);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "批量删除角色")
+    @DeleteMapping("/batch")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        roleService.batchDelete(ids);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "启用/禁用角色")
+    @PutMapping("/{id}/status")
+    public ApiResponse<Void> updateStatus(
+            @Parameter(description = "角色ID") @PathVariable Long id,
+            @Parameter(description = "状态") @RequestParam Integer status) {
+        roleService.updateStatus(id, status);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "分配权限")
+    @PostMapping("/{id}/permissions")
+    public ApiResponse<Void> assignPermissions(
+            @Parameter(description = "角色ID") @PathVariable Long id,
+            @RequestBody List<Long> permissionIds) {
+        roleService.assignPermissions(id, permissionIds);
+        return ApiResponse.ok();
+    }
+}

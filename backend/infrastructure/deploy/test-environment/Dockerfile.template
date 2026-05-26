@@ -1,0 +1,139 @@
+# AI-Ready 多阶段构建Dockerfile模板
+# 版本: v2.0.0
+# 创建日期: 2026-04-29
+# 用途: 为Spring Boot应用提供优化的多阶段构建
+# 特性: 阿里云镜像加速、非root用户运行、JVM优化、健康检查、安全扫描
+
+# ============ 构建阶段 ============
+# 阶段1: 基础构建环境
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+# 使用阿里云镜像加速
+ARG MIRROR_URL=https://maven.aliyun.com/repository/public
+ARG BUILD_PROFILE=test
+ARG SKIP_TESTS=false
+
+# 配置Maven镜像
+RUN mkdir -p /root/.m2 && \
+    echo "<settings><mirrors><mirror><id>aliyunmaven</id><mirrorOf>central</mirrorOf><name>阿里云公共仓库</name><url>${MIRROR_URL}</url></mirror></mirrors></settings>" > /root/.m2/settings.xml
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制项目文件
+COPY pom.xml .
+COPY src ./src
+
+# 下载依赖（利用缓存层）
+RUN mvn dependency:go-offline -B -DskipTests
+
+# 构建应用
+RUN mvn clean package \
+    -DskipTests=${SKIP_TESTS} \
+    -P${BUILD_PROFILE} \
+    -Dmaven.test.skip=${SKIP_TESTS} \
+    -Dmaven.javadoc.skip=true \
+    -Dmaven.source.skip=true \
+    -Dmaven.site.skip=true
+
+# ============ 运行时阶段 ============
+# 阶段2: 轻量级运行时环境
+FROM eclipse-temurin:17-jre-alpine AS runtime
+
+# 应用元数据
+LABEL maintainer="ai-ready-devops@example.com"
+LABEL version="2.0.0"
+LABEL description="AI-Ready 应用容器 (测试环境)"
+LABEL org.opencontainers.image.source="https://github.com/ai-ready/ai-ready"
+
+# 创建非root用户运行应用
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# 设置时区和语言环境
+RUN apk --no-cache add tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+# 安装必要的运行时工具
+RUN apk --no-cache add \
+    curl \
+    bash \
+    tini \
+    && rm -rf /var/cache/apk/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制JAR文件
+COPY --from=builder /app/target/*.jar app.jar
+
+# 复制必要的配置文件
+COPY --from=builder /app/src/main/resources/application-${BUILD_PROFILE}.yml ./config/
+COPY --from=builder /app/src/main/resources/logback-spring.xml ./config/
+
+# 创建日志目录并设置权限
+RUN mkdir -p /app/logs && \
+    chown -R appuser:appgroup /app
+
+# 切换到非root用户
+USER appuser
+
+# 健康检查端点
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# 使用tini作为init进程，正确处理信号
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# 启动应用
+CMD ["java", \
+    "-Xms256m", \
+    "-Xmx512m", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxGCPauseMillis=200", \
+    "-XX:+UseContainerSupport", \
+    "-XX:+HeapDumpOnOutOfMemoryError", \
+    "-XX:HeapDumpPath=/app/logs/heapdump.hprof", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-Dspring.profiles.active=${BUILD_PROFILE}", \
+    "-Dlogging.config=/app/config/logback-spring.xml", \
+    "-Dlogging.path=/app/logs", \
+    "-jar", \
+    "/app/app.jar"]
+
+# ============ 安全扫描阶段 ============
+# 阶段3: 安全扫描（可选，用于CI/CD流水线）
+FROM runtime AS security-scan
+
+# 安装安全扫描工具
+USER root
+RUN apk --no-cache add \
+    trivy \
+    && rm -rf /var/cache/apk/*
+
+# 创建扫描脚本
+COPY --from=builder /app/target/*.jar /tmp/app.jar
+RUN trivy image --exit-code 0 --no-progress runtime && \
+    trivy filesystem --exit-code 0 --no-progress /tmp/app.jar
+
+# 切换回应用用户
+USER appuser
+
+# ============ 构建参数说明 ============
+# 构建时可用参数:
+# --build-arg BUILD_PROFILE=test          # 构建配置文件
+# --build-arg MIRROR_URL=...              # Maven镜像地址
+# --build-arg SKIP_TESTS=true            # 是否跳过测试
+#
+# 使用示例:
+# docker build -t ai-ready/service:test \
+#   --build-arg BUILD_PROFILE=test \
+#   --build-arg MIRROR_URL=https://maven.aliyun.com/repository/public \
+#   --target runtime \
+#   -f Dockerfile .
+#
+# 多阶段构建目标:
+# 1. builder    - 构建应用
+# 2. runtime    - 运行时镜像（推荐）
+# 3. security-scan - 安全扫描镜像

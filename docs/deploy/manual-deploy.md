@@ -1,0 +1,1 @@
+I:/AI-Ready/docs/testing/deploy/MANUAL_DEPLOY.md

@@ -1,0 +1,88 @@
+# AI-Ready Kubernetes Autoscaler配置
+# Version: 1.0
+# Description: HPA + VPA + Cluster Autoscaler配置
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-ready-api-hpa
+  namespace: ai-ready
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      selectPolicy: Min
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ai-ready-api-vpa
+  namespace: ai-ready
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-ready-api
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: ai-ready-api
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+---
+# Cluster Autoscaler配置参考
+# 需要在集群级别安装Cluster Autoscaler
+# 以下是节点组配置示例
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-autoscaler-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    nodeGroups:
+    - name: ai-ready-worker-group
+      minSize: 2
+      maxSize: 10
+      cloudProvider: aws  # 根据实际云提供商调整
+    scaleDown:
+      enabled: true
+      delayAfterAdd: 10m
+      delayAfterDelete: 10s
+      unneededTime: 10m

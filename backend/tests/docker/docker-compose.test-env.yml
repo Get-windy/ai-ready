@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  # PostgreSQL测试数据库
+  postgresql-test:
+    image: postgres:15-alpine
+    container_name: ai-ready-postgresql-test
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: ai_ready_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgresql-test-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d ai_ready_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis测试缓存
+  redis-test:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-test
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-test-data:/data
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ测试消息队列
+  rabbitmq-test:
+    image: rabbitmq:3.12-management-alpine
+    container_name: ai-ready-rabbitmq-test
+    environment:
+      RABBITMQ_DEFAULT_USER: test_user
+      RABBITMQ_DEFAULT_PASS: test_password
+    ports:
+      - "5673:5672"  # AMQP
+      - "15673:15672"  # Management UI
+    volumes:
+      - rabbitmq-test-data:/var/lib/rabbitmq
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Elasticsearch测试搜索引擎
+  elasticsearch-test:
+    image: elasticsearch:8.12.2
+    container_name: ai-ready-elasticsearch-test
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9201:9200"
+    volumes:
+      - elasticsearch-test-data:/usr/share/elasticsearch/data
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # MinIO测试对象存储
+  minio-test:
+    image: minio/minio:latest
+    container_name: ai-ready-minio-test
+    environment:
+      MINIO_ROOT_USER: test_user
+      MINIO_ROOT_PASSWORD: test_password123
+    ports:
+      - "9001:9000"  # API
+      - "9002:9001"  # Console
+    volumes:
+      - minio-test-data:/data
+    networks:
+      - ai-ready-test-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Docker_in_Docker (用于测试需要Docker的场景)
+  docker-dind:
+    image: docker:29.3-dind
+    container_name: ai-ready-docker-dind
+    privileged: true
+    volumes:
+      - docker-dind-data:/var/lib/docker
+    networks:
+      - ai-ready-test-network
+    command: ["--tls=false"]
+    restart: unless-stopped
+
+  # Prometheus监控
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ai-ready-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus-data:/prometheus
+    networks:
+      - ai-ready-test-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Grafana可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-ready-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana-dashboard.json:/var/lib/grafana/dashboards/test-dashboard.json
+    networks:
+      - ai-ready-test-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  postgresql-test-data:
+  redis-test-data:
+  rabbitmq-test-data:
+  elasticsearch-test-data:
+  minio-test-data:
+  docker-dind-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  ai-ready-test-network:
+    driver: bridge

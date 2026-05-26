@@ -1,0 +1,494 @@
+# AI-Ready 监控告警模块 - 容器化部署配置
+# 版本: v1.0.0
+# 创建日期: 2026-04-29
+# 用途: 监控告警模块测试环境部署，包含健康检查、数据持久化、网络隔离
+
+version: '3.8'
+
+# ==================== 全局配置 ====================
+x-common-env: &common-env
+  TZ: Asia/Shanghai
+  SPRING_PROFILES_ACTIVE: test
+  MONITORING_ENVIRONMENT: test
+
+x-healthcheck-config: &healthcheck-config
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
+x-java-options: &java-options
+  JAVA_OPTS: >-
+    -Xms256m -Xmx512m
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/tmp/heapdump.hprof
+    -XX:+ExitOnOutOfMemoryError
+
+x-logging-config: &logging-config
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "50m"
+      max-file: "3"
+      tag: "{{.Name}}"
+
+# ==================== 网络配置 ====================
+networks:
+  # 监控告警专用网络 - 网络隔离
+  monitoring-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
+    name: ai-ready-monitoring-network
+    internal: false
+    attachable: true
+  
+  # 外部网络（用于连接其他服务）
+  ai-ready-external:
+    external: true
+    name: ai-ready-test-network
+
+# ==================== 数据卷配置 ====================
+volumes:
+  # PostgreSQL 监控数据库数据卷
+  monitoring-postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  
+  # Redis 监控缓存数据卷
+  monitoring-redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+  
+  # 监控指标数据卷
+  monitoring-metrics-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/metrics
+  
+  # 告警规则数据卷
+  monitoring-alerts-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/alerts
+  
+  # 日志数据卷
+  monitoring-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  
+  # Prometheus 数据卷
+  prometheus-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus
+  
+  # Grafana 数据卷
+  grafana-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana
+  
+  # Alertmanager 数据卷
+  alertmanager-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/alertmanager
+
+# ==================== 服务定义 ====================
+
+# ============ PostgreSQL 监控数据库 ============
+postgres-monitoring:
+  image: postgres:15-alpine
+  container_name: ai-ready-monitoring-postgres
+  restart: unless-stopped
+  environment:
+    POSTGRES_DB: monitoring_db
+    POSTGRES_USER: monitoring_user
+    POSTGRES_PASSWORD: monitoring_pass_2026
+    POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    PGDATA: /var/lib/postgresql/data/pgdata
+    POSTGRES_INITDB_WALDIR: /var/lib/postgresql/data/wal
+  ports:
+    - "5438:5432"
+  volumes:
+    - monitoring-postgres-data:/var/lib/postgresql/data
+    - ./init-scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  networks:
+    - monitoring-net
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD-SHELL", "pg_isready -U monitoring_user -d monitoring_db"]
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 256M
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# ============ Redis 监控缓存 ============
+redis-monitoring:
+  image: redis:7-alpine
+  container_name: ai-ready-monitoring-redis
+  restart: unless-stopped
+  command: >
+    redis-server
+    --appendonly yes
+    --appendfsync everysec
+    --maxmemory 256mb
+    --maxmemory-policy allkeys-lru
+    --requirepass redis_monitoring_pass_2026
+  ports:
+    - "6380:6379"
+  volumes:
+    - monitoring-redis-data:/data
+  networks:
+    - monitoring-net
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "redis-cli", "-a", "redis_monitoring_pass_2026", "ping"]
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.3'
+        memory: 256M
+      reservations:
+        cpus: '0.15'
+        memory: 128M
+
+# ============ 监控告警后端服务 ============
+monitoring-backend:
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      BUILD_VERSION: ${BUILD_VERSION:-1.0.0}
+      BUILD_DATE: ${BUILD_DATE:-2026-04-29}
+  image: ai-ready/monitoring-backend:${TAG:-test}
+  container_name: ai-ready-monitoring-backend
+  restart: unless-stopped
+  ports:
+    - "8081:8081"
+    - "9091:9091"  # 管理端口
+  environment:
+    <<: *common-env
+    JAVA_OPTS: >-
+      -Xms256m -Xmx512m
+      -XX:+UseG1GC
+      -XX:MaxGCPauseMillis=200
+      -XX:+HeapDumpOnOutOfMemoryError
+      -XX:HeapDumpPath=/tmp/heapdump.hprof
+      -XX:+ExitOnOutOfMemoryError
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-monitoring:5432/monitoring_db
+    SPRING_DATASOURCE_USERNAME: monitoring_user
+    SPRING_DATASOURCE_PASSWORD: monitoring_pass_2026
+    SPRING_REDIS_HOST: redis-monitoring
+    SPRING_REDIS_PORT: 6379
+    SPRING_REDIS_PASSWORD: redis_monitoring_pass_2026
+    SPRING_REDIS_DATABASE: 0
+    SPRING_RABBITMQ_HOST: rabbitmq-monitoring
+    SPRING_RABBITMQ_PORT: 5672
+    SPRING_RABBITMQ_USERNAME: guest
+    SPRING_RABBITMQ_PASSWORD: guest
+    MANAGEMENT_SERVER_PORT: 9091
+    MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+    LOGGING_LEVEL_COM_QIZHILIAN_MONITORING: DEBUG
+    LOGGING_FILE_NAME: /app/logs/monitoring-backend.log
+  volumes:
+    - monitoring-logs:/app/logs
+    - monitoring-metrics-data:/app/data/metrics
+    - monitoring-alerts-data:/app/data/alerts
+    - ./config/application-test.yml:/app/config/application-test.yml:ro
+  networks:
+    - monitoring-net
+  depends_on:
+    postgres-monitoring:
+      condition: service_healthy
+    redis-monitoring:
+      condition: service_healthy
+    rabbitmq-monitoring:
+      condition: service_healthy
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "curl", "-f", "http://localhost:8081/api/monitoring/actuator/health"]
+    start_period: 90s
+  deploy:
+    resources:
+      limits:
+        cpus: '1'
+        memory: 1G
+      reservations:
+        cpus: '0.5'
+        memory: 512M
+  <<: *logging-config
+
+# ============ RabbitMQ 消息队列 ============
+rabbitmq-monitoring:
+  image: rabbitmq:3.12-management-alpine
+  container_name: ai-ready-monitoring-rabbitmq
+  restart: unless-stopped
+  environment:
+    RABBITMQ_DEFAULT_USER: guest
+    RABBITMQ_DEFAULT_PASS: guest
+    RABBITMQ_DEFAULT_VHOST: /
+    RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit log_levels [{connection,error},{channel,error}]"
+  ports:
+    - "5673:5672"   # AMQP端口
+    - "15673:15672" # 管理界面端口
+  volumes:
+    - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    - ./config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+  networks:
+    - monitoring-net
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.3'
+        memory: 256M
+      reservations:
+        cpus: '0.15'
+        memory: 128M
+
+# ============ Prometheus 监控 ============
+prometheus:
+  image: prom/prometheus:v2.47
+  container_name: ai-ready-monitoring-prometheus
+  restart: unless-stopped
+  command:
+    - '--config.file=/etc/prometheus/prometheus.yml'
+    - '--storage.tsdb.path=/prometheus'
+    - '--web.console.libraries=/etc/prometheus/console_libraries'
+    - '--web.console.templates=/etc/prometheus/consoles'
+    - '--storage.tsdb.retention.time=30d'
+    - '--web.enable-lifecycle'
+  ports:
+    - "9092:9090"
+  volumes:
+    - prometheus-data:/prometheus
+    - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ./config/prometheus/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro
+    - ./config/prometheus/recording-rules.yml:/etc/prometheus/recording-rules.yml:ro
+  networks:
+    - monitoring-net
+    - ai-ready-external
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 256M
+  <<: *logging-config
+
+# ============ Alertmanager 告警管理 ============
+alertmanager:
+  image: prom/alertmanager:v0.26
+  container_name: ai-ready-monitoring-alertmanager
+  restart: unless-stopped
+  command:
+    - '--config.file=/etc/alertmanager/alertmanager.yml'
+    - '--storage.path=/alertmanager'
+    - '--web.external-url=http://localhost:9093'
+  ports:
+    - "9093:9093"
+  volumes:
+    - alertmanager-data:/alertmanager
+    - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    - ./config/alertmanager/templates:/etc/alertmanager/templates:ro
+  networks:
+    - monitoring-net
+  depends_on:
+    - prometheus
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.3'
+        memory: 256M
+      reservations:
+        cpus: '0.15'
+        memory: 128M
+  <<: *logging-config
+
+# ============ Grafana 监控展示 ============
+grafana:
+  image: grafana/grafana:10.2
+  container_name: ai-ready-monitoring-grafana
+  restart: unless-stopped
+  environment:
+    GF_SECURITY_ADMIN_USER: admin
+    GF_SECURITY_ADMIN_PASSWORD: grafana_admin_2026
+    GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+    GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    GF_ANALYTICS_REPORTING_ENABLED: "false"
+    GF_SECURITY_DISABLE_GRAVATAR: "true"
+    GF_SECURITY_COOKIE_SECURE: "true"
+  ports:
+    - "3001:3000"
+  volumes:
+    - grafana-data:/var/lib/grafana
+    - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    - ./config/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    - ./config/grafana/dashboard-definitions:/var/lib/grafana/dashboards:ro
+  networks:
+    - monitoring-net
+  depends_on:
+    - prometheus
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+    start_period: 60s
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 256M
+  <<: *logging-config
+
+# ============ Node Exporter 节点监控 ============
+node-exporter:
+  image: prom/node-exporter:v1.6
+  container_name: ai-ready-monitoring-node-exporter
+  restart: unless-stopped
+  command:
+    - '--path.procfs=/host/proc'
+    - '--path.sysfs=/host/sys'
+    - '--path.rootfs=/rootfs'
+    - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+    - '--collector.netdev.device-exclude=^(lo|docker[0-9]|veth.*)$$'
+  ports:
+    - "9100:9100"
+  volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+  networks:
+    - monitoring-net
+    - ai-ready-external
+  healthcheck:
+    <<: *healthcheck-config
+    test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+  deploy:
+    resources:
+      limits:
+        cpus: '0.1'
+        memory: 128M
+      reservations:
+        cpus: '0.05'
+        memory: 64M
+  <<: *logging-config
+
+# ============ 数据库初始化脚本 ============
+db-init:
+  image: postgres:15-alpine
+  container_name: ai-ready-monitoring-db-init
+  restart: "no"
+  environment:
+    PGPASSWORD: monitoring_pass_2026
+  depends_on:
+    postgres-monitoring:
+      condition: service_healthy
+  networks:
+    - monitoring-net
+  volumes:
+    - ./init-scripts/db-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  command: >
+    bash -c "
+      echo '等待数据库就绪...';
+      sleep 10;
+      echo '执行数据库初始化...';
+      psql -h postgres-monitoring -U monitoring_user -d monitoring_db -f /docker-entrypoint-initdb.d/init.sql;
+      echo '数据库初始化完成';
+    "
+  deploy:
+    resources:
+      limits:
+        cpus: '0.1'
+        memory: 128M
+
+# ============ 健康检查服务 ============
+health-checker:
+  image: curlimages/curl:8.4
+  container_name: ai-ready-monitoring-health-checker
+  restart: "no"
+  depends_on:
+    monitoring-backend:
+      condition: service_healthy
+    prometheus:
+      condition: service_healthy
+    alertmanager:
+      condition: service_healthy
+    grafana:
+      condition: service_healthy
+  networks:
+    - monitoring-net
+  command: >
+    bash -c "
+      echo '=== 监控告警模块健康检查 ===';
+      echo '1. 检查监控后端服务...';
+      curl -f http://monitoring-backend:8081/api/monitoring/actuator/health;
+      echo '';
+      echo '2. 检查Prometheus...';
+      curl -f http://prometheus:9090/-/healthy;
+      echo '';
+      echo '3. 检查Alertmanager...';
+      curl -f http://alertmanager:9093/-/healthy;
+      echo '';
+      echo '4. 检查Grafana...';
+      curl -f http://grafana:3000/api/health;
+      echo '';
+      echo '=== 所有服务健康检查完成 ===';
+    "
+  deploy:
+    resources:
+      limits:
+        cpus: '0.05'
+        memory: 64M

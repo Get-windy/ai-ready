@@ -1,0 +1,64 @@
+# 批次/序列号管理模块配置
+server:
+  port: 8088
+
+spring:
+  application:
+    name: erp-batch-sn
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ai_ready?currentSchema=erp_batch_sn
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:mapper/**/*.xml
+
+# 批次/序列号模块自定义配置
+batchsn:
+  # 批次号生成规则
+  batch:
+    prefix: "B"
+    date-format: "yyyyMMdd"
+    seq-length: 4
+  # 序列号生成规则
+  serial:
+    prefix: "SN"
+    date-format: "yyyyMMdd"
+    seq-length: 6
+  # 临期预警天数
+  expiry:
+    warning-days: 30
+  # 质保预警天数
+  warranty:
+    warning-days: 30
+  # 自动过期检查（cron表达式）
+  auto-expire:
+    enabled: true
+    cron: "0 0 2 * * ?"

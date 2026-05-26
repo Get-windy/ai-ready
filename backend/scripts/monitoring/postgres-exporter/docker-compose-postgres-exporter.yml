@@ -1,0 +1,189 @@
+# PostgreSQL Exporter Docker Compose 配置
+# 版本: 1.0
+# 创建日期: 2026-04-28
+# 用途: 部署PostgreSQL监控Exporter
+
+version: '3.8'
+
+services:
+  # 主数据库Exporter
+  postgres-exporter-main:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-main
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      # 主数据库连接配置
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_MAIN_USER:-postgres}:${POSTGRES_MAIN_PASSWORD:-password}@${POSTGRES_MAIN_HOST:-postgres-main}:${POSTGRES_MAIN_PORT:-5432}/${POSTGRES_MAIN_DB:-ai_ready}?sslmode=disable
+      
+      # Exporter配置
+      - PG_EXPORTER_EXTEND_QUERY_PATH=/etc/postgres-exporter/queries.yaml
+      - PG_EXPORTER_DISABLE_DEFAULT_METRICS=false
+      - PG_EXPORTER_DISABLE_SETTINGS_METRICS=false
+      
+      # 连接池配置
+      - PG_EXPORTER_CONNECTION_TIMEOUT=5
+      - PG_EXPORTER_MAX_CONNS=10
+      - PG_EXPORTER_MIN_CONNS=2
+      
+      # 日志配置
+      - PG_EXPORTER_LOG_LEVEL=info
+      - PG_EXPORTER_LOG_FORMAT=logfmt
+      
+    volumes:
+      # 自定义查询配置
+      - ./config/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+      
+      # SSL证书（如果需要）
+      # - ./ssl:/etc/ssl/postgres:ro
+      
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      
+    networks:
+      - ai-ready-network
+      
+    labels:
+      - "com.ai-ready.monitoring=true"
+      - "com.ai-ready.service=postgres-exporter"
+      - "com.ai-ready.environment=test"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9187"
+      - "prometheus.io/path=/metrics"
+
+  # 库存数据库Exporter
+  postgres-exporter-inventory:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-inventory
+    restart: unless-stopped
+    ports:
+      - "9188:9187"
+    environment:
+      # 库存数据库连接配置
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_INV_USER:-postgres}:${POSTGRES_INV_PASSWORD:-password}@${POSTGRES_INV_HOST:-postgres-inventory}:${POSTGRES_INV_PORT:-5432}/${POSTGRES_INV_DB:-inventory}?sslmode=disable
+      
+      # Exporter配置
+      - PG_EXPORTER_EXTEND_QUERY_PATH=/etc/postgres-exporter/queries.yaml
+      - PG_EXPORTER_DISABLE_DEFAULT_METRICS=false
+      - PG_EXPORTER_DISABLE_SETTINGS_METRICS=false
+      
+      # 连接池配置
+      - PG_EXPORTER_CONNECTION_TIMEOUT=5
+      - PG_EXPORTER_MAX_CONNS=10
+      - PG_EXPORTER_MIN_CONNS=2
+      
+      # 日志配置
+      - PG_EXPORTER_LOG_LEVEL=info
+      - PG_EXPORTER_LOG_FORMAT=logfmt
+      
+    volumes:
+      # 共享查询配置
+      - ./config/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+      
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      
+    networks:
+      - ai-ready-network
+      
+    labels:
+      - "com.ai-ready.monitoring=true"
+      - "com.ai-ready.service=postgres-exporter"
+      - "com.ai-ready.environment=test"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9187"
+      - "prometheus.io/path=/metrics"
+
+  # 用户数据库Exporter（可选）
+  postgres-exporter-user:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-user
+    restart: unless-stopped
+    ports:
+      - "9189:9187"
+    environment:
+      # 用户数据库连接配置
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER_USER:-postgres}:${POSTGRES_USER_PASSWORD:-password}@${POSTGRES_USER_HOST:-postgres-user}:${POSTGRES_USER_PORT:-5432}/${POSTGRES_USER_DB:-user_service}?sslmode=disable
+      
+      # Exporter配置
+      - PG_EXPORTER_EXTEND_QUERY_PATH=/etc/postgres-exporter/queries.yaml
+      - PG_EXPORTER_DISABLE_DEFAULT_METRICS=false
+      - PG_EXPORTER_DISABLE_SETTINGS_METRICS=false
+      
+    volumes:
+      # 共享查询配置
+      - ./config/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+      
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      
+    networks:
+      - ai-ready-network
+      
+    labels:
+      - "com.ai-ready.monitoring=true"
+      - "com.ai-ready.service=postgres-exporter"
+      - "com.ai-ready.environment=test"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9187"
+      - "prometheus.io/path=/metrics"
+
+networks:
+  ai-ready-network:
+    external: true
+    name: ai-ready-network
+
+# 环境变量配置文件
+# 创建 .env 文件并设置以下变量：
+# POSTGRES_MAIN_USER=postgres
+# POSTGRES_MAIN_PASSWORD=your_password
+# POSTGRES_MAIN_HOST=postgres-main
+# POSTGRES_MAIN_PORT=5432
+# POSTGRES_MAIN_DB=ai_ready
+# 
+# POSTGRES_INV_USER=postgres
+# POSTGRES_INV_PASSWORD=your_password
+# POSTGRES_INV_HOST=postgres-inventory
+# POSTGRES_INV_PORT=5432
+# POSTGRES_INV_DB=inventory
+# 
+# POSTGRES_USER_USER=postgres
+# POSTGRES_USER_PASSWORD=your_password
+# POSTGRES_USER_HOST=postgres-user
+# POSTGRES_USER_PORT=5432
+# POSTGRES_USER_DB=user_service
+
+# 部署命令：
+# 1. 创建目录：mkdir -p config
+# 2. 创建环境文件：cp .env.example .env
+# 3. 编辑环境文件：修改数据库连接信息
+# 4. 启动服务：docker-compose -f docker-compose-postgres-exporter.yml up -d
+# 5. 验证服务：curl http://localhost:9187/metrics
+
+# 健康检查：
+# 1. 检查容器状态：docker-compose -f docker-compose-postgres-exporter.yml ps
+# 2. 检查健康状态：docker-compose -f docker-compose-postgres-exporter.yml logs --tail=20
+# 3. 检查指标端点：curl -s http://localhost:9187/metrics | head -20
+
+# 停止服务：
+# docker-compose -f docker-compose-postgres-exporter.yml down
+
+# 更新服务：
+# docker-compose -f docker-compose-postgres-exporter.yml pull
+# docker-compose -f docker-compose-postgres-exporter.yml up -d --force-recreate
+
+# 查看日志：
+# docker-compose -f docker-compose-postgres-exporter.yml logs -f postgres-exporter-main

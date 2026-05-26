@@ -1,0 +1,238 @@
+{
+  "test_time": "2026-04-15T02:04:33.452306",
+  "backup_tests": [
+    {
+      "name": "MySQL全量备份",
+      "category": "备份测试",
+      "status": "PASS",
+      "message": "MySQL全量备份成功，大小: 1024MB",
+      "metrics": {
+        "backup_id": "full_1776189873",
+        "type": "full",
+        "status": "success",
+        "size_mb": 1024,
+        "duration_s": 120,
+        "tables_backed_up": 50
+      }
+    },
+    {
+      "name": "PostgreSQL全量备份",
+      "category": "备份测试",
+      "status": "PASS",
+      "message": "PostgreSQL全量备份成功，大小: 1024MB",
+      "metrics": {
+        "backup_id": "full_1776189873",
+        "type": "full",
+        "status": "success",
+        "size_mb": 1024,
+        "duration_s": 120,
+        "tables_backed_up": 50
+      }
+    },
+    {
+      "name": "增量备份",
+      "category": "备份测试",
+      "status": "PASS",
+      "message": "增量备份成功，大小: 50MB",
+      "metrics": {
+        "backup_id": "incr_1776189873",
+        "type": "incremental",
+        "status": "success",
+        "size_mb": 50,
+        "duration_s": 30,
+        "changes_count": 1000
+      }
+    },
+    {
+      "name": "备份压缩",
+      "category": "备份测试",
+      "status": "PASS",
+      "message": "备份压缩成功，压缩率: 75%",
+      "metrics": {
+        "original_size_mb": 1024,
+        "compressed_size_mb": 256,
+        "ratio": 75
+      }
+    },
+    {
+      "name": "定时备份",
+      "category": "备份测试",
+      "status": "PASS",
+      "message": "定时备份配置成功",
+      "metrics": {
+        "schedule": "0 2 * * *",
+        "retention_days": 7
+      }
+    }
+  ],
+  "restore_tests": [
+    {
+      "name": "全量恢复",
+      "category": "恢复测试",
+      "status": "PASS",
+      "message": "全量恢复成功，耗时: 180s",
+      "metrics": {
+        "restore_id": "restore_1776189873",
+        "backup_id": "full_123",
+        "status": "success",
+        "duration_s": 180,
+        "tables_restored": 50
+      }
+    },
+    {
+      "name": "增量恢复",
+      "category": "恢复测试",
+      "status": "PASS",
+      "message": "增量恢复成功，耗时: 180s",
+      "metrics": {
+        "restore_id": "restore_1776189873",
+        "backup_id": "incr_123",
+        "status": "success",
+        "duration_s": 180,
+        "tables_restored": 50
+      }
+    },
+    {
+      "name": "时间点恢复",
+      "category": "恢复测试",
+      "status": "PASS",
+      "message": "时间点恢复成功",
+      "metrics": {
+        "target_time": "2026-04-15 10:00:00",
+        "recovery_time_s": 300
+      }
+    }
+  ],
+  "integrity_tests": [
+    {
+      "name": "备份文件校验",
+      "category": "完整性测试",
+      "status": "PASS",
+      "message": "备份文件校验和验证通过",
+      "metrics": {
+        "checksum_algorithm": "SHA256",
+        "checksum_match": true
+      }
+    },
+    {
+      "name": "数据行数验证",
+      "category": "完整性测试",
+      "status": "PASS",
+      "message": "数据行数验证通过",
+      "metrics": {
+        "source_rows": 100000,
+        "restored_rows": 100000,
+        "match": true
+      }
+    },
+    {
+      "name": "表结构完整性",
+      "category": "完整性测试",
+      "status": "PASS",
+      "message": "表结构完整性验证通过，共50张表",
+      "metrics": {
+        "tables_count": 50,
+        "all_tables_present": true
+      }
+    },
+    {
+      "name": "外键约束完整性",
+      "category": "完整性测试",
+      "status": "PASS",
+      "message": "外键约束完整性验证通过，无违规记录",
+      "metrics": {
+        "foreign_keys_checked": 20,
+        "violations": 0
+      }
+    }
+  ],
+  "rto_tests": [
+    {
+      "name": "全量恢复RTO",
+      "category": "RTO测试",
+      "status": "PASS",
+      "message": "全量恢复RTO达标，目标: 3600s，实际: 180s",
+      "metrics": {
+        "target_rto_s": 3600,
+        "actual_time_s": 180,
+        "rto_met": true
+      }
+    },
+    {
+      "name": "增量恢复RTO",
+      "category": "RTO测试",
+      "status": "PASS",
+      "message": "增量恢复RTO达标，目标: 600s，实际: 30s",
+      "metrics": {
+        "target_rto_s": 600,
+        "actual_time_s": 30,
+        "rto_met": true
+      }
+    },
+    {
+      "name": "灾难恢复RTO",
+      "category": "RTO测试",
+      "status": "PASS",
+      "message": "灾难恢复RTO达标，目标: 7200s，实际: 3600s",
+      "metrics": {
+        "target_rto_s": 7200,
+        "actual_time_s": 3600,
+        "rto_met": true
+      }
+    }
+  ],
+  "rpo_tests": [
+    {
+      "name": "全量备份RPO",
+      "category": "RPO测试",
+      "status": "PASS",
+      "message": "全量备份RPO达标，目标: 24h，实际: 20h",
+      "metrics": {
+        "target_rpo_s": 86400,
+        "last_backup_age_s": 72000,
+        "rpo_met": true
+      }
+    },
+    {
+      "name": "增量备份RPO",
+      "category": "RPO测试",
+      "status": "PASS",
+      "message": "增量备份RPO达标，目标: 1h，实际: 30min",
+      "metrics": {
+        "target_rpo_s": 3600,
+        "last_backup_age_s": 1800,
+        "rpo_met": true
+      }
+    },
+    {
+      "name": "实时同步RPO",
+      "category": "RPO测试",
+      "status": "PASS",
+      "message": "实时同步RPO达标，目标: 60s，实际延迟: 5s",
+      "metrics": {
+        "target_rpo_s": 60,
+        "replication_lag_s": 5,
+        "rpo_met": true
+      }
+    },
+    {
+      "name": "灾难场景RPO",
+      "category": "RPO测试",
+      "status": "PASS",
+      "message": "灾难场景RPO达标，目标: 1h，数据丢失窗口: 30min",
+      "metrics": {
+        "target_rpo_s": 3600,
+        "data_loss_window_s": 1800,
+        "rpo_met": true
+      }
+    }
+  ],
+  "summary": {
+    "total_tests": 19,
+    "backup_tests": 5,
+    "restore_tests": 3,
+    "integrity_tests": 4,
+    "rto_tests": 3,
+    "rpo_tests": 4
+  }
+}

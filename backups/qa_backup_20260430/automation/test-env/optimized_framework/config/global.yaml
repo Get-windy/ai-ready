@@ -1,0 +1,57 @@
+# 全局配置
+framework:
+  name: "ai-ready-test-framework"
+  version: "2.0.0"
+  language: "python"
+  test_runner: "pytest"
+  
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - type: "file"
+      path: "logs/framework.log"
+      max_size: "100MB"
+      backup_count: 10
+    - type: "console"
+      format: "%(levelname)s - %(message)s"
+
+reporting:
+  html_report:
+    enabled: true
+    output_dir: "reports/html"
+    title: "AI-Ready测试报告"
+    theme: "standard"
+  json_report:
+    enabled: true
+    output_dir: "reports/json"
+  email_report:
+    enabled: false
+    recipients: []
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+
+parallel:
+  enabled: true
+  max_workers: 8
+  worker_type: "process"
+  load_balancing: "dynamic"
+  timeout: 3600  # 1小时超时
+
+resources:
+  database:
+    max_connections: 20
+    min_connections: 5
+    connection_timeout: 30
+  cache:
+    max_connections: 10
+    connection_timeout: 10
+  browser:
+    max_instances: 5
+    reuse_browser: true
+
+data_management:
+  isolation_level: "test_case"
+  cleanup_strategy: "after_test"
+  data_persistence: false
+  export_formats: ["json", "csv"]

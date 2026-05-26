@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="企智连-订单创建性能测试">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BASE_URL" elementType="Argument">
+            <stringProp name="Argument.name">BASE_URL</stringProp>
+            <stringProp name="Argument.value">http://localhost:8080</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="API_TOKEN" elementType="Argument">
+            <stringProp name="Argument.name">API_TOKEN</stringProp>
+            <stringProp name="Argument.value">${__property(api.token)}</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.comments">TC-PF-001 订单创建性能测试</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+    </TestPlan>
+    <hashTree>
+      <!-- 线程组: 订单创建测试 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="订单创建并发测试">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController">
+          <stringProp name="LoopController.loops">10</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">100</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- HTTP请求: 创建订单 -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="创建订单">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <stringProp name="Argument.value">{&#xd;
+  "userId": "${__threadNum}",&#xd;
+  "products": [&#xd;
+    {"productId": "prod_001", "quantity": 1},&#xd;
+    {"productId": "prod_002", "quantity": 2}&#xd;
+  ],&#xd;
+  "addressId": "addr_default"&#xd;
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.port"></stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/api/orders/create</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <stringProp name="HTTPSampler.header_manager">Authorization: Bearer ${API_TOKEN}</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="Authorization" elementType="Header">
+                <stringProp name="Header.name">Authorization</stringProp>
+                <stringProp name="Header.value">Bearer ${API_TOKEN}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+        
+        <!-- 响应断言 -->
+        <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="订单创建成功断言">
+          <collectionProp name="Asserion.test_strings">
+            <stringProp name="49586">success</stringProp>
+            <stringProp name="1563">orderId</stringProp>
+          </collectionProp>
+          <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+          <boolProp name="Assertion.assume_success">false</boolProp>
+          <intProp name="Assertion.test_type">2</intProp>
+        </ResponseAssertion>
+        <hashTree/>
+        
+        <!-- JSON断言 -->
+        <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion" testname="验证返回状态">
+          <stringProp name="JSONPathAssertion.jsonpath">$status</stringProp>
+          <stringProp name="JSONPathAssertion.expected_value">success</stringProp>
+          <boolProp name="JSONPathAssertion.json_validation_bool">true</boolProp>
+          <boolProp name="JSONPathAssertion.expect_null">false</boolProp>
+          <boolProp name="JSONPathAssertion.invert">false</boolProp>
+        </JSONPathAssertion>
+        <hashTree/>
+      </hashTree>
+      
+      <!-- 结果收集器 -->
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="察看结果树">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp name="ResultCollector.save_config">
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</time>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <responseData>false</responseData>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>true</requestHeaders>
+          </value>
+        </objProp>
+        <stringProp name="filename">../results/order_creation_results.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+      
+      <!-- 聚合报告 -->
+      <ResultCollector guiclass="AggregateReportGui" testclass="ResultCollector" testname="聚合报告">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <stringProp name="filename">../results/order_creation_aggregate.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+      
+      <!-- 汇总报告 -->
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="汇总报告">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <stringProp name="filename">../results/order_creation_summary.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+    
+    <!-- 线程组: 批量订单测试 -->
+    <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="批量订单创建测试">
+      <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController">
+        <stringProp name="LoopController.loops">5</stringProp>
+      </elementProp>
+      <stringProp name="ThreadGroup.num_threads">200</stringProp>
+      <stringProp name="ThreadGroup.ramp_time">20</stringProp>
+      <boolProp name="ThreadGroup.scheduler">true</boolProp>
+      <stringProp name="ThreadGroup.duration">300</stringProp>
+    </ThreadGroup>
+    <hashTree>
+      <!-- CSV数据文件配置 -->
+      <CSVDataSet guiclass="CsvDataSetGui" testclass="CSVDataSet" testname="商品数据配置">
+        <stringProp name="filename">../data/products.csv</stringProp>
+        <stringProp name="variableNames">productId,productName,quantity</stringProp>
+        <boolProp name="ignoreFirstLine">true</boolProp>
+        <stringProp name="delimiter">,</stringProp>
+        <boolProp name="quotedData">true</boolProp>
+        <boolProp name="recycle">true</boolProp>
+        <boolProp name="stopThread">false</boolProp>
+      </CSVDataSet>
+      <hashTree/>
+      
+      <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="批量创建订单">
+        <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+          <collectionProp name="Arguments.arguments">
+            <elementProp name="" elementType="HTTPArgument">
+              <stringProp name="Argument.value">{&#xd;
+  "userId": "${__threadNum}",&#xd;
+  "products": [&#xd;
+    ${__foreach(productIds,"{\"productId\":\"${productId}\",\"quantity\":${quantity}}",",")}&#xd;
+  ],&#xd;
+  "addressId": "addr_default"&#xd;
+}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+        <stringProp name="HTTPSampler.path">/api/orders/create-batch</stringProp>
+        <stringProp name="HTTPSampler.method">POST</stringProp>
+      </HTTPSamplerProxy>
+      <hashTree>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Content-Type</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

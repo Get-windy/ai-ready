@@ -1,0 +1,197 @@
+# AI-Ready ELK Stack Docker Compose Configuration
+# Elasticsearch + Logstash + Kibana + Filebeat
+# Version: v2.0 - Production Ready
+
+version: '3.8'
+
+services:
+  # ============ Elasticsearch ============
+  elasticsearch:
+    image: elasticsearch:8.7.0
+    container_name: ai-ready-elasticsearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - xpack.security.enabled=false
+      - ELASTIC_PASSWORD=changeme
+      - cluster.name=ai-ready-logs
+      - node.name=ai-ready-es-node
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    networks:
+      - ai-ready-logs-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # ============ Logstash ============
+  logstash:
+    image: logstash:8.7.0
+    container_name: ai-ready-logstash
+    restart: unless-stopped
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
+      - LS_JAVA_OPTS=-Xmx1g -Xms1g
+      - ENV=production
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./logstash-patterns:/usr/share/logstash/patterns:ro
+    networks:
+      - ai-ready-logs-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9600"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # ============ Kibana ============
+  kibana:
+    image: kibana:8.7.0
+    container_name: ai-ready-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
+      - XPACK_SECURITY_ENABLED=false
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - ./kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - kibana_data:/usr/share/kibana/data
+    networks:
+      - ai-ready-logs-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============ Filebeat ============
+  filebeat:
+    image: elastic/filebeat:8.7.0
+    container_name: ai-ready-filebeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./filebeat-modules:/usr/share/filebeat/modules.d:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
+      - ../../logs:/app/logs:ro
+    networks:
+      - ai-ready-logs-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============ Log Alert Manager ============
+  log-alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: ai-ready-log-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - ai-ready-logs-network
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+
+  # ============ Log Alert Rules Exporter ============
+  log-exporter:
+    image: elasticsearch:8.7.0
+    container_name: ai-ready-log-exporter
+    restart: unless-stopped
+    volumes:
+      - ./log-alert-rules.yml:/log-alert-rules.yml:ro
+      - ./log-exporter.sh:/log-exporter.sh:ro
+    networks:
+      - ai-ready-logs-network
+    depends_on:
+      - elasticsearch
+    entrypoint: ["/bin/bash", "/log-exporter.sh"]
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  kibana_data:
+    driver: local
+  filebeat_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  ai-ready-logs-network:
+    driver: bridge
+    name: ai-ready-logs-network

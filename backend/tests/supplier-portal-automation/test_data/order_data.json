@@ -1,0 +1,346 @@
+{
+  "test_orders": [
+    {
+      "id": "ORD001",
+      "order_no": "PO-2024-001",
+      "supplier_id": "SUP001",
+      "contract_id": "CON001",
+      "type": "purchase",
+      "status": "approved",
+      "priority": "high",
+      "order_date": "2024-01-20T09:30:00Z",
+      "expected_delivery_date": "2024-02-10T23:59:59Z",
+      "actual_delivery_date": "2024-02-08T14:20:00Z",
+      "total_amount": 250000.00,
+      "currency": "CNY",
+      "payment_status": "paid",
+      "delivery_status": "delivered",
+      "notes": "紧急生产需求，优先处理",
+      "created_by": "procurement_manager",
+      "created_time": "2024-01-20T09:30:00Z",
+      "updated_time": "2024-02-08T14:20:00Z",
+      "items": [
+        {
+          "id": "ITEM001",
+          "product_code": "IC-7805",
+          "product_name": "三端稳压器7805",
+          "specification": "TO-220封装",
+          "quantity": 5000,
+          "unit": "pcs",
+          "unit_price": 1.20,
+          "total_price": 6000.00,
+          "delivery_status": "delivered",
+          "notes": "生产急需"
+        },
+        {
+          "id": "ITEM002",
+          "product_code": "CAP-104",
+          "product_name": "陶瓷电容104",
+          "specification": "0805封装 100nF",
+          "quantity": 10000,
+          "unit": "pcs",
+          "unit_price": 0.08,
+          "total_price": 800.00,
+          "delivery_status": "delivered",
+          "notes": "通用物料"
+        }
+      ]
+    },
+    {
+      "id": "ORD002",
+      "order_no": "PO-2024-002",
+      "supplier_id": "SUP002",
+      "contract_id": "CON002",
+      "type": "service",
+      "status": "in_progress",
+      "priority": "medium",
+      "order_date": "2024-02-05T14:00:00Z",
+      "expected_delivery_date": "2024-02-15T23:59:59Z",
+      "actual_delivery_date": null,
+      "total_amount": 50000.00,
+      "currency": "CNY",
+      "payment_status": "pending",
+      "delivery_status": "processing",
+      "notes": "月度设备维护服务",
+      "created_by": "equipment_manager",
+      "created_time": "2024-02-05T14:00:00Z",
+      "updated_time": "2024-02-05T14:00:00Z",
+      "items": [
+        {
+          "id": "ITEM003",
+          "product_code": "SVC-MNT",
+          "product_name": "设备月度维护",
+          "specification": "全厂设备巡检",
+          "quantity": 1,
+          "unit": "service",
+          "unit_price": 50000.00,
+          "total_price": 50000.00,
+          "delivery_status": "processing",
+          "notes": "包含人工和备件费用"
+        }
+      ]
+    },
+    {
+      "id": "ORD003",
+      "order_no": "PO-2024-003",
+      "supplier_id": "SUP004",
+      "contract_id": "CON004",
+      "type": "purchase",
+      "status": "pending",
+      "priority": "normal",
+      "order_date": "2024-04-10T10:15:00Z",
+      "expected_delivery_date": "2024-04-25T23:59:59Z",
+      "actual_delivery_date": null,
+      "total_amount": 15000.00,
+      "currency": "CNY",
+      "payment_status": "unpaid",
+      "delivery_status": "pending",
+      "notes": "常规包装物料采购",
+      "created_by": "procurement_assistant",
+      "created_time": "2024-04-10T10:15:00Z",
+      "updated_time": "2024-04-10T10:15:00Z",
+      "items": [
+        {
+          "id": "ITEM004",
+          "product_code": "BOX-3015",
+          "product_name": "环保包装箱",
+          "specification": "30*15*15cm 可回收材质",
+          "quantity": 1000,
+          "unit": "pcs",
+          "unit_price": 8.50,
+          "total_price": 8500.00,
+          "delivery_status": "pending",
+          "notes": "产品包装"
+        },
+        {
+          "id": "ITEM005",
+          "product_code": "BUB-20M",
+          "product_name": "气泡膜",
+          "specification": "宽度20cm 长度100米",
+          "quantity": 50,
+          "unit": "roll",
+          "unit_price": 130.00,
+          "total_price": 6500.00,
+          "delivery_status": "pending",
+          "notes": "填充保护材料"
+        }
+      ]
+    },
+    {
+      "id": "ORD004",
+      "order_no": "PO-2024-004",
+      "supplier_id": "SUP001",
+      "contract_id": "CON001",
+      "type": "purchase",
+      "status": "cancelled",
+      "priority": "low",
+      "order_date": "2024-03-01T11:20:00Z",
+      "expected_delivery_date": "2024-03-15T23:59:59Z",
+      "actual_delivery_date": null,
+      "total_amount": 75000.00,
+      "currency": "CNY",
+      "payment_status": "cancelled",
+      "delivery_status": "cancelled",
+      "notes": "项目取消，订单作废",
+      "created_by": "procurement_manager",
+      "created_time": "2024-03-01T11:20:00Z",
+      "updated_time": "2024-03-05T09:45:00Z",
+      "items": [
+        {
+          "id": "ITEM006",
+          "product_code": "IC-555",
+          "product_name": "定时器IC 555",
+          "specification": "DIP-8封装",
+          "quantity": 5000,
+          "unit": "pcs",
+          "unit_price": 15.00,
+          "total_price": 75000.00,
+          "delivery_status": "cancelled",
+          "notes": "已通知供应商取消"
+        }
+      ]
+    },
+    {
+      "id": "ORD005",
+      "order_no": "PO-2024-005",
+      "supplier_id": "SUP005",
+      "contract_id": "CON005",
+      "type": "development",
+      "status": "draft",
+      "priority": "high",
+      "order_date": "2024-05-02T15:30:00Z",
+      "expected_delivery_date": "2024-06-30T23:59:59Z",
+      "actual_delivery_date": null,
+      "total_amount": 500000.00,
+      "currency": "CNY",
+      "payment_status": "unpaid",
+      "delivery_status": "pending",
+      "notes": "ERP采购模块开发一期",
+      "created_by": "it_manager",
+      "created_time": "2024-05-02T15:30:00Z",
+      "updated_time": "2024-05-02T15:30:00Z",
+      "items": [
+        {
+          "id": "ITEM007",
+          "product_code": "DEV-PUR",
+          "product_name": "采购管理模块开发",
+          "specification": "包含供应商管理、采购订单、合同管理",
+          "quantity": 1,
+          "unit": "project",
+          "unit_price": 500000.00,
+          "total_price": 500000.00,
+          "delivery_status": "pending",
+          "notes": "里程碑一交付"
+        }
+      ]
+    }
+  ],
+  "order_updates": [
+    {
+      "id": "ORD003",
+      "update_fields": {
+        "expected_delivery_date": "2024-05-05T23:59:59Z",
+        "notes": "供应商要求延期交付"
+      }
+    },
+    {
+      "id": "ORD002",
+      "update_fields": {
+        "status": "approved",
+        "payment_status": "processing"
+      }
+    }
+  ],
+  "order_status_changes": [
+    {
+      "id": "ORD005",
+      "new_status": "approved",
+      "reason": "技术方案评审通过",
+      "effective_date": "2024-05-10T10:00:00Z"
+    }
+  ],
+  "search_test_cases": [
+    {
+      "name": "按供应商搜索",
+      "search_params": {
+        "supplier_id": "SUP001"
+      },
+      "expected_results": ["ORD001", "ORD004"]
+    },
+    {
+      "name": "按状态搜索",
+      "search_params": {
+        "status": "approved"
+      },
+      "expected_results": ["ORD001"]
+    },
+    {
+      "name": "按优先级搜索",
+      "search_params": {
+        "priority": "high"
+      },
+      "expected_results": ["ORD001", "ORD005"]
+    },
+    {
+      "name": "按时间范围搜索",
+      "search_params": {
+        "order_date_from": "2024-04-01T00:00:00Z",
+        "order_date_to": "2024-04-30T23:59:59Z"
+      },
+      "expected_results": ["ORD003"]
+    },
+    {
+      "name": "按金额范围搜索",
+      "search_params": {
+        "min_amount": 100000,
+        "max_amount": 300000
+      },
+      "expected_results": ["ORD001"]
+    }
+  ],
+  "collaboration_scenarios": [
+    {
+      "name": "订单确认流程",
+      "steps": [
+        "创建订单草稿",
+        "提交审批",
+        "审批通过",
+        "发送给供应商",
+        "供应商确认",
+        "订单生效"
+      ],
+      "test_data": {
+        "order_id": "ORD_COLLAB001",
+        "expected_status_flow": ["draft", "pending", "approved", "confirmed"]
+      }
+    },
+    {
+      "name": "发货协同流程",
+      "steps": [
+        "供应商发货",
+        "更新发货信息",
+        "物流跟踪",
+        "收货确认",
+        "质量检验",
+        "入库完成"
+      ],
+      "test_data": {
+        "order_id": "ORD001",
+        "delivery_updates_expected": 3
+      }
+    },
+    {
+      "name": "付款协同流程",
+      "steps": [
+        "收到发票",
+        "发票验真",
+        "付款申请",
+        "财务审批",
+        "付款执行",
+        "付款确认"
+      ],
+      "test_data": {
+        "order_id": "ORD001",
+        "payment_status_flow": ["unpaid", "invoice_received", "approved", "paid"]
+      }
+    }
+  ],
+  "bulk_operations": {
+    "batch_approve": [
+      {
+        "ids": ["ORD003", "ORD005"],
+        "approver": "procurement_director",
+        "approval_notes": "批量审批通过"
+      }
+    ],
+    "batch_update_delivery": [
+      {
+        "ids": ["ORD001", "ORD002"],
+        "delivery_status": "delivered",
+        "actual_delivery_date": "2024-02-10T10:00:00Z"
+      }
+    ]
+  },
+  "performance_test_data": {
+    "batch_orders": [
+      {
+        "supplier_id": "PERF001",
+        "order_no": "PO-PERF-{{index}}",
+        "type": "purchase",
+        "status": "approved",
+        "total_amount": 10000.00,
+        "currency": "CNY",
+        "items": [
+          {
+            "product_code": "TEST-ITEM-{{index}}",
+            "product_name": "测试商品{{index}}",
+            "quantity": 100,
+            "unit_price": 100.00
+          }
+        ]
+      }
+    ],
+    "concurrent_count": 50,
+    "max_response_time": 3000
+  }
+}

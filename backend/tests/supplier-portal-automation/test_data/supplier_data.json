@@ -1,0 +1,196 @@
+{
+  "test_suppliers": [
+    {
+      "id": "SUP001",
+      "name": "上海电子科技有限公司",
+      "code": "ET-2024-001",
+      "status": "active",
+      "contact_person": "张经理",
+      "phone": "13800138001",
+      "email": "zhang@shanghaielectronics.com",
+      "address": "上海市浦东新区张江高科技园区",
+      "business_type": "电子元器件供应商",
+      "rating": "A",
+      "registration_date": "2024-01-15T08:30:00Z",
+      "payment_terms": "月结30天",
+      "tax_id": "9131011576543210",
+      "bank_account": "6228480012345678900",
+      "notes": "长期合作供应商，产品质量稳定",
+      "created_by": "system",
+      "created_time": "2024-01-15T08:30:00Z"
+    },
+    {
+      "id": "SUP002",
+      "name": "北京机械制造有限公司",
+      "code": "MT-2024-002",
+      "status": "active",
+      "contact_person": "王厂长",
+      "phone": "13900139002",
+      "email": "wang@beijingmachinery.com",
+      "address": "北京市经济技术开发区",
+      "business_type": "机械零部件供应商",
+      "rating": "B+",
+      "registration_date": "2024-02-20T10:15:00Z",
+      "payment_terms": "货到付款",
+      "tax_id": "9111011576543211",
+      "bank_account": "6228480012345678901",
+      "notes": "新品供应商，需加强质量监控",
+      "created_by": "admin",
+      "created_time": "2024-02-20T10:15:00Z"
+    },
+    {
+      "id": "SUP003",
+      "name": "广州化工原料有限公司",
+      "code": "CH-2024-003",
+      "status": "inactive",
+      "contact_person": "李主任",
+      "phone": "13700137003",
+      "email": "li@guangzhouchemical.com",
+      "address": "广州市黄埔区化工园区",
+      "business_type": "化工原料供应商",
+      "rating": "C",
+      "registration_date": "2024-03-10T14:20:00Z",
+      "payment_terms": "预付款50%",
+      "tax_id": "9144011576543212",
+      "bank_account": "6228480012345678902",
+      "notes": "环保资质待审核，暂停合作",
+      "created_by": "admin",
+      "created_time": "2024-03-10T14:20:00Z"
+    },
+    {
+      "id": "SUP004",
+      "name": "深圳包装材料有限公司",
+      "code": "PK-2024-004",
+      "status": "active",
+      "contact_person": "陈经理",
+      "phone": "13600136004",
+      "email": "chen@shenzhenpackaging.com",
+      "address": "深圳市宝安区",
+      "business_type": "包装材料供应商",
+      "rating": "A-",
+      "registration_date": "2024-04-05T09:45:00Z",
+      "payment_terms": "月结45天",
+      "tax_id": "9144030076543213",
+      "bank_account": "6228480012345678903",
+      "notes": "环保包装材料供应商，符合公司环保要求",
+      "created_by": "system",
+      "created_time": "2024-04-05T09:45:00Z"
+    },
+    {
+      "id": "SUP005",
+      "name": "杭州软件服务有限公司",
+      "code": "SW-2024-005",
+      "status": "active",
+      "contact_person": "赵工程师",
+      "phone": "13500135005",
+      "email": "zhao@hangzhousoftware.com",
+      "address": "杭州市西湖区软件园",
+      "business_type": "软件服务供应商",
+      "rating": "A+",
+      "registration_date": "2024-05-12T13:30:00Z",
+      "payment_terms": "季度结算",
+      "tax_id": "9133011576543214",
+      "bank_account": "6228480012345678904",
+      "notes": "ERP系统定制开发供应商",
+      "created_by": "system",
+      "created_time": "2024-05-12T13:30:00Z"
+    }
+  ],
+  "supplier_updates": [
+    {
+      "id": "SUP001",
+      "update_fields": {
+        "contact_person": "张总经理",
+        "phone": "13800138088",
+        "email": "zhang.gm@shanghaielectronics.com",
+        "rating": "A+",
+        "payment_terms": "月结45天",
+        "notes": "升级为战略合作伙伴"
+      }
+    },
+    {
+      "id": "SUP002",
+      "update_fields": {
+        "rating": "A-",
+        "notes": "质量监控改进明显，提升评级"
+      }
+    }
+  ],
+  "supplier_status_changes": [
+    {
+      "id": "SUP003",
+      "new_status": "active",
+      "reason": "环保资质审核通过",
+      "effective_date": "2024-06-01T00:00:00Z"
+    }
+  ],
+  "search_test_cases": [
+    {
+      "name": "按名称搜索",
+      "search_params": {
+        "name": "上海电子"
+      },
+      "expected_results": ["SUP001"]
+    },
+    {
+      "name": "按联系人搜索",
+      "search_params": {
+        "contact_person": "王"
+      },
+      "expected_results": ["SUP002"]
+    },
+    {
+      "name": "按状态搜索",
+      "search_params": {
+        "status": "active"
+      },
+      "expected_results": ["SUP001", "SUP002", "SUP004", "SUP005"]
+    },
+    {
+      "name": "组合搜索",
+      "search_params": {
+        "status": "active",
+        "rating": "A"
+      },
+      "expected_results": ["SUP001", "SUP005"]
+    }
+  ],
+  "bulk_operations": {
+    "batch_create": [
+      {
+        "name": "成都物流运输有限公司",
+        "code": "LG-2024-006",
+        "status": "active",
+        "contact_person": "刘经理",
+        "phone": "13400134006",
+        "email": "liu@chengdulogistics.com",
+        "address": "成都市高新区物流园区",
+        "business_type": "物流运输供应商",
+        "rating": "B",
+        "payment_terms": "货到付款",
+        "notes": "新增物流供应商"
+      },
+      {
+        "name": "武汉食品原料有限公司",
+        "code": "FD-2024-007",
+        "status": "active",
+        "contact_person": "孙主管",
+        "phone": "13300133007",
+        "email": "sun@wuhanfood.com",
+        "address": "武汉市洪山区食品工业园",
+        "business_type": "食品原料供应商",
+        "rating": "A-",
+        "payment_terms": "月结30天",
+        "notes": "食品原料一级供应商"
+      }
+    ],
+    "batch_update": [
+      {
+        "ids": ["SUP001", "SUP005"],
+        "update_fields": {
+          "payment_terms": "季结60天"
+        }
+      }
+    ]
+  }
+}

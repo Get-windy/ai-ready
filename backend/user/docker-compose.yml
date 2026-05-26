@@ -1,0 +1,217 @@
+# ============================================================
+# AI-Ready 用户管理服务 Docker Compose 配置
+# Sprint 27+1 测试环境专用
+# 包含: 用户服务、PostgreSQL、Redis
+# ============================================================
+
+version: '3.8'
+
+services:
+  # 用户管理服务
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: ai-ready/user-service:sprint-27-1
+    container_name: ai-ready-user-service
+    restart: unless-stopped
+    ports:
+      - "8083:8081"
+    environment:
+      # 数据库配置
+      DB_HOST: user-postgres
+      DB_PORT: 5432
+      DB_NAME: ai_ready_user
+      DB_USERNAME: user_admin
+      DB_PASSWORD: ${DB_PASSWORD:-user_admin_2024}
+      
+      # Redis配置
+      REDIS_HOST: user-redis
+      REDIS_PORT: 6379
+      REDIS_DB: 1
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      
+      # 应用配置
+      SPRING_PROFILES_ACTIVE: test
+      SERVER_PORT: 8081
+      
+      # JWT配置
+      JWT_SECRET: ${JWT_SECRET:-ai-ready-user-jwt-secret-key-sprint-27-1}
+      
+      # 日志配置
+      LOG_SQL: "true"
+      LOG_SQL_PARAMS: "true"
+      
+      # JVM参数
+      JAVA_OPTS: >-
+        -server
+        -Xms512m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/logs/heap-dump.hprof
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+    
+    volumes:
+      - user-service-logs:/app/logs
+      - ./config:/app/config:ro
+    
+    networks:
+      - user-network
+      - ai-ready-network
+    
+    depends_on:
+      user-postgres:
+        condition: service_healthy
+      user-redis:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1.5G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  # PostgreSQL 数据库
+  user-postgres:
+    image: postgres:16-alpine
+    container_name: ai-ready-user-postgres
+    restart: unless-stopped
+    ports:
+      - "5434:5432"  # 使用5434避免与主数据库冲突
+    environment:
+      POSTGRES_DB: ai_ready_user
+      POSTGRES_USER: user_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-user_admin_2024}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    volumes:
+      - user-postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - user-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_admin -d ai_ready_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Redis 缓存
+  user-redis:
+    image: redis:7-alpine
+    container_name: ai-ready-user-redis
+    restart: unless-stopped
+    ports:
+      - "6381:6379"  # 使用6381避免与主Redis冲突
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - user-redis-data:/data
+    networks:
+      - user-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Redis Commander (Redis管理界面，可选)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ai-ready-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      REDIS_HOSTS: local:user-redis:6379
+    networks:
+      - user-network
+    depends_on:
+      - user-redis
+    profiles:
+      - tools  # 仅在显式启用时启动
+
+# 网络配置
+networks:
+  user-network:
+    driver: bridge
+    name: ai-ready-user-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  ai-ready-network:
+    external: true
+    name: ai-ready-network
+
+# 数据卷配置
+volumes:
+  user-service-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  user-postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  user-redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis

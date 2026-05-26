@@ -1,0 +1,251 @@
+pipeline {
+    agent any
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+    
+    environment {
+        MAVEN_HOME = tool 'Maven-3.9'
+        JAVA_HOME = tool 'JDK-17'
+        PATH = "${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${env.PATH}"
+        
+        // Allure报告配置
+        ALLURE_RESULTS = 'target/allure-results'
+        ALLURE_REPORT = 'target/allure-report'
+        
+        // 测试配置
+        TEST_ENV = 'dev'
+        BASE_URL = 'http://localhost:8080'
+    }
+    
+    parameters {
+        choice(
+            name: 'TEST_SUITE',
+            choices: ['all', 'api', 'ui', 'mobile'],
+            description: '选择测试套件'
+        )
+        choice(
+            name: 'BROWSER',
+            choices: ['chrome', 'firefox', 'edge'],
+            description: 'UI测试浏览器类型'
+        )
+        booleanParam(
+            name: 'HEADLESS',
+            defaultValue: true,
+            description: '是否使用无头模式'
+        )
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: '跳过测试阶段'
+        )
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                echo "检出代码完成"
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                script {
+                    echo "开始构建项目..."
+                    sh 'mvn clean compile -DskipTests'
+                }
+            }
+        }
+        
+        stage('Unit Tests') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo "执行单元测试..."
+                    sh 'mvn test -Dtest="*UnitTest"'
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('Integration Tests') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo "执行集成测试..."
+                    sh 'mvn test -Dtest="*IntegrationTest"'
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('API Tests') {
+            when {
+                allOf {
+                    expression { !params.SKIP_TESTS }
+                    expression { params.TEST_SUITE == 'all' || params.TEST_SUITE == 'api' }
+                }
+            }
+            steps {
+                script {
+                    echo "执行API测试..."
+                    sh """
+                        mvn test -Papi-test \
+                            -Dbase.url=${env.BASE_URL} \
+                            -Dallure.results.directory=${ALLURE_RESULTS}
+                    """
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('UI Tests') {
+            when {
+                allOf {
+                    expression { !params.SKIP_TESTS }
+                    expression { params.TEST_SUITE == 'all' || params.TEST_SUITE == 'ui' }
+                }
+            }
+            steps {
+                script {
+                    echo "执行UI测试..."
+                    sh """
+                        mvn test -Pui-test \
+                            -Dbrowser.type=${params.BROWSER} \
+                            -Dheadless.mode=${params.HEADLESS} \
+                            -Dallure.results.directory=${ALLURE_RESULTS}
+                    """
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('Mobile Tests') {
+            when {
+                allOf {
+                    expression { !params.SKIP_TESTS }
+                    expression { params.TEST_SUITE == 'all' || params.TEST_SUITE == 'mobile' }
+                }
+            }
+            steps {
+                script {
+                    echo "执行移动端测试..."
+                    sh """
+                        mvn test -Pmobile-test \
+                            -Dappium.server.url=http://localhost:4723 \
+                            -Dallure.results.directory=${ALLURE_RESULTS}
+                    """
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+        
+        stage('Code Coverage') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo "生成代码覆盖率报告..."
+                    sh 'mvn jacoco:report'
+                }
+            }
+            post {
+                always {
+                    jacoco(
+                        execPattern: '**/target/*.exec',
+                        classPattern: '**/target/classes',
+                        sourcePattern: '**/src/main/java',
+                        exclusionPattern: '**/test/**'
+                    )
+                }
+            }
+        }
+        
+        stage('Generate Allure Report') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    echo "生成Allure测试报告..."
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: "${ALLURE_RESULTS}"]]
+                    ])
+                }
+            }
+        }
+        
+        stage('Archive Reports') {
+            steps {
+                script {
+                    echo "归档测试报告..."
+                    archiveArtifacts artifacts: '**/target/allure-report/**', allowEmptyArchive: true
+                    archiveArtifacts artifacts: '**/target/site/jacoco/**', allowEmptyArchive: true
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "清理工作空间..."
+                cleanWs()
+            }
+        }
+        success {
+            script {
+                echo "构建成功！"
+                // 发送成功通知
+                // slackSend(color: 'good', message: "✅ 测试执行成功: ${env.JOB_NAME} - ${env.BUILD_NUMBER}")
+            }
+        }
+        failure {
+            script {
+                echo "构建失败！"
+                // 发送失败通知
+                // slackSend(color: 'danger', message: "❌ 测试执行失败: ${env.JOB_NAME} - ${env.BUILD_NUMBER}")
+            }
+        }
+        unstable {
+            script {
+                echo "构建不稳定（有测试失败）"
+                // 发送警告通知
+                // slackSend(color: 'warning', message: "⚠️ 测试执行不稳定: ${env.JOB_NAME} - ${env.BUILD_NUMBER}")
+            }
+        }
+    }
+}

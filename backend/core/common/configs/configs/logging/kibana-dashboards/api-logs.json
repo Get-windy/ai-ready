@@ -1,0 +1,105 @@
+{
+  "title": "AI-Ready Application Logs",
+  "description": "Detailed application log analysis with service breakdown",
+  "tags": ["ai-ready", "application", "api"],
+  "version": 1,
+  "panels": [
+    {
+      "id": "api-request-rate",
+      "title": "API Request Rate (RPS)",
+      "type": "timeseries",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "timeField": "@timestamp",
+          "metric": {"type": "count", "field": "*"},
+          "bucketAgg": {"type": "date_histogram", "field": "@timestamp", "interval": "1m"}
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "id": "api-status-code",
+      "title": "API HTTP Status Codes",
+      "type": "pie-chart",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "group": [
+            {"type": "terms", "field": "response.status", "size": 10, "orderBy": "count", "order": "desc"}
+          ],
+          "metric": {"type": "count"}
+        }
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+    },
+    {
+      "id": "api-latency-p95",
+      "title": "API Latency P95",
+      "type": "stat",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "metric": {"type": "percentile", "field": "response.time", "percents": [95]}
+        }
+      ],
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+    },
+    {
+      "id": "api-latency-p99",
+      "title": "API Latency P99",
+      "type": "stat",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "metric": {"type": "percentile", "field": "response.time", "percents": [99]}
+        }
+      ],
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8}
+    },
+    {
+      "id": "slow-api-requests",
+      "title": "Slow API Requests (>1s)",
+      "type": "table",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "query": "response.time > 1000",
+          "columns": ["@timestamp", "request.method", "request.path", "response.time", "trace_id"],
+          "size": 20,
+          "sort": [{"response.time": "desc"}]
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+    },
+    {
+      "id": "error-requests",
+      "title": "Error Requests (5xx)",
+      "type": "table",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "query": "response.status >= 500",
+          "columns": ["@timestamp", "request.method", "request.path", "response.status", "message", "trace_id"],
+          "size": 20,
+          "sort": [{"@timestamp": "desc"}]
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+    }
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+  }
+}

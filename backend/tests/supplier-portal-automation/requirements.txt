@@ -1,0 +1,45 @@
+# 测试框架依赖
+pytest==7.4.3
+pytest-xdist==3.5.0
+pytest-html==4.1.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-timeout==2.2.0
+
+# API测试依赖
+requests==2.31.0
+requests-mock==1.11.0
+httpie==3.2.2
+
+# 数据生成和验证
+Faker==20.1.0
+pydantic==2.5.0
+jsonschema==4.20.0
+
+# 数据库操作
+psycopg2-binary==2.9.9
+redis==5.0.1
+sqlalchemy==2.0.23
+
+# 性能测试
+locust==2.19.1
+pytest-benchmark==4.0.0
+
+# 配置管理
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# 测试报告
+allure-pytest==2.13.2
+pytest-allure-adaptor==1.7.10
+
+# 工具类
+tenacity==8.2.3  # 重试机制
+structlog==23.2.0  # 结构化日志
+tabulate==0.9.0  # 表格输出
+
+# 开发工具
+black==23.11.0
+flake8==6.1.0
+isort==5.12.0
+mypy==1.7.0

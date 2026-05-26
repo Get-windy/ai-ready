@@ -1,0 +1,317 @@
+{
+  "test_time": "2026-04-03 20:03:54",
+  "base_url": "http://localhost:8080",
+  "tests": [
+    {
+      "test_name": "API健康检查",
+      "category": "响应时间",
+      "endpoint": "/",
+      "summary": {
+        "total_requests": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 16.66010000189999,
+        "min_response_time": 16.66010000189999,
+        "max_response_time": 16.66010000189999,
+        "median_response_time": 16.66010000189999,
+        "p95_response_time": 16.66010000189999,
+        "p99_response_time": 16.66010000189999,
+        "std_dev": 0,
+        "status_codes": {
+          "401": 1
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "Swagger API文档",
+      "category": "响应时间",
+      "endpoints": [
+        "/v3/api-docs",
+        "/swagger-ui/index.html"
+      ],
+      "summary": {
+        "total_requests": 2,
+        "success_count": 1,
+        "failure_count": 1,
+        "success_rate": 50.0,
+        "avg_response_time": 6.763850000425009,
+        "min_response_time": 5.060299998149276,
+        "max_response_time": 8.467400002700742,
+        "median_response_time": 6.763850000425009,
+        "p95_response_time": 8.467400002700742,
+        "p99_response_time": 8.467400002700742,
+        "std_dev": 2.409183517399059,
+        "status_codes": {
+          "200": 1,
+          "401": 1
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "用户API响应时间",
+      "category": "响应时间",
+      "endpoint": "/api/user/page",
+      "iterations": 10,
+      "summary": {
+        "total_requests": 10,
+        "success_count": 10,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 4.267070000059903,
+        "min_response_time": 3.7005999984103255,
+        "max_response_time": 4.829799996514339,
+        "median_response_time": 4.417450003529666,
+        "p95_response_time": 4.829799996514339,
+        "p99_response_time": 4.829799996514339,
+        "std_dev": 0.3818635730421899,
+        "status_codes": {
+          "401": 10
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "角色API响应时间",
+      "category": "响应时间",
+      "endpoint": "/api/role/page",
+      "iterations": 10,
+      "summary": {
+        "total_requests": 10,
+        "success_count": 10,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 4.616949999035569,
+        "min_response_time": 4.090700000233483,
+        "max_response_time": 5.299000004015397,
+        "median_response_time": 4.461900000023888,
+        "p95_response_time": 5.299000004015397,
+        "p99_response_time": 5.299000004015397,
+        "std_dev": 0.4663117045077215,
+        "status_codes": {
+          "401": 10
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "10并发测试",
+      "category": "并发能力",
+      "concurrent_users": 10,
+      "total_requests": 50,
+      "summary": {
+        "total_requests": 50,
+        "success_count": 50,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 20.345755999878747,
+        "min_response_time": 11.058099997171666,
+        "max_response_time": 27.242099997238256,
+        "median_response_time": 20.422149998921668,
+        "p95_response_time": 24.515199998859316,
+        "p99_response_time": 27.242099997238256,
+        "std_dev": 3.260307834193948,
+        "status_codes": {
+          "401": 50
+        },
+        "throughput": 422.25271825195676,
+        "total_time_ms": 118.41249999997672
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "50并发测试",
+      "category": "并发能力",
+      "concurrent_users": 50,
+      "total_requests": 100,
+      "summary": {
+        "total_requests": 100,
+        "success_count": 100,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 59.300191000220366,
+        "min_response_time": 15.308300004107878,
+        "max_response_time": 103.74969999975292,
+        "median_response_time": 60.54310000035912,
+        "p95_response_time": 93.17269999883138,
+        "p99_response_time": 103.74969999975292,
+        "std_dev": 20.365126175389356,
+        "status_codes": {
+          "401": 100
+        },
+        "throughput": 420.8010368536649,
+        "total_time_ms": 237.64200000005076
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "100并发测试",
+      "category": "并发能力",
+      "concurrent_users": 100,
+      "total_requests": 200,
+      "summary": {
+        "total_requests": 200,
+        "success_count": 200,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 116.28488450016448,
+        "min_response_time": 14.819099997112062,
+        "max_response_time": 198.97160000255099,
+        "median_response_time": 120.08554999920307,
+        "p95_response_time": 180.41939999966417,
+        "p99_response_time": 191.58620000234805,
+        "std_dev": 45.11577306802026,
+        "status_codes": {
+          "200": 200
+        },
+        "throughput": 323.8973925465951,
+        "total_time_ms": 617.479499996989
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "持续负载30秒",
+      "category": "稳定性",
+      "duration": "30s",
+      "summary": {
+        "total_requests": 150,
+        "success_count": 150,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 10.584391999970345,
+        "min_response_time": 7.091599996783771,
+        "max_response_time": 32.12340000027325,
+        "median_response_time": 9.654299999965588,
+        "p95_response_time": 14.200300000084098,
+        "p99_response_time": 30.929399996239226,
+        "std_dev": 3.5520103254297397,
+        "status_codes": {
+          "401": 150
+        },
+        "duration_seconds": 3.063364300003741,
+        "requests_per_second_avg": 48.965772696318496
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "混合API操作",
+      "category": "稳定性",
+      "operations": [
+        "GET user/page",
+        "GET role/page",
+        "GET api-docs",
+        "GET swagger-ui"
+      ],
+      "iterations": 100,
+      "summary": {
+        "total_requests": 100,
+        "success_count": 100,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 4.34216599976935,
+        "min_response_time": 3.3639000030234456,
+        "max_response_time": 6.730599998263642,
+        "median_response_time": 4.037999999127351,
+        "p95_response_time": 5.81120000424562,
+        "p99_response_time": 6.730599998263642,
+        "std_dev": 0.8245865009490695,
+        "status_codes": {
+          "200": 36,
+          "401": 64
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "响应时间分布分析",
+      "category": "瓶颈识别",
+      "summary": {
+        "total_requests": 100,
+        "success_count": 100,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 3.704093999695033,
+        "min_response_time": 3.3934999955818057,
+        "max_response_time": 4.575500002829358,
+        "median_response_time": 3.6273500008974224,
+        "p95_response_time": 4.338899998401757,
+        "p99_response_time": 4.575500002829358,
+        "std_dev": 0.2531884747711123,
+        "status_codes": {
+          "401": 100
+        }
+      },
+      "bottleneck_analysis": {
+        "slow_requests_count": 0,
+        "slow_requests_percentage": 0.0,
+        "fast_requests_count": 100,
+        "response_time_variance": 0.2531884747711123
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "超时处理测试",
+      "category": "瓶颈识别",
+      "timeout_settings": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "summary": {
+        "total_requests": 4,
+        "success_count": 4,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 3.7477499990927754,
+        "min_response_time": 3.4350999994785525,
+        "max_response_time": 4.31669999670703,
+        "median_response_time": 3.6196000000927597,
+        "p95_response_time": 4.31669999670703,
+        "p99_response_time": 4.31669999670703,
+        "std_dev": 0.3919755457187217,
+        "status_codes": {
+          "401": 4
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "test_name": "大数据负载处理",
+      "category": "瓶颈识别",
+      "page_sizes": [
+        10,
+        50,
+        100,
+        200,
+        500
+      ],
+      "response_times_by_size": {
+        "10": 3.6578999934135936,
+        "50": 4.141500001423992,
+        "100": 4.1203000000678,
+        "200": 3.534600000421051,
+        "500": 3.6410000029718503
+      },
+      "summary": {
+        "total_requests": 5,
+        "success_count": 5,
+        "failure_count": 0,
+        "success_rate": 100.0,
+        "avg_response_time": 3.8190599996596575,
+        "min_response_time": 3.534600000421051,
+        "max_response_time": 4.141500001423992,
+        "median_response_time": 3.6578999934135936,
+        "p95_response_time": 4.141500001423992,
+        "p99_response_time": 4.141500001423992,
+        "std_dev": 0.2886643785541452,
+        "status_codes": {
+          "401": 5
+        }
+      },
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "test_date": "2026-04-25 14:34:25",
+  "test_module": "订单管理模块",
+  "total_tests": 13,
+  "passed_tests": 13,
+  "failed_tests": 0,
+  "pass_rate": "100%",
+  "security_score": 98,
+  "execution_time": "0.42s",
+  "test_categories": [
+    {
+      "name": "SQL注入测试",
+      "tests": 2,
+      "status": "✅"
+    },
+    {
+      "name": "XSS攻击测试",
+      "tests": 2,
+      "status": "✅"
+    },
+    {
+      "name": "CSRF防护测试",
+      "tests": 2,
+      "status": "✅"
+    },
+    {
+      "name": "认证授权测试",
+      "tests": 3,
+      "status": "✅"
+    },
+    {
+      "name": "敏感信息保护测试",
+      "tests": 2,
+      "status": "✅"
+    },
+    {
+      "name": "速率限制测试",
+      "tests": 2,
+      "status": "✅"
+    }
+  ],
+  "owasp_coverage": [
+    "A01: Broken Access Control",
+    "A02: Cryptographic Failures",
+    "A03: Injection",
+    "A05: Security Misconfiguration",
+    "A07: XSS",
+    "A08: Software Integrity",
+    "A09: Logging Failures"
+  ],
+  "recommendations": [
+    "进一步加强地址信息的脱敏粒度",
+    "增加更严格的速率限制策略",
+    "实施多因素认证(MFA)增强安全性"
+  ]
+}

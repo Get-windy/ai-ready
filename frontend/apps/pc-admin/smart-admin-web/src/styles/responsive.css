@@ -1,0 +1,291 @@
+/**
+ * 响应式布局样式
+ */
+
+/* 断点变量 */
+:root {
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-xxl: 1600px;
+}
+
+/* 通用响应式类 */
+.responsive-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 576px) {
+  .responsive-container {
+    padding: 0 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    padding: 0 24px;
+  }
+}
+
+/* 隐藏/显示工具类 */
+.hidden-xs {
+  display: block;
+}
+
+@media (max-width: 575.98px) {
+  .hidden-xs {
+    display: none !important;
+  }
+}
+
+.hidden-sm {
+  display: block;
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .hidden-sm {
+    display: none !important;
+  }
+}
+
+.hidden-md {
+  display: block;
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .hidden-md {
+    display: none !important;
+  }
+}
+
+.hidden-lg {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .hidden-lg {
+    display: none !important;
+  }
+}
+
+.visible-xs {
+  display: none;
+}
+
+@media (max-width: 575.98px) {
+  .visible-xs {
+    display: block !important;
+  }
+}
+
+.visible-sm {
+  display: none;
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .visible-sm {
+    display: block !important;
+  }
+}
+
+.visible-md {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .visible-md {
+    display: block !important;
+  }
+}
+
+.visible-lg {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .visible-lg {
+    display: block !important;
+  }
+}
+
+/* 响应式网格 */
+.responsive-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 576px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 992px) {
+  .responsive-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+}
+
+/* 响应式 Flex */
+.responsive-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .responsive-flex {
+    flex-direction: row;
+    gap: 16px;
+  }
+}
+
+/* 响应式文本 */
+.responsive-text-xs {
+  font-size: 12px;
+}
+
+@media (min-width: 768px) {
+  .responsive-text-xs {
+    font-size: 14px;
+  }
+}
+
+.responsive-text-sm {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  .responsive-text-sm {
+    font-size: 16px;
+  }
+}
+
+.responsive-text-md {
+  font-size: 16px;
+}
+
+@media (min-width: 768px) {
+  .responsive-text-md {
+    font-size: 18px;
+  }
+}
+
+/* 响应式间距 */
+.responsive-padding {
+  padding: 12px;
+}
+
+@media (min-width: 768px) {
+  .responsive-padding {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 992px) {
+  .responsive-padding {
+    padding: 24px;
+  }
+}
+
+.responsive-margin {
+  margin: 12px;
+}
+
+@media (min-width: 768px) {
+  .responsive-margin {
+    margin: 16px;
+  }
+}
+
+@media (min-width: 992px) {
+  .responsive-margin {
+    margin: 24px;
+  }
+}
+
+/* 响应式卡片 */
+.responsive-card {
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .responsive-card {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 992px) {
+  .responsive-card {
+    padding: 24px;
+  }
+}
+
+/* 响应式表格容器 */
+.responsive-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table-container table {
+  min-width: 600px;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .mobile-optimized {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+  
+  .mobile-text-center {
+    text-align: center !important;
+  }
+}
+
+/* 平板端优化 */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .tablet-optimized {
+    /* 平板特定优化 */
+  }
+}
+
+/* PC端优化 */
+@media (min-width: 992px) {
+  .desktop-optimized {
+    /* PC特定优化 */
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  .responsive-container {
+    max-width: 100%;
+  }
+}

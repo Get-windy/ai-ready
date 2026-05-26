@@ -1,0 +1,62 @@
+{
+  "test_time": "2026-04-18 19:37:51",
+  "config": {
+    "warmup_users": 10,
+    "test_levels": [
+      100,
+      500,
+      1000
+    ],
+    "duration_per_level_seconds": 30,
+    "ramp_up_seconds": 5,
+    "timeout_seconds": 10
+  },
+  "results": {
+    "100": {
+      "concurrent_users": 100,
+      "total_requests": 800,
+      "throughput_rps": 23.77474034592985,
+      "avg_response_time_ms": 4114.4658651947975,
+      "error_rate_percent": 100.0,
+      "status": "FAIL"
+    },
+    "500": {
+      "concurrent_users": 500,
+      "total_requests": 4000,
+      "throughput_rps": 116.75319075291839,
+      "avg_response_time_ms": 4140.292156100273,
+      "error_rate_percent": 100.0,
+      "status": "FAIL"
+    },
+    "1000": {
+      "concurrent_users": 1000,
+      "total_requests": 7448,
+      "throughput_rps": 208.49165797138755,
+      "avg_response_time_ms": 4370.427348015772,
+      "error_rate_percent": 100.0,
+      "status": "FAIL"
+    }
+  },
+  "summary": {
+    "max_supported_users": 0,
+    "breaking_point_users": 100,
+    "optimal_users": 0,
+    "performance_degradation": [
+      {
+        "from_users": 100,
+        "to_users": 500,
+        "response_time_increase_percent": 0.6276948637232863,
+        "throughput_change_percent": 391.08082382445923
+      },
+      {
+        "from_users": 500,
+        "to_users": 1000,
+        "response_time_increase_percent": 5.558428807407208,
+        "throughput_change_percent": 78.57469815331454
+      }
+    ],
+    "recommendations": [
+      "系统在 100 并发时达到极限"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-04-29T04:37:35.895886",
+  "target": "http://localhost:8080",
+  "results": {
+    "User Login": {
+      "avg_ms": 2162.64,
+      "min_ms": 2106.69,
+      "max_ms": 2204.78,
+      "success_rate": 100.0,
+      "total_requests": 10
+    },
+    "User Register": {
+      "avg_ms": 2222.02,
+      "min_ms": 2173.48,
+      "max_ms": 2260.05,
+      "success_rate": 100.0,
+      "total_requests": 10
+    },
+    "Order Create": {
+      "avg_ms": 2308.37,
+      "min_ms": 2220.63,
+      "max_ms": 2508.82,
+      "success_rate": 100.0,
+      "total_requests": 10
+    },
+    "Order Query": {
+      "avg_ms": 2158.96,
+      "min_ms": 2119.16,
+      "max_ms": 2217.34,
+      "success_rate": 90.0,
+      "total_requests": 10
+    },
+    "AI Predict": {
+      "avg_ms": 2513.85,
+      "min_ms": 2338.02,
+      "max_ms": 2634.31,
+      "success_rate": 90.0,
+      "total_requests": 10
+    }
+  }
+}

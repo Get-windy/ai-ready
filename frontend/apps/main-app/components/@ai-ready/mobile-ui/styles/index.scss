@@ -1,0 +1,404 @@
+/**
+ * AI-Ready Mobile UI 组件库样式入口
+ * @package @ai-ready/mobile-ui
+ */
+
+@import './variables.scss';
+@import './mixins.scss';
+
+// ==================== CSS 变量定义 ====================
+:root {
+  // 品牌色
+  --ar-color-primary: #{$color-primary};
+  --ar-color-success: #{$color-success};
+  --ar-color-warning: #{$color-warning};
+  --ar-color-danger: #{$color-danger};
+  --ar-color-info: #{$color-info};
+
+  // 文字色
+  --ar-color-text-primary: #{$color-text-primary};
+  --ar-color-text-secondary: #{$color-text-secondary};
+  --ar-color-text-tertiary: #{$color-text-tertiary};
+  --ar-color-text-quaternary: #{$color-text-quaternary};
+
+  // 背景色
+  --ar-color-background: #{$color-background};
+  --ar-color-background-white: #{$color-background-white};
+  --ar-color-background-gray: #{$color-background-gray};
+
+  // 边框色
+  --ar-color-border: #{$color-border};
+  --ar-color-border-dark: #{$color-border-dark};
+
+  // 字体大小
+  --ar-font-size-xs: #{$font-size-xs};
+  --ar-font-size-sm: #{$font-size-sm};
+  --ar-font-size-md: #{$font-size-md};
+  --ar-font-size-lg: #{$font-size-lg};
+  --ar-font-size-xl: #{$font-size-xl};
+  --ar-font-size-xxl: #{$font-size-xxl};
+
+  // 圆角
+  --ar-border-radius-sm: #{$border-radius-sm};
+  --ar-border-radius-md: #{$border-radius-md};
+  --ar-border-radius-lg: #{$border-radius-lg};
+  --ar-border-radius-xl: #{$border-radius-xl};
+  --ar-border-radius-max: #{$border-radius-max};
+
+  // 间距
+  --ar-spacing-xs: #{$spacing-xs};
+  --ar-spacing-sm: #{$spacing-sm};
+  --ar-spacing-md: #{$spacing-md};
+  --ar-spacing-lg: #{$spacing-lg};
+  --ar-spacing-xl: #{$spacing-xl};
+  --ar-spacing-xxl: #{$spacing-xxl};
+
+  // 阴影
+  --ar-box-shadow-sm: #{$box-shadow-sm};
+  --ar-box-shadow-md: #{$box-shadow-md};
+  --ar-box-shadow-lg: #{$box-shadow-lg};
+
+  // 动画
+  --ar-animation-duration-fast: #{$animation-duration-fast};
+  --ar-animation-duration-normal: #{$animation-duration-normal};
+  --ar-animation-duration-slow: #{$animation-duration-slow};
+}
+
+// ==================== 基础样式重置 ====================
+.ar-mobile-ui {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ar-color-text-primary);
+  font-size: var(--ar-font-size-md);
+  line-height: 1.5;
+
+  // 盒模型统一
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  // 清除默认样式
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  button {
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  // 链接样式
+  a {
+    color: var(--ar-color-primary);
+    text-decoration: none;
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+
+  // 图片
+  img {
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+
+  // 列表
+  ul,
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  // 表格
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+}
+
+// ==================== 工具类 ====================
+
+// 文字对齐
+.ar-text-left {
+  text-align: left;
+}
+
+.ar-text-center {
+  text-align: center;
+}
+
+.ar-text-right {
+  text-align: right;
+}
+
+// Flex 布局
+.ar-flex {
+  display: flex;
+}
+
+.ar-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.ar-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ar-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ar-flex-around {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.ar-flex-1 {
+  flex: 1;
+}
+
+.ar-flex-wrap {
+  flex-wrap: wrap;
+}
+
+.ar-flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+// 文字省略
+.ar-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ar-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ar-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// 安全区域
+.ar-safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+// 点击态
+.ar-active:active {
+  opacity: 0.8;
+}
+
+// 禁用态
+.ar-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+// 隐藏
+.ar-hidden {
+  display: none !important;
+}
+
+.ar-invisible {
+  visibility: hidden;
+}
+
+// 浮动清除
+.ar-clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+// ==================== 主题色工具类 ====================
+
+.ar-color-primary {
+  color: var(--ar-color-primary);
+}
+
+.ar-color-success {
+  color: var(--ar-color-success);
+}
+
+.ar-color-warning {
+  color: var(--ar-color-warning);
+}
+
+.ar-color-danger {
+  color: var(--ar-color-danger);
+}
+
+.ar-color-info {
+  color: var(--ar-color-info);
+}
+
+.ar-bg-primary {
+  background-color: var(--ar-color-primary);
+}
+
+.ar-bg-success {
+  background-color: var(--ar-color-success);
+}
+
+.ar-bg-warning {
+  background-color: var(--ar-color-warning);
+}
+
+.ar-bg-danger {
+  background-color: var(--ar-color-danger);
+}
+
+.ar-bg-info {
+  background-color: var(--ar-color-info);
+}
+
+// ==================== 间距工具类 ====================
+
+// margin
+@each $size in xs, sm, md, lg, xl, xxl {
+  .ar-m-#{$size} {
+    margin: var(--ar-spacing-#{$size});
+  }
+  .ar-mt-#{$size} {
+    margin-top: var(--ar-spacing-#{$size});
+  }
+  .ar-mb-#{$size} {
+    margin-bottom: var(--ar-spacing-#{$size});
+  }
+  .ar-ml-#{$size} {
+    margin-left: var(--ar-spacing-#{$size});
+  }
+  .ar-mr-#{$size} {
+    margin-right: var(--ar-spacing-#{$size});
+  }
+  .ar-mx-#{$size} {
+    margin-left: var(--ar-spacing-#{$size});
+    margin-right: var(--ar-spacing-#{$size});
+  }
+  .ar-my-#{$size} {
+    margin-top: var(--ar-spacing-#{$size});
+    margin-bottom: var(--ar-spacing-#{$size});
+  }
+}
+
+// padding
+@each $size in xs, sm, md, lg, xl, xxl {
+  .ar-p-#{$size} {
+    padding: var(--ar-spacing-#{$size});
+  }
+  .ar-pt-#{$size} {
+    padding-top: var(--ar-spacing-#{$size});
+  }
+  .ar-pb-#{$size} {
+    padding-bottom: var(--ar-spacing-#{$size});
+  }
+  .ar-pl-#{$size} {
+    padding-left: var(--ar-spacing-#{$size});
+  }
+  .ar-pr-#{$size} {
+    padding-right: var(--ar-spacing-#{$size});
+  }
+  .ar-px-#{$size} {
+    padding-left: var(--ar-spacing-#{$size});
+    padding-right: var(--ar-spacing-#{$size});
+  }
+  .ar-py-#{$size} {
+    padding-top: var(--ar-spacing-#{$size});
+    padding-bottom: var(--ar-spacing-#{$size});
+  }
+}
+
+// ==================== 字体大小工具类 ====================
+
+@each $size in xs, sm, md, lg, xl, xxl {
+  .ar-font-#{$size} {
+    font-size: var(--ar-font-size-#{$size});
+  }
+}
+
+// ==================== 圆角工具类 ====================
+
+@each $size in sm, md, lg, xl, max {
+  .ar-radius-#{$size} {
+    border-radius: var(--ar-border-radius-#{$size});
+  }
+}
+
+// ==================== 阴影工具类 ====================
+
+.ar-shadow-sm {
+  box-shadow: var(--ar-box-shadow-sm);
+}
+
+.ar-shadow-md {
+  box-shadow: var(--ar-box-shadow-md);
+}
+
+.ar-shadow-lg {
+  box-shadow: var(--ar-box-shadow-lg);
+}
+
+// ==================== 动画 ====================
+
+.ar-fade-enter-active,
+.ar-fade-leave-active {
+  transition: opacity var(--ar-animation-duration-normal);
+}
+
+.ar-fade-enter-from,
+.ar-fade-leave-to {
+  opacity: 0;
+}
+
+.ar-slide-up-enter-active,
+.ar-slide-up-leave-active {
+  transition: transform var(--ar-animation-duration-normal);
+}
+
+.ar-slide-up-enter-from,
+.ar-slide-up-leave-to {
+  transform: translateY(100%);
+}
+
+.ar-slide-down-enter-active,
+.ar-slide-down-leave-active {
+  transition: transform var(--ar-animation-duration-normal);
+}
+

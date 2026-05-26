@@ -1,0 +1,455 @@
+# Alertmanager优化配置 - Sprint 29
+# 文件名: alertmanager-optimized.yml
+# 版本: v2.0.0-optimized
+# 更新日期: 2026-04-26
+# 优化重点: 告警路由效率、分组策略、通知模板
+
+# ===========================================
+# 全局配置优化
+# ===========================================
+global:
+  # SMTP优化配置
+  smtp_smarthost: '${SMTP_HOST:smtp.company.com:587}'
+  smtp_from: '${SMTP_FROM:monitoring@ai-ready.local}'
+  smtp_auth_username: '${SMTP_USER:monitoring@ai-ready.local}'
+  smtp_auth_password: '${SMTP_PASSWORD:}'
+  smtp_require_tls: true
+  
+  # 企业微信Webhook优化
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${WECHAT_WEBHOOK_KEY}'
+  wechat_api_corp_id: '${WECHAT_CORP_ID}'
+  wechat_api_secret: '${WECHAT_API_SECRET}'
+  
+  # 钉钉Webhook优化
+  dingtalk_api_url: 'https://oapi.dingtalk.com/robot/send?access_token=${DINGTALK_WEBHOOK_TOKEN}'
+  
+  # Slack Webhook优化
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+  
+  # 默认超时优化
+  resolve_timeout: 5m
+
+# ===========================================
+# 路由配置优化 - 分级路由策略
+# ===========================================
+route:
+  # 默认接收者
+  receiver: 'default-receiver'
+  
+  # 告警分组优化（关键性能优化）
+  # 分组维度：告警名称、集群、服务、实例
+  group_by: ['alertname', 'cluster', 'service', 'severity']
+  
+  # 分组等待时间优化（减少告警风暴）
+  group_wait: 30s      # 首次告警等待30秒收集同组告警
+  group_interval: 5m   # 同组告警间隔5分钟发送
+  repeat_interval: 4h  # 重复告警间隔4小时
+  
+  # 告警路由规则 - 分级路由优化
+  routes:
+    # ===========================================
+    # P0级告警：Critical级别 - 立即通知
+    # ===========================================
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_by: ['alertname', 'instance']  # Critical告警按实例分组，减少聚合延迟
+      group_wait: 5s   # Critical告警快速发送
+      group_interval: 1m
+      repeat_interval: 30m
+      continue: false  # 匹配后不再继续
+      
+    # ===========================================
+    # P1级告警：Warning级别 - 快速通知
+    # ===========================================
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+      group_by: ['alertname', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      continue: false
+      
+    # ===========================================
+    # P2级告警：Info级别 - 延迟聚合通知
+    # ===========================================
+    - match:
+        severity: info
+      receiver: 'info-receiver'
+      group_by: ['alertname']
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 6h
+      continue: false
+      
+    # ===========================================
+    # 业务告警路由优化
+    # ===========================================
+    # 数据库告警路由
+    - match:
+        category: database
+        severity: critical
+      receiver: 'database-critical'
+      group_wait: 10s
+      continue: false
+      
+    - match:
+        category: database
+      receiver: 'database-team'
+      group_by: ['alertname', 'database']
+      continue: false
+      
+    # 缓存告警路由
+    - match:
+        category: cache
+        severity: critical
+      receiver: 'cache-critical'
+      group_wait: 10s
+      continue: false
+      
+    - match:
+        category: cache
+      receiver: 'cache-team'
+      group_by: ['alertname', 'redis_instance']
+      continue: false
+      
+    # 消息队列告警路由
+    - match:
+        category: message-queue
+        severity: critical
+      receiver: 'mq-critical'
+      group_wait: 10s
+      continue: false
+      
+    - match:
+        category: message-queue
+      receiver: 'mq-team'
+      group_by: ['alertname', 'kafka_topic']
+      continue: false
+      
+    # 应用告警路由
+    - match:
+        category: application
+        severity: critical
+      receiver: 'app-critical'
+      group_wait: 5s
+      continue: false
+      
+    - match:
+        category: application
+      receiver: 'app-team'
+      group_by: ['alertname', 'service']
+      continue: false
+      
+    # ===========================================
+    # 按服务域路由优化
+    # ===========================================
+    # AI模块告警
+    - match:
+        service: ai-module
+      receiver: 'ai-module-team'
+      group_by: ['alertname', 'instance']
+      continue: false
+      
+    # 后端服务告警
+    - match:
+        service: qi-zhilian-backend
+      receiver: 'backend-team'
+      group_by: ['alertname', 'instance']
+      continue: false
+
+# ===========================================
+# 接收者配置优化 - 多渠道通知策略
+# ===========================================
+receivers:
+  # 默认接收者（Webhook通知）
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://alert-handler:8080/webhook/default'
+        send_resolved: true
+        max_alerts: 100  # 单次发送最大告警数优化
+        
+  # ===========================================
+  # Critical告警接收者 - 多渠道紧急通知
+  # ===========================================
+  - name: 'critical-receiver'
+    # 企业微信通知（实时）
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          🚨【紧急告警】
+          告警名称: {{ .CommonLabels.alertname }}
+          服务: {{ .CommonLabels.service }}
+          实例: {{ .CommonLabels.instance }}
+          描述: {{ .CommonAnnotations.description }}
+          开始时间: {{ .StartsAt.Format "2026-04-26 15:20" }}
+          详情链接: {{ .ExternalURL }}
+        to_user: '@all'  # Critical告警通知所有人
+        
+    # 钉钉通知（备用）
+    dingtalk_configs:
+      - send_resolved: true
+        message: |
+          🚨【紧急告警】
+          {{ .CommonLabels.alertname }}
+          服务: {{ .CommonLabels.service }}
+          描述: {{ .CommonAnnotations.description }}
+          
+    # 邮件通知（详细记录）
+    email_configs:
+      - to: 'admin@ai-ready.local'
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+        subject: '[紧急] {{ .CommonLabels.alertname }} - {{ .CommonLabels.service }}'
+        
+    # Webhook通知（自动化处理）
+    webhook_configs:
+      - url: 'http://alert-handler:8080/webhook/critical'
+        send_resolved: true
+        max_alerts: 50
+        
+  # ===========================================
+  # Warning告警接收者
+  # ===========================================
+  - name: 'warning-receiver'
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          ⚠️【警告告警】
+          告警: {{ .CommonLabels.alertname }}
+          服务: {{ .CommonLabels.service }}
+          描述: {{ .CommonAnnotations.description }}
+          时间: {{ .StartsAt.Format "2026-04-26 15:20" }}
+          
+    email_configs:
+      - to: 'notifications@ai-ready.local'
+        send_resolved: true
+        
+  # ===========================================
+  # Info告警接收者
+  # ===========================================
+  - name: 'info-receiver'
+    email_configs:
+      - to: 'info@ai-ready.local'
+        send_resolved: true
+        html: '{{ template "email.info.html" . }}'
+        
+  # ===========================================
+  # 团队专属接收者
+  # ===========================================
+  # 数据库团队接收者
+  - name: 'database-team'
+    email_configs:
+      - to: 'dba@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          📊【数据库告警】
+          告警: {{ .CommonLabels.alertname }}
+          数据库: {{ .CommonLabels.database }}
+          描述: {{ .CommonAnnotations.description }}
+          
+  - name: 'database-critical'
+    wechat_configs:
+      - send_resolved: true
+        to_user: '@dba-team'
+        message: |
+          🚨【数据库紧急告警】
+          {{ .CommonLabels.alertname }}
+          数据库: {{ .CommonLabels.database }}
+          
+  # 缓存团队接收者
+  - name: 'cache-team'
+    email_configs:
+      - to: 'cache-team@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          🔄【缓存告警】
+          告警: {{ .CommonLabels.alertname }}
+          Redis实例: {{ .CommonLabels.redis_instance }}
+          
+  - name: 'cache-critical'
+    wechat_configs:
+      - send_resolved: true
+        to_user: '@cache-team'
+        message: |
+          🚨【缓存紧急告警】
+          {{ .CommonLabels.alertname }}
+          
+  # 消息队列团队接收者
+  - name: 'mq-team'
+    email_configs:
+      - to: 'mq-team@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          📨【消息队列告警】
+          告警: {{ .CommonLabels.alertname }}
+          Topic: {{ .CommonLabels.kafka_topic }}
+          
+  - name: 'mq-critical'
+    wechat_configs:
+      - send_resolved: true
+        to_user: '@mq-team'
+        message: |
+          🚨【消息队列紧急告警】
+          {{ .CommonLabels.alertname }}
+          
+  # 应用团队接收者
+  - name: 'app-team'
+    email_configs:
+      - to: 'dev-team@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          📱【应用告警】
+          告警: {{ .CommonLabels.alertname }}
+          服务: {{ .CommonLabels.service }}
+          
+  - name: 'app-critical'
+    wechat_configs:
+      - send_resolved: true
+        to_user: '@dev-team'
+        message: |
+          🚨【应用紧急告警】
+          {{ .CommonLabels.alertname }}
+          服务: {{ .CommonLabels.service }}
+          
+  # AI模块团队接收者
+  - name: 'ai-module-team'
+    email_configs:
+      - to: 'ai-team@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          🤖【AI模块告警】
+          告警: {{ .CommonLabels.alertname }}
+          实例: {{ .CommonLabels.instance }}
+          
+  # 后端团队接收者
+  - name: 'backend-team'
+    email_configs:
+      - to: 'backend-team@ai-ready.local'
+        send_resolved: true
+    wechat_configs:
+      - send_resolved: true
+        message: |
+          ⚙️【后端服务告警】
+          告警: {{ .CommonLabels.alertname }}
+          实例: {{ .CommonLabels.instance }}
+
+# ===========================================
+# 抑制规则优化 - 智能抑制策略
+# ===========================================
+inhibit_rules:
+  # ===========================================
+  # 节点级别抑制
+  # ===========================================
+  # 节点不可达抑制所有该节点告警
+  - source_match:
+      alertname: NodeDown
+      severity: critical
+    target_match_re:
+      alertname: .*
+      severity: warning|info
+    equal: ['instance']
+    
+  # 磁盘使用率高抑制空间不足告警
+  - source_match:
+      alertname: DiskUsageHigh
+      severity: warning
+    target_match:
+      alertname: DiskSpaceCritical
+      severity: critical
+    equal: ['instance', 'device']
+    
+  # ===========================================
+  # 服务级别抑制
+  # ===========================================
+  # 服务不可达抑制服务相关告警
+  - source_match:
+      alertname: ServiceDown
+      severity: critical
+    target_match_re:
+      service: .*
+      severity: warning|info
+    equal: ['service', 'instance']
+    
+  # ===========================================
+  # 数据库级别抑制
+  # ===========================================
+  # 数据库连接失败抑制数据库性能告警
+  - source_match:
+      alertname: DatabaseConnectionFailed
+      severity: critical
+    target_match_re:
+      category: database
+      severity: warning|info
+    equal: ['database']
+    
+  # 主从延迟抑制复制状态告警
+  - source_match:
+      alertname: DatabaseReplicationLag
+      severity: warning
+    target_match:
+      alertname: DatabaseReplicationStatus
+      severity: warning
+    equal: ['database']
+    
+  # ===========================================
+  # 缓存级别抑制
+  # ===========================================
+  # Redis连接失败抑制Redis性能告警
+  - source_match:
+      alertname: RedisConnectionFailed
+      severity: critical
+    target_match_re:
+      category: cache
+      severity: warning|info
+    equal: ['redis_instance']
+    
+  # ===========================================
+  # 消息队列级别抑制
+  # ===========================================
+  # Kafka Broker下线抑制Topic不可用告警
+  - source_match:
+      alertname: KafkaBrokerDown
+      severity: critical
+    target_match:
+      alertname: KafkaTopicUnavailable
+      severity: warning
+    equal: ['broker_id']
+    
+  # ===========================================
+  # 网络级别抑制
+  # ===========================================
+  # 网络延迟高抑制连接超时告警
+  - source_match:
+      alertname: NetworkLatencyHigh
+      severity: warning
+    target_match:
+      alertname: ConnectionTimeout
+      severity: warning
+    equal: ['instance', 'target']
+
+# ===========================================
+# 模板配置优化
+# ===========================================
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ===========================================
+# 性能优化总结
+# ===========================================
+# 1. 分级路由策略：P0(5s) → P1(30s) → P2(5m)
+# 2. 分组优化：按告警名称、服务、实例分级分组
+# 3. 多渠道通知：企业微信、钉钉、邮件、Webhook
+# 4. 智能抑制：节点、服务、数据库、缓存、消息队列级别抑制
+# 5. 通知模板优化：清晰的告警信息格式

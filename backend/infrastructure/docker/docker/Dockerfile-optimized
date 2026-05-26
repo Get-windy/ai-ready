@@ -1,0 +1,112 @@
+# Sprint 29: 优化版Dockerfile
+# 目标: 构建时间减少30%，镜像体积减少50%
+# 版本: v3.0-optimized
+
+# ============ 阶段1: 依赖下载 (缓存层) ============
+FROM eclipse-temurin:21-jdk-alpine AS dependencies
+WORKDIR /build
+
+# 只复制pom.xml和maven wrapper，利用Docker缓存
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+
+# 下载所有依赖 (这一层会被缓存，除非pom.xml改变)
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw dependency:go-offline -B -q && \
+    ./mvnw dependency:resolve-plugins -B -q
+
+# ============ 阶段2: 编译构建 ============
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /build
+
+# 从依赖阶段复制缓存
+COPY --from=dependencies /root/.m2 /root/.m2
+
+# 复制构建文件
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+COPY src ./src
+
+# 快速编译 (TieredStopAtLevel=1优化编译速度)
+ENV MAVEN_OPTS="-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+
+# 构建并跳过测试 (测试在CI中单独运行)
+RUN ./mvnw clean package -DskipTests -B -q && \
+    java -Djarmode=layertools -jar target/*.jar extract --destination extracted
+
+# ============ 阶段3: 生产镜像 (最小化) ============
+FROM eclipse-temurin:21-jre-alpine AS production
+
+# 安装必要工具
+RUN apk add --no-cache \
+    curl \
+    tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
+
+# 创建非root用户
+RUN addgroup -S ai-ready -g 1000 && \
+    adduser -S ai-ready -G ai-ready -u 1000
+
+WORKDIR /app
+
+# 分层复制 (优化层缓存)
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/dependencies/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/spring-boot-loader/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/snapshot-dependencies/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/application/ ./
+
+# 设置权限
+USER ai-ready:ai-ready
+
+# 暴露端口
+EXPOSE 8080
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fs http://localhost:8080/actuator/health || exit 1
+
+# JVM优化参数
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+UseStringDeduplication \
+    -XX:+OptimizeStringConcat \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.backgroundpreinitializer.ignore=true \
+    -Dspring.jmx.enabled=false"
+
+ENV SPRING_PROFILES_ACTIVE="production"
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]
+
+# ============ 阶段4: 调试镜像 (可选) ============
+FROM production AS debug
+
+USER root
+RUN apk add --no-cache \
+    bash \
+    vim \
+    net-tools \
+    iputils \
+    bind-tools
+
+USER ai-ready
+
+# 调试端口
+EXPOSE 5005
+
+ENV JAVA_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 \
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]
+
+# 构建命令:
+# docker build --target production -t ai-ready-api:optimized .
+# docker build --target debug -t ai-ready-api:debug .

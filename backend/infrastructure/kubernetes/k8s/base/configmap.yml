@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-ready-config
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    environment: prod
+data:
+  # 应用配置
+  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_APPLICATION_NAME: "ai-ready-api"
+  
+  # 数据库配置
+  DB_HOST: "prod-db-master.ai-ready.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "ai_ready_prod"
+  
+  # Redis配置
+  REDIS_HOST: "prod-redis-cluster.ai-ready.svc.cluster.local"
+  REDIS_PORT: "6379"
+  
+  # Kafka配置
+  KAFKA_SERVERS: "kafka1:9092,kafka2:9092,kafka3:9092"
+  
+  # AI引擎配置
+  AI_ENGINE_ENDPOINT: "http://ai-engine-service:8080"
+  AI_MODEL: "gpt-4"
+  
+  # 日志配置
+  LOG_PATH: "/var/log/ai-ready"
+  LOG_LEVEL_ROOT: "WARN"
+  LOG_LEVEL_APP: "INFO"
+  
+  # JVM配置
+  JAVA_OPTS: >-
+    -Xms512m
+    -Xmx1024m
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/var/log/ai-ready/heap-dump.hprof
+    -Djava.security.egd=file:/dev/./urandom
+    -Dspring.profiles.active=prod
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-ready-secrets
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    environment: prod
+type: Opaque
+stringData:
+  # 数据库凭据
+  DB_USERNAME: "ai_ready_user"
+  DB_PASSWORD: "CHANGE_ME_IN_PRODUCTION"
+  
+  # Redis密码
+  REDIS_PASSWORD: "CHANGE_ME_IN_PRODUCTION"
+  
+  # AI API密钥
+  AI_API_KEY: "CHANGE_ME_IN_PRODUCTION"
+  
+  # JWT密钥
+  JWT_SECRET: "CHANGE_ME_IN_PRODUCTION"
+  
+  # 钉钉配置
+  DINGTALK_WEBHOOK: "https://oapi.dingtalk.com/robot/send?access_token=xxx"
+  DINGTALK_APP_KEY: "CHANGE_ME_IN_PRODUCTION"
+  DINGTALK_APP_SECRET: "CHANGE_ME_IN_PRODUCTION"
+  
+  # SMS配置
+  SMS_ACCESS_KEY: "CHANGE_ME_IN_PRODUCTION"
+  SMS_SECRET_KEY: "CHANGE_ME_IN_PRODUCTION"

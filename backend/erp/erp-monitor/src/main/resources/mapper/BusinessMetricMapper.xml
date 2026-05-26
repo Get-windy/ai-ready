@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.monitor.mapper.BusinessMetricMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.monitor.entity.BusinessMetric">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="metric_code" property="metricCode"/>
+        <result column="metric_name" property="metricName"/>
+        <result column="metric_type" property="metricType"/>
+        <result column="metric_value" property="metricValue"/>
+        <result column="unit" property="unit"/>
+        <result column="period" property="period"/>
+        <result column="stat_time" property="statTime"/>
+        <result column="dimension1_type" property="dimension1Type"/>
+        <result column="dimension1_value" property="dimension1Value"/>
+        <result column="dimension2_type" property="dimension2Type"/>
+        <result column="dimension2_value" property="dimension2Value"/>
+        <result column="dimension3_type" property="dimension3Type"/>
+        <result column="dimension3_value" property="dimension3Value"/>
+        <result column="chain_ratio" property="chainRatio"/>
+        <result column="year_ratio" property="yearRatio"/>
+        <result column="target_value" property="targetValue"/>
+        <result column="completion_rate" property="completionRate"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, metric_code, metric_name, metric_type, metric_value, unit, period,
+        stat_time, dimension1_type, dimension1_value, dimension2_type, dimension2_value,
+        dimension3_type, dimension3_value, chain_ratio, year_ratio, target_value,
+        completion_rate, status, remark, deleted, create_time, update_time, create_by, update_by
+    </sql>
+
+    <select id="selectMetricPage" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_business_metric
+        WHERE deleted = 0
+        <if test="query.tenantId != null">
+            AND tenant_id = #{query.tenantId}
+        </if>
+        <if test="query.metricCode != null and query.metricCode != ''">
+            AND metric_code = #{query.metricCode}
+        </if>
+        <if test="query.metricType != null and query.metricType != ''">
+            AND metric_type = #{query.metricType}
+        </if>
+        <if test="query.metricTypes != null and query.metricTypes.size > 0">
+            AND metric_type IN
+            <foreach collection="query.metricTypes" item="type" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        <if test="query.period != null and query.period != ''">
+            AND period = #{query.period}
+        </if>
+        <if test="query.startTime != null">
+            AND stat_time >= #{query.startTime}
+        </if>
+        <if test="query.endTime != null">
+            AND stat_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY stat_time DESC
+    </select>
+
+    <select id="selectLatestMetrics" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_business_metric
+        WHERE tenant_id = #{tenantId}
+        AND deleted = 0
+        <if test="metricTypes != null and metricTypes.size > 0">
+            AND metric_type IN
+            <foreach collection="metricTypes" item="type" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        AND stat_time = (
+            SELECT MAX(stat_time) FROM erp_business_metric
+            WHERE tenant_id = #{tenantId} AND deleted = 0
+        )
+        ORDER BY metric_type, metric_code
+    </select>
+
+    <select id="selectHistoryMetrics" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_business_metric
+        WHERE tenant_id = #{tenantId}
+        AND metric_code = #{metricCode}
+        AND period = #{period}
+        AND stat_time >= #{startTime}
+        AND stat_time &lt;= #{endTime}
+        AND deleted = 0
+        ORDER BY stat_time
+    </select>
+
+    <select id="selectMetricTrend" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_business_metric
+        WHERE tenant_id = #{tenantId}
+        AND metric_code = #{metricCode}
+        AND period = #{period}
+        AND stat_time >= DATE_SUB(NOW(), INTERVAL #{hours} HOUR)
+        AND deleted = 0
+        ORDER BY stat_time
+    </select>
+
+    <insert id="batchInsertOrUpdate">
+        INSERT INTO erp_business_metric (
+            tenant_id, metric_code, metric_name, metric_type, metric_value, unit, period,
+            stat_time, dimension1_type, dimension1_value, dimension2_type, dimension2_value,
+            dimension3_type, dimension3_value, chain_ratio, year_ratio, target_value,
+            completion_rate, status, remark, create_time, update_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.tenantId}, #{item

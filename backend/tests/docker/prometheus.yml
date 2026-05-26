@@ -1,0 +1,77 @@
+# Prometheus配置文件
+# 用于监控测试环境和测试执行
+
+global:
+  scrape_interval: 15s      # 默认抓取间隔
+  evaluation_interval: 15s  # 规则评估间隔
+  external_labels:
+    cluster: 'ai-ready-test'
+    replica: '{{.ExternalURL}}'
+
+# 告警规则
+rule_files:
+  - "alert_rules.yml"
+
+# 抓取配置
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Docker容器监控
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['ai-ready-docker-dind:9323']
+    metrics_path: /metrics
+
+  # PostgreSQL监控
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['ai-ready-postgresql-test:5432']
+    metrics_path: /metrics
+
+  # Redis监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['ai-ready-redis-test:6379']
+    metrics_path: /metrics
+
+  # RabbitMQ监控
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['ai-ready-rabbitmq-test:15672']
+    metrics_path: /metrics
+
+  # Elasticsearch监控
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['ai-ready-elasticsearch-test:9200']
+    metrics_path: /_prometheus/metrics
+
+  # 测试执行监控
+  - job_name: 'test-execution'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: /metrics
+    scrape_interval: 5s
+
+  # MinIO监控
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['ai-ready-minio-test:9000']
+    metrics_path: /minio/v2/metrics/cluster
+
+# 告警配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# 远程存储（可选）
+# remote_write:
+#   - url: "http://remote-storage:9201/write"
+
+# remote_read:
+#   - url: "http://remote-storage:9201/read"

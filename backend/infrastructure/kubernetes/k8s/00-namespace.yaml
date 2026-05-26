@@ -1,0 +1,84 @@
+# 企智连项目 Kubernetes Namespace 配置
+# 用于隔离不同环境（开发、测试、生产）的资源
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-ready
+  labels:
+    app: ai-ready
+    environment: production
+    managed-by: kubernetes
+  annotations:
+    description: "企智连项目生产环境命名空间"
+    owner: "devops-team"
+    created-by: "devops-engineer"
+---
+# 资源配额限制
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ai-ready-quota
+  namespace: ai-ready
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "50"
+    services: "20"
+    persistentvolumeclaims: "10"
+    secrets: "20"
+    configmaps: "20"
+---
+# 默认网络策略 - 限制跨命名空间访问
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ai-ready
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# 允许同命名空间内通信
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: ai-ready
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# 允许访问 DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: ai-ready
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

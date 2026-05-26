@@ -1,0 +1,84 @@
+# Prometheus告警规则
+
+groups:
+  - name: test_environment
+    rules:
+      # 容器停机告警
+      - alert: ContainerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "容器 {{ $labels.instance }} 停机"
+          description: "容器 {{ $labels.instance }} 已经停机超过1分钟"
+
+      # 高内存使用告警
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes / container_memory_limit_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "容器内存使用率高"
+          description: "容器 {{ $labels.instance }} 内存使用率超过85%"
+
+      # 高CPU使用告警
+      - alert: HighCPUUsage
+        expr: (rate(container_cpu_usage_seconds_total[5m]) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "容器CPU使用率高"
+          description: "容器 {{ $labels.instance }} CPU使用率超过80%"
+
+      # 磁盘空间不足告警
+      - alert: LowDiskSpace
+        expr: (container_fs_usage_bytes / container_fs_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "磁盘空间不足"
+          description: "容器 {{ $labels.instance }} 磁盘使用率超过90%"
+
+      # PostgreSQL连接数告警
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL连接数高"
+          description: "PostgreSQL当前连接数超过80"
+
+      # Redis内存使用告警
+      - alert: RedisHighMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis内存使用率高"
+          description: "Redis内存使用率超过80%"
+
+      # 测试失败率告警
+      - alert: HighTestFailureRate
+        expr: (rate(test_failed_total[5m]) / rate(test_total_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "测试失败率高"
+          description: "测试失败率超过20%"
+
+      # 测试执行时间告警
+      - alert: SlowTestExecution
+        expr: histogram_quantile(0.95, rate(test_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "测试执行缓慢"
+          description: "95%的测试执行时间超过30秒"

@@ -1,0 +1,260 @@
+{
+  "dashboard": {
+    "title": "Sprint 28 - 告警规则引擎监控",
+    "uid": "sprint28-alerting-rule-engine",
+    "description": "监控告警规则引擎的性能指标和健康状态",
+    "tags": ["sprint28", "alerting", "rule-engine"],
+    "timezone": "Asia/Shanghai",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "告警规则引擎健康评分",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:rule_engine_health_score",
+            "legendFormat": "健康评分",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 60},
+                {"color": "green", "value": 80}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "规则评估吞吐量",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(alerting_rules_evaluated_total[5m])",
+            "legendFormat": "规则/秒",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 500},
+                {"color": "green", "value": 1000}
+              ]
+            },
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "活跃告警规则数",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:active_rules_count",
+            "legendFormat": "活跃规则",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "规则缓存命中率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(alerting_rule_cache_hits_total / (alerting_rule_cache_hits_total + alerting_rule_cache_misses_total)) * 100",
+            "legendFormat": "命中率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 85}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "规则评估延迟趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(alerting_rule_evaluation_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(alerting_rule_evaluation_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(alerting_rule_evaluation_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "规则评估错误率",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(rate(alerting_rules_evaluation_errors_total[5m]) / rate(alerting_rules_evaluated_total[5m])) * 100",
+            "legendFormat": "错误率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.5},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "告警触发趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(alerting_alerts_firing_total[5m])",
+            "legendFormat": "触发速率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "告警抑制统计",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "alerting:alerts_suppressed_count",
+            "legendFormat": "抑制数量",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "JVM内存使用",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"alerting-rule-engine\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "已使用堆内存 (MB)",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"alerting-rule-engine\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "最大堆内存 (MB)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "mbytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "GC暂停时间",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum[5m]) / rate(jvm_gc_pause_seconds_count[5m]) * 1000",
+            "legendFormat": "平均GC暂停 (ms)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 11,
+        "title": "规则引擎负载等级",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "alerting:rule_engine_load_level",
+            "legendFormat": "负载等级",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"

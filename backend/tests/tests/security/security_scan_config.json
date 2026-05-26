@@ -1,0 +1,147 @@
+{
+  "scan_config": {
+    "name": "AI-Ready Security Scan",
+    "version": "1.0.0",
+    "description": "AI-Ready项目安全扫描配置",
+    "target": {
+      "base_url": "http://localhost:8080",
+      "api_base": "http://localhost:8080/api",
+      "timeout": 30,
+      "verify_ssl": false
+    },
+    "scan_modules": {
+      "dependency_scan": {
+        "enabled": true,
+        "tools": ["owasp-dependency-check", "safety", "pip-audit"],
+        "severity_threshold": "MEDIUM"
+      },
+      "static_analysis": {
+        "enabled": true,
+        "tools": ["bandit", "semgrep", "codeql"],
+        "rules": ["security", "injection", "secrets"]
+      },
+      "dynamic_scan": {
+        "enabled": true,
+        "tools": ["owasp-zap", "burp-suite"],
+        "scan_types": ["spider", "active", "ajax"]
+      },
+      "api_security": {
+        "enabled": true,
+        "tools": ["postman", "burp-api"],
+        "endpoints": [
+          "/api/auth/login",
+          "/api/auth/register",
+          "/api/orders",
+          "/api/users",
+          "/api/admin"
+        ]
+      }
+    },
+    "owasp_top_10": {
+      "A01_Broken_Access_Control": {
+        "enabled": true,
+        "tests": [
+          "horizontal_privilege_escalation",
+          "vertical_privilege_escalation",
+          "idor",
+          "unauthorized_api_access",
+          "directory_traversal"
+        ]
+      },
+      "A02_Cryptographic_Failures": {
+        "enabled": true,
+        "tests": [
+          "password_transmission",
+          "password_storage",
+          "data_masking",
+          "weak_algorithms",
+          "key_management"
+        ]
+      },
+      "A03_Injection": {
+        "enabled": true,
+        "tests": [
+          "sql_injection",
+          "command_injection",
+          "nosql_injection",
+          "ldap_injection",
+          "xpath_injection"
+        ]
+      },
+      "A04_Insecure_Design": {
+        "enabled": true,
+        "tests": [
+          "business_logic",
+          "race_conditions",
+          "rate_limiting",
+          "audit_logging"
+        ]
+      },
+      "A05_Security_Misconfiguration": {
+        "enabled": true,
+        "tests": [
+          "debug_mode",
+          "default_credentials",
+          "sensitive_endpoints",
+          "error_handling",
+          "security_headers"
+        ]
+      },
+      "A06_Vulnerable_Outdated_Components": {
+        "enabled": true,
+        "tests": [
+          "known_vulnerabilities",
+          "outdated_dependencies",
+          "unused_dependencies"
+        ]
+      },
+      "A07_Identification_Authentication_Failures": {
+        "enabled": true,
+        "tests": [
+          "brute_force_protection",
+          "weak_password_policy",
+          "session_fixation",
+          "jwt_security",
+          "password_reset"
+        ]
+      },
+      "A08_Software_Data_Integrity_Failures": {
+        "enabled": true,
+        "tests": [
+          "deserialization",
+          "dependency_integrity",
+          "auto_update"
+        ]
+      },
+      "A09_Security_Logging_Monitoring_Failures": {
+        "enabled": true,
+        "tests": [
+          "login_logging",
+          "sensitive_operation_logging",
+          "error_logging",
+          "log_integrity"
+        ]
+      },
+      "A10_SSRF": {
+        "enabled": true,
+        "tests": [
+          "internal_access",
+          "metadata_services",
+          "file_protocol"
+        ]
+      }
+    },
+    "reporting": {
+      "format": ["json", "html", "markdown"],
+      "include_evidence": true,
+      "include_remediation": true,
+      "severity_levels": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    },
+    "thresholds": {
+      "critical": 0,
+      "high": 0,
+      "medium": 5,
+      "low": 10
+    }
+  }
+}

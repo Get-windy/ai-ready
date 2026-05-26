@@ -1,0 +1,158 @@
+# AI-Ready 测试环境告警规则
+# Version: v1.0.0
+# 创建日期: 2026-04-24
+
+groups:
+  # 服务可用性告警
+  - name: service_availability
+    interval: 30s
+    rules:
+      # API Gateway 停止响应
+      - alert: APIGatewayDown
+        expr: up{job="api-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: api-gateway
+        annotations:
+          summary: "API Gateway 服务停止响应"
+          description: "API Gateway ({{ $labels.instance }}) 已停止响应超过1分钟，请立即检查服务状态。"
+
+      # 库存服务停止响应
+      - alert: InventoryServiceDown
+        expr: up{job="inventory-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: inventory-service
+        annotations:
+          summary: "库存管理服务停止响应"
+          description: "库存管理服务已停止响应超过1分钟。"
+
+      # 财务服务停止响应
+      - alert: FinanceServiceDown
+        expr: up{job="finance-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: finance-service
+        annotations:
+          summary: "财务管理服务停止响应"
+          description: "财务管理服务已停止响应超过1分钟。"
+
+      # AI服务停止响应
+      - alert: AIServiceDown
+        expr: up{job="ai-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "AI智能服务停止响应"
+          description: "AI智能服务已停止响应超过1分钟。"
+
+  # 性能告警
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      # HTTP请求错误率过高
+      - alert: HighErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP请求错误率过高"
+          description: "HTTP请求错误率超过5%，当前值: {{ $value }}"
+
+      # 响应时间过长
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP响应时间过长"
+          description: "95分位响应时间超过2秒，当前值: {{ $value }}秒"
+
+      # JVM内存使用过高
+      - alert: HighJVMMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM内存使用率过高"
+          description: "{{ $labels.job }} JVM内存使用率超过85%，当前值: {{ $value }}"
+
+  # 数据库告警
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # PostgreSQL连接数过高
+      - alert: HighPostgresConnections
+        expr: pg_stat_activity_count > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL连接数过高"
+          description: "PostgreSQL活跃连接数超过100，当前值: {{ $value }}"
+
+      # PostgreSQL慢查询过多
+      - alert: SlowPostgresQueries
+        expr: pg_stat_statements_total_time_seconds > 60
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL存在慢查询"
+          description: "PostgreSQL查询平均时间超过60秒"
+
+  # Redis告警
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis内存使用过高
+      - alert: HighRedisMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis内存使用率过高"
+          description: "{{ $labels.instance }} Redis内存使用率超过85%"
+
+      # Redis连接数过高
+      - alert: HighRedisConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis连接数过高"
+          description: "{{ $labels.instance }} Redis连接数超过100"
+
+  # Kafka告警
+  - name: kafka_alerts
+    interval: 30s
+    rules:
+      # Kafka消息堆积
+      - alert: KafkaMessageLag
+        expr: kafka_consumer_lag > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka消息堆积"
+          description: "Kafka消费者消息堆积超过1000条"
+
+      # Kafka生产者错误
+      - alert: KafkaProducerErrors
+        expr: rate(kafka_producer_record_error_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka生产者错误"
+          description: "Kafka生产者错误率过高"

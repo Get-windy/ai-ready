@@ -1,0 +1,131 @@
+# 生产环境配置（只读模板）
+# 注意：这是模板文件，实际生产配置不应提交到版本控制
+# 请复制此模板并填充实际生产配置，然后添加到.gitignore
+
+environment:
+  name: "production"
+  description: "生产环境"
+  url: "https://ai-ready.production.com"
+  api_base_url: "https://api.ai-ready.production.com"
+  cdn_url: "https://cdn.ai-ready.production.com"
+
+database:
+  postgresql:
+    host: "${DB_HOST}"
+    port: 5432
+    database: "${DB_NAME}"
+    user: "${DB_USER}"
+    password: "${DB_PASSWORD}"
+    pool_size: 50
+    max_overflow: 100
+    ssl_mode: "require"
+    replication:
+      read_replicas:
+        - host: "${DB_READ_REPLICA_1}"
+        - host: "${DB_READ_REPLICA_2}"
+        - host: "${DB_READ_REPLICA_3}"
+  redis:
+    host: "${REDIS_HOST}"
+    port: 6379
+    db: 0
+    password: "${REDIS_PASSWORD}"
+    max_connections: 500
+    cluster_mode: true
+    nodes:
+      - host: "${REDIS_NODE_1}"
+        port: 6379
+      - host: "${REDIS_NODE_2}"
+        port: 6379
+      - host: "${REDIS_NODE_3}"
+        port: 6379
+
+message_queue:
+  kafka:
+    bootstrap_servers:
+      - "${KAFKA_BROKER_1}:9092"
+      - "${KAFKA_BROKER_2}:9092"
+      - "${KAFKA_BROKER_3}:9092"
+    security_protocol: "SASL_SSL"
+    sasl_mechanism: "SCRAM-SHA-512"
+    sasl_username: "${KAFKA_USER}"
+    sasl_password: "${KAFKA_PASSWORD}"
+
+api_gateway:
+  url: "https://gateway.ai-ready.production.com"
+  timeout: 15
+  retry_count: 2
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 3
+    timeout_duration: 30000
+    half_open_max_calls: 1
+  rate_limiting:
+    enabled: true
+    requests_per_second: 1000
+    burst_limit: 2000
+
+monitoring:
+  prometheus:
+    url: "https://prometheus.ai-ready.production.com"
+    scrape_interval: 10
+  grafana:
+    url: "https://grafana.ai-ready.production.com"
+    dashboard_id: "production_env"
+  alertmanager:
+    url: "https://alertmanager.ai-ready.production.com"
+    receivers:
+      - pagerduty
+      - slack
+      - email
+      - sms
+      - webhook
+  datadog:
+    enabled: true
+    api_key: "${DATADOG_API_KEY}"
+    app_key: "${DATADOG_APP_KEY}"
+
+security:
+  encryption:
+    algorithm: "AES-256-GCM"
+    key: "${ENCRYPTION_KEY}"
+  jwt:
+    secret: "${JWT_SECRET}"
+    expiration: 86400  # 24小时
+    refresh_expiration: 604800  # 7天
+  cors:
+    allowed_origins:
+      - "https://ai-ready.production.com"
+      - "https://admin.ai-ready.production.com"
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+    allowed_headers: ["*"]
+    allow_credentials: true
+
+performance:
+  cache_ttl:
+    short: 300  # 5分钟
+    medium: 3600  # 1小时
+    long: 86400  # 24小时
+  connection_pool:
+    min_connections: 10
+    max_connections: 100
+    max_lifetime: 1800  # 30分钟
+  request_timeout: 10000  # 10秒
+
+# 生产环境测试数据
+test_data:
+  users:
+    count: 100000
+    active_ratio: 0.6
+  products:
+    count: 500000
+    categories: ["电子产品", "办公用品", "家居用品", "图书音像", "服装鞋帽", "食品饮料", "美妆个护", "运动户外"]
+  orders:
+    count: 1000000
+    date_range: "12 months"
+  performance:
+    concurrent_users: 1000
+    test_duration: "60m"
+    think_time: "3s"
+    ramp_up_time: "5m"
+    steady_state_time: "50m"
+    ramp_down_time: "5m"

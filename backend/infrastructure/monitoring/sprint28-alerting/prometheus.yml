@@ -1,0 +1,198 @@
+# Sprint 28 监控告警模块 Prometheus 配置
+# 项目: AI-Ready 企智连ERP系统
+# 版本: v1.0
+# 最后更新: 2026-04-26
+# 作者: devops-engineer
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-ready-sprint28-alerting'
+    environment: 'development'
+    module: 'alerting'
+
+# 告警规则文件配置
+rule_files:
+  - 'rules/alerting-engine-rules.yml'
+  - 'rules/metrics-collection-rules.yml'
+  - 'rules/notification-rules.yml'
+  - 'rules/database-rules.yml'
+
+# AlertManager 配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      timeout: 10s
+      api_version: v2
+
+# 抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    labels:
+      service: 'prometheus'
+      module: 'alerting'
+
+  # Sprint 28 监控告警模块 - 告警规则引擎
+  - job_name: 'alerting-rule-engine'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerting-rule-engine:8080']
+    labels:
+      service: 'alerting-rule-engine'
+      module: 'alerting'
+      component: 'rule-engine'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Sprint 28 监控告警模块 - 指标采集服务
+  - job_name: 'alerting-metrics-collector'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerting-metrics-collector:8081']
+    labels:
+      service: 'alerting-metrics-collector'
+      module: 'alerting'
+      component: 'metrics-collector'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Sprint 28 监控告警模块 - 告警通知服务
+  - job_name: 'alerting-notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerting-notification-service:8082']
+    labels:
+      service: 'alerting-notification-service'
+      module: 'alerting'
+      component: 'notification-service'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Sprint 28 监控告警模块 - 告警存储服务
+  - job_name: 'alerting-storage-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerting-storage-service:8083']
+    labels:
+      service: 'alerting-storage-service'
+      module: 'alerting'
+      component: 'storage-service'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Sprint 28 监控告警模块 - API网关
+  - job_name: 'alerting-api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alerting-api-gateway:8084']
+    labels:
+      service: 'alerting-api-gateway'
+      module: 'alerting'
+      component: 'api-gateway'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # PostgreSQL 数据库监控 (告警模块专用)
+  - job_name: 'alerting-postgres'
+    static_configs:
+      - targets: ['alerting-postgres-exporter:9187']
+    labels:
+      service: 'postgresql'
+      module: 'alerting'
+      component: 'database'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Redis 缓存监控 (告警模块专用)
+  - job_name: 'alerting-redis'
+    static_configs:
+      - targets: ['alerting-redis-exporter:9121']
+    labels:
+      service: 'redis'
+      module: 'alerting'
+      component: 'cache'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # RabbitMQ 消息队列监控 (告警通知队列)
+  - job_name: 'alerting-rabbitmq'
+    static_configs:
+      - targets: ['alerting-rabbitmq-exporter:9419']
+    labels:
+      service: 'rabbitmq'
+      module: 'alerting'
+      component: 'message-queue'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Node Exporter (系统监控)
+  - job_name: 'alerting-node-exporter'
+    static_configs:
+      - targets: ['alerting-node-exporter:9100']
+    labels:
+      service: 'node'
+      module: 'alerting'
+      component: 'system'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Blackbox Exporter (服务健康探测)
+  - job_name: 'alerting-blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://alerting-rule-engine:8080/actuator/health
+          - http://alerting-metrics-collector:8081/actuator/health
+          - http://alerting-notification-service:8082/actuator/health
+          - http://alerting-storage-service:8083/actuator/health
+          - http://alerting-api-gateway:8084/actuator/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'alerting-blackbox-exporter:9115'
+    labels:
+      service: 'blackbox'
+      module: 'alerting'
+      component: 'health-check'
+
+  # Pushgateway (用于批处理任务指标推送)
+  - job_name: 'alerting-pushgateway'
+    static_configs:
+      - targets: ['alerting-pushgateway:9091']
+    labels:
+      service: 'pushgateway'
+      module: 'alerting'
+      component: 'batch-metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# 存储配置
+storage:
+  tsdb:
+    path: /prometheus/data
+    retention.time: 30d
+    retention.size: 50GB
+    wal-compression: true
+
+# 远程写入配置 (可选，用于长期存储)
+# remote_write:
+#   - url: "http://thanos-receive:19291/api/v1/receive"
+#     queue_config:
+#       max_samples_per_send: 1000
+#       max_shards: 200
+#       capacity: 2500
+
+# 远程读取配置 (可选)
+# remote_read:
+#   - url: "http://thanos-query:9090/api/v1/read"
+#     read_recent: true

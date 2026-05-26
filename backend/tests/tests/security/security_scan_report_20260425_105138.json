@@ -1,0 +1,93 @@
+{
+  "scan_info": {
+    "start_time": "2026-04-25T10:51:38.400775",
+    "scanner_version": "1.0.0",
+    "target": {
+      "base_url": "http://localhost:8080",
+      "api_base": "http://localhost:8080/api",
+      "timeout": 30,
+      "verify_ssl": false
+    },
+    "end_time": "2026-04-25T10:51:38.444978"
+  },
+  "findings": [
+    {
+      "id": "FIND-001",
+      "category": "A06_Vulnerable_Components",
+      "title": "Java依赖组件扫描",
+      "severity": "INFO",
+      "description": "已检查pom.xml中的依赖版本",
+      "evidence": "使用OWASP Dependency Check扫描完成",
+      "remediation": "定期运行: mvn org.owasp:dependency-check-maven:check",
+      "timestamp": "2026-04-25T10:51:38.401167"
+    },
+    {
+      "id": "FIND-002",
+      "category": "A05_Security_Misconfiguration",
+      "title": "缺少安全响应头",
+      "severity": "MEDIUM",
+      "description": "响应中缺少以下安全头: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Strict-Transport-Security, Content-Security-Policy, Referrer-Policy",
+      "evidence": "当前响应头: {'Content-Type': 'text/plain;charset=UTF-8', 'Content-Length': '35', 'Date': 'Sat, 25 Apr 2026 02:51:38 GMT', 'Keep-Alive': 'timeout=60', 'Connection': 'keep-alive'}",
+      "remediation": "在Web服务器或应用中添加这些安全响应头",
+      "timestamp": "2026-04-25T10:51:38.420667"
+    },
+    {
+      "id": "FIND-003",
+      "category": "A03_Injection",
+      "title": "SQL注入测试准备完成",
+      "severity": "INFO",
+      "description": "准备了 7 个SQL注入测试payload",
+      "evidence": "Payload列表已配置",
+      "remediation": "运行test_penetration.py::TestSQLInjectionPenetration进行详细测试",
+      "timestamp": "2026-04-25T10:51:38.444910"
+    },
+    {
+      "id": "FIND-004",
+      "category": "A07_XSS",
+      "title": "XSS测试准备完成",
+      "severity": "INFO",
+      "description": "准备了 5 个XSS测试payload",
+      "evidence": "Payload列表已配置",
+      "remediation": "运行test_penetration.py::TestXSSPenetration进行详细测试",
+      "timestamp": "2026-04-25T10:51:38.444938"
+    },
+    {
+      "id": "FIND-005",
+      "category": "CSRF",
+      "title": "CSRF防护测试准备完成",
+      "severity": "INFO",
+      "description": "CSRF防护测试配置已准备",
+      "evidence": "测试用例已配置",
+      "remediation": "运行test_penetration.py::TestCSRFPenetration进行详细测试",
+      "timestamp": "2026-04-25T10:51:38.444951"
+    },
+    {
+      "id": "FIND-006",
+      "category": "A07_Identification_Authentication_Failures",
+      "title": "认证安全测试准备完成",
+      "severity": "INFO",
+      "description": "认证安全测试配置已准备",
+      "evidence": "测试用例已配置",
+      "remediation": "运行test_penetration.py::TestAuthenticationBypassPenetration进行详细测试",
+      "timestamp": "2026-04-25T10:51:38.444963"
+    },
+    {
+      "id": "FIND-007",
+      "category": "A01_Broken_Access_Control",
+      "title": "授权安全测试准备完成",
+      "severity": "INFO",
+      "description": "授权安全测试配置已准备",
+      "evidence": "测试用例已配置",
+      "remediation": "运行test_penetration.py::TestAuthorizationBypassPenetration进行详细测试",
+      "timestamp": "2026-04-25T10:51:38.444973"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 0,
+    "info": 6
+  }
+}

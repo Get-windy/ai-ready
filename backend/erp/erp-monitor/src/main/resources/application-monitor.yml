@@ -1,0 +1,35 @@
+# 业务指标监控模块配置
+monitor:
+  # 指标采集配置
+  collection:
+    # 实时指标采集间隔（毫秒）
+    realtime-interval: 60000
+    # 详细指标采集间隔（毫秒）
+    detailed-interval: 300000
+    # 历史数据保留天数
+    history-retention-days: 90
+    # 是否启用定时采集
+    enabled: true
+  
+  # 告警配置
+  alert:
+    # 是否启用告警
+    enabled: true
+    # 告警检查间隔（毫秒）
+    check-interval: 60000
+    # 告警冷却时间（分钟）
+    cooldown-minutes: 30
+  
+  # 仪表盘配置
+  dashboard:
+    # 默认时间范围（小时）
+    default-time-range: 24
+    # 刷新间隔（毫秒）
+    refresh-interval: 30000
+
+# 数据库表配置（用于自动创建表）
+spring:
+  sql:
+    init:
+      schema-locations: classpath:db/schema-monitor.sql
+      mode: never  # 手动执行，不自动初始化

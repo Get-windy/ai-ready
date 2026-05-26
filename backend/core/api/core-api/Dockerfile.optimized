@@ -1,0 +1,124 @@
+# AI-Ready API 优化版 Dockerfile v4.0
+# 版本: v4.0 - 极致优化
+# 优化目标: 构建时间 < 90秒, 镜像体积 < 150MB, CVE高危漏洞 0个
+# 创建日期: 2026-04-27
+
+# ============ 阶段1: 基础依赖缓存 ============
+FROM eclipse-temurin:21-jdk-alpine@sha256:abc123 AS base-deps
+
+WORKDIR /build
+
+# 安装必要的构建工具
+RUN apk add --no-cache curl ca-certificates maven openjdk21-jdk
+
+# ============ 阶段2: 依赖下载（利用Docker缓存）===========
+FROM eclipse-temurin:21-jdk-alpine AS deps
+
+WORKDIR /build
+
+# 复制Maven包装器和配置（变化最少）
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+
+# 预下载依赖（利用Docker缓存）
+RUN ./mvnw dependency:go-offline -B -q && \
+    ./mvnw dependency:resolve-plugins -B -q
+
+# ============ 阶段3: 应用构建 ============
+FROM eclipse-temurin:21-jdk-alpine AS builder
+
+WORKDIR /build
+
+# 从deps阶段复制缓存的依赖（利用Docker缓存）
+COPY --from=deps /root/.m2 /root/.m2
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+
+# 复制源代码（经常变化）
+COPY src ./src
+
+# 并行构建（多线程）
+RUN ./mvnw clean package -DskipTests -B -q \
+    -Dmaven.compile.parallel=true \
+    -T 1C
+
+# 解压分层JAR（优化运行时缓存）
+RUN java -Djarmode=layertools -jar target/*.jar extract --destination extracted && \
+    rm -rf target/*.jar
+
+# ============ 阶段4: 生产镜像 ============
+FROM eclipse-temurin:21-jre-alpine@sha256:def456
+
+LABEL maintainer="devops@ai-ready.com"
+LABEL version="4.0"
+LABEL description="AI-Ready API Optimized Image"
+LABEL org.opencontainers.image.source="https://github.com/aiready/aiready-erp"
+
+# 构建参数（用于镜像追踪）
+ARG BUILD_DATE
+ARG VERSION
+ARG GIT_SHA
+
+LABEL build-date="${BUILD_DATE}"
+LABEL version="${VERSION}"
+LABEL git-sha="${GIT_SHA}"
+
+# 安装必要工具（精简版）
+RUN apk add --no-cache \
+    curl=~8.5 \
+    tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
+
+# 创建非root用户
+RUN addgroup -S ai-ready -g 1000 && \
+    adduser -S ai-ready -G ai-ready -u 1000 -s /bin/false
+
+WORKDIR /app
+
+# 分层复制（优化缓存）
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/dependencies/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/spring-boot-loader/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/snapshot-dependencies/ ./
+COPY --from=builder --chown=ai-ready:ai-ready /build/extracted/application/ ./
+
+# 设置权限
+RUN chown -R ai-ready:ai-ready /app && \
+    chmod 750 /app
+
+# 切换到非root用户
+USER ai-ready
+
+# 暴露端口
+EXPOSE 8080
+
+# JVM参数优化（容器感知）
+ENV JAVA_OPTS="\
+    -server \
+    -Xms256m -Xmx512m \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+UseStringDeduplication \
+    -XX:+OptimizeStringConcat \
+    -XX:+HeapDumpOnOutOfMemoryError \
+    -XX:HeapDumpPath=/app/heapdump.hprof \
+    -XX:ErrorFile=/app/hs_err_pid.log \
+    -XX:+ExitOnOutOfMemoryError \
+    -XX:+UseContainerSupport \
+    -XX:ContainerCPUActivityLimit=80 \
+    -XX:InitialCodeCacheSize=64m \
+    -XX:ReservedCodeCacheSize=128m \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.backgroundpreinitializer.ignore=true \
+    -Dspring.jmx.enabled=false \
+    -Dsun.zip.disableMemoryMapping=true"
+
+ENV SPRING_PROFILES_ACTIVE="production"
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]

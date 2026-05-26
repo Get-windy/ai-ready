@@ -1,0 +1,47 @@
+{
+  "project": "企智连",
+  "module": "日志审计模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-15",
+  "totalCases": 16,
+  "categories": [
+    {
+      "name": "操作日志记录",
+      "description": "操作日志记录功能测试",
+      "cases": [
+        {"id": "AUDIT-LOG-001", "title": "用户操作日志记录测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-LOG-002", "title": "系统操作日志记录测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-LOG-003", "title": "敏感操作日志记录测试", "priority": "P0", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "日志查询",
+      "description": "日志查询功能测试",
+      "cases": [
+        {"id": "AUDIT-QUERY-001", "title": "按用户查询日志测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-QUERY-002", "title": "按时间范围查询日志测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-QUERY-003", "title": "按操作类型查询日志测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-QUERY-004", "title": "日志导出功能测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "日志安全",
+      "description": "日志安全功能测试",
+      "cases": [
+        {"id": "AUDIT-SEC-001", "title": "日志防篡改测试", "priority": "P0", "type": "安全测试", "automation": true},
+        {"id": "AUDIT-SEC-002", "title": "日志访问权限控制测试", "priority": "P0", "type": "安全测试", "automation": true},
+        {"id": "AUDIT-SEC-003", "title": "日志加密存储测试", "priority": "P1", "type": "安全测试", "automation": true},
+        {"id": "AUDIT-SEC-004", "title": "日志备份和归档测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "审计报表",
+      "description": "审计报表功能测试",
+      "cases": [
+        {"id": "AUDIT-RPT-001", "title": "操作统计报表测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-RPT-002", "title": "异常操作分析测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "AUDIT-RPT-003", "title": "合规性审计报告测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+================================================================================
+Sprint 27+1 测试环境验证报告
+================================================================================
+
+验证时间: 2026-04-29T02:38:00.418541
+环境: test
+
+服务状态:
+--------------------------------------------------------------------------------
+服务名称                           状态           响应时间         错误信息                          
+--------------------------------------------------------------------------------
+API Gateway                    ❌ unhealthy  2350.32ms    Cannot connect to host localho
+User Service 1                 ❌ unhealthy  2339.32ms    Cannot connect to host localho
+User Service 2                 ❌ unhealthy  2333.54ms    Cannot connect to host localho
+Order Service 1                ✅ healthy    40.12ms                                    
+Order Service 2                ❌ unhealthy  2346.72ms    Cannot connect to host localho
+Inventory Service              ❌ unhealthy  2332.01ms    Cannot connect to host localho
+Monitoring Service             ✅ healthy    298.34ms                                   
+PostgreSQL                     ✅ healthy    25.28ms                                    
+Redis                          ✅ healthy    24.67ms                                    
+Kafka                          ✅ healthy    23.81ms                                    
+ZooKeeper                      ✅ healthy    23.30ms                                    
+Nacos                          ❌ unhealthy  2341.19ms    Cannot connect to host localho
+Prometheus                     ✅ healthy    229.24ms                                   
+Grafana                        ✅ healthy    249.44ms                                   
+Jaeger                         ❌ unhealthy  2305.53ms    Cannot connect to host localho
+
+================================================================================
+验证摘要:
+----------------------------------------
+总服务数: 15
+健康服务: 8
+降级服务: 0
+异常服务: 7
+未知状态: 0
+
+必需服务状态: ❌ 存在异常
+
+结论:
+----------------------------------------
+❌ 测试环境验证未通过，请修复以下必需服务:
+  - API Gateway: Cannot connect to host localhost:8080 ssl:default [远程计算机拒绝网络连接。]
+  - User Service 1: Cannot connect to host localhost:8081 ssl:default [远程计算机拒绝网络连接。]
+  - Inventory Service: Cannot connect to host localhost:8085 ssl:default [远程计算机拒绝网络连接。]

@@ -1,0 +1,215 @@
+# Sprint 28 监控告警模块 - 告警通知监控规则
+# 版本: v1.0
+# 最后更新: 2026-04-26
+
+groups:
+  - name: notification-service-health
+    interval: 15s
+    rules:
+      # 告警通知服务健康状态
+      - alert: NotificationServiceDown
+        expr: up{job="alerting-notification-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知服务不可用"
+          description: "告警通知服务 {{ $labels.instance }} 已宕机超过1分钟，告警通知可能丢失"
+
+      # 告警通知服务内存使用率
+      - alert: NotificationServiceHighMemoryUsage
+        expr: |
+          (
+            jvm_memory_used_bytes{job="alerting-notification-service", area="heap"} /
+            jvm_memory_max_bytes{job="alerting-notification-service", area="heap"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知服务内存使用率过高: {{ $value | humanize }}%"
+          description: "告警通知服务 {{ $labels.instance }} 堆内存使用率超过80%"
+
+      # 告警通知服务连接池使用率
+      - alert: NotificationServiceHighConnectionPoolUsage
+        expr: |
+          (
+            spring_datasource_connections_active{job="alerting-notification-service"} /
+            spring_datasource_connections_max{job="alerting-notification-service"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知服务连接池使用率过高: {{ $value | humanize }}%"
+          description: "告警通知服务 {{ $labels.instance }} 数据库连接池使用率超过80%"
+
+  - name: notification-performance
+    interval: 15s
+    rules:
+      # 告警通知发送延迟
+      - alert: NotificationHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(alerting_notification_send_duration_seconds_bucket{job="alerting-notification-service"}[5m])) by (le)
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知发送延迟过高: {{ $value | humanize }}s"
+          description: "告警通知服务 {{ $labels.instance }} P95通知发送延迟超过3秒"
+
+      # 告警通知发送失败率
+      - alert: NotificationHighFailureRate
+        expr: |
+          (
+            rate(alerting_notification_send_errors_total{job="alerting-notification-service"}[5m]) /
+            rate(alerting_notification_sent_total{job="alerting-notification-service"}[5m])
+          ) * 100 > 1
+        for: 3m
+        labels:
+          severity: critical
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知发送失败率过高: {{ $value | humanize }}%"
+          description: "告警通知服务 {{ $labels.instance }} 通知发送失败率超过1%"
+
+      # 告警通知队列积压
+      - alert: NotificationQueueBacklog
+        expr: |
+          alerting_notification_queue_size{job="alerting-notification-service"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知队列积压: {{ $value | humanize }}个通知"
+          description: "告警通知服务 {{ $labels.instance }} 待发送通知队列超过1000个"
+
+      # 告警通知重试次数过多
+      - alert: NotificationHighRetryCount
+        expr: |
+          rate(alerting_notification_retries_total{job="alerting-notification-service"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "告警通知重试次数过多: {{ $value | humanize }}/秒"
+          description: "告警通知服务 {{ $labels.instance }} 每秒重试次数超过10次"
+
+  - name: notification-channels
+    interval: 30s
+    rules:
+      # 企业微信通知通道故障
+      - alert: WechatNotificationChannelDown
+        expr: |
+          rate(alerting_notification_channel_errors_total{job="alerting-notification-service", channel="wechat"}[5m]) > 0
+        for: 3m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "企业微信通知通道故障"
+          description: "企业微信通知通道持续报错，请检查企业微信API配置"
+
+      # 邮件通知通道故障
+      - alert: EmailNotificationChannelDown
+        expr: |
+          rate(alerting_notification_channel_errors_total{job="alerting-notification-service", channel="email"}[5m]) > 0
+        for: 3m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "邮件通知通道故障"
+          description: "邮件通知通道持续报错，请检查SMTP配置"
+
+      # Webhook通知通道故障
+      - alert: WebhookNotificationChannelDown
+        expr: |
+          rate(alerting_notification_channel_errors_total{job="alerting-notification-service", channel="webhook"}[5m]) > 0
+        for: 3m
+        labels:
+          severity: warning
+          module: alerting
+          component: notification-service
+        annotations:
+          summary: "Webhook通知通道故障"
+          description: "Webhook通知通道持续报错，请检查Webhook端点配置"
+
+  - name: notification-business
+    interval: 30s
+    rules:
+      # 每秒发送通知数
+      - record: alerting:notification_send_rate
+        expr: rate(alerting_notification_sent_total{job="alerting-notification-service"}[5m])
+
+      # 通知发送成功率
+      - record: alerting:notification_success_rate
+        expr: |
+          1 - (
+            rate(alerting_notification_send_errors_total{job="alerting-notification-service"}[5m]) /
+            rate(alerting_notification_sent_total{job="alerting-notification-service"}[5m])
+          )
+
+      # 各通道通知分布
+      - record: alerting:notification_by_channel
+        expr: sum by (channel) (rate(alerting_notification_sent_total{job="alerting-notification-service"}[5m]))
+
+      # 告警通知服务健康评分 (0-100)
+      - record: alerting:notification_service_health_score
+        expr: |
+          (
+            (up{job="alerting-notification-service"} * 30) +
+            (clamp_max(
+              (1 - (
+                rate(alerting_notification_send_errors_total{job="alerting-notification-service"}[5m]) /
+                rate(alerting_notification_sent_total{job="alerting-notification-service"}[5m])
+              )) * 35,
+              35
+            )) +
+            (clamp_max(
+              (1 / histogram_quantile(0.95,
+                sum(rate(alerting_notification_send_duration_seconds_bucket{job="alerting-notification-service"}[5m])) by (le)
+              )) * 20,
+              20
+            )) +
+            (clamp_max(
+              (1 / (alerting_notification_queue_size{job="alerting-notification-service"} / 1000 + 1)) * 15,
+              15
+            ))
+          )
+
+      # 通知延迟分布
+      - record: alerting:notification_latency_p50
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(alerting_notification_send_duration_seconds_bucket{job="alerting-notification-service"}[5m])) by (le)
+          )
+
+      - record: alerting:notification_latency_p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(alerting_notification_send_duration_seconds_bucket{job="alerting-notification-service"}[5m])) by (le)
+          )
+
+      - record: alerting:notification_latency_p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(alerting_notification_send_duration_seconds_bucket{job="alerting-notification-service"}[5m])) by (le)
+          )

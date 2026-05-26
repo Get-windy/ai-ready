@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.monitor.mapper.MetricHistoryMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.monitor.entity.MetricHistory">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="metric_code" property="metricCode"/>
+        <result column="metric_value" property="metricValue"/>
+        <result column="period" property="period"/>
+        <result column="stat_time" property="statTime"/>
+        <result column="dimension1_type" property="dimension1Type"/>
+        <result column="dimension1_value" property="dimension1Value"/>
+        <result column="dimension2_type" property="dimension2Type"/>
+        <result column="dimension2_value" property="dimension2Value"/>
+        <result column="dimension3_type" property="dimension3Type"/>
+        <result column="dimension3_value" property="dimension3Value"/>
+        <result column="chain_ratio" property="chainRatio"/>
+        <result column="year_ratio" property="yearRatio"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, metric_code, metric_value, period, stat_time,
+        dimension1_type, dimension1_value, dimension2_type, dimension2_value,
+        dimension3_type, dimension3_value, chain_ratio, year_ratio,
+        deleted, create_time, update_time
+    </sql>
+
+    <insert id="batchInsert">
+        INSERT INTO erp_metric_history (
+            tenant_id, metric_code, metric_value, period, stat_time,
+            dimension1_type, dimension1_value, dimension2_type, dimension2_value,
+            dimension3_type, dimension3_value, chain_ratio, year_ratio, create_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.tenantId}, #{item.metricCode}, #{item.metricValue}, #{item.period},
+                #{item.statTime}, #{item.dimension1Type}, #{item.dimension1Value},
+                #{item.dimension2Type}, #{item.dimension2Value}, #{item.dimension3Type},
+                #{item.dimension3Value}, #{item.chainRatio}, #{item.yearRatio}, NOW()
+            )
+        </foreach>
+    </insert>
+
+    <delete id="deleteExpiredData">
+        DELETE FROM erp_metric_history
+        WHERE stat_time &lt; #{beforeTime}
+    </delete>
+
+</mapper>

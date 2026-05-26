@@ -1,0 +1,310 @@
+# 测试脚本集成框架配置示例
+
+# 全局配置
+global:
+  log_level: "INFO"
+  execution_log_dir: "./execution_logs"
+  max_concurrent_executions: 3
+  default_timeout: 300  # 秒
+
+# 测试脚本配置
+scripts:
+  
+  # JMeter性能测试
+  jmeter_performance_test:
+    type: "jmeter"
+    enabled: true
+    description: "核心业务性能测试"
+    config:
+      script_id: "jmeter_performance_test"
+      jmeter_path: "jmeter"  # JMeter可执行文件路径
+      test_plan: "I:/AI-Ready/tests/performance/jmeter/ai-ready-core-business-performance-test.jmx"
+      jtl_output: "./results/performance_test.jtl"
+      log_output: "./logs/jmeter_performance.log"
+      properties:
+        threads: 50
+        rampup: 10
+        loop: 100
+        host: "localhost"
+        port: 8080
+      timeout: 600  # 10分钟超时
+    
+    # 测试数据
+    test_data:
+      users_file: "./data/test_users.csv"
+      products_file: "./data/test_products.json"
+    
+    # 结果处理
+    result_processing:
+      parse_jtl: true
+      generate_report: true
+      report_format: "html"
+      metrics_to_extract:
+        - "throughput"
+        - "response_time_avg"
+        - "response_time_90"
+        - "error_rate"
+        - "concurrent_users"
+  
+  # Python功能测试
+  python_functional_test:
+    type: "python"
+    enabled: true
+    description: "核心业务功能测试"
+    config:
+      script_id: "python_functional_test"
+      script_path: "I:/AI-Ready/tests/performance/python/performance_test_runner.py"
+      args:
+        - "--scenario"
+        - "medium"
+        - "--output"
+        - "./results/functional_test.json"
+        - "--verbose"
+      timeout: 300  # 5分钟超时
+      environment:
+        PYTHONPATH: "I:/AI-Ready/tests/performance/python"
+        TEST_ENV: "integration"
+    
+    # 依赖项
+    dependencies:
+      - "python>=3.8"
+      - "requests>=2.25.0"
+      - "pandas>=1.3.0"
+    
+    # 结果验证
+    result_validation:
+      expected_status_codes: [200, 201]
+      max_response_time: 1000  # ms
+      min_success_rate: 0.95
+  
+  # 数据生成脚本
+  data_generator:
+    type: "python"
+    enabled: true
+    description: "测试数据生成"
+    config:
+      script_id: "data_generator"
+      script_path: "I:/AI-Ready/tests/performance/python/test_data_generator.py"
+      args: []
+      timeout: 120  # 2分钟超时
+    
+    # 生成配置
+    generation_config:
+      num_users: 1000
+      num_products: 500
+      num_orders: 5000
+      output_dir: "./data/generated"
+      format: "json"
+  
+  # 监控脚本
+  performance_monitor:
+    type: "python"
+    enabled: true
+    description: "性能监控集成"
+    config:
+      script_id: "performance_monitor"
+      script_path: "I:/AI-Ready/tests/performance/python/performance_monitor.py"
+      args:
+        - "--monitor"
+        - "all"
+        - "--interval"
+        - "5"
+      timeout: 1800  # 30分钟超时（长期监控）
+    
+    # 监控配置
+    monitor_config:
+      metrics:
+        - "cpu_usage"
+        - "memory_usage"
+        - "disk_io"
+        - "network_io"
+        - "jvm_heap"
+      alert_thresholds:
+        cpu_usage: 80
+        memory_usage: 85
+        response_time: 500
+
+# 测试套件配置
+test_suites:
+  
+  # 完整回归测试套件
+  full_regression:
+    description: "完整回归测试套件"
+    scripts:
+      - "data_generator"
+      - "jmeter_performance_test"
+      - "python_functional_test"
+      - "performance_monitor"
+    execution_order: "sequential"  # sequential, parallel
+    timeout: 3600  # 1小时总超时
+    
+    # 依赖关系
+    dependencies:
+      data_generator:
+        required: true
+        run_before:
+          - "jmeter_performance_test"
+          - "python_functional_test"
+    
+    # 结果聚合
+    result_aggregation:
+      generate_summary: true
+      send_notification: true
+      notification_channels:
+        - "email"
+        - "slack"
+  
+  # 快速冒烟测试套件
+  smoke_test:
+    description: "快速冒烟测试套件"
+    scripts:
+      - "python_functional_test"
+    execution_order: "sequential"
+    timeout: 300  # 5分钟总超时
+    
+    # 快速验证
+    quick_validation:
+      check_services: true
+      verify_endpoints:
+        - "/api/health"
+        - "/api/auth/login"
+        - "/api/products/list"
+
+# 通知配置
+notifications:
+  email:
+    enabled: false
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    sender: "test-automation@example.com"
+    recipients:
+      - "team@example.com"
+      - "qa-lead@example.com"
+  
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#test-automation"
+    username: "Test Bot"
+    icon_emoji: ":robot_face:"
+  
+  teams:
+    enabled: false
+    webhook_url: "${TEAMS_WEBHOOK_URL}"
+
+# 报告配置
+reporting:
+  html_report:
+    enabled: true
+    template: "./templates/report_template.html"
+    output_dir: "./reports"
+    include_charts: true
+    include_logs: false
+  
+  json_report:
+    enabled: true
+    output_dir: "./reports/json"
+    pretty_print: true
+  
+  excel_report:
+    enabled: false
+    output_dir: "./reports/excel"
+    include_raw_data: true
+
+# 数据库配置（可选）
+database:
+  enabled: false
+  type: "mysql"  # mysql, postgresql, sqlite
+  host: "localhost"
+  port: 3306
+  database: "test_automation"
+  username: "${DB_USERNAME}"
+  password: "${DB_PASSWORD}"
+  
+  # 表结构自动创建
+  auto_create_tables: true
+  tables:
+    executions: "test_executions"
+    results: "test_results"
+    metrics: "test_metrics"
+
+# 监控配置
+monitoring:
+  prometheus:
+    enabled: false
+    push_gateway: "http://localhost:9091"
+    job_name: "test_automation"
+    
+  grafana:
+    enabled: false
+    dashboard_id: "test-automation"
+    
+  health_check:
+    enabled: true
+    check_interval: 60  # 秒
+    endpoints:
+      - "http://localhost:8080/health"
+      - "http://localhost:9090/-/healthy"
+
+# 环境变量（敏感信息使用环境变量）
+environment:
+  # 数据库连接
+  DB_HOST: "localhost"
+  DB_PORT: "3306"
+  DB_NAME: "test_automation"
+  
+  # API配置
+  API_BASE_URL: "http://localhost:8080"
+  API_KEY: "${API_KEY}"
+  
+  # 测试数据
+  TEST_DATA_DIR: "./data"
+  
+  # 日志配置
+  LOG_LEVEL: "INFO"
+  LOG_DIR: "./logs"
+
+# 计划任务配置
+scheduling:
+  
+  # 每日执行
+  daily_regression:
+    cron: "0 2 * * *"  # 每天凌晨2点
+    test_suite: "full_regression"
+    enabled: true
+    
+    # 执行条件
+    conditions:
+      - "weekday != weekend"
+      - "deployment_count > 0"
+    
+    # 通知
+    notifications:
+      on_start: true
+      on_completion: true
+      on_failure: true
+  
+  # 每小时冒烟测试
+  hourly_smoke:
+    cron: "0 * * * *"  # 每小时
+    test_suite: "smoke_test"
+    enabled: true
+    
+    # 快速失败
+    fast_fail: true
+    max_duration: 300  # 5分钟
+
+# 版本信息
+version: "1.0.0"
+created: "2026-04-24"
+updated: "2026-04-24"
+author: "test-agent-1"
+description: "测试脚本集成框架配置示例"
+
+# 使用说明
+usage_notes: |
+  1. 将敏感信息（密码、API密钥等）存储在环境变量中
+  2. 根据实际环境修改文件路径和连接信息
+  3. 启用需要的通知渠道
+  4. 调整超时时间以适应实际测试时长
+  5. 定期备份执行日志和报告

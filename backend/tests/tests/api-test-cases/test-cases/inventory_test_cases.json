@@ -1,0 +1,291 @@
+{
+  "module": "库存管理模块",
+  "basePath": "/api/v1/inventory",
+  "testCases": [
+    {
+      "id": "TC-INV-001",
+      "title": "入库单创建成功",
+      "method": "POST",
+      "path": "/inbound",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "用户已登录，有库存管理权限",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 1,
+        "supplierId": 1,
+        "inboundType": "PURCHASE",
+        "items": [
+          {
+            "materialId": 1,
+            "quantity": 100,
+            "batchNo": "BATCH001",
+            "unitPrice": 50.00
+          }
+        ],
+        "remark": "采购入库"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "id": "notNull",
+            "orderNo": "notNull",
+            "status": "PENDING"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-002",
+      "title": "入库单创建-数量为负数",
+      "method": "POST",
+      "path": "/inbound",
+      "priority": "P0",
+      "type": "异常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 1,
+        "items": [
+          {
+            "materialId": 1,
+            "quantity": -10,
+            "batchNo": "BATCH002"
+          }
+        ]
+      },
+      "expected": {
+        "statusCode": 400,
+        "response": {
+          "code": "400",
+          "message": "数量不能为负数"
+        }
+      }
+    },
+    {
+      "id": "TC-INV-003",
+      "title": "入库单创建-仓库不存在",
+      "method": "POST",
+      "path": "/inbound",
+      "priority": "P1",
+      "type": "异常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 99999,
+        "items": [
+          {
+            "materialId": 1,
+            "quantity": 100,
+            "batchNo": "BATCH003"
+          }
+        ]
+      },
+      "expected": {
+        "statusCode": 404,
+        "response": {
+          "code": "404",
+          "message": "仓库不存在"
+        }
+      }
+    },
+    {
+      "id": "TC-INV-004",
+      "title": "出库单创建成功",
+      "method": "POST",
+      "path": "/outbound",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "用户已登录，库存充足",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 1,
+        "customerId": 1,
+        "outboundType": "SALE",
+        "items": [
+          {
+            "materialId": 1,
+            "quantity": 10,
+            "batchNo": "BATCH001"
+          }
+        ]
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "id": "notNull",
+            "orderNo": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-005",
+      "title": "出库单创建-库存不足",
+      "method": "POST",
+      "path": "/outbound",
+      "priority": "P0",
+      "type": "异常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 1,
+        "items": [
+          {
+            "materialId": 1,
+            "quantity": 999999,
+            "batchNo": "BATCH001"
+          }
+        ]
+      },
+      "expected": {
+        "statusCode": 400,
+        "response": {
+          "code": "400",
+          "message": "库存不足"
+        }
+      }
+    },
+    {
+      "id": "TC-INV-006",
+      "title": "库存列表查询",
+      "method": "GET",
+      "path": "",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "queryParams": {
+        "page": 1,
+        "size": 20
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "list": "notNull",
+            "total": "notNull",
+            "page": 1,
+            "size": 20
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-007",
+      "title": "库存查询-按仓库筛选",
+      "method": "GET",
+      "path": "",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "queryParams": {
+        "warehouseId": 1,
+        "page": 1,
+        "size": 20
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "list": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-008",
+      "title": "库存查询-按物料筛选",
+      "method": "GET",
+      "path": "",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "queryParams": {
+        "materialId": 1
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "list": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-009",
+      "title": "库存盘点创建",
+      "method": "POST",
+      "path": "/stock-check",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，有盘点权限",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "warehouseId": 1,
+        "checkType": "FULL",
+        "planDate": "2024-12-31",
+        "remark": "年终盘点"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "id": "notNull",
+            "checkNo": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-INV-010",
+      "title": "库存预警查询",
+      "method": "GET",
+      "path": "/alerts",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "list": "notNull"
+          }
+        }
+      }
+    }
+  ]
+}

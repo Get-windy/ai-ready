@@ -1,0 +1,188 @@
+# ERP采购管理模块Kubernetes部署配置
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-purchase-service
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+    version: v1.0.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: erp-purchase-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app: erp-purchase-service
+        component: purchase-management
+        environment: test
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: erp-service-account
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - erp-purchase-service
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - app
+      containers:
+      - name: erp-purchase-service
+        image: registry.ai-ready.com/erp/purchase-service:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "test"
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: erp-config
+              key: db.host
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "erp_purchase_test"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: erp-db-secret
+              key: purchase.username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: erp-db-secret
+              key: purchase.password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: erp-config
+              key: redis.host
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: erp-redis-secret
+              key: password
+        - name: RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: erp-config
+              key: rabbitmq.host
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: erp-mq-secret
+              key: username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: erp-mq-secret
+              key: password
+        - name: JAVA_OPTS
+          value: "-Xmx1024m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+ParallelRefProcEnabled -Djava.security.egd=file:/dev/./urandom"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1024Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: tmp-volume
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config-volume
+        configMap:
+          name: erp-purchase-config
+          optional: false
+      - name: logs-volume
+        emptyDir: {}
+      - name: tmp-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 256Mi
+      - name: erp-service-account-token
+        secret:
+          secretName: erp-service-account-token
+          optional: true

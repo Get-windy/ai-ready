@@ -1,0 +1,70 @@
+# AI-Ready 自动化测试框架 - 基础依赖
+
+# 测试框架核心
+pytest>=7.0.0
+pytest-xdist>=3.2.0              # 并行测试执行
+pytest-cov>=4.0.0                # 代码覆盖率
+pytest-html>=3.2.0               # HTML报告
+pytest-mock>=3.10.0              # Mock支持
+pytest-asyncio>=0.21.0           # 异步测试支持
+pytest-timeout>=2.1.0            # 测试超时控制
+pytest-rerunfailures>=10.3       # 失败重试
+
+# 测试报告和文档
+allure-pytest>=2.12.0            # Allure报告
+sphinx>=6.0.0                    # 文档生成
+sphinx-rtd-theme>=1.2.0          # 文档主题
+
+# 测试数据管理
+Faker>=18.0.0                    # 测试数据生成
+factory-boy>=3.2.0               # 数据工厂
+pytest-factoryboy>=2.5.0         # 工厂集成
+
+# 数据库和缓存
+psycopg2-binary>=2.9.0           # PostgreSQL连接
+redis>=4.5.0                     # Redis连接
+sqlalchemy>=2.0.0                # ORM支持
+alembic>=1.11.0                  # 数据库迁移
+
+# API测试
+requests>=2.28.0                 # HTTP客户端
+httpx>=0.24.0                    # 异步HTTP客户端
+jsonschema>=4.17.0               # JSON Schema验证
+deepdiff>=6.3.0                  # 深度比较
+
+# UI测试
+selenium>=4.8.0                  # 浏览器自动化
+webdriver-manager>=3.8.6         # WebDriver管理
+playwright>=1.35.0               # 现代浏览器测试
+pytest-playwright>=0.4.0         # Playwright集成
+
+# 性能测试
+locust>=2.15.0                   # 负载测试
+pytest-benchmark>=4.0.0          # 性能基准测试
+
+# 代码质量
+black>=23.0.0                    # 代码格式化
+isort>=5.12.0                    # import排序
+flake8>=6.0.0                    # 代码规范检查
+mypy>=1.0.0                      # 类型检查
+bandit>=1.7.5                    # 安全扫描
+
+# 配置管理
+pyyaml>=6.0                      # YAML配置
+python-dotenv>=1.0.0             # 环境变量
+configparser>=5.3.0              # 配置解析
+
+# 日志和监控
+structlog>=23.0.0                # 结构化日志
+prometheus-client>=0.17.0        # Prometheus监控
+
+# 工具库
+pandas>=2.0.0                    # 数据处理
+numpy>=1.24.0                    # 数值计算
+openpyxl>=3.1.0                  # Excel处理
+pygithub>=1.58.0                 # GitHub API
+
+# 开发工具
+pre-commit>=3.3.0                # Git钩子
+tox>=4.6.0                       # 多环境测试
+nox>=2023.4.22                   # 任务自动化

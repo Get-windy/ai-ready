@@ -1,0 +1,234 @@
+{
+  "test_metadata": {
+    "report_id": "AGW-TEST-20260426-001",
+    "environment": "Sprint 27+1 Test Environment",
+    "test_date": "2026-04-26",
+    "version": "1.0",
+    "tester": "product-analyst"
+  },
+  "test_summary": {
+    "total_checks": 8,
+    "passed": 7,
+    "warning": 1,
+    "failed": 0,
+    "pass_rate": "87.5%"
+  },
+  "test_results": {
+    "routing": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "total_routes": 10,
+        "configured_routes": [
+          "user-service",
+          "auth-service",
+          "customer-service",
+          "crm-service",
+          "erp-service",
+          "knowledge-service",
+          "storage-service",
+          "notification-service",
+          "system-service",
+          "report-service"
+        ],
+        "route_configuration": "correct",
+        "path_predicates": "valid",
+        "uri_protocol": "lb://"
+      }
+    },
+    "load_balancing": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "service_discovery": "nacos",
+        "load_balancer": "spring-cloud-loadbalancer",
+        "health_check": "enabled",
+        "instance_removal": "automatic"
+      }
+    },
+    "rate_limiting": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "enabled": true,
+        "algorithm": "token_bucket",
+        "dimensions": ["ip", "user", "api"],
+        "ip_limit_qps": 100,
+        "user_limit_qps": 50,
+        "api_limit_qps": 50,
+        "storage": "redis",
+        "global_replenish_rate": 10,
+        "global_burst_capacity": 20
+      }
+    },
+    "circuit_breaker": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "enabled": true,
+        "total_circuits": 10,
+        "fallback_uri": "/fallback/service-unavailable",
+        "fallback_controller": "configured",
+        "services_protected": [
+          "user-service",
+          "auth-service",
+          "customer-service",
+          "crm-service",
+          "erp-service",
+          "knowledge-service",
+          "storage-service",
+          "notification-service",
+          "system-service",
+          "report-service"
+        ]
+      }
+    },
+    "authentication": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "security_framework": "spring-security-webflux",
+        "token_framework": "sa-token",
+        "token_name": "Authorization",
+        "token_timeout": 86400,
+        "whitelist_paths": [
+          "/actuator/health",
+          "/actuator/info",
+          "/v3/api-docs/**",
+          "/swagger-ui/**",
+          "/api/auth/**",
+          "/api/oauth/**"
+        ],
+        "csrf": "disabled",
+        "auth_required": true
+      }
+    },
+    "cors": {
+      "status": "warning",
+      "score": 50,
+      "details": {
+        "security_config_status": "disabled",
+        "independent_config": "not_found",
+        "note": "CORS disabled in security config, independent configuration not found",
+        "recommendation": "Add CorsConfig or confirm cross-domain handled by Nginx/frontend proxy"
+      }
+    },
+    "logging": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "access_log_enabled": true,
+        "metrics_enabled": true,
+        "trace_enabled": true,
+        "log_retention_days": 30,
+        "database_tables": [
+          "gateway_log",
+          "gateway_route_config",
+          "gateway_rate_limit_config",
+          "gateway_black_white_list"
+        ]
+      }
+    },
+    "monitoring": {
+      "status": "passed",
+      "score": 100,
+      "details": {
+        "prometheus_enabled": true,
+        "metrics_export": "enabled",
+        "endpoints_exposed": ["health", "info", "gateway", "metrics", "hikaricp"],
+        "alert_thresholds": {
+          "pool_utilization": 80,
+          "connection_timeout": 5000,
+          "slow_query": 5000
+        }
+      }
+    }
+  },
+  "configuration_analysis": {
+    "files_checked": [
+      "backend/core/api/core-api/src/main/resources/application-gateway.yml",
+      "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/config/GatewayConfig.java",
+      "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/ratelimit/GatewayRateLimitFilter.java",
+      "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/fallback/GatewayFallbackController.java",
+      "backend/core/api/core-api/src/main/java/cn/aiedge/gateway/security/GatewaySecurityConfig.java",
+      "backend/configs/configs/registry/nacos/nacos-config-staging.yaml",
+      "docs/modules/gateway/database/gateway_tables.sql"
+    ],
+    "key_parameters": {
+      "gateway_port": 8080,
+      "global_rate_limit_qps": 10,
+      "global_burst_capacity": 20,
+      "connection_pool_max": 50,
+      "connection_timeout_ms": 60000,
+      "redis_host": "localhost",
+      "redis_port": 6379,
+      "database_type": "postgresql"
+    }
+  },
+  "recommendations": {
+    "high_priority": [
+      {
+        "item": "CORS Configuration",
+        "issue": "CORS disabled in security config without independent configuration",
+        "action": "Add CorsConfig class or confirm cross-domain handling",
+        "owner": "devops-engineer"
+      },
+      {
+        "item": "Rate Limit Tuning",
+        "issue": "Global rate limit (10 QPS) may be too low for production",
+        "action": "Increase replenishRate to 100 and burstCapacity to 200",
+        "owner": "devops-engineer"
+      }
+    ],
+    "medium_priority": [
+      {
+        "item": "Circuit Breaker Parameters",
+        "issue": "Default circuit breaker parameters may need tuning per service",
+        "action": "Configure failure rate threshold and duration per service",
+        "owner": "backend-developer"
+      },
+      {
+        "item": "Log Sampling",
+        "issue": "High traffic may generate excessive logs",
+        "action": "Implement log sampling strategy for high-volume endpoints",
+        "owner": "devops-engineer"
+      }
+    ],
+    "low_priority": [
+      {
+        "item": "Response Caching",
+        "issue": "No response caching configured",
+        "action": "Add cache filter for static resources and query endpoints",
+        "owner": "backend-developer"
+      }
+    ]
+  },
+  "deployment_checklist": {
+    "pre_deployment": {
+      "config_review": "completed",
+      "database_tables": "created",
+      "redis_connection": "verified",
+      "nacos_registration": "verified",
+      "downstream_health_check": "passed"
+    },
+    "post_deployment": {
+      "service_startup": "pending",
+      "route_loading": "pending",
+      "rate_limiting_active": "pending",
+      "circuit_breaker_status": "pending",
+      "metrics_reporting": "pending",
+      "log_writing": "pending"
+    }
+  },
+  "conclusion": {
+    "overall_status": "PASSED_WITH_WARNINGS",
+    "deployment_ready": true,
+    "blocking_issues": 0,
+    "total_warnings": 1,
+    "recommended_actions_before_production": [
+      "Resolve CORS configuration",
+      "Tune rate limiting parameters",
+      "Execute post-deployment verification tests"
+    ]
+  }
+}

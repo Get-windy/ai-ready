@@ -1,0 +1,107 @@
+# Sprint 27+1 测试环境配置
+# 自动化测试框架配置文件
+
+test:
+  environment: "test"
+  base_url: "http://localhost:8080"
+  timeout: 30
+  retry_count: 3
+  retry_delay: 1
+  parallel_execution: false
+  max_workers: 4
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "ai_ready_test"
+  user: "test_user"
+  password: "test_password"
+  pool_size: 10
+  connection_timeout: 10
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "test_automation.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+reporting:
+  format: "html"
+  output_dir: "./reports"
+  screenshot_on_failure: true
+  include_screenshots: true
+  generate_summary: true
+  send_email: false
+
+data:
+  fixtures_dir: "./test_data"
+  generators_dir: "./data_generators"
+  cleanup_after_test: true
+  preserve_failed_data: true
+
+modules:
+  user_management:
+    enabled: true
+    base_path: "/api/users"
+    test_data_file: "users_test_data.json"
+    
+  order_management:
+    enabled: true
+    base_path: "/api/orders"
+    test_data_file: "orders_test_data.json"
+    
+  inventory_management:
+    enabled: true
+    base_path: "/api/inventory"
+    test_data_file: "inventory_test_data.json"
+
+performance:
+  enabled: false
+  concurrent_users: 10
+  ramp_up_time: 30
+  duration: 300
+  think_time: 1
+
+security:
+  ssl_verify: false
+  auth_token: ""
+  auth_type: "bearer"
+  headers:
+    Content-Type: "application/json"
+    Accept: "application/json"
+
+notifications:
+  email:
+    enabled: false
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    sender: "test@example.com"
+    recipients: ["team@example.com"]
+  
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#test-reports"
+
+test_suites:
+  smoke:
+    enabled: true
+    modules: ["user_management", "order_management"]
+    description: "冒烟测试 - 核心功能验证"
+    
+  regression:
+    enabled: true
+    modules: ["user_management", "order_management", "inventory_management"]
+    description: "回归测试 - 全功能验证"
+    
+  performance:
+    enabled: false
+    modules: ["user_management", "order_management"]
+    description: "性能测试 - 负载和压力测试"
+
+scheduling:
+  enabled: false
+  cron_expression: "0 2 * * *"  # 每天凌晨2点执行
+  timezone: "Asia/Shanghai"
+  run_on_failure: true

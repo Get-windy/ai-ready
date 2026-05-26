@@ -1,0 +1,253 @@
+name: 企智连自动化测试
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天凌晨2点运行回归测试
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: '测试套件'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - ui
+          - mobile
+      browser:
+        description: 'UI测试浏览器'
+        required: true
+        default: 'chrome'
+        type: choice
+        options:
+          - chrome
+          - firefox
+          - edge
+      headless:
+        description: '无头模式'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_VERSION: '3.9.6'
+
+jobs:
+  # 代码检查和编译
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 编译项目
+        run: mvn clean compile -DskipTests
+
+      - name: 代码静态检查
+        run: mvn spotbugs:check pmd:check -DskipTests
+        continue-on-error: true
+
+  # API测试
+  api-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == 'all' || github.event_name == 'schedule' || github.event_name == 'push' }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 运行API测试
+        run: |
+          mvn test -Papi-test \
+            -Dbase.url=${{ secrets.TEST_BASE_URL || 'http://localhost:8080' }} \
+            -Dallure.results.directory=target/allure-results
+
+      - name: 上传API测试结果
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: target/allure-results
+
+  # UI测试
+  ui-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.test_suite == 'ui' || github.event.inputs.test_suite == 'all' || github.event_name == 'schedule' }}
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 安装Chrome浏览器
+        if: matrix.browser == 'chrome'
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: 安装Firefox浏览器
+        if: matrix.browser == 'firefox'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y firefox
+
+      - name: 运行UI测试
+        run: |
+          mvn test -Pui-test \
+            -Dbrowser.type=${{ matrix.browser }} \
+            -Dheadless.mode=${{ github.event.inputs.headless || 'true' }} \
+            -Dui.base.url=${{ secrets.TEST_UI_URL || 'http://localhost:3000' }} \
+            -Dallure.results.directory=target/allure-results
+
+      - name: 上传UI测试结果
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-results-${{ matrix.browser }}
+          path: target/allure-results
+
+  # 移动端测试
+  mobile-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.test_suite == 'mobile' || github.event.inputs.test_suite == 'all' }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 设置Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装Appium
+        run: |
+          npm install -g appium
+          appium driver install uiautomator2
+          appium driver install xcuitest
+
+      - name: 启动Appium Server
+        run: |
+          appium &
+          sleep 5
+
+      - name: 运行移动端测试
+        run: |
+          mvn test -Pmobile-test \
+            -Dappium.server.url=http://localhost:4723 \
+            -Dallure.results.directory=target/allure-results
+
+      - name: 上传移动端测试结果
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-test-results
+          path: target/allure-results
+
+  # 生成测试报告
+  generate-report:
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests]
+    if: always()
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载所有测试结果
+        uses: actions/download-artifact@v4
+        with:
+          path: allure-results
+          pattern: '*-test-results*'
+          merge-multiple: true
+
+      - name: 生成Allure报告
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: allure-results
+          allure_history: allure-history
+          keep_reports: 20
+
+      - name: 部署报告到GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+
+  # 发送通知
+  notify:
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests, mobile-tests]
+    if: always()
+    steps:
+      - name: 发送邮件通知
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: '企智连自动化测试 - 执行失败'
+          body: |
+            测试执行失败，请查看详细报告：
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions
+
+      - name: 发送企业微信通知
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.WECOM_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "## 企智连自动化测试执行结果\n\n**状态**: ${{ needs.api-tests.result == '\''success'\'' && needs.ui-tests.result == '\''success'\'' && '\''✅ 成功'\'' || '\''❌ 失败'\'' }}\n\n**触发方式**: ${{ github.event_name }}\n\n**执行时间**: ${{ github.run_duration }}\n\n[查看详细报告](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+              }
+            }'
+        continue-on-error: true

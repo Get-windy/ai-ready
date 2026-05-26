@@ -1,0 +1,262 @@
+pipeline {
+    agent any
+    
+    environment {
+        PYTHON_VERSION = '3.11'
+        TEST_ENV = 'test'
+        DOCKER_COMPOSE_FILE = 'docker-compose.test-env.yml'
+        REPORT_DIR = 'reports'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 1, unit: 'HOURS')
+        timestamps()
+    }
+    
+    triggers {
+        // 每晚2点自动执行回归测试
+        cron('H 2 * * *')
+        // 代码提交时触发
+        pollSCM('*/5 * * * *')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git log --oneline -5'
+            }
+        }
+        
+        stage('Setup Environment') {
+            steps {
+                script {
+                    // 安装Python依赖
+                    sh '''
+                        python -m pip install --upgrade pip
+                        pip install -r tests/docker/requirements-test.txt
+                    '''
+                    
+                    // 创建报告目录
+                    sh 'mkdir -p ${REPORT_DIR}'
+                }
+            }
+        }
+        
+        stage('Start Test Environment') {
+            steps {
+                script {
+                    // 启动Docker测试环境
+                    sh '''
+                        cd tests/docker
+                        docker-compose -f ${DOCKER_COMPOSE_FILE} up -d
+                        
+                        # 等待服务启动
+                        sleep 30
+                        
+                        # 检查服务健康状态
+                        docker-compose -f ${DOCKER_COMPOSE_FILE} ps
+                    '''
+                }
+            }
+        }
+        
+        stage('Run Smoke Tests') {
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python -m pytest \
+                            -m smoke \
+                            -v \
+                            --tb=short \
+                            --html=../../${REPORT_DIR}/smoke-report.html \
+                            --self-contained-html \
+                            --json-report \
+                            --json-report-file=../../${REPORT_DIR}/smoke-report.json \
+                            || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Run API Tests') {
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python -m pytest \
+                            tests/api \
+                            -v \
+                            --tb=short \
+                            -n auto \
+                            --html=../../${REPORT_DIR}/api-report.html \
+                            --self-contained-html \
+                            --json-report \
+                            --json-report-file=../../${REPORT_DIR}/api-report.json \
+                            --cov=src \
+                            --cov-report=xml:../../${REPORT_DIR}/coverage.xml \
+                            || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Run Integration Tests') {
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python -m pytest \
+                            tests/integration \
+                            -v \
+                            --tb=short \
+                            --html=../../${REPORT_DIR}/integration-report.html \
+                            --self-contained-html \
+                            --json-report \
+                            --json-report-file=../../${REPORT_DIR}/integration-report.json \
+                            || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Run E2E Tests') {
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python -m pytest \
+                            tests/e2e \
+                            -v \
+                            --tb=short \
+                            --html=../../${REPORT_DIR}/e2e-report.html \
+                            --self-contained-html \
+                            --json-report \
+                            --json-report-file=../../${REPORT_DIR}/e2e-report.json \
+                            || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Run Performance Tests') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python -m pytest \
+                            tests/performance \
+                            -v \
+                            --tb=short \
+                            --benchmark-only \
+                            --benchmark-json=../../${REPORT_DIR}/benchmark.json \
+                            || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Generate Report') {
+            steps {
+                script {
+                    sh '''
+                        cd tests/tests
+                        python report_generator.py
+                    '''
+                }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                script {
+                    // 停止测试环境
+                    sh '''
+                        cd tests/docker
+                        docker-compose -f ${DOCKER_COMPOSE_FILE} down
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // 发布测试报告
+            publishHTML([
+                allowMissing: false,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: "${REPORT_DIR}",
+                reportFiles: 'smoke-report.html,api-report.html,integration-report.html,e2e-report.html',
+                reportName: 'Test Reports'
+            ])
+            
+            // 发布覆盖率报告
+            cobertura(
+                coberturaReportFile: "${REPORT_DIR}/coverage.xml",
+                enableNewApi: true
+            )
+            
+            // 发布JUnit报告
+            junit(
+                allowEmptyResults: true,
+                testResults: "${REPORT_DIR}/junit-*.xml"
+            )
+            
+            // 归档产物
+            archiveArtifacts(
+                allowEmptyArchive: true,
+                artifacts: "${REPORT_DIR}/**/*",
+                fingerprint: true
+            )
+            
+            // 清理工作区
+            cleanWs()
+        }
+        
+        success {
+            // 发送成功通知
+            slackSend(
+                color: 'good',
+                message: "测试执行成功: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            )
+        }
+        
+        failure {
+            // 发送失败通知
+            slackSend(
+                color: 'danger',
+                message: "测试执行失败: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            )
+            
+            // 发送邮件通知
+            emailext(
+                subject: "测试失败: ${env.JOB_NAME} - ${env.BUILD_NUMBER}",
+                body: """
+                测试执行失败！
+                
+                项目: ${env.JOB_NAME}
+                构建号: ${env.BUILD_NUMBER}
+                构建URL: ${env.BUILD_URL}
+                
+                请查看详细报告。
+                """,
+                to: "${env.CHANGE_AUTHOR_EMAIL}"
+            )
+        }
+        
+        unstable {
+            // 测试不稳定时发送警告
+            slackSend(
+                color: 'warning',
+                message: "测试不稳定: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            )
+        }
+    }
+}

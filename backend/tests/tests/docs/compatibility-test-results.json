@@ -1,0 +1,368 @@
+{
+  "test_time": "2026-04-04 01:21:10",
+  "base_url": "http://localhost:8080",
+  "summary": {
+    "total": 32,
+    "passed": 30,
+    "failed": 2,
+    "skipped": 0,
+    "score": 93.75
+  },
+  "results": [
+    {
+      "name": "Chrome浏览器",
+      "category": "浏览器兼容性",
+      "platform": "Chrome",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 14.87,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Firefox浏览器",
+      "category": "浏览器兼容性",
+      "platform": "Firefox",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 4.77,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Safari浏览器",
+      "category": "浏览器兼容性",
+      "platform": "Safari",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 4.59,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Edge浏览器",
+      "category": "浏览器兼容性",
+      "platform": "Edge",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 3.75,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Opera浏览器",
+      "category": "浏览器兼容性",
+      "platform": "Opera",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 3.61,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "IE11浏览器",
+      "category": "浏览器兼容性",
+      "platform": "IE11",
+      "status": "PASS",
+      "message": "认证拦截正常",
+      "response_time_ms": 3.46,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Windows 11",
+      "category": "操作系统兼容性",
+      "platform": "Windows 11",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 3.31,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Windows 10",
+      "category": "操作系统兼容性",
+      "platform": "Windows 10",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 3.49,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "macOS Sonoma",
+      "category": "操作系统兼容性",
+      "platform": "macOS Sonoma",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 4.31,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "macOS Ventura",
+      "category": "操作系统兼容性",
+      "platform": "macOS Ventura",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 4.01,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Ubuntu Linux",
+      "category": "操作系统兼容性",
+      "platform": "Ubuntu Linux",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 3.58,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "Fedora Linux",
+      "category": "操作系统兼容性",
+      "platform": "Fedora Linux",
+      "status": "PASS",
+      "message": "API响应正常",
+      "response_time_ms": 3.57,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "iPhone Safari",
+      "category": "移动端适配",
+      "platform": "iPhone Safari",
+      "status": "PASS",
+      "message": "移动端API访问正常",
+      "response_time_ms": 3.36,
+      "status_code": 401,
+      "details": {
+        "response_size_bytes": 49,
+        "mobile_friendly": true
+      }
+    },
+    {
+      "name": "iPad Safari",
+      "category": "移动端适配",
+      "platform": "iPad Safari",
+      "status": "PASS",
+      "message": "移动端API访问正常",
+      "response_time_ms": 3.77,
+      "status_code": 401,
+      "details": {
+        "response_size_bytes": 49,
+        "mobile_friendly": true
+      }
+    },
+    {
+      "name": "Android Chrome",
+      "category": "移动端适配",
+      "platform": "Android Chrome",
+      "status": "PASS",
+      "message": "移动端API访问正常",
+      "response_time_ms": 3.6,
+      "status_code": 401,
+      "details": {
+        "response_size_bytes": 49,
+        "mobile_friendly": true
+      }
+    },
+    {
+      "name": "Android Firefox",
+      "category": "移动端适配",
+      "platform": "Android Firefox",
+      "status": "PASS",
+      "message": "移动端API访问正常",
+      "response_time_ms": 3.52,
+      "status_code": 401,
+      "details": {
+        "response_size_bytes": 49,
+        "mobile_friendly": true
+      }
+    },
+    {
+      "name": "WeChat",
+      "category": "移动端适配",
+      "platform": "WeChat",
+      "status": "PASS",
+      "message": "移动端API访问正常",
+      "response_time_ms": 3.48,
+      "status_code": 401,
+      "details": {
+        "response_size_bytes": 49,
+        "mobile_friendly": true
+      }
+    },
+    {
+      "name": "Accept: JSON格式",
+      "category": "API版本兼容性",
+      "platform": "JSON格式",
+      "status": "PASS",
+      "message": "支持JSON格式请求",
+      "response_time_ms": 3.64,
+      "status_code": 401,
+      "details": {
+        "response_content_type": "application/json"
+      }
+    },
+    {
+      "name": "Accept: XML格式",
+      "category": "API版本兼容性",
+      "platform": "XML格式",
+      "status": "FAIL",
+      "message": "状态码: 500",
+      "response_time_ms": 11.46,
+      "status_code": 500,
+      "details": {
+        "response_content_type": ""
+      }
+    },
+    {
+      "name": "Accept: 任意格式",
+      "category": "API版本兼容性",
+      "platform": "任意格式",
+      "status": "PASS",
+      "message": "支持任意格式请求",
+      "response_time_ms": 3.75,
+      "status_code": 401,
+      "details": {
+        "response_content_type": "application/json"
+      }
+    },
+    {
+      "name": "Accept: HTML格式",
+      "category": "API版本兼容性",
+      "platform": "HTML格式",
+      "status": "FAIL",
+      "message": "状态码: 500",
+      "response_time_ms": 11.37,
+      "status_code": 500,
+      "details": {
+        "response_content_type": "text/html;charset=UTF-8"
+      }
+    },
+    {
+      "name": "Accept: JSON API格式",
+      "category": "API版本兼容性",
+      "platform": "JSON API格式",
+      "status": "PASS",
+      "message": "支持JSON API格式请求",
+      "response_time_ms": 3.8,
+      "status_code": 401,
+      "details": {
+        "response_content_type": "application/vnd.api+json"
+      }
+    },
+    {
+      "name": "编码: GZIP压缩",
+      "category": "内容编码兼容性",
+      "platform": "GZIP压缩",
+      "status": "PASS",
+      "message": "编码协商成功: identity",
+      "response_time_ms": 3.19,
+      "status_code": 401,
+      "details": {
+        "response_encoding": "identity"
+      }
+    },
+    {
+      "name": "编码: Deflate压缩",
+      "category": "内容编码兼容性",
+      "platform": "Deflate压缩",
+      "status": "PASS",
+      "message": "编码协商成功: identity",
+      "response_time_ms": 3.46,
+      "status_code": 401,
+      "details": {
+        "response_encoding": "identity"
+      }
+    },
+    {
+      "name": "编码: GZIP+Deflate",
+      "category": "内容编码兼容性",
+      "platform": "GZIP+Deflate",
+      "status": "PASS",
+      "message": "编码协商成功: identity",
+      "response_time_ms": 3.42,
+      "status_code": 401,
+      "details": {
+        "response_encoding": "identity"
+      }
+    },
+    {
+      "name": "编码: 无压缩",
+      "category": "内容编码兼容性",
+      "platform": "无压缩",
+      "status": "PASS",
+      "message": "编码协商成功: identity",
+      "response_time_ms": 3.42,
+      "status_code": 401,
+      "details": {
+        "response_encoding": "identity"
+      }
+    },
+    {
+      "name": "编码: Brotli压缩",
+      "category": "内容编码兼容性",
+      "platform": "Brotli压缩",
+      "status": "PASS",
+      "message": "编码协商成功: identity",
+      "response_time_ms": 3.31,
+      "status_code": 401,
+      "details": {
+        "response_encoding": "identity"
+      }
+    },
+    {
+      "name": "字符集: UTF-8",
+      "category": "字符集兼容性",
+      "platform": "UTF-8",
+      "status": "PASS",
+      "message": "字符集支持正常",
+      "response_time_ms": 3.2,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "字符集: UTF-8(大写)",
+      "category": "字符集兼容性",
+      "platform": "UTF-8(大写)",
+      "status": "PASS",
+      "message": "字符集支持正常",
+      "response_time_ms": 3.46,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "字符集: GBK",
+      "category": "字符集兼容性",
+      "platform": "GBK",
+      "status": "PASS",
+      "message": "字符集支持正常",
+      "response_time_ms": 3.3,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "字符集: GB2312",
+      "category": "字符集兼容性",
+      "platform": "GB2312",
+      "status": "PASS",
+      "message": "字符集支持正常",
+      "response_time_ms": 3.32,
+      "status_code": 401,
+      "details": {}
+    },
+    {
+      "name": "字符集: ISO-8859-1",
+      "category": "字符集兼容性",
+      "platform": "ISO-8859-1",
+      "status": "PASS",
+      "message": "字符集支持正常",
+      "response_time_ms": 3.19,
+      "status_code": 401,
+      "details": {}
+    }
+  ]
+}

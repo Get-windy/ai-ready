@@ -1,0 +1,57 @@
+# ERP Spring Boot 应用 Dockerfile 模板
+# 基于 OpenJDK 17 的轻量级镜像
+# 使用多阶段构建优化镜像大小
+
+# 第一阶段：构建阶段
+FROM maven:3.9.6-amazoncorretto-17 AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制 Maven 配置文件和源代码
+COPY pom.xml .
+COPY src ./src
+
+# 下载依赖并构建应用
+RUN mvn dependency:go-offline
+RUN mvn clean package -DskipTests
+
+# 第二阶段：运行时阶段
+FROM openjdk:17-jdk-slim
+
+# 设置元数据
+LABEL maintainer="devops-team@aiedge.cn"
+LABEL description="ERP Spring Boot Application"
+LABEL version="1.0.0"
+
+# 设置环境变量
+ENV TZ=Asia/Shanghai \
+    LANG=zh_CN.UTF-8 \
+    JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError" \
+    SPRING_PROFILES_ACTIVE=prod
+
+# 创建非 root 用户
+RUN groupadd -r erpuser && useradd -r -g erpuser -s /bin/bash erpuser
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制 jar 包
+COPY --from=builder /app/target/*.jar app.jar
+
+# 创建必要的目录
+RUN mkdir -p /app/logs /app/config && \
+    chown -R erpuser:erpuser /app
+
+# 切换用户
+USER erpuser
+
+# 暴露端口
+EXPOSE 8080
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

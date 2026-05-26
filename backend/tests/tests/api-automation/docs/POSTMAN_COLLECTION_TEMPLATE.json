@@ -1,0 +1,868 @@
+{
+  "info": {
+    "_postman_id": "qizhilian-api-template",
+    "name": "企智连API测试集合模板",
+    "description": "企智连系统API接口测试Postman集合模板，包含认证、ERP、CRM、系统管理等模块的标准化测试用例结构",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "1. 认证模块",
+      "description": "用户认证相关接口：登录、登出、Token刷新等",
+      "item": [
+        {
+          "name": "TC-AUTH-001: 用户登录成功",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{test_username}}\",\n  \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "正向测试：使用正确的用户名和密码登录，验证Token返回"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// 验证状态码",
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// 验证响应结构",
+                  "pm.test('响应包含Token', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql('0');",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.expect(jsonData.data.refreshToken).to.exist;",
+                  "});",
+                  "",
+                  "// 保存Token到环境变量",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('access_token', jsonData.data.accessToken);",
+                  "pm.environment.set('refresh_token', jsonData.data.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-AUTH-002: 用户登录-密码错误",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{test_username}}\",\n  \"password\": \"WrongPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "反向测试：使用错误的密码登录，验证401返回"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('返回认证错误信息', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql('AUTH001');",
+                  "    pm.expect(jsonData.message).to.include('用户名或密码错误');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-AUTH-003: Token刷新",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{refresh_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "使用Refresh Token获取新的Access Token"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回新的Token', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.expect(jsonData.data.accessToken).to.not.eql(pm.environment.get('access_token'));",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('access_token', jsonData.data.accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-AUTH-004: 获取当前用户信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "使用有效Token获取当前登录用户信息"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回用户信息', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    pm.expect(jsonData.data.username).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-AUTH-005: 无Token访问受保护接口",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "安全测试：不携带Token访问需要认证的接口"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为401', function() {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('返回未授权错误', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql('AUTH002');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. ERP模块",
+      "description": "ERP核心功能接口：库存、采购、销售、财务",
+      "item": [
+        {
+          "name": "TC-ERP-001: 创建入库单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": {{warehouse_id}},\n  \"items\": [\n    {\n      \"materialId\": {{material_id}},\n      \"quantity\": 100,\n      \"batchNo\": \"BATCH{{$timestamp}}\"\n    }\n  ],\n  \"remark\": \"测试入库单\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", "inbound"]
+            },
+            "description": "正向测试：创建入库单，验证库存增加"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200或201', function() {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('返回入库单ID', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    pm.environment.set('inbound_order_id', jsonData.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-ERP-002: 查询库存列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory?page=1&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "正向测试：分页查询库存列表"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回分页数据', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.list).to.be.an('array');",
+                  "    pm.expect(jsonData.data.pageNum).to.eql(1);",
+                  "    pm.expect(jsonData.data.pageSize).to.eql(20);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-ERP-003: 创建采购订单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierId\": {{supplier_id}},\n  \"items\": [\n    {\n      \"materialId\": {{material_id}},\n      \"quantity\": 50,\n      \"unitPrice\": 100.00\n    }\n  ],\n  \"totalAmount\": 5000.00,\n  \"expectedDate\": \"2026-05-01\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "purchase", "orders"]
+            },
+            "description": "正向测试：创建采购订单"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为201', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('返回采购订单信息', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.orderNo).to.exist;",
+                  "    pm.expect(jsonData.data.status).to.eql('DRAFT');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-ERP-004: 库存数量边界值测试",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": {{warehouse_id}},\n  \"items\": [\n    {\n      \"materialId\": {{material_id}},\n      \"quantity\": -10,\n      \"batchNo\": \"INVALID\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/inventory/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "inventory", "inbound"]
+            },
+            "description": "边界值测试：入库数量为负数"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('返回参数错误', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql('PARAM001');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. CRM模块",
+      "description": "CRM核心功能接口：客户、线索、商机管理",
+      "item": [
+        {
+          "name": "TC-CRM-001: 创建客户",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试客户{{$timestamp}}\",\n  \"contactName\": \"张三\",\n  \"contactPhone\": \"13800138000\",\n  \"contactEmail\": \"test{{$timestamp}}@example.com\",\n  \"address\": \"北京市朝阳区\",\n  \"industry\": \"IT\",\n  \"scale\": \"MEDIUM\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/crm/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "crm", "customers"]
+            },
+            "description": "正向测试：创建新客户"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为201', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('customer_id', jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-CRM-002: 查询客户列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crm/customers?page=1&size=10&keyword=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "crm", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "keyword",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "正向测试：分页查询客户列表"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-CRM-003: 创建客户-邮箱格式错误",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试客户\",\n  \"contactEmail\": \"invalid-email\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/crm/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "crm", "customers"]
+            },
+            "description": "反向测试：邮箱格式不正确"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为400', function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('返回邮箱格式错误', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include('邮箱');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. 系统管理模块",
+      "description": "系统管理功能接口：用户、角色、权限、部门",
+      "item": [
+        {
+          "name": "TC-SYS-001: 创建用户",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser{{$timestamp}}\",\n  \"password\": \"Test@123456\",\n  \"nickname\": \"测试用户\",\n  \"email\": \"user{{$timestamp}}@test.com\",\n  \"phone\": \"138{{$randomInt}}\",\n  \"roleIds\": [1, 2],\n  \"deptId\": 1,\n  \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "正向测试：创建系统用户"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为201', function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('new_user_id', jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-SYS-002: 查询用户列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?page=1&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "正向测试：分页查询用户列表"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为200', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-SYS-003: 越权访问测试-普通用户访问管理员接口",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users"]
+            },
+            "description": "安全测试：普通用户Token访问管理员接口"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码为403', function() {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('返回无权限错误', function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.code).to.eql('PERM001');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. 安全测试",
+      "description": "安全相关测试用例：SQL注入、XSS、越权等",
+      "item": [
+        {
+          "name": "TC-SEC-001: SQL注入测试",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?keyword=' OR '1'='1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "' OR '1'='1"
+                }
+              ]
+            },
+            "description": "安全测试：SQL注入攻击防护"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('SQL注入被拦截', function() {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 403, 200]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('未返回全部数据', function() {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.data.total).to.be.below(1000);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-SEC-002: XSS攻击测试",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"<script>alert('XSS')</script>\",\n  \"contactName\": \"<img src=x onerror=alert('XSS')>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/crm/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "crm", "customers"]
+            },
+            "description": "安全测试：XSS攻击防护"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.test('XSS载荷被转义', function() {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.data.name).to.not.include('<script>');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 生成时间戳用于唯一数据",
+          "pm.environment.set('timestamp', new Date().getTime());",
+          "",
+          "// 生成随机手机号",
+          "var randomPhone = '138' + Math.floor(Math.random() * 100000000).toString().padStart(8, '0');",
+          "pm.environment.set('random_phone', randomPhone);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局测试：验证响应时间",
+          "pm.test('响应时间小于2000ms', function() {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});",
+          "",
+          "// 全局测试：验证Content-Type",
+          "pm.test('Content-Type为application/json', function() {",
+          "    pm.response.to.have.header('Content-Type');",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "API基础URL"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "访问令牌"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string",
+      "description": "刷新令牌"
+    },
+    {
+      "key": "test_username",
+      "value": "admin",
+      "type": "string",
+      "description": "测试用户名"
+    },
+    {
+      "key": "test_password",
+      "value": "admin123",
+      "type": "string",
+      "description": "测试密码"
+    },
+    {
+      "key": "warehouse_id",
+      "value": "1",
+      "type": "string",
+      "description": "仓库ID"
+    },
+    {
+      "key": "material_id",
+      "value": "1",
+      "type": "string",
+      "description": "物料ID"
+    },
+    {
+      "key": "supplier_id",
+      "value": "1",
+      "type": "string",
+      "description": "供应商ID"
+    },
+    {
+      "key": "customer_id",
+      "value": "",
+      "type": "string",
+      "description": "客户ID"
+    }
+  ]
+}

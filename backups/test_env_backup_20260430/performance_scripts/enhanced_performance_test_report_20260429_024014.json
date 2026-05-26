@@ -1,0 +1,66 @@
+{
+  "test_suite": "Sprint 27+1增强版性能测试",
+  "test_mode": "mock",
+  "start_time": "2026-04-29T02:38:26.142178",
+  "config": {
+    "base_url": "http://localhost:8080",
+    "test_mode": "mock",
+    "concurrent_users": 100,
+    "enable_boundary_tests": true,
+    "enable_stress_tests": true,
+    "enable_stability_tests": false
+  },
+  "results": {
+    "页面加载性能测试": {
+      "passed": false,
+      "timestamp": "2026-04-29T02:38:28.545531"
+    },
+    "边界条件测试": {
+      "passed": false,
+      "timestamp": "2026-04-29T02:38:29.835160"
+    },
+    "压力测试": {
+      "passed": false,
+      "timestamp": "2026-04-29T02:40:14.541202"
+    },
+    "稳定性测试": {
+      "passed": true,
+      "timestamp": "2026-04-29T02:40:14.541689"
+    }
+  },
+  "metrics": {
+    "page_load_times_avg": 24.60956573486328,
+    "page_load_times_p95": 41.68658256530762,
+    "page_load_times_p99": 43.94465446472168,
+    "page_load_times_max": 44.509172439575195,
+    "page_load_times_min": 13.036251068115234,
+    "page_load_times_count": 3,
+    "api_response_times": [],
+    "data_refresh_times": [],
+    "alert_trigger_times": [],
+    "notification_times": [],
+    "boundary_test_times_avg": 51.04942321777344,
+    "boundary_test_times_p95": 74.5814323425293,
+    "boundary_test_times_p99": 76.30334854125977,
+    "boundary_test_times_max": 76.73382759094238,
+    "boundary_test_times_min": 0.058650970458984375,
+    "boundary_test_times_count": 5,
+    "stress_test_times_avg": 32890.230576197304,
+    "stress_test_times_p95": 54566.74473285675,
+    "stress_test_times_p99": 56849.06500339508,
+    "stress_test_times_max": 57419.64507102966,
+    "stress_test_times_min": 12360.404968261719,
+    "stress_test_times_count": 3,
+    "stability_test_times": [],
+    "concurrent_users": 0,
+    "qps": 0,
+    "error_count": 79,
+    "timeout_count": 37,
+    "total_requests": 0,
+    "boundary_tests_passed": 2,
+    "boundary_tests_failed": 3,
+    "stress_tests_passed": 0,
+    "stress_tests_failed": 3
+  },
+  "end_time": "2026-04-29T02:40:14.542065"
+}

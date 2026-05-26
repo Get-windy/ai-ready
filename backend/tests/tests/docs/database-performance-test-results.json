@@ -1,0 +1,272 @@
+{
+  "test_time": "2026-04-03 18:25:39",
+  "summary": {
+    "total": 15,
+    "passed": 14,
+    "failed": 1,
+    "score": 93.33333333333333
+  },
+  "results": [
+    {
+      "name": "用户表简单查询",
+      "category": "单表查询",
+      "status": "PASS",
+      "avg_time_ms": 8.46,
+      "p95_time_ms": 11.67,
+      "p99_time_ms": 17.83,
+      "message": "平均8.46ms, P95=11.67ms",
+      "details": {
+        "avg": 8.46219333349533,
+        "min": 4.45179999951506,
+        "max": 17.83140000043204,
+        "p95": 11.673300003167242,
+        "p99": 17.83140000043204,
+        "success_rate": 100.0,
+        "samples": 30
+      }
+    },
+    {
+      "name": "API文档查询",
+      "category": "单表查询",
+      "status": "PASS",
+      "avg_time_ms": 5.25,
+      "p95_time_ms": 6.14,
+      "p99_time_ms": 6.14,
+      "message": "平均5.25ms",
+      "details": {
+        "avg": 5.254699999204604,
+        "min": 4.7008999972604215,
+        "max": 6.143300000985619,
+        "p95": 6.143300000985619,
+        "p99": 6.143300000985619,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "分页查询(Page=1)",
+      "category": "分页查询",
+      "status": "PASS",
+      "avg_time_ms": 5.68,
+      "p95_time_ms": 6.3,
+      "p99_time_ms": 6.3,
+      "message": "Page=1: 5.68ms",
+      "details": {
+        "avg": 5.684759999712696,
+        "min": 4.609700001310557,
+        "max": 6.304800001089461,
+        "p95": 6.304800001089461,
+        "p99": 6.304800001089461,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "分页查询(Page=10)",
+      "category": "分页查询",
+      "status": "PASS",
+      "avg_time_ms": 5.84,
+      "p95_time_ms": 7.43,
+      "p99_time_ms": 7.43,
+      "message": "Page=10: 5.84ms",
+      "details": {
+        "avg": 5.836589998216368,
+        "min": 4.696999996667728,
+        "max": 7.4314999947091565,
+        "p95": 7.4314999947091565,
+        "p99": 7.4314999947091565,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "分页查询(Page=50)",
+      "category": "分页查询",
+      "status": "PASS",
+      "avg_time_ms": 6.16,
+      "p95_time_ms": 6.96,
+      "p99_time_ms": 6.96,
+      "message": "Page=50: 6.16ms",
+      "details": {
+        "avg": 6.164179999177577,
+        "min": 5.204099994443823,
+        "max": 6.956899997021537,
+        "p95": 6.956899997021537,
+        "p99": 6.956899997021537,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "分页查询(Page=100)",
+      "category": "分页查询",
+      "status": "PASS",
+      "avg_time_ms": 6.95,
+      "p95_time_ms": 21.26,
+      "p99_time_ms": 21.26,
+      "message": "Page=100: 6.95ms",
+      "details": {
+        "avg": 6.9520599994575605,
+        "min": 3.959099994972348,
+        "max": 21.262500005832408,
+        "p95": 21.262500005832408,
+        "p99": 21.262500005832408,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "PageSize性能对比",
+      "category": "分页查询",
+      "status": "PASS",
+      "avg_time_ms": 7.43,
+      "p95_time_ms": 0,
+      "p99_time_ms": 0,
+      "message": "各PageSize性能: {10: 6.823239997902419, 50: 6.497359999048058, 100: 6.453080000937916, 200: 10.749660000146832, 500: 6.6184000024804845}",
+      "details": {
+        "size_performance": {
+          "10": 6.823239997902419,
+          "50": 6.497359999048058,
+          "100": 6.453080000937916,
+          "200": 10.749660000146832,
+          "500": 6.6184000024804845
+        }
+      }
+    },
+    {
+      "name": "无条件查询",
+      "category": "条件查询",
+      "status": "PASS",
+      "avg_time_ms": 6.36,
+      "p95_time_ms": 16.91,
+      "p99_time_ms": 16.91,
+      "message": "无条件: 6.36ms",
+      "details": {
+        "avg": 6.358770000224467,
+        "min": 4.591299999447074,
+        "max": 16.906899996683933,
+        "p95": 16.906899996683933,
+        "p99": 16.906899996683933,
+        "success_rate": 100.0,
+        "samples": 20
+      }
+    },
+    {
+      "name": "租户条件查询",
+      "category": "条件查询",
+      "status": "PASS",
+      "avg_time_ms": 7.96,
+      "p95_time_ms": 10.84,
+      "p99_time_ms": 10.84,
+      "message": "租户条件: 7.96ms",
+      "details": {
+        "avg": 7.956364999699872,
+        "min": 6.2201000037021,
+        "max": 10.838399997737724,
+        "p95": 10.838399997737724,
+        "p99": 10.838399997737724,
+        "success_rate": 100.0,
+        "samples": 20
+      }
+    },
+    {
+      "name": "模糊查询",
+      "category": "条件查询",
+      "status": "PASS",
+      "avg_time_ms": 8.14,
+      "p95_time_ms": 9.57,
+      "p99_time_ms": 9.57,
+      "message": "模糊查询: 8.14ms",
+      "details": {
+        "avg": 8.138339999277378,
+        "min": 6.573299993760884,
+        "max": 9.570599999278784,
+        "p95": 9.570599999278784,
+        "p99": 9.570599999278784,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "默认排序",
+      "category": "排序查询",
+      "status": "PASS",
+      "avg_time_ms": 7.68,
+      "p95_time_ms": 9.1,
+      "p99_time_ms": 0,
+      "message": "默认排序: 7.68ms",
+      "details": {
+        "avg": 7.6837900014652405,
+        "min": 6.459399999585003,
+        "max": 9.103400007006712,
+        "p95": 9.103400007006712,
+        "p99": 9.103400007006712,
+        "success_rate": 100.0,
+        "samples": 10
+      }
+    },
+    {
+      "name": "10并发查询",
+      "category": "并发访问",
+      "status": "PASS",
+      "avg_time_ms": 27.07,
+      "p95_time_ms": 33.45,
+      "p99_time_ms": 0,
+      "message": "10并发: 平均27.07ms, 吞吐量292.2req/s",
+      "details": {
+        "concurrent": 10,
+        "total_requests": 20,
+        "success_count": 20,
+        "throughput": 292.16700265785914,
+        "avg_ms": 27.07
+      }
+    },
+    {
+      "name": "20并发查询",
+      "category": "并发访问",
+      "status": "PASS",
+      "avg_time_ms": 45.06,
+      "p95_time_ms": 60.0,
+      "p99_time_ms": 0,
+      "message": "20并发: 平均45.06ms, 吞吐量290.8req/s",
+      "details": {
+        "concurrent": 20,
+        "total_requests": 40,
+        "success_count": 40,
+        "throughput": 290.84351891508345,
+        "avg_ms": 45.06
+      }
+    },
+    {
+      "name": "50并发查询",
+      "category": "并发访问",
+      "status": "PASS",
+      "avg_time_ms": 73.38,
+      "p95_time_ms": 101.68,
+      "p99_time_ms": 0,
+      "message": "50并发: 平均73.38ms, 吞吐量334.5req/s",
+      "details": {
+        "concurrent": 50,
+        "total_requests": 100,
+        "success_count": 100,
+        "throughput": 334.4899997546603,
+        "avg_ms": 73.38
+      }
+    },
+    {
+      "name": "持续查询稳定性",
+      "category": "稳定性测试",
+      "status": "FAIL",
+      "avg_time_ms": 7.19,
+      "p95_time_ms": 13.59,
+      "p99_time_ms": 32.59,
+      "message": "查询波动过大: 67.5%",
+      "details": {
+        "samples": 100,
+        "avg_ms": 7.19,
+        "std_dev": 4.85,
+        "variance_percent": 67.51
+      }
+    }
+  ]
+}

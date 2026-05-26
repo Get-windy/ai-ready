@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.base.mapper.RolePermissionMapper">
+
+    <!-- 删除角色的所有权限关联 -->
+    <delete id="deleteByRoleId">
+        DELETE FROM sys_role_permission WHERE role_id = #{roleId}
+    </delete>
+
+    <!-- 删除权限的所有角色关联 -->
+    <delete id="deleteByPermissionId">
+        DELETE FROM sys_role_permission WHERE permission_id = #{permissionId}
+    </delete>
+
+    <!-- 批量插入角色权限关联 -->
+    <insert id="batchInsert">
+        INSERT INTO sys_role_permission (role_id, permission_id, create_time, create_by)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.roleId}, #{item.permissionId}, #{item.createTime}, #{item.createBy})
+        </foreach>
+    </insert>
+
+    <!-- 查询角色的权限ID列表 -->
+    <select id="selectPermissionIdsByRoleId" resultType="java.lang.Long">
+        SELECT permission_id FROM sys_role_permission WHERE role_id = #{roleId}
+    </select>
+
+</mapper>

@@ -1,0 +1,178 @@
+# ERP采购管理模块水平Pod自动缩放器配置
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: erp-purchase-hpa
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: erp-purchase-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  # CPU使用率指标
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # 内存使用率指标
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # 自定义指标：QPS（每秒查询数）
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "500"
+  # 自定义指标：响应时间P95
+  - type: Object
+    object:
+      metric:
+        name: http_response_time_p95
+      describedObject:
+        apiVersion: v1
+        kind: Service
+        name: erp-purchase-service
+      target:
+        type: Value
+        value: "500"
+  # 自定义指标：活跃连接数
+  - type: Object
+    object:
+      metric:
+        name: active_connections
+      describedObject:
+        apiVersion: v1
+        kind: Service
+        name: erp-purchase-service
+      target:
+        type: AverageValue
+        averageValue: "1000"
+  behavior:
+    # 缩放策略
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      selectPolicy: Max
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      selectPolicy: Min
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+    # 缩放事件记录
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 5
+        periodSeconds: 60
+  # 高级配置
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: erp-purchase-service
+---
+# Vertical Pod Autoscaler配置（可选）
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: erp-purchase-vpa
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind: Deployment
+    name: erp-purchase-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      minAllowed:
+        cpu: "100m"
+        memory: "256Mi"
+      maxAllowed:
+        cpu: "2"
+        memory: "4Gi"
+      controlledResources: ["cpu", "memory"]
+      controlledValues: "RequestsAndLimits"
+---
+# Pod Disruption Budget配置
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: erp-purchase-pdb
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+spec:
+  minAvailable: "50%"
+  selector:
+    matchLabels:
+      app: erp-purchase-service
+---
+# 服务网格配置（Istio）
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: erp-purchase-dr
+  namespace: erp
+spec:
+  host: erp-purchase-service.erp.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30ms
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    loadBalancer:
+      simple: LEAST_CONN
+    tls:
+      mode: ISTIO_MUTUAL
+  subsets:
+  - name: v1
+    labels:
+      version: v1.0.0
+  - name: v2
+    labels:
+      version: v2.0.0

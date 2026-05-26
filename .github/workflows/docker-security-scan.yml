@@ -1,0 +1,111 @@
+# Docker镜像安全扫描工作流
+name: Docker Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**/Dockerfile*'
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨2点运行
+  workflow_dispatch:      # 手动触发
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.REGISTRY }}/${{ github.repository }}/${{ github.event.repository.name }}:${{ github.sha }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scan-removed-pkgs: true
+        scan-passwords: true
+        scan-oefficients: true
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+        checkout_path: 'trivy-results'
+    
+    - name: Check for high severity vulnerabilities
+      run: |
+        echo "Checking for high severity vulnerabilities..."
+        
+        if [ -f "trivy-results.sarif" ]; then
+          HIGH_VULNS=$(grep -c '"severity": "HIGH"' trivy-results.sarif || true)
+          CRITICAL_VULNS=$(grep -c '"severity": "CRITICAL"' trivy-results.sarif || true)
+          
+          if [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "❌ CRITICAL vulnerabilities found: $CRITICAL_VULNS"
+            exit 1
+          fi
+          
+          if [ "$HIGH_VULNS" -gt 0 ]; then
+            echo "⚠️  HIGH vulnerabilities found: $HIGH_VULNS"
+            echo "Please review and fix these vulnerabilities before merging."
+          else
+            echo "✅ No HIGH or CRITICAL vulnerabilities found."
+          fi
+        else
+          echo "⚠️  No SARIF file found. Skipping vulnerability check."
+        fi
+    
+    - name: Generate vulnerability report
+      run: |
+        echo "Generating vulnerability report..."
+        
+        cat << 'EOF' > security-report.md
+        # Docker镜像安全扫描报告
+
+        ## 扫描信息
+        - **镜像**: ${{ github.repository }}/${{ github.event.repository.name }}
+        - **版本**: ${{ github.sha }}
+        - **扫描时间**: $(date '+%Y-%m-%d %H:%M:%S')
+        - **扫描工具**: Trivy
+
+        ## 漏洞统计
+        EOF
+        
+        if [ -f "trivy-results.sarif" ]; then
+          CRITICAL=$(grep -c '"severity": "CRITICAL"' trivy-results.sarif || echo "0")
+          HIGH=$(grep -c '"severity": "HIGH"' trivy-results.sarif || echo "0")
+          MEDIUM=$(grep -c '"severity": "MEDIUM"' trivy-results.sarif || echo "0")
+          LOW=$(grep -c '"severity": "LOW"' trivy-results.sarif || echo "0")
+          
+          cat << EOF >> security-report.md
+          - **CRITICAL**: $CRITICAL
+          - **HIGH**: $HIGH
+          - **MEDIUM**: $MEDIUM
+          - **LOW**: $LOW
+          EOF
+        fi
+        
+        echo "Security report generated."
+      working-directory: ./trivy-results
+    
+    - name: Upload vulnerability report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-report
+        path: |
+          trivy-results/trivy-results.sarif
+          trivy-results/security-report.md
+        retention-days: 30

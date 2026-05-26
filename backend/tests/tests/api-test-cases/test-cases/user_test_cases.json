@@ -1,0 +1,306 @@
+{
+  "module": "用户管理模块",
+  "basePath": "/api/v1/users",
+  "testCases": [
+    {
+      "id": "TC-USER-001",
+      "title": "创建用户成功",
+      "method": "POST",
+      "path": "",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "管理员已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "username": "testuser001",
+        "password": "Test@123",
+        "email": "test001@qizhilian.com",
+        "phone": "13800138001",
+        "realName": "测试用户001",
+        "roleIds": [1, 2],
+        "status": "ACTIVE"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "id": "notNull",
+            "username": "testuser001"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-USER-002",
+      "title": "创建用户-用户名已存在",
+      "method": "POST",
+      "path": "",
+      "priority": "P0",
+      "type": "异常场景",
+      "precondition": "用户testuser001已存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "username": "testuser001",
+        "password": "Test@123",
+        "email": "test002@qizhilian.com"
+      },
+      "expected": {
+        "statusCode": 400,
+        "response": {
+          "code": "400",
+          "message": "用户名已存在"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-003",
+      "title": "创建用户-邮箱格式错误",
+      "method": "POST",
+      "path": "",
+      "priority": "P0",
+      "type": "异常场景",
+      "precondition": "",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "username": "testuser002",
+        "password": "Test@123",
+        "email": "invalid-email"
+      },
+      "expected": {
+        "statusCode": 400,
+        "response": {
+          "code": "400",
+          "message": "邮箱格式不正确"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-004",
+      "title": "创建用户-密码强度不足",
+      "method": "POST",
+      "path": "",
+      "priority": "P1",
+      "type": "异常场景",
+      "precondition": "",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "request": {
+        "username": "testuser003",
+        "password": "123",
+        "email": "test003@qizhilian.com"
+      },
+      "expected": {
+        "statusCode": 400,
+        "response": {
+          "code": "400",
+          "message": "密码强度不足"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-005",
+      "title": "用户列表查询",
+      "method": "GET",
+      "path": "",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "queryParams": {
+        "page": 1,
+        "size": 20
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "list": "notNull",
+            "total": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-USER-006",
+      "title": "用户详情查询",
+      "method": "GET",
+      "path": "/{id}",
+      "priority": "P0",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "data": {
+            "id": 1,
+            "username": "notNull"
+          }
+        }
+      }
+    },
+    {
+      "id": "TC-USER-007",
+      "title": "用户详情查询-用户不存在",
+      "method": "GET",
+      "path": "/{id}",
+      "priority": "P1",
+      "type": "异常场景",
+      "precondition": "用户已登录",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 99999
+      },
+      "expected": {
+        "statusCode": 404,
+        "response": {
+          "code": "404",
+          "message": "用户不存在"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-008",
+      "title": "更新用户成功",
+      "method": "PUT",
+      "path": "/{id}",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "request": {
+        "realName": "更新后的姓名",
+        "email": "updated@qizhilian.com",
+        "phone": "13900139000"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "message": "更新成功"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-009",
+      "title": "禁用用户",
+      "method": "PATCH",
+      "path": "/{id}/status",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "request": {
+        "status": "DISABLED"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "message": "状态更新成功"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-010",
+      "title": "启用用户",
+      "method": "PATCH",
+      "path": "/{id}/status",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户已禁用",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "request": {
+        "status": "ACTIVE"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "message": "状态更新成功"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-011",
+      "title": "重置用户密码",
+      "method": "POST",
+      "path": "/{id}/reset-password",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "request": {
+        "newPassword": "NewPass@456"
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "message": "密码重置成功"
+        }
+      }
+    },
+    {
+      "id": "TC-USER-012",
+      "title": "删除用户",
+      "method": "DELETE",
+      "path": "/{id}",
+      "priority": "P1",
+      "type": "正常场景",
+      "precondition": "用户已登录，用户存在",
+      "headers": {
+        "Authorization": "Bearer ${token}"
+      },
+      "pathParams": {
+        "id": 1
+      },
+      "expected": {
+        "statusCode": 200,
+        "response": {
+          "code": "0",
+          "message": "删除成功"
+        }
+      }
+    }
+  ]
+}

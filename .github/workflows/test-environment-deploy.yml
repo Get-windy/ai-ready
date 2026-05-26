@@ -1,0 +1,418 @@
+# Test Environment Automated Deployment Pipeline
+# GitHub Actions workflow for automated test environment deployment
+
+name: Test Environment Deployment
+
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'infra/kubernetes/test-environment/**'
+      - '.github/workflows/test-environment-deploy.yml'
+      - 'scripts/deploy-test-environment.sh'
+  pull_request:
+    branches: [ develop ]
+    paths:
+      - 'infra/kubernetes/test-environment/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - sit
+        - uat
+        - performance
+        - security
+      skip_validation:
+        description: 'Skip validation steps'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CLUSTER_NAME: ai-ready-test
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/test-environment
+  VERSION: ${{ github.sha }}
+
+jobs:
+  # ==================== Validation Phase ====================
+  validate-configuration:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Validate Kubernetes configurations
+      run: |
+        echo "Validating Kubernetes configuration files..."
+        
+        # Validate all YAML files
+        find infra/kubernetes/test-environment -name "*.yaml" -o -name "*.yml" | while read file; do
+          echo "Validating $file..."
+          kubectl apply --dry-run=client -f "$file" > /dev/null
+          if [ $? -eq 0 ]; then
+            echo "✅ $file - Valid"
+          else
+            echo "❌ $file - Invalid"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All Kubernetes configuration files are valid"
+    
+    - name: Validate deployment script
+      run: |
+        echo "Validating deployment script..."
+        
+        # Check script syntax
+        bash -n scripts/deploy-test-environment.sh
+        if [ $? -eq 0 ]; then
+          echo "✅ Deployment script syntax is valid"
+        else
+          echo "❌ Deployment script syntax error"
+          exit 1
+        fi
+        
+        # Check script permissions
+        if [ -x "scripts/deploy-test-environment.sh" ]; then
+          echo "✅ Deployment script is executable"
+        else
+          chmod +x scripts/deploy-test-environment.sh
+          echo "✅ Made deployment script executable"
+        fi
+
+  # ==================== Security Scan Phase ====================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: validate-configuration
+    timeout-minutes: 30
+    if: ${{ !inputs.skip_validation || github.event_name != 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Run kube-score
+      uses: zegl/kube-score-action@v2.1.1
+      with:
+        kubernetes_version: "1.27"
+        output_format: "sarif"
+        output_file: "kube-score-results.sarif"
+        paths: "infra/kubernetes/test-environment/"
+    
+    - name: Upload kube-score results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: "kube-score-results.sarif"
+    
+    - name: Run kubeaudit
+      run: |
+        echo "Running kubeaudit security scan..."
+        docker run --rm -v $(pwd):/app shopify/kubeaudit all --format json /app/infra/kubernetes/test-environment/ > kubeaudit-results.json
+        
+        # Check for critical issues
+        if jq -e '.Issues[] | select(.Severity=="Error")' kubeaudit-results.json > /dev/null; then
+          echo "❌ Critical security issues found"
+          cat kubeaudit-results.json | jq '.Issues[] | select(.Severity=="Error")'
+          exit 1
+        else
+          echo "✅ No critical security issues found"
+        fi
+
+  # ==================== Environment Selection ====================
+  select-environment:
+    name: Select Environment
+    runs-on: ubuntu-latest
+    needs: [validate-configuration, security-scan]
+    if: ${{ !inputs.skip_validation || github.event_name != 'workflow_dispatch' }}
+    outputs:
+      environment: ${{ steps.select.outputs.environment }}
+    
+    steps:
+    - name: Select deployment environment
+      id: select
+      run: |
+        # Determine environment based on trigger
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          ENVIRONMENT="${{ inputs.environment }}"
+        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          ENVIRONMENT="sit"
+        else
+          ENVIRONMENT="dev"
+        fi
+        
+        echo "Selected environment: $ENVIRONMENT"
+        echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+
+  # ==================== Deploy Test Environment ====================
+  deploy-environment:
+    name: Deploy Test Environment
+    runs-on: ubuntu-latest
+    needs: select-environment
+    timeout-minutes: 60
+    environment: ${{ needs.select-environment.outputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Kubernetes environment
+      run: |
+        echo "Setting up Kubernetes environment..."
+        
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        kubectl version --client
+        
+        # Install kustomize
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
+        kustomize version
+        
+        echo "✅ Kubernetes tools installed"
+    
+    - name: Configure kubectl
+      run: |
+        echo "Configuring kubectl..."
+        
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBECONFIG_TEST }}" | base64 -d > $HOME/.kube/config
+        
+        # Set context
+        kubectl config use-context "${{ secrets.K8S_CONTEXT_TEST }}"
+        kubectl cluster-info
+        kubectl get nodes
+        
+        echo "✅ kubectl configured successfully"
+    
+    - name: Run deployment script
+      run: |
+        echo "Starting test environment deployment..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        
+        # Run deployment script
+        chmod +x scripts/deploy-test-environment.sh
+        ./scripts/deploy-test-environment.sh "$ENVIRONMENT"
+        
+        # Capture deployment result
+        DEPLOY_RESULT=$?
+        
+        if [ $DEPLOY_RESULT -eq 0 ]; then
+          echo "✅ Deployment succeeded"
+          echo "DEPLOY_STATUS=success" >> $GITHUB_ENV
+        else
+          echo "❌ Deployment failed"
+          echo "DEPLOY_STATUS=failed" >> $GITHUB_ENV
+          exit 1
+        fi
+    
+    - name: Verify deployment
+      if: success()
+      run: |
+        echo "Verifying deployment..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        NAMESPACE="test-$ENVIRONMENT"
+        
+        # Check all pods are running
+        echo "Checking pod status..."
+        kubectl get pods -n "$NAMESPACE" --no-headers | awk '$3 != "Running" && $3 != "Completed" {exit 1}'
+        
+        # Check services
+        echo "Checking service status..."
+        kubectl get services -n "$NAMESPACE" --no-headers | awk '!/ClusterIP/ {exit 1}'
+        
+        # Check ingress
+        echo "Checking ingress status..."
+        kubectl get ingress -n "$NAMESPACE" --no-headers | awk '!/test/ {exit 1}'
+        
+        echo "✅ Deployment verified successfully"
+
+  # ==================== Health Check Phase ====================
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: deploy-environment
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Configure kubectl
+      run: |
+        echo "Configuring kubectl..."
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBECONFIG_TEST }}" | base64 -d > $HOME/.kube/config
+        kubectl config use-context "${{ secrets.K8S_CONTEXT_TEST }}"
+    
+    - name: Run comprehensive health checks
+      run: |
+        echo "Running comprehensive health checks..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        NAMESPACE="test-$ENVIRONMENT"
+        
+        # Define health check endpoints
+        declare -A HEALTH_ENDPOINTS=(
+          ["api-gateway"]="http://api-gateway.$NAMESPACE.svc.cluster.local:8080/actuator/health"
+          ["postgres"]="postgres.$NAMESPACE.svc.cluster.local:5432"
+          ["redis"]="redis.$NAMESPACE.svc.cluster.local:6379"
+        )
+        
+        # Run health checks
+        FAILED_CHECKS=0
+        for service in "${!HEALTH_ENDPOINTS[@]}"; do
+          endpoint="${HEALTH_ENDPOINTS[$service]}"
+          echo "Checking $service at $endpoint..."
+          
+          if [[ $endpoint == http* ]]; then
+            # HTTP endpoint
+            if curl -f "$endpoint" > /dev/null 2>&1; then
+              echo "✅ $service health check passed"
+            else
+              echo "❌ $service health check failed"
+              FAILED_CHECKS=$((FAILED_CHECKS + 1))
+            fi
+          else
+            # TCP endpoint
+            if nc -z -w 5 $(echo "$endpoint" | tr ':' ' '); then
+              echo "✅ $service health check passed"
+            else
+              echo "❌ $service health check failed"
+              FAILED_CHECKS=$((FAILED_CHECKS + 1))
+            fi
+          fi
+        done
+        
+        if [ $FAILED_CHECKS -eq 0 ]; then
+          echo "✅ All health checks passed"
+        else
+          echo "❌ $FAILED_CHECKS health checks failed"
+          exit 1
+        fi
+    
+    - name: Collect system metrics
+      run: |
+        echo "Collecting system metrics..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        NAMESPACE="test-$ENVIRONMENT"
+        
+        # Get pod resource usage
+        kubectl top pods -n "$NAMESPACE" > /tmp/pod-metrics.txt
+        
+        # Get node resource usage
+        kubectl top nodes > /tmp/node-metrics.txt
+        
+        echo "Metrics collected successfully"
+
+  # ==================== Notification Phase ====================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-environment, health-check]
+    if: always()
+    timeout-minutes: 5
+    
+    steps:
+    - name: Send deployment success notification
+      if: success()
+      run: |
+        echo "Sending deployment success notification..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        DEPLOYMENT_URL="http://test-$ENVIRONMENT.ai-ready.local"
+        
+        curl -X POST ${{ secrets.WECOM_WEBHOOK_URL }} \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"msgtype\": \"markdown\",
+            \"markdown\": {
+              \"content\": \"✅ **测试环境部署成功**\n\n> 环境: ${ENVIRONMENT^^}\n> 版本: ${{ env.VERSION }}\n> 时间: $(date '+%Y-%m-%d %H:%M:%S')\n> 提交: [${{ github.sha_short }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})\n\n**访问地址**: [${DEPLOYMENT_URL}](${DEPLOYMENT_URL})\n**健康检查**: ✅ 全部通过\n\n[查看部署详情](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) [查看监控面板](http://test-monitoring.ai-ready.local:3000)\"
+            }
+          }"
+    
+    - name: Send deployment failure notification
+      if: failure()
+      run: |
+        echo "Sending deployment failure notification..."
+        
+        ENVIRONMENT="${{ needs.select-environment.outputs.environment }}"
+        DEPLOYMENT_LOG="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
+        curl -X POST ${{ secrets.WECOM_WEBHOOK_URL }} \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"msgtype\": \"markdown\",
+            \"markdown\": {
+              \"content\": \"❌ **测试环境部署失败**\n\n> 环境: ${ENVIRONMENT^^}\n> 版本: ${{ env.VERSION }}\n> 时间: $(date '+%Y-%m-%d %H:%M:%S')\n\n**需要立即处理**\n部署过程中出现错误，请检查部署日志了解详情\n\n**建议操作**:\n1. 检查Kubernetes集群状态\n2. 查看部署脚本日志\n3. 验证配置文件语法\n4. 检查网络连通性\n\n[查看部署日志](${DEPLOYMENT_LOG})\"
+            }
+          }"
+    
+    - name: Send cancellation notification
+      if: cancelled()
+      run: |
+        echo "Sending cancellation notification..."
+        
+        curl -X POST ${{ secrets.WECOM_WEBHOOK_URL }} \
+          -H "Content-Type: application/json" \
+          -d '{
+            "msgtype": "markdown",
+            "markdown": {
+              "content": "⚠️ **测试环境部署已取消**\n\n> 时间: $(date \"+%Y-%m-%d %H:%M:%S\")\n> 环境: ${{ needs.select-environment.outputs.environment }}\n\n部署流程已被手动取消或超时中断\n\n[查看工作流](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            }
+          }'
+
+  # ==================== Cleanup Phase ====================
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-environment, health-check, notify]
+    if: always()
+    timeout-minutes: 10
+    
+    steps:
+    - name: Upload deployment artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-artifacts-${{ needs.select-environment.outputs.environment }}
+        path: |
+          /tmp/pod-metrics.txt
+          /tmp/node-metrics.txt
+          /tmp/test-env-deploy-*.log
+        retention-days: 7
+    
+    - name: Clean temporary files
+      run: |
+        echo "Cleaning temporary files..."
+        rm -f /tmp/test-env-deploy-*.log /tmp/*-metrics.txt /tmp/*-report.md
+    
+    - name: Final status notification
+      run: |
+        echo "Deployment pipeline completed"
+        
+        DEPLOY_RESULT="${{ needs.deploy-environment.result }}"
+        HEALTH_RESULT="${{ needs.health-check.result }}"
+        
+        if [[ "$DEPLOY_RESULT" == "success" && "$HEALTH_RESULT" == "success" ]]; then
+          echo "✅ Deployment pipeline completed successfully"
+        else
+          echo "❌ Deployment pipeline completed with errors"
+          exit 1
+        fi

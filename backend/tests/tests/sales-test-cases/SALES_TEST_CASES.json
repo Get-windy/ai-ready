@@ -1,0 +1,50 @@
+{
+  "project": "企智连",
+  "module": "销售管理模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-14",
+  "totalCases": 20,
+  "categories": [
+    {
+      "name": "销售订单",
+      "description": "销售订单功能测试",
+      "cases": [
+        {"id": "SALES-001", "title": "单商品订单创建测试", "priority": "P0", "automation": true},
+        {"id": "SALES-002", "title": "多商品订单创建测试", "priority": "P0", "automation": true},
+        {"id": "SALES-003", "title": "订单状态流转测试", "priority": "P0", "automation": true},
+        {"id": "SALES-004", "title": "订单变更测试", "priority": "P1", "automation": true},
+        {"id": "SALES-005", "title": "订单取消测试", "priority": "P1", "automation": true},
+        {"id": "SALES-006", "title": "订单查询导出测试", "priority": "P1", "automation": true},
+        {"id": "SALES-007", "title": "订单库存联动测试", "priority": "P0", "automation": true}
+      ]
+    },
+    {
+      "name": "客户管理",
+      "description": "销售客户管理功能测试",
+      "cases": [
+        {"id": "SALES-CUST-001", "title": "客户档案CRUD测试", "priority": "P0", "automation": true},
+        {"id": "SALES-CUST-002", "title": "客户分类管理测试", "priority": "P1", "automation": true},
+        {"id": "SALES-CUST-003", "title": "客户等级变更测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "销售报表",
+      "description": "销售报表功能测试",
+      "cases": [
+        {"id": "SALES-RPT-001", "title": "销售业绩报表测试", "priority": "P1", "automation": true},
+        {"id": "SALES-RPT-002", "title": "销售趋势分析测试", "priority": "P1", "automation": true},
+        {"id": "SALES-RPT-003", "title": "产品销售排行测试", "priority": "P1", "automation": true},
+        {"id": "SALES-RPT-004", "title": "区域销售统计测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "价格管理",
+      "description": "价格管理功能测试",
+      "cases": [
+        {"id": "SALES-PRICE-001", "title": "价格策略配置测试", "priority": "P1", "automation": true},
+        {"id": "SALES-PRICE-002", "title": "折扣规则应用测试", "priority": "P1", "automation": true},
+        {"id": "SALES-PRICE-003", "title": "价格审批流程测试", "priority": "P1", "automation": true}
+      ]
+    }
+  ]
+}

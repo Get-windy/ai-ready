@@ -1,0 +1,111 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AI-Ready 测试环境监控",
+    "tags": ["test", "monitoring"],
+    "timezone": "Asia/Shanghai",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "容器状态",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "CPU使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total[5m]) * 100",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "yAxes": [
+          {
+            "label": "百分比",
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "内存使用",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes / 1024 / 1024",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "yAxes": [
+          {
+            "label": "MB"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "网络IO",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_network_receive_bytes_total[5m])",
+            "legendFormat": "{{instance}} - 接收"
+          },
+          {
+            "expr": "rate(container_network_transmit_bytes_total[5m])",
+            "legendFormat": "{{instance}} - 发送"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "测试执行统计",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "test_passed_total",
+            "legendFormat": "通过"
+          },
+          {
+            "expr": "test_failed_total",
+            "legendFormat": "失败"
+          },
+          {
+            "expr": "test_skipped_total",
+            "legendFormat": "跳过"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "测试执行时间",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(test_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(test_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "ai-ready-tests",
+  "version": "1.0.0",
+  "description": "AI-Ready自动化测试框架",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:api": "pytest tests/api -v",
+    "test:api:cov": "pytest tests/api -v --cov=src --cov-report=html",
+    "test:all": "npm run test:api && npm run test:e2e",
+    "report": "allure serve reports/allure",
+    "lint": "eslint tests/"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}

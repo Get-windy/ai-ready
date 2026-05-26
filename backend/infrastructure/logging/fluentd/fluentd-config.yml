@@ -1,0 +1,361 @@
+# Fluentd 日志收集配置
+# 版本: 1.0.0
+# 环境: test
+# Sprint: 27+1
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: fluentd
+data:
+  fluent.conf: |
+    # 全局配置
+    <system>
+      log_level info
+      root_dir /var/log/fluentd
+    </system>
+    
+    # 输入配置 - Docker日志
+    <source>
+      @type forward
+      port 24224
+      bind 0.0.0.0
+      @label @DOCKER
+    </source>
+    
+    # 输入配置 - HTTP日志
+    <source>
+      @type http
+      port 9880
+      bind 0.0.0.0
+      @label @APPLICATION
+    </source>
+    
+    # 输入配置 - 系统日志
+    <source>
+      @type tail
+      path /var/log/syslog
+      pos_file /var/log/fluentd/syslog.pos
+      tag system.syslog
+      format syslog
+      @label @SYSTEM
+    </source>
+    
+    # Docker日志处理管道
+    <label @DOCKER>
+      # 解析Docker JSON日志
+      <filter **>
+        @type parser
+        key_name log
+        reserve_data true
+        <parse>
+          @type json
+          time_format %Y-%m-%dT%H:%M:%S.%NZ
+        </parse>
+      </filter>
+      
+      # 添加Docker元数据
+      <filter **>
+        @type record_transformer
+        enable_ruby true
+        <record>
+          container_id ${record["container_id"] || ""}
+          container_name ${record["container_name"] || ""}
+          docker_image ${record["docker_image"] || ""}
+          environment test
+          log_source docker
+          hostname "#{Socket.gethostname}"
+        </record>
+      </filter>
+      
+      # 路由到存储
+      <match **>
+        @type copy
+        <store>
+          @type elasticsearch
+          host elasticsearch.logging-test.svc.cluster.local
+          port 9200
+          logstash_format true
+          logstash_prefix docker-logs
+          type_name _doc
+          include_tag_key true
+          tag_key @log_name
+          flush_interval 5s
+          buffer_chunk_limit 2M
+          buffer_queue_limit 32
+          max_retry_wait 30
+          disable_retry_limit
+          num_threads 4
+        </store>
+        <store>
+          @type file
+          path /var/log/fluentd/output/docker
+          <buffer>
+            @type file
+            path /var/log/fluentd/buffer/docker
+            flush_interval 5s
+            retry_forever true
+          </buffer>
+        </store>
+      </match>
+    </label>
+    
+    # 应用日志处理管道
+    <label @APPLICATION>
+      # 解析JSON应用日志
+      <filter **>
+        @type parser
+        key_name log
+        reserve_data true
+        <parse>
+          @type json
+          time_format %Y-%m-%dT%H:%M:%S.%NZ
+        </parse>
+      </filter>
+      
+      # 添加应用元数据
+      <filter **>
+        @type record_transformer
+        enable_ruby true
+        <record>
+          application_name ${record["app"] || "unknown"}
+          environment test
+          log_source application
+          log_level ${record["level"] || "INFO"}
+          hostname "#{Socket.gethostname}"
+          timestamp ${Time.now.to_f}
+        </record>
+      </filter>
+      
+      # 错误日志特殊处理
+      <filter **>
+        @type grep
+        <regexp>
+          key log_level
+          pattern /ERROR|FATAL|CRITICAL/
+        </regexp>
+      </filter>
+      
+      # 路由到存储
+      <match **>
+        @type copy
+        <store>
+          @type elasticsearch
+          host elasticsearch.logging-test.svc.cluster.local
+          port 9200
+          logstash_format true
+          logstash_prefix app-logs
+          type_name _doc
+          include_tag_key true
+          tag_key @log_name
+          flush_interval 5s
+        </store>
+        <store>
+          @type file
+          path /var/log/fluentd/output/application
+          <buffer>
+            @type file
+            path /var/log/fluentd/buffer/application
+            flush_interval 5s
+          </buffer>
+        </store>
+      </match>
+    </label>
+    
+    # 系统日志处理管道
+    <label @SYSTEM>
+      # 添加系统元数据
+      <filter **>
+        @type record_transformer
+        enable_ruby true
+        <record>
+          environment test
+          log_source system
+          hostname "#{Socket.gethostname}"
+          facility ${record["facility"] || ""}
+          severity ${record["severity"] || ""}
+        </record>
+      </filter>
+      
+      # 路由到存储
+      <match **>
+        @type copy
+        <store>
+          @type elasticsearch
+          host elasticsearch.logging-test.svc.cluster.local
+          port 9200
+          logstash_format true
+          logstash_prefix system-logs
+          type_name _doc
+          include_tag_key true
+          tag_key @log_name
+          flush_interval 10s
+        </store>
+        <store>
+          @type file
+          path /var/log/fluentd/output/system
+          <buffer>
+            @type file
+            path /var/log/fluentd/buffer/system
+            flush_interval 10s
+          </buffer>
+        </store>
+      </match>
+    </label>
+    
+    # 默认管道 - 处理未匹配的日志
+    <match **>
+      @type file
+      path /var/log/fluentd/output/default
+      append true
+      <buffer>
+        @type file
+        path /var/log/fluentd/buffer/default
+        flush_interval 30s
+      </buffer>
+    </match>
+---
+# Fluentd DaemonSet配置
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: fluentd
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+        environment: test
+        component: logging
+    spec:
+      serviceAccountName: fluentd
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch8
+        env:
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: "elasticsearch.logging-test.svc.cluster.local"
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: "9200"
+        - name: FLUENT_ELASTICSEARCH_SCHEME
+          value: "http"
+        - name: FLUENT_ELASTICSEARCH_USER
+          value: ""
+        - name: FLUENT_ELASTICSEARCH_PASSWORD
+          value: ""
+        - name: FLUENT_ELASTICSEARCH_SSL_VERIFY
+          value: "false"
+        - name: FLUENT_ELASTICSEARCH_SSL_VERSION
+          value: "TLSv1_2"
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: fluentd-config
+          mountPath: /fluentd/etc/fluent.conf
+          subPath: fluent.conf
+        - name: fluentd-buffer
+          mountPath: /var/log/fluentd/buffer
+        - name: fluentd-output
+          mountPath: /var/log/fluentd/output
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: fluentd-config
+        configMap:
+          name: fluentd-config
+      - name: fluentd-buffer
+        hostPath:
+          path: /var/log/fluentd/buffer
+          type: DirectoryOrCreate
+      - name: fluentd-output
+        hostPath:
+          path: /var/log/fluentd/output
+          type: DirectoryOrCreate
+---
+# Fluentd Service配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluentd
+  namespace: logging-test
+  labels:
+    environment: test
+    component: logging
+    app: fluentd
+spec:
+  selector:
+    app: fluentd
+  ports:
+  - name: forward
+    port: 24224
+    targetPort: 24224
+    protocol: TCP
+  - name: http
+    port: 9880
+    targetPort: 9880
+    protocol: TCP
+  type: ClusterIP
+---
+# Fluentd ServiceAccount和RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd
+  namespace: logging-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd
+  labels:
+    environment: test
+    component: logging
+rules:
+- apiGroups: [""]
+  resources:
+  - pods
+  - namespaces
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluentd
+subjects:
+- kind: ServiceAccount
+  name: fluentd
+  namespace: logging-test

@@ -1,0 +1,144 @@
+# 数据库连接池性能测试配置
+server:
+  port: 0  # 随机端口
+
+spring:
+  application:
+    name: connection-pool-test
+
+  # 测试数据源配置 - HikariCP
+  datasource:
+    # 主测试数据源 - PostgreSQL
+    primary:
+      jdbc-url: jdbc:postgresql://localhost:5432/testdb
+      driver-class-name: org.postgresql.Driver
+      username: testuser
+      password: testpass
+      hikari:
+        pool-name: HikariPool-Primary-Test
+        maximum-pool-size: 50
+        minimum-idle: 10
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        connection-test-query: SELECT 1
+        leak-detection-threshold: 60000
+        metric-registry: io.micrometer.core.instrument.MeterRegistry
+    
+    # 低并发测试数据源
+    low-concurrency:
+      jdbc-url: jdbc:postgresql://localhost:5432/testdb
+      driver-class-name: org.postgresql.Driver
+      username: testuser
+      password: testpass
+      hikari:
+        pool-name: HikariPool-Low-Test
+        maximum-pool-size: 10
+        minimum-idle: 2
+        connection-timeout: 30000
+        idle-timeout: 300000
+        max-lifetime: 1800000
+        connection-test-query: SELECT 1
+        leak-detection-threshold: 60000
+    
+    # 中并发测试数据源
+    medium-concurrency:
+      jdbc-url: jdbc:postgresql://localhost:5432/testdb
+      driver-class-name: org.postgresql.Driver
+      username: testuser
+      password: testpass
+      hikari:
+        pool-name: HikariPool-Medium-Test
+        maximum-pool-size: 30
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        connection-test-query: SELECT 1
+        leak-detection-threshold: 60000
+    
+    # 高并发测试数据源
+    high-concurrency:
+      jdbc-url: jdbc:postgresql://localhost:5432/testdb
+      driver-class-name: org.postgresql.Driver
+      username: testuser
+      password: testpass
+      hikari:
+        pool-name: HikariPool-High-Test
+        maximum-pool-size: 100
+        minimum-idle: 20
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        connection-test-query: SELECT 1
+        leak-detection-threshold: 60000
+    
+    # H2内存数据库 - 用于本地快速测试
+    h2:
+      jdbc-url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      driver-class-name: org.h2.Driver
+      username: sa
+      password: 
+      hikari:
+        pool-name: HikariPool-H2-Test
+        maximum-pool-size: 20
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        connection-test-query: SELECT 1
+
+# 测试配置
+test:
+  connection-pool:
+    # 并发测试配置
+    concurrency:
+      low:
+        threads: 10
+        iterations: 1000
+        warmup-iterations: 100
+      medium:
+        threads: 50
+        iterations: 5000
+        warmup-iterations: 500
+      high:
+        threads: 100
+        iterations: 10000
+        warmup-iterations: 1000
+    
+    # 性能指标阈值
+    thresholds:
+      connection-acquisition-time: 100  # ms
+      pool-utilization-min: 80          # %
+      max-leak-detections: 0
+    
+    # 测试持续时间配置
+    duration:
+      short: 30    # seconds
+      medium: 120  # seconds
+      long: 300    # seconds
+
+# 日志配置
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.springframework.jdbc: DEBUG
+    cn.aiedge.test: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    enable:
+      hikaricp: true
+    export:
+      prometheus:
+        enabled: true

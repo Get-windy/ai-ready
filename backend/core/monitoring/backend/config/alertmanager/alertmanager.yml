@@ -1,0 +1,301 @@
+# Alertmanager 配置
+# 版本: v1.0.0
+# 环境: AI-Ready 测试环境
+# 创建日期: 2026-04-30
+
+global:
+  # SMTP配置（邮件通知）
+  smtp_smarthost: 'smtp.ai-ready.com:587'
+  smtp_from: 'monitoring@ai-ready.com'
+  smtp_auth_username: 'monitoring'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+  
+  # Slack配置
+  slack_api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+  
+  # 其他全局配置
+  resolve_timeout: 5m
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# 模板文件配置
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# 路由配置
+route:
+  # 默认路由
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'cluster', 'environment']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  
+  # 子路由配置
+  routes:
+    # 基础设施告警路由
+    - receiver: 'infrastructure-team'
+      group_by: ['alertname', 'instance']
+      match:
+        service: 'infrastructure'
+      continue: true
+    
+    # 应用服务告警路由
+    - receiver: 'backend-team'
+      group_by: ['alertname', 'job', 'instance']
+      match:
+        service: 'application'
+      continue: true
+    
+    # 数据库告警路由
+    - receiver: 'dba-team'
+      group_by: ['alertname', 'database']
+      match:
+        service: 'database'
+      continue: true
+    
+    # 缓存告警路由
+    - receiver: 'backend-team'
+      group_by: ['alertname']
+      match:
+        service: 'cache'
+      continue: true
+    
+    # 消息队列告警路由
+    - receiver: 'backend-team'
+      group_by: ['alertname', 'queue']
+      match:
+        service: 'message-queue'
+      continue: true
+    
+    # 关键业务告警路由（P1级别）
+    - receiver: 'all-teams'
+      group_by: ['alertname']
+      match_re:
+        severity: 'critical|warning'
+        service: 'authentication|order|payment'
+      continue: true
+    
+    # 监控系统自身告警路由
+    - receiver: 'sre-team'
+      group_by: ['alertname']
+      match:
+        service: 'monitoring'
+      continue: true
+
+# 抑制规则配置（避免重复告警）
+inhibit_rules:
+  # 当节点宕机时，抑制该节点上的所有服务告警
+  - source_match:
+      alertname: 'NodeDown'
+    target_match_re:
+      instance: '.*'
+    equal: ['instance']
+  
+  # 当服务不可用时，抑制该服务的性能告警
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: 'HighAPILatency|HighAPIErrorRate'
+    equal: ['job', 'instance']
+  
+  # 当数据库连接池耗尽时，抑制相关服务告警
+  - source_match:
+      alertname: 'DatabaseConnectionPoolExhausted'
+    target_match_re:
+      service: 'application'
+    equal: ['environment']
+
+# 接收器配置
+receivers:
+  # 默认接收器
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'devops@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[AI-Ready监控告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.default.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#ai-ready-alerts'
+        username: 'AI-Ready监控机器人'
+        icon_emoji: ':robot_face:'
+        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}'
+        send_resolved: true
+  
+  # 基础设施团队接收器
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: 'infrastructure@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[基础设施告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.infrastructure.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#infrastructure-alerts'
+        username: 'AI-Ready基础设施监控'
+        icon_emoji: ':server:'
+        title: '[基础设施告警] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}*告警级别*: {{ .Labels.severity }}\n*节点*: {{ .Labels.instance }}\n*描述*: {{ .Annotations.description }}\n*Runbook*: {{ .Annotations.runbook }}\n\n{{ end }}'
+        send_resolved: true
+    
+    webhook_configs:
+      - url: 'http://notification-service:8080/api/notifications/infrastructure'
+        send_resolved: true
+  
+  # 后端团队接收器
+  - name: 'backend-team'
+    email_configs:
+      - to: 'backend@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[后端服务告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.backend.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#backend-alerts'
+        username: 'AI-Ready后端监控'
+        icon_emoji: ':gear:'
+        title: '[后端告警] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}*服务*: {{ .Labels.job }}\n*实例*: {{ .Labels.instance }}\n*告警级别*: {{ .Labels.severity }}\n*描述*: {{ .Annotations.description }}\n*Runbook*: {{ .Annotations.runbook }}\n\n{{ end }}'
+        send_resolved: true
+    
+    webhook_configs:
+      - url: 'http://notification-service:8080/api/notifications/backend'
+        send_resolved: true
+  
+  # DBA团队接收器
+  - name: 'dba-team'
+    email_configs:
+      - to: 'dba@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[数据库告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.database.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#database-alerts'
+        username: 'AI-Ready数据库监控'
+        icon_emoji: ':database:'
+        title: '[数据库告警] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}*数据库*: {{ .Labels.database }}\n*告警级别*: {{ .Labels.severity }}\n*描述*: {{ .Annotations.description }}\n*Runbook*: {{ .Annotations.runbook }}\n\n{{ end }}'
+        send_resolved: true
+    
+    webhook_configs:
+      - url: 'http://notification-service:8080/api/notifications/database'
+        send_resolved: true
+  
+  # SRE团队接收器（监控系统自身）
+  - name: 'sre-team'
+    email_configs:
+      - to: 'sre@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[监控系统告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.monitoring.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#sre-alerts'
+        username: 'AI-Ready SRE监控'
+        icon_emoji: ':monitoring:'
+        title: '[监控系统告警] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}*监控组件*: {{ .Labels.job }}\n*告警级别*: {{ .Labels.severity }}\n*描述*: {{ .Annotations.description }}\n*Runbook*: {{ .Annotations.runbook }}\n\n{{ end }}'
+        send_resolved: true
+    
+    webhook_configs:
+      - url: 'http://notification-service:8080/api/notifications/sre'
+        send_resolved: true
+    
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_ROUTING_KEY}'
+        description: '监控系统告警: {{ .GroupLabels.alertname }}'
+        severity: '{{ if eq .CommonLabels.severity "critical" }}critical{{ else }}warning{{ end }}'
+        group: 'Monitoring System'
+        component: '{{ .CommonLabels.job }}'
+        details:
+          alerts: '{{ .Alerts.Firing | len }}'
+          environment: '{{ .CommonLabels.environment }}'
+  
+  # 所有团队接收器（关键业务告警）
+  - name: 'all-teams'
+    email_configs:
+      - to: 'all-teams@ai-ready.com'
+        from: 'monitoring@ai-ready.com'
+        smarthost: 'smtp.ai-ready.com:587'
+        auth_username: 'monitoring'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[紧急告警] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.critical.html" . }}'
+        send_resolved: true
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/${SLACK_WEBHOOK_TOKEN}'
+        channel: '#critical-alerts'
+        username: 'AI-Ready紧急告警'
+        icon_emoji: ':rotating_light:'
+        title: '[紧急告警] {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}:rotating_light: *紧急告警* :rotating_light:\n*业务*: {{ .Labels.service }}\n*告警级别*: {{ .Labels.severity }}\n*描述*: {{ .Annotations.description }}\n*Runbook*: {{ .Annotations.runbook }}\n\n{{ end }}'
+        send_resolved: true
+    
+    webhook_configs:
+      - url: 'http://notification-service:8080/api/notifications/critical'
+        send_resolved: true
+    
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_CRITICAL_KEY}'
+        description: '紧急业务告警: {{ .GroupLabels.alertname }}'
+        severity: 'critical'
+        group: 'Business Critical'
+        component: '{{ .CommonLabels.service }}'
+        details:
+          alerts: '{{ .Alerts.Firing | len }}'
+          environment: '{{ .CommonLabels.environment }}'
+    
+    # 短信通知配置（仅紧急告警）
+    victorops_configs:
+      - routing_key: '${VICTOROPS_ROUTING_KEY}'
+        message_type: 'CRITICAL'
+        entity_display_name: 'AI-Ready业务告警'
+        state_message: '{{ .GroupLabels.alertname }} - {{ .CommonAnnotations.summary }}'
+
+# 告警静默配置（维护窗口等）
+# 可以通过Alertmanager UI动态配置
+# 示例：
+# silence:
+#   - matchers:
+#       - name: environment
+#         value: test
+#         isRegex: false
+#     startsAt: '2026-05-01T00:00:00Z'
+#     endsAt: '2026-05-01T06:00:00Z'
+#     createdBy: 'maintenance-bot'
+#     comment: '系统维护窗口'

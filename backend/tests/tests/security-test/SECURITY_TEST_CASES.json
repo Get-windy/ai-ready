@@ -1,0 +1,107 @@
+{
+  "testSuiteId": "SECURITY_TEST_001",
+  "testSuiteName": "企智连安全模块测试用例",
+  "version": "1.0",
+  "generatedDate": "2026-04-14T15:30:00+08:00",
+  "testCases": [
+    {
+      "testCaseId": "TC-SEC-001",
+      "suiteId": "AUTH_TEST",
+      "suiteName": "认证与授权测试",
+      "name": "暴力破解防护",
+      "type": "security",
+      "priority": "P0",
+      "automated": true,
+      "description": "验证系统能够有效防护暴力破解攻击",
+      "preconditions": ["系统已部署防暴力破解机制"],
+      "steps": ["1. 连续输入错误密码超过限制次数", "2. 观察账户锁定状态", "3. 验证登录失败响应"],
+      "expectedResult": ["账户被临时锁定", "返回统一错误信息", "记录安全日志"],
+      "status": "pending"
+    },
+    {
+      "testCaseId": "TC-SEC-002",
+      "suiteId": "AUTH_TEST",
+      "suiteName": "认证与授权测试", 
+      "name": "密码策略",
+      "type": "security",
+      "priority": "P0",
+      "automated": true,
+      "description": "验证密码策略符合安全要求",
+      "preconditions": ["用户注册或修改密码"],
+      "steps": ["1. 尝试设置弱密码", "2. 尝试设置强密码", "3. 验证密码复杂度要求"],
+      "expectedResult": ["弱密码被拒绝", "强密码被接受", "密码策略提示清晰"],
+      "status": "pending"
+    },
+    {
+      "testCaseId": "TC-SEC-021",
+      "suiteId": "DATA_SECURITY_TEST",
+      "suiteName": "数据安全测试",
+      "name": "SQL注入防御",
+      "type": "security",
+      "priority": "P0",
+      "automated": true,
+      "description": "验证系统能够有效防护SQL注入攻击",
+      "preconditions": ["存在用户输入的查询接口"],
+      "steps": ["1. 在输入框中注入SQL语句", "2. 观察系统响应", "3. 验证数据库查询日志"],
+      "expectedResult": ["SQL注入被拦截", "返回安全错误信息", "无数据库异常日志"],
+      "status": "pending"
+    },
+    {
+      "testCaseId": "TC-SEC-032",
+      "suiteId": "API_SECURITY_TEST",
+      "suiteName": "API安全测试",
+      "name": "无Token访问",
+      "type": "security",
+      "priority": "P0",
+      "automated": true,
+      "description": "验证敏感API接口需要有效的Token认证",
+      "preconditions": ["存在需要认证的API接口"],
+      "steps": ["1. 直接调用敏感API接口", "2. 不提供任何认证信息", "3. 观察响应状态"],
+      "expectedResult": ["返回401未授权错误", "无法访问敏感数据", "记录安全审计日志"],
+      "status": "pending"
+    },
+    {
+      "testCaseId": "TC-SEC-047",
+      "suiteId": "BUSINESS_SECURITY_TEST",
+      "suiteName": "业务安全测试",
+      "name": "支付金额篡改",
+      "type": "security",
+      "priority": "P0",
+      "automated": true,
+      "description": "验证支付金额无法被前端篡改",
+      "preconditions": ["存在支付功能"],
+      "steps": ["1. 在支付页面修改金额参数", "2. 提交支付请求", "3. 验证后端金额校验"],
+      "expectedResult": ["支付金额篡改被检测到", "交易被拒绝", "记录安全告警"],
+      "status": "pending"
+    }
+  ],
+  "testCategories": [
+    {
+      "name": "认证与授权测试",
+      "description": "涵盖登录安全、会话管理、权限控制等",
+      "testCaseCount": 25
+    },
+    {
+      "name": "数据安全测试", 
+      "description": "涵盖SQL注入、XSS、CSRF等数据安全防护",
+      "testCaseCount": 12
+    },
+    {
+      "name": "API安全测试",
+      "description": "涵盖接口鉴权、参数校验、速率限制等",
+      "testCaseCount": 16
+    },
+    {
+      "name": "业务安全测试",
+      "description": "涵盖支付安全、订单安全、价格安全等",
+      "testCaseCount": 12
+    }
+  ],
+  "summary": {
+    "totalTestCases": 65,
+    "highPriority": 39,
+    "mediumPriority": 26,
+    "automated": 65,
+    "manual": 0
+  }
+}

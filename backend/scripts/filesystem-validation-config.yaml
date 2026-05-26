@@ -1,0 +1,57 @@
+# 文件系统备份验证配置
+# Sprint 27+1测试环境
+
+filesystem:
+  critical_dirs:
+    - "/config"
+    - "/etc/important"
+    - "/data"
+  important_dirs:
+    - "/logs/app"
+    - "/static"
+    - "/uploads"
+  exclude_patterns:
+    - "*.tmp"
+    - "*.temp"
+    - "cache/*"
+    - "tmp/*"
+  backup_dir: "./backups/filesystem"
+  scripts_dir: "./scripts/backup/filesystem"
+  expected_scripts:
+    - "fs_full_backup.sh"
+    - "fs_incremental.sh"
+    - "fs_restore.sh"
+    - "fs_verify.sh"
+
+config:
+  app_config_dirs: ["/config"]
+  system_config_dirs: ["/etc"]
+  config_patterns: ["*.yml", "*.yaml", "*.properties", "*.conf", "*.json"]
+  backup_dir: "./backups/config"
+  version_control: true
+  encryption_required: true
+
+logs:
+  app_log_dirs: ["/logs/app"]
+  system_log_dirs: ["/var/log"]
+  log_patterns: ["*.log", "*.log.*"]
+  backup_dir: "./backups/logs"
+  retention_days:
+    business: 180
+    audit: 365
+    system: 90
+  compression_enabled: true
+
+recovery:
+  test_server: "recovery-test-server"
+  recovery_time_targets:
+    config: 300    # 5分钟
+    logs: 900      # 15分钟
+    full: 3600     # 60分钟
+  success_rate_target: 95  # 95%
+
+validation:
+  test_data_size_mb: 10
+  create_test_files: true
+  verify_integrity: true
+  simulate_backup: true

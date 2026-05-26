@@ -1,0 +1,43 @@
+# AI-Ready Read-Write Separation Configuration
+# 读写分离配置
+
+spring:
+  datasource:
+    dynamic:
+      primary: master
+      strict: false
+      datasource:
+        master:
+          url: jdbc:postgresql://${DB_MASTER_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ai_ready}
+          username: ${DB_USER:ai_ready}
+          password: ${DB_PASS:ai_ready2026}
+          driver-class-name: org.postgresql.Driver
+          hikari:
+            pool-name: HikariCP-Master
+            minimum-idle: 10
+            maximum-pool-size: 50
+        slave1:
+          url: jdbc:postgresql://${DB_SLAVE1_HOST:slave1}:${DB_PORT:5432}/${DB_NAME:ai_ready}
+          username: ${DB_USER:ai_ready}
+          password: ${DB_PASS:ai_ready2026}
+          driver-class-name: org.postgresql.Driver
+          hikari:
+            pool-name: HikariCP-Slave1
+            minimum-idle: 5
+            maximum-pool-size: 30
+        slave2:
+          url: jdbc:postgresql://${DB_SLAVE2_HOST:slave2}:${DB_PORT:5432}/${DB_NAME:ai_ready}
+          username: ${DB_USER:ai_ready}
+          password: ${DB_PASS:ai_ready2026}
+          driver-class-name: org.postgresql.Driver
+          hikari:
+            pool-name: HikariCP-Slave2
+            minimum-idle: 5
+            maximum-pool-size: 30
+
+---
+# MyBatis读写分离配置
+mybatis:
+  configuration:
+    default-fetch-size: 100
+    default-statement-timeout: 30

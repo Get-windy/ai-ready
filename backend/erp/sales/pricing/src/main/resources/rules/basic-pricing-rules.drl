@@ -1,0 +1,205 @@
+package cn.aiedge.erp.sales.pricing.rules
+
+import cn.aiedge.erp.sales.pricing.dto.PriceCalculationRequest
+import cn.aiedge.erp.sales.pricing.dto.PriceCalculationResult
+import cn.aiedge.erp.sales.pricing.service.impl.PriceCalculationServiceImpl.PriceCalculationContext
+
+// ============================================
+// 基础价格计算规则
+// ============================================
+
+rule "基础价格应用规则"
+    salience 100
+    when
+        $context: PriceCalculationContext(originalPrice != null)
+    then
+        System.out.println("[Drools规则] 应用基础价格: " + $context.getOriginalPrice());
+        $context.setFinalPrice($context.getOriginalPrice());
+end
+
+// ============================================
+// 客户等级折扣规则
+// ============================================
+
+rule "VIP客户折扣规则"
+    salience 90
+    when
+        $context: PriceCalculationContext(request.customerLevel == "VIP")
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal discountRate = new BigDecimal("0.1"); // 10%折扣
+        BigDecimal discountAmount = $currentPrice.multiply(discountRate);
+        BigDecimal newPrice = $currentPrice.subtract(discountAmount);
+        
+        System.out.println("[Drools规则] 应用VIP客户折扣: 原价=" + $currentPrice + 
+                         ", 折扣率=" + discountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(discountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(discountRate));
+end
+
+rule "普通客户折扣规则"
+    salience 90
+    when
+        $context: PriceCalculationContext(request.customerLevel == "NORMAL")
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal discountRate = new BigDecimal("0.05"); // 5%折扣
+        BigDecimal discountAmount = $currentPrice.multiply(discountRate);
+        BigDecimal newPrice = $currentPrice.subtract(discountAmount);
+        
+        System.out.println("[Drools规则] 应用普通客户折扣: 原价=" + $currentPrice + 
+                         ", 折扣率=" + discountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(discountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(discountRate));
+end
+
+// ============================================
+// 数量阶梯折扣规则
+// ============================================
+
+rule "大数量折扣规则 - 超过100件"
+    salience 80
+    when
+        $context: PriceCalculationContext(request.quantity >= 100)
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal discountRate = new BigDecimal("0.15"); // 15%折扣
+        BigDecimal discountAmount = $currentPrice.multiply(discountRate);
+        BigDecimal newPrice = $currentPrice.subtract(discountAmount);
+        
+        System.out.println("[Drools规则] 应用大数量折扣(≥100件): 原价=" + $currentPrice + 
+                         ", 折扣率=" + discountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(discountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(discountRate));
+end
+
+rule "中等数量折扣规则 - 50-99件"
+    salience 80
+    when
+        $context: PriceCalculationContext(request.quantity >= 50 && request.quantity < 100)
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal discountRate = new BigDecimal("0.10"); // 10%折扣
+        BigDecimal discountAmount = $currentPrice.multiply(discountRate);
+        BigDecimal newPrice = $currentPrice.subtract(discountAmount);
+        
+        System.out.println("[Drools规则] 应用中等数量折扣(50-99件): 原价=" + $currentPrice + 
+                         ", 折扣率=" + discountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(discountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(discountRate));
+end
+
+rule "小数量折扣规则 - 10-49件"
+    salience 80
+    when
+        $context: PriceCalculationContext(request.quantity >= 10 && request.quantity < 50)
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal discountRate = new BigDecimal("0.05"); // 5%折扣
+        BigDecimal discountAmount = $currentPrice.multiply(discountRate);
+        BigDecimal newPrice = $currentPrice.subtract(discountAmount);
+        
+        System.out.println("[Drools规则] 应用小数量折扣(10-49件): 原价=" + $currentPrice + 
+                         ", 折扣率=" + discountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(discountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(discountRate));
+end
+
+// ============================================
+// 区域价格调整规则
+// ============================================
+
+rule "华东区域价格加成规则"
+    salience 70
+    when
+        $context: PriceCalculationContext(request.regionCode != null && request.regionCode.startsWith("31"))
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal adjustmentRate = new BigDecimal("0.08"); // 8%加价
+        BigDecimal adjustmentAmount = $currentPrice.multiply(adjustmentRate);
+        BigDecimal newPrice = $currentPrice.add(adjustmentAmount);
+        
+        System.out.println("[Drools规则] 应用华东区域价格加成: 原价=" + $currentPrice + 
+                         ", 加价率=" + adjustmentRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+end
+
+rule "华南区域价格加成规则"
+    salience 70
+    when
+        $context: PriceCalculationContext(request.regionCode != null && request.regionCode.startsWith("44"))
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal adjustmentRate = new BigDecimal("0.06"); // 6%加价
+        BigDecimal adjustmentAmount = $currentPrice.multiply(adjustmentRate);
+        BigDecimal newPrice = $currentPrice.add(adjustmentAmount);
+        
+        System.out.println("[Drools规则] 应用华南区域价格加成: 原价=" + $currentPrice + 
+                         ", 加价率=" + adjustmentRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+end
+
+// ============================================
+// 促销活动规则
+// ============================================
+
+rule "促销活动折扣规则"
+    salience 60
+    when
+        $context: PriceCalculationContext(request.promotionId != null)
+        $currentPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        BigDecimal promotionDiscountRate = new BigDecimal("0.20"); // 20%促销折扣
+        BigDecimal promotionDiscountAmount = $currentPrice.multiply(promotionDiscountRate);
+        BigDecimal newPrice = $currentPrice.subtract(promotionDiscountAmount);
+        
+        System.out.println("[Drools规则] 应用促销活动折扣: 原价=" + $currentPrice + 
+                         ", 促销折扣率=" + promotionDiscountRate + ", 新价格=" + newPrice);
+        
+        $context.setFinalPrice(newPrice);
+        $context.setTotalDiscount($context.getTotalDiscount().add(promotionDiscountAmount));
+        $context.setTotalDiscountRate($context.getTotalDiscountRate().add(promotionDiscountRate));
+end
+
+// ============================================
+// 最终价格验证规则
+// ============================================
+
+rule "最低价格保护规则"
+    salience 10
+    when
+        $context: PriceCalculationContext()
+        $finalPrice: BigDecimal() from $context.getFinalPrice()
+        $minPrice: BigDecimal() from $context.getOriginalPrice().multiply(new BigDecimal("0.5")) // 最低为原价50%
+    then
+        if ($finalPrice.compareTo($minPrice) < 0) {
+            System.out.println("[Drools规则] 价格低于最低保护价(" + $minPrice + ")，调整为最低价");
+            $context.setFinalPrice($minPrice);
+        }
+end
+
+rule "最终价格格式化规则"
+    salience 0
+    when
+        $context: PriceCalculationContext()
+        $finalPrice: BigDecimal() from $context.getFinalPrice()
+    then
+        // 四舍五入到2位小数
+        BigDecimal formattedPrice = $finalPrice.setScale(2, java.math.RoundingMode.HALF_UP);
+        if ($finalPrice.compareTo(formattedPrice) != 0) {
+            System.out.println("[Drools规则] 价格格式化: " + $finalPrice + " -> " + formattedPrice);
+            $context.setFinalPrice(formattedPrice);
+        }
+end

@@ -1,0 +1,69 @@
+# 发票管理模块配置
+server:
+  port: 8085
+  servlet:
+    context-path: /erp-invoice
+
+spring:
+  application:
+    name: erp-invoice
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_invoice
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  redis:
+    host: localhost
+    port: 6379
+    password: ${REDIS_PASSWORD:}
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+# 发票模块特定配置
+invoice:
+  generation:
+    default-format: PDF
+    qrcode-enabled: true
+    watermark-enabled: true
+  validation:
+    tax-number-validation: true
+    business-registration-validation: true
+  notification:
+    email-enabled: true
+    sms-enabled: true
+  workflow:
+    approval-levels: 2
+    auto-approve-amount: 5000
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.erp.invoice: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# 安全配置
+security:
+  jwt:
+    secret: ${JWT_SECRET:your-secret-key-here}
+    expiration: 86400000 # 24 hours
+
+# 服务发现配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true

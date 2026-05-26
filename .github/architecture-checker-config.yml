@@ -1,0 +1,169 @@
+# ERP架构合规性检查配置 - CI/CD集成版
+# 版本: 1.0.0
+# 描述: 用于CI/CD流水线的架构治理检查配置
+
+# 检查项配置
+check_items:
+  - directory   # 目录结构合规性检查
+  - package     # 包命名规范检查
+
+# 目录检查配置
+directory_check:
+  enabled: true
+  allowed_root_dirs:
+    - backend
+    - frontend
+    - docs
+    - scripts
+    - deploy
+  max_depth: 6
+  require_module_structure: true
+  # ERP模块必须在erp目录下
+  erp_module_root: "backend"
+
+# 包检查配置
+package_check:
+  enabled: true
+  base_package: "cn.aiedge.erp"
+  allow_sub_packages: true
+  require_erp_prefix: true
+
+# 排除路径
+exclude_paths:
+  - target/
+  - build/
+  - .git/
+  - .idea/
+  - node_modules/
+  - dist/
+  - out/
+  - *.jar
+  - *.war
+
+include_paths:
+  - src/main/java/
+  - src/main/kotlin/
+
+# CI/CD阈值配置
+thresholds:
+  # Level 1: 严重问题，必须修复，流水线失败
+  # Level 2: 警告问题，流水线通过但需要关注
+  # Level 3: 建议问题，仅供参考
+  block_level_1: true
+  warn_level_2: true
+  suggest_level_3: true
+  
+  # 各类问题的最大允许数量
+  max_directory_violations: 3    # 开发环境可以容忍3个目录违规
+  max_package_violations: 2      # 开发环境可以容忍2个包命名违规
+
+# 环境差异化配置
+environments:
+  # 开发分支 (feature/*, develop)
+  dev:
+    thresholds:
+      block_level_1: false   # 开发环境允许Level 1问题
+      max_directory_violations: 10
+      max_package_violations: 5
+    report:
+      format: "markdown"     # 开发环境用markdown报告
+    
+  # 测试环境 (release/*)
+  test:
+    thresholds:
+      block_level_1: true    # 测试环境必须修复Level 1问题
+      max_directory_violations: 3
+      max_package_violations: 2
+    report:
+      format: "json"         # 测试环境用JSON报告
+    
+  # 预发环境 (staging)
+  staging:
+    thresholds:
+      block_level_1: true
+      max_directory_violations: 1
+      max_package_violations: 1
+    report:
+      format: "html"         # 预发环境用HTML报告
+    
+  # 生产环境 (main)
+  prod:
+    thresholds:
+      block_level_1: true
+      block_level_2: true    # 生产环境连Level 2问题也阻断
+      max_directory_violations: 0
+      max_package_violations: 0
+    report:
+      format: "sarif"        # 生产环境用SARIF格式与GitHub集成
+
+# 规则定义
+rules:
+  # 目录结构规则 - 针对紧急制动问题
+  directory:
+    - id: "DIR-001"
+      name: "ERP模块根目录规范"
+      description: "ERP相关模块必须位于正确的根目录下"
+      pattern: "^(backend|backend/erp).*$"
+      level: 1
+      message: "发现非ERP模块位于根目录或错误的目录下，这会导致架构混乱"
+      
+    - id: "DIR-002"
+      name: "目录深度限制"
+      description: "目录层级不应超过指定深度"
+      max_depth: 6
+      level: 2
+      message: "目录嵌套过深，不利于代码维护和查找"
+      
+    - id: "DIR-003"
+      name: "重复模块检测"
+      description: "检测重复或冲突的模块目录"
+      level: 1
+      message: "发现重复模块，可能导致代码冗余和架构混乱"
+  
+  # 包命名规则
+  package:
+    - id: "PKG-001"
+      name: "基础包名规范"
+      description: "包名必须基于指定的基础包"
+      pattern: "^${base_package}\\..+$"
+      level: 1
+      message: "包名不符合基础包规范，可能导致包冲突"
+      
+    - id: "PKG-002"
+      name: "ERP前缀要求"
+      description: "ERP模块包名应包含erp前缀"
+      pattern: "^${base_package}\\.erp\\..+$"
+      level: 2
+      message: "ERP模块包名缺少erp前缀，不符合架构规范"
+
+# 报告配置
+report:
+  default_format: "json"
+  output_dir: "./reports/architecture"
+  include_summary: true
+  include_details: true
+  include_suggestions: true
+  
+  # 分支名映射到环境
+  branch_mapping:
+    main: prod
+    develop: test
+    "release/*": staging
+    "feature/*": dev
+    "hotfix/*": dev
+
+# 紧急制动特性
+emergency_brake:
+  enabled: true
+  # 当发现特定级别的架构问题时，自动创建阻塞任务
+  auto_block_tasks: true
+  # 将架构问题报告给coordinator
+  notify_coordinator: true
+  # 在共享内存中记录架构问题
+  record_to_shared_memory: true
+  
+  # 触发紧急制动的问题级别
+  trigger_levels:
+    - "DIR-001"  # ERP模块根目录规范
+    - "DIR-003"  # 重复模块检测
+    - "PKG-001"  # 基础包名规范

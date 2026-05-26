@@ -1,0 +1,171 @@
+// 全局CSS变量定义
+
+// 颜色系统
+:root {
+  // 主色调
+  --color-primary: #409eff;
+  --color-primary-light-3: #79bbff;
+  --color-primary-light-5: #a0cfff;
+  --color-primary-light-7: #c6e2ff;
+  --color-primary-light-8: #d9ecff;
+  --color-primary-light-9: #ecf5ff;
+  --color-primary-dark-2: #337ecc;
+  
+  // 成功色
+  --color-success: #67c23a;
+  --color-success-light-3: #95d475;
+  --color-success-light-5: #b3e19d;
+  --color-success-light-7: #d1edc4;
+  --color-success-light-8: #e1f3d8;
+  --color-success-light-9: #f0f9eb;
+  --color-success-dark-2: #529b2e;
+  
+  // 警告色
+  --color-warning: #e6a23c;
+  --color-warning-light-3: #eebe77;
+  --color-warning-light-5: #f3d19e;
+  --color-warning-light-7: #f8e3c5;
+  --color-warning-light-8: #faecd8;
+  --color-warning-light-9: #fdf6ec;
+  --color-warning-dark-2: #b88230;
+  
+  // 危险色
+  --color-danger: #f56c6c;
+  --color-danger-light-3: #f89898;
+  --color-danger-light-5: #fab6b6;
+  --color-danger-light-7: #fcd3d3;
+  --color-danger-light-8: #fde2e2;
+  --color-danger-light-9: #fef0f0;
+  --color-danger-dark-2: #c45656;
+  
+  // 信息色
+  --color-info: #909399;
+  --color-info-light-3: #b1b3b8;
+  --color-info-light-5: #c8c9cc;
+  --color-info-light-7: #dedfe0;
+  --color-info-light-8: #e9e9eb;
+  --color-info-light-9: #f4f4f5;
+  --color-info-dark-2: #73767a;
+  
+  // 文本颜色
+  --color-text-primary: #303133;
+  --color-text-regular: #606266;
+  --color-text-secondary: #909399;
+  --color-text-placeholder: #c0c4cc;
+  
+  // 边框颜色
+  --border-color-base: #dcdfe6;
+  --border-color-light: #e4e7ed;
+  --border-color-lighter: #ebeef5;
+  --border-color-extra-light: #f2f6fc;
+  
+  // 背景颜色
+  --background-color-base: #f5f7fa;
+  --background-color-light: #f8fafc;
+  
+  // 填充颜色
+  --fill-color-base: #f0f2f5;
+  --fill-color-light: #f5f7fa;
+  --fill-color-lighter: #fafafa;
+  --fill-color-extra-light: #fafcfe;
+  --fill-color-dark: #ebedf0;
+  --fill-color-darker: #e6e8eb;
+  --fill-color-blank: #ffffff;
+}
+
+// 暗色主题变量
+html.dark {
+  // 主色调
+  --color-primary: #409eff;
+  --color-primary-light-3: #337ecc;
+  --color-primary-light-5: #2a65a7;
+  --color-primary-light-7: #204d87;
+  --color-primary-light-8: #1a3659;
+  --color-primary-light-9: #141d33;
+  
+  // 文本颜色
+  --color-text-primary: #e5eaf3;
+  --color-text-regular: #cfd3dc;
+  --color-text-secondary: #a3a6ad;
+  --color-text-placeholder: #8d9095;
+  
+  // 边框颜色
+  --border-color-base: #4c4d4f;
+  --border-color-light: #414243;
+  --border-color-lighter: #363637;
+  --border-color-extra-light: #2b2b2c;
+  
+  // 背景颜色
+  --background-color-base: #141414;
+  --background-color-light: #1f1f1f;
+  
+  // 填充颜色
+  --fill-color-base: #262727;
+  --fill-color-light: #2b2b2c;
+  --fill-color-lighter: #303031;
+  --fill-color-extra-light: #4c4d4f;
+  --fill-color-dark: #393a3c;
+  --fill-color-darker: #424243;
+  --fill-color-blank: #1d1e1f;
+}
+
+// 字体系统
+$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+  'Noto Color Emoji';
+$font-family-code: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+$font-size-extra-large: 20px;
+$font-size-large: 18px;
+$font-size-medium: 16px;
+$font-size-base: 14px;
+$font-size-small: 13px;
+$font-size-extra-small: 12px;
+
+$font-weight-primary: 500;
+$font-weight-secondary: 100;
+
+$line-height-primary: 1.5715;
+$line-height-secondary: 1.66667;
+
+// 边框系统
+$border-width-base: 1px;
+$border-style-base: solid;
+$border-color-hover: var(--color-text-placeholder);
+$border-base: $border-width-base $border-style-base var(--border-color-base);
+
+$border-radius-base: 4px;
+$border-radius-small: 2px;
+$border-radius-round: 20px;
+$border-radius-circle: 100%;
+
+// 间距系统
+$spacing-base: 8px;
+$spacing-xs: $spacing-base * 0.5;
+$spacing-sm: $spacing-base * 0.75;
+$spacing-md: $spacing-base * 1;
+$spacing-lg: $spacing-base * 1.5;
+$spacing-xl: $spacing-base * 2;
+$spacing-xxl: $spacing-base * 3;
+
+// 阴影系统
+$box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+$box-shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+$box-shadow-dark: 0 6px 16px -8px rgba(0, 0, 0, 0.08), 0 9px 28px 0 rgba(0, 0, 0, 0.05),
+  0 12px 48px 16px rgba(0, 0, 0, 0.03);
+
+// 动效系统
+$transition-duration: 0.3s;
+$transition-duration-fast: 0.2s;
+$transition-function-ease-in-out-bezier: cubic-bezier(0.645, 0.045, 0.355, 1);
+$transition-function-fast-bezier: cubic-bezier(0.23, 1, 0.32, 1);
+
+// z-index 系统
+$z-index-normal: 1;
+$z-index-top: 1000;
+$z-index-popper: 2000;
+$z-index-modal: 3000;
+$z-index-drawer: 4000;
+$z-index-message: 5000;
+$z-index-popup: 6000;
+$z-index-fullscreen: 9999;

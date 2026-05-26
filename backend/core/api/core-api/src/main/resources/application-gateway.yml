@@ -1,0 +1,246 @@
+# Spring Boot 配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: api-gateway
+    
+  # Spring Cloud Gateway 配置
+  cloud:
+    gateway:
+      # 全局过滤器配置
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            key-resolver: "#{@ipKeyResolver}"
+            redis-rate-limiter.replenishRate: 10  # 令牌桶每秒填充平均速率
+            redis-rate-limiter.burstCapacity: 20  # 令牌桶总容量
+        - AddRequestHeader=X-Request-Id, {requestId}
+      
+      # 路由配置
+      routes:
+        # 用户服务路由
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 认证服务路由
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 客户服务路由
+        - id: customer-service
+          uri: lb://customer-service
+          predicates:
+            - Path=/api/customer/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: customerServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # CRM服务路由
+        - id: crm-service
+          uri: lb://crm-service
+          predicates:
+            - Path=/api/crm/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: crmServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # ERP服务路由
+        - id: erp-service
+          uri: lb://erp-service
+          predicates:
+            - Path=/api/erp/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: erpServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 知识管理服务路由
+        - id: knowledge-service
+          uri: lb://knowledge-service
+          predicates:
+            - Path=/api/knowledge/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: knowledgeServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 文件存储服务路由
+        - id: storage-service
+          uri: lb://storage-service
+          predicates:
+            - Path=/api/storage/**,/upload/**,/download/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: storageServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 消息通知服务路由
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notification/**,/api/message/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 系统管理服务路由
+        - id: system-service
+          uri: lb://system-service
+          predicates:
+            - Path=/api/system/**,/api/admin/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: systemServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+                
+        # 报表服务路由
+        - id: report-service
+          uri: lb://report-service
+          predicates:
+            - Path=/api/report/**,/api/dashboard/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: reportServiceCircuitBreaker
+                fallbackUri: forward:/fallback/service-unavailable
+
+  # Redis 配置 (用于限流和熔断)
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  # 数据库配置 (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devdb?useUnicode=true&characterEncoding=utf8
+    username: devuser
+    password: Dev@2026#Local
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Pool sizing - increased for better concurrency handling
+      maximum-pool-size: 50                    # Increased from 20 for better concurrency
+      minimum-idle: 10                         # Increased from 5 to maintain more ready connections
+      connection-timeout: 60000                # Increased from 30s to 60s for heavy loads
+      idle-timeout: 1200000                    # Increased from 10min to 20min
+      max-lifetime: 1800000                    # 30 minutes (optimal for PostgreSQL)
+      
+      # Connection validation for reliability
+      validation-timeout: 5000                 # 5 seconds for validation timeout
+      connection-test-query: SELECT 1          # Query to validate connections (works for PostgreSQL too)
+      connection-init-sql: SET NAMES utf8mb4    # Initial SQL to execute
+      
+      # Performance optimizations
+      leak-detection-threshold: 600000         # 10 minutes for leak detection
+      initialization-fail-timeout: 1           # Fail fast if init fails
+      isolate-internal-queries: true           # Isolate internal queries
+      allow-pool-suspension: false             # Don't allow pool suspension
+      auto-commit: true                        # Enable auto-commit
+      pool-name: ai-ready-hikari-pool          # Custom pool name for identification
+
+# 网关特定配置
+gateway:
+  routes:
+    enable-dynamic: true
+  rate-limit:
+    enabled: true
+    default-limit: 100
+    default-capacity: 100
+    key-resolver: "ip"
+  security:
+    enable-auth: true
+    enable-black-white-list: true
+    enable-cors: true
+  monitor:
+    enable-access-log: true
+    enable-metrics: true
+    enable-trace: true
+    log-retention-days: 30
+
+# 服务发现配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/gateway.log
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,metrics,hikaricp
+  endpoint:
+    gateway:
+      enabled: true
+    hikaricp:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    enable:
+      hikaricp: true                          # Enable HikariCP metrics
+
+# Application specific monitoring
+monitoring:
+  database:
+    pool:
+      # Health check intervals
+      health-check-interval: 30s
+      # Alert thresholds
+      alert:
+        pool-utilization-threshold: 80        # Alert when pool utilization exceeds 80%
+        connection-timeout-threshold: 5000    # Alert on connection timeouts > 5s
+        slow-query-threshold: 5000            # Alert on queries taking > 5s
+      # Monitoring settings
+      metrics-collection:
+        enabled: true
+        interval: 10s                         # Collect metrics every 10 seconds

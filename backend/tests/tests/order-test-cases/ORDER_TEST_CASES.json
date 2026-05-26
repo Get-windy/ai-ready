@@ -1,0 +1,19 @@
+{
+  "testSuiteId": "ORDER_TEST_001",
+  "testSuiteName": "企智连订单管理模块测试用例",
+  "version": "1.0",
+  "generatedDate": "2026-04-14T10:48:00+08:00",
+  "testCases": [
+    {"testCaseId": "ORD_001", "name": "订单创建测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_002", "name": "订单编辑测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_003", "name": "订单取消测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_004", "name": "订单查询测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_005", "name": "订单审核测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_006", "name": "订单状态流转测试", "type": "functional", "priority": "medium"},
+    {"testCaseId": "ORD_007", "name": "订单明细管理测试", "type": "functional", "priority": "medium"},
+    {"testCaseId": "ORD_008", "name": "订单价格计算测试", "type": "functional", "priority": "high"},
+    {"testCaseId": "ORD_009", "name": "未授权访问测试", "type": "security", "priority": "high"},
+    {"testCaseId": "ORD_010", "name": "订单金额边界测试", "type": "boundary", "priority": "medium"}
+  ],
+  "summary": {"totalTestCases": 10, "functionalTests": 8, "securityTests": 1, "boundaryTests": 1}
+}

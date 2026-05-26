@@ -1,0 +1,57 @@
+# 测试环境智能配置推荐系统依赖包
+
+# 基础数据处理
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# 机器学习框架
+scikit-learn>=1.0.0
+tensorflow>=2.10.0
+torch>=1.13.0
+
+# 推荐系统库
+surprise>=0.1
+lightfm>=1.16
+implicit>=0.7.0
+
+# 数据可视化
+matplotlib>=3.5.0
+seaborn>=0.11.0
+plotly>=5.10.0
+
+# 数据处理和特征工程
+category-encoders>=2.5.0
+feature-engine>=1.5.0
+
+# 时间序列分析
+statsmodels>=0.13.0
+prophet>=1.1.0
+
+# 优化算法
+optuna>=3.0.0
+hyperopt>=0.2.7
+
+# 数据存储和序列化
+pyarrow>=8.0.0
+joblib>=1.2.0
+
+# Web框架（用于API服务）
+fastapi>=0.95.0
+uvicorn>=0.21.0
+pydantic>=2.0.0
+
+# 数据库连接
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+redis>=4.5.0
+
+# 测试和监控
+pytest>=7.2.0
+pytest-cov>=4.0.0
+prometheus-client>=0.16.0
+
+# 开发工具
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

@@ -1,0 +1,210 @@
+# PostgreSQL 复制监控告警规则
+# 创建日期: 2026-04-24
+# 版本: v1.0.0
+
+groups:
+  # PostgreSQL 复制状态告警
+  - name: postgresql_replication_status
+    interval: 30s
+    rules:
+      # 从节点未在恢复模式告警
+      - alert: PostgreSQLReplicaNotInRecovery
+        expr: pg_is_in_recovery == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+          alert_type: replication
+        annotations:
+          summary: "PostgreSQL 从节点不在恢复模式"
+          description: "{{ $labels.instance }} 的 PostgreSQL 从节点不在恢复模式，可能已提升为主节点或复制中断"
+          impact: "数据可能不一致，复制已停止"
+          action: "检查从节点状态，验证复制是否正常"
+
+      # 复制槽未激活告警
+      - alert: PostgreSQLReplicationSlotInactive
+        expr: pg_replication_slots_active == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: replication
+        annotations:
+          summary: "PostgreSQL 复制槽未激活"
+          description: "{{ $labels.instance }} 的 PostgreSQL 复制槽未激活超过2分钟"
+          impact: "复制可能已停止"
+          action: "检查复制槽状态，重启复制进程"
+
+      # 复制连接中断告警
+      - alert: PostgreSQLReplicationConnectionDown
+        expr: pg_stat_replication_count == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: postgresql
+          alert_type: replication
+        annotations:
+          summary: "PostgreSQL 复制连接中断"
+          description: "{{ $labels.instance }} 的 PostgreSQL 复制连接已中断超过3分钟"
+          impact: "数据同步已停止，从节点数据可能过期"
+          action: "检查网络连接和复制配置"
+
+  # PostgreSQL 复制延迟告警
+  - name: postgresql_replication_lag
+    interval: 30s
+    rules:
+      # 复制延迟过高告警
+      - alert: PostgreSQLReplicationLagHigh
+        expr: pg_replication_lag_bytes > 1073741824  # 1GB
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: replication_lag
+        annotations:
+          summary: "PostgreSQL 复制延迟过高"
+          description: "{{ $labels.instance }} 的 PostgreSQL 复制延迟超过1GB，当前值: {{ $value | humanize1024 }}"
+          impact: "从节点数据严重落后，故障切换时可能丢失数据"
+          action: "检查网络带宽、主节点写入压力、从节点性能"
+
+      # 复制延迟极高告警
+      - alert: PostgreSQLReplicationLagCritical
+        expr: pg_replication_lag_bytes > 5368709120  # 5GB
+        for: 10m
+        labels:
+          severity: critical
+          service: postgresql
+          alert_type: replication_lag
+        annotations:
+          summary: "PostgreSQL 复制延迟极高"
+          description: "{{ $labels.instance }} 的 PostgreSQL 复制延迟超过5GB，当前值: {{ $value | humanize1024 }}"
+          impact: "从节点数据严重过期，可能无法提供有效服务"
+          action: "立即检查复制状态，可能需要重建从节点"
+
+      # 复制时间延迟过高告警
+      - alert: PostgreSQLReplicationTimeLagHigh
+        expr: pg_replication_lag_seconds > 300  # 5分钟
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: replication_lag
+        annotations:
+          summary: "PostgreSQL 复制时间延迟过高"
+          description: "{{ $labels.instance }} 的 PostgreSQL 复制时间延迟超过5分钟，当前值: {{ $value | humanizeDuration }}"
+          impact: "从节点数据落后主节点超过5分钟"
+          action: "检查网络延迟、主节点写入频率、从节点性能"
+
+  # PostgreSQL WAL 相关告警
+  - name: postgresql_wal_alerts
+    interval: 30s
+    rules:
+      # WAL 生成速率过高告警
+      - alert: PostgreSQLWALGenerationRateHigh
+        expr: rate(pg_wal_size_bytes[5m]) > 104857600  # 100MB/分钟
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: wal
+        annotations:
+          summary: "PostgreSQL WAL 生成速率过高"
+          description: "{{ $labels.instance }} 的 WAL 生成速率超过100MB/分钟"
+          impact: "可能消耗大量磁盘空间，影响复制性能"
+          action: "检查数据库写入操作，优化频繁写入的事务"
+
+      # WAL 归档失败告警
+      - alert: PostgreSQLWALArchiveFailed
+        expr: pg_stat_archiver_last_failed_time > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+          alert_type: wal
+        annotations:
+          summary: "PostgreSQL WAL 归档失败"
+          description: "{{ $labels.instance }} 的 WAL 归档失败"
+          impact: "WAL 文件可能无法正确归档，影响备份和恢复"
+          action: "检查归档目录权限和空间"
+
+  # PostgreSQL 连接数告警
+  - name: postgresql_connection_alerts
+    interval: 30s
+    rules:
+      # 复制连接数接近上限告警
+      - alert: PostgreSQLReplicationConnectionsHigh
+        expr: pg_stat_replication_count / pg_settings_max_wal_senders > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: connection
+        annotations:
+          summary: "PostgreSQL 复制连接数接近上限"
+          description: "{{ $labels.instance }} 的复制连接数达到上限的80%"
+          impact: "可能无法添加新的从节点"
+          action: "考虑增加 max_wal_senders 配置"
+
+  # PostgreSQL 从节点健康告警
+  - name: postgresql_replica_health
+    interval: 30s
+    rules:
+      # 从节点查询响应时间过长告警
+      - alert: PostgreSQLReplicaQuerySlow
+        expr: pg_stat_database_tup_returned{datname!~"template.*|postgres"} / pg_stat_database_tup_fetched{datname!~"template.*|postgres"} < 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: performance
+        annotations:
+          summary: "PostgreSQL 从节点查询效率低"
+          description: "{{ $labels.instance }} 的查询效率低于90%"
+          impact: "从节点查询性能下降"
+          action: "检查从节点负载和索引状态"
+
+      # 从节点 WAL 接收延迟告警
+      - alert: PostgreSQLReplicaWALReceiveLag
+        expr: pg_wal_receiver_status_lag > 60
+        for: 2m
+        labels:
+          severity: warning
+          service: postgresql
+          alert_type: replication
+        annotations:
+          summary: "PostgreSQL 从节点 WAL 接收延迟"
+          description: "{{ $labels.instance }} 的 WAL 接收延迟超过60秒"
+          impact: "从节点数据同步延迟增加"
+          action: "检查网络连接和主节点 WAL 发送状态"
+
+  # PostgreSQL 故障转移告警
+  - name: postgresql_failover_alerts
+    interval: 30s
+    rules:
+      # 主节点故障告警
+      - alert: PostgreSQLPrimaryDown
+        expr: up{job=~"postgres-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+          alert_type: failover
+        annotations:
+          summary: "PostgreSQL 主节点故障"
+          description: "{{ $labels.instance }} 的 PostgreSQL 主节点已停止响应"
+          impact: "写入操作无法执行，需要故障转移"
+          action: "检查主节点状态，准备从节点提升"
+
+      # 从节点提升为主节点告警
+      - alert: PostgreSQLReplicaPromoted
+        expr: pg_is_in_recovery{instance=~".*replica.*"} == 0
+        for: 30s
+        labels:
+          severity: info
+          service: postgresql
+          alert_type: failover
+        annotations:
+          summary: "PostgreSQL 从节点已提升为主节点"
+          description: "{{ $labels.instance }} 已从从节点提升为主节点"
+          impact: "拓扑结构已改变，需要更新应用配置"
+          action: "更新应用连接配置，重新配置其他从节点"

@@ -1,0 +1,326 @@
+{
+  "metadata": {
+    "validation_date": "2026-04-27T13:43:42.733450",
+    "environment": "Sprint 27+1测试环境",
+    "validator": "test-agent-1",
+    "task_id": "task-1777263110033-4p4ztrwn"
+  },
+  "summary": {
+    "overall_status": "failed",
+    "validation_date": "2026-04-27T13:43:42.733450",
+    "total_checks": 22,
+    "passed_checks": 15,
+    "failed_checks": 2,
+    "warning_checks": 0,
+    "total_issues": 1
+  },
+  "components": {
+    "filesystem": {
+      "status": "failed",
+      "checks": [
+        {
+          "check": "关键目录存在: /config",
+          "status": "passed",
+          "details": "目录存在，包含 3 个文件"
+        },
+        {
+          "check": "关键目录存在: /etc/important",
+          "status": "passed",
+          "details": "目录存在，包含 2 个文件"
+        },
+        {
+          "check": "关键目录存在: /data",
+          "status": "passed",
+          "details": "目录存在，包含 3 个文件"
+        },
+        {
+          "check": "备份目录存在",
+          "status": "passed",
+          "details": "目录: ./backups/filesystem"
+        },
+        {
+          "check": "脚本目录存在",
+          "status": "passed",
+          "details": "目录: ./scripts/backup/filesystem"
+        },
+        {
+          "check": "备份脚本: fs_full_backup.sh",
+          "status": "passed",
+          "details": "脚本存在"
+        },
+        {
+          "check": "备份脚本: fs_incremental.sh",
+          "status": "failed",
+          "details": "脚本缺失"
+        },
+        {
+          "check": "备份脚本: fs_restore.sh",
+          "status": "passed",
+          "details": "脚本存在"
+        },
+        {
+          "check": "备份脚本: fs_verify.sh",
+          "status": "failed",
+          "details": "脚本缺失"
+        }
+      ],
+      "issues": [
+        "缺失备份脚本: fs_incremental.sh, fs_verify.sh"
+      ],
+      "critical_dirs_status": {
+        "/config": {
+          "exists": true,
+          "file_count": 3
+        },
+        "/etc/important": {
+          "exists": true,
+          "file_count": 2
+        },
+        "/data": {
+          "exists": true,
+          "file_count": 3
+        }
+      },
+      "backup_infrastructure": {
+        "backup_dir": {
+          "exists": true,
+          "path": "./backups/filesystem",
+          "writable": true
+        },
+        "scripts_dir": {
+          "exists": true,
+          "path": "./scripts/backup/filesystem",
+          "script_count": 2
+        }
+      }
+    },
+    "config": {
+      "status": "passed",
+      "checks": [
+        {
+          "check": "应用配置文件",
+          "status": "passed",
+          "details": "找到 3 个应用配置文件"
+        },
+        {
+          "check": "系统配置文件",
+          "status": "passed",
+          "details": "找到 2 个系统配置文件"
+        },
+        {
+          "check": "配置备份目录",
+          "status": "passed",
+          "details": "目录存在: ./backups/config"
+        },
+        {
+          "check": "配置加密要求",
+          "status": "info",
+          "details": "配置文件需要加密存储"
+        },
+        {
+          "check": "版本控制",
+          "status": "info",
+          "details": "配置文件应使用版本控制系统管理"
+        }
+      ],
+      "issues": [],
+      "config_files": {
+        "application": [
+          {
+            "path": "config\\application.yml",
+            "size": 496,
+            "type": "application"
+          },
+          {
+            "path": "config\\datasource.yml",
+            "size": 527,
+            "type": "application"
+          },
+          {
+            "path": "config\\security.yml",
+            "size": 413,
+            "type": "application"
+          }
+        ],
+        "system": [
+          {
+            "path": "etc\\important\\nginx.conf",
+            "size": 601,
+            "type": "system"
+          },
+          {
+            "path": "etc\\important\\ssh_config",
+            "size": 228,
+            "type": "system"
+          }
+        ]
+      },
+      "backup_status": {
+        "backup_dir": {
+          "exists": true,
+          "path": "./backups/config"
+        }
+      }
+    },
+    "logs": {
+      "status": "passed",
+      "checks": [
+        {
+          "check": "应用日志文件",
+          "status": "passed",
+          "details": "找到 5 个应用日志文件"
+        },
+        {
+          "check": "日志备份目录",
+          "status": "passed",
+          "details": "目录存在: ./backups/logs"
+        },
+        {
+          "check": "日志保留策略",
+          "status": "info",
+          "details": "业务日志: 180天, 审计日志: 365天, 系统日志: 90天"
+        },
+        {
+          "check": "日志压缩",
+          "status": "info",
+          "details": "日志备份启用压缩"
+        }
+      ],
+      "issues": [],
+      "log_files": {
+        "application": [
+          {
+            "path": "logs\\app\\application_0.log",
+            "size": 8105,
+            "modified": "2026-04-27T13:43:42.749562"
+          },
+          {
+            "path": "logs\\app\\application_1.log",
+            "size": 8105,
+            "modified": "2026-04-27T13:43:42.750560"
+          },
+          {
+            "path": "logs\\app\\application_2.log",
+            "size": 8105,
+            "modified": "2026-04-27T13:43:42.751558"
+          },
+          {
+            "path": "logs\\app\\application_3.log",
+            "size": 8105,
+            "modified": "2026-04-27T13:43:42.752575"
+          },
+          {
+            "path": "logs\\app\\application_4.log",
+            "size": 8105,
+            "modified": "2026-04-27T13:43:42.753562"
+          }
+        ]
+      },
+      "retention_status": {
+        "business": 180,
+        "audit": 365,
+        "system": 90
+      }
+    },
+    "recovery": {
+      "status": "passed",
+      "checks": [
+        {
+          "check": "恢复测试: 配置文件恢复测试",
+          "status": "passed",
+          "details": "模拟时间: 180秒, 目标: 300秒, 状态: 成功"
+        },
+        {
+          "check": "恢复测试: 日志文件恢复测试",
+          "status": "passed",
+          "details": "模拟时间: 600秒, 目标: 900秒, 状态: 成功"
+        },
+        {
+          "check": "恢复测试: 完整系统恢复测试",
+          "status": "passed",
+          "details": "模拟时间: 2400秒, 目标: 3600秒, 状态: 成功"
+        },
+        {
+          "check": "恢复成功率目标",
+          "status": "info",
+          "details": "目标恢复成功率: 95%"
+        }
+      ],
+      "issues": [],
+      "simulation_results": {
+        "配置文件恢复测试": {
+          "type": "config",
+          "simulated_time": 180,
+          "target_time": 300,
+          "within_target": true,
+          "steps": [
+            "准备恢复环境",
+            "选择备份文件",
+            "执行恢复",
+            "验证配置"
+          ],
+          "result": "成功"
+        },
+        "日志文件恢复测试": {
+          "type": "logs",
+          "simulated_time": 600,
+          "target_time": 900,
+          "within_target": true,
+          "steps": [
+            "准备存储",
+            "解压备份",
+            "恢复日志",
+            "验证完整性"
+          ],
+          "result": "成功"
+        },
+        "完整系统恢复测试": {
+          "type": "full",
+          "simulated_time": 2400,
+          "target_time": 3600,
+          "within_target": true,
+          "steps": [
+            "系统准备",
+            "全量恢复",
+            "服务启动",
+            "功能验证"
+          ],
+          "result": "成功"
+        }
+      },
+      "recovery_targets": {
+        "config": 300,
+        "logs": 900,
+        "full": 3600
+      }
+    },
+    "overall": {
+      "overall_status": "failed",
+      "validation_date": "2026-04-27T13:43:42.733450",
+      "total_checks": 22,
+      "passed_checks": 15,
+      "failed_checks": 2,
+      "warning_checks": 0,
+      "total_issues": 1
+    }
+  },
+  "issues": [
+    "缺失备份脚本: fs_incremental.sh, fs_verify.sh"
+  ],
+  "recommendations": [
+    "缺失备份脚本: fs_incremental.sh, fs_verify.sh -> 需要进一步调查",
+    "建立定期备份验证机制，确保备份有效性",
+    "制定详细的恢复操作手册，包括各种场景的恢复步骤",
+    "定期执行恢复演练，验证恢复流程的实际效果",
+    "监控备份作业执行状态，设置失败告警通知",
+    "定期审计备份策略，确保符合业务需求变化"
+  ],
+  "next_steps": [
+    "1. 修复验证中发现的问题，特别是目录和脚本缺失问题",
+    "2. 配置实际的备份作业，包括全量备份和增量备份",
+    "3. 执行首次真实备份测试，验证备份流程",
+    "4. 制定恢复演练计划，定期测试恢复能力",
+    "5. 建立备份监控和告警机制",
+    "6. 定期审计和优化备份策略"
+  ]
+}

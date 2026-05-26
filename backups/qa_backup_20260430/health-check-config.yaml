@@ -1,0 +1,337 @@
+# 环境健康检查配置文件
+# 版本: 1.0.0
+# 创建日期: 2026-04-29
+
+# 环境配置
+environment:
+  name: "ai-ready-test"
+  type: "test-environment"
+  description: "AI-Ready企业级ERP系统测试环境"
+  location: "数据中心-A"
+  owner: "qa-team"
+  
+# 基础设施检查配置
+checks:
+  infrastructure:
+    enabled: true
+    cpu_threshold: 80  # CPU使用率阈值（百分比）
+    memory_threshold: 85  # 内存使用率阈值
+    disk_threshold: 90  # 磁盘使用率阈值
+    network_timeout: 5  # 网络连接超时（秒）
+    
+    # 磁盘检查排除列表
+    exclude_mountpoints:
+      - "/dev"
+      - "/proc"
+      - "/sys"
+      - "/run"
+      
+    # 关键进程列表
+    critical_processes:
+      - name: "java"
+        description: "Java进程 (ERP服务)"
+        required: true
+        
+      - name: "mysqld"
+        description: "MySQL数据库"
+        required: true
+        
+      - name: "redis-server"
+        description: "Redis缓存"
+        required: true
+        
+      - name: "nginx"
+        description: "Nginx反向代理"
+        required: false
+        
+      - name: "docker"
+        description: "Docker守护进程"
+        required: false
+        
+      - name: "kafka"
+        description: "Apache Kafka"
+        required: false
+        
+      - name: "zookeeper"
+        description: "Apache Zookeeper"
+        required: false
+  
+  # 服务检查配置
+  services:
+    enabled: true
+    timeout: 10  # 服务连接超时（秒）
+    
+    # 期望运行的服务列表
+    expected_services:
+      # ERP核心服务
+      - name: "erp-purchase"
+        host: "localhost"
+        port: 8080
+        protocol: "http"
+        health_endpoint: "/actuator/health"
+        expected_status: 200
+        required: true
+        
+      - name: "erp-sales"
+        host: "localhost"
+        port: 8081
+        protocol: "http"
+        health_endpoint: "/actuator/health"
+        expected_status: 200
+        required: true
+        
+      - name: "erp-inventory"
+        host: "localhost"
+        port: 8082
+        protocol: "http"
+        health_endpoint: "/actuator/health"
+        expected_status: 200
+        required: true
+        
+      - name: "erp-finance"
+        host: "localhost"
+        port: 8083
+        protocol: "http"
+        health_endpoint: "/actuator/health"
+        expected_status: 200
+        required: true
+      
+      # 数据库服务
+      - name: "mysql-database"
+        host: "localhost"
+        port: 3306
+        protocol: "tcp"
+        required: true
+        
+      - name: "redis-cache"
+        host: "localhost"
+        port: 6379
+        protocol: "tcp"
+        required: true
+      
+      # 消息队列服务
+      - name: "kafka-broker"
+        host: "localhost"
+        port: 9092
+        protocol: "tcp"
+        required: false
+        
+      - name: "zookeeper"
+        host: "localhost"
+        port: 2181
+        protocol: "tcp"
+        required: false
+      
+      # 监控服务
+      - name: "prometheus"
+        host: "localhost"
+        port: 9090
+        protocol: "http"
+        health_endpoint: "/-/healthy"
+        expected_status: 200
+        required: false
+        
+      - name: "grafana"
+        host: "localhost"
+        port: 3000
+        protocol: "http"
+        health_endpoint: "/api/health"
+        expected_status: 200
+        required: false
+      
+      # API网关
+      - name: "api-gateway"
+        host: "localhost"
+        port: 8088
+        protocol: "http"
+        health_endpoint: "/health"
+        expected_status: 200
+        required: true
+  
+  # 应用程序检查配置
+  applications:
+    enabled: true
+    
+    # ERP模块检查配置
+    erp_modules:
+      - name: "purchase"
+        description: "采购管理模块"
+        endpoints:
+          - path: "/api/purchase/orders"
+            method: "GET"
+            expected_status: 200
+            
+          - path: "/api/purchase/suppliers"
+            method: "GET"
+            expected_status: 200
+            
+      - name: "sales"
+        description: "销售管理模块"
+        endpoints:
+          - path: "/api/sales/orders"
+            method: "GET"
+            expected_status: 200
+            
+          - path: "/api/sales/customers"
+            method: "GET"
+            expected_status: 200
+            
+      - name: "inventory"
+        description: "库存管理模块"
+        endpoints:
+          - path: "/api/inventory/products"
+            method: "GET"
+            expected_status: 200
+            
+          - path: "/api/inventory/warehouses"
+            method: "GET"
+            expected_status: 200
+            
+      - name: "finance"
+        description: "财务管理模块"
+        endpoints:
+          - path: "/api/finance/invoices"
+            method: "GET"
+            expected_status: 200
+            
+          - path: "/api/finance/payments"
+            method: "GET"
+            expected_status: 200
+    
+    # 数据库连接检查
+    database_connections:
+      - name: "erp-mysql"
+        type: "mysql"
+        host: "localhost"
+        port: 3306
+        database: "erp_db"
+        timeout: 5
+        
+      - name: "redis-cache"
+        type: "redis"
+        host: "localhost"
+        port: 6379
+        timeout: 3
+
+# 报告配置
+reporting:
+  # 输出格式
+  output_formats:
+    - "json"
+    - "html"
+    - "markdown"
+    
+  # 输出目录
+  output_dir: "./health-reports"
+  
+  # 是否发送通知
+  send_notifications: false
+  
+  # 通知渠道配置
+  notification_channels:
+    # 邮件通知
+    email:
+      enabled: false
+      smtp_server: "smtp.example.com"
+      smtp_port: 587
+      sender: "health-check@example.com"
+      recipients:
+        - "qa-team@example.com"
+        - "devops@example.com"
+      subject_prefix: "[环境健康检查]"
+      
+    # 钉钉通知
+    dingtalk:
+      enabled: false
+      webhook: "https://oapi.dingtalk.com/robot/send"
+      access_token: "your-access-token"
+      secret: "your-secret"
+      at_users:
+        - "18888888888"
+      at_all: false
+      
+    # Slack通知
+    slack:
+      enabled: false
+      webhook: "https://hooks.slack.com/services/xxx/xxx/xxx"
+      channel: "#alerts"
+      username: "Health Check Bot"
+  
+  # 报告保留策略
+  retention:
+    max_reports: 100
+    max_age_days: 30
+    compress_old_reports: true
+
+# 执行配置
+execution:
+  # 并行执行配置
+  parallel_execution:
+    enabled: true
+    max_workers: 10
+    
+  # 重试配置
+  retry:
+    enabled: true
+    max_retries: 3
+    retry_delay: 10  # 秒
+    
+  # 超时配置
+  timeout:
+    global_timeout: 300  # 全局超时（秒）
+    per_check_timeout: 30  # 每个检查项超时（秒）
+    
+  # 调度配置
+  scheduling:
+    enabled: false
+    cron_expression: "0 */2 * * *"  # 每2小时执行一次
+    timezone: "Asia/Shanghai"
+
+# 监控集成
+monitoring:
+  # Prometheus集成
+  prometheus:
+    enabled: false
+    pushgateway: "http://localhost:9091"
+    job_name: "environment_health_check"
+    
+  # Elasticsearch集成
+  elasticsearch:
+    enabled: false
+    hosts:
+      - "http://localhost:9200"
+    index_prefix: "health-check-"
+    
+  # InfluxDB集成
+  influxdb:
+    enabled: false
+    host: "localhost"
+    port: 8086
+    database: "monitoring"
+    measurement: "environment_health"
+
+# 调试配置
+debug:
+  enabled: false
+  log_level: "INFO"
+  save_raw_results: false
+  print_summary: true
+
+# 自定义检查项
+custom_checks:
+  enabled: true
+  check_scripts_dir: "./custom-checks"
+  
+  # 自定义脚本示例
+  scripts:
+    - name: "check_custom_service"
+      script: "check_custom_service.py"
+      description: "检查自定义服务"
+      timeout: 30
+      required: false
+      
+    - name: "check_business_metrics"
+      script: "check_business_metrics.py"
+      description: "检查业务指标"
+      timeout: 60
+      required: false

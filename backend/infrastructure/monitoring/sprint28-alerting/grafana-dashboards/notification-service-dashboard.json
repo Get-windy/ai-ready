@@ -1,0 +1,266 @@
+{
+  "dashboard": {
+    "title": "Sprint 28 - 告警通知服务监控",
+    "uid": "sprint28-notification-service",
+    "description": "监控告警通知服务的性能指标和健康状态",
+    "tags": ["sprint28", "alerting", "notification-service"],
+    "timezone": "Asia/Shanghai",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "通知服务健康评分",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:notification_service_health_score",
+            "legendFormat": "健康评分",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 60},
+                {"color": "green", "value": 80}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "通知发送速率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:notification_send_rate",
+            "legendFormat": "通知/秒",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "通知发送成功率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:notification_success_rate * 100",
+            "legendFormat": "成功率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 95},
+                {"color": "green", "value": 99}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "通知队列大小",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting_notification_queue_size",
+            "legendFormat": "队列大小",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 500},
+                {"color": "red", "value": 1000}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "通知发送延迟趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "alerting:notification_latency_p50 * 1000",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "alerting:notification_latency_p95 * 1000",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "alerting:notification_latency_p99 * 1000",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "通知发送错误率趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(rate(alerting_notification_send_errors_total[5m]) / rate(alerting_notification_sent_total[5m])) * 100",
+            "legendFormat": "错误率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.5},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "各通道通知分布",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (channel) (rate(alerting_notification_sent_total[5m]))",
+            "legendFormat": "{{ channel }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "通知重试统计",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(alerting_notification_retries_total[5m])",
+            "legendFormat": "重试次数/秒",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "各通道通知发送速率",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (channel) (rate(alerting_notification_sent_total[5m]))",
+            "legendFormat": "{{ channel }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "各通道通知错误率",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(rate(alerting_notification_channel_errors_total[5m]) / rate(alerting_notification_sent_total[5m])) * 100",
+            "legendFormat": "{{ channel }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 11,
+        "title": "JVM内存使用",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"alerting-notification-service\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "已使用堆内存 (MB)",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"alerting-notification-service\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "最大堆内存 (MB)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "mbytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 12,
+        "title": "数据库连接池使用",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "spring_datasource_connections_active{job=

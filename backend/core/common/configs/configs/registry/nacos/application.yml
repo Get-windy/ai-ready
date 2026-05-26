@@ -1,0 +1,116 @@
+# AI-Ready Nacos 服务注册配置
+# Spring Cloud Alibaba Nacos Discovery Configuration
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+spring:
+  application:
+    name: ai-ready-api
+  cloud:
+    nacos:
+      # 服务注册中心地址
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:ai-ready}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        
+        # 服务元数据
+        metadata:
+          version: ${APP_VERSION:1.0.0-SNAPSHOT}
+          region: ${REGION:cn-east}
+          zone: ${ZONE:zone-a}
+          env: ${SPRING_PROFILES_ACTIVE:dev}
+          preserved.register.source: SPRING_CLOUD
+          
+          # 业务元数据
+          business.module: api
+          business.owner: ai-ready-team
+          business.monitor: enabled
+          business.log-level: INFO
+          
+        # 服务注册配置
+        service: ${spring.application.name}
+        weight: ${NACOS_WEIGHT:1}
+        cluster-name: ${NACOS_CLUSTER:DEFAULT}
+        
+        # 心跳配置
+        heart-beat-interval: 5000    # 心跳间隔 5秒
+        heart-beat-timeout: 15000    # 心跳超时 15秒
+        
+        # 健康检查
+        healthy-threshold: 2         # 健康阈值
+        unhealthy-threshold: 3       # 不健康阈值
+        
+        # 注册行为
+        enabled: true
+        register-enabled: true
+        
+        # 客户端配置
+        watch:
+          enabled: true
+          watch-delay: 30000         # 监听延迟 30秒
+        
+        # naming-load-cache-at-start: "true"
+        
+      # Nacos 配置中心
+      config:
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
+        namespace: ${spring.cloud.nacos.discovery.namespace}
+        group: ${spring.cloud.nacos.config.group:DEFAULT_GROUP}
+        file-extension: yaml
+        enabled: true
+        refresh-enabled: true
+        
+        # 共享配置
+        shared-configs:
+          - data-id: common.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+          - data-id: database.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+          - data-id: redis.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+        
+        # 扩展配置
+        extension-configs:
+          - data-id: ${spring.application.name}-${spring.profiles.active}.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+
+# Actuator 健康检查端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,nacos-discovery,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    nacos-discovery:
+      enabled: true
+  health:
+    nacos:
+      enabled: true
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    diskspace:
+      enabled: true
+
+# 服务实例信息
+info:
+  app:
+    name: AI-Ready API
+    version: ${APP_VERSION:1.0.0-SNAPSHOT}
+    description: AI-Ready Enterprise Management System API Service
+  team:
+    name: AI-Ready Team
+    contact: devops@ai-ready.cn
+  build:
+    time: ${BUILD_TIME:2026-03-30}
+    commit: ${GIT_COMMIT:unknown}

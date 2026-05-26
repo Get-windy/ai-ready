@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-04-26T22:53:08.387Z",
+  "dataFiles": {
+    "approval_test_data": "20 条审批测试数据",
+    "dialog_test_data": "30 条对话测试数据",
+    "performance_test_data": "100 并发用户性能测试数据",
+    "security_test_data": "安全测试数据"
+  },
+  "testCoverage": {
+    "functional": "覆盖正常、高风险、敏感、异常审批场景",
+    "performance": "覆盖并发提交、混合工作负载场景",
+    "security": "覆盖SQL注入、XSS、敏感数据测试"
+  }
+}

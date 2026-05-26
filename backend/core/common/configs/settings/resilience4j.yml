@@ -1,0 +1,59 @@
+# AI-Ready Resilience4j 熔断器配置
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        slidingWindowType: COUNT_BASED
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+    instances:
+      ai-engine:
+        baseConfig: default
+        failureRateThreshold: 60
+        waitDurationInOpenState: 60s
+      database:
+        baseConfig: default
+        failureRateThreshold: 40
+        waitDurationInOpenState: 20s
+      external-api:
+        baseConfig: default
+        slowCallDurationThreshold: 5s
+  
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      ai-engine:
+        baseConfig: default
+        maxAttempts: 2
+      database:
+        baseConfig: default
+        maxAttempts: 3
+  
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+    instances:
+      ai-engine:
+        timeoutDuration: 30s
+  
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+    instances:
+      api:
+        limitForPeriod: 1000

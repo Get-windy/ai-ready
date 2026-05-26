@@ -1,0 +1,38 @@
+# 数据库性能测试Dockerfile
+# 用于Sprint 27+1数据库性能优化与压力测试
+
+FROM python:3.11-slim
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    redis-tools \
+    curl \
+    wget \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装Node.js和k6
+RUN curl -s https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g k6
+
+# 安装Python依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制性能测试脚本
+COPY . /app/
+
+# 创建数据目录
+RUN mkdir -p /app/results /app/logs
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# 设置入口点
+ENTRYPOINT ["python", "performance_test_runner.py"]

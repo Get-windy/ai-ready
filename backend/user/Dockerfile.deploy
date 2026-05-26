@@ -1,0 +1,59 @@
+# ============================================================
+# AI-Ready 用户管理服务 Dockerfile (部署版)
+# Sprint 27+1 测试环境专用
+# 技术栈: Spring Boot 3.2.0 + Java 17
+# ============================================================
+
+FROM eclipse-temurin:17-jre-alpine
+
+# 创建非root用户（安全最佳实践）
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S -G appgroup appuser
+
+WORKDIR /app
+
+# 创建必要的目录
+RUN mkdir -p logs config && \
+    chown -R appuser:appgroup /app
+
+# 复制已构建的JAR文件
+COPY target/user-management-1.0.0-SNAPSHOT.jar app.jar
+
+# 设置JVM参数（针对容器环境优化）
+ENV JAVA_OPTS="\
+    -server \
+    -Xms512m \
+    -Xmx1024m \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+HeapDumpOnOutOfMemoryError \
+    -XX:HeapDumpPath=/app/logs/heap-dump.hprof \
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.backgroundpreinitializer.ignore=true \
+    -Dspring.jmx.enabled=false \
+    "
+
+# 应用配置
+ENV SPRING_PROFILES_ACTIVE=test
+ENV TZ=Asia/Shanghai
+ENV SERVER_PORT=8081
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+
+# 暴露端口
+EXPOSE 8081
+
+# 切换到非root用户
+USER appuser
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+
+# 镜像标签
+LABEL maintainer="ai-ready-team@ai-ready.cn"
+LABEL version="1.0.0"
+LABEL description="AI-Ready User Management Service - Sprint 27+1 Test Environment"

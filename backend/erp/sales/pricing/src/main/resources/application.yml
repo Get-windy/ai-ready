@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: erp-sales-pricing
+    
+  datasource:
+    url: jdbc:mysql://localhost:3306/erp_sales?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  drools:
+    rule:
+      enabled: true
+      path: classpath:rules/
+  
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/erp/sales/pricing
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+knife4j:
+  enable: true
+  setting:
+    enable-swagger-models: true
+    enable-document-manage: true
+    enable-version: true
+    enable-debug: true
+    enable-open-api: true
+
+logging:
+  level:
+    cn.aiedge.erp.sales.pricing: DEBUG
+    org.drools: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/erp-sales-pricing.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 100MB

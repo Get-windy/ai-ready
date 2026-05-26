@@ -1,0 +1,119 @@
+# AI-Ready Filebeat Configuration
+# Log Collection and Forwarding
+# Version: v1.0
+
+filebeat.inputs:
+  # Docker Containers Log
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+  # Application Logs
+  - type: filestream
+    enabled: true
+    paths:
+      - /app/logs/*.log
+    fields:
+      log_type: application
+      service: ai-ready-api
+    fields_under_root: true
+    processors:
+      - add_cloud_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+  # System Logs
+  - type: filestream
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/messages
+    fields:
+      log_type: system
+      service: system
+    fields_under_root: true
+
+# Elasticsearch Output
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "ai-ready-logs-%{+yyyy.MM.dd}"
+  protocol: "http"
+  username: "${ELASTICSEARCH_USERNAME:-elastic}"
+  password: "${ELASTICSEARCH_PASSWORD:-changeme}"
+
+# Logstash Output (Alternative)
+# output.logstash:
+#   hosts: ["logstash:5044"]
+#   loadbalance: true
+#   compression_level: 3
+#   worker: 2
+
+# Console Output (Debug)
+# output.console:
+#   enable: true
+#   codec.json:
+#     pretty: true
+
+# Processors
+processors:
+  - add_labels:
+      labels:
+        env: "${ENV:-dev}"
+        team: "ai-ready"
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.id", "agent.version", "input.type", "log.offset", "add_host_metadata.ip"]
+  - add_tags:
+      tags: ["ai-ready", "application"]
+
+# Regexp Filter for JSON Logs
+processors:
+  - dissect:
+      tokenizer: "%{timestamp} [%{thread}] %{level} %{class} - %{message}"
+      field: "message"
+      trim_values: all
+  - rename:
+      fields:
+        - from: "timestamp"
+          to: "log.timestamp"
+      ignore_missing: true
+
+# Manifold Connectors (Optional)
+# filebeat.autodiscover:
+#   providers:
+#     - type: docker
+#       hints.enabled: true
+#       hints.default_config:
+#         type: container
+#         paths:
+#           - /var/lib/docker/containers/${data.docker.container.id}/*.log
+
+# Template Settings
+setup.template.enabled: true
+setup.template.name: "ai-ready-logs"
+setup.template.pattern: "ai-ready-logs-*"
+setup.template.overwrite: true
+setup.template.settings:
+  index.number_of_shards: 3
+  index.number_of_replicas: 1
+  index.codec: best_compression
+  index.lifecycle.name: "ai-ready-logs-policy"
+
+# Enable Kibana Dashboards
+setup.kibana:
+  host: "kibana:5601"
+  protocol: "http"
+
+# Monitoring
+monitoring:
+  enabled: true
+  elasticsearch:
+    host: ["elasticsearch:9200"]

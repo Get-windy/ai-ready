@@ -1,0 +1,410 @@
+# PostgreSQL Exporter 自定义查询
+# 用于收集数据库性能指标
+
+pg_stat_database:
+  query: |
+    SELECT
+      datname,
+      numbackends,
+      xact_commit,
+      xact_rollback,
+      blks_read,
+      blks_hit,
+      tup_returned,
+      tup_fetched,
+      tup_inserted,
+      tup_updated,
+      tup_deleted,
+      conflicts,
+      temp_files,
+      temp_bytes,
+      deadlocks,
+      blk_read_time,
+      blk_write_time,
+      stats_reset
+    FROM pg_stat_database
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "Database name"
+    - numbackends:
+        usage: "GAUGE"
+        description: "Number of backends currently connected to this database"
+    - xact_commit:
+        usage: "COUNTER"
+        description: "Number of transactions committed"
+    - xact_rollback:
+        usage: "COUNTER"
+        description: "Number of transactions rolled back"
+    - blks_read:
+        usage: "COUNTER"
+        description: "Number of disk blocks read"
+    - blks_hit:
+        usage: "COUNTER"
+        description: "Number of buffer hits"
+    - tup_returned:
+        usage: "COUNTER"
+        description: "Number of rows returned"
+    - tup_fetched:
+        usage: "COUNTER"
+        description: "Number of rows fetched"
+    - tup_inserted:
+        usage: "COUNTER"
+        description: "Number of rows inserted"
+    - tup_updated:
+        usage: "COUNTER"
+        description: "Number of rows updated"
+    - tup_deleted:
+        usage: "COUNTER"
+        description: "Number of rows deleted"
+    - conflicts:
+        usage: "COUNTER"
+        description: "Number of queries canceled due to conflicts"
+    - temp_files:
+        usage: "COUNTER"
+        description: "Number of temporary files created"
+    - temp_bytes:
+        usage: "COUNTER"
+        description: "Total amount of data written to temporary files"
+    - deadlocks:
+        usage: "COUNTER"
+        description: "Number of deadlocks detected"
+    - blk_read_time:
+        usage: "COUNTER"
+        description: "Time spent reading data file blocks by backends"
+    - blk_write_time:
+        usage: "COUNTER"
+        description: "Time spent writing data file blocks by backends"
+
+pg_stat_user_tables:
+  query: |
+    SELECT
+      schemaname,
+      relname,
+      seq_scan,
+      seq_tup_read,
+      idx_scan,
+      idx_tup_fetch,
+      n_tup_ins,
+      n_tup_upd,
+      n_tup_del,
+      n_tup_hot_upd,
+      n_live_tup,
+      n_dead_tup,
+      n_mod_since_analyze,
+      last_vacuum,
+      last_autovacuum,
+      last_analyze,
+      last_autoanalyze,
+      vacuum_count,
+      autovacuum_count,
+      analyze_count,
+      autoanalyze_count
+    FROM pg_stat_user_tables
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "Schema name"
+    - relname:
+        usage: "LABEL"
+        description: "Table name"
+    - seq_scan:
+        usage: "COUNTER"
+        description: "Number of sequential scans"
+    - seq_tup_read:
+        usage: "COUNTER"
+        description: "Number of tuples read by sequential scans"
+    - idx_scan:
+        usage: "COUNTER"
+        description: "Number of index scans"
+    - idx_tup_fetch:
+        usage: "COUNTER"
+        description: "Number of tuples fetched by index scans"
+    - n_tup_ins:
+        usage: "COUNTER"
+        description: "Number of tuples inserted"
+    - n_tup_upd:
+        usage: "COUNTER"
+        description: "Number of tuples updated"
+    - n_tup_del:
+        usage: "COUNTER"
+        description: "Number of tuples deleted"
+    - n_tup_hot_upd:
+        usage: "COUNTER"
+        description: "Number of HOT updated tuples"
+    - n_live_tup:
+        usage: "GAUGE"
+        description: "Estimated number of live tuples"
+    - n_dead_tup:
+        usage: "GAUGE"
+        description: "Estimated number of dead tuples"
+    - n_mod_since_analyze:
+        usage: "GAUGE"
+        description: "Estimated number of rows modified since last analyze"
+
+pg_stat_user_indexes:
+  query: |
+    SELECT
+      schemaname,
+      relname,
+      indexrelname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch
+    FROM pg_stat_user_indexes
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "Schema name"
+    - relname:
+        usage: "LABEL"
+        description: "Table name"
+    - indexrelname:
+        usage: "LABEL"
+        description: "Index name"
+    - idx_scan:
+        usage: "COUNTER"
+        description: "Number of index scans"
+    - idx_tup_read:
+        usage: "COUNTER"
+        description: "Number of index tuples read"
+    - idx_tup_fetch:
+        usage: "COUNTER"
+        description: "Number of table tuples fetched by index"
+
+pg_stat_activity:
+  query: |
+    SELECT
+      datname,
+      usename,
+      application_name,
+      client_addr,
+      state,
+      count(*) as count
+    FROM pg_stat_activity
+    WHERE pid <> pg_backend_pid()
+    GROUP BY datname, usename, application_name, client_addr, state
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "Database name"
+    - usename:
+        usage: "LABEL"
+        description: "User name"
+    - application_name:
+        usage: "LABEL"
+        description: "Application name"
+    - client_addr:
+        usage: "LABEL"
+        description: "Client IP address"
+    - state:
+        usage: "LABEL"
+        description: "Connection state"
+    - count:
+        usage: "GAUGE"
+        description: "Number of connections in this state"
+
+pg_database_size:
+  query: |
+    SELECT
+      pg_database.datname,
+      pg_database_size(pg_database.datname) as size_bytes
+    FROM pg_database
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "Database name"
+    - size_bytes:
+        usage: "GAUGE"
+        description: "Database size in bytes"
+
+pg_table_size:
+  query: |
+    SELECT
+      schemaname,
+      tablename,
+      pg_total_relation_size(schemaname || '.' || tablename) as total_size_bytes,
+      pg_relation_size(schemaname || '.' || tablename) as relation_size_bytes,
+      pg_indexes_size(schemaname || '.' || tablename) as indexes_size_bytes
+    FROM pg_tables
+    WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "Schema name"
+    - tablename:
+        usage: "LABEL"
+        description: "Table name"
+    - total_size_bytes:
+        usage: "GAUGE"
+        description: "Total table size including indexes and TOAST"
+    - relation_size_bytes:
+        usage: "GAUGE"
+        description: "Table size excluding indexes and TOAST"
+    - indexes_size_bytes:
+        usage: "GAUGE"
+        description: "Indexes size"
+
+pg_locks:
+  query: |
+    SELECT
+      datname,
+      mode,
+      granted,
+      count(*) as count
+    FROM pg_locks
+    JOIN pg_database ON pg_locks.database = pg_database.oid
+    GROUP BY datname, mode, granted
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "Database name"
+    - mode:
+        usage: "LABEL"
+        description: "Lock mode"
+    - granted:
+        usage: "LABEL"
+        description: "Whether lock is granted"
+    - count:
+        usage: "GAUGE"
+        description: "Number of locks"
+
+pg_stat_bgwriter:
+  query: |
+    SELECT
+      checkpoints_timed,
+      checkpoints_req,
+      checkpoint_write_time,
+      checkpoint_sync_time,
+      buffers_checkpoint,
+      buffers_clean,
+      maxwritten_clean,
+      buffers_backend,
+      buffers_backend_fsync,
+      buffers_alloc,
+      stats_reset
+    FROM pg_stat_bgwriter
+  metrics:
+    - checkpoints_timed:
+        usage: "COUNTER"
+        description: "Number of scheduled checkpoints"
+    - checkpoints_req:
+        usage: "COUNTER"
+        description: "Number of requested checkpoints"
+    - checkpoint_write_time:
+        usage: "COUNTER"
+        description: "Total time spent writing checkpoint data"
+    - checkpoint_sync_time:
+        usage: "COUNTER"
+        description: "Total time spent syncing checkpoint data"
+    - buffers_checkpoint:
+        usage: "COUNTER"
+        description: "Number of buffers written during checkpoints"
+    - buffers_clean:
+        usage: "COUNTER"
+        description: "Number of buffers written by background writer"
+    - maxwritten_clean:
+        usage: "COUNTER"
+        description: "Number of times background writer stopped cleaning"
+    - buffers_backend:
+        usage: "COUNTER"
+        description: "Number of buffers written directly by backends"
+    - buffers_backend_fsync:
+        usage: "COUNTER"
+        description: "Number of times backends had to do fsync"
+    - buffers_alloc:
+        usage: "COUNTER"
+        description: "Number of buffers allocated"
+
+pg_stat_statements:
+  query: |
+    SELECT
+      queryid,
+      query,
+      calls,
+      total_time,
+      min_time,
+      max_time,
+      mean_time,
+      stddev_time,
+      rows,
+      shared_blks_hit,
+      shared_blks_read,
+      shared_blks_dirtied,
+      shared_blks_written,
+      local_blks_hit,
+      local_blks_read,
+      local_blks_dirtied,
+      local_blks_written,
+      temp_blks_read,
+      temp_blks_written,
+      blk_read_time,
+      blk_write_time
+    FROM pg_stat_statements
+    WHERE query NOT LIKE 'SELECT%pg_stat_%'
+    ORDER BY total_time DESC
+    LIMIT 100
+  metrics:
+    - queryid:
+        usage: "LABEL"
+        description: "Query ID"
+    - query:
+        usage: "LABEL"
+        description: "Query text"
+    - calls:
+        usage: "COUNTER"
+        description: "Number of times executed"
+    - total_time:
+        usage: "COUNTER"
+        description: "Total time spent executing"
+    - min_time:
+        usage: "GAUGE"
+        description: "Minimum execution time"
+    - max_time:
+        usage: "GAUGE"
+        description: "Maximum execution time"
+    - mean_time:
+        usage: "GAUGE"
+        description: "Mean execution time"
+    - stddev_time:
+        usage: "GAUGE"
+        description: "Standard deviation of execution time"
+    - rows:
+        usage: "COUNTER"
+        description: "Total rows retrieved or affected"
+    - shared_blks_hit:
+        usage: "COUNTER"
+        description: "Shared block cache hits"
+    - shared_blks_read:
+        usage: "COUNTER"
+        description: "Shared blocks read"
+    - shared_blks_dirtied:
+        usage: "COUNTER"
+        description: "Shared blocks dirtied"
+    - shared_blks_written:
+        usage: "COUNTER"
+        description: "Shared blocks written"
+    - local_blks_hit:
+        usage: "COUNTER"
+        description: "Local block cache hits"
+    - local_blks_read:
+        usage: "COUNTER"
+        description: "Local blocks read"
+    - local_blks_dirtied:
+        usage: "COUNTER"
+        description: "Local blocks dirtied"
+    - local_blks_written:
+        usage: "COUNTER"
+        description: "Local blocks written"
+    - temp_blks_read:
+        usage: "COUNTER"
+        description: "Temporary blocks read"
+    - temp_blks_written:
+        usage: "COUNTER"
+        description: "Temporary blocks written"
+    - blk_read_time:
+        usage: "COUNTER"
+        description: "Time spent reading blocks"
+    - blk_write_time:
+        usage: "COUNTER"
+        description: "Time spent writing blocks"

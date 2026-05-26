@@ -1,0 +1,373 @@
+# PostgreSQL Exporter 自定义查询配置
+# 版本: 1.0
+# 创建日期: 2026-04-28
+# 用途: 扩展PostgreSQL监控指标
+
+pg_stat_statements:
+  query: |
+    SELECT
+      pg_database.datname as datname,
+      pg_stat_statements.queryid,
+      pg_stat_statements.query,
+      pg_stat_statements.calls,
+      pg_stat_statements.total_time,
+      pg_stat_statements.min_time,
+      pg_stat_statements.max_time,
+      pg_stat_statements.mean_time,
+      pg_stat_statements.stddev_time,
+      pg_stat_statements.rows,
+      pg_stat_statements.shared_blks_hit,
+      pg_stat_statements.shared_blks_read,
+      pg_stat_statements.shared_blks_dirtied,
+      pg_stat_statements.shared_blks_written,
+      pg_stat_statements.local_blks_hit,
+      pg_stat_statements.local_blks_read,
+      pg_stat_statements.local_blks_dirtied,
+      pg_stat_statements.local_blks_written,
+      pg_stat_statements.temp_blks_read,
+      pg_stat_statements.temp_blks_written,
+      pg_stat_statements.blk_read_time,
+      pg_stat_statements.blk_write_time
+    FROM pg_stat_statements
+    JOIN pg_database ON pg_database.oid = pg_stat_statements.dbid
+    WHERE pg_stat_statements.query !~* '^.*pg_stat_statements.*$'
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "数据库名称"
+    - queryid:
+        usage: "LABEL"
+        description: "查询ID"
+    - query:
+        usage: "LABEL"
+        description: "查询语句"
+    - calls:
+        usage: "COUNTER"
+        description: "查询执行次数"
+    - total_time:
+        usage: "COUNTER"
+        description: "查询总执行时间（毫秒）"
+    - min_time:
+        usage: "GAUGE"
+        description: "查询最小执行时间（毫秒）"
+    - max_time:
+        usage: "GAUGE"
+        description: "查询最大执行时间（毫秒）"
+    - mean_time:
+        usage: "GAUGE"
+        description: "查询平均执行时间（毫秒）"
+    - stddev_time:
+        usage: "GAUGE"
+        description: "查询执行时间标准差（毫秒）"
+    - rows:
+        usage: "COUNTER"
+        description: "查询返回的总行数"
+    - shared_blks_hit:
+        usage: "COUNTER"
+        description: "共享块命中次数"
+    - shared_blks_read:
+        usage: "COUNTER"
+        description: "共享块读取次数"
+    - shared_blks_dirtied:
+        usage: "COUNTER"
+        description: "共享块脏页次数"
+    - shared_blks_written:
+        usage: "COUNTER"
+        description: "共享块写入次数"
+
+pg_locks:
+  query: |
+    SELECT
+      pg_database.datname as datname,
+      locktype,
+      mode,
+      granted,
+      COUNT(*) as count
+    FROM pg_locks
+    JOIN pg_database ON pg_database.oid = pg_locks.database
+    GROUP BY pg_database.datname, locktype, mode, granted
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "数据库名称"
+    - locktype:
+        usage: "LABEL"
+        description: "锁类型"
+    - mode:
+        usage: "LABEL"
+        description: "锁模式"
+    - granted:
+        usage: "LABEL"
+        description: "是否授予锁"
+    - count:
+        usage: "GAUGE"
+        description: "锁数量"
+
+pg_table_size:
+  query: |
+    SELECT
+      schemaname,
+      tablename,
+      pg_total_relation_size(schemaname || '.' || tablename) as total_bytes,
+      pg_relation_size(schemaname || '.' || tablename) as relation_bytes,
+      pg_indexes_size(schemaname || '.' || tablename) as index_bytes,
+      pg_total_relation_size(schemaname || '.' || tablename) - pg_relation_size(schemaname || '.' || tablename) - pg_indexes_size(schemaname || '.' || tablename) as toast_bytes
+    FROM pg_tables
+    WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "模式名称"
+    - tablename:
+        usage: "LABEL"
+        description: "表名称"
+    - total_bytes:
+        usage: "GAUGE"
+        description: "表总大小（字节）"
+    - relation_bytes:
+        usage: "GAUGE"
+        description: "表数据大小（字节）"
+    - index_bytes:
+        usage: "GAUGE"
+        description: "索引大小（字节）"
+    - toast_bytes:
+        usage: "GAUGE"
+        description: "TOAST表大小（字节）"
+
+pg_index_usage:
+  query: |
+    SELECT
+      schemaname,
+      tablename,
+      indexname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      pg_relation_size(schemaname || '.' || indexname) as index_size
+    FROM pg_stat_user_indexes
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "模式名称"
+    - tablename:
+        usage: "LABEL"
+        description: "表名称"
+    - indexname:
+        usage: "LABEL"
+        description: "索引名称"
+    - idx_scan:
+        usage: "COUNTER"
+        description: "索引扫描次数"
+    - idx_tup_read:
+        usage: "COUNTER"
+        description: "通过索引读取的元组数"
+    - idx_tup_fetch:
+        usage: "COUNTER"
+        description: "通过索引获取的元组数"
+    - index_size:
+        usage: "GAUGE"
+        description: "索引大小（字节）"
+
+pg_replication:
+  query: |
+    SELECT
+      application_name,
+      client_addr,
+      state,
+      sync_state,
+      write_lag,
+      flush_lag,
+      replay_lag,
+      EXTRACT(EPOCH FROM write_lag) as write_lag_seconds,
+      EXTRACT(EPOCH FROM flush_lag) as flush_lag_seconds,
+      EXTRACT(EPOCH FROM replay_lag) as replay_lag_seconds
+    FROM pg_stat_replication
+  metrics:
+    - application_name:
+        usage: "LABEL"
+        description: "应用名称"
+    - client_addr:
+        usage: "LABEL"
+        description: "客户端地址"
+    - state:
+        usage: "LABEL"
+        description: "复制状态"
+    - sync_state:
+        usage: "LABEL"
+        description: "同步状态"
+    - write_lag_seconds:
+        usage: "GAUGE"
+        description: "写延迟（秒）"
+    - flush_lag_seconds:
+        usage: "GAUGE"
+        description: "刷新延迟（秒）"
+    - replay_lag_seconds:
+        usage: "GAUGE"
+        description: "重放延迟（秒）"
+
+pg_connections_by_state:
+  query: |
+    SELECT
+      datname,
+      state,
+      COUNT(*) as count
+    FROM pg_stat_activity
+    WHERE pid <> pg_backend_pid()
+    GROUP BY datname, state
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "数据库名称"
+    - state:
+        usage: "LABEL"
+        description: "连接状态"
+    - count:
+        usage: "GAUGE"
+        description: "连接数量"
+
+pg_wal_statistics:
+  query: |
+    SELECT
+      pg_walfile_name(pg_current_wal_lsn()) as current_wal_file,
+      pg_wal_lsn_diff(pg_current_wal_lsn(), '0/0') as current_wal_position,
+      pg_wal_lsn_diff(pg_current_wal_lsn(), pg_last_wal_receive_lsn()) as receive_lag_bytes,
+      pg_wal_lsn_diff(pg_current_wal_lsn(), pg_last_wal_replay_lsn()) as replay_lag_bytes,
+      pg_wal_lsn_diff(pg_last_wal_receive_lsn(), pg_last_wal_replay_lsn()) as replay_delay_bytes
+  metrics:
+    - current_wal_file:
+        usage: "LABEL"
+        description: "当前WAL文件"
+    - current_wal_position:
+        usage: "GAUGE"
+        description: "当前WAL位置（字节）"
+    - receive_lag_bytes:
+        usage: "GAUGE"
+        description: "接收延迟（字节）"
+    - replay_lag_bytes:
+        usage: "GAUGE"
+        description: "重放延迟（字节）"
+    - replay_delay_bytes:
+        usage: "GAUGE"
+        description: "重放延迟差（字节）"
+
+pg_dead_tuples:
+  query: |
+    SELECT
+      schemaname,
+      relname,
+      n_dead_tup,
+      n_live_tup,
+      n_dead_tup::float / GREATEST(n_live_tup + n_dead_tup, 1) * 100 as dead_tup_percent,
+      last_vacuum,
+      last_autovacuum,
+      last_analyze,
+      last_autoanalyze
+    FROM pg_stat_user_tables
+    WHERE n_live_tup + n_dead_tup > 0
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "模式名称"
+    - relname:
+        usage: "LABEL"
+        description: "表名称"
+    - n_dead_tup:
+        usage: "GAUGE"
+        description: "死元组数量"
+    - n_live_tup:
+        usage: "GAUGE"
+        description: "活跃元组数量"
+    - dead_tup_percent:
+        usage: "GAUGE"
+        description: "死元组百分比"
+
+# 慢查询监控（自定义阈值）
+pg_slow_queries:
+  query: |
+    SELECT
+      datname,
+      COUNT(*) as slow_query_count,
+      SUM(CASE WHEN query_duration > 1000 THEN 1 ELSE 0 END) as slow_queries_1s,
+      SUM(CASE WHEN query_duration > 5000 THEN 1 ELSE 0 END) as slow_queries_5s,
+      AVG(query_duration) as avg_query_duration,
+      MAX(query_duration) as max_query_duration
+    FROM (
+      SELECT
+        datname,
+        EXTRACT(EPOCH FROM NOW() - query_start) * 1000 as query_duration
+      FROM pg_stat_activity
+      WHERE state = 'active'
+        AND query_start IS NOT NULL
+        AND query !~* '^.*idle.*$'
+    ) active_queries
+    WHERE query_duration > 100
+    GROUP BY datname
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "数据库名称"
+    - slow_query_count:
+        usage: "GAUGE"
+        description: "慢查询总数（>100ms）"
+    - slow_queries_1s:
+        usage: "GAUGE"
+        description: "超慢查询数（>1s）"
+    - slow_queries_5s:
+        usage: "GAUGE"
+        description: "严重慢查询数（>5s）"
+    - avg_query_duration:
+        usage: "GAUGE"
+        description: "平均查询持续时间（毫秒）"
+    - max_query_duration:
+        usage: "GAUGE"
+        description: "最大查询持续时间（毫秒）"
+
+# 数据库缓存命中率
+pg_cache_hit_ratio:
+  query: |
+    SELECT
+      datname,
+      100.0 * blks_hit / GREATEST(blks_hit + blks_read, 1) as hit_ratio,
+      blks_hit,
+      blks_read,
+      tup_returned,
+      tup_fetched,
+      tup_inserted,
+      tup_updated,
+      tup_deleted
+    FROM pg_stat_database
+    WHERE datname NOT IN ('template0', 'template1', 'postgres')
+  metrics:
+    - datname:
+        usage: "LABEL"
+        description: "数据库名称"
+    - hit_ratio:
+        usage: "GAUGE"
+        description: "缓存命中率（百分比）"
+    - blks_hit:
+        usage: "COUNTER"
+        description: "块命中次数"
+    - blks_read:
+        usage: "COUNTER"
+        description: "块读取次数"
+    - tup_returned:
+        usage: "COUNTER"
+        description: "返回的元组数"
+    - tup_fetched:
+        usage: "COUNTER"
+        description: "获取的元组数"
+    - tup_inserted:
+        usage: "COUNTER"
+        description: "插入的元组数"
+    - tup_updated:
+        usage: "COUNTER"
+        description: "更新的元组数"
+    - tup_deleted:
+        usage: "COUNTER"
+        description: "删除的元组数"
+
+# 注意：这些查询可能会对数据库性能产生影响，建议：
+# 1. 在测试环境充分验证
+# 2. 根据实际需求调整查询频率
+# 3. 监控Exporter的资源使用情况
+# 4. 定期优化和调整查询

@@ -1,0 +1,157 @@
+{
+  "test_time": "2026-04-25 12:12:50",
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "score": 100.0,
+    "mysql_score": 100.0,
+    "postgresql_score": 100.0,
+    "redis_score": 100.0
+  },
+  "results": [
+    {
+      "name": "简单查询",
+      "db_type": "mysql",
+      "status": "PASS",
+      "avg_time_ms": 2.5,
+      "p95_time_ms": 5.2,
+      "p99_time_ms": 8.1,
+      "message": "平均 2.50ms, P95=5.20ms",
+      "metrics": {
+        "avg": 2.5,
+        "p95": 5.2,
+        "p99": 8.1,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "批量插入",
+      "db_type": "mysql",
+      "status": "PASS",
+      "avg_time_ms": 15.3,
+      "p95_time_ms": 25.6,
+      "p99_time_ms": 35.2,
+      "message": "平均 15.30ms, P95=25.60ms",
+      "metrics": {
+        "avg": 15.3,
+        "p95": 25.6,
+        "p99": 35.2,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "并发读取",
+      "db_type": "mysql",
+      "status": "PASS",
+      "avg_time_ms": 3.8,
+      "p95_time_ms": 8.5,
+      "p99_time_ms": 12.3,
+      "message": "平均 3.80ms, P95=8.50ms",
+      "metrics": {
+        "avg": 3.8,
+        "p95": 8.5,
+        "p99": 12.3,
+        "success_rate": 99.5
+      },
+      "details": {}
+    },
+    {
+      "name": "简单查询",
+      "db_type": "postgresql",
+      "status": "PASS",
+      "avg_time_ms": 3.1,
+      "p95_time_ms": 6.8,
+      "p99_time_ms": 9.5,
+      "message": "平均 3.10ms, P95=6.80ms",
+      "metrics": {
+        "avg": 3.1,
+        "p95": 6.8,
+        "p99": 9.5,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "JSON 查询",
+      "db_type": "postgresql",
+      "status": "PASS",
+      "avg_time_ms": 8.7,
+      "p95_time_ms": 15.2,
+      "p99_time_ms": 22.1,
+      "message": "平均 8.70ms, P95=15.20ms",
+      "metrics": {
+        "avg": 8.7,
+        "p95": 15.2,
+        "p99": 22.1,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "复杂 JOIN",
+      "db_type": "postgresql",
+      "status": "PASS",
+      "avg_time_ms": 12.4,
+      "p95_time_ms": 25.8,
+      "p99_time_ms": 35.6,
+      "message": "平均 12.40ms, P95=25.80ms",
+      "metrics": {
+        "avg": 12.4,
+        "p95": 25.8,
+        "p99": 35.6,
+        "success_rate": 99.8
+      },
+      "details": {}
+    },
+    {
+      "name": "SET/GET",
+      "db_type": "redis",
+      "status": "PASS",
+      "avg_time_ms": 0.8,
+      "p95_time_ms": 1.5,
+      "p99_time_ms": 2.1,
+      "message": "平均 0.80ms, P95=1.50ms",
+      "metrics": {
+        "avg": 0.8,
+        "p95": 1.5,
+        "p99": 2.1,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "Pipeline",
+      "db_type": "redis",
+      "status": "PASS",
+      "avg_time_ms": 2.3,
+      "p95_time_ms": 4.1,
+      "p99_time_ms": 5.8,
+      "message": "平均 2.30ms, P95=4.10ms",
+      "metrics": {
+        "avg": 2.3,
+        "p95": 4.1,
+        "p99": 5.8,
+        "success_rate": 100.0
+      },
+      "details": {}
+    },
+    {
+      "name": "Hash 操作",
+      "db_type": "redis",
+      "status": "PASS",
+      "avg_time_ms": 1.2,
+      "p95_time_ms": 2.3,
+      "p99_time_ms": 3.5,
+      "message": "平均 1.20ms, P95=2.30ms",
+      "metrics": {
+        "avg": 1.2,
+        "p95": 2.3,
+        "p99": 3.5,
+        "success_rate": 100.0
+      },
+      "details": {}
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# ERP Finance Module - Configuration for Development Environment
+# 开发环境配置
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_finance_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: erp_finance_dev
+    password: dev_finance_2024
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 2
+  rabbitmq:
+    host: localhost
+    port: 5672
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    cn.aiedge.erp.finance: debug
+    org.springframework.sql: debug

@@ -1,0 +1,241 @@
+# Sprint 27+1 容器安全监控告警规则
+# Prometheus AlertManager 配置
+# 版本: v1.0
+# 创建日期: 2026-04-28
+
+groups:
+  - name: container_security_alerts
+    interval: 30s
+    rules:
+      # 1. 特权容器启动告警
+      - alert: PrivilegedContainerStarted
+        expr: increase(container_start_total{container_label_io_kubernetes_pod_namespace=~"ai-ready.*",container_label_io_kubernetes_container_name!="POD",security_privileged="true"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "特权容器被启动"
+          description: "命名空间 {{ $labels.namespace }} 中的Pod {{ $labels.pod }} 启动了特权容器，这可能带来严重的安全风险。"
+          remediation: "立即停止该容器，检查部署配置中的 securityContext.privileged 设置。"
+          runbook_url: "https://wiki.company.com/runbooks/container-security#privileged"
+
+      # 2. 容器以root用户运行告警
+      - alert: ContainerRunningAsRoot
+        expr: container_start_total{container_label_io_kubernetes_pod_namespace=~"ai-ready.*",security_run_as_user="0"} > 0
+        for: 5m
+        labels:
+          severity: high
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器以root用户运行"
+          description: "容器 {{ $labels.container }} 在Pod {{ $labels.pod }} 中以root用户(UID=0)运行。"
+          remediation: "修改Pod的securityContext，设置runAsNonRoot: true和runAsUser为非零值。"
+
+      # 3. 只读文件系统未启用告警
+      - alert: ReadOnlyRootFilesystemDisabled
+        expr: kube_deployment_spec_replicas{namespace=~"ai-ready.*"} > 0 unless kube_deployment_spec_template_spec_containers_security_context_read_only_root_filesystem{namespace=~"ai-ready.*"} == 1
+        for: 10m
+        labels:
+          severity: medium
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器未启用只读根文件系统"
+          description: "Deployment {{ $labels.deployment }} 中的容器未启用readOnlyRootFilesystem。"
+          remediation: "在容器的securityContext中设置 readOnlyRootFilesystem: true。"
+
+      # 4. Capabilities未完全删除告警
+      - alert: CapabilitiesNotDropped
+        expr: kube_deployment_spec_replicas{namespace=~"ai-ready.*"} > 0 unless kube_deployment_spec_template_spec_containers_security_context_capabilities_drop{namespace=~"ai-ready.*",resource="ALL"} == 1
+        for: 10m
+        labels:
+          severity: medium
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器未删除所有Capabilities"
+          description: "Deployment {{ $labels.deployment }} 中的容器未配置capabilities drop ALL。"
+          remediation: "在容器的securityContext中设置 capabilities: drop: [ALL]。"
+
+      # 5. 镜像漏洞扫描发现高危漏洞
+      - alert: ImageVulnerabilityHigh
+        expr: trivy_image_vulnerabilities{severity="HIGH",namespace=~"ai-ready.*"} > 0
+        for: 0m
+        labels:
+          severity: high
+          category: vulnerability
+          sprint: "27+1"
+        annotations:
+          summary: "容器镜像发现高危漏洞"
+          description: "镜像 {{ $labels.image_repository }}:{{ $labels.image_tag }} 发现 {{ $value }} 个高危漏洞。"
+          remediation: "1. 更新基础镜像版本\n2. 重新构建并部署镜像\n3. 验证漏洞已修复"
+
+      # 6. 镜像漏洞扫描发现严重漏洞
+      - alert: ImageVulnerabilityCritical
+        expr: trivy_image_vulnerabilities{severity="CRITICAL",namespace=~"ai-ready.*"} > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: vulnerability
+          sprint: "27+1"
+        annotations:
+          summary: "容器镜像发现严重漏洞"
+          description: "镜像 {{ $labels.image_repository }}:{{ $labels.image_tag }} 发现 {{ $value }} 个严重漏洞，需要立即修复！"
+          remediation: "立即执行: 1. 停止相关服务 2. 修复漏洞 3. 重新构建部署"
+
+      # 7. 容器异常退出告警
+      - alert: ContainerSecurityExit
+        expr: increase(container_last_seen{container_label_io_kubernetes_pod_namespace=~"ai-ready.*"}[5m]) == 0 and container_memory_working_set_bytes{container_label_io_kubernetes_pod_namespace=~"ai-ready.*"} > 0
+        for: 2m
+        labels:
+          severity: high
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器异常退出"
+          description: "Pod {{ $labels.pod }} 中的容器 {{ $labels.container }} 异常退出，可能存在安全事件。"
+          remediation: "检查容器日志: kubectl logs {{ $labels.pod }} -n {{ $labels.namespace }} --previous"
+
+      # 8. 未授权网络访问尝试
+      - alert: UnauthorizedNetworkAccess
+        expr: increase(istio_tcp_connections_opened_total{destination_service_namespace=~"ai-ready.*",source_principal="unknown"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: high
+          category: network_security
+          sprint: "27+1"
+        annotations:
+          summary: "检测到未授权网络访问"
+          description: "服务 {{ $labels.destination_service }} 收到来自未认证源的连接请求。"
+          remediation: "检查NetworkPolicy和AuthorizationPolicy配置，确保mTLS已启用。"
+
+      # 9. 容器资源使用异常（可能的挖矿攻击）
+      - alert: ContainerResourceAbnormal
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_pod_namespace=~"ai-ready.*",container!="POD"}[5m]) 
+            / 
+            kube_pod_container_resource_limits{resource="cpu",namespace=~"ai-ready.*"}
+          ) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器CPU使用率异常"
+          description: "容器 {{ $labels.container }} CPU使用率超过90%，可能存在异常行为。"
+          remediation: "检查容器内进程，排查是否存在挖矿程序或死循环。"
+
+      # 10. 敏感文件访问告警
+      - alert: SensitiveFileAccess
+        expr: increase(falco_events{rule="Sensitive File Access",namespace=~"ai-ready.*"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "检测到敏感文件访问"
+          description: "容器 {{ $labels.container }} 尝试访问敏感文件。"
+          remediation: "立即检查容器安全上下文和文件权限配置。"
+
+      # 11. Seccomp未启用告警
+      - alert: SeccompNotEnabled
+        expr: kube_deployment_spec_replicas{namespace=~"ai-ready.*"} > 0 unless kube_deployment_spec_template_spec_containers_security_context_seccomp_profile_type{namespace=~"ai-ready.*"} == "RuntimeDefault"
+        for: 10m
+        labels:
+          severity: low
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "容器未启用Seccomp"
+          description: "Deployment {{ $labels.deployment }} 未配置seccompProfile。"
+          remediation: "在Pod的securityContext中设置 seccompProfile: type: RuntimeDefault"
+
+      # 12. 镜像签名验证失败
+      - alert: ImageSignatureVerificationFailed
+        expr: increase(cosign_signature_verification_failures_total{namespace=~"ai-ready.*"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: image_security
+          sprint: "27+1"
+        annotations:
+          summary: "镜像签名验证失败"
+          description: "镜像签名验证失败，可能存在镜像篡改风险。"
+          remediation: "1. 停止使用该镜像\n2. 验证镜像来源\n3. 重新签名并部署"
+
+      # 13. 容器逃逸尝试检测
+      - alert: ContainerEscapeAttempt
+        expr: increase(falco_events{rule="Contact EC2 Instance Metadata Service from Container",namespace=~"ai-ready.*"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: container_security
+          sprint: "27+1"
+        annotations:
+          summary: "检测到容器逃逸尝试"
+          description: "容器尝试访问宿主机元数据服务，可能存在容器逃逸风险。"
+          remediation: "立即隔离该容器，检查Pod安全策略和网络安全配置。"
+
+  - name: security_scan_alerts
+    interval: 1m
+    rules:
+      # 安全扫描流水线失败
+      - alert: SecurityScanPipelineFailed
+        expr: increase(github_workflow_run_failures{workflow_name=~".*[Ss]ecurity.*|[Ss]can.*",repository=~"ai-ready.*"}[1h]) > 0
+        for: 0m
+        labels:
+          severity: high
+          category: ci_cd_security
+          sprint: "27+1"
+        annotations:
+          summary: "安全扫描流水线失败"
+          description: "安全扫描流水线 {{ $labels.workflow_name }} 执行失败。"
+          remediation: "检查流水线日志，修复配置错误或代码问题。"
+
+      # 漏洞扫描超时
+      - alert: VulnerabilityScanTimeout
+        expr: time() - trivy_scan_last_success_timestamp{namespace=~"ai-ready.*"} > 86400
+        for: 0m
+        labels:
+          severity: warning
+          category: vulnerability
+          sprint: "27+1"
+        annotations:
+          summary: "漏洞扫描超过24小时未执行"
+          description: "上次漏洞扫描已执行超过24小时，建议立即执行扫描。"
+          remediation: "手动触发漏洞扫描流水线或检查定时任务配置。"
+
+  - name: compliance_alerts
+    interval: 5m
+    rules:
+      # Pod安全标准合规性检查
+      - alert: PodSecurityStandardViolation
+        expr: kube_pod_status_phase{namespace=~"ai-ready.*",phase="Failed"} > 0 and kube_pod_status_reason{namespace=~"ai-ready.*",reason="Forbidden"} > 0
+        for: 5m
+        labels:
+          severity: high
+          category: compliance
+          sprint: "27+1"
+        annotations:
+          summary: "Pod安全标准违规"
+          description: "Pod {{ $labels.pod }} 因违反安全标准而被拒绝创建。"
+          remediation: "检查Pod的securityContext配置，确保符合Pod Security Standards。"
+
+      # 未打标签的镜像部署
+      - alert: UntaggedImageDeployed
+        expr: kube_pod_container_info{namespace=~"ai-ready.*",image=~":latest|:LATEST"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          category: image_security
+          sprint: "27+1"
+        annotations:
+          summary: "部署了未打标签的镜像"
+          description: "Pod {{ $labels.pod }} 使用了latest标签的镜像，不利于版本管理。"
+          remediation: "使用明确的语义化版本标签替代latest标签。"

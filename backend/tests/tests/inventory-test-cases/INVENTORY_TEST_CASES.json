@@ -1,0 +1,59 @@
+{
+  "project": "企智连",
+  "module": "库存管理模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-14",
+  "totalCases": 25,
+  "categories": [
+    {
+      "name": "库存查询",
+      "description": "库存查询功能测试",
+      "cases": [
+        {"id": "INV-QUERY-001", "title": "库存总览查询测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-QUERY-002", "title": "商品库存明细查询测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-QUERY-003", "title": "仓库库存分布查询测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-QUERY-004", "title": "库存预警查询测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "入库管理",
+      "description": "入库管理功能测试",
+      "cases": [
+        {"id": "INV-IN-001", "title": "采购入库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-IN-002", "title": "生产入库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-IN-003", "title": "退货入库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-IN-004", "title": "入库质检测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "出库管理",
+      "description": "出库管理功能测试",
+      "cases": [
+        {"id": "INV-OUT-001", "title": "销售出库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-OUT-002", "title": "生产出库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-OUT-003", "title": "调拨出库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-OUT-004", "title": "出库复核测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "库存盘点",
+      "description": "库存盘点功能测试",
+      "cases": [
+        {"id": "INV-CHECK-001", "title": "盘点单创建测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-CHECK-002", "title": "盘点数据录入测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-CHECK-003", "title": "盘点差异处理测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-CHECK-004", "title": "盘点盈亏调整测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "库存调拨",
+      "description": "库存调拨功能测试",
+      "cases": [
+        {"id": "INV-TRANS-001", "title": "调拨单创建测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-TRANS-002", "title": "调拨出库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-TRANS-003", "title": "调拨入库测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "INV-TRANS-004", "title": "调拨状态跟踪测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    }
+  ]
+}

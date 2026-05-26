@@ -1,0 +1,24 @@
+{
+  "name": "ai-ready-frontend",
+  "version": "1.0.0",
+  "description": "企智连系统前端模块 - 前后端分离架构",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter './apps/*' dev",
+    "build": "pnpm --filter './apps/*' build",
+    "lint": "eslint .",
+    "test": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^18.x",
+    "eslint": "^8.x",
+    "typescript": "^5.x",
+    "vitest": "^1.x"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

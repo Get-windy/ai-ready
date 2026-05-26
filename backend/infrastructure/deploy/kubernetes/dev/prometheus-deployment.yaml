@@ -1,0 +1,512 @@
+# AI-Ready 监控告警模块 - Prometheus Kubernetes部署配置 (开发环境)
+# 版本: v1.0
+# 最后更新: 2026-04-27
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    environment: development
+    component: observability
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: server
+    environment: development
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+    component: server
+    environment: development
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources:
+      - nodes/metrics
+    verbs: ["get"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+    component: server
+    environment: development
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: monitoring
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: server
+    environment: development
+    version: v2.45.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: server
+        environment: development
+        version: v2.45.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: prometheus
+      automountServiceAccountToken: true
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        fsGroupChangePolicy: "OnRootMismatch"
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - name: http
+          containerPort: 9090
+          protocol: TCP
+        - name: grpc
+          containerPort: 10901
+          protocol: TCP
+        env:
+        - name: PROMETHEUS_VERSION
+          value: "v2.45.0"
+        - name: ENVIRONMENT
+          value: "development"
+        - name: CLUSTER_NAME
+          value: "ai-ready-dev"
+        - name: REGION
+          value: "cn-east-1"
+        - name: STORAGE_TSDB_RETENTION_TIME
+          value: "15d"
+        - name: STORAGE_TSDB_RETENTION_SIZE
+          value: "5GB"
+        - name: WEB_ENABLE_LIFECYCLE
+          value: "true"
+        - name: WEB_ENABLE_ADMIN_API
+          value: "true"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: LOG_FORMAT
+          value: "json"
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.path=/prometheus/data"
+        - "--storage.tsdb.retention.time=15d"
+        - "--storage.tsdb.retention.size=5GB"
+        - "--web.console.libraries=/etc/prometheus/console_libraries"
+        - "--web.console.templates=/etc/prometheus/consoles"
+        - "--web.enable-lifecycle"
+        - "--web.enable-admin-api"
+        - "--web.external-url=http://prometheus-dev.ai-ready.local"
+        - "--web.route-prefix=/"
+        - "--web.listen-address=:9090"
+        - "--web.max-connections=512"
+        - "--web.read-timeout=5m"
+        - "--web.write-timeout=5m"
+        - "--query.timeout=2m"
+        - "--query.max-concurrency=20"
+        - "--log.level=info"
+        - "--log.format=json"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: rules
+          mountPath: /etc/prometheus/rules
+          readOnly: true
+        - name: storage
+          mountPath: /prometheus/data
+        - name: tmp
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+            ephemeral-storage: "5Gi"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+            ephemeral-storage: "10Gi"
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: rules
+        configMap:
+          name: prometheus-rules
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-data
+      - name: tmp
+        emptyDir: {}
+      nodeSelector:
+        node-role.kubernetes.io/monitoring: "true"
+      tolerations:
+      - key: "monitoring"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/monitoring
+                operator: In
+                values:
+                - "true"
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - prometheus
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: config
+    environment: development
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      evaluation_interval: 30s
+      external_labels:
+        cluster: 'ai-ready-dev'
+        environment: 'development'
+        region: 'cn-east-1'
+    
+    rule_files:
+      - /etc/prometheus/rules/alert-rules.yml
+      - /etc/prometheus/rules/recording-rules.yml
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - 'alertmanager:9093'
+    
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+        scrape_interval: 30s
+      
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: '(.*):10250'
+            replacement: '${1}:9100'
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+      
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: rules
+    environment: development
+data:
+  alert-rules.yml: |
+    groups:
+      - name: ai-ready-dev-alerts
+        rules:
+          - alert: PrometheusDown
+            expr: up{job="prometheus"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              environment: development
+              team: devops
+            annotations:
+              summary: "Prometheus server is down"
+              description: "Prometheus server {{ $labels.instance }} has been down for more than 1 minute"
+              runbook_url: "https://wiki.ai-ready.local/runbooks/prometheus-down"
+          
+          - alert: HighMemoryUsage
+            expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              environment: development
+              team: devops
+            annotations:
+              summary: "High memory usage on {{ $labels.instance }}"
+              description: "Memory usage on {{ $labels.instance }} is above 80% for 5 minutes"
+              runbook_url: "https://wiki.ai-ready.local/runbooks/high-memory-usage"
+          
+          - alert: HighCPUUsage
+            expr: rate(node_cpu_seconds_total{mode!="idle"}[5m]) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              environment: development
+              team: devops
+            annotations:
+              summary: "High CPU usage on {{ $labels.instance }}"
+              description: "CPU usage on {{ $labels.instance }} is above 80% for 5 minutes"
+              runbook_url: "https://wiki.ai-ready.local/runbooks/high-cpu-usage"
+  
+  recording-rules.yml: |
+    groups:
+      - name: ai-ready-dev-recording
+        rules:
+          - record: job:http_requests_total:rate5m
+            expr: rate(http_requests_total[5m])
+            labels:
+              environment: development
+          
+          - record: job:node_cpu_usage:rate5m
+            expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+            labels:
+              environment: development
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: storage
+    environment: development
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: server
+    environment: development
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9090
+    targetPort: http
+    protocol: TCP
+  - name: grpc
+    port: 10901
+    targetPort: grpc
+    protocol: TCP
+  selector:
+    app: prometheus
+    component: server
+  sessionAffinity: None
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: ingress
+    environment: development
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: prometheus-dev.ai-ready.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus
+            port:
+              number: 9090
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: servicemonitor
+    environment: development
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+      component: server
+  endpoints:
+  - port: http
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - monitoring
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: prometheus-pods
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: podmonitor
+    environment: development
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  podMetricsEndpoints:
+  - port: http
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - monitoring

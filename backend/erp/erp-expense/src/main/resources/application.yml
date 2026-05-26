@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: erp-expense
+    
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_expense
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 600000
+      max-lifetime: 1800000
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        
+  activiti:
+    database-schema-update: true
+    db-history-used: true
+    history-level: audit
+    check-process-definitions: true
+    async-executor-activate: true
+    mail:
+      server:
+        host: localhost
+        port: 25
+        default-from: noreply@aiedge.cn
+    deployment-mode: single-resource
+    
+server:
+  port: 8084
+  servlet:
+    context-path: /api/erp/expense
+    
+logging:
+  level:
+    cn.aiedge.erp.expense: DEBUG
+    org.activiti: INFO
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/erp-expense.log
+    
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+      
+# Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    
+# Security Configuration
+security:
+  jwt:
+    secret: erp-expense-secret-key-2024-ai-ready-system
+    expiration: 86400000  # 24 hours
+    
+# File Upload Configuration
+file:
+  upload:
+    max-size: 10MB
+    allowed-extensions: .pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx
+    storage-path: ./uploads/expense-attachments
+    
+# Budget Configuration
+expense:
+  budget:
+    warning-threshold: 0.8  # 80%预算使用告警
+    block-threshold: 1.0    # 100%预算使用阻止新申请
+    notification:
+      enabled: true
+      email: finance@aiedge.cn
+      
+# Workflow Configuration
+workflow:
+  expense-approval:
+    levels:
+      - name: "部门经理审批"
+        amount-limit: 5000
+      - name: "财务审批"
+        amount-limit: 20000
+      - name: "总经理审批"
+        amount-limit: 50000

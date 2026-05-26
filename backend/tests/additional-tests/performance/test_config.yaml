@@ -1,0 +1,225 @@
+# 性能测试配置
+# AI-Ready Sprint 27+1 测试环境性能基准测试配置
+
+test_environment:
+  name: "Sprint 27+1 Mock Test Environment"
+  base_url: "http://localhost:8080"
+  timeout: 30
+  description: "Mock API Gateway 性能测试环境"
+
+performance_benchmarks:
+  # 用户管理API性能基准
+  user_login:
+    name: "用户登录"
+    endpoint: "/api/v1/users/login"
+    method: "POST"
+    concurrent_users: [10, 50, 100]  # 测试的并发用户数
+    duration_seconds: 60  # 每个测试持续时间
+    success_criteria:
+      avg_response_time: 200  # 平均响应时间 ≤ 200ms
+      p95_response_time: 500  # P95响应时间 ≤ 500ms
+      success_rate: 99.0  # 成功率 ≥ 99%
+    test_data:
+      username: "test_user_{random}"
+      password: "test_password"
+
+  user_register:
+    name: "用户注册"
+    endpoint: "/api/v1/users/register"
+    method: "POST"
+    concurrent_users: [10, 30, 50]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 300  # ≤ 300ms
+      p95_response_time: 800  # ≤ 800ms
+      success_rate: 98.0  # ≥ 98%
+    test_data:
+      username: "user_{random}_{timestamp}"
+      password: "password123"
+      email: "test{random}@example.com"
+      phone: "138{random8}"
+
+  # 订单管理API性能基准
+  order_create:
+    name: "订单创建"
+    endpoint: "/api/v1/orders"
+    method: "POST"
+    concurrent_users: [10, 30, 50]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 300  # ≤ 300ms
+      p95_response_time: 800  # ≤ 800ms
+      success_rate: 99.0  # ≥ 99%
+    test_data:
+      user_id: "{random:1000-9999}"
+      items:
+        - product_id: "{random:1-100}"
+          quantity: "{random:1-5}"
+          price: "{random:10-1000}"
+      shipping_address:
+        address: "测试地址{random}号"
+        city: "测试市"
+        province: "测试省"
+        postal_code: "{random:100000-999999}"
+
+  order_query:
+    name: "订单查询"
+    endpoint: "/api/v1/orders/{order_id}"
+    method: "GET"
+    concurrent_users: [20, 50, 100]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 200  # ≤ 200ms
+      p95_response_time: 500  # ≤ 500ms
+      success_rate: 99.0  # ≥ 99%
+    test_data:
+      order_id_range: [1000, 9999]
+
+  # 库存管理API性能基准
+  inventory_check:
+    name: "库存检查"
+    endpoint: "/api/v1/inventory/check"
+    method: "POST"
+    concurrent_users: [20, 50, 100]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 100  # ≤ 100ms
+      p95_response_time: 300  # ≤ 300ms
+      success_rate: 99.0  # ≥ 99%
+    test_data:
+      product_id: "{random:1-100}"
+      warehouse_id: "{random:1-5}"
+
+  inventory_deduct:
+    name: "库存扣减"
+    endpoint: "/api/v1/inventory/deduct"
+    method: "POST"
+    concurrent_users: [20, 50, 80]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 200  # ≤ 200ms
+      p95_response_time: 500  # ≤ 500ms
+      success_rate: 99.9  # ≥ 99.9%
+    test_data:
+      product_id: "{random:1-100}"
+      quantity: "{random:1-10}"
+      order_id: "{random:1000-9999}"
+      deduct_type: "order"
+
+  # AI服务API性能基准
+  ai_predict:
+    name: "AI预测"
+    endpoint: "/api/v1/ai/predict"
+    method: "POST"
+    concurrent_users: [10, 20, 30]
+    duration_seconds: 60
+    success_criteria:
+      avg_response_time: 500  # ≤ 500ms
+      p95_response_time: 2000  # ≤ 2000ms
+      success_rate: 96.0  # ≥ 96%
+    test_data:
+      model_name: "mock_ai_model"
+      input_data:
+        text: "这是一个测试文本，用于AI预测性能测试。{repeat}"
+        features: "{random_array:10}"
+      parameters:
+        temperature: "{random:0.1-1.0}"
+        max_tokens: "{random:50-200}"
+
+test_suites:
+  quick_test:
+    name: "快速测试"
+    description: "快速验证API基本性能"
+    tests:
+      - user_login
+      - order_create
+      - inventory_check
+    concurrent_users: 10
+    duration_seconds: 30
+
+  comprehensive_test:
+    name: "综合测试"
+    description: "完整的API性能测试套件"
+    tests:
+      - user_login
+      - user_register
+      - order_create
+      - order_query
+      - inventory_check
+      - inventory_deduct
+      - ai_predict
+    concurrent_users: [10, 30, 50]
+    duration_seconds: 60
+
+  stress_test:
+    name: "压力测试"
+    description: "高并发压力测试"
+    tests:
+      - user_login
+      - order_create
+      - inventory_deduct
+    concurrent_users: [100, 200, 500]
+    duration_seconds: 120
+
+  stability_test:
+    name: "稳定性测试"
+    description: "长时间运行稳定性测试"
+    tests:
+      - user_login
+      - order_query
+      - inventory_check
+    concurrent_users: 50
+    duration_seconds: 3600  # 1小时
+
+monitoring_config:
+  prometheus_enabled: true
+  prometheus_url: "http://localhost:9090"
+  grafana_enabled: true
+  grafana_url: "http://localhost:3000"
+  metrics:
+    - name: "api_response_time"
+      type: "histogram"
+      help: "API响应时间分布"
+    - name: "api_success_rate"
+      type: "gauge"
+      help: "API成功率"
+    - name: "api_throughput"
+      type: "counter"
+      help: "API吞吐量"
+
+report_config:
+  output_dir: "reports"
+  formats:
+    - json
+    - markdown
+    - csv
+  charts:
+    - type: "response_time_distribution"
+      title: "响应时间分布"
+    - type: "success_rate_trend"
+      title: "成功率趋势"
+    - type: "throughput_comparison"
+      title: "吞吐量对比"
+  include_detailed_stats: true
+  include_performance_assessment: true
+  include_recommendations: true
+
+mock_service_config:
+  port: 8080
+  response_time_config:
+    user_login: {min: 50, max: 200, p95: 150}
+    user_register: {min: 100, max: 300, p95: 250}
+    order_create: {min: 150, max: 500, p95: 400}
+    order_query: {min: 50, max: 200, p95: 150}
+    inventory_check: {min: 30, max: 100, p95: 80}
+    inventory_deduct: {min: 50, max: 200, p95: 150}
+    ai_predict: {min: 200, max: 800, p95: 600}
+  
+  success_rate_config:
+    user_login: 0.99
+    user_register: 0.98
+    order_create: 0.97
+    order_query: 0.99
+    inventory_check: 0.995
+    inventory_deduct: 0.985
+    ai_predict: 0.96

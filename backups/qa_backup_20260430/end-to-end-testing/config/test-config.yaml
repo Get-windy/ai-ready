@@ -1,0 +1,213 @@
+# 端到端测试配置
+# Sprint 27+1 测试环境配置
+
+environment:
+  name: "test"
+  url: "http://localhost:8080"
+  timeout: 30
+  description: "Sprint 27+1 测试环境"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "ai_ready_test"
+  user: "test_user"
+  password: "test_password_123"
+  driver: "postgresql"
+  pool_size: 10
+  connection_timeout: 10
+
+api:
+  base_url: "http://localhost:8080/api"
+  auth_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_token"
+  timeout: 30
+  retry_count: 3
+  retry_delay: 1.0
+  endpoints:
+    auth:
+      register: "/auth/register"
+      login: "/auth/login"
+      verify: "/auth/verify"
+      password_reset: "/auth/password-reset"
+    users:
+      list: "/users"
+      get: "/users/{id}"
+      create: "/users"
+      update: "/users/{id}"
+      delete: "/users/{id}"
+    products:
+      list: "/products"
+      get: "/products/{id}"
+      create: "/products"
+      update: "/products/{id}"
+      delete: "/products/{id}"
+      search: "/products/search"
+    orders:
+      list: "/orders"
+      get: "/orders/{id}"
+      create: "/orders"
+      update: "/orders/{id}"
+      status: "/orders/{id}/status"
+      search: "/orders/search"
+    payments:
+      list: "/payments"
+      get: "/payments/{id}"
+      create: "/payments"
+      process: "/payments/{id}/process"
+      refund: "/payments/{id}/refund"
+    inventory:
+      check: "/inventory/check"
+      reserve: "/inventory/reserve"
+      update: "/inventory/update"
+      list: "/inventory"
+    logistics:
+      create: "/logistics"
+      track: "/logistics/{tracking_number}/track"
+      update: "/logistics/{tracking_number}"
+
+ui:
+  browser: "chrome"
+  headless: true
+  slow_mo: 100
+  viewport:
+    width: 1920
+    height: 1080
+  timeout:
+    navigation: 30
+    action: 10
+    wait: 5
+  screenshot:
+    on_failure: true
+    path: "screenshots"
+    full_page: false
+
+message_queue:
+  host: "localhost"
+  port: 5672
+  username: "guest"
+  password: "guest"
+  vhost: "/"
+  exchange:
+    orders: "orders.exchange"
+    payments: "payments.exchange"
+    inventory: "inventory.exchange"
+  queue:
+    order_created: "order.created.queue"
+    payment_processed: "payment.processed.queue"
+    inventory_updated: "inventory.updated.queue"
+
+logging:
+  level: "INFO"
+  directory: "logs"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_prefix: "e2e_test"
+  max_files: 10
+  max_file_size: 10485760  # 10MB
+
+report:
+  directory: "reports"
+  format: "html"
+  include_screenshots: true
+  include_logs: true
+  generate_on:
+    - "failure"
+    - "success"
+  email:
+    enabled: false
+    recipients: []
+    on_failure: true
+
+test_data:
+  directory: "test_data"
+  cleanup_after_test: true
+  generate_on_start: true
+  data_types:
+    users:
+      count: 20
+      roles: ["customer", "admin", "operator"]
+    products:
+      count: 50
+      categories: ["electronics", "clothing", "food", "books", "home", "sports", "toys"]
+    orders:
+      count: 30
+      statuses: ["pending", "paid", "processing", "shipped", "delivered", "cancelled"]
+    payments:
+      count: 25
+      methods: ["credit_card", "debit_card", "paypal", "wechat_pay", "alipay"]
+      statuses: ["pending", "processing", "completed", "failed", "refunded"]
+
+performance:
+  thresholds:
+    page_load: 3.0  # 秒
+    api_response: 1.0  # 秒
+    database_query: 0.5  # 秒
+    transaction_complete: 5.0  # 秒
+  monitoring:
+    enabled: true
+    sampling_rate: 0.1  # 10% 采样率
+    alert_on_violation: true
+
+security:
+  ssl_verify: true
+  headers:
+    User-Agent: "AI-Ready-E2E-Test/1.0"
+    Accept: "application/json"
+    Content-Type: "application/json"
+  sensitive_data_masking: true
+  data_retention_days: 7
+
+test_categories:
+  user_flow:
+    enabled: true
+    tests:
+      - "user_registration"
+      - "user_login"
+      - "password_reset"
+      - "profile_management"
+  data_flow:
+    enabled: true
+    tests:
+      - "data_creation"
+      - "data_query"
+      - "data_update"
+      - "data_deletion"
+  business_flow:
+    enabled: true
+    tests:
+      - "order_creation"
+      - "payment_processing"
+      - "inventory_management"
+      - "logistics_tracking"
+  recovery_flow:
+    enabled: true
+    tests:
+      - "service_interruption"
+      - "database_failure"
+      - "network_interruption"
+      - "data_consistency"
+
+scheduling:
+  cron_expression: "0 2 * * *"  # 每天凌晨2点执行
+  parallel_execution: true
+  max_workers: 4
+  test_timeout: 3600  # 1小时
+
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#test-notifications"
+  email:
+    enabled: false
+    smtp_server: ""
+    smtp_port: 587
+    sender: "test@example.com"
+    recipients: ["team@example.com"]
+
+metadata:
+  project: "AI-Ready"
+  sprint: "27+1"
+  version: "1.0.0"
+  created: "2026-04-29"
+  author: "Test Team"
+  description: "Sprint 27+1 测试环境端到端自动化测试配置"

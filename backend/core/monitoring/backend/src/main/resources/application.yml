@@ -1,0 +1,213 @@
+# 监控告警模块 - 主配置文件
+server:
+  port: 8081
+  servlet:
+    context-path: /api/monitoring
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/css,text/javascript,application/javascript
+    min-response-size: 1024
+
+spring:
+  application:
+    name: monitoring-backend
+  profiles:
+    active: @spring.profiles.active@
+  
+  # 数据源配置
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ai_ready_monitoring
+    username: monitoring_user
+    password: ${DB_PASSWORD:monitoring_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+    show-sql: false
+  
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:redis_password}
+      database: 1
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    connection-timeout: 5000
+  
+  # 邮件配置
+  mail:
+    host: smtp.qiye.163.com
+    port: 465
+    username: ${MAIL_USERNAME:monitoring@example.com}
+    password: ${MAIL_PASSWORD:mail_password}
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            enable: true
+        debug: false
+
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # 安全配置
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/auth/realms/ai-ready
+
+# 监控指标配置
+monitoring:
+  metrics:
+    # 系统指标
+    system:
+      enabled: true
+      collection-interval: 30s
+      metrics:
+        cpu: true
+        memory: true
+        disk: true
+        network: true
+    
+    # 应用指标
+    application:
+      enabled: true
+      collection-interval: 60s
+      metrics:
+        jvm: true
+        http: true
+        db: true
+        cache: true
+        business: true
+    
+    # 业务指标
+    business:
+      enabled: true
+      collection-interval: 300s
+      metrics:
+        user: true
+        order: true
+        payment: true
+        inventory: true
+        cdc: true
+  
+  # 告警配置
+  alerting:
+    enabled: true
+    rule-engine:
+      update-interval: 60s
+      rule-directory: ./config/alerts
+    channels:
+      email:
+        enabled: true
+        from: ${MAIL_USERNAME:monitoring@example.com}
+      dingtalk:
+        enabled: false
+        webhook-url: ${DINGTALK_WEBHOOK:}
+        secret: ${DINGTALK_SECRET:}
+      wecom:
+        enabled: false
+        webhook-url: ${WECOM_WEBHOOK:}
+        key: ${WECOM_KEY:}
+    history:
+      retention-days: 90
+      cleanup-interval: 86400s
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles: 0.5,0.75,0.95,0.99
+
+# 日志配置
+logging:
+  level:
+    com.qizhilian.monitoring: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/monitoring-backend.log
+    max-size: 100MB
+    max-history: 30
+
+# 自定义配置
+app:
+  version: 1.0.0
+  environment: ${spring.profiles.active}
+  
+  # API配置
+  api:
+    prefix: /api/v1
+    rate-limit:
+      enabled: true
+      requests-per-second: 100
+      burst-size: 200
+    cors:
+      allowed-origins: "http://localhost:3000,http://localhost:5173"
+      allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600

@@ -1,0 +1,47 @@
+{
+  "project": "企智连",
+  "module": "数据备份恢复模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-15",
+  "totalCases": 15,
+  "categories": [
+    {
+      "name": "全量备份",
+      "description": "全量备份功能测试",
+      "cases": [
+        {"id": "BACKUP-FULL-001", "title": "数据库全量备份测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-FULL-002", "title": "文件系统全量备份测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-FULL-003", "title": "全量备份压缩测试", "priority": "P1", "type": "性能测试", "automation": true},
+        {"id": "BACKUP-FULL-004", "title": "全量备份加密测试", "priority": "P1", "type": "安全测试", "automation": true}
+      ]
+    },
+    {
+      "name": "增量备份",
+      "description": "增量备份功能测试",
+      "cases": [
+        {"id": "BACKUP-INC-001", "title": "数据库增量备份测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-INC-002", "title": "文件系统增量备份测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-INC-003", "title": "增量备份链完整性测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "定时备份",
+      "description": "定时备份功能测试",
+      "cases": [
+        {"id": "BACKUP-SCHED-001", "title": "定时备份计划设置测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-SCHED-002", "title": "定时备份执行测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "BACKUP-SCHED-003", "title": "备份通知功能测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "数据恢复",
+      "description": "数据恢复功能测试",
+      "cases": [
+        {"id": "RESTORE-001", "title": "全量恢复测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "RESTORE-002", "title": "增量恢复测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "RESTORE-003", "title": "时间点恢复测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "RESTORE-004", "title": "部分数据恢复测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+# Filebeat配置文件
+# Version: v1.0.0
+# 创建日期: 2026-04-28
+# 用途: AI-Ready测试环境日志采集
+
+filebeat.inputs:
+  # ========== 容器日志采集 ==========
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata:
+          host: "ai-ready-test"
+          match_fields:
+            - log.file.path
+      - decode_json_fields:
+          fields: ["message"]
+          target: "json"
+          overwrite_keys: true
+      - add_fields:
+          target: ''
+          fields:
+            environment: test
+            monitor_type: container
+
+  # ========== 应用日志采集 ==========
+  # API Gateway日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/api-gateway/*.log
+    fields:
+      service: api-gateway
+      component: application
+      environment: test
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+    multiline.timeout: 5s
+
+  # 库存服务日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/inventory/*.log
+    fields:
+      service: inventory
+      component: application
+      environment: test
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+    multiline.timeout: 5s
+
+  # 财务服务日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/finance/*.log
+    fields:
+      service: finance
+      component: application
+      environment: test
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+    multiline.timeout: 5s
+
+  # AI服务日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ai/*.log
+    fields:
+      service: ai
+      component: application
+      environment: test
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+    multiline.timeout: 5s
+
+  # 数据服务日志
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/data/*.log
+    fields:
+      service: data
+      component: application
+      environment: test
+    fields_under_root: true
+    multiline.pattern: '^\['
+    multiline.negate: true
+    multiline.match: after
+    multiline.timeout: 5s
+
+# ========== 处理器配置 ==========
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      netinfo.enabled: false
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_fields:
+      target: event
+      fields:
+        environment: test
+        project: ai-ready
+
+# ========== 输出配置 ==========
+# 输出到Logstash
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5000"]
+  bulk_max_size: 2048
+  loadbalance: true
+  timeout: 30
+  ttl: 30
+  compression_level: 3
+
+# 输出到Elasticsearch (备用)
+output.elasticsearch:
+  enabled: false
+  hosts: ["elasticsearch:9200"]
+  index: "ai-ready-logs-%{+yyyy.MM.dd}"
+  indices:
+    - index: "ai-ready-errors-%{+yyyy.MM.dd}"
+      when.contains:
+        tags: "error"
+  protocol: "http"
+  bulk_max_size: 500
+  bulk.flush.timeout: 30
+  compression_level: 3
+
+# ========== 日志配置 ==========
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat.log
+  keepfiles: 7
+  permissions: 0644
+
+# ========== 监控配置 ==========
+monitoring.enabled: false
+
+# ========== 性能配置 ==========
+queue.spool:
+  file:
+    path: "/var/lib/filebeat/spool"
+    permissions: 0600
+    size: 100MiB
+  events: 2048
+  flush.timeout: 1s
+
+# ========== 重试配置 ==========
+retry:
+  max_attempts: 3
+  wait_min: 1s
+  wait_max: 10s
+
+# ========== 安全配置 ==========
+# (测试环境关闭SSL)

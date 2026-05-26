@@ -1,0 +1,68 @@
+# Kibana配置文件
+# Version: v1.0.0
+# 创建日期: 2026-04-28
+
+# 服务器配置
+server.port: 5601
+server.host: "0.0.0.0"
+server.name: "ai-ready-kibana"
+
+# Elasticsearch连接配置
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.url: "http://elasticsearch:9200"
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+
+# 安全配置 (测试环境关闭)
+xpack.security.enabled: false
+xpack.reporting.encryptionKey: "a_random_encryption_key_for_reporting"
+xpack.security.encryptionKey: "a_random_encryption_key_for_security"
+xpack.encryptedSavedObjects.encryptionKey: "a_random_encryption_key_for_encrypted_objects"
+
+# 监控配置
+monitoring.ui.container.elasticsearch.enabled: false
+monitoring.ui.container.logstash.enabled: false
+
+# 索引配置
+kibana.index: ".kibana"
+
+# 默认应用
+kibana.defaultAppId: "discover"
+
+# 日志配置
+logging.dest: stdout
+logging.verbose: false
+
+# 国际化配置
+i18n.locale: "zh-CN"
+
+# 自动刷新时间
+state:sessionStorage:defaultInterval: "15m"
+
+# 空间配置
+xpack.spaces.enabled: true
+
+# 报表配置
+xpack.reporting.enabled: true
+xpack.reporting.roles_enabled: [ "superuser", "kibana_admin" ]
+
+# Canvas配置
+xpack.canvas.enabled: true
+
+# 仪表板配置
+xpack.dashboard.enabled: true
+
+# 可视化配置
+xpack.visualize.enabled: true
+
+# Discover配置
+xpack.discover.enabled: true
+
+# 控制台配置
+console.enabled: true
+
+# Dev Tools配置
+devTools.enabled: true
+
+# 状态检查配置
+status.allowAnonymous: true

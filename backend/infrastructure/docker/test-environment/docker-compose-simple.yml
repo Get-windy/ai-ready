@@ -1,0 +1,117 @@
+# AI-Ready Docker 容器化测试环境配置 (简化版)
+# Version: v1.0.0
+# 创建日期: 2026-04-24
+
+version: '3.8'
+
+networks:
+  ai-ready-test-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+
+volumes:
+  # PostgreSQL 数据卷
+  postgres-main-data:
+    driver: local
+  
+  # Redis 数据卷
+  redis-main-data:
+    driver: local
+  
+  # 应用日志
+  api-gateway-logs:
+    driver: local
+
+services:
+  # 前端服务
+  frontend:
+    image: nginx:alpine
+    container_name: ai-ready-frontend-test
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      - api-gateway
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: I:/AI-Ready/backend/core/api/core-api
+      dockerfile: Dockerfile
+    image: ai-ready/api-gateway:test
+    container_name: ai-ready-api-gateway-test
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-main:5432/gateway_db
+      SPRING_DATASOURCE_USERNAME: gateway_user
+      SPRING_DATASOURCE_PASSWORD: gateway_pass_2026
+      SPRING_REDIS_HOST: redis-main
+      SPRING_REDIS_PORT: 6379
+    volumes:
+      - api-gateway-logs:/app/logs
+    networks:
+      - ai-ready-test-net
+    depends_on:
+      postgres-main:
+        condition: service_healthy
+      redis-main:
+        condition: service_healthy
+    healthcheck:
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+
+  # PostgreSQL 主数据库
+  postgres-main:
+    image: postgres:14-alpine
+    container_name: ai-ready-postgres-main-test
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: gateway_user
+      POSTGRES_PASSWORD: gateway_pass_2026
+      POSTGRES_DB: gateway_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-main-data:/var/lib/postgresql/data
+    networks:
+      - ai-ready-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_user -d gateway_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 主缓存
+  redis-main:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-main-test
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-main-data:/data
+    networks:
+      - ai-ready-test-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

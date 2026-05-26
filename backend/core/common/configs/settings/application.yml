@@ -1,0 +1,76 @@
+# AI-Ready 全局配置
+# 所有环境共享的基础配置
+
+spring:
+  application:
+    name: ai-ready-api
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+  
+  # 文件上传
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # 线程池配置
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 20
+        queue-capacity: 100
+        keep-alive: 60s
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,refresh
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# 日志配置
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    path: /var/log/ai-ready
+
+# AI引擎配置
+ai:
+  engine:
+    timeout: 30000
+    retry:
+      max-attempts: 3
+      backoff: 1000
+
+# 业务配置
+app:
+  security:
+    jwt:
+      expiration: 86400000
+    password:
+      min-length: 8
+  upload:
+    allowed-types: jpg,jpeg,png,pdf,doc,docx,xls,xlsx

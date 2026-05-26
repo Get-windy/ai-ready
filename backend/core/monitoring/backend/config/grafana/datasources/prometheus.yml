@@ -1,0 +1,127 @@
+# Grafana 数据源配置 - Prometheus
+# 版本: v1.0.0
+# 环境: AI-Ready 测试环境
+# 创建日期: 2026-04-30
+
+apiVersion: 1
+
+datasources:
+  # ==================== Prometheus 数据源 ====================
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.47.0
+      cacheLevel: 'High'
+      incrementalQueryOverlapWindow: 10m
+      queryTimeout: 60s
+      disableRecordingRules: false
+      customQueryParameters: 'cluster=ai-ready-test&environment=test'
+    secureJsonData:
+      httpHeaderValue1: 'Bearer ${GRAFANA_API_TOKEN}'
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== Alertmanager 数据源 ====================
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: true
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== Loki 日志数据源 ====================
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: 'trace_id=(\w+)'
+          name: TraceID
+          url: '$${__value.raw}'
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== Tempo 分布式追踪数据源 ====================
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      nodeGraph:
+        enabled: true
+      tracesToLogs:
+        datasourceUid: loki
+        filterByTraceID: true
+        filterBySpanID: false
+        tags: ['job', 'instance', 'pod', 'namespace']
+      serviceMap:
+        datasourceUid: prometheus
+      search:
+        hide: false
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== PostgreSQL 数据源 ====================
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres-monitoring:5432
+    database: monitoring_db
+    user: monitoring_user
+    secureJsonData:
+      password: 'monitoring_pass_2026'
+    jsonData:
+      postgresVersion: 1500
+      sslmode: 'disable'
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+      timescaledb: false
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== 监控后端服务数据源 ====================
+  - name: Monitoring-Backend
+    type: prometheus
+    access: proxy
+    url: http://monitoring-backend:8081
+    jsonData:
+      httpMethod: GET
+      prometheusType: Prometheus
+      queryTimeout: 30s
+    editable: true
+    readOnly: false
+    version: 1
+
+  # ==================== 测试环境混合数据源 ====================
+  - name: Test-Environment-Mixed
+    type: grafana-test-environment-datasource
+    access: proxy
+    url: http://monitoring-backend:8081
+    jsonData:
+      environment: 'test'
+      cluster: 'ai-ready-test'
+      defaultQueryType: 'metrics'
+    editable: true
+    readOnly: false
+    version: 1

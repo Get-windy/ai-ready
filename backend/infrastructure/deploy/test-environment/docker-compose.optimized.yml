@@ -1,0 +1,490 @@
+# AI-Ready Docker 容器化测试环境配置（优化版）
+# Version: v2.0.0
+# 创建日期: 2026-04-29
+# 用途: 统一测试环境，支持前端、后端各模块、数据库集群、缓存集群、消息队列、监控服务
+# 优化: 多阶段构建、镜像大小优化、服务依赖优化、资源配置优化
+
+version: '3.8'
+
+# ==================== 全局配置 ====================
+x-common-env: &common-env
+  TZ: Asia/Shanghai
+  SPRING_PROFILES_ACTIVE: test
+  LOGGING_LEVEL: INFO
+  LOGGING_PATH: /app/logs
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+
+x-healthcheck-config: &healthcheck-config
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
+x-java-options: &java-options
+  JAVA_OPTS: >-
+    -Xms256m -Xmx512m
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+    -XX:+UseContainerSupport
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/app/logs/heapdump.hprof
+
+x-optimized-build: &optimized-build
+  context: ../../
+  dockerfile: ./Dockerfile
+  args:
+    BUILD_PROFILE: test
+    MIRROR_URL: https://maven.aliyun.com/repository/public
+    SKIP_TESTS: "true"
+  target: runtime
+
+# ==================== 网络配置 ====================
+networks:
+  ai-ready-test-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+          gateway: 172.30.0.1
+    name: ai-ready-test-network
+
+# ==================== 数据卷配置 ====================
+volumes:
+  # PostgreSQL 数据卷集群
+  postgres-main-data:
+    driver: local
+  postgres-inventory-data:
+    driver: local
+  postgres-finance-data:
+    driver: local
+  postgres-ai-data:
+    driver: local
+  postgres-data-data:
+    driver: local
+  
+  # Redis 缓存集群数据卷
+  redis-main-data:
+    driver: local
+  redis-inventory-data:
+    driver: local
+  redis-finance-data:
+    driver: local
+  redis-ai-data:
+    driver: local
+  redis-data-data:
+    driver: local
+  
+  # Kafka 消息队列数据卷
+  kafka-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  
+  # 监控系统数据卷
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  
+  # ELK 日志系统数据卷
+  elasticsearch-data:
+    driver: local
+  logstash-data:
+    driver: local
+  kibana-data:
+    driver: local
+  
+  # 应用日志数据卷
+  api-gateway-logs:
+    driver: local
+  inventory-logs:
+    driver: local
+  finance-logs:
+    driver: local
+  ai-logs:
+    driver: local
+  data-logs:
+    driver: local
+  frontend-logs:
+    driver: local
+
+# ==================== 服务配置 ====================
+services:
+  # ============ 数据库集群 ============
+  postgres-main:
+    image: postgres:15-alpine
+    container_name: ai-ready-postgres-main-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gateway_db
+      POSTGRES_USER: gateway_user
+      POSTGRES_PASSWORD: gateway_pass_2026
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-main-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres/init-main.sql:/docker-entrypoint-initdb.d/init-main.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  postgres-inventory:
+    image: postgres:15-alpine
+    container_name: ai-ready-postgres-inventory-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass_2026
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-inventory-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres/init-inventory.sql:/docker-entrypoint-initdb.d/init-inventory.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============ Redis 缓存集群 ============
+  redis-main:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-main-test
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis_pass_2026 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-main-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_pass_2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  redis-inventory:
+    image: redis:7-alpine
+    container_name: ai-ready-redis-inventory-test
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis_pass_2026 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-inventory-data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_pass_2026", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============ Kafka 消息队列 ============
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: ai-ready-zookeeper-test
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-data:/var/lib/zookeeper/log
+    ports:
+      - "2181:2181"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: ai-ready-kafka-test
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # ============ 前端服务（优化版） ============
+  frontend:
+    image: nginx:alpine
+    container_name: ai-ready-frontend-test
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      NGINX_ENV: test
+    volumes:
+      - ./nginx/frontend.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - frontend-logs:/var/log/nginx
+    ports:
+      - "3000:80"
+    networks:
+      - ai-ready-test-network
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-config
+      test: ["CMD-SHELL", "nginx -t"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============ API Gateway（使用优化构建） ============
+  api-gateway:
+    <<: *optimized-build
+    image: ai-ready/api-gateway:test-optimized
+    container_name: ai-ready-api-gateway-test
+    restart: unless-stopped
+    environment:
+      <<: [*common-env, *java-options]
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-main:5432/gateway_db
+      SPRING_DATASOURCE_USERNAME: gateway_user
+      SPRING_DATASOURCE_PASSWORD: gateway_pass_2026
+      SPRING_REDIS_HOST: redis-main
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_DATABASE: 0
+      SPRING_REDIS_PASSWORD: redis_pass_2026
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: gateway-events
+      SERVICE_ENDPOINTS_INVENTORY: http://inventory-service:8082
+      SERVICE_ENDPOINTS_FINANCE: http://finance-service:8081
+      SERVICE_ENDPOINTS_AI: http://ai-service:8083
+      SERVICE_ENDPOINTS_DATA: http://data-service:8084
+      METRICS_ENABLED: "true"
+      TRACING_ENABLED: "true"
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    volumes:
+      - api-gateway-logs:/app/logs
+    networks:
+      - ai-ready-test-network
+    depends_on:
+      postgres-main:
+        condition: service_healthy
+      redis-main:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck-config
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ============ 监控系统 ============
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: ai-ready-prometheus-test
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts:/etc/prometheus/alerts
+    ports:
+      - "9090:9090"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: ai-ready-grafana-test
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: grafana_pass_2026
+      GF_INSTALL_PLUGINS: postgres-datasource,redis-datasource,kafka-datasource
+      GF_FEATURE_TOGGLES_ENABLE: traceToMetrics
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"
+    networks:
+      - ai-ready-test-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============ ELK 日志系统 ============
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ai-ready-elasticsearch-test
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - ai-ready-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ai-ready-kibana-test
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - ai-ready-test-network
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+# 注：其他服务（inventory-service, finance-service, ai-service, data-service）的配置遵循相同模式
+# 使用优化的Dockerfile进行构建，具有完整的健康检查、资源限制和监控集成

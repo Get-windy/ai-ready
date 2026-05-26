@@ -1,0 +1,267 @@
+# ERP批次管理模块告警规则
+groups:
+  # 服务可用性告警
+  - name: service_availability
+    rules:
+      # 服务宕机告警
+      - alert: BatchManagementServiceDown
+        expr: up{job="batch-management"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: batch-management
+          team: erp-ops
+        annotations:
+          summary: "批次管理服务不可用"
+          description: "批次管理服务已宕机超过1分钟，实例 {{ $labels.instance }} 无法访问"
+          runbook_url: "https://wiki.example.com/runbooks/batch-management-service-down"
+
+      # 服务健康状态异常
+      - alert: BatchManagementHealthCheckFailed
+        expr: spring_health_status{job="batch-management", status!="UP"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "批次管理服务健康检查失败"
+          description: "批次管理服务健康状态异常，当前状态: {{ $labels.status }}"
+          runbook_url: "https://wiki.example.com/runbooks/health-check-failed"
+
+  # 性能指标告警
+  - name: performance_metrics
+    rules:
+      # 高CPU使用率
+      - alert: HighCPULoad
+        expr: rate(process_cpu_usage{job="batch-management"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次管理服务CPU使用率过高"
+          description: "CPU使用率持续5分钟超过80%，当前值: {{ $value }}%"
+
+      # 高内存使用率
+      - alert: HighMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap", job="batch-management"} / jvm_memory_max_bytes{area="heap", job="batch-management"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次管理服务内存使用率过高"
+          description: "堆内存使用率持续5分钟超过85%，当前值: {{ $value }}%"
+
+      # 内存泄漏检测
+      - alert: MemoryLeakDetected
+        expr: increase(jvm_memory_used_bytes{area="heap", job="batch-management"}[1h]) > 500 * 1024 * 1024
+        for: 30m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "检测到潜在内存泄漏"
+          description: "过去1小时内堆内存使用量增长超过500MB，当前增长: {{ $value | humanize }}"
+
+  # 响应时间告警
+  - name: response_time
+    rules:
+      # 慢响应告警 (P99 > 2秒)
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job="batch-management"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次管理服务响应时间过长"
+          description: "P99响应时间持续5分钟超过2秒，当前值: {{ $value }}秒"
+
+      # 超高延迟告警 (P99 > 5秒)
+      - alert: VerySlowResponseTime
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job="batch-management"}[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "批次管理服务响应时间严重延迟"
+          description: "P99响应时间持续2分钟超过5秒，当前值: {{ $value }}秒"
+
+  # 错误率告警
+  - name: error_rate
+    rules:
+      # 高错误率告警 (> 1%)
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{job="batch-management", outcome!="SUCCESS"}[5m]) / rate(http_server_requests_seconds_count{job="batch-management"}[5m]) * 100 > 1
+        for: 3m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次管理服务错误率过高"
+          description: "HTTP请求错误率持续3分钟超过1%，当前值: {{ $value }}%"
+
+      # 严重错误率告警 (> 5%)
+      - alert: CriticalErrorRate
+        expr: rate(http_server_requests_seconds_count{job="batch-management", outcome!="SUCCESS"}[5m]) / rate(http_server_requests_seconds_count{job="batch-management"}[5m]) * 100 > 5
+        for: 1m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "批次管理服务错误率严重过高"
+          description: "HTTP请求错误率持续1分钟超过5%，当前值: {{ $value }}%"
+
+  # 数据库连接告警
+  - name: database_connections
+    rules:
+      # 数据库连接池耗尽
+      - alert: DatabaseConnectionPoolExhausted
+        expr: hikaricp_connections_active{job="batch-management"} / hikaricp_connections_max{job="batch-management"} * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "数据库连接池即将耗尽"
+          description: "数据库连接池使用率超过90%，当前值: {{ $value }}%"
+
+      # 数据库连接等待
+      - alert: DatabaseConnectionWaiting
+        expr: hikaricp_connections_pending{job="batch-management"} > 10
+        for: 1m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "数据库连接等待队列过长"
+          description: "等待数据库连接的线程数超过10，当前值: {{ $value }}"
+
+  # 业务指标告警
+  - name: business_metrics
+    rules:
+      # 批次创建失败率
+      - alert: HighBatchCreationFailureRate
+        expr: rate(batch_creation_failed_total{job="batch-management"}[5m]) / rate(batch_creation_total{job="batch-management"}[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次创建失败率过高"
+          description: "批次创建失败率持续5分钟超过5%，当前值: {{ $value }}%"
+
+      # 批次处理延迟
+      - alert: HighBatchProcessingLatency
+        expr: batch_processing_duration_seconds{quantile="0.95", job="batch-management"} > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "批次处理延迟过高"
+          description: "批次处理P95延迟持续10分钟超过30秒，当前值: {{ $value }}秒"
+
+      # 批次数据不一致
+      - alert: BatchDataInconsistency
+        expr: batch_data_inconsistency_total{job="batch-management"} > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: batch-management
+        annotations:
+          summary: "批次数据不一致检测"
+          description: "检测到批次数据不一致，数量: {{ $value }}"
+
+  # 系统资源告警
+  - name: system_resources
+    rules:
+      # 磁盘空间不足
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes{job="node-exporter", mountpoint="/"} / node_filesystem_size_bytes{job="node-exporter", mountpoint="/"} * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "磁盘空间不足"
+          description: "根分区磁盘可用空间不足10%，当前值: {{ $value }}%"
+
+      # 系统负载过高
+      - alert: HighSystemLoad
+        expr: node_load5{job="node-exporter"} > node_cpu_seconds_total{job="node-exporter", mode="idle"} * 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "系统负载过高"
+          description: "系统5分钟平均负载超过CPU核心数的80%"
+
+  # 网络连接告警
+  - name: network_connections
+    rules:
+      # 网络连接数异常
+      - alert: HighNetworkConnections
+        expr: node_netstat_Tcp_CurrEstab{job="node-exporter"} > 10000
+        for: 2m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "网络连接数异常高"
+          description: "TCP当前连接数超过10000，当前值: {{ $value }}"
+
+      # 网络错误率过高
+      - alert: HighNetworkErrorRate
+        expr: rate(node_network_receive_errs_total{job="node-exporter"}[5m]) / rate(node_network_receive_packets_total{job="node-exporter"}[5m]) * 100 > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "网络接收错误率过高"
+          description: "网络接收错误率超过0.1%，当前值: {{ $value }}%"
+
+  # 容量规划告警
+  - name: capacity_planning
+    rules:
+      # 容量接近上限
+      - alert: CapacityApproachingLimit
+        expr: predict_linear(batch_creation_total{job="batch-management"}[1h], 3600*24*7) > batch_creation_capacity_total{job="batch-management"}
+        for: 1h
+        labels:
+          severity: warning
+          service: batch-management
+        annotations:
+          summary: "容量预测接近上限"
+          description: "根据当前趋势预测，7天后批次创建量将超过容量上限"
+
+  # 安全告警
+  - name: security_alerts
+    rules:
+      # 认证失败告警
+      - alert: AuthenticationFailureSpike
+        expr: rate(authentication_failure_total{job="batch-management"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          service: batch-management
+          security: true
+        annotations:
+          summary: "认证失败次数激增"
+          description: "认证失败次数激增，可能遭受暴力破解攻击"
+
+      # 异常访问模式
+      - alert: AbnormalAccessPattern
+        expr: rate(http_server_requests_seconds_count{job="batch-management", method="POST", uri="/api/batch"}[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: batch-management
+          security: true
+        annotations:
+          summary: "检测到异常访问模式"
+          description: "批次API POST请求频率异常高，可能遭受攻击"

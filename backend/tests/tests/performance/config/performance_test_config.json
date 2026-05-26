@@ -1,0 +1,191 @@
+{
+  "testConfig": {
+    "name": "AI-Ready Core Business Performance Test",
+    "version": "2.0",
+    "description": "AI-Ready核心业务场景性能测试配置 - Sprint 27+1",
+    "taskId": "task_1777012218632_7skjr2l71"
+  },
+  "server": {
+    "baseUrl": "localhost",
+    "port": 8080,
+    "protocol": "http",
+    "timeout": 10000,
+    "connectionTimeout": 10000,
+    "responseTimeout": 30000
+  },
+  "scenarios": {
+    "light": {
+      "threads": 50,
+      "rampup": 10,
+      "loops": 50,
+      "duration": 60,
+      "description": "轻量级负载测试 - 50并发用户"
+    },
+    "medium": {
+      "threads": 100,
+      "rampup": 15,
+      "loops": 30,
+      "duration": 120,
+      "description": "中等级负载测试 - 100并发用户（默认）"
+    },
+    "heavy": {
+      "threads": 200,
+      "rampup": 30,
+      "loops": 20,
+      "duration": 180,
+      "description": "重量级负载测试 - 200并发用户"
+    },
+    "stress": {
+      "threads": 500,
+      "rampup": 60,
+      "loops": 10,
+      "duration": 300,
+      "description": "压力测试 - 500并发用户（极限测试）"
+    }
+  },
+  "businessScenarios": [
+    {
+      "id": "scenario_001",
+      "name": "用户登录",
+      "api": "/api/auth/login",
+      "method": "POST",
+      "expectedMaxTime": 100,
+      "targetQPS": 300,
+      "weight": 0.25,
+      "enabled": true,
+      "description": "用户登录性能测试，响应时间目标≤100ms",
+      "payload": {
+        "username": "${TEST_USER_USERNAME}",
+        "password": "${TEST_USER_PASSWORD}",
+        "tenantId": "${TENANT_ID}"
+      }
+    },
+    {
+      "id": "scenario_002",
+      "name": "订单创建",
+      "api": "/api/orders/create",
+      "method": "POST",
+      "expectedMaxTime": 150,
+      "targetQPS": 200,
+      "weight": 0.25,
+      "enabled": true,
+      "description": "订单创建性能测试，响应时间目标≤150ms",
+      "payload": {
+        "customerId": 1,
+        "productId": "${productId}",
+        "quantity": "${quantity}",
+        "tenantId": "${TENANT_ID}",
+        "orderType": "NORMAL"
+      }
+    },
+    {
+      "id": "scenario_003",
+      "name": "库存查询",
+      "api": "/api/inventory/query",
+      "method": "GET",
+      "expectedMaxTime": 120,
+      "targetQPS": 250,
+      "weight": 0.25,
+      "enabled": true,
+      "description": "库存查询性能测试，响应时间目标≤120ms",
+      "params": {
+        "productId": "${queryProductId}",
+        "warehouseId": 1,
+        "tenantId": "${TENANT_ID}"
+      }
+    },
+    {
+      "id": "scenario_004",
+      "name": "报表生成",
+      "api": "/api/reports/generate",
+      "method": "GET",
+      "expectedMaxTime": 200,
+      "targetQPS": 100,
+      "weight": 0.25,
+      "enabled": true,
+      "description": "报表生成性能测试，响应时间目标≤200ms",
+      "params": {
+        "reportType": "${reportType}",
+        "startDate": "2026-01-01",
+        "endDate": "2026-04-24",
+        "tenantId": "${TENANT_ID}"
+      }
+    }
+  ],
+  "baseline": {
+    "avgResponseTime": 100,
+    "p50ResponseTime": 80,
+    "p95ResponseTime": 200,
+    "p99ResponseTime": 500,
+    "throughput": 100,
+    "errorRate": 1,
+    "concurrentUsers": 100,
+    "resourceUtilization": {
+      "cpu": 60,
+      "memory": 70,
+      "diskIO": 40,
+      "network": 50
+    }
+  },
+  "assertions": {
+    "responseCode": 200,
+    "responseTime": {
+      "userLogin": 100,
+      "orderCreate": 150,
+      "inventoryQuery": 120,
+      "reportGenerate": 200
+    },
+    "successRate": 99,
+    "errorRate": 1
+  },
+  "testData": {
+    "users": {
+      "file": "../data/test_users.csv",
+      "count": 200,
+      "types": ["normal", "vip", "admin"]
+    },
+    "products": {
+      "file": "../data/test_products.csv",
+      "count": 50,
+      "categories": ["electronics", "clothing", "food", "other"]
+    },
+    "orders": {
+      "file": "../data/test_orders.csv",
+      "count": 100,
+      "types": ["NORMAL", "VIP", "URGENT"]
+    }
+  },
+  "reportConfig": {
+    "outputDir": "../results",
+    "formats": ["jtl", "json", "html", "md"],
+    "includeSummary": true,
+    "includeDetails": true,
+    "includeBaselineComparison": true,
+    "includeRecommendations": true
+  },
+  "monitoring": {
+    "prometheus": {
+      "enabled": false,
+      "url": "http://localhost:9090",
+      "pushInterval": 10
+    },
+    "grafana": {
+      "enabled": false,
+      "url": "http://localhost:3000",
+      "dashboardId": "jmeter-performance"
+    },
+    "influxdb": {
+      "enabled": false,
+      "url": "http://localhost:8086",
+      "org": "ai-ready",
+      "bucket": "jmeter_results"
+    }
+  },
+  "jmeter": {
+    "version": "5.6.3",
+    "heapSize": "2g",
+    "gcAlgorithm": "G1GC",
+    "reportGeneration": true,
+    "backendListenerEnabled": false
+  }
+}

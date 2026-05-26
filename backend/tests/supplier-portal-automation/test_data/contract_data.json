@@ -1,0 +1,227 @@
+{
+  "test_contracts": [
+    {
+      "id": "CON001",
+      "supplier_id": "SUP001",
+      "contract_no": "CON-2024-001",
+      "name": "2024年度电子元器件采购框架协议",
+      "type": "framework",
+      "status": "active",
+      "start_date": "2024-01-01T00:00:00Z",
+      "end_date": "2024-12-31T23:59:59Z",
+      "amount": 5000000.00,
+      "currency": "CNY",
+      "payment_terms": "月结30天",
+      "delivery_terms": "FOB上海港",
+      "quality_standards": "符合ISO9001质量标准",
+      "penalty_clause": "延迟交货每日按合同金额0.1%罚款",
+      "termination_clause": "提前60天书面通知",
+      "signing_date": "2024-01-15T10:30:00Z",
+      "signed_by_supplier": "张经理",
+      "signed_by_company": "采购部王总监",
+      "attachment_count": 3,
+      "notes": "年度框架协议，具体采购订单另签",
+      "created_by": "system",
+      "created_time": "2024-01-15T10:30:00Z",
+      "updated_time": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "CON002",
+      "supplier_id": "SUP002",
+      "contract_no": "CON-2024-002",
+      "name": "机械设备维护服务合同",
+      "type": "service",
+      "status": "active",
+      "start_date": "2024-02-01T00:00:00Z",
+      "end_date": "2025-01-31T23:59:59Z",
+      "amount": 1200000.00,
+      "currency": "CNY",
+      "payment_terms": "季度付款",
+      "delivery_terms": "现场服务",
+      "quality_standards": "响应时间不超过4小时",
+      "penalty_clause": "服务响应超时每次罚款1000元",
+      "termination_clause": "提前30天书面通知",
+      "signing_date": "2024-02-01T14:20:00Z",
+      "signed_by_supplier": "王厂长",
+      "signed_by_company": "设备部李经理",
+      "attachment_count": 2,
+      "notes": "包含设备定期维护和紧急维修服务",
+      "created_by": "admin",
+      "created_time": "2024-02-01T14:20:00Z",
+      "updated_time": "2024-02-01T14:20:00Z"
+    },
+    {
+      "id": "CON003",
+      "supplier_id": "SUP001",
+      "contract_no": "CON-2024-003",
+      "name": "特种电子元件专项采购合同",
+      "type": "procurement",
+      "status": "completed",
+      "start_date": "2024-01-20T00:00:00Z",
+      "end_date": "2024-03-31T23:59:59Z",
+      "amount": 850000.00,
+      "currency": "CNY",
+      "payment_terms": "预付30%，货到付款70%",
+      "delivery_terms": "DDP工厂",
+      "quality_standards": "符合MIL-STD-883标准",
+      "penalty_clause": "质量问题退货并承担全部损失",
+      "termination_clause": "不可抗力除外",
+      "signing_date": "2024-01-20T09:15:00Z",
+      "signed_by_supplier": "张经理",
+      "signed_by_company": "采购部张专员",
+      "attachment_count": 5,
+      "notes": "特种项目专用元件采购",
+      "created_by": "system",
+      "created_time": "2024-01-20T09:15:00Z",
+      "updated_time": "2024-03-31T10:45:00Z"
+    },
+    {
+      "id": "CON004",
+      "supplier_id": "SUP004",
+      "contract_no": "CON-2024-004",
+      "name": "环保包装材料采购合同",
+      "type": "procurement",
+      "status": "active",
+      "start_date": "2024-04-01T00:00:00Z",
+      "end_date": "2024-09-30T23:59:59Z",
+      "amount": 350000.00,
+      "currency": "CNY",
+      "payment_terms": "月结45天",
+      "delivery_terms": "FOB深圳港",
+      "quality_standards": "符合GB/T 37422-2019环保标准",
+      "penalty_clause": "环保指标不合格承担违约金20%",
+      "termination_clause": "环保违规立即终止",
+      "signing_date": "2024-04-01T11:30:00Z",
+      "signed_by_supplier": "陈经理",
+      "signed_by_company": "采购部王总监",
+      "attachment_count": 4,
+      "notes": "半年期环保包装采购",
+      "created_by": "system",
+      "created_time": "2024-04-01T11:30:00Z",
+      "updated_time": "2024-04-01T11:30:00Z"
+    },
+    {
+      "id": "CON005",
+      "supplier_id": "SUP005",
+      "contract_no": "CON-2024-005",
+      "name": "ERP系统二次开发合同",
+      "type": "development",
+      "status": "negotiating",
+      "start_date": null,
+      "end_date": null,
+      "amount": 2000000.00,
+      "currency": "CNY",
+      "payment_terms": "按里程碑付款",
+      "delivery_terms": "源代码交付",
+      "quality_standards": "符合公司编码规范",
+      "penalty_clause": "延期每日罚款合同金额0.05%",
+      "termination_clause": "协商一致可终止",
+      "signing_date": null,
+      "signed_by_supplier": null,
+      "signed_by_company": null,
+      "attachment_count": 1,
+      "notes": "合同草案，待法务审核",
+      "created_by": "admin",
+      "created_time": "2024-05-01T15:20:00Z",
+      "updated_time": "2024-05-01T15:20:00Z"
+    }
+  ],
+  "contract_updates": [
+    {
+      "id": "CON001",
+      "update_fields": {
+        "amount": 5500000.00,
+        "notes": "追加采购预算50万元"
+      }
+    },
+    {
+      "id": "CON004",
+      "update_fields": {
+        "delivery_terms": "FCA深圳工厂",
+        "notes": "修改交货条款为FCA"
+      }
+    }
+  ],
+  "contract_status_changes": [
+    {
+      "id": "CON005",
+      "new_status": "active",
+      "reason": "法务审核通过",
+      "effective_date": "2024-05-10T00:00:00Z"
+    }
+  ],
+  "search_test_cases": [
+    {
+      "name": "按供应商搜索",
+      "search_params": {
+        "supplier_id": "SUP001"
+      },
+      "expected_results": ["CON001", "CON003"]
+    },
+    {
+      "name": "按状态搜索",
+      "search_params": {
+        "status": "active"
+      },
+      "expected_results": ["CON001", "CON002", "CON004"]
+    },
+    {
+      "name": "按合同类型搜索",
+      "search_params": {
+        "type": "procurement"
+      },
+      "expected_results": ["CON003", "CON004"]
+    },
+    {
+      "name": "按金额范围搜索",
+      "search_params": {
+        "min_amount": 1000000,
+        "max_amount": 3000000
+      },
+      "expected_results": ["CON002", "CON005"]
+    },
+    {
+      "name": "按时间范围搜索",
+      "search_params": {
+        "start_date_from": "2024-03-01T00:00:00Z",
+        "start_date_to": "2024-05-31T23:59:59Z"
+      },
+      "expected_results": ["CON004", "CON005"]
+    }
+  ],
+  "bulk_operations": {
+    "batch_renew": [
+      {
+        "id": "CON002",
+        "new_end_date": "2026-01-31T23:59:59Z",
+        "new_amount": 1500000.00,
+        "reason": "服务满意，续约2年"
+      }
+    ],
+    "batch_terminate": [
+      {
+        "id": "CON003",
+        "termination_reason": "项目已结束",
+        "termination_date": "2024-03-31T23:59:59Z"
+      }
+    ]
+  },
+  "performance_test_data": {
+    "batch_contracts": [
+      {
+        "supplier_id": "PERF001",
+        "contract_no": "CON-PERF-{{index}}",
+        "name": "性能测试合同{{index}}",
+        "type": "procurement",
+        "status": "active",
+        "start_date": "2024-06-01T00:00:00Z",
+        "end_date": "2024-12-31T23:59:59Z",
+        "amount": 100000.00,
+        "currency": "CNY",
+        "payment_terms": "月结30天"
+      }
+    ],
+    "concurrent_count": 100,
+    "max_response_time": 2000
+  }
+}

@@ -1,0 +1,106 @@
+# ERP Finance Module Configuration
+# 财务管理模块配置文件
+
+server:
+  port: 8095
+
+spring:
+  application:
+    name: erp-finance
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/erp_finance?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: erp_finance
+    password: ${DB_PASSWORD:erp_finance_2024}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect.storage_engine: disk
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      database: 2
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual
+        concurrency: 5
+        max-concurrency: 10
+
+# MyBatis-Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: cn.aiedge.erp.finance.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      table-underline: true
+
+# Redis Cache Configuration
+spring:
+  redis:
+    host: localhost
+    port: 6379
+    password: ${REDIS_PASSWORD:}
+    database: 2
+    timeout: 6000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+
+# Security Configuration
+sa-token:
+  token-name:Authorization
+  timeout: 2592000
+  active-timeout: -1
+  is-concurrent: false
+  is-share: false
+  token-style: uuid
+  is-log: false
+  is-read-cookie: false
+  is-read-header: true
+
+# Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: finance
+      paths-to-match: /api/erp/finance/**
+      packages-to-scan: cn.aiedge.erp.finance.controller
+
+# Log Configuration
+logging:
+  level:
+    cn.aiedge.erp.finance: debug
+    org.springframework.web: info
+  file:
+    name: logs/erp-finance.log
+    max-size: 10MB
+    max-history: 30

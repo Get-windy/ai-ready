@@ -1,0 +1,180 @@
+spring:
+  application:
+    name: erp-purchase-return
+  
+  # 数据源配置 (默认PostgreSQL, 可选MySQL: jdbc:mysql://localhost:3306/erp_purchase_return?...)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_purchase_return
+    username: erp_user
+    password: ${DB_PASSWORD:erp_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # Redis配置
+  redis:
+    host: localhost
+    port: 6379
+    password: 
+    database: 0
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    connection-timeout: 5000
+    template:
+      exchange: purchase.return.exchange
+      routing-key: purchase.return.routing.key
+      default-receive-queue: purchase.return.queue
+  
+  # MyBatis配置
+  mybatis-plus:
+    mapper-locations: classpath*:/mapper/**/*.xml
+    type-aliases-package: cn.aiedge.erp.purchase.return.entity
+    configuration:
+      map-underscore-to-camel-case: true
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    global-config:
+      db-config:
+        id-type: auto
+        logic-delete-field: deleted
+        logic-delete-value: 1
+        logic-not-delete-value: 0
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+  
+  # Activiti工作流配置
+  activiti:
+    database-schema-update: true
+    db-history-used: true
+    history-level: audit
+    check-process-definitions: true
+    process-definition-location-prefix: classpath:/processes/
+    deployment-name: 采购换货工作流
+
+# 服务端口
+server:
+  port: 8086
+  servlet:
+    context-path: /api/erp/purchase/return
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# Knife4j API文档配置
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    enable-swagger-models: true
+    swagger-model-name: 采购换货管理模块API文档
+  basic:
+    enable: false
+
+# Spring Security配置
+security:
+  oauth2:
+    resource-server:
+      jwt:
+        issuer-uri: http://localhost:8080/auth/realms/erp-system
+
+# 应用配置
+app:
+  # 换货相关配置
+  purchase-return:
+    # 换货申请有效期（天）
+    application-expiry-days: 30
+    # 默认审批流程
+    default-approval-process: purchase_return_approval
+    # 质量检测报告存储路径
+    quality-report-storage-path: /uploads/purchase/return/quality-reports/
+    # 最大换货数量限制（相对于原订单）
+    max-quantity-ratio: 1.5
+    # 换货单号前缀
+    return-code-prefix: RTN
+    # 是否自动触发供应商考核
+    auto-evaluate-supplier: true
+  
+  # 文件上传配置
+  upload:
+    base-path: /opt/erp/uploads/purchase/return/
+    allowed-extensions: .pdf,.jpg,.png,.jpeg,.gif,.doc,.docx,.xls,.xlsx
+    max-size-mb: 10
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge.erp.purchase.return: DEBUG
+    org.springframework.security: INFO
+    org.activiti: INFO
+    com.baomidou.mybatisplus: INFO
+  file:
+    name: logs/purchase-return.log
+    path: ./logs/
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+
+# 缓存配置
+cache:
+  redis:
+    # 换货单缓存有效期（分钟）
+    return-order-expiration: 60
+    # 供应商换货统计缓存有效期（小时）
+    supplier-stats-expiration: 24
+    # 换货统计数据缓存有效期（小时）
+    return-stats-expiration: 12
+
+# 消息队列配置
+message:
+  purchase-return:
+    exchange:
+      name: purchase.return.exchange
+      type: topic
+      durable: true
+      auto-delete: false
+    queue:
+      approval: purchase.return.approval.queue
+      execution: purchase.return.execution.queue
+      notification: purchase.return.notification.queue
+    routing-key:
+      approval: purchase.return.approval
+      execution: purchase.return.execution
+      notification: purchase.return.notification

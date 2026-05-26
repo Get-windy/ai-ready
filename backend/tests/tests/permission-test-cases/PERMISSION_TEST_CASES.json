@@ -1,0 +1,50 @@
+{
+  "project": "企智连",
+  "module": "权限管理模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-15",
+  "totalCases": 18,
+  "categories": [
+    {
+      "name": "角色管理",
+      "description": "角色管理功能测试",
+      "cases": [
+        {"id": "PERM-ROLE-001", "title": "角色创建测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-ROLE-002", "title": "角色编辑测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-ROLE-003", "title": "角色删除测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-ROLE-004", "title": "角色权限分配测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-ROLE-005", "title": "角色继承关系测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "用户权限",
+      "description": "用户权限功能测试",
+      "cases": [
+        {"id": "PERM-USER-001", "title": "用户角色分配测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-USER-002", "title": "正向权限验证测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-USER-003", "title": "反向权限验证测试", "priority": "P0", "type": "安全测试", "automation": true},
+        {"id": "PERM-USER-004", "title": "权限变更生效测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "资源访问控制",
+      "description": "资源访问控制功能测试",
+      "cases": [
+        {"id": "PERM-RES-001", "title": "API接口权限控制测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-RES-002", "title": "菜单权限控制测试", "priority": "P0", "type": "功能测试", "automation": true},
+        {"id": "PERM-RES-003", "title": "按钮权限控制测试", "priority": "P1", "type": "功能测试", "automation": true},
+        {"id": "PERM-RES-004", "title": "数据权限控制测试", "priority": "P0", "type": "功能测试", "automation": true}
+      ]
+    },
+    {
+      "name": "安全测试",
+      "description": "权限安全功能测试",
+      "cases": [
+        {"id": "PERM-SEC-001", "title": "越权访问测试", "priority": "P0", "type": "安全测试", "automation": true},
+        {"id": "PERM-SEC-002", "title": "权限绕过测试", "priority": "P0", "type": "安全测试", "automation": true},
+        {"id": "PERM-SEC-003", "title": "会话安全测试", "priority": "P1", "type": "安全测试", "automation": true},
+        {"id": "PERM-SEC-004", "title": "权限缓存刷新测试", "priority": "P1", "type": "功能测试", "automation": true}
+      ]
+    }
+  ]
+}

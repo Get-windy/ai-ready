@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # 监控告警后端服务
+  monitoring-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-ready-monitoring-backend-test
+    restart: unless-stopped
+    ports:
+      - "8090:8081"
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/ai_ready_db
+      SPRING_DATASOURCE_USERNAME: ai_ready_user
+      SPRING_DATASOURCE_PASSWORD: ai_ready_pass_2026
+      SPRING_REDIS_HOST: host.docker.internal
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_DATABASE: 1
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    networks:
+      - monitoring-test-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - postgres-test
+
+  # 使用现有的PostgreSQL实例
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: ai-ready-monitoring-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: monitoring_test_db
+      POSTGRES_USER: monitoring_test_user
+      POSTGRES_PASSWORD: monitoring_test_pass_2026
+    ports:
+      - "5439:5432"
+    volumes:
+      - ./data/postgres-test:/var/lib/postgresql/data
+      - ./init-scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - monitoring-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitoring_test_user -d monitoring_test_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  monitoring-test-net:
+    driver: bridge

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="企智连-并发登录性能测试">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BASE_URL" elementType="Argument">
+            <stringProp name="Argument.name">BASE_URL</stringProp>
+            <stringProp name="Argument.value">http://localhost:8080</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.comments">TC-CON-001 1000用户并发登录测试</stringProp>
+    </TestPlan>
+    <hashTree>
+      <!-- 1000用户并发登录线程组 -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="1000并发登录">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1000</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">60</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- 用户数据配置 -->
+        <CSVDataSet guiclass="CsvDataSetGui" testclass="CSVDataSet" testname="用户账号数据">
+          <stringProp name="filename">../data/users.csv</stringProp>
+          <stringProp name="variableNames">username,password</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="recycle">true</boolProp>
+        </CSVDataSet>
+        <hashTree/>
+        
+        <!-- 登录请求 -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="用户登录">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <stringProp name="Argument.value">{&#xd;
+  "username": "${username}",&#xd;
+  "password": "${password}"&#xd;
+}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
+          <stringProp name="HTTPSampler.path">/api/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          
+          <!-- JSON提取器提取token -->
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="提取登录Token">
+            <stringProp name="JSONPostProcessor.referenceNames">token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$data.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+        
+        <!-- 断言: 登录成功 -->
+        <JSONPathAssertion guiclass="JSONPathAssertionGui" testclass="JSONPathAssertion" testname="登录成功验证">
+          <stringProp name="JSONPathAssertion.jsonpath">$status</stringProp>
+          <stringProp name="JSONPathAssertion.expected_value">success</stringProp>
+          <boolProp name="JSONPathAssertion.json_validation_bool">true</boolProp>
+        </JSONPathAssertion>
+        <hashTree/>
+        
+        <!-- 响应时间断言 -->
+        <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="响应时间断言">
+          <stringProp name="DurationAssertion.duration">2000</stringProp>
+        </DurationAssertion>
+        <hashTree/>
+      </hashTree>
+      
+      <!-- 监听器 -->
+      <ResultCollector guiclass="AggregateReportGui" testclass="ResultCollector" testname="聚合报告">
+        <stringProp name="filename">../results/concurrent_login_aggregate.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+      
+      <!-- 响应时间分布图 -->
+      <ResultCollector guiclass="RespTimeGraphVisualizer" testclass="ResultCollector" testname="响应时间图形">
+        <stringProp name="filename">../results/concurrent_login_graph.jtl</stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+    
+    <!-- 逐步增加压力测试 -->
+    <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="阶梯压力测试">
+      <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+        <stringProp name="LoopController.loops">-1</stringProp>
+        <boolProp name="LoopController.continue_forever">true</boolProp>
+      </elementProp>
+      <stringProp name="ThreadGroup.num_threads">100</stringProp>
+      <stringProp name="ThreadGroup.ramp_time">30</stringProp>
+      <boolProp name="ThreadGroup.scheduler">true</boolProp>
+      <stringProp name="ThreadGroup.duration">600</stringProp>
+      <stringProp name="ThreadGroup.delay">0</stringProp>
+      
+      <!-- 使用ThroughputController控制请求速率 -->
+      <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController">
+        <intProp name="ThroughputController.style">1</intProp>
+        <boolProp name="ThroughputController.perThread">false</boolProp>
+        <stringProp name="ThroughputController.target">100</stringProp>
+      </ThroughputController>
+      <hashTree/>
+    </ThreadGroup>
+    <hashTree/>
+  </hashTree>
+</jmeterTestPlan>

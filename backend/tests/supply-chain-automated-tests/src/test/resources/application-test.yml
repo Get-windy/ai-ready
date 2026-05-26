@@ -1,0 +1,268 @@
+# 供应链自动化测试配置文件
+spring:
+  # 数据源配置（通过TestContainers动态注入）
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc.batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        temp.use_jdbc_metadata_defaults: false
+    show-sql: false
+  
+  # Flyway配置
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+  
+  # RabbitMQ配置（通过TestContainers动态注入）
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        prefetch: 10
+        concurrency: 5
+        max-concurrency: 10
+  
+  # 缓存配置
+  cache:
+    type: simple
+    cache-names:
+      - suppliers
+      - quotations
+      - inventory
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=600s
+  
+  # 测试专用配置
+  main:
+    allow-bean-definition-overriding: true
+    banner-mode: off
+  
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+      indent-output: true
+    deserialization:
+      fail-on-unknown-properties: false
+
+# 测试专用配置
+test:
+  # API测试配置
+  api:
+    base-url: http://localhost:${server.port}/api
+    timeout:
+      connection: 30000
+      read: 30000
+      write: 30000
+    retry:
+      max-attempts: 3
+      backoff-delay: 1000
+  
+  # 数据库测试配置
+  database:
+    cleanup:
+      enabled: true
+      strategy: DELETE_ALL
+      tables-to-exclude:
+        - flyway_schema_history
+        - databasechangelog
+        - databasechangeloglock
+    isolation:
+      enabled: true
+      schema-prefix: test_
+  
+  # 性能测试配置
+  performance:
+    response-time:
+      warning-threshold: 500
+      error-threshold: 1000
+    throughput:
+      min-requests-per-second: 10
+  
+  # 业务规则测试配置
+  business-rules:
+    supplier:
+      qualification-expiry-warning-days: 30
+      min-quotation-response-time: 24
+    inventory:
+      low-stock-threshold: 10
+      critical-stock-threshold: 5
+    batch:
+      default-expiry-days: 365
+      quality-check-frequency: 7
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.aiedge.erp: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.testcontainers: INFO
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/supply-chain-tests.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 100MB
+
+# 服务器配置
+server:
+  port: 0  # 随机端口
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+# 应用配置
+app:
+  # 测试数据配置
+  test-data:
+    suppliers:
+      count: 10
+      types:
+        - MANUFACTURER
+        - DISTRIBUTOR
+        - WHOLESALER
+      statuses:
+        - ACTIVE
+        - INACTIVE
+        - PENDING
+    inventory:
+      items:
+        count: 50
+        categories:
+          - RAW_MATERIAL
+          - FINISHED_GOODS
+          - SEMI_FINISHED
+          - SPARE_PARTS
+    batches:
+      count: 100
+      statuses:
+        - ACTIVE
+        - EXPIRED
+        - QUARANTINED
+  
+  # 业务规则配置
+  rules:
+    supplier:
+      auto-approval-threshold: 80
+      quotation-response-deadline: 72
+      performance-review-interval: 90
+    purchase:
+      min-competitive-quotations: 3
+      approval-levels:
+        - amount: 10000
+          approver: department_manager
+        - amount: 50000
+          approver: finance_manager
+        - amount: 100000
+          approver: general_manager
+    inventory:
+      reorder-point-calculation: moving_average
+      safety-stock-days: 7
+      abc-classification:
+        a-threshold: 0.8
+        b-threshold: 0.95
+  
+  # 集成配置
+  integration:
+    external:
+      timeout: 30000
+      retry:
+        max-attempts: 3
+        backoff-multiplier: 2
+        initial-interval: 1000
+    internal:
+      circuit-breaker:
+        enabled: true
+        failure-threshold: 5
+        timeout-duration: 10000
+        reset-duration: 60000
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+    tags:
+      application: supply-chain-automated-tests
+      environment: test
+  tracing:
+    sampling:
+      probability: 1.0
+
+# 安全配置（测试环境简化）
+security:
+  enabled: false
+  basic:
+    enabled: false
+  oauth2:
+    enabled: false
+
+# 测试执行配置
+test-execution:
+  parallel:
+    enabled: true
+    threads:
+      count: 4
+  timeout:
+    default: 300
+    long-running: 600
+  retry:
+    failed-tests:
+      enabled: true
+      max-attempts: 2
+  reporting:
+    format: html,xml
+    output-directory: target/test-reports
+    archive-reports: true

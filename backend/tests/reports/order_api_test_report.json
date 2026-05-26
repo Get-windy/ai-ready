@@ -1,0 +1,31 @@
+{
+  "test_date": "2026-04-27T13:17:11.633123",
+  "base_url": "http://localhost:8086",
+  "total_tests": 5,
+  "passed": 3,
+  "failed": 2,
+  "pass_rate": 60.0,
+  "results": [
+    {
+      "test": "健康检查",
+      "passed": true
+    },
+    {
+      "test": "订单创建",
+      "passed": true,
+      "order_id": 6
+    },
+    {
+      "test": "订单查询",
+      "passed": true
+    },
+    {
+      "test": "订单修改",
+      "passed": false
+    },
+    {
+      "test": "订单删除",
+      "passed": false
+    }
+  ]
+}

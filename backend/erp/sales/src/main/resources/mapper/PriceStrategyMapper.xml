@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.sale.mapper.PriceStrategyMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.sale.entity.PriceStrategy">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="strategy_type" property="strategyType"/>
+        <result column="customer_level" property="customerLevel"/>
+        <result column="region_code" property="regionCode"/>
+        <result column="product_category_id" property="productCategoryId"/>
+        <result column="base_price" property="basePrice"/>
+        <result column="price_factor" property="priceFactor"/>
+        <result column="discount_rate" property="discountRate"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="min_quantity" property="minQuantity"/>
+        <result column="formula_config" property="formulaConfig"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="effective_start_time" property="effectiveStartTime"/>
+        <result column="effective_end_time" property="effectiveEndTime"/>
+        <result column="priority" property="priority"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, name, description, strategy_type, customer_level, region_code,
+        product_category_id, base_price, price_factor, discount_rate, discount_amount,
+        min_quantity, formula_config, effective_start_time, effective_end_time,
+        priority, status, deleted, create_time, update_time, create_by, update_by
+    </sql>
+
+    <select id="selectPageList" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_pricing_strategy
+        WHERE deleted = 0
+        <if test="tenantId != null">
+            AND tenant_id = #{tenantId}
+        </if>
+        <if test="name != null and name != ''">
+            AND name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="strategyType != null and strategyType != ''">
+            AND strategy_type = #{strategyType}
+        </if>
+        ORDER BY priority ASC, create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,397 @@
+{
+  "module": "notification",
+  "description": "企智连消息通知模块测试用例",
+  "version": "1.0.0",
+  "testSuites": [
+    {
+      "suiteId": "NOTIFY_SYSTEM_001",
+      "suiteName": "系统通知测试",
+      "description": "测试系统通知功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_SYSTEM_001_001",
+          "title": "公告发布测试",
+          "description": "验证能够发布系统公告",
+          "steps": [
+            "1. 登录管理员账号",
+            "2. 进入公告发布页面",
+            "3. 填写公告标题和内容",
+            "4. 选择发布范围",
+            "5. 点击发布"
+          ],
+          "expectedResult": "公告发布成功，所有指定用户可见",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_SYSTEM_001_002",
+          "title": "公告接收测试",
+          "description": "验证用户能够接收系统公告",
+          "steps": [
+            "1. 登录普通用户账号",
+            "2. 查看公告列表",
+            "3. 点击查看公告详情"
+          ],
+          "expectedResult": "公告正确显示，可查看详情",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_SYSTEM_001_003",
+          "title": "系统升级通知测试",
+          "description": "验证能够发送系统升级通知",
+          "steps": [
+            "1. 进入系统通知管理",
+            "2. 创建系统升级通知",
+            "3. 设置升级时间和影响范围",
+            "4. 发布通知"
+          ],
+          "expectedResult": "升级通知发送成功，用户可接收",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_SYSTEM_001_004",
+          "title": "维护通知测试",
+          "description": "验证能够发送系统维护通知",
+          "steps": [
+            "1. 进入系统通知管理",
+            "2. 创建维护通知",
+            "3. 设置维护时间和范围",
+            "4. 发布通知"
+          ],
+          "expectedResult": "维护通知发送成功",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_SYSTEM_001_005",
+          "title": "紧急通知测试",
+          "description": "验证能够发送紧急通知",
+          "steps": [
+            "1. 进入紧急通知发布",
+            "2. 填写紧急通知内容",
+            "3. 设置推送方式（站内信/短信/邮件）",
+            "4. 立即发送"
+          ],
+          "expectedResult": "紧急通知即时送达",
+          "priority": "high",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "NOTIFY_APPROVAL_002",
+      "suiteName": "审批提醒测试",
+      "description": "测试审批提醒功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_APPROVAL_002_001",
+          "title": "待审批提醒测试",
+          "description": "验证待审批事项能够及时提醒",
+          "steps": [
+            "1. 创建待审批事项",
+            "2. 触发审批提醒",
+            "3. 查看是否收到提醒"
+          ],
+          "expectedResult": "待审批人收到提醒通知",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_APPROVAL_002_002",
+          "title": "审批结果通知测试",
+          "description": "验证审批结果能够通知申请人",
+          "steps": [
+            "1. 提交审批申请",
+            "2. 审批人完成审批",
+            "3. 查看审批结果通知"
+          ],
+          "expectedResult": "申请人收到审批结果通知",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_APPROVAL_002_003",
+          "title": "审批超时提醒测试",
+          "description": "验证审批超时能够自动提醒",
+          "steps": [
+            "1. 创建待审批事项",
+            "2. 等待审批超时",
+            "3. 查看超时提醒"
+          ],
+          "expectedResult": "超时时自动发送提醒",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_APPROVAL_002_004",
+          "title": "审批转交通知测试",
+          "description": "验证审批能够转交通知",
+          "steps": [
+            "1. 审批人转交审批事项",
+            "2. 查看转交通知"
+          ],
+          "expectedResult": "被转交人收到转交通知",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "NOTIFY_BUSINESS_003",
+      "suiteName": "业务提醒测试",
+      "description": "测试业务提醒功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_BUSINESS_003_001",
+          "title": "订单状态变更通知测试",
+          "description": "验证订单状态变更能够通知客户",
+          "steps": [
+            "1. 创建订单",
+            "2. 订单状态变更（已发货/已送达）",
+            "3. 查看订单状态变更通知"
+          ],
+          "expectedResult": "客户收到订单状态变更通知",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_BUSINESS_003_002",
+          "title": "库存预警通知测试",
+          "description": "验证库存不足时能够预警",
+          "steps": [
+            "1. 设置库存预警阈值",
+            "2. 商品库存低于阈值",
+            "3. 查看库存预警通知"
+          ],
+          "expectedResult": "相关人员收到库存预警通知",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_BUSINESS_003_003",
+          "title": "账款到期提醒测试",
+          "description": "验证账款到期能够提醒",
+          "steps": [
+            "1. 创建应收/应付账单",
+            "2. 设置到期提醒",
+            "3. 接近到期日时查看提醒"
+          ],
+          "expectedResult": "相关人员收到账款到期提醒",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_BUSINESS_003_004",
+          "title": "任务截止提醒测试",
+          "description": "验证任务截止能够提醒",
+          "steps": [
+            "1. 创建任务并设置截止时间",
+            "2. 接近截止时间",
+            "3. 查看任务截止提醒"
+          ],
+          "expectedResult": "任务负责人收到截止提醒",
+          "priority": "medium",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "NOTIFY_PUSH_004",
+      "suiteName": "消息推送测试",
+      "description": "测试消息推送功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_PUSH_004_001",
+          "title": "站内信推送测试",
+          "description": "验证能够推送站内信",
+          "steps": [
+            "1. 进入站内信推送",
+            "2. 选择接收人",
+            "3. 填写消息内容",
+            "4. 发送站内信"
+          ],
+          "expectedResult": "接收人收到站内信",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_PUSH_004_002",
+          "title": "邮件推送测试",
+          "description": "验证能够推送邮件",
+          "steps": [
+            "1. 进入邮件推送",
+            "2. 填写收件人和内容",
+            "3. 发送邮件"
+          ],
+          "expectedResult": "收件人收到邮件",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_PUSH_004_003",
+          "title": "短信推送测试",
+          "description": "验证能够推送短信",
+          "steps": [
+            "1. 进入短信推送",
+            "2. 填写手机号和内容",
+            "3. 发送短信"
+          ],
+          "expectedResult": "收件人收到短信",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_PUSH_004_004",
+          "title": "企业微信推送测试",
+          "description": "验证能够推送到企业微信",
+          "steps": [
+            "1. 进入企业微信推送",
+            "2. 配置企业微信应用",
+            "3. 发送消息"
+          ],
+          "expectedResult": "企业微信收到消息",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_PUSH_004_005",
+          "title": "推送失败重试测试",
+          "description": "验证推送失败能够重试",
+          "steps": [
+            "1. 模拟推送失败",
+            "2. 查看重试机制",
+            "3. 验证重试成功"
+          ],
+          "expectedResult": "推送失败后自动重试",
+          "priority": "medium",
+          "type": "boundary"
+        }
+      ]
+    },
+    {
+      "suiteId": "NOTIFY_MANAGE_005",
+      "suiteName": "消息管理测试",
+      "description": "测试消息管理功能",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_MANAGE_005_001",
+          "title": "消息列表查询测试",
+          "description": "验证能够查询消息列表",
+          "steps": [
+            "1. 进入消息列表",
+            "2. 查看消息列表"
+          ],
+          "expectedResult": "消息列表正确显示",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_MANAGE_005_002",
+          "title": "消息已读/未读测试",
+          "description": "验证能够标记消息已读",
+          "steps": [
+            "1. 查看未读消息",
+            "2. 点击标记已读",
+            "3. 验证已读状态"
+          ],
+          "expectedResult": "消息状态正确更新",
+          "priority": "high",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_MANAGE_005_003",
+          "title": "消息删除测试",
+          "description": "验证能够删除消息",
+          "steps": [
+            "1. 选择消息",
+            "2. 点击删除",
+            "3. 确认删除"
+          ],
+          "expectedResult": "消息删除成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_MANAGE_005_004",
+          "title": "消息归档测试",
+          "description": "验证能够归档消息",
+          "steps": [
+            "1. 选择消息",
+            "2. 点击归档",
+            "3. 查看归档消息"
+          ],
+          "expectedResult": "消息归档成功",
+          "priority": "medium",
+          "type": "positive"
+        },
+        {
+          "id": "NOTIFY_MANAGE_005_005",
+          "title": "消息搜索测试",
+          "description": "验证能够搜索消息",
+          "steps": [
+            "1. 进入搜索页面",
+            "2. 输入关键词搜索",
+            "3. 查看搜索结果"
+          ],
+          "expectedResult": "搜索结果正确显示",
+          "priority": "high",
+          "type": "positive"
+        }
+      ]
+    },
+    {
+      "suiteId": "NOTIFY_AUTH_006",
+      "suiteName": "权限测试",
+      "description": "测试消息模块权限控制",
+      "priority": "high",
+      "testCases": [
+        {
+          "id": "NOTIFY_AUTH_006_001",
+          "title": "消息查看权限测试",
+          "description": "验证只能查看有权限的消息",
+          "steps": [
+            "1. 使用普通用户登录",
+            "2. 尝试查看管理员消息"
+          ],
+          "expectedResult": "无法查看无权限消息",
+          "priority": "high",
+          "type": "permission"
+        },
+        {
+          "id": "NOTIFY_AUTH_006_002",
+          "title": "消息发送权限测试",
+          "description": "验证只有授权用户能发送消息",
+          "steps": [
+            "1. 使用无权限用户",
+            "2. 尝试发送系统通知"
+          ],
+          "expectedResult": "无权限发送被拒绝",
+          "priority": "high",
+          "type": "permission"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalTestCases": 24,
+    "functionalTests": 19,
+    "boundaryTests": 1,
+    "permissionTests": 2,
+    "totalSuites": 6,
+    "testDate": "2026-04-14"
+  },
+  "metadata": {
+    "projectId": "ai-ready",
+    "projectName": "AI-Ready企智连",
+    "moduleName": "消息通知模块",
+    "version": "1.0",
+    "testEnvironment": "test"
+  }
+}

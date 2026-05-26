@@ -1,0 +1,253 @@
+// AI-Ready ERP 组件库全局样式
+@use './variables.scss' as *;
+
+// 基础样式重置
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: var(--ar-font-family);
+  font-size: var(--ar-font-size-base);
+  line-height: 1.5;
+  color: var(--ar-text-color-primary);
+  background-color: var(--ar-bg-color-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--ar-bg-color-page);
+  transition: background-color var(--ar-transition-duration) var(--ar-transition-function-ease-in-out-bezier);
+}
+
+// 通用工具类
+.ar-text {
+  &-primary {
+    color: var(--ar-text-color-primary);
+  }
+  
+  &-regular {
+    color: var(--ar-text-color-regular);
+  }
+  
+  &-secondary {
+    color: var(--ar-text-color-secondary);
+  }
+  
+  &-placeholder {
+    color: var(--ar-text-color-placeholder);
+  }
+  
+  &-disabled {
+    color: var(--ar-text-color-disabled);
+  }
+}
+
+.ar-bg {
+  &-primary {
+    background-color: var(--ar-color-primary);
+    color: var(--ar-color-white);
+  }
+  
+  &-success {
+    background-color: var(--ar-color-success);
+    color: var(--ar-color-white);
+  }
+  
+  &-warning {
+    background-color: var(--ar-color-warning);
+    color: var(--ar-color-white);
+  }
+  
+  &-danger {
+    background-color: var(--ar-color-danger);
+    color: var(--ar-color-white);
+  }
+  
+  &-info {
+    background-color: var(--ar-color-info);
+    color: var(--ar-color-white);
+  }
+  
+  &-page {
+    background-color: var(--ar-bg-color-page);
+  }
+}
+
+// 间距工具类
+.ar-m {
+  @for $i from 0 through 5 {
+    &t-#{$i} {
+      margin-top: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &b-#{$i} {
+      margin-bottom: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &l-#{$i} {
+      margin-left: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &r-#{$i} {
+      margin-right: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &x-#{$i} {
+      margin-left: calc(var(--ar-spacing-xs) * #{$i});
+      margin-right: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &y-#{$i} {
+      margin-top: calc(var(--ar-spacing-xs) * #{$i});
+      margin-bottom: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &-#{$i} {
+      margin: calc(var(--ar-spacing-xs) * #{$i});
+    }
+  }
+}
+
+.ar-p {
+  @for $i from 0 through 5 {
+    &t-#{$i} {
+      padding-top: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &b-#{$i} {
+      padding-bottom: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &l-#{$i} {
+      padding-left: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &r-#{$i} {
+      padding-right: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &x-#{$i} {
+      padding-left: calc(var(--ar-spacing-xs) * #{$i});
+      padding-right: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &y-#{$i} {
+      padding-top: calc(var(--ar-spacing-xs) * #{$i});
+      padding-bottom: calc(var(--ar-spacing-xs) * #{$i});
+    }
+    &-#{$i} {
+      padding: calc(var(--ar-spacing-xs) * #{$i});
+    }
+  }
+}
+
+// 布局工具类
+.ar-flex {
+  display: flex;
+  
+  &-row {
+    flex-direction: row;
+  }
+  
+  &-column {
+    flex-direction: column;
+  }
+  
+  &-center {
+    align-items: center;
+    justify-content: center;
+  }
+  
+  &-between {
+    justify-content: space-between;
+  }
+  
+  &-around {
+    justify-content: space-around;
+  }
+  
+  &-evenly {
+    justify-content: space-evenly;
+  }
+  
+  &-wrap {
+    flex-wrap: wrap;
+  }
+  
+  &-nowrap {
+    flex-wrap: nowrap;
+  }
+}
+
+.ar-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--ar-spacing-lg);
+}
+
+// 边框工具类
+.ar-border {
+  border: 1px solid var(--ar-border-color-base);
+  
+  &-top {
+    border-top: 1px solid var(--ar-border-color-base);
+  }
+  
+  &-right {
+    border-right: 1px solid var(--ar-border-color-base);
+  }
+  
+  &-bottom {
+    border-bottom: 1px solid var(--ar-border-color-base);
+  }
+  
+  &-left {
+    border-left: 1px solid var(--ar-border-color-base);
+  }
+  
+  &-rounded {
+    border-radius: var(--ar-border-radius-base);
+  }
+  
+  &-circle {
+    border-radius: var(--ar-border-radius-circle);
+  }
+  
+  &-none {
+    border: none;
+  }
+}
+
+// 阴影工具类
+.ar-shadow {
+  box-shadow: var(--ar-box-shadow-base);
+  
+  &-light {
+    box-shadow: var(--ar-box-shadow-light);
+  }
+  
+  &-medium {
+    box-shadow: var(--ar-box-shadow-medium);
+  }
+  
+  &-dark {
+    box-shadow: var(--ar-box-shadow-dark);
+  }
+  
+  &-none {
+    box-shadow: none;
+  }
+}
+
+// 响应式断点
+@media (max-width: 768px) {
+  .ar-container {
+    padding: 0 var(--ar-spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .ar-container {
+    padding: 0 var(--ar-spacing-sm);
+  }
+}

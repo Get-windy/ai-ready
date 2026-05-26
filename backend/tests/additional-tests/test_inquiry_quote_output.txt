@@ -1,0 +1,59 @@
+
+=== 测试步骤1: 询价单创建 ===
+
+============================================================
+询价/报价流程端到端测试报告
+============================================================
+测试时间: 2026-04-29 20:28:43
+测试环境: http://localhost:8080
+------------------------------------------------------------
+
+测试结果统计:
+  通过: 0
+  失败: 2
+  总计: 2
+  通过率: 0.0%
+
+详细结果:
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 159, in test_01_create_inquiry
+    return self.log_test_step(
+           ~~~~~~~~~~~~~~~~~~^
+        "询价单创建",
+        ^^^^^^^^^^^^^
+        False,
+        ^^^^^^
+        f"状态码: {response.status_code}, 响应: {response.text[:200]}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 133, in log_test_step
+    print(f"{status} {step_name}: {details}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 605, in test_inquiry_quote_e2e
+    test.test_01_create_inquiry()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 167, in test_01_create_inquiry
+    return self.log_test_step("询价单创建", False, f"异常: {str(e)}")
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 133, in log_test_step
+    print(f"{status} {step_name}: {details}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 637, in <module>
+    report = test_inquiry_quote_e2e()
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 627, in test_inquiry_quote_e2e
+    report = test.generate_report()
+  File "I:\AI-Ready\tests\test_inquiry_quote_e2e.py", line 581, in generate_report
+    print(f"{i}. {status} {result['step']}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 3: illegal multibyte sequence

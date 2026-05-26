@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.sale.mapper.PriceRuleMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.sale.entity.PriceRule">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="strategy_id" property="strategyId"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="condition_expression" property="conditionExpression"/>
+        <result column="calculation_expression" property="calculationExpression"/>
+        <result column="discount_rate" property="discountRate"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="price_factor" property="priceFactor"/>
+        <result column="fixed_amount" property="fixedAmount"/>
+        <result column="min_quantity" property="minQuantity"/>
+        <result column="max_quantity" property="maxQuantity"/>
+        <result column="min_amount" property="minAmount"/>
+        <result column="max_amount" property="maxAmount"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, tenant_id, name, description, strategy_id, rule_type,
+        condition_expression, calculation_expression, discount_rate, discount_amount,
+        price_factor, fixed_amount, min_quantity, max_quantity, min_amount, max_amount,
+        sort_order, status, deleted, create_time, update_time, create_by, update_by
+    </sql>
+
+    <select id="selectByStrategyIds" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_pricing_rule
+        WHERE deleted = 0
+        AND strategy_id IN
+        <foreach collection="strategyIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND status = 'active'
+        ORDER BY sort_order ASC
+    </select>
+
+</mapper>

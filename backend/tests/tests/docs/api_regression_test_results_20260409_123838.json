@@ -1,0 +1,85 @@
+{
+  "test_time": "2026-04-09 12:38:38",
+  "baseline": {
+    "test_time": "2026-04-03 22:29:35",
+    "pressure_test": {
+      "baseline_avg_time": 5.8,
+      "low_concurrent_avg_time": 85.4,
+      "medium_concurrent_avg_time": 151.2,
+      "high_concurrent_avg_time": 168.6,
+      "stress_test_avg_time": 196.9
+    }
+  },
+  "current": {
+    "avg_response_time": 4093.4956500010835,
+    "passed": 0,
+    "failed": 6,
+    "warned": 0,
+    "total": 6
+  },
+  "comparison": {
+    "avg_time_change_percent": 70477.51120691524
+  },
+  "tests": [
+    {
+      "name": "API Health Check",
+      "endpoint": "/",
+      "status_code": 0,
+      "response_time_ms": 4114.154100010637,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": 70833.69137949374,
+      "status": "FAIL",
+      "message": "Unexpected status code: 0"
+    },
+    {
+      "name": "User API",
+      "endpoint": "/api/user/page",
+      "status_code": 0,
+      "response_time_ms": 4068.2757000031415,
+      "baseline_time_ms": 10.0,
+      "deviation_percent": 40582.757000031415,
+      "status": "FAIL",
+      "message": "Unexpected status: 0"
+    },
+    {
+      "name": "Role API",
+      "endpoint": "/api/role/page",
+      "status_code": 0,
+      "response_time_ms": 4099.404499997036,
+      "baseline_time_ms": 10.0,
+      "deviation_percent": 40894.044999970356,
+      "status": "FAIL",
+      "message": "Unexpected status: 0"
+    },
+    {
+      "name": "Consistency Test #1",
+      "endpoint": "/",
+      "status_code": 0,
+      "response_time_ms": 4084.5988000073703,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": 70324.11724150638,
+      "status": "FAIL",
+      "message": "Inconsistent status: 0"
+    },
+    {
+      "name": "Consistency Test #2",
+      "endpoint": "/",
+      "status_code": 0,
+      "response_time_ms": 4093.536199987284,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": 70478.21034460833,
+      "status": "FAIL",
+      "message": "Inconsistent status: 0"
+    },
+    {
+      "name": "Consistency Test #3",
+      "endpoint": "/",
+      "status_code": 0,
+      "response_time_ms": 4101.004600001033,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": 70606.97586208678,
+      "status": "FAIL",
+      "message": "Inconsistent status: 0"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "project": "企智连",
+  "module": "客户管理模块",
+  "version": "1.0.0",
+  "createdAt": "2026-04-14",
+  "totalCases": 25,
+  "categories": [
+    {
+      "name": "客户档案",
+      "description": "客户档案管理功能测试",
+      "cases": [
+        {"id": "CUST-001", "title": "个人客户新增测试", "priority": "P0", "automation": true},
+        {"id": "CUST-002", "title": "企业客户新增测试", "priority": "P0", "automation": true},
+        {"id": "CUST-003", "title": "客户信息编辑测试", "priority": "P0", "automation": true},
+        {"id": "CUST-004", "title": "客户分类管理测试", "priority": "P1", "automation": true},
+        {"id": "CUST-005", "title": "客户标签管理测试", "priority": "P1", "automation": true},
+        {"id": "CUST-006", "title": "客户导入导出测试", "priority": "P1", "automation": true},
+        {"id": "CUST-007", "title": "客户合并去重测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "客户等级",
+      "description": "客户等级管理功能测试",
+      "cases": [
+        {"id": "CUST-LEVEL-001", "title": "等级规则配置测试", "priority": "P0", "automation": true},
+        {"id": "CUST-LEVEL-002", "title": "自动升级测试", "priority": "P0", "automation": true},
+        {"id": "CUST-LEVEL-003", "title": "自动降级测试", "priority": "P1", "automation": true},
+        {"id": "CUST-LEVEL-004", "title": "等级权益验证测试", "priority": "P1", "automation": true},
+        {"id": "CUST-LEVEL-005", "title": "等级历史记录测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "客户跟进",
+      "description": "客户跟进管理功能测试",
+      "cases": [
+        {"id": "CUST-FOLLOW-001", "title": "跟进记录添加测试", "priority": "P0", "automation": true},
+        {"id": "CUST-FOLLOW-002", "title": "跟进计划设置测试", "priority": "P0", "automation": true},
+        {"id": "CUST-FOLLOW-003", "title": "跟进提醒触发测试", "priority": "P1", "automation": true},
+        {"id": "CUST-FOLLOW-004", "title": "跟进统计分析测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "商机管理",
+      "description": "商机管理功能测试",
+      "cases": [
+        {"id": "CUST-OPP-001", "title": "商机创建测试", "priority": "P0", "automation": true},
+        {"id": "CUST-OPP-002", "title": "商机阶段推进测试", "priority": "P0", "automation": true},
+        {"id": "CUST-OPP-003", "title": "商机输赢分析测试", "priority": "P1", "automation": true},
+        {"id": "CUST-OPP-004", "title": "商机转化统计测试", "priority": "P1", "automation": true}
+      ]
+    },
+    {
+      "name": "客户报表",
+      "description": "客户报表功能测试",
+      "cases": [
+        {"id": "CUST-RPT-001", "title": "客户增长报表测试", "priority": "P1", "automation": true},
+        {"id": "CUST-RPT-002", "title": "客户价值分析测试", "priority": "P1", "automation": true},
+        {"id": "CUST-RPT-003", "title": "客户流失预警测试", "priority": "P1", "automation": true},
+        {"id": "CUST-RPT-004", "title": "客户活跃度统计测试", "priority": "P1", "automation": true}
+      ]
+    }
+  ]
+}

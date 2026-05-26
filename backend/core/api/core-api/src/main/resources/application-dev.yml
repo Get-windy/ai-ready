@@ -1,0 +1,14 @@
+# 开发环境配置
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devdb
+    username: devuser
+    password: Dev@2026#Local
+
+logging:
+  level:
+    cn.aiedge: DEBUG
+    org.springframework.web: DEBUG

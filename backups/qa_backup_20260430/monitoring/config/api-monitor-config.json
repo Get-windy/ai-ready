@@ -1,0 +1,112 @@
+{
+  "base_url": "http://localhost:8080",
+  "check_interval": 30,
+  "prometheus_port": 9091,
+  "endpoints": [
+    {
+      "path": "/api/health",
+      "method": "GET",
+      "name": "health_check",
+      "headers": {},
+      "body": {}
+    },
+    {
+      "path": "/api/user/login",
+      "method": "POST",
+      "name": "user_login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "username": "test_user",
+        "password": "test_password"
+      }
+    },
+    {
+      "path": "/api/user/info",
+      "method": "GET",
+      "name": "user_info",
+      "headers": {
+        "Authorization": "Bearer test_token"
+      },
+      "body": {}
+    },
+    {
+      "path": "/api/order/list",
+      "method": "GET",
+      "name": "order_list",
+      "headers": {
+        "Authorization": "Bearer test_token"
+      },
+      "body": {}
+    },
+    {
+      "path": "/api/order/detail",
+      "method": "GET",
+      "name": "order_detail",
+      "headers": {
+        "Authorization": "Bearer test_token"
+      },
+      "body": {}
+    },
+    {
+      "path": "/api/product/list",
+      "method": "GET",
+      "name": "product_list",
+      "headers": {},
+      "body": {}
+    },
+    {
+      "path": "/api/inventory/status",
+      "method": "GET",
+      "name": "inventory_status",
+      "headers": {
+        "Authorization": "Bearer test_token"
+      },
+      "body": {}
+    },
+    {
+      "path": "/api/partner/list",
+      "method": "GET",
+      "name": "partner_list",
+      "headers": {
+        "Authorization": "Bearer test_token"
+      },
+      "body": {}
+    }
+  ],
+  "alert_rules": [
+    {
+      "name": "high_response_time",
+      "condition": "response_time > 1000",
+      "threshold": 1000,
+      "duration": 60,
+      "severity": "warning",
+      "message": "API响应时间超过1秒"
+    },
+    {
+      "name": "critical_response_time",
+      "condition": "response_time > 3000",
+      "threshold": 3000,
+      "duration": 30,
+      "severity": "critical",
+      "message": "API响应时间超过3秒"
+    },
+    {
+      "name": "high_error_rate",
+      "condition": "error_rate > 0.05",
+      "threshold": 0.05,
+      "duration": 120,
+      "severity": "warning",
+      "message": "API错误率超过5%"
+    },
+    {
+      "name": "critical_error_rate",
+      "condition": "error_rate > 0.20",
+      "threshold": 0.20,
+      "duration": 60,
+      "severity": "critical",
+      "message": "API错误率超过20%"
+    }
+  ]
+}

@@ -1,0 +1,239 @@
+# Sprint 28 监控告警模块 - AlertManager 配置
+# 版本: v1.0
+# 最后更新: 2026-04-26
+
+global:
+  # 全局配置
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@ai-ready.io'
+  smtp_auth_username: 'alertmanager@ai-ready.io'
+  smtp_auth_password: 'password'
+  smtp_require_tls: true
+
+  # 企业微信配置
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  wechat_api_corp_id: 'your-corp-id'
+  wechat_api_secret: 'your-api-secret'
+
+  # 告警抑制配置
+  resolve_timeout: 5m
+
+# 告警模板配置
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# 告警路由配置
+route:
+  # 根路由
+  group_by: ['alertname', 'module', 'component', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default'
+  
+  # 子路由
+  routes:
+    # P0/Critical 级别告警 - 立即通知
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 30m
+      continue: true
+
+    # P1/Warning 级别告警 - 延迟通知
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 1m
+      repeat_interval: 2h
+      continue: true
+
+    # 告警规则引擎相关告警
+    - match:
+        component: rule-engine
+      receiver: 'rule-engine-team'
+      group_wait: 30s
+      continue: true
+
+    # 指标采集相关告警
+    - match:
+        component: metrics-collector
+      receiver: 'metrics-team'
+      group_wait: 30s
+      continue: true
+
+    # 通知服务相关告警
+    - match:
+        component: notification-service
+      receiver: 'notification-team'
+      group_wait: 30s
+      continue: true
+
+    # 数据库相关告警
+    - match:
+        component: database
+      receiver: 'dba-team'
+      group_wait: 30s
+      continue: true
+
+# 告警抑制规则
+inhibit_rules:
+  # Critical 级别告警抑制 Warning 级别相同告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'module', 'component', 'instance']
+
+  # 相同告警抑制
+  - source_match:
+      alertname: '.*Down'
+    target_match:
+      severity: 'warning'
+    equal: ['module', 'component', 'instance']
+
+# 告警接收器配置
+receivers:
+  # 默认接收器
+  - name: 'default'
+    email_configs:
+      - to: 'devops@ai-ready.io'
+        send_resolved: true
+        subject: '【AI-Ready Sprint28】{{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          模块: {{ .Labels.module }}
+          组件: {{ .Labels.component }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Critical 级别告警接收器
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'oncall@ai-ready.io'
+        send_resolved: true
+        subject: '【P0紧急】AI-Ready Sprint28 告警 - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          【紧急告警】
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          模块: {{ .Labels.module }}
+          组件: {{ .Labels.component }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          处理手册: {{ .Annotations.runbook_url }}
+          {{ end }}
+    
+    # 企业微信通知
+    wechat_configs:
+      - send_resolved: true
+        to_party: '1'
+        agent_id: '1000002'
+        message: |
+          【P0紧急告警】
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          级别: {{ .Labels.severity }}
+          组件: {{ .Labels.component }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Warning 级别告警接收器
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'devops@ai-ready.io'
+        send_resolved: true
+        subject: '【P1警告】AI-Ready Sprint28 告警 - {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          【警告告警】
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          告警级别: {{ .Labels.severity }}
+          模块: {{ .Labels.module }}
+          组件: {{ .Labels.component }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+    
+    wechat_configs:
+      - send_resolved: true
+        to_party: '1'
+        agent_id: '1000002'
+        message: |
+          【P1警告】
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ end }}
+
+  # 告警规则引擎团队
+  - name: 'rule-engine-team'
+    email_configs:
+      - to: 'rule-engine-team@ai-ready.io'
+        send_resolved: true
+        subject: '【告警规则引擎】{{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # 指标采集团队
+  - name: 'metrics-team'
+    email_configs:
+      - to: 'metrics-team@ai-ready.io'
+        send_resolved: true
+        subject: '【指标采集】{{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # 通知服务团队
+  - name: 'notification-team'
+    email_configs:
+      - to: 'notification-team@ai-ready.io'
+        send_resolved: true
+        subject: '【通知服务】{{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # DBA团队
+  - name: 'dba-team'
+    email_configs:
+      - to: 'dba@ai-ready.io'
+        send_resolved: true
+        subject: '【数据库】{{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          告警名称: {{ .Annotations.summary }}
+          告警详情: {{ .Annotations.description }}
+          实例: {{ .Labels.instance }}
+          时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Webhook 接收器 (用于集成其他系统)
+  - name: 'webhook'
+    webhook_configs:
+      - url: 'http://localhost:5000/webhook'
+        send_resolved: true
+        http_config:
+          timeout: 10s

@@ -1,0 +1,30 @@
+# 业务指标监控模块配置
+metrics:
+  # 实时采集间隔（毫秒）
+  realtime:
+    interval: 5000
+  
+  # 数据保留策略（天）
+  retention:
+    realtime: 7
+    minute: 30
+    hour: 90
+    day: 365
+  
+  # 指标阈值配置
+  thresholds:
+    warning: 80
+    critical: 95
+  
+  # 默认指标配置
+  defaults:
+    refresh-interval-seconds: 5
+    retention-days: 30
+
+# 定时任务配置
+spring:
+  task:
+    scheduling:
+      pool:
+        size: 10
+      thread-name-prefix: metrics-scheduler-

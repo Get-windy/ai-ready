@@ -1,0 +1,129 @@
+/* 
+ * AI-Ready 主题色变量定义
+ * 统一管理所有颜色和设计系统变量
+ */
+
+/* ==================== 主题色 ==================== */
+:root {
+  /* 主色 - 蓝色系 */
+  --color-primary: #1890ff;
+  --color-primary-hover: #40a9ff;
+  --color-primary-active: #096dd9;
+  --color-primary-bg: #e6f7ff;
+  --color-primary-border: #91d5ff;
+
+  /* 辅助色 */
+  --color-success: #52c41a;
+  --color-success-hover: #73d13d;
+  --color-success-active: #389e0d;
+  --color-success-bg: #f6ffed;
+  --color-success-border: #b7eb8f;
+
+  --color-warning: #faad14;
+  --color-warning-hover: #ffc53d;
+  --color-warning-active: #d48806;
+  --color-warning-bg: #fffbe6;
+  --color-warning-border: #ffe58f;
+
+  --color-danger: #ff4d4f;
+  --color-danger-hover: #ff7875;
+  --color-danger-active: #d9363e;
+  --color-danger-bg: #fff1f0;
+  --color-danger-border: #ffccc7;
+
+  --color-info: #909399;
+  --color-info-hover: #a6a9ad;
+  --color-info-active: #7c7e81;
+  --color-info-bg: #f4f4f5;
+  --color-info-border: #e9e9eb;
+
+  /* 中性色 */
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-secondary: rgba(0, 0, 0, 0.65);
+  --color-text-tertiary: rgba(0, 0, 0, 0.45);
+  --color-text-quaternary: rgba(0, 0, 0, 0.25);
+  --color-text-disabled: rgba(0, 0, 0, 0.25);
+
+  --color-border-base: #d9d9d9;
+  --color-border-light: #f0f0f0;
+  --color-border-lighter: #fafafa;
+
+  --color-bg-base: #ffffff;
+  --color-bg-layout: #f5f5f5;
+  --color-bg-container: #ffffff;
+  --color-bg-spotlight: rgba(0, 0, 0, 0.85);
+
+  /* ==================== 间距系统 ==================== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+
+  /* ==================== 圆角 ==================== */
+  --border-radius-sm: 2px;
+  --border-radius-base: 4px;
+  --border-radius-lg: 8px;
+  --border-radius-xl: 12px;
+
+  /* ==================== 阴影 ==================== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-base: 0 1px 4px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 4px 16px 0 rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 8px 24px 0 rgba(0, 0, 0, 0.25);
+
+  /* ==================== 字体 ==================== */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-code: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+
+  /* ==================== 动画 ==================== */
+  --duration-fast: 0.2s;
+  --duration-base: 0.3s;
+  --duration-slow: 0.5s;
+  
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-out: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+  --ease-in: cubic-bezier(0.550, 0.055, 0.675, 0.190);
+
+  /* ==================== z-index ==================== */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text-primary: rgba(255, 255, 255, 0.85);
+    --color-text-secondary: rgba(255, 255, 255, 0.65);
+    --color-text-tertiary: rgba(255, 255, 255, 0.45);
+    --color-text-quaternary: rgba(255, 255, 255, 0.25);
+    --color-text-disabled: rgba(255, 255, 255, 0.25);
+
+    --color-border-base: #434343;
+    --color-border-light: #303030;
+    --color-border-lighter: #262626;
+
+    --color-bg-base: #141414;
+    --color-bg-layout: #000000;
+    --color-bg-container: #1f1f1f;
+    --color-bg-spotlight: rgba(255, 255, 255, 0.85);
+  }
+}

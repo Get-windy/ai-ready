@@ -1,0 +1,689 @@
+# Sprint 27+1 测试环境集成测试配置
+# 多服务集成测试场景、服务依赖关系、数据一致性测试
+
+# 测试环境概述
+environment:
+  name: "ai-ready-test-integration"
+  type: "microservices-cluster"
+  version: "1.0.0"
+  description: "AI-Ready系统微服务集群集成测试环境"
+  
+  infrastructure:
+    service_registry: "nacos:localhost:8848"
+    config_center: "nacos:localhost:8848"
+    api_gateway: "spring-cloud-gateway:localhost:8080"
+    load_balancer: "nginx:localhost:80"
+    monitoring: "prometheus:localhost:9090,grafana:localhost:3000"
+    tracing: "jaeger:localhost:16686"
+    
+  services:
+    - name: "user-service"
+      instances: 2
+      ports: [8081, 8082]
+      health_endpoint: "/actuator/health"
+      
+    - name: "order-service"
+      instances: 2
+      ports: [8083, 8084]
+      health_endpoint: "/actuator/health"
+      
+    - name: "inventory-service"
+      instances: 1
+      ports: [8085]
+      health_endpoint: "/actuator/health"
+      
+    - name: "monitoring-service"
+      instances: 1
+      ports: [8086]
+      health_endpoint: "/actuator/health"
+      
+    - name: "payment-mock-service"
+      instances: 1
+      ports: [8087]
+      health_endpoint: "/health"
+      
+    - name: "notification-mock-service"
+      instances: 1
+      ports: [8088]
+      health_endpoint: "/health"
+
+# 集成测试场景
+integration_scenarios:
+  # 场景1: 用户注册登录流程
+  - id: "scenario-001"
+    name: "用户注册与登录端到端测试"
+    description: "测试用户注册、激活、登录、获取用户信息的完整流程"
+    priority: "high"
+    estimated_duration: "5m"
+    
+    services_involved: ["user-service", "notification-mock-service"]
+    
+    test_steps:
+      - step: 1
+        action: "注册新用户"
+        service: "user-service"
+        endpoint: "POST /api/users/register"
+        request_data: "user_registration.json"
+        expected_status: 201
+        validation: "用户创建成功，返回用户ID"
+        
+      - step: 2
+        action: "模拟邮件激活"
+        service: "notification-mock-service"
+        endpoint: "GET /api/notifications/verify"
+        request_data: "activation_token"
+        expected_status: 200
+        validation: "激活链接有效"
+        
+      - step: 3
+        action: "用户登录"
+        service: "user-service"
+        endpoint: "POST /api/auth/login"
+        request_data: "user_credentials.json"
+        expected_status: 200
+        validation: "返回JWT令牌"
+        
+      - step: 4
+        action: "获取用户信息"
+        service: "user-service"
+        endpoint: "GET /api/users/{userId}"
+        request_data: "user_id"
+        expected_status: 200
+        validation: "返回完整的用户信息"
+    
+    data_requirements:
+      - name: "test_user"
+        type: "synthetic"
+        count: 1
+        cleanup: true
+        
+    assertions:
+      - "用户注册成功并收到激活邮件"
+      - "用户激活后可以正常登录"
+      - "登录后可以获取用户信息"
+      - "整个流程耗时小于10秒"
+  
+  # 场景2: 创建订单流程
+  - id: "scenario-002"
+    name: "创建订单端到端测试"
+    description: "测试用户选择商品、创建订单、支付、更新库存的完整流程"
+    priority: "high"
+    estimated_duration: "8m"
+    
+    services_involved: ["user-service", "order-service", "inventory-service", "payment-mock-service"]
+    
+    test_steps:
+      - step: 1
+        action: "用户登录"
+        service: "user-service"
+        endpoint: "POST /api/auth/login"
+        request_data: "user_credentials.json"
+        expected_status: 200
+        validation: "获取JWT令牌"
+        
+      - step: 2
+        action: "检查商品库存"
+        service: "inventory-service"
+        endpoint: "GET /api/inventory/products/{productId}"
+        request_data: "product_ids"
+        expected_status: 200
+        validation: "商品库存充足"
+        
+      - step: 3
+        action: "创建购物车"
+        service: "order-service"
+        endpoint: "POST /api/orders/cart"
+        request_data: "cart_items.json"
+        expected_status: 201
+        validation: "购物车创建成功"
+        
+      - step: 4
+        action: "提交订单"
+        service: "order-service"
+        endpoint: "POST /api/orders"
+        request_data: "order_request.json"
+        expected_status: 201
+        validation: "订单创建成功，返回订单号"
+        
+      - step: 5
+        action: "模拟支付"
+        service: "payment-mock-service"
+        endpoint: "POST /api/payments/process"
+        request_data: "payment_request.json"
+        expected_status: 200
+        validation: "支付成功"
+        
+      - step: 6
+        action: "更新订单状态"
+        service: "order-service"
+        endpoint: "PUT /api/orders/{orderId}/status"
+        request_data: "order_status_update.json"
+        expected_status: 200
+        validation: "订单状态更新为已支付"
+        
+      - step: 7
+        action: "更新库存"
+        service: "inventory-service"
+        endpoint: "PUT /api/inventory/products/{productId}/deduct"
+        request_data: "inventory_deduction.json"
+        expected_status: 200
+        validation: "库存扣减成功"
+        
+      - step: 8
+        action: "验证订单详情"
+        service: "order-service"
+        endpoint: "GET /api/orders/{orderId}"
+        request_data: "order_id"
+        expected_status: 200
+        validation: "订单状态为已支付，包含完整信息"
+    
+    data_requirements:
+      - name: "test_user"
+        type: "synthetic"
+        count: 1
+        cleanup: true
+        
+      - name: "test_products"
+        type: "synthetic"
+        count: 3
+        cleanup: true
+        
+      - name: "test_inventory"
+        type: "synthetic"
+        count: 3
+        initial_stock: 100
+        cleanup: true
+        
+    assertions:
+      - "订单创建流程所有服务调用成功"
+      - "库存扣减准确"
+      - "订单状态流转正确"
+      - "数据一致性：订单金额 = 商品单价 × 数量"
+      - "整个流程耗时小于30秒"
+  
+  # 场景3: 库存预警流程
+  - id: "scenario-003"
+    name: "库存预警与补货流程测试"
+    description: "测试库存低于阈值时触发预警，自动补货的流程"
+    priority: "medium"
+    estimated_duration: "6m"
+    
+    services_involved: ["inventory-service", "notification-mock-service", "monitoring-service"]
+    
+    test_steps:
+      - step: 1
+        action: "设置库存预警阈值"
+        service: "inventory-service"
+        endpoint: "POST /api/inventory/alerts/threshold"
+        request_data: "alert_threshold.json"
+        expected_status: 200
+        validation: "预警阈值设置成功"
+        
+      - step: 2
+        action: "模拟库存消耗"
+        service: "inventory-service"
+        endpoint: "PUT /api/inventory/products/{productId}/deduct"
+        request_data: "large_deduction.json"
+        expected_status: 200
+        validation: "库存扣减成功，触发预警"
+        
+      - step: 3
+        action: "检查预警通知"
+        service: "notification-mock-service"
+        endpoint: "GET /api/notifications/alerts"
+        request_data: "product_id"
+        expected_status: 200
+        validation: "收到库存预警通知"
+        
+      - step: 4
+        action: "监控指标验证"
+        service: "monitoring-service"
+        endpoint: "GET /api/monitoring/metrics/inventory"
+        request_data: "product_metrics"
+        expected_status: 200
+        validation: "库存指标低于阈值"
+        
+      - step: 5
+        action: "模拟补货"
+        service: "inventory-service"
+        endpoint: "PUT /api/inventory/products/{productId}/replenish"
+        request_data: "replenishment.json"
+        expected_status: 200
+        validation: "库存补充成功"
+        
+      - step: 6
+        action: "验证库存恢复"
+        service: "inventory-service"
+        endpoint: "GET /api/inventory/products/{productId}"
+        request_data: "product_id"
+        expected_status: 200
+        validation: "库存水平恢复正常"
+        
+      - step: 7
+        action: "检查预警解除通知"
+        service: "notification-mock-service"
+        endpoint: "GET /api/notifications/alerts/clear"
+        request_data: "product_id"
+        expected_status: 200
+        validation: "收到预警解除通知"
+    
+    data_requirements:
+      - name: "test_product"
+        type: "synthetic"
+        count: 1
+        initial_stock: 50
+        cleanup: true
+        
+    assertions:
+      - "库存低于阈值时触发预警"
+      - "预警通知及时发送"
+      - "监控指标实时更新"
+      - "补货后库存恢复正常"
+      - "预警解除通知及时发送"
+
+# 服务依赖关系配置
+service_dependencies:
+  # 用户服务依赖
+  user-service:
+    depends_on: []
+    provides_to: ["order-service", "inventory-service", "monitoring-service"]
+    
+    api_dependencies:
+      - service: "notification-mock-service"
+        endpoint: "/api/notifications/send"
+        method: "POST"
+        timeout_ms: 5000
+        retry_count: 3
+        circuit_breaker: true
+        
+    data_dependencies:
+      - database: "user_db"
+        tables: ["users", "user_roles", "user_sessions"]
+        access: "read-write"
+      
+  # 订单服务依赖
+  order-service:
+    depends_on: ["user-service", "inventory-service", "payment-mock-service"]
+    provides_to: ["monitoring-service"]
+    
+    api_dependencies:
+      - service: "user-service"
+        endpoint: "/api/users/{userId}"
+        method: "GET"
+        timeout_ms: 3000
+        retry_count: 2
+        
+      - service: "inventory-service"
+        endpoint: "/api/inventory/products/{productId}"
+        method: "GET"
+        timeout_ms: 2000
+        retry_count: 3
+        
+      - service: "payment-mock-service"
+        endpoint: "/api/payments/process"
+        method: "POST"
+        timeout_ms: 10000
+        retry_count: 1
+        circuit_breaker: true
+        
+    data_dependencies:
+      - database: "order_db"
+        tables: ["orders", "order_items", "payments"]
+        access: "read-write"
+        
+      - cache: "redis"
+        keys: ["order:{orderId}", "cart:{userId}"]
+        ttl: 1800
+        
+  # 库存服务依赖
+  inventory-service:
+    depends_on: []
+    provides_to: ["order-service", "monitoring-service", "notification-mock-service"]
+    
+    api_dependencies:
+      - service: "notification-mock-service"
+        endpoint: "/api/notifications/alerts"
+        method: "POST"
+        timeout_ms: 3000
+        retry_count: 2
+        
+    data_dependencies:
+      - database: "inventory_db"
+        tables: ["products", "inventory", "inventory_history"]
+        access: "read-write"
+        
+      - cache: "redis"
+        keys: ["inventory:{productId}", "product:{productId}"]
+        ttl: 300
+        
+  # 监控服务依赖
+  monitoring-service:
+    depends_on: ["user-service", "order-service", "inventory-service"]
+    provides_to: []
+    
+    api_dependencies:
+      - service: "user-service"
+        endpoint: "/actuator/metrics"
+        method: "GET"
+        timeout_ms: 2000
+        
+      - service: "order-service"
+        endpoint: "/actuator/metrics"
+        method: "GET"
+        timeout_ms: 2000
+        
+      - service: "inventory-service"
+        endpoint: "/actuator/metrics"
+        method: "GET"
+        timeout_ms: 2000
+        
+    data_dependencies:
+      - database: "monitoring_db"
+        tables: ["metrics", "alerts", "alert_history"]
+        access: "read-write"
+        
+      - time_series: "prometheus"
+        metrics: ["user_service_requests", "order_service_latency", "inventory_service_errors"]
+
+# 数据一致性测试配置
+data_consistency_tests:
+  # 订单-库存一致性
+  - name: "order_inventory_consistency"
+    description: "验证订单创建与库存扣减的数据一致性"
+    services: ["order-service", "inventory-service"]
+    
+    validation_rules:
+      - rule: "库存扣减量 = 订单商品数量"
+        sql_query: |
+          SELECT 
+            oi.product_id,
+            oi.quantity as order_quantity,
+            ih.deduction_quantity as inventory_deduction
+          FROM order_items oi
+          JOIN inventory_history ih ON oi.product_id = ih.product_id 
+            AND oi.order_id = ih.reference_id
+          WHERE oi.order_id = :orderId
+            AND ih.transaction_type = 'ORDER_DEDUCTION'
+        expected_result: "order_quantity = inventory_deduction"
+        
+      - rule: "订单总金额 = Σ(商品单价 × 数量)"
+        sql_query: |
+          SELECT 
+            o.total_amount,
+            SUM(oi.unit_price * oi.quantity) as calculated_amount
+          FROM orders o
+          JOIN order_items oi ON o.id = oi.order_id
+          WHERE o.id = :orderId
+          GROUP BY o.id, o.total_amount
+        expected_result: "total_amount = calculated_amount"
+        
+      - rule: "库存扣减后不能为负数"
+        sql_query: |
+          SELECT 
+            p.id as product_id,
+            p.name,
+            i.current_stock
+          FROM products p
+          JOIN inventory i ON p.id = i.product_id
+          WHERE i.current_stock < 0
+        expected_result: "current_stock >= 0"
+    
+    test_data:
+      - scenario: "正常订单"
+        order_count: 10
+        items_per_order: 3
+        
+      - scenario: "大额订单"
+        order_count: 2
+        items_per_order: 20
+        
+      - scenario: "并发订单"
+        order_count: 50
+        items_per_order: 2
+        concurrent_users: 10
+        
+    assertions:
+      - "所有订单的库存扣减准确"
+      - "订单金额计算正确"
+      - "库存不会出现负数"
+      - "并发操作下数据一致"
+  
+  # 用户会话一致性
+  - name: "user_session_consistency"
+    description: "验证用户登录、会话、权限的数据一致性"
+    services: ["user-service"]
+    
+    validation_rules:
+      - rule: "用户会话与用户ID关联正确"
+        sql_query: |
+          SELECT 
+            u.id as user_id,
+            s.id as session_id,
+            s.user_id as session_user_id
+          FROM users u
+          LEFT JOIN user_sessions s ON u.id = s.user_id
+          WHERE u.id = :userId
+            AND s.expires_at > NOW()
+        expected_result: "user_id = session_user_id"
+        
+      - rule: "用户角色权限一致"
+        sql_query: |
+          SELECT 
+            u.id as user_id,
+            r.name as role_name,
+            p.name as permission_name,
+            COUNT(DISTINCT rp.permission_id) as assigned_permissions,
+            COUNT(DISTINCT up.permission_id) as user_permissions
+          FROM users u
+          JOIN user_roles ur ON u.id = ur.user_id
+          JOIN roles r ON ur.role_id = r.id
+          JOIN role_permissions rp ON r.id = rp.role_id
+          LEFT JOIN user_permissions up ON u.id = up.user_id
+          WHERE u.id = :userId
+          GROUP BY u.id, r.name, p.name
+        expected_result: "assigned_permissions = user_permissions"
+        
+      - rule: "会话过期时间合理"
+        sql_query: |
+          SELECT 
+            id,
+            user_id,
+            created_at,
+            expires_at,
+            EXTRACT(EPOCH FROM (expires_at - created_at)) / 3600 as session_hours
+          FROM user_sessions
+          WHERE user_id = :userId
+            AND expires_at > NOW()
+        expected_result: "session_hours BETWEEN 0.5 AND 24"
+    
+    test_data:
+      - scenario: "普通用户"
+        user_count: 5
+        role: "USER"
+        
+      - scenario: "管理员用户"
+        user_count: 2
+        role: "ADMIN"
+        
+      - scenario: "多角色用户"
+        user_count: 3
+        roles: ["USER", "EDITOR"]
+        
+    assertions:
+      - "用户会话正确关联"
+      - "角色权限分配一致"
+      - "会话有效期合理"
+      - "权限验证准确"
+
+# 性能测试环境配置
+performance_testing:
+  enabled: true
+  
+  load_tests:
+    - name: "用户注册性能测试"
+      scenario: "scenario-001"
+      concurrent_users: 100
+      ramp_up_time: 60  # 秒
+      duration: 300  # 秒
+      think_time: 2  # 秒
+      
+      performance_targets:
+        throughput: 50  # 事务/秒
+        response_time_p95: 2000  # 毫秒
+        error_rate: 0.01  # 1%
+        
+    - name: "订单创建性能测试"
+      scenario: "scenario-002"
+      concurrent_users: 50
+      ramp_up_time: 120
+      duration: 600
+      think_time: 5
+      
+      performance_targets:
+        throughput: 20
+        response_time_p95: 5000
+        error_rate: 0.005  # 0.5%
+        
+    - name: "库存查询性能测试"
+      services: ["inventory-service"]
+      endpoint: "GET /api/inventory/products"
+      concurrent_users: 200
+      ramp_up_time: 30
+      duration: 180
+      think_time: 1
+      
+      performance_targets:
+        throughput: 100
+        response_time_p95: 1000
+        error_rate: 0.001  # 0.1%
+  
+  stress_tests:
+    - name: "高并发用户注册"
+      scenario: "scenario-001"
+      concurrent_users: 1000
+      ramp_up_time: 300
+      duration: 900
+      
+      breakpoints:
+        - concurrent_users: 200
+          duration: 300
+        - concurrent_users: 500
+          duration: 300
+        - concurrent_users: 1000
+          duration: 300
+        
+    - name: "订单创建峰值测试"
+      scenario: "scenario-002"
+      concurrent_users: 500
+      ramp_up_time: 600
+      duration: 1800
+      
+  endurance_tests:
+    - name: "长时间运行稳定性测试"
+      scenario: "混合场景"
+      concurrent_users: 100
+      duration: 86400  # 24小时
+      mix_ratio:
+        user_registration: 0.2
+        order_creation: 0.3
+        inventory_query: 0.5
+
+# 测试数据管理
+test_data_management:
+  generation:
+    strategy: "synthetic"
+    volume: "medium"
+    
+    synthetic_data:
+      users: 1000
+      products: 500
+      orders: 5000
+      inventory_records: 1000
+      
+    realistic_data:
+      enabled: false
+      source: "production_snapshot"
+      anonymization: true
+      
+  cleanup:
+    strategy: "transactional"
+    preserve_failed_tests: true
+    cleanup_scripts:
+      - "cleanup_test_users.sql"
+      - "cleanup_test_orders.sql"
+      - "cleanup_test_products.sql"
+      - "cleanup_test_inventory.sql"
+      
+  versioning:
+    enabled: true
+    snapshot_before_test: true
+    restore_after_test: true
+    backup_location: "./test_data/backups"
+
+# 监控与报告
+monitoring_reporting:
+  metrics_collection:
+    enabled: true
+    tools: ["prometheus", "grafana", "jaeger"]
+    
+    key_metrics:
+      - name: "服务响应时间"
+        query: 'rate(http_server_requests_seconds_sum[5m]) / rate(http_server_requests_seconds_count[5m])'
+        threshold: 2000  # 毫秒
+        
+      - name: "错误率"
+        query: 'rate(http_server_requests_errors_total[5m]) / rate(http_server_requests_total[5m])'
+        threshold: 0.01  # 1%
+        
+      - name: "吞吐量"
+        query: 'rate(http_server_requests_total[5m])'
+        target: 100  # 请求/秒
+        
+      - name: "服务可用性"
+        query: 'up'
+        target: 1.0  # 100%
+        
+  reporting:
+    formats: ["html", "json", "junit"]
+    output_dir: "./reports"
+    
+    sections:
+      - "测试执行摘要"
+      - "通过/失败统计"
+      - "性能指标"
+      - "错误分析"
+      - "建议改进"
+      
+    notifications:
+      email:
+        enabled: true
+        recipients: ["qa-team@example.com", "dev-team@example.com"]
+        on_failure: true
+        on_completion: true
+        
+      slack:
+        enabled: true
+        channel: "#test-reports"
+        on_failure: true
+
+# 环境变量配置
+environment_variables:
+  TEST_ENVIRONMENT: "integration"
+  TEST_DATA_VOLUME: "medium"
+  TEST_CONCURRENT_USERS: "50"
+  TEST_DURATION_MINUTES: "10"
+  
+  SERVICE_REGISTRY_URL: "http://localhost:8848/nacos"
+  CONFIG_CENTER_URL: "http://localhost:8848/nacos"
+  API_GATEWAY_URL: "http://localhost:8080"
+  
+  DATABASE_URL: "jdbc:postgresql://localhost:5432/ai_ready_test"
+  DATABASE_USERNAME: "test_user"
+  DATABASE_PASSWORD: "test_password"
+  
+  REDIS_URL: "redis://localhost:6379"
+  KAFKA_BOOTSTRAP_SERVERS: "localhost:9092,localhost:9093,localhost:9094"
+  
+  MONITORING_PROMETHEUS_URL: "http://localhost:9090"
+  MONITORING_GRAFANA_URL: "http://localhost:3000"
+  TRACING_JAEGER_URL: "http://localhost:16686"

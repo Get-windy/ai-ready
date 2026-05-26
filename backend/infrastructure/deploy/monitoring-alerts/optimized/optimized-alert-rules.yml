@@ -1,0 +1,337 @@
+# AI-Ready 测试环境优化告警规则配置
+# 基于验证结果优化的告警规则
+
+# ==================== 系统资源告警 ====================
+
+# CPU使用率告警（优化版）
+- alert: HighCPUUsage
+  expr: |
+    100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+  for: 5m
+  labels:
+    severity: warning
+    service: system
+    component: cpu
+  annotations:
+    description: '实例 {{ $labels.instance }} 的CPU使用率超过85%持续5分钟'
+    summary: '高CPU使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-cpu-usage.md'
+
+- alert: CriticalCPUUsage
+  expr: |
+    100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+  for: 2m
+  labels:
+    severity: critical
+    service: system
+    component: cpu
+  annotations:
+    description: '实例 {{ $labels.instance }} 的CPU使用率超过95%持续2分钟'
+    summary: '严重CPU使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/critical-cpu-usage.md'
+
+# 内存使用率告警（优化版）
+- alert: HighMemoryUsage
+  expr: |
+    (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+  for: 5m
+  labels:
+    severity: warning
+    service: system
+    component: memory
+  annotations:
+    description: '实例 {{ $labels.instance }} 的内存使用率超过85%持续5分钟'
+    summary: '高内存使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-memory-usage.md'
+
+- alert: CriticalMemoryUsage
+  expr: |
+    (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 95
+  for: 2m
+  labels:
+    severity: critical
+    service: system
+    component: memory
+  annotations:
+    description: '实例 {{ $labels.instance }} 的内存使用率超过95%持续2分钟'
+    summary: '严重内存使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/critical-memory-usage.md'
+
+# 磁盘使用率告警（优化版）
+- alert: HighDiskUsage
+  expr: |
+    (node_filesystem_size_bytes{fstype!~"tmpfs|ramfs"} - node_filesystem_free_bytes{fstype!~"tmpfs|ramfs"}) / node_filesystem_size_bytes{fstype!~"tmpfs|ramfs"} * 100 > 85
+  for: 10m
+  labels:
+    severity: warning
+    service: system
+    component: disk
+  annotations:
+    description: '实例 {{ $labels.instance }} 的磁盘 {{ $labels.mountpoint }} 使用率超过85%持续10分钟'
+    summary: '高磁盘使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-disk-usage.md'
+
+- alert: CriticalDiskUsage
+  expr: |
+    (node_filesystem_size_bytes{fstype!~"tmpfs|ramfs"} - node_filesystem_free_bytes{fstype!~"tmpfs|ramfs"}) / node_filesystem_size_bytes{fstype!~"tmpfs|ramfs"} * 100 > 95
+  for: 5m
+  labels:
+    severity: critical
+    service: system
+    component: disk
+  annotations:
+    description: '实例 {{ $labels.instance }} 的磁盘 {{ $labels.mountpoint }} 使用率超过95%持续5分钟'
+    summary: '严重磁盘使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/critical-disk-usage.md'
+
+# ==================== 服务健康告警 ====================
+
+# 服务健康检查（优化版）
+- alert: ServiceUnhealthy
+  expr: up{job=~".*"} == 0
+  for: 2m
+  labels:
+    severity: critical
+    service: '{{ $labels.job }}'
+    component: health
+  annotations:
+    description: '服务 {{ $labels.job }} (实例: {{ $labels.instance }}) 健康检查失败持续2分钟'
+    summary: '服务不可用告警'
+    runbook: 'docs/monitoring-alerts/runbooks/service-unhealthy.md'
+
+# 服务响应时间（优化版）
+- alert: HighServiceResponseTime
+  expr: |
+    histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 2
+  for: 5m
+  labels:
+    severity: warning
+    service: '{{ $labels.service }}'
+    component: performance
+  annotations:
+    description: '服务 {{ $labels.service }} 的P95响应时间超过2秒持续5分钟'
+    summary: '高服务响应时间告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-response-time.md'
+
+# 服务错误率（优化版）
+- alert: HighServiceErrorRate
+  expr: |
+    sum(rate(http_requests_total{status=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) * 100 > 1
+  for: 5m
+  labels:
+    severity: warning
+    service: '{{ $labels.service }}'
+    component: reliability
+  annotations:
+    description: '服务 {{ $labels.service }} 的错误率超过1%持续5分钟'
+    summary: '高服务错误率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-error-rate.md'
+
+- alert: CriticalServiceErrorRate
+  expr: |
+    sum(rate(http_requests_total{status=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) * 100 > 5
+  for: 2m
+  labels:
+    severity: critical
+    service: '{{ $labels.service }}'
+    component: reliability
+  annotations:
+    description: '服务 {{ $labels.service }} 的错误率超过5%持续2分钟'
+    summary: '严重服务错误率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/critical-error-rate.md'
+
+# ==================== 数据库告警 ====================
+
+# PostgreSQL连接数告警（优化版）
+- alert: HighPostgreSQLConnections
+  expr: |
+    pg_stat_database_numbackends{datname!~"template.*|postgres"} > (pg_settings_max_connections{setting} * 0.8)
+  for: 5m
+  labels:
+    severity: warning
+    service: postgresql
+    component: connections
+  annotations:
+    description: 'PostgreSQL数据库 {{ $labels.datname }} 的连接数超过最大连接数的80%'
+    summary: '高PostgreSQL连接数告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-postgresql-connections.md'
+
+# PostgreSQL复制延迟告警（优化版）
+- alert: HighPostgreSQLReplicationLag
+  expr: |
+    pg_replication_lag_seconds > 10
+  for: 5m
+  labels:
+    severity: warning
+    service: postgresql
+    component: replication
+  annotations:
+    description: 'PostgreSQL复制延迟超过10秒持续5分钟'
+    summary: '高PostgreSQL复制延迟告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-postgresql-replication-lag.md'
+
+# ==================== Redis告警 ====================
+
+# Redis内存使用率告警（优化版）
+- alert: HighRedisMemoryUsage
+  expr: |
+    redis_memory_used_bytes / redis_memory_max_bytes * 100 > 85
+  for: 5m
+  labels:
+    severity: warning
+    service: redis
+    component: memory
+  annotations:
+    description: 'Redis实例 {{ $labels.instance }} 的内存使用率超过85%'
+    summary: '高Redis内存使用率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-redis-memory-usage.md'
+
+# Redis连接数告警（优化版）
+- alert: HighRedisConnections
+  expr: |
+    redis_connected_clients > (redis_maxclients * 0.8)
+  for: 5m
+  labels:
+    severity: warning
+    service: redis
+    component: connections
+  annotations:
+    description: 'Redis实例 {{ $labels.instance }} 的连接数超过最大连接数的80%'
+    summary: '高Redis连接数告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-redis-connections.md'
+
+# ==================== 负载均衡器告警 ====================
+
+# Nginx错误率告警（优化版）
+- alert: HighNginxErrorRate
+  expr: |
+    sum(rate(nginx_http_requests_total{status=~"5.."}[5m])) by (host) / sum(rate(nginx_http_requests_total[5m])) by (host) * 100 > 1
+  for: 5m
+  labels:
+    severity: warning
+    service: nginx
+    component: errors
+  annotations:
+    description: 'Nginx主机 {{ $labels.host }} 的错误率超过1%'
+    summary: '高Nginx错误率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-nginx-error-rate.md'
+
+# Nginx响应时间告警（优化版）
+- alert: HighNginxResponseTime
+  expr: |
+    histogram_quantile(0.95, sum(rate(nginx_http_request_duration_seconds_bucket[5m])) by (le, host)) > 1
+  for: 5m
+  labels:
+    severity: warning
+    service: nginx
+    component: performance
+  annotations:
+    description: 'Nginx主机 {{ $labels.host }} 的P95响应时间超过1秒'
+    summary: '高Nginx响应时间告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-nginx-response-time.md'
+
+# ==================== 容器监控告警（新增） ====================
+
+# 容器重启告警
+- alert: ContainerRestarted
+  expr: |
+    changes(kube_pod_container_status_restarts_total[5m]) > 0
+  for: 0m
+  labels:
+    severity: warning
+    service: kubernetes
+    component: containers
+  annotations:
+    description: '容器 {{ $labels.container }} 在Pod {{ $labels.pod }} 中重启'
+    summary: '容器重启告警'
+    runbook: 'docs/monitoring-alerts/runbooks/container-restarted.md'
+
+# 容器内存限制告警
+- alert: ContainerMemoryLimit
+  expr: |
+    container_memory_working_set_bytes{container!=""} / container_spec_memory_limit_bytes{container!=""} * 100 > 85
+  for: 5m
+  labels:
+    severity: warning
+    service: kubernetes
+    component: containers
+  annotations:
+    description: '容器 {{ $labels.container }} 的内存使用接近限制(>85%)'
+    summary: '容器内存限制告警'
+    runbook: 'docs/monitoring-alerts/runbooks/container-memory-limit.md'
+
+# ==================== 日志监控告警（新增） ====================
+
+# 错误日志频率告警
+- alert: HighErrorLogRate
+  expr: |
+    sum(rate(log_entries_total{level="ERROR"}[5m])) by (service) > 10
+  for: 2m
+  labels:
+    severity: warning
+    service: '{{ $labels.service }}'
+    component: logs
+  annotations:
+    description: '服务 {{ $labels.service }} 的错误日志频率超过10条/分钟'
+    summary: '高错误日志频率告警'
+    runbook: 'docs/monitoring-alerts/runbooks/high-error-log-rate.md'
+
+# ==================== 安全监控告警（新增） ====================
+
+# 异常登录尝试告警
+- alert: SuspiciousLoginAttempts
+  expr: |
+    sum(rate(auth_failed_total[5m])) by (source_ip) > 10
+  for: 1m
+  labels:
+    severity: warning
+    service: security
+    component: authentication
+  annotations:
+    description: 'IP地址 {{ $labels.source_ip }} 的登录失败尝试超过10次/分钟'
+    summary: '可疑登录尝试告警'
+    runbook: 'docs/monitoring-alerts/runbooks/suspicious-login-attempts.md'
+
+# API滥用告警
+- alert: APIAbuseDetected
+  expr: |
+    sum(rate(http_requests_total{path!~"/health|/metrics"}[1m])) by (client_ip) > 100
+  for: 1m
+  labels:
+    severity: warning
+    service: security
+    component: api
+  annotations:
+    description: '客户端 {{ $labels.client_ip }} 的API请求频率异常高(>100次/分钟)'
+    summary: 'API滥用检测告警'
+    runbook: 'docs/monitoring-alerts/runbooks/api-abuse-detected.md'
+
+# ==================== 告警注释说明 ====================
+
+# 告警标签说明
+# severity: 告警级别 (warning/critical)
+# service: 受影响的服劧 (system/database/cache/application/security)
+# component: 组件类型 (cpu/memory/disk/health/performance/reliability)
+
+# 告警注释说明
+# description: 详细的告警描述，包含具体指标和阈值
+# summary: 简短的告警摘要
+# runbook: 故障处理手册链接，指导如何排查和修复问题
+
+# 最佳实践
+# 1. 为每个告警提供runbook链接，便于快速处理
+# 2. 使用有意义的标签便于告警分组和过滤
+# 3. 设置合理的for时间，防止短暂波动触发告警
+# 4. 为不同级别的告警设置不同的响应时间
+
+# 监控指标说明
+# node_*: 系统级指标，来自Node Exporter
+# up: 服务健康状态指标
+# http_*: HTTP请求相关指标
+# pg_*: PostgreSQL数据库指标
+# redis_*: Redis缓存指标
+# nginx_*: Nginx负载均衡器指标
+# container_*: 容器资源指标
+# kube_*: Kubernetes集群指标
+# log_*: 日志监控指标
+# auth_*: 认证安全指标

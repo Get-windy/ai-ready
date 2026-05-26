@@ -1,0 +1,341 @@
+# Sprint 27+1 测试环境数据库集群配置
+# 数据库主从复制、读写分离、连接池配置
+
+# 主数据库配置
+primary_database:
+  type: "postgresql"
+  host: "localhost"
+  port: 5432
+  name: "ai_ready_test_primary"
+  username: "test_admin"
+  password: "test_admin_password"
+  ssl_mode: "disable"
+  
+  connection_pool:
+    max_connections: 50
+    min_connections: 5
+    connection_timeout: 30  # 秒
+    idle_timeout: 600  # 秒
+    max_lifetime: 1800  # 秒
+    validation_timeout: 5  # 秒
+    
+  performance:
+    statement_timeout: 30000  # 毫秒
+    lock_timeout: 10000
+    idle_in_transaction_session_timeout: 60000
+    
+  replication:
+    role: "primary"
+    wal_level: "logical"
+    max_wal_senders: 10
+    max_replication_slots: 10
+
+# 从数据库配置（读副本）
+replica_databases:
+  - name: "replica-1"
+    host: "localhost"
+    port: 5433
+    name: "ai_ready_test_replica_1"
+    username: "test_readonly"
+    password: "test_readonly_password"
+    ssl_mode: "disable"
+    
+    connection_pool:
+      max_connections: 30
+      min_connections: 3
+      connection_timeout: 30
+      idle_timeout: 600
+      max_lifetime: 1800
+      
+    replication:
+      role: "replica"
+      primary_conninfo: "host=localhost port=5432 user=replication_user password=replication_pass"
+      hot_standby: "on"
+      max_standby_streaming_delay: 30
+      
+    load_balance_weight: 1
+  
+  - name: "replica-2"
+    host: "localhost"
+    port: 5434
+    name: "ai_ready_test_replica_2"
+    username: "test_readonly"
+    password: "test_readonly_password"
+    ssl_mode: "disable"
+    
+    connection_pool:
+      max_connections: 30
+      min_connections: 3
+      connection_timeout: 30
+      idle_timeout: 600
+      max_lifetime: 1800
+      
+    replication:
+      role: "replica"
+      primary_conninfo: "host=localhost port=5432 user=replication_user password=replication_pass"
+      hot_standby: "on"
+      max_standby_streaming_delay: 30
+      
+    load_balance_weight: 1
+
+# 读写分离配置
+read_write_splitting:
+  enabled: true
+  strategy: "round_robin"  # 轮询策略
+  
+  write_operations:
+    - "INSERT"
+    - "UPDATE"
+    - "DELETE"
+    - "CREATE"
+    - "ALTER"
+    - "DROP"
+    - "TRUNCATE"
+    
+  read_operations:
+    - "SELECT"
+    - "SHOW"
+    - "EXPLAIN"
+    - "DESCRIBE"
+    
+  transaction_routing:
+    read_only_transactions_to_replica: true
+    force_primary_for_write_operations: true
+    
+  load_balancing:
+    algorithm: "weighted_round_robin"
+    health_check_interval: 30  # 秒
+    failover_enabled: true
+    failover_timeout: 5000  # 毫秒
+
+# 连接池监控配置
+connection_pool_monitoring:
+  enabled: true
+  
+  metrics:
+    active_connections: true
+    idle_connections: true
+    total_connections: true
+    waiting_connections: true
+    connection_timeouts: true
+    connection_creation_time: true
+    connection_borrow_time: true
+    
+  alerts:
+    max_connection_threshold: 80  # 百分比
+    connection_timeout_threshold: 5  # 秒
+    connection_borrow_time_threshold: 1000  # 毫秒
+    
+  logging:
+    level: "INFO"
+    slow_query_threshold: 1000  # 毫秒
+    connection_leak_threshold: 30000  # 毫秒
+
+# 数据库监控配置
+database_monitoring:
+  enabled: true
+  
+  performance_metrics:
+    queries_per_second: true
+    transactions_per_second: true
+    active_sessions: true
+    locks: true
+    deadlocks: true
+    buffer_hit_ratio: true
+    index_usage: true
+    
+  resource_metrics:
+    cpu_usage: true
+    memory_usage: true
+    disk_usage: true
+    io_operations: true
+    network_bandwidth: true
+    
+  query_analysis:
+    slow_query_logging: true
+    slow_query_threshold: 1000  # 毫秒
+    top_queries_count: 10
+    query_plan_analysis: true
+    
+  alerting:
+    enabled: true
+    channels:
+      - type: "email"
+        recipients: ["dba@example.com"]
+      - type: "slack"
+        channel: "#database-alerts"
+        
+    thresholds:
+      cpu_usage: 80  # 百分比
+      memory_usage: 85
+      disk_usage: 90
+      connection_usage: 80
+      deadlock_count: 5  # 每分钟
+      slow_query_count: 10  # 每分钟
+
+# 备份与恢复配置
+backup_recovery:
+  enabled: true
+  
+  backup:
+    strategy: "continuous"  # 持续备份
+    retention_period: "7d"  # 保留7天
+    compression: true
+    encryption: false
+    
+    schedule:
+      full_backup: "0 2 * * *"  # 每天凌晨2点
+      incremental_backup: "0 */6 * * *"  # 每6小时
+      wal_archive: true  # WAL归档
+    
+  recovery:
+    point_in_time_recovery: true
+    recovery_time_objective: "15m"  # RTO: 15分钟
+    recovery_point_objective: "5m"  # RPO: 5分钟
+    
+    test_restore:
+      enabled: true
+      frequency: "weekly"
+      validation_checks: ["integrity", "consistency", "performance"]
+
+# 数据库分片配置（可选）
+database_sharding:
+  enabled: false
+  
+  shards:
+    - name: "shard-1"
+      host: "localhost"
+      port: 5435
+      range: "user_id: 1-1000000"
+      
+    - name: "shard-2"
+      host: "localhost"
+      port: 5436
+      range: "user_id: 1000001-2000000"
+  
+  sharding_strategy:
+    type: "range"  # 范围分片
+    key: "user_id"
+    
+  router:
+    type: "client_side"
+    cache_enabled: true
+    cache_ttl: 300  # 秒
+
+# 缓存层配置
+cache_layer:
+  enabled: true
+  type: "redis"
+  
+  redis:
+    mode: "cluster"  # 集群模式
+    nodes:
+      - host: "localhost"
+        port: 6379
+        role: "master"
+      - host: "localhost"
+        port: 6380
+        role: "slave"
+      - host: "localhost"
+        port: 6381
+        role: "slave"
+    
+    connection_pool:
+      max_total: 100
+      max_idle: 20
+      min_idle: 5
+      max_wait: 1000  # 毫秒
+      
+    performance:
+      timeout: 2000  # 毫秒
+      max_attempts: 3
+      
+    persistence:
+      enabled: true
+      rdb_save: "900 1 300 10 60 10000"
+      aof_enabled: true
+  
+  cache_strategies:
+    - name: "user_session"
+      ttl: 1800  # 秒
+      max_size: 10000
+      eviction_policy: "lru"
+      
+    - name: "query_result"
+      ttl: 300  # 秒
+      max_size: 5000
+      eviction_policy: "lfu"
+      
+    - name: "configuration"
+      ttl: 3600  # 秒
+      max_size: 1000
+      eviction_policy: "fifo"
+
+# 数据迁移配置
+data_migration:
+  enabled: true
+  
+  tools:
+    - name: "flyway"
+      enabled: true
+      locations: ["classpath:db/migration"]
+      baseline_on_migrate: true
+      validate_on_migrate: true
+      
+    - name: "liquibase"
+      enabled: false
+      changelog_file: "db/changelog/db.changelog-master.xml"
+      
+  version_control:
+    enabled: true
+    backup_before_migration: true
+    rollback_enabled: true
+    test_migration: true
+
+# 测试数据管理
+test_data_management:
+  enabled: true
+  
+  generation:
+    strategy: "synthetic"  # 合成数据
+    volume: "medium"  # 中等数据量
+    
+    tables:
+      users: 1000
+      orders: 5000
+      products: 500
+      inventory: 1000
+      
+  quality:
+    data_validation: true
+    referential_integrity: true
+    data_consistency: true
+    performance_baseline: true
+    
+  cleanup:
+    strategy: "transactional"  # 事务性清理
+    preserve_failed_data: true
+    cleanup_scripts:
+      - "cleanup_test_users.sql"
+      - "cleanup_test_orders.sql"
+      - "cleanup_test_products.sql"
+
+# 环境变量配置
+environment_variables:
+  DATABASE_URL: "jdbc:postgresql://localhost:5432/ai_ready_test_primary"
+  DATABASE_USERNAME: "test_admin"
+  DATABASE_PASSWORD: "test_admin_password"
+  DATABASE_POOL_SIZE: "50"
+  DATABASE_CONNECTION_TIMEOUT: "30"
+  
+  READ_REPLICA_URLS: "jdbc:postgresql://localhost:5433/ai_ready_test_replica_1,jdbc:postgresql://localhost:5434/ai_ready_test_replica_2"
+  READ_REPLICA_USERNAME: "test_readonly"
+  READ_REPLICA_PASSWORD: "test_readonly_password"
+  
+  REDIS_CLUSTER_NODES: "localhost:6379,localhost:6380,localhost:6381"
+  REDIS_PASSWORD: ""
+  REDIS_TIMEOUT: "2000"
+  
+  FLYWAY_ENABLED: "true"
+  FLYWAY_LOCATIONS: "classpath:db/migration"
+  FLYWAY_BASELINE_ON_MIGRATE: "true"

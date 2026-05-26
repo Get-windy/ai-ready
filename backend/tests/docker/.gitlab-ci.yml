@@ -1,0 +1,182 @@
+# GitLab CI/CD配置
+
+stages:
+  - setup
+  - test-smoke
+  - test-api
+  - test-integration
+  - test-e2e
+  - test-performance
+  - report
+  - cleanup
+
+variables:
+  PYTHON_VERSION: "3.11"
+  TEST_ENV: "test"
+  DOCKER_COMPOSE_FILE: "docker-compose.test-env.yml"
+  REPORT_DIR: "reports"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+# 模板定义
+.setup_python: &setup_python
+  before_script:
+    - python -V
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install -r tests/docker/requirements-test.txt
+
+# 设置环境
+setup_environment:
+  stage: setup
+  script:
+    - mkdir -p ${REPORT_DIR}
+    - docker-compose -f tests/docker/${DOCKER_COMPOSE_FILE} up -d
+    - sleep 30
+    - docker-compose -f tests/docker/${DOCKER_COMPOSE_FILE} ps
+  tags:
+    - docker
+
+# 冒烟测试
+smoke_tests:
+  stage: test-smoke
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - pytest -m smoke -v --tb=short
+      --html=../../${REPORT_DIR}/smoke-report.html
+      --self-contained-html
+      --json-report
+      --json-report-file=../../${REPORT_DIR}/smoke-report.json
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+    reports:
+      junit: ${REPORT_DIR}/junit-smoke.xml
+  allow_failure: false
+
+# API测试
+api_tests:
+  stage: test-api
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - pytest tests/api -v --tb=short -n auto
+      --html=../../${REPORT_DIR}/api-report.html
+      --self-contained-html
+      --json-report
+      --json-report-file=../../${REPORT_DIR}/api-report.json
+      --cov=src
+      --cov-report=xml:../../${REPORT_DIR}/coverage.xml
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+    reports:
+      junit: ${REPORT_DIR}/junit-api.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: ${REPORT_DIR}/coverage.xml
+  allow_failure: false
+
+# 集成测试
+integration_tests:
+  stage: test-integration
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - pytest tests/integration -v --tb=short
+      --html=../../${REPORT_DIR}/integration-report.html
+      --self-contained-html
+      --json-report
+      --json-report-file=../../${REPORT_DIR}/integration-report.json
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+    reports:
+      junit: ${REPORT_DIR}/junit-integration.xml
+  allow_failure: false
+
+# E2E测试
+e2e_tests:
+  stage: test-e2e
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - pytest tests/e2e -v --tb=short
+      --html=../../${REPORT_DIR}/e2e-report.html
+      --self-contained-html
+      --json-report
+      --json-report-file=../../${REPORT_DIR}/e2e-report.json
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+    reports:
+      junit: ${REPORT_DIR}/junit-e2e.xml
+  allow_failure: true
+
+# 性能测试
+performance_tests:
+  stage: test-performance
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - pytest tests/performance -v --tb=short
+      --benchmark-only
+      --benchmark-json=../../${REPORT_DIR}/benchmark.json
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+  only:
+    - main
+    - develop
+  allow_failure: true
+
+# 生成报告
+generate_report:
+  stage: report
+  <<: *setup_python
+  script:
+    - cd tests/tests
+    - python report_generator.py
+  artifacts:
+    when: always
+    paths:
+      - ${REPORT_DIR}/
+    expire_in: 30 days
+
+# 清理环境
+cleanup:
+  stage: cleanup
+  script:
+    - docker-compose -f tests/docker/${DOCKER_COMPOSE_FILE} down -v
+  when: always
+  tags:
+    - docker
+
+# 通知
+notify:
+  stage: cleanup
+  script:
+    - |
+      if [ "$CI_JOB_STATUS" == "failed" ]; then
+        curl -X POST "https://api.dingtalk.com/robot/send?access_token=$DINGTALK_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "msgtype": "markdown",
+            "markdown": {
+              "title": "测试执行失败",
+              "text": "## 测试执行失败\n\n项目: '$CI_PROJECT_NAME'\n分支: '$CI_COMMIT_REF_NAME'\n提交: '$CI_COMMIT_SHORT_SHA'\n作者: '$GITLAB_USER_NAME'\n\n[查看详情]('$CI_PIPELINE_URL')"
+            }
+          }'
+      fi
+  when: on_failure

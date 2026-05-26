@@ -1,0 +1,192 @@
+# AI-Ready Log Alert Inhibition Rules
+# 日志告警抑制规则配置
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+# ========================================
+# 全局抑制规则
+# ========================================
+global_inhibit_rules:
+  # 当某个服务宕机时，抑制该服务的所有其他告警
+  - name: "inhibit_on_service_down"
+    enabled: true
+    source_match:
+      alertname: "ServiceDown"
+    target_match_re:
+      service: "ai-ready-api"
+    equal: ["service"]
+    comment: "服务宕机时抑制该服务的其他告警"
+    
+  # 当数据库连接失败时，抑制数据库相关的其他告警
+  - name: "inhibit_on_db_connection_failure"
+    enabled: true
+    source_match:
+      alertname: "DatabaseConnectionError"
+    target_match_re:
+      category: "(database|query|transaction)"
+    equal: ["service"]
+    comment: "数据库连接失败时抑制数据库相关告警"
+    
+  # 当Redis连接失败时，抑制Redis相关的其他告警
+  - name: "inhibit_on_redis_connection_failure"
+    enabled: true
+    source_match:
+      alertname: "RedisConnectionError"
+    target_match_re:
+      category: "(redis|cache)"
+    equal: ["service"]
+    comment: "Redis连接失败时抑制Redis相关告警"
+    
+  # 严重告警抑制同类型的警告告警
+  - name: "inhibit_warning_on_critical"
+    enabled: true
+    source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "service"]
+    comment: "严重告警抑制同类型的警告告警"
+
+# ========================================
+# 告警分组规则
+# ========================================
+group_rules:
+  # 按服务和告警名称分组
+  - name: "group_by_service_alert"
+    enabled: true
+    match_re:
+      service: ".*"
+    group_by: ["alertname", "service"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    
+  # 按类别分组
+  - name: "group_by_category"
+    enabled: true
+    match:
+      category: "performance"
+    group_by: ["alertname", "category"]
+    group_wait: 1m
+    group_interval: 10m
+    repeat_interval: 6h
+
+# ========================================
+# 时间窗口抑制规则
+# ========================================
+time_inhibit_rules:
+  # 维护窗口 - 抑制所有告警
+  - name: "maintenance_window"
+    enabled: false
+    match_re:
+      alertname: ".*"
+    time_intervals:
+      - weekdays: ["sunday"]
+        times:
+          - start_time: "02:00"
+            end_time: "06:00"
+    comment: "周日凌晨2-6点维护窗口"
+    
+  # 非工作时间 - 抑制非critical告警
+  - name: "after_hours_inhibit"
+    enabled: true
+    match:
+      severity: "warning"
+    time_intervals:
+      - weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        times:
+          - start_time: "22:00"
+            end_time: "09:00"
+      - weekdays: ["saturday", "sunday"]
+    comment: "非工作时间抑制警告级别告警"
+
+# ========================================
+# 条件抑制规则
+# ========================================
+conditional_inhibit_rules:
+  # 当已知问题存在时抑制相关告警
+  - name: "known_issue_inhibit"
+    enabled: true
+    condition: "known_issue_active"
+    match_re:
+      alertname: "(SlowAPIResponse|HighMemoryUsage)"
+    comment: "已知问题处理中，抑制相关告警"
+    
+  # 当部署进行中时抑制某些告警
+  - name: "deployment_inhibit"
+    enabled: true
+    condition: "deployment_active"
+    match_re:
+      alertname: "(ServiceRestart|ConfigurationChanged)"
+    duration: "15m"
+    comment: "部署过程中抑制服务重启告警"
+
+# ========================================
+# 告警静默规则
+# ========================================
+silence_rules:
+  # 临时静默配置
+  - name: "temp_silence"
+    enabled: false
+    matchers:
+      - alertname = "HighMemoryUsage"
+      - service = "ai-ready-api"
+    duration: "1h"
+    comment: "临时静默内存告警"
+    
+  # 计划维护静默
+  - name: "planned_maintenance"
+    enabled: false
+    matchers:
+      - service =~ "ai-ready-.*"
+    start_time: "2026-03-30T02:00:00Z"
+    end_time: "2026-03-30T06:00:00Z"
+    comment: "计划维护静默"
+
+# ========================================
+# 告警去重规则
+# ========================================
+deduplication_rules:
+  # 按告警名称和服务去重
+  - name: "dedup_by_alertname_service"
+    enabled: true
+    group_by: ["alertname", "service"]
+    dedup_interval: "5m"
+    
+  # 按trace_id去重
+  - name: "dedup_by_trace_id"
+    enabled: true
+    match:
+      trace_id: ".*"
+    group_by: ["trace_id"]
+    dedup_interval: "1h"
+
+# ========================================
+# 告警升级规则
+# ========================================
+escalation_rules:
+  # 未响应的critical告警升级
+  - name: "escalate_unacknowledged_critical"
+    enabled: true
+    match:
+      severity: "critical"
+    escalation_time: "15m"
+    escalation_level: 2
+    notify:
+      - team: "devops"
+        channels: ["wechat", "email", "sms"]
+      - team: "management"
+        channels: ["wechat", "email"]
+    comment: "15分钟未响应的critical告警升级"
+    
+  # 未响应的warning告警升级
+  - name: "escalate_unacknowledged_warning"
+    enabled: true
+    match:
+      severity: "warning"
+    escalation_time: "2h"
+    escalation_level: 1
+    notify:
+      - team: "backend"
+        channels: ["wechat"]
+    comment: "2小时未响应的warning告警升级"

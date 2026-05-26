@@ -1,0 +1,33 @@
+{
+  "name": "@ai-ready/themes",
+  "version": "1.0.0",
+  "description": "AI-Ready 主题系统",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "theme",
+    "ai-ready",
+    "vue",
+    "css-variables"
+  ],
+  "author": "AI-Ready Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ai-ready/ai-ready.git",
+    "directory": "frontend/packages/themes"
+  }
+}

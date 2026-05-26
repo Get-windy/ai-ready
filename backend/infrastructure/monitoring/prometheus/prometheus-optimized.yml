@@ -1,0 +1,290 @@
+# Prometheus优化配置 - Sprint 29
+# 文件名: prometheus-optimized.yml
+# 版本: v2.0.0-optimized
+# 更新日期: 2026-04-26
+# 优化重点: 采集效率、存储性能、资源利用率
+
+# ===========================================
+# 全局配置 - 性能优化
+# ===========================================
+global:
+  # 优化采集间隔：核心指标15s，非核心30s
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  # 外部标签（用于联邦集群和远程存储）
+  external_labels:
+    monitor: 'ai-ready-monitor'
+    environment: 'production'
+    region: 'cn-east'
+    cluster: 'qizhilian-prod'
+
+# ===========================================
+# TSDB存储优化配置
+# ===========================================
+storage:
+  tsdb:
+    path: /prometheus
+    # 数据保留优化：生产环境30天
+    retention.time: 30d
+    # 保留空间限制（防止磁盘满）
+    retention.size: 50GB
+    # WAL压缩优化（提升写入性能）
+    wal_compression: true
+    # 头块压缩（减少内存占用）
+    head_compression: true
+    # 内存块优化
+    max_blocks: 10
+    # 并发查询优化
+    concurrent_reads: 4
+
+# ===========================================
+# 远程存储优化配置（VictoriaMetrics集成）
+# ===========================================
+remote_write:
+  - url: "http://victoriametrics:8428/api/v1/write"
+    remote_timeout: 30s
+    # 写入优化配置
+    chunk_size_bytes: 100000
+    max_shards: 200
+    max_samples_per_send: 5000
+    # 批处理优化
+    batch_send_deadline: 5s
+    min_shards: 1
+    max_samples_in_queue: 100000
+    # 重试配置
+    queue_config:
+      max_retries: 10
+      retry_on_rate_limit: true
+    # 元数据同步
+    send_exemplars: true
+
+remote_read:
+  - url: "http://victoriametrics:8428/api/v1/read"
+    remote_timeout: 30s
+    read_recent: false
+    # 并发读取优化
+    concurrency: 4
+    chunk_size: 10000
+
+# ===========================================
+# 告警规则文件配置
+# ===========================================
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# ===========================================
+# 告警配置优化
+# ===========================================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+    # 告警发送优化
+    alert_relabel_configs:
+      - source_labels: [severity]
+        regex: 'info'
+        action: drop  # 生产环境不发送info级别告警到Alertmanager
+
+# ===========================================
+# 采集任务配置 - 分层采集策略
+# ===========================================
+scrape_configs:
+  # ===========================================
+  # 优先级P0：核心服务快速采集（10秒）
+  # ===========================================
+  - job_name: 'prometheus-self'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: /metrics
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # ===========================================
+  # 优先级P1：核心应用服务（15秒）
+  # ===========================================
+  - job_name: 'ai-module'
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: true
+    # 服务发现优化：使用Consul动态发现
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: ['ai-module']
+        # 刷新间隔优化
+        refresh_interval: 30s
+        # 标签过滤
+        tags: ['production']
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: node
+      - source_labels: [__meta_consul_tags]
+        regex: '.*,production,.*'
+        action: keep
+    # 指标过滤优化（减少无效指标）
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'go_.*'
+        action: drop  # 过滤go运行时指标（减少数据量）
+
+  - job_name: 'qi-zhilian-backend'
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: true
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: ['qi-zhilian-backend']
+        refresh_interval: 30s
+        tags: ['production']
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: node
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'jvm_buffer_pool.*|jvm_gc.*'
+        action: keep  # 只保留关键JVM指标
+
+  # ===========================================
+  # 优先级P2：基础设施服务（30秒）
+  # ===========================================
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    honor_labels: true
+    # 指标重标记优化
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):.*'
+        replacement: '$1'
+    # 指标过滤：只保留关键系统指标
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'node_cpu_seconds_total|node_memory_MemAvailable_bytes|node_filesystem_avail_bytes|node_network_receive_bytes_total'
+        action: keep
+
+  - job_name: 'postgresql-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    honor_labels: true
+    metric_relabel_configs:
+      # 过滤模板数据库指标
+      - source_labels: [datname]
+        regex: 'template[01]'
+        action: drop
+      # 只保留关键数据库指标
+      - source_labels: [__name__]
+        regex: 'pg_stat_activity_count|pg_stat_database_bytes|pg_replication_lag_seconds'
+        action: keep
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    honor_labels: true
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'redis_connected_clients|redis_memory_used_bytes|redis_keyspace_keys_total|redis_commands_total'
+        action: keep
+
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    honor_labels: true
+
+  # ===========================================
+  # 优先级P3：监控服务（60秒）
+  # ===========================================
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 60s
+    scrape_timeout: 30s
+
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    scrape_interval: 60s
+    scrape_timeout: 30s
+
+  # ===========================================
+  # 黑盒探测：HTTP健康检查（重要）
+  # ===========================================
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+      - targets:
+          - http://localhost:8080/health
+          - http://localhost:3000/api/health
+          - http://ai-module:8080/actuator/health
+          - http://qi-zhilian-backend:8080/actuator/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ===========================================
+  # 黑盒探测：TCP端口检查
+  # ===========================================
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - postgres:5432
+          - redis:6379
+          - kafka:9092
+          - mysql:3306
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ===========================================
+  # Pushgateway：批处理任务指标
+  # ===========================================
+  - job_name: 'pushgateway'
+    static_configs:
+      - targets: ['pushgateway:9091']
+    honor_labels: true
+    scrape_interval: 30s
+
+# ===========================================
+# 性能优化总结
+# ===========================================
+# 1. 分层采集策略：P0(10s) → P1(15s) → P2(30s) → P3(60s)
+# 2. 指标过滤优化：只保留关键指标，减少数据量
+# 3. 存储优化：WAL压缩、头块压缩、并发查询
+# 4. 远程存储优化：批处理、并发写入、重试机制
+# 5. 服务发现优化：Consul动态发现，减少配置维护

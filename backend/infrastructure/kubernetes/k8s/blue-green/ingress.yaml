@@ -1,0 +1,56 @@
+# AI-Ready Blue-Green Ingress Configuration
+# 蓝绿部署Ingress配置
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-ready-api-active
+  namespace: ai-ready
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.ai-ready.com
+      secretName: ai-ready-api-tls
+  rules:
+    - host: api.ai-ready.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-ready-api-active  # 指向活跃版本
+                port:
+                  number: 8080
+---
+# Preview Ingress - 用于内部测试
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-ready-api-preview
+  namespace: ai-ready
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - preview-api.ai-ready.com
+      secretName: ai-ready-api-preview-tls
+  rules:
+    - host: preview-api.ai-ready.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-ready-api-preview  # 指向预览版本

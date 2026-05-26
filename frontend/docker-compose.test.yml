@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # 前端应用
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_ENV: test
+    image: ai-ready-frontend:test
+    container_name: ai-ready-frontend-test
+    ports:
+      - "8081:80"
+    environment:
+      NODE_ENV: test
+      VITE_APP_ENV: test
+      VITE_API_BASE_URL: /api/v1
+      VITE_API_ADMIN_URL: /api/admin
+      VITE_API_MOBILE_URL: /api/mobile
+      VITE_PROXY_TARGET: http://backend-test:8080
+    networks:
+      - ai-ready-network
+    depends_on:
+      - backend-test
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - frontend-logs:/var/log/nginx
+    restart: unless-stopped
+
+  # 测试环境后端服务（模拟）
+  backend-test:
+    image: nginx:alpine
+    container_name: ai-ready-backend-test
+    ports:
+      - "8082:80"
+    volumes:
+      - ./mock-backend:/usr/share/nginx/html
+      - ./nginx.backend.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - ai-ready-network
+    restart: unless-stopped
+
+  # 监控服务（Prometheus）
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ai-ready-prometheus-test
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - ai-ready-network
+    restart: unless-stopped
+
+  # 可视化监控（Grafana）
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-ready-grafana-test
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - ai-ready-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # 日志收集（Loki）
+  loki:
+    image: grafana/loki:latest
+    container_name: ai-ready-loki-test
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - ai-ready-network
+    restart: unless-stopped
+
+  # 日志收集代理（Promtail）
+  promtail:
+    image: grafana/promtail:latest
+    container_name: ai-ready-promtail-test
+    volumes:
+      - /var/log:/var/log:ro
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - ai-ready-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+networks:
+  ai-ready-network:
+    driver: bridge
+    name: ai-ready-test-network
+
+volumes:
+  frontend-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

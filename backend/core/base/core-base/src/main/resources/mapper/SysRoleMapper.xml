@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.base.mapper.SysRoleMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.base.entity.SysRole">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="role_name" property="roleName"/>
+        <result column="role_code" property="roleCode"/>
+        <result column="role_type" property="roleType"/>
+        <result column="data_scope" property="dataScope"/>
+        <result column="sort" property="sort"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+    </resultMap>
+
+    <!-- 根据角色编码查询 -->
+    <select id="selectByRoleCode" resultMap="BaseResultMap">
+        SELECT * FROM sys_role
+        WHERE role_code = #{roleCode}
+          AND tenant_id = #{tenantId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 查询用户的角色列表 -->
+    <select id="selectRolesByUserId" resultMap="BaseResultMap">
+        SELECT sr.*
+        FROM sys_role sr
+        INNER JOIN sysUserRole sur ON sr.id = sur.role_id
+        WHERE sur.user_id = #{userId}
+          AND sr.deleted = 0
+        ORDER BY sr.sort ASC
+    </select>
+
+    <!-- 分页查询角色列表 -->
+    <select id="selectRolePage" resultMap="BaseResultMap">
+        SELECT sr.*
+        FROM sys_role sr
+        <where>
+            <if test="tenantId != null">
+                AND sr.tenant_id = #{tenantId}
+            </if>
+            <if test="roleName != null and roleName != ''">
+                AND sr.role_name LIKE CONCAT('%', #{roleName}, '%')
+            </if>
+            <if test="status != null">
+                AND sr.status = #{status}
+            </if>
+            AND sr.deleted = 0
+        </where>
+        ORDER BY sr.sort ASC, sr.create_time DESC
+    </select>
+
+    <!-- 检查角色编码是否存在 -->
+    <select id="checkRoleCodeExists" resultType="int">
+        SELECT COUNT(*)
+        FROM sys_role
+        WHERE role_code = #{roleCode}
+          AND tenant_id = #{tenantId}
+          AND deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <!-- 获取角色的权限ID列表 -->
+    <select id="selectPermissionIdsByRoleId" resultType="long">
+        SELECT sp.id
+        FROM sys_role_permission srp
+        INNER JOIN sys_permission sp ON srp.permission_id = sp.id
+        WHERE srp.role_id = #{roleId}
+          AND sp.deleted = 0
+    </select>
+
+    <!-- 获取角色的菜单ID列表 -->
+    <select id="selectMenuIdsByRoleId" resultType="long">
+        SELECT sm.id
+        FROM sys_role_menu srm
+        INNER JOIN sys_menu sm ON srm.menu_id = sm.id
+        WHERE srm.role_id = #{roleId}
+          AND sm.deleted = 0
+    </select>
+
+</mapper>

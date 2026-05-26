@@ -1,0 +1,343 @@
+# Optimized Docker Compose configuration for AI-Ready test environment
+# Features: health checks, resource limits, auto-restart, monitoring
+
+version: '3.8'
+
+# Global configuration
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+
+x-healthcheck: &default-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+
+x-restart-policy: &default-restart
+  restart: unless-stopped
+
+x-resource-limits: &default-resources
+  deploy:
+    resources:
+      limits:
+        cpus: '1'
+        memory: 512M
+      reservations:
+        cpus: '0.25'
+        memory: 128M
+
+x-environment: &default-environment
+  TZ: Asia/Shanghai
+  SPRING_PROFILES_ACTIVE: test
+
+# Services
+services:
+  # API Gateway (Nginx)
+  api-gateway:
+    image: nginx:alpine
+    container_name: ai-ready-api-gateway
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/api-gateway:/var/log/nginx
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+    <<: *default-restart
+    <<: *default-resources
+    logging: *default-logging
+    depends_on:
+      user-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-ready-postgres
+    environment:
+      <<: *default-environment
+      POSTGRES_DB: ai_ready
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/backup:/backup
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging: *default-logging
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=13107kB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ai-ready-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/conf/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+    <<: *default-restart
+    <<: *default-resources
+    logging: *default-logging
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ai-ready-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin123}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - ./rabbitmq/data:/var/lib/rabbitmq
+      - ./rabbitmq/logs:/var/log/rabbitmq
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+
+  # User Service (Spring Boot)
+  user-service:
+    build:
+      context: ../backend/user-service
+      dockerfile: Dockerfile
+      args:
+        BUILD_PROFILE: test
+    image: ai-ready/user-service:test
+    container_name: ai-ready-user-service
+    environment:
+      <<: *default-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ai_ready
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-admin}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin123}
+      JAVA_OPTS: >
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseG1GC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/opt/traces
+        -XX:NativeMemoryTracking=summary
+        -Djava.security.egd=file:/dev/./urandom
+        -Dfile.encoding=UTF-8
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./logs/user-service:/opt/logs
+      - ./traces/user-service:/opt/traces
+      - ./config/user-service:/opt/config:ro
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    <<: *default-restart
+    <<: *default-resources
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Order Service (Spring Boot)
+  order-service:
+    build:
+      context: ../backend/order-service
+      dockerfile: Dockerfile
+      args:
+        BUILD_PROFILE: test
+    image: ai-ready/order-service:test
+    container_name: ai-ready-order-service
+    environment:
+      <<: *default-environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ai_ready
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-admin}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-admin123}
+      JAVA_OPTS: >
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseG1GC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/opt/traces
+        -XX:NativeMemoryTracking=summary
+        -Djava.security.egd=file:/dev/./urandom
+        -Dfile.encoding=UTF-8
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./logs/order-service:/opt/logs
+      - ./traces/order-service:/opt/traces
+      - ./config/order-service:/opt/config:ro
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+    <<: *default-restart
+    <<: *default-resources
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Monitoring Service (Prometheus + Grafana)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ai-ready-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/data:/prometheus
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+    <<: *default-restart
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-ready-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-clock-panel
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - ai-ready-network
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+    <<: *default-restart
+    <<: *default-resources
+    logging: *default-logging
+    depends_on:
+      prometheus:
+        condition: service_started
+
+# Networks
+networks:
+  ai-ready-network:
+    name: ai-ready-test-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    attachable: true
+
+# Volumes (named volumes for persistence)
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+  user-service-logs:
+  order-service-logs:
+  api-gateway-logs:

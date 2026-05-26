@@ -1,0 +1,374 @@
+# 测试监控系统 Docker Compose 配置
+version: '3.8'
+
+services:
+  # 测试监控服务
+  test-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-monitor
+    image: ai-ready-test-monitor:latest
+    container_name: ai-ready-test-monitor
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./test-monitor:/app
+      - ./logs/test-monitor:/app/logs
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9091
+      - ALERTMANAGER_URL=http://alertmanager:9094
+      - GRAFANA_URL=http://grafana:3100
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=testing
+      - PROJECT=ai-ready
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - prometheus
+      - alertmanager
+
+  # Prometheus 实例
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: test-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+      - ./config/prometheus:/etc/prometheus/config
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # AlertManager 实例
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: test-alertmanager
+    ports:
+      - "9094:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+      - ./config/alertmanager:/etc/alertmanager/config
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9094'
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - prometheus
+
+  # Grafana 实例
+  grafana:
+    image: grafana/grafana:latest
+    container_name: test-grafana
+    ports:
+      - "3100:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./config/grafana/plugins:/var/lib/grafana/plugins
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - prometheus
+
+  # 节点导出器（系统资源监控）
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: test-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # cAdvisor（容器资源监控）
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: test-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # 测试数据生成器
+  test-data-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-data
+    image: test-data-generator:latest
+    container_name: test-data-generator
+    volumes:
+      - ./test-data:/app/test-data
+      - ./logs/test-data:/app/logs
+    environment:
+      - TEST_MONITOR_URL=http://test-monitor:8100
+      - GENERATION_INTERVAL=30
+      - DATA_VOLUME=100
+      - ENVIRONMENT=testing
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - test-monitor
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://test-monitor:8100/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 测试报告服务
+  test-report-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-report
+    image: test-report-service:latest
+    container_name: test-report-service
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./reports:/app/reports
+      - ./logs/test-report:/app/logs
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9091
+      - GRAFANA_URL=http://grafana:3100
+      - REPORT_INTERVAL=3600
+      - ENVIRONMENT=testing
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - grafana
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 测试告警通知服务
+  alert-notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.alert-notification
+    image: alert-notification-service:latest
+    container_name: alert-notification-service
+    volumes:
+      - ./config/notifications:/app/config
+      - ./logs/alert-notification:/app/logs
+    environment:
+      - ALERTMANAGER_URL=http://alertmanager:9094
+      - EMAIL_ENABLED=true
+      - SLACK_ENABLED=false
+      - WEBHOOK_ENABLED=true
+      - ENVIRONMENT=testing
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - alertmanager
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://alertmanager:9094/-/healthy', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: test-monitoring-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/conf.d:/etc/nginx/conf.d
+      - ./config/ssl:/etc/nginx/ssl
+    networks:
+      - test-monitoring-network
+    restart: unless-stopped
+    depends_on:
+      - test-monitor
+      - prometheus
+      - grafana
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# 网络配置
+networks:
+  test-monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# 数据卷配置
+volumes:
+  prometheus-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus
+  alertmanager-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/alertmanager
+  grafana-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana
+
+# 资源限制配置（可选）
+x-resource-limits: &resource-limits
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+      reservations:
+        cpus: '0.1'
+        memory: 128M
+
+# 应用资源限制
+services:
+  test-monitor:
+    <<: *resource-limits
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+  alertmanager:
+    <<: *resource-limits
+  grafana:
+    <<: *resource-limits
+  node-exporter:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+
+# 标签配置
+x-labels: &common-labels
+  com.ai-ready.project: 'test-monitoring'
+  com.ai-ready.environment: 'testing'
+  com.ai-ready.version: '1.0.0'
+  com.ai-ready.component: 'monitoring'
+
+# 应用标签
+services:
+  test-monitor:
+    labels: *common-labels
+  prometheus:
+    labels: *common-labels
+  alertmanager:
+    labels: *common-labels
+  grafana:
+    labels: *common-labels
+  node-exporter:
+    labels: *common-labels
+  cadvisor:
+    labels: *common-labels
+  test-data-generator:
+    labels: *common-labels
+  test-report-service:
+    labels: *common-labels
+  alert-notification-service:
+    labels: *common-labels

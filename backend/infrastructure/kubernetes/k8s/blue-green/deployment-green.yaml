@@ -1,0 +1,100 @@
+# AI-Ready Blue-Green Deployment - Green (New)
+# 蓝绿部署 - 绿色版本（新版本）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ready-api-green
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    version: green
+    color: green
+    track: production
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ai-ready-api
+      version: green
+  template:
+    metadata:
+      labels:
+        app: ai-ready-api
+        version: green
+        color: green
+        track: production
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: ai-ready-api
+      containers:
+        - name: api
+          image: ghcr.io/ai-ready/ai-ready-api:v1.1.0  # 新版本
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: DEPLOYMENT_COLOR
+              value: "green"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1024m -XX:+UseG1GC"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ready-api-green
+  namespace: ai-ready
+  labels:
+    app: ai-ready-api
+    version: green
+    color: green
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ai-ready-api
+    version: green

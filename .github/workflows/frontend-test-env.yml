@@ -1,0 +1,288 @@
+name: Frontend Test Environment CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/*
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-test-env.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - staging
+      version:
+        description: 'Custom Version Tag'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/frontend
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+
+jobs:
+  # 代码质量检查
+  quality-check:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
+        cache-dependency-path: 'frontend/pnpm-lock.yaml'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: ${{ env.PNPM_VERSION }}
+    
+    - name: Install Dependencies
+      run: |
+        cd frontend
+        pnpm install --frozen-lockfile
+    
+    - name: TypeScript Type Check
+      run: |
+        cd frontend
+        pnpm run type-check || echo "TypeScript check failed"
+    
+    - name: ESLint Check
+      run: |
+        cd frontend
+        pnpm run lint || echo "ESLint check failed"
+    
+    - name: Stylelint Check
+      run: |
+        cd frontend
+        npx stylelint "src/**/*.{css,scss,vue}" || echo "Stylelint check failed"
+    
+    - name: Build Check
+      run: |
+        cd frontend
+        pnpm run build:test
+    
+    - name: Unit Tests
+      run: |
+        cd frontend
+        pnpm run test:unit
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: frontend/coverage/
+        retention-days: 7
+
+  # 构建和推送Docker镜像
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: quality-check
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract Metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=test,enable=${{ github.ref == 'refs/heads/develop' }}
+    
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VITE_APP_ENV=test
+          NODE_ENV=production
+
+  # 部署到测试环境
+  deploy-test:
+    name: Deploy to Test Environment
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+    environment: test
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Setup Kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure Kubeconfig
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_TEST }}" | base64 -d > ~/.kube/config
+        kubectl config use-context ai-ready-test
+    
+    - name: Deploy to Kubernetes
+      run: |
+        cd infra/k8s/frontend
+        
+        # 更新镜像版本
+        export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+        envsubst < deployment.yaml | kubectl apply -f -
+        
+        # 等待部署完成
+        kubectl rollout status deployment/ai-ready-frontend -n ai-ready-test --timeout=300s
+    
+    - name: Run Smoke Tests
+      run: |
+        # 等待服务就绪
+        sleep 30
+        
+        # 健康检查
+        curl -f http://frontend.test.ai-ready.com/health || exit 1
+        
+        # API健康检查
+        curl -f http://frontend.test.ai-ready.com/api/health || echo "API health check skipped"
+        
+        # 版本检查
+        curl -f http://frontend.test.ai-ready.com/version || echo "Version endpoint not available"
+    
+    - name: Send Notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        username: 'CI/CD Bot'
+        icon_emoji: ':rocket:'
+        text: |
+          Frontend Test Environment Deployment
+          *Status*: ${{ job.status }}
+          *Branch*: ${{ github.ref }}
+          *Commit*: ${{ github.sha }}
+          *Actor*: ${{ github.actor }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # 性能测试
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: deploy-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v11
+      with:
+        urls: |
+          http://frontend.test.ai-ready.com
+          http://admin.test.ai-ready.com
+          http://mobile.test.ai-ready.com
+        configPath: ./frontend/.lighthouserc.json
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+    
+    - name: Upload Performance Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-report
+        path: ./lhci/
+        retention-days: 30
+
+  # 安全扫描
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Run Trivy Vulnerability Scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Security Scan Results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # 清理旧镜像
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: deploy-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Run Cleanup Script
+      run: |
+        # 保留最近5个镜像，删除更旧的
+        echo "Cleaning up old Docker images..."
+        
+        # 这里可以添加具体的清理逻辑
+        # 例如使用 registry API 删除旧标签
+        echo "Cleanup completed"

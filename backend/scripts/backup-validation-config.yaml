@@ -1,0 +1,37 @@
+# 数据库备份验证配置
+# Sprint 27+1测试环境
+
+postgresql:
+  host: "localhost"
+  port: 5432
+  database: "ai_ready_test"
+  backup_dir: "./backups/postgresql"
+  scripts_dir: "./scripts/backup/postgresql"
+  expected_backup_files:
+    - "pg_full_backup.sh"
+    - "pg_incremental_backup.sh"
+    - "pg_restore.sh"
+    - "pg_verify_backup.sh"
+
+redis:
+  host: "localhost"
+  port: 6379
+  backup_dir: "./backups/redis"
+  scripts_dir: "./scripts/backup/redis"
+  expected_backup_files:
+    - "redis_backup.sh"
+    - "redis_restore.sh"
+    - "redis_monitor.sh"
+  rdb_path: "./data/redis/dump.rdb"
+
+validation:
+  test_database: "backup_validation_test"
+  test_data_size: 100
+  recovery_timeout: 180  # 3分钟
+
+# 验证选项
+options:
+  simulate_backup: true  # 模拟备份执行
+  check_scripts_only: false  # 仅检查脚本
+  generate_reports: true  # 生成报告
+  output_dir: "./validation-reports"  # 报告输出目录

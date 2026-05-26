@@ -1,0 +1,73 @@
+# H2内存数据库测试配置
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ai-ready-gateway
+    
+  # H2内存数据库配置
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  # JPA/Hibernate 配置
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        
+  # H2 Console (仅用于开发调试)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      
+  # Redis 配置 (使用内存模式或跳过)
+  redis:
+    host: localhost
+    port: 6379
+    # 如果Redis不可用，可以注释掉这部分或使用嵌入式Redis
+
+# 网关配置保持不变
+gateway:
+  routes:
+    enable-dynamic: false  # 测试环境禁用动态路由
+  rate-limit:
+    enabled: false         # 测试环境禁用限流
+  security:
+    enable-auth: false     # 测试环境禁用认证（简化测试）
+    enable-black-white-list: false
+    enable-cors: true
+
+# 服务发现配置 (测试环境禁用)
+eureka:
+  client:
+    enabled: false
+  instance:
+    hostname: localhost
+
+# 日志配置
+logging:
+  level:
+    cn.aiedge: DEBUG
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,226 @@
+# 🚀 ERP批次管理模块优化配置
+# 版本: 1.0.0
+# 创建时间: 2026-05-05
+# 紧急优化: 解决数据库连接池问题和内存泄漏问题
+
+# 批次/序列号管理模块配置
+server:
+  port: 8088
+  tomcat:
+    connection-timeout: 30000  # 连接超时时间30秒
+    max-connections: 200       # 最大连接数
+    max-threads: 100          # 最大线程数
+    min-spare-threads: 10     # 最小空闲线程
+
+spring:
+  application:
+    name: erp-batch-sn
+  # 🎯 数据库连接池紧急优化配置
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ai_ready}?currentSchema=${DB_SCHEMA:erp_batch_sn}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      # 连接池核心配置 - 针对高并发优化
+      initial-size: 10         # 初始连接数增加
+      min-idle: 10             # 最小空闲连接增加
+      max-active: 50           # 最大活动连接数增加150%
+      max-wait: 10000          # 最大等待时间减少到10秒
+      time-between-eviction-runs-millis: 60000  # 连接检查间隔60秒
+      min-evictable-idle-time-millis: 300000    # 最小空闲时间5分钟
+      max-evictable-idle-time-millis: 600000    # 最大空闲时间10分钟
+      
+      # 连接验证和保活配置
+      validation-query: SELECT 1
+      validation-query-timeout: 3000
+      test-while-idle: true     # 空闲时验证连接
+      test-on-borrow: true      # 获取连接时验证
+      test-on-return: false     # 归还连接时不验证
+      
+      # 连接泄露检测
+      remove-abandoned: true    # 开启泄露检测
+      remove-abandoned-timeout: 300  # 5分钟后移除泄露连接
+      log-abandoned: true       # 记录泄露连接日志
+      
+      # 连接池统计和监控
+      filters: stat,wall,log4j2
+      stat:
+        enabled: true
+        log-slow-sql: true
+        slow-sql-millis: 3000   # 超过3秒为慢SQL
+      wall:
+        enabled: true
+        config:
+          delete-allow: false   # 禁止delete without where
+      
+      # 连接保活
+      keep-alive: true
+      keep-alive-between-time-millis: 30000
+      
+      # 连接超时配置
+      connect-timeout: 30000    # 连接超时30秒
+      socket-timeout: 60000     # socket超时60秒
+  
+  # 🎯 JVM内存优化配置
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+  jackson:
+    default-property-inclusion: non_null  # 减少序列化内存使用
+  
+  # Redis连接池优化
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 5000ms  # 超时时间增加到5秒
+    lettuce:
+      pool:
+        max-active: 20          # 最大活动连接增加
+        max-idle: 15            # 最大空闲连接增加
+        min-idle: 5             # 最小空闲连接
+        max-wait: 10000ms       # 最大等待时间10秒
+      shutdown-timeout: 200ms
+
+# 🎯 MyBatis Plus配置优化
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl  # 使用SLF4J减少内存开销
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30  # SQL执行超时30秒
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false  # 禁用banner减少启动内存
+  mapper-locations: classpath*:mapper/**/*.xml
+
+# 🎯 批次/序列号模块自定义配置
+batchsn:
+  # 批次号生成规则
+  batch:
+    prefix: "B"
+    date-format: "yyyyMMdd"
+    seq-length: 4
+    cache-size: 1000  # 增加缓存大小减少数据库访问
+  # 序列号生成规则
+  serial:
+    prefix: "SN"
+    date-format: "yyyyMMdd"
+    seq-length: 6
+    cache-size: 1000
+  # 临期预警天数
+  expiry:
+    warning-days: 30
+    batch-size: 100  # 批量处理大小
+  # 质保预警天数
+  warranty:
+    warning-days: 30
+    batch-size: 100
+  # 自动过期检查（cron表达式）
+  auto-expire:
+    enabled: true
+    cron: "0 0 2 * * ?"
+    max-execution-time: 1800000  # 最大执行时间30分钟
+
+# 🎯 内存泄漏防护配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,heapdump
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 30s
+  tracing:
+    sampling:
+      probability: 0.1
+
+# 🎯 应用性能监控配置
+logging:
+  level:
+    com.zaxxer.hikari: WARN
+    org.springframework.web: INFO
+    com.ai-ready.erp.batchsn: DEBUG
+    org.hibernate.SQL: WARN
+  file:
+    name: ./logs/erp-batch-sn.log
+    max-history: 30
+    max-size: 100MB
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 🎯 线程池优化
+task:
+  execution:
+    pool:
+      core-size: 10
+      max-size: 50
+      queue-capacity: 1000
+      keep-alive: 60s
+      thread-name-prefix: batchsn-task-
+    thread-name-prefix: batchsn-async-
+    shutdown:
+      await-termination: true
+      await-termination-period: 30s
+
+# 🎯 HTTP客户端优化
+httpclient:
+  connection:
+    timeout: 5000
+    request-timeout: 10000
+    socket-timeout: 30000
+    max-connections: 200
+    max-connections-per-route: 50
+
+# 🎯 缓存配置优化
+cache:
+  caffeine:
+    spec: maximumSize=10000,expireAfterWrite=10m
+  redis:
+    time-to-live: 30m
+    cache-null-values: false  # 不缓存null值减少内存占用
+
+# 🎯 Springdoc OpenAPI配置
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    filter: true
+    default-model-expand-depth: 3
+    doc-expansion: none
+  show-actuator: true
+  paths-to-match:
+    - /api/erp/batch-sn/**
+    - /api/erp/batches/**
+  packages-to-scan:
+    - cn.aiedge.erp.batchsn.controller
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  model-and-view-allowed: false

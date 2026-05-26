@@ -1,0 +1,1 @@
+I:/AI-Ready/docs/testing/deploy/DOCKER_COMPOSE_DEPLOY.md

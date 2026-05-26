@@ -1,0 +1,304 @@
+{
+  "dashboard": {
+    "title": "Sprint 28 - 指标采集监控",
+    "uid": "sprint28-metrics-collector",
+    "description": "监控指标采集服务的性能指标和健康状态",
+    "tags": ["sprint28", "alerting", "metrics-collector"],
+    "timezone": "Asia/Shanghai",
+    "schemaVersion": 36,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "指标采集健康评分",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting:metrics_collector_health_score",
+            "legendFormat": "健康评分",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 60},
+                {"color": "green", "value": 80}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "指标采集吞吐量",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(alerting_metrics_collected_total[5m])",
+            "legendFormat": "指标/秒",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 5000},
+                {"color": "green", "value": 10000}
+              ]
+            },
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "指标队列大小",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "alerting_metrics_queue_size",
+            "legendFormat": "队列大小",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5000},
+                {"color": "red", "value": 10000}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "指标采集错误率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(rate(alerting_metrics_collection_errors_total[5m]) / rate(alerting_metrics_collected_total[5m])) * 100",
+            "legendFormat": "错误率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.05},
+                {"color": "red", "value": 0.1}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "指标采集延迟趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(alerting_metrics_collection_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(alerting_metrics_collection_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(alerting_metrics_collection_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "指标写入延迟趋势",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(alerting_metrics_write_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(alerting_metrics_write_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(alerting_metrics_write_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "各数据源指标采集速率",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (source) (rate(alerting_metrics_collected_total[5m]))",
+            "legendFormat": "{{ source }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "指标数据源健康状态",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "alerting:metrics_source_health",
+            "legendFormat": "{{ source }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bool",
+            "min": 0,
+            "max": 1
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "批量处理统计",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(alerting_metrics_batch_processed_total[5m])",
+            "legendFormat": "成功批次",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(alerting_metrics_batch_failed_total[5m])",
+            "legendFormat": "失败批次",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "指标压缩率",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "alerting:metrics_compression_ratio * 100",
+            "legendFormat": "压缩率",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 11,
+        "title": "JVM内存使用",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"alerting-metrics-collector\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "已使用堆内存 (MB)",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"alerting-metrics-collector\", area=\"heap\"} / 1024 / 1024",
+            "legendFormat": "最大堆内存 (MB)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "mbytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 12,
+        "title": "线程池使用情况",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "spring_thread_pool_active_threads{job=\"alerting-metrics-collector\"}",
+            "legendFormat": "活跃线程",
+            "refId": "A"
+          },
+          {
+            "expr": "spring_thread_pool_max_threads{job=\"alerting-metrics-collector\"}",
+            "legendFormat": "最大线程",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32}
+      }
+    ]
+  }
+}

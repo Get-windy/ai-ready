@@ -1,0 +1,85 @@
+{
+  "test_time": "2026-04-04 01:38:27",
+  "baseline": {
+    "test_time": "2026-04-03 22:29:35",
+    "pressure_test": {
+      "baseline_avg_time": 5.8,
+      "low_concurrent_avg_time": 85.4,
+      "medium_concurrent_avg_time": 151.2,
+      "high_concurrent_avg_time": 168.6,
+      "stress_test_avg_time": 196.9
+    }
+  },
+  "current": {
+    "avg_response_time": 6.53151666483609,
+    "passed": 5,
+    "failed": 0,
+    "warned": 1,
+    "total": 6
+  },
+  "comparison": {
+    "avg_time_change_percent": 12.612356290277418
+  },
+  "tests": [
+    {
+      "name": "API Health Check",
+      "endpoint": "/",
+      "status_code": 401,
+      "response_time_ms": 16.632099999696948,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": 186.76034482236116,
+      "status": "WARN",
+      "message": "Response time deviation: +186.8%"
+    },
+    {
+      "name": "User API",
+      "endpoint": "/api/user/page",
+      "status_code": 401,
+      "response_time_ms": 4.54929999250453,
+      "baseline_time_ms": 10.0,
+      "deviation_percent": -54.5070000749547,
+      "status": "PASS",
+      "message": "User API accessible (-54.5% from baseline)"
+    },
+    {
+      "name": "Role API",
+      "endpoint": "/api/role/page",
+      "status_code": 401,
+      "response_time_ms": 4.419200005941093,
+      "baseline_time_ms": 10.0,
+      "deviation_percent": -55.80799994058907,
+      "status": "PASS",
+      "message": "Role API accessible (-55.8% from baseline)"
+    },
+    {
+      "name": "Consistency Test #1",
+      "endpoint": "/",
+      "status_code": 401,
+      "response_time_ms": 4.146200008108281,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": -28.51379296365033,
+      "status": "PASS",
+      "message": "Consistent response (4.1ms)"
+    },
+    {
+      "name": "Consistency Test #2",
+      "endpoint": "/",
+      "status_code": 401,
+      "response_time_ms": 4.768699989654124,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": -17.781034661135795,
+      "status": "PASS",
+      "message": "Consistent response (4.8ms)"
+    },
+    {
+      "name": "Consistency Test #3",
+      "endpoint": "/",
+      "status_code": 401,
+      "response_time_ms": 4.673599993111566,
+      "baseline_time_ms": 5.8,
+      "deviation_percent": -19.42068977393852,
+      "status": "PASS",
+      "message": "Consistent response (4.7ms)"
+    }
+  ]
+}

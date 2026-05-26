@@ -1,0 +1,459 @@
+# 配置合规性规则库
+# 版本: 1.0.0
+# 创建日期: 2026-04-29
+# 作者: qa-lead
+# 项目: AI-Ready测试环境配置专项
+
+# 规则库概述
+metadata:
+  name: "测试环境配置合规性规则库"
+  version: "1.0.0"
+  description: "定义测试环境配置合规性检查的规则和标准"
+  applicable_environments:
+    - "test"
+    - "staging"
+    - "development"
+  compliance_standards:
+    - "enterprise-baseline"
+    - "security-best-practices"
+    - "performance-optimization"
+  last_updated: "2026-04-29"
+  maintainer: "qa-lead"
+
+# 操作系统配置规则
+os_config:
+  description: "操作系统级别的配置合规性检查"
+  rules:
+    # 用户和权限管理
+    - id: "os_user_password_policy"
+      name: "用户密码策略检查"
+      description: "检查密码复杂度、过期策略等是否符合安全标准"
+      severity: "high"
+      category: "security"
+      platforms: ["linux", "windows"]
+      check_method: "command"
+      
+      # Linux检查
+      linux:
+        command: "grep -E '^PASS_MAX_DAYS|^PASS_MIN_DAYS|^PASS_MIN_LEN|^PASS_WARN_AGE' /etc/login.defs"
+        expected_patterns:
+          - r"PASS_MAX_DAYS\s+(\d+)"
+          - r"PASS_MIN_DAYS\s+(\d+)"
+          - r"PASS_MIN_LEN\s+(\d+)"
+          - r"PASS_WARN_AGE\s+(\d+)"
+        expected_values:
+          "PASS_MAX_DAYS": {"max": 90}  # 密码最大有效期不超过90天
+          "PASS_MIN_DAYS": {"min": 1}   # 密码最小有效期至少1天
+          "PASS_MIN_LEN": {"min": 8}    # 最小密码长度至少8位
+          "PASS_WARN_AGE": {"min": 7}   # 密码过期前至少警告7天
+      
+      # Windows检查
+      windows:
+        command: "net accounts"
+        expected_patterns:
+          - r"Minimum password age.*: (\d+) days"
+          - r"Maximum password age.*: (\d+) days"
+          - r"Minimum password length.*: (\d+) characters"
+          - r"Password history.*: (\d+) remembered"
+        expected_values:
+          "Minimum password age": {"min": 1, "max": 7}
+          "Maximum password age": {"max": 90}
+          "Minimum password length": {"min": 8}
+          "Password history": {"min": 5}
+      
+      remediation: |
+        1. 编辑 /etc/login.defs 文件（Linux）
+        2. 配置密码策略参数
+        3. 运行 'chage' 命令更新现有用户
+        4. 使用 'net accounts' 命令配置（Windows）
+
+    # SSH配置检查
+    - id: "os_ssh_config"
+      name: "SSH服务配置检查"
+      description: "检查SSH服务的配置文件是否符合安全标准"
+      severity: "critical"
+      category: "security"
+      platforms: ["linux"]
+      check_method: "file"
+      file_path: "/etc/ssh/sshd_config"
+      expected_patterns:
+        - r"^PermitRootLogin\s+no"
+        - r"^PasswordAuthentication\s+no"
+        - r"^X11Forwarding\s+no"
+        - r"^MaxAuthTries\s+[1-5]"
+        - r"^ClientAliveInterval\s+\d+"
+        - r"^ClientAliveCountMax\s+[0-3]"
+      remediation: |
+        1. 编辑 /etc/ssh/sshd_config 文件
+        2. 设置 PermitRootLogin no
+        3. 设置 PasswordAuthentication no
+        4. 重启SSH服务: systemctl restart sshd
+
+    # 系统日志配置
+    - id: "os_syslog_config"
+      name: "系统日志配置检查"
+      description: "检查系统日志配置是否完整和正确"
+      severity: "medium"
+      category: "audit"
+      platforms: ["linux"]
+      check_method: "file_exists"
+      file_path: "/var/log/syslog"
+      expected: true
+      permissions: "640"
+      remediation: "配置 rsyslog 或 systemd-journald 服务"
+
+# 安全配置规则
+security_config:
+  description: "安全相关的配置合规性检查"
+  rules:
+    # 防火墙状态检查
+    - id: "security_firewall_status"
+      name: "防火墙状态检查"
+      description: "检查系统防火墙是否启用"
+      severity: "critical"
+      category: "security"
+      platforms: ["linux", "windows"]
+      check_method: "service_status"
+      
+      linux:
+        service_name: "firewalld"
+        expected_status: "active"
+        command: "systemctl is-active firewalld"
+      
+      windows:
+        service_name: "MpsSvc"  # Windows Defender 防火墙服务
+        expected_status: "running"
+        command: "sc query MpsSvc"
+      
+      remediation: |
+        Linux: systemctl start firewalld && systemctl enable firewalld
+        Windows: netsh advfirewall set allprofiles state on
+
+    # SELinux/AppArmor检查
+    - id: "security_mac_status"
+      name: "强制访问控制状态检查"
+      description: "检查SELinux或AppArmor是否启用"
+      severity: "high"
+      category: "security"
+      platforms: ["linux"]
+      check_method: "command"
+      command: "getenforce 2>/dev/null || aa-status 2>/dev/null | head -1"
+      expected_patterns:
+        - r"Enforcing|enabled"
+      remediation: "配置并启用SELinux或AppArmor"
+
+    # 文件权限检查
+    - id: "security_critical_file_permissions"
+      name: "关键文件权限检查"
+      description: "检查系统关键文件的权限设置"
+      severity: "high"
+      category: "security"
+      platforms: ["linux"]
+      check_method: "custom"
+      custom_check: |
+        critical_files = [
+          ("/etc/passwd", "644"),
+          ("/etc/shadow", "640"),
+          ("/etc/group", "644"),
+          ("/etc/sudoers", "440")
+        ]
+        for file_path, expected_perm in critical_files:
+          if os.path.exists(file_path):
+            actual_perm = oct(os.stat(file_path).st_mode)[-3:]
+            if actual_perm != expected_perm:
+              return False
+        return True
+      remediation: "使用chmod命令修复文件权限"
+
+# 网络配置规则
+network_config:
+  description: "网络相关的配置合规性检查"
+  rules:
+    # DNS配置检查
+    - id: "network_dns_config"
+      name: "DNS配置检查"
+      description: "检查DNS服务器配置是否正确"
+      severity: "medium"
+      category: "network"
+      platforms: ["linux", "windows"]
+      check_method: "file"
+      
+      linux:
+        file_path: "/etc/resolv.conf"
+        expected_patterns:
+          - r"^nameserver\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+      
+      windows:
+        command: "ipconfig /all"
+        expected_patterns:
+          - r"DNS Servers.*:\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+      
+      remediation: "配置正确的DNS服务器地址"
+
+    # 网络时间协议检查
+    - id: "network_ntp_config"
+      name: "NTP时间同步配置检查"
+      description: "检查系统时间同步配置"
+      severity: "medium"
+      category: "network"
+      platforms: ["linux", "windows"]
+      check_method: "service_status"
+      
+      linux:
+        service_name: "chronyd"
+        expected_status: "active"
+        command: "timedatectl status"
+      
+      windows:
+        service_name: "W32Time"
+        expected_status: "running"
+      
+      remediation: "配置并启用NTP时间同步服务"
+
+# 应用程序配置规则
+application_config:
+  description: "应用程序级别的配置合规性检查"
+  rules:
+    # Java应用配置
+    - id: "app_java_config"
+      name: "Java应用程序配置检查"
+      description: "检查Java应用程序的JVM参数配置"
+      severity: "medium"
+      category: "performance"
+      platforms: ["linux", "windows"]
+      check_method: "env_variable"
+      variables: ["JAVA_HOME", "JAVA_OPTS"]
+      expected: "not_empty"
+      remediation: "配置JAVA_HOME环境变量和JVM参数"
+
+    # 应用日志配置
+    - id: "app_log_config"
+      name: "应用程序日志配置检查"
+      description: "检查应用程序日志目录和配置"
+      severity: "low"
+      category: "monitoring"
+      platforms: ["linux", "windows"]
+      check_method: "file_exists"
+      file_path: "/var/log/application"
+      expected: true
+      permissions: "755"
+      remediation: "创建应用程序日志目录并设置正确权限"
+
+    # 数据库连接配置
+    - id: "app_db_connection"
+      name: "数据库连接配置检查"
+      description: "检查应用程序的数据库连接配置"
+      severity: "high"
+      category: "availability"
+      platforms: ["linux", "windows"]
+      check_method: "custom"
+      custom_check: |
+        # 检查数据库连接配置文件
+        config_files = [
+          "/etc/application/database.conf",
+          "/opt/application/config/db.properties"
+        ]
+        for config_file in config_files:
+          if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+              content = f.read()
+              if 'localhost' in content or '127.0.0.1' in content:
+                return False  # 不应该使用本地数据库
+        return True
+      remediation: "配置正确的生产数据库连接信息"
+
+# 数据库配置规则
+database_config:
+  description: "数据库服务的配置合规性检查"
+  rules:
+    # MySQL配置检查
+    - id: "db_mysql_config"
+      name: "MySQL数据库配置检查"
+      description: "检查MySQL数据库的安全和性能配置"
+      severity: "high"
+      category: "database"
+      platforms: ["linux", "windows"]
+      check_method: "command"
+      command: "mysql -e 'SHOW VARIABLES LIKE \"%secure%\"; SHOW VARIABLES LIKE \"%log%\";'"
+      expected_patterns:
+        - r"secure_file_priv\s+.*"
+        - r"log_error\s+.*"
+        - r"slow_query_log\s+ON"
+      remediation: "配置MySQL的安全和日志参数"
+
+    # Redis配置检查
+    - id: "db_redis_config"
+      name: "Redis缓存配置检查"
+      description: "检查Redis缓存的安全配置"
+      severity: "medium"
+      category: "database"
+      platforms: ["linux", "windows"]
+      check_method: "file"
+      file_path: "/etc/redis/redis.conf"
+      expected_patterns:
+        - r"^requirepass\s+.+"
+        - r"^bind\s+127.0.0.1"
+        - r"^protected-mode\s+yes"
+      remediation: "配置Redis密码和绑定地址"
+
+# 监控配置规则
+monitoring_config:
+  description: "监控系统的配置合规性检查"
+  rules:
+    # Prometheus配置检查
+    - id: "monitoring_prometheus_config"
+      name: "Prometheus监控配置检查"
+      description: "检查Prometheus监控配置"
+      severity: "medium"
+      category: "monitoring"
+      platforms: ["linux", "windows"]
+      check_method: "file_exists"
+      file_path: "/etc/prometheus/prometheus.yml"
+      expected: true
+      remediation: "配置Prometheus监控目标"
+
+    # 日志收集配置
+    - id: "monitoring_log_collection"
+      name: "日志收集配置检查"
+      description: "检查日志收集系统配置"
+      severity: "low"
+      category: "monitoring"
+      platforms: ["linux"]
+      check_method: "service_status"
+      service_name: "filebeat"
+      expected_status: "active"
+      remediation: "配置并启用日志收集系统"
+
+# 性能配置规则
+performance_config:
+  description: "性能优化相关的配置合规性检查"
+  rules:
+    # 系统资源限制
+    - id: "performance_resource_limits"
+      name: "系统资源限制检查"
+      description: "检查系统资源限制配置"
+      severity: "medium"
+      category: "performance"
+      platforms: ["linux"]
+      check_method: "file"
+      file_path: "/etc/security/limits.conf"
+      expected_patterns:
+        - r"\*\s+soft\s+nofile\s+\d+"
+        - r"\*\s+hard\s+nofile\s+\d+"
+        - r"\*\s+soft\s+nproc\s+\d+"
+        - r"\*\s+hard\s+nproc\s+\d+"
+      remediation: "配置系统资源限制参数"
+
+    # 内核参数优化
+    - id: "performance_kernel_params"
+      name: "内核参数优化检查"
+      description: "检查系统内核参数优化配置"
+      severity: "medium"
+      category: "performance"
+      platforms: ["linux"]
+      check_method: "file"
+      file_path: "/etc/sysctl.conf"
+      expected_patterns:
+        - r"net\.core\.somaxconn\s*=\s*\d+"
+        - r"net\.ipv4\.tcp_max_syn_backlog\s*=\s*\d+"
+        - r"vm\.swappiness\s*=\s*[0-1]"
+      remediation: "优化系统内核参数"
+
+# 合规性评估标准
+compliance_standards:
+  enterprise_baseline:
+    name: "企业基线标准"
+    description: "企业级系统配置的最低合规要求"
+    required_categories:
+      - "os_config"
+      - "security_config"
+      - "network_config"
+    required_rules:
+      - "os_user_password_policy"
+      - "os_ssh_config"
+      - "security_firewall_status"
+    compliance_threshold: 90  # 需要90%的规则通过
+  
+  security_best_practices:
+    name: "安全最佳实践"
+    description: "遵循安全最佳实践的配置要求"
+    required_categories:
+      - "security_config"
+      - "os_config"
+    required_rules:
+      - "security_firewall_status"
+      - "security_mac_status"
+      - "security_critical_file_permissions"
+    compliance_threshold: 95
+  
+  performance_optimization:
+    name: "性能优化标准"
+    description: "系统性能优化的配置要求"
+    required_categories:
+      - "performance_config"
+      - "application_config"
+    required_rules:
+      - "performance_resource_limits"
+      - "performance_kernel_params"
+    compliance_threshold: 85
+
+# 报告模板
+report_templates:
+  summary_report:
+    name: "合规性摘要报告"
+    sections:
+      - "executive_summary"
+      - "compliance_by_category"
+      - "critical_issues"
+      - "remediation_plan"
+      - "recommendations"
+  
+  detailed_report:
+    name: "详细合规性报告"
+    sections:
+      - "executive_summary"
+      - "environment_info"
+      - "check_results"
+      - "compliance_analysis"
+      - "risk_assessment"
+      - "remediation_steps"
+      - "appendix"
+
+# 修复脚本模板
+remediation_scripts:
+  linux_security_hardening:
+    name: "Linux安全加固脚本"
+    description: "自动修复Linux安全配置问题"
+    platform: "linux"
+    commands:
+      - "sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config"
+      - "sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config"
+      - "systemctl restart sshd"
+      - "chmod 640 /etc/shadow"
+      - "chmod 440 /etc/sudoers"
+  
+  windows_security_hardening:
+    name: "Windows安全加固脚本"
+    description: "自动修复Windows安全配置问题"
+    platform: "windows"
+    commands:
+      - "netsh advfirewall set allprofiles state on"
+      - "net accounts /maxpwage:90"
+      - "net accounts /minpwlen:8"
+
+# 更新记录
+changelog:
+  - version: "1.0.0"
+    date: "2026-04-29"
+    changes:
+      - "初始版本发布"
+      - "包含6个配置类别"
+      - "定义25个合规性检查规则"
+      - "支持企业基线、安全最佳实践、性能优化三个合规标准"
+  
+  - version: "0.9.0"
+    date: "2026-04-28"
+    changes:
+      - "草案版本"
+      - "基本规则框架"
+      - "初步的检查方法定义"

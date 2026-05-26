@@ -1,0 +1,633 @@
+<template>
+  <div class="department-management">
+    <!-- 顶部工具栏 -->
+    <a-card
+      class="toolbar-card"
+      :bordered="false"
+    >
+      <a-row
+        :gutter="16"
+        align="middle"
+      >
+        <a-col :span="16">
+          <a-space>
+            <a-input-search
+              v-model:value="searchKeyword"
+              placeholder="搜索部门名称..."
+              style="width: 300px"
+              allow-clear
+              @search="handleSearch"
+            />
+            <a-button @click="handleExpandAll">
+              <template #icon>
+                <ExpandOutlined />
+              </template>
+              展开全部
+            </a-button>
+            <a-button @click="handleCollapseAll">
+              <template #icon>
+                <CompressOutlined />
+              </template>
+              折叠全部
+            </a-button>
+          </a-space>
+        </a-col>
+        <a-col
+          :span="8"
+          style="text-align: right"
+        >
+          <a-space>
+            <a-button
+              type="primary"
+              @click="handleAddRoot"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增根部门
+            </a-button>
+            <a-button @click="handleManagePersonnel">
+              <template #icon>
+                <TeamOutlined />
+              </template>
+              人员管理
+            </a-button>
+          </a-space>
+        </a-col>
+      </a-row>
+    </a-card>
+
+    <!-- 部门树 -->
+    <a-card
+      class="tree-card"
+      :bordered="false"
+    >
+      <a-spin :spinning="treeLoading">
+        <a-tree
+          v-model:expanded-keys="expandedKeys"
+          v-model:selected-keys="selectedKeys"
+          :tree-data="treeData as any"
+          :field-names="{ children: 'children', title: 'departmentName', key: 'id' }"
+          show-line
+          draggable
+          block-node
+          @drop="handleDrop"
+          @select="handleSelect"
+        >
+          <template #title="{ departmentName, status, leaderName }">
+            <span class="tree-node-title">
+              <a-tag
+                v-if="status === 1"
+                color="error"
+                size="small"
+              >停用</a-tag>
+              {{ departmentName }}
+              <span
+                v-if="leaderName"
+                class="leader-name"
+              >({{ leaderName }})</span>
+            </span>
+          </template>
+
+          <template #switcherIcon="{ expanded }">
+            <DownOutlined v-if="expanded" />
+            <RightOutlined v-else />
+          </template>
+        </a-tree>
+
+        <a-empty
+          v-if="!treeData.length && !treeLoading"
+          description="暂无部门数据"
+        />
+      </a-spin>
+    </a-card>
+
+    <!-- 部门表单弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="modalTitle"
+      :confirm-loading="modalLoading"
+      width="600px"
+      @ok="handleModalOk"
+      @cancel="handleModalCancel"
+    >
+      <a-form
+        ref="formRef"
+        :model="formState"
+        :rules="formRules as any"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item
+          label="上级部门"
+          name="parentId"
+        >
+          <a-tree-select
+            v-model:value="formState.parentId"
+            :tree-data="parentTreeData"
+            :field-names="{ children: 'children', label: 'departmentName', value: 'id' }"
+            placeholder="请选择上级部门（不选择则为根部门）"
+            allow-clear
+            show-search
+            tree-default-expand-all
+            tree-node-filter-prop="departmentName"
+          />
+        </a-form-item>
+        <a-form-item
+          label="部门编码"
+          name="departmentCode"
+        >
+          <a-input
+            v-model:value="formState.departmentCode"
+            placeholder="请输入部门编码"
+            :disabled="isEdit"
+          />
+        </a-form-item>
+        <a-form-item
+          label="部门名称"
+          name="departmentName"
+        >
+          <a-input
+            v-model:value="formState.departmentName"
+            placeholder="请输入部门名称"
+          />
+        </a-form-item>
+        <a-form-item
+          label="负责人"
+          name="leaderId"
+        >
+          <a-select
+            v-model:value="formState.leaderId"
+            placeholder="请选择负责人"
+            allow-clear
+            show-search
+            :filter-option="filterLeaderOption"
+          >
+            <a-select-option
+              v-for="leader in leaderList"
+              :key="leader.id"
+              :value="leader.id"
+            >
+              {{ leader.nickname || leader.username }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          label="联系电话"
+          name="phone"
+        >
+          <a-input
+            v-model:value="formState.phone"
+            placeholder="请输入联系电话"
+          />
+        </a-form-item>
+        <a-form-item
+          label="邮箱"
+          name="email"
+        >
+          <a-input
+            v-model:value="formState.email"
+            placeholder="请输入邮箱"
+          />
+        </a-form-item>
+        <a-form-item
+          label="排序"
+          name="sort"
+        >
+          <a-input-number
+            v-model:value="formState.sort"
+            :min="0"
+            :max="9999"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item
+          label="描述"
+          name="description"
+        >
+          <a-textarea
+            v-model:value="formState.description"
+            :rows="4"
+            placeholder="请输入部门描述"
+          />
+        </a-form-item>
+        <a-form-item
+          label="状态"
+          name="status"
+        >
+          <a-radio-group v-model:value="formState.status">
+            <a-radio :value="0">
+              正常
+            </a-radio>
+            <a-radio :value="1">
+              停用
+            </a-radio>
+          </a-radio-group>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 右键菜单 -->
+    <a-dropdown
+      v-model:open="contextMenuVisible"
+      :trigger="['contextmenu']"
+    >
+      <div class="context-menu-placeholder" />
+      <template #overlay>
+        <a-menu @click="handleContextMenuClick as any">
+          <a-menu-item key="add">
+            <PlusOutlined /> 新增子部门
+          </a-menu-item>
+          <a-menu-item key="edit">
+            <EditOutlined /> 编辑部门
+          </a-menu-item>
+          <a-menu-item key="move">
+            <DragOutlined /> 移动部门
+          </a-menu-item>
+          <a-menu-divider />
+          <a-menu-item key="toggle-status">
+            <StopOutlined /> {{ contextMenuNode?.status === 0 ? '停用' : '启用' }}
+          </a-menu-item>
+          <a-menu-item
+            key="delete"
+            danger
+          >
+            <DeleteOutlined /> 删除部门
+          </a-menu-item>
+        </a-menu>
+      </template>
+    </a-dropdown>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
+// TreeDropEvent type removed - using any for compatibility
+import {
+  PlusOutlined,
+  TeamOutlined,
+  ExpandOutlined,
+  CompressOutlined,
+  DownOutlined,
+  RightOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  StopOutlined,
+  DragOutlined
+} from '@ant-design/icons-vue'
+import { departmentApi, type DepartmentInfo } from '@/api/department'
+import { userApi, type UserInfo } from '@/api/user'
+
+// 搜索关键词
+const searchKeyword = ref('')
+
+// 树数据
+const treeData = ref<DepartmentInfo[]>([])
+const treeLoading = ref(false)
+const expandedKeys = ref<number[]>([])
+const selectedKeys = ref<number[]>([])
+
+// 弹窗相关
+const modalVisible = ref(false)
+const modalLoading = ref(false)
+const modalTitle = computed(() => isEdit.value ? '编辑部门' : '新增部门')
+const isEdit = ref(false)
+const formRef = ref<FormInstance>()
+
+const formState = reactive<Partial<DepartmentInfo>>({
+  id: 0,
+  parentId: undefined,
+  departmentCode: '',
+  departmentName: '',
+  leaderId: undefined,
+  phone: '',
+  email: '',
+  sort: 0,
+  description: '',
+  status: 0
+})
+
+const formRules = {
+  departmentName: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
+  departmentCode: [{ required: true, message: '请输入部门编码', trigger: 'blur' }]
+}
+
+// 父部门树数据（用于选择上级部门）
+const parentTreeData = ref<DepartmentInfo[]>([])
+
+// 负责人列表
+const leaderList = ref<UserInfo[]>([])
+
+// 右键菜单
+const contextMenuVisible = ref(false)
+const contextMenuNode = ref<DepartmentInfo | null>(null)
+
+// 数据加载
+const fetchTreeData = async () => {
+  treeLoading.value = true
+  try {
+    const res = await departmentApi.getTree({ tenantId: 1 })
+    if (res.data) {
+      treeData.value = res.data
+      // 默认展开所有节点
+      expandedKeys.value = getAllNodeIds(res.data)
+    }
+  } catch (error) {
+    message.error('加载部门数据失败')
+  } finally {
+    treeLoading.value = false
+  }
+}
+
+// 获取所有节点ID
+const getAllNodeIds = (nodes: DepartmentInfo[]): number[] => {
+  const ids: number[] = []
+  const traverse = (items: DepartmentInfo[]) => {
+    items.forEach(item => {
+      ids.push(item.id)
+      if (item.children && item.children.length > 0) {
+        traverse(item.children)
+      }
+    })
+  }
+  traverse(nodes)
+  return ids
+}
+
+// 加载父部门树
+const fetchParentTreeData = async () => {
+  try {
+    const res = await departmentApi.getTree({ tenantId: 1, status: 0 })
+    if (res.data) {
+      parentTreeData.value = res.data
+    }
+  } catch (error) {
+    console.error('加载父部门数据失败:', error)
+  }
+}
+
+// 加载负责人列表
+const fetchLeaderList = async () => {
+  try {
+    const res = await userApi.getList({ tenantId: 1, status: 0, pageSize: 1000 })
+    if (res.data) {
+      leaderList.value = res.data
+    }
+  } catch (error) {
+    console.error('加载负责人列表失败:', error)
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  // TODO: 实现搜索过滤
+  message.info('搜索功能待实现')
+}
+
+// 展开全部
+const handleExpandAll = () => {
+  expandedKeys.value = getAllNodeIds(treeData.value)
+}
+
+// 折叠全部
+const handleCollapseAll = () => {
+  expandedKeys.value = []
+}
+
+// 选择节点
+const handleSelect = (keys: any) => {
+  selectedKeys.value = keys
+}
+
+// 新增根部门
+const handleAddRoot = () => {
+  isEdit.value = false
+  Object.assign(formState, {
+    id: 0,
+    parentId: undefined,
+    departmentCode: '',
+    departmentName: '',
+    leaderId: undefined,
+    phone: '',
+    email: '',
+    sort: 0,
+    description: '',
+    status: 0
+  })
+  modalVisible.value = true
+}
+
+// 拖拽处理
+const handleDrop = async (info: any) => {
+  const { dragNode, node, dropPosition } = info
+  const dragId = dragNode.key as number
+  const targetId = node.key as number
+
+  // 确定移动位置
+  let position: 'before' | 'after' | 'inner' = 'inner'
+  if (dropPosition === -1) {
+    position = 'inner'
+  } else if (dropPosition === 1) {
+    position = 'after'
+  } else {
+    position = 'before'
+  }
+
+  try {
+    await departmentApi.move(dragId, targetId, position)
+    message.success('移动成功')
+    fetchTreeData()
+  } catch (error) {
+    message.error('移动失败')
+  }
+}
+
+// 右键菜单点击
+const handleContextMenuClick = async ({ key }: { key: string }) => {
+  contextMenuVisible.value = false
+
+  if (!contextMenuNode.value) return
+
+  switch (key) {
+    case 'add':
+      handleAddChild(contextMenuNode.value)
+      break
+    case 'edit':
+      handleEdit(contextMenuNode.value)
+      break
+    case 'move':
+      message.info('拖拽节点即可移动部门')
+      break
+    case 'toggle-status':
+      await handleToggleStatus(contextMenuNode.value)
+      break
+    case 'delete':
+      handleDelete(contextMenuNode.value)
+      break
+  }
+}
+
+// 新增子部门
+const handleAddChild = (parentNode: DepartmentInfo) => {
+  isEdit.value = false
+  Object.assign(formState, {
+    id: 0,
+    parentId: parentNode.id,
+    departmentCode: '',
+    departmentName: '',
+    leaderId: undefined,
+    phone: '',
+    email: '',
+    sort: 0,
+    description: '',
+    status: 0
+  })
+  modalVisible.value = true
+}
+
+// 编辑部门
+const handleEdit = (node: DepartmentInfo) => {
+  isEdit.value = true
+  Object.assign(formState, node)
+  modalVisible.value = true
+}
+
+// 提交表单
+const handleModalOk = async () => {
+  try {
+    await formRef.value?.validate()
+    modalLoading.value = true
+    
+    if (isEdit.value) {
+      await departmentApi.update(formState.id!, formState)
+      message.success('更新成功')
+    } else {
+      await departmentApi.create(formState)
+      message.success('创建成功')
+    }
+    
+    modalVisible.value = false
+    fetchTreeData()
+    fetchParentTreeData()
+  } catch (error) {
+    message.error('操作失败')
+  } finally {
+    modalLoading.value = false
+  }
+}
+
+const handleModalCancel = () => {
+  modalVisible.value = false
+  formRef.value?.resetFields()
+}
+
+// 切换状态
+const handleToggleStatus = async (node: DepartmentInfo) => {
+  const newStatus = node.status === 0 ? 1 : 0
+  await departmentApi.updateStatus(node.id, newStatus)
+  message.success('状态更新成功')
+  fetchTreeData()
+  fetchParentTreeData()
+}
+
+// 删除部门
+const handleDelete = (node: DepartmentInfo) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除部门 "${node.departmentName}" 吗？${node.children?.length ? '删除后子部门也会被删除。' : ''}`,
+    async onOk() {
+      await departmentApi.delete(node.id)
+      message.success('删除成功')
+      fetchTreeData()
+      fetchParentTreeData()
+    }
+  })
+}
+
+// 人员管理
+const handleManagePersonnel = () => {
+  if (selectedKeys.value.length === 0) {
+    message.warning('请先选择一个部门')
+    return
+  }
+  // TODO: 跳转到人员管理页面
+  message.info('人员管理功能待实现')
+}
+
+// 过滤负责人
+const filterLeaderOption = (input: string, option: any) => {
+  const leader = leaderList.value.find(l => l.id === option.value)
+  if (!leader) return false
+  const name = leader.nickname || leader.username || ''
+  return name.toLowerCase().includes(input.toLowerCase())
+}
+
+// 处理右键菜单 (保留以备后用)
+// @ts-ignore
+const handleRightClick = ({ node }: any, event: MouseEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  contextMenuNode.value = node.dataRef
+  contextMenuVisible.value = true
+}
+
+onMounted(() => {
+  fetchTreeData()
+  fetchParentTreeData()
+  fetchLeaderList()
+})
+</script>
+
+<style scoped>
+.department-management {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar-card {
+  margin-bottom: 16px;
+}
+
+.tree-card {
+  flex: 1;
+  min-height: 400px;
+}
+
+.tree-node-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leader-name {
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.context-menu-placeholder {
+  position: absolute;
+  visibility: hidden;
+}
+
+:deep(.ant-tree) {
+  background: transparent;
+}
+
+:deep(.ant-tree-node-content-wrapper) {
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+:deep(.ant-tree-node-content-wrapper:hover) {
+  background-color: #f5f5f5;
+}
+
+:deep(.ant-tree-node-selected .ant-tree-node-content-wrapper) {
+  background-color: #e6f7ff;
+}
+</style>

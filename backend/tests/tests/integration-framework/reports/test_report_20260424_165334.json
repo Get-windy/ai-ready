@@ -1,0 +1,68 @@
+{
+  "summary": {
+    "total_tests": 5,
+    "passed_tests": 3,
+    "failed_tests": 1,
+    "skipped_tests": 1,
+    "total_duration": 8.6,
+    "success_rate": 60.0,
+    "generated_at": "2026-04-24T16:53:34.625334"
+  },
+  "results": [
+    {
+      "test_id": "test_001",
+      "test_name": "用户登录测试",
+      "status": "passed",
+      "duration": 1.2,
+      "start_time": "2026-04-24T16:53:33.425157",
+      "end_time": "2026-04-24T16:53:34.625215",
+      "error_message": null
+    },
+    {
+      "test_id": "test_002",
+      "test_name": "订单创建测试",
+      "status": "passed",
+      "duration": 2.5,
+      "start_time": "2026-04-24T16:53:32.125221",
+      "end_time": "2026-04-24T16:53:34.625226",
+      "error_message": null
+    },
+    {
+      "test_id": "test_003",
+      "test_name": "库存查询测试",
+      "status": "failed",
+      "duration": 3.1,
+      "start_time": "2026-04-24T16:53:31.525228",
+      "end_time": "2026-04-24T16:53:34.625231",
+      "error_message": "测试 test_003 失败"
+    },
+    {
+      "test_id": "test_004",
+      "test_name": "支付流程测试",
+      "status": "passed",
+      "duration": 1.8,
+      "start_time": "2026-04-24T16:53:32.825234",
+      "end_time": "2026-04-24T16:53:34.625237",
+      "error_message": null
+    },
+    {
+      "test_id": "test_005",
+      "test_name": "数据导出测试",
+      "status": "skipped",
+      "duration": 0.0,
+      "start_time": "2026-04-24T16:53:34.625238",
+      "end_time": "2026-04-24T16:53:34.625241",
+      "error_message": "测试 test_005 失败"
+    }
+  ],
+  "metadata": {
+    "project": "AI-Ready",
+    "sprint": "Sprint 27+1",
+    "environment": "test",
+    "test_type": "integration",
+    "start_time": "2026-04-24T16:43:34.625244",
+    "end_time": "2026-04-24T16:53:34.625255"
+  },
+  "generated_at": "2026-04-24T16:53:34.625339",
+  "total_count": 5
+}

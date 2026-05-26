@@ -1,0 +1,165 @@
+# PostgreSQL 数据库 StatefulSet 配置
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: database
+    db: postgres
+spec:
+  serviceName: postgres-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-ready
+      component: database
+      db: postgres
+  template:
+    metadata:
+      labels:
+        app: ai-ready
+        component: database
+        db: postgres
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - database
+      containers:
+        - name: postgres
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_DB
+              value: "aiready"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-db-secret
+                  key: DB_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-ready-db-secret
+                  key: DB_ROOT_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - $(POSTGRES_USER)
+                - -d
+                - $(POSTGRES_DB)
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: postgres-init
+          configMap:
+            name: postgres-init-scripts
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app: ai-ready
+          component: database
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard  # 根据集群存储类调整
+        resources:
+          requests:
+            storage: 50Gi
+---
+# 初始化脚本 ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: database
+data:
+  01-init.sql: |
+    -- 创建应用用户
+    CREATE USER aiready_user WITH PASSWORD 'ChangeMeInProduction123!';
+    
+    -- 创建数据库
+    CREATE DATABASE aiready OWNER aiready_user;
+    
+    -- 授予权限
+    GRANT ALL PRIVILEGES ON DATABASE aiready TO aiready_user;
+    
+    -- 连接到新数据库创建扩展
+    \c aiready;
+    
+    -- 创建UUID扩展
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    
+    -- 创建pg_stat_statements扩展（用于性能监控）
+    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+    
+    -- 设置时区
+    SET timezone = 'Asia/Shanghai';
+---
+# Headless Service（用于StatefulSet内部通信）
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: ai-ready
+  labels:
+    app: ai-ready
+    component: database
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: ai-ready
+    component: database
+    db: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

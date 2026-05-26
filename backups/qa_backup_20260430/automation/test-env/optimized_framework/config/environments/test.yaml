@@ -1,0 +1,55 @@
+# 测试环境配置
+environment:
+  name: "test"
+  description: "Sprint 27+1集成测试环境"
+  url: "http://test.ai-ready.local"
+  api_base_url: "http://test.ai-ready.local/api"
+
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "ai_ready_test"
+    user: "test_user"
+    password: "test_password_2026"
+    pool_size: 10
+    max_overflow: 20
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: "redis_test_2026"
+    max_connections: 50
+
+message_queue:
+  rabbitmq:
+    host: "localhost"
+    port: 5672
+    vhost: "/test"
+    username: "test_user"
+    password: "rabbitmq_test_2026"
+    queue_prefix: "test_"
+
+api_gateway:
+  url: "http://gateway.test.ai-ready.local"
+  timeout: 30
+  retry_count: 3
+
+monitoring:
+  prometheus:
+    url: "http://prometheus.test.ai-ready.local"
+    scrape_interval: 15
+  grafana:
+    url: "http://grafana.test.ai-ready.local"
+    dashboard_id: "test_env"
+
+test_data:
+  users:
+    count: 1000
+    active_ratio: 0.8
+  products:
+    count: 5000
+    categories: ["电子产品", "办公用品", "家居用品", "图书音像"]
+  orders:
+    count: 50000
+    date_range: "3 months"

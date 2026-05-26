@@ -1,0 +1,89 @@
+# 监控告警系统配置文件清单
+# 生成时间: 2026-04-27 11:45
+# 测试环境: Sprint 27+1
+
+## 1. Prometheus配置
+- infra/docker/prometheus/prometheus.yml - 主配置文件
+- infra/docker/prometheus/rules/ - 告警规则目录
+  - service-availability.yml (建议创建)
+  - system-resources.yml (建议创建)
+  - database.yml (建议创建)
+  - cache.yml (建议创建)
+  - application.yml (建议创建)
+
+## 2. Alertmanager配置
+- infra/docker/alertmanager/alertmanager.yml - 告警管理器配置
+- infra/docker/alertmanager/templates/ - 通知模板目录
+  - email.tmpl (建议创建)
+  - dingtalk.tmpl (建议创建)
+  - wechat.tmpl (建议创建)
+
+## 3. Grafana配置
+- infra/docker/grafana/grafana.ini - Grafana主配置
+- infra/docker/grafana/provisioning/datasources/ - 数据源配置
+  - prometheus.yml - Prometheus数据源
+  - postgresql.yml - PostgreSQL数据源
+  - redis.yml - Redis数据源
+  - kafka.yml - Kafka数据源
+- infra/docker/grafana/provisioning/dashboards/ - 仪表板配置
+  - dashboards.yml - 仪表板清单
+  - system-overview.json (建议创建)
+  - application-performance.json (建议创建)
+  - business-metrics.json (建议创建)
+  - alert-summary.json (建议创建)
+
+## 4. Docker Compose配置
+- infra/docker/docker-compose.test.yml - 测试环境编排
+- infra/docker/docker-compose.monitoring.yml - 监控服务编排
+- infra/docker/docker-compose.exporters.yml - Exporter服务编排
+
+## 5. 应用服务监控配置
+- backend/user-service/src/main/resources/application-monitoring.yml
+- backend/order-service/src/main/resources/application-monitoring.yml
+- backend/inventory-service/src/main/resources/application-monitoring.yml
+- backend/crm-service/src/main/resources/application-monitoring.yml
+- backend/erp-service/src/main/resources/application-monitoring.yml
+
+## 6. 监控指标定义
+- docs/monitoring/metrics-definition.md - 指标定义文档
+- docs/monitoring/alert-rules.md - 告警规则文档
+- docs/monitoring/dashboard-guide.md - 仪表板使用指南
+
+## 7. 测试脚本和工具
+- qa/monitoring/monitoring-alert-integration-test.py - 集成测试脚本
+- qa/monitoring/basic-config-validation.md - 基础配置验证报告
+- qa/monitoring/basic-config-checklist.md - 基础配置检查清单
+- scripts/monitoring/health-check.sh - 监控服务健康检查脚本
+- scripts/monitoring/metrics-collector.py - 指标收集脚本
+- scripts/monitoring/alert-simulator.py - 告警模拟脚本
+
+## 8. 文档和报告
+- docs/monitoring/architecture.md - 监控架构文档
+- docs/monitoring/operational-guide.md - 运维指南
+- qa/test-reports/ - 测试报告目录
+- qa/monitoring/reports/ - 监控专项报告目录
+
+## 配置状态
+- ✅ 已存在且配置完整
+- ⚠️ 已存在但需要优化
+- ❌ 不存在需要创建
+- 🔄 建议创建或更新
+
+## 文件验证结果
+| 文件路径 | 状态 | 验证时间 | 备注 |
+|---------|------|---------|------|
+| infra/docker/prometheus/prometheus.yml | ✅ | 2026-04-27 | 配置完整 |
+| infra/docker/alertmanager/alertmanager.yml | ✅ | 2026-04-27 | 配置完整 |
+| infra/docker/grafana/provisioning/datasources/prometheus.yml | ✅ | 2026-04-27 | 配置完整 |
+| infra/docker/docker-compose.test.yml | ✅ | 2026-04-27 | 配置完整 |
+| infra/docker/prometheus/rules/*.yml | ❌ | 2026-04-27 | 目录为空，需要创建 |
+| infra/docker/alertmanager/templates/dingtalk.tmpl | ❌ | 2026-04-27 | 需要创建钉钉模板 |
+| scripts/monitoring/health-check.sh | ⚠️ | 2026-04-27 | 需要完善健康检查逻辑 |
+| docs/monitoring/metrics-definition.md | 🔄 | 2026-04-27 | 建议创建指标定义文档 |
+
+## 下一步行动
+1. 立即创建告警规则文件 (优先级: 高)
+2. 创建钉钉通知模板 (优先级: 高)
+3. 完善监控服务健康检查脚本 (优先级: 中)
+4. 创建监控指标定义文档 (优先级: 中)
+5. 部署Exporter服务配置 (优先级: 中)

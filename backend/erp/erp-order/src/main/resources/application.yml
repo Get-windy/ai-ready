@@ -1,0 +1,312 @@
+spring:
+  application:
+    name: erp-order
+    
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_order
+    username: postgres
+    password: postgres123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: erp-order-pool
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        default_schema: public
+        
+  activiti:
+    database-schema-update: true
+    db-history-used: true
+    history-level: audit
+    check-process-definitions: true
+    async-executor-activate: true
+    mail:
+      server:
+        host: localhost
+        port: 25
+        default-from: noreply@aiedge.cn
+    deployment-mode: single-resource
+    
+  redis:
+    host: localhost
+    port: 6379
+    password: 
+    database: 1
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+    
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: erp-order-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+        
+server:
+  port: 8085
+  servlet:
+    context-path: /api/erp/order
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+    connection-timeout: 30000
+    
+logging:
+  level:
+    cn.aiedge.erp.order: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/erp-order.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+    
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+      
+# Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    
+# Security Configuration
+security:
+  jwt:
+    secret: your-secret-key-change-in-production
+    expiration: 86400000  # 24 hours
+  oauth2:
+    client:
+      registration:
+        wechat:
+          client-id: your-wechat-app-id
+          client-secret: your-wechat-app-secret
+          scope: snsapi_login
+          authorization-grant-type: authorization_code
+          redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+    
+# File Upload Configuration
+file:
+  upload:
+    max-size: 20MB
+    allowed-extensions: .pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip,.rar
+    storage-path: ./uploads/order-attachments
+    
+# Order Configuration
+order:
+  # 订单号生成配置
+  order-no:
+    prefix: "ORD"
+    date-format: "yyMMdd"
+    sequence-length: 6
+    
+  # 订单状态配置
+  status:
+    pending: "待处理"
+    confirmed: "已确认"
+    processing: "处理中"
+    shipped: "已发货"
+    delivered: "已送达"
+    completed: "已完成"
+    cancelled: "已取消"
+    
+  # 支付配置
+  payment:
+    timeout-minutes: 30
+    retry-times: 3
+    notify-url: http://localhost:8085/api/erp/order/payment/notify
+    
+  # 库存配置
+  inventory:
+    check-before-order: true
+    reserve-timeout-minutes: 15
+    auto-release: true
+    
+  # 物流配置
+  logistics:
+    default-provider: "SF"
+    tracking-url-pattern: "https://www.sf-express.com/cn/sc/dynamic_function/waybill/#waybillNo={trackingNo}"
+    
+  # 通知配置
+  notification:
+    email:
+      enabled: true
+      templates:
+        order-confirmed: "templates/email/order-confirmed.html"
+        order-shipped: "templates/email/order-shipped.html"
+    sms:
+      enabled: false
+      provider: "aliyun"
+    wechat:
+      enabled: true
+      template-id: "ORDER_STATUS_UPDATE"
+    
+  # 退款配置
+  refund:
+    auto-approve-limit: 100.00
+    processing-days: 7
+    notify-customer: true
+    
+  # 评价配置
+  review:
+    auto-remind-days: 7
+    reminder-count: 2
+    
+# Cache Configuration
+cache:
+  order:
+    ttl-minutes: 30
+    max-size: 1000
+    
+# Metrics Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: erp-order
+      
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderService:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+  retry:
+    instances:
+      paymentService:
+        max-attempts: 3
+        wait-duration: 1s
+  ratelimiter:
+    instances:
+      orderApi:
+        limit-for-period: 10
+        limit-refresh-period: 1s
+        timeout-duration: 0
+        
+# Distributed Lock Configuration
+redisson:
+  single-server-config:
+    address: "redis://localhost:6379"
+    database: 2
+    connection-pool-size: 64
+    connection-minimum-idle-size: 24
+    idle-connection-timeout: 10000
+    connect-timeout: 10000
+    timeout: 3000
+    
+# Scheduling Configuration
+scheduling:
+  order:
+    cleanup-expired:
+      cron: "0 0 2 * * ?"  # 每天凌晨2点
+      retention-days: 90
+    auto-cancel-unpaid:
+      cron: "0 */30 * * * ?"  # 每30分钟
+      timeout-minutes: 30
+    generate-daily-report:
+      cron: "0 0 1 * * ?"  # 每天凌晨1点
+      
+# Audit Configuration
+audit:
+  enabled: true
+  events:
+    order-create: true
+    order-update: true
+    order-delete: true
+    payment-process: true
+    
+# API Gateway Configuration
+zuul:
+  routes:
+    order-service:
+      path: /api/order/**
+      serviceId: order-service
+      strip-prefix: false
+      
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+    
+# Spring Cloud Configuration
+spring:
+  cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
+    sentinel:
+      transport:
+        dashboard: localhost:8080
+      datasource:
+        ds1:
+          nacos:
+            server-addr: localhost:8848
+            dataId: erp-order-sentinel
+            groupId: DEFAULT_GROUP
+            rule-type: flow

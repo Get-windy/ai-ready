@@ -1,0 +1,343 @@
+{
+  "test_date": "2026-04-25T13:32:47.899782",
+  "summary": {
+    "total": 28,
+    "passed": 21,
+    "failed": 7,
+    "blocked": 0,
+    "skipped": 0
+  },
+  "defects": [
+    {
+      "id": "BUG-001",
+      "test_case_id": "TC-ORDER-007",
+      "description": "预期结果未满足: 订单状态更新正确",
+      "severity": "High",
+      "status": "New"
+    },
+    {
+      "id": "BUG-002",
+      "test_case_id": "TC-ORDER-003",
+      "description": "预期结果未满足: 订单未创建",
+      "severity": "Medium",
+      "status": "New"
+    },
+    {
+      "id": "BUG-003",
+      "test_case_id": "TC-ORDER-011",
+      "description": "预期结果未满足: 第二次支付被拒绝",
+      "severity": "Medium",
+      "status": "New"
+    },
+    {
+      "id": "BUG-004",
+      "test_case_id": "TC-ORDER-014",
+      "description": "预期结果未满足: 库存自动释放",
+      "severity": "Medium",
+      "status": "New"
+    },
+    {
+      "id": "BUG-005",
+      "test_case_id": "TC-ORDER-016",
+      "description": "预期结果未满足: 订单状态变更为returning",
+      "severity": "Medium",
+      "status": "New"
+    },
+    {
+      "id": "BUG-006",
+      "test_case_id": "TC-ORDER-018",
+      "description": "预期结果未满足: 只有一个请求成功",
+      "severity": "Medium",
+      "status": "New"
+    },
+    {
+      "id": "BUG-007",
+      "test_case_id": "TC-ORDER-023",
+      "description": "预期结果未满足: 返回订单已取消提示",
+      "severity": "Medium",
+      "status": "New"
+    }
+  ],
+  "results": [
+    {
+      "test_case_id": "TC-ORDER-001",
+      "test_case_name": "正常订单创建",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:41.142583",
+      "end_time": "2026-04-25T13:32:41.448711",
+      "execution_time": 0.306128,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-002",
+      "test_case_name": "多商品订单创建",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:41.448774",
+      "end_time": "2026-04-25T13:32:41.751026",
+      "execution_time": 0.302252,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-006",
+      "test_case_name": "支付宝支付成功",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:41.751086",
+      "end_time": "2026-04-25T13:32:42.053148",
+      "execution_time": 0.302062,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-007",
+      "test_case_name": "微信支付成功",
+      "priority": "P0-高",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:42.053195",
+      "end_time": "2026-04-25T13:32:42.254773",
+      "execution_time": 0.201578,
+      "details": "预期结果未满足: 订单状态更新正确"
+    },
+    {
+      "test_case_id": "TC-ORDER-008",
+      "test_case_name": "信用卡支付成功",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:42.254851",
+      "end_time": "2026-04-25T13:32:42.455990",
+      "execution_time": 0.201139,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-013",
+      "test_case_name": "正常订单完整生命周期",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:42.456052",
+      "end_time": "2026-04-25T13:32:42.960218",
+      "execution_time": 0.504166,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-019",
+      "test_case_name": "待支付订单取消",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:42.960271",
+      "end_time": "2026-04-25T13:32:43.161855",
+      "execution_time": 0.201584,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-020",
+      "test_case_name": "已支付订单取消",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:43.161902",
+      "end_time": "2026-04-25T13:32:43.363210",
+      "execution_time": 0.201308,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-024",
+      "test_case_name": "全额退款",
+      "priority": "P0-高",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:43.363263",
+      "end_time": "2026-04-25T13:32:43.564799",
+      "execution_time": 0.201536,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-003",
+      "test_case_name": "库存不足订单创建",
+      "priority": "P1-中",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:43.564878",
+      "end_time": "2026-04-25T13:32:43.866904",
+      "execution_time": 0.302026,
+      "details": "预期结果未满足: 订单未创建"
+    },
+    {
+      "test_case_id": "TC-ORDER-004",
+      "test_case_name": "边界条件-最小金额订单",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:43.867032",
+      "end_time": "2026-04-25T13:32:44.068702",
+      "execution_time": 0.20167,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-005",
+      "test_case_name": "边界条件-最大金额订单",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:44.068765",
+      "end_time": "2026-04-25T13:32:44.270301",
+      "execution_time": 0.201536,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-009",
+      "test_case_name": "支付失败-余额不足",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:44.270365",
+      "end_time": "2026-04-25T13:32:44.471383",
+      "execution_time": 0.201018,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-010",
+      "test_case_name": "支付超时",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:44.471435",
+      "end_time": "2026-04-25T13:32:44.672760",
+      "execution_time": 0.201325,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-011",
+      "test_case_name": "重复支付测试",
+      "priority": "P1-中",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:44.672832",
+      "end_time": "2026-04-25T13:32:44.874299",
+      "execution_time": 0.201467,
+      "details": "预期结果未满足: 第二次支付被拒绝"
+    },
+    {
+      "test_case_id": "TC-ORDER-014",
+      "test_case_name": "待支付→已取消",
+      "priority": "P1-中",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:44.874366",
+      "end_time": "2026-04-25T13:32:45.075225",
+      "execution_time": 0.200859,
+      "details": "预期结果未满足: 库存自动释放"
+    },
+    {
+      "test_case_id": "TC-ORDER-015",
+      "test_case_name": "已支付→已取消(退款)",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:45.075305",
+      "end_time": "2026-04-25T13:32:45.377333",
+      "execution_time": 0.302028,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-016",
+      "test_case_name": "已发货→退货",
+      "priority": "P1-中",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:45.377393",
+      "end_time": "2026-04-25T13:32:45.679021",
+      "execution_time": 0.301628,
+      "details": "预期结果未满足: 订单状态变更为returning"
+    },
+    {
+      "test_case_id": "TC-ORDER-017",
+      "test_case_name": "非法状态流转",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:45.679094",
+      "end_time": "2026-04-25T13:32:45.880602",
+      "execution_time": 0.201508,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-021",
+      "test_case_name": "已发货订单取消",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:45.880654",
+      "end_time": "2026-04-25T13:32:46.082283",
+      "execution_time": 0.201629,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-022",
+      "test_case_name": "已完成订单取消",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:46.082332",
+      "end_time": "2026-04-25T13:32:46.283897",
+      "execution_time": 0.201565,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-025",
+      "test_case_name": "部分退款",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:46.283954",
+      "end_time": "2026-04-25T13:32:46.586584",
+      "execution_time": 0.30263,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-026",
+      "test_case_name": "退款失败处理",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:46.586631",
+      "end_time": "2026-04-25T13:32:46.788238",
+      "execution_time": 0.201607,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-027",
+      "test_case_name": "退款到账确认",
+      "priority": "P1-中",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:46.788329",
+      "end_time": "2026-04-25T13:32:47.090686",
+      "execution_time": 0.302357,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-012",
+      "test_case_name": "组合支付测试",
+      "priority": "P2-低",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:47.090749",
+      "end_time": "2026-04-25T13:32:47.292550",
+      "execution_time": 0.201801,
+      "details": "所有预期结果均满足"
+    },
+    {
+      "test_case_id": "TC-ORDER-018",
+      "test_case_name": "并发状态变更",
+      "priority": "P2-低",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:47.292619",
+      "end_time": "2026-04-25T13:32:47.493913",
+      "execution_time": 0.201294,
+      "details": "预期结果未满足: 只有一个请求成功"
+    },
+    {
+      "test_case_id": "TC-ORDER-023",
+      "test_case_name": "已取消订单重复取消",
+      "priority": "P2-低",
+      "status": "失败",
+      "start_time": "2026-04-25T13:32:47.493979",
+      "end_time": "2026-04-25T13:32:47.695670",
+      "execution_time": 0.201691,
+      "details": "预期结果未满足: 返回订单已取消提示"
+    },
+    {
+      "test_case_id": "TC-ORDER-028",
+      "test_case_name": "退款超时处理",
+      "priority": "P2-低",
+      "status": "通过",
+      "start_time": "2026-04-25T13:32:47.695738",
+      "end_time": "2026-04-25T13:32:47.897680",
+      "execution_time": 0.201942,
+      "details": "所有预期结果均满足"
+    }
+  ]
+}

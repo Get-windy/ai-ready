@@ -1,0 +1,85 @@
+# API测试专用依赖
+
+# HTTP客户端库
+requests>=2.28.0                 # 同步HTTP客户端
+httpx>=0.24.0                    # 异步HTTP客户端
+aiohttp>=3.8.0                   # 异步HTTP客户端（替代）
+
+# API测试框架
+pytest-requests>=0.1.0           # pytest HTTP请求插件
+pytest-httpx>=0.27.0             # pytest httpx插件
+pytest-aiohttp>=1.0.0            # pytest aiohttp插件
+pytest-asyncio>=0.21.0           # 异步测试支持
+
+# API验证和断言
+jsonschema>=4.17.0               # JSON Schema验证
+deepdiff>=6.3.0                  # 深度比较
+schema>=0.7.5                    # 数据验证库
+cerberus>=1.3.4                  # 数据验证
+marshmallow>=3.19.0              # 数据序列化/验证
+pydantic>=2.0.0                  # 数据验证和设置
+
+# API文档和契约测试
+openapi-spec-validator>=0.5.0    # OpenAPI规范验证
+prance>=0.21.0                   # OpenAPI解析器
+swagger-spec-validator>=2.7.0    # Swagger规范验证
+schemathesis>=3.19.0             # 基于属性的API测试
+
+# API安全和认证
+authlib>=1.2.0                   # OAuth客户端
+python-jose>=3.3.0               # JWT支持
+pyjwt>=2.7.0                     # JWT编码/解码
+requests-oauthlib>=1.3.1         # OAuth支持
+
+# API性能和负载测试
+locust>=2.15.0                   # 负载测试
+tavern>=2.0.0                    # API测试框架
+pytest-benchmark>=4.0.0          # 性能基准测试
+pytest-load>=1.0.0               # 负载测试插件
+
+# API模拟和桩
+responses>=0.23.0                # requests模拟
+vcrpy>=5.0.0                     # HTTP请求录制/回放
+httpretty>=1.1.4                 # HTTP请求模拟
+wiremock>=3.0.0                  # WireMock客户端
+
+# API监控和追踪
+opentelemetry-api>=1.20.0        # OpenTelemetry API
+opentelemetry-sdk>=1.20.0        # OpenTelemetry SDK
+opentelemetry-instrumentation-requests>=0.40b0  # requests仪表化
+prometheus-client>=0.17.0        # Prometheus监控
+
+# GraphQL支持
+gql>=3.4.0                       # GraphQL客户端
+sgqlc>=16.0                      # GraphQL客户端（代码生成）
+strawberry-graphql>=0.200.0      # GraphQL框架
+graphene>=3.2.0                  # GraphQL框架
+
+# WebSocket测试
+websockets>=12.0                 # WebSocket客户端
+pytest-websocket>=0.0.1          # WebSocket测试插件
+
+# gRPC测试
+grpcio>=1.56.0                   # gRPC核心
+grpcio-tools>=1.56.0             # gRPC工具
+grpcio-testing>=1.56.0           # gRPC测试工具
+pytest-grpc>=0.8.0               # gRPC测试插件
+
+# API测试工具和工具库
+curlify>=2.2.1                   # 将请求转换为cURL命令
+requests-toolbelt>=1.0.0         # requests工具扩展
+urllib3>=2.0.0                   # HTTP客户端底层库
+tenacity>=8.2.0                  # 重试库
+backoff>=2.2.0                   # 退避算法
+
+# API测试数据生成
+Faker>=18.0.0                    # 测试数据生成
+factory-boy>=3.2.0               # 数据工厂
+pytest-factoryboy>=2.5.0         # 工厂集成
+mimesis>=9.0.0                   # 多语言测试数据生成
+
+# API测试报告和可视化
+allure-pytest>=2.12.0            # Allure报告
+pytest-html>=3.2.0               # HTML报告
+pytest-json-report>=1.5.0        # JSON报告
+reportportal-client>=5.3.0       # ReportPortal集成

@@ -1,0 +1,201 @@
+# API监控配置文件示例
+# 复制此文件为 config.yaml 并修改配置
+
+# 服务配置
+services:
+  user-service:
+    name: "用户服务"
+    host: "user-service"
+    port: 8085
+    endpoints:
+      - name: "健康检查"
+        path: "/actuator/health"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "用户登录"
+        path: "/api/v1/auth/login"
+        method: "POST"
+        expected_status: 200
+        timeout: 10
+        # request_body: {"username": "test", "password": "test"}
+        
+      - name: "用户信息查询"
+        path: "/api/v1/users/1"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "用户列表"
+        path: "/api/v1/users"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+
+  order-service:
+    name: "订单服务"
+    host: "order-service"
+    port: 8086
+    endpoints:
+      - name: "健康检查"
+        path: "/actuator/health"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "创建订单"
+        path: "/api/v1/orders"
+        method: "POST"
+        expected_status: 201
+        timeout: 15
+        # request_body: {"productId": 1, "quantity": 1, "customerId": 1}
+        
+      - name: "订单查询"
+        path: "/api/v1/orders/1"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "订单列表"
+        path: "/api/v1/orders"
+        method: "GET"
+        expected_status: 200
+        timeout: 10
+
+  inventory-service:
+    name: "库存服务"
+    host: "inventory-service"
+    port: 8082
+    endpoints:
+      - name: "健康检查"
+        path: "/actuator/health"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "库存查询"
+        path: "/api/v1/inventory/1"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "库存更新"
+        path: "/api/v1/inventory/1"
+        method: "PUT"
+        expected_status: 200
+        timeout: 10
+        # request_body: {"quantity": 10}
+
+  crm-service:
+    name: "CRM服务"
+    host: "crm-service"
+    port: 8087
+    endpoints:
+      - name: "健康检查"
+        path: "/actuator/health"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "客户查询"
+        path: "/api/v1/customers/1"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "客户列表"
+        path: "/api/v1/customers"
+        method: "GET"
+        expected_status: 200
+        timeout: 10
+
+  erp-service:
+    name: "ERP服务"
+    host: "erp-service"
+    port: 8088
+    endpoints:
+      - name: "健康检查"
+        path: "/actuator/health"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "采购订单查询"
+        path: "/api/v1/purchase-orders/1"
+        method: "GET"
+        expected_status: 200
+        timeout: 5
+        
+      - name: "采购订单列表"
+        path: "/api/v1/purchase-orders"
+        method: "GET"
+        expected_status: 200
+        timeout: 10
+
+# 监控配置
+monitoring:
+  check_interval: 30      # 检查间隔(秒)
+  timeout: 10            # 请求超时(秒)
+  retry_times: 2         # 重试次数
+  max_workers: 10        # 最大并发数
+  
+  # 告警配置
+  alerts:
+    enabled: true
+    # 连续失败告警
+    consecutive_failures: 3
+    # 响应时间告警(毫秒)
+    response_time_warning: 1000
+    response_time_critical: 5000
+    # 错误率告警(%)
+    error_rate_warning: 1
+    error_rate_critical: 5
+    
+    # 告警渠道
+    channels:
+      - type: "console"   # 控制台输出
+      - type: "log"       # 日志文件
+      # - type: "email"    # 邮件
+      #   smtp_server: "smtp.example.com"
+      #   smtp_port: 587
+      #   username: "monitor@example.com"
+      #   password: "password"
+      #   recipients: ["admin@example.com"]
+      
+      # - type: "webhook"  # Webhook
+      #   url: "http://alertmanager:9093/api/v1/alerts"
+
+# 数据存储配置
+storage:
+  results_dir: "./results"          # 结果存储目录
+  retention_days: 7                 # 数据保留天数
+  
+  # 报告生成
+  reports:
+    daily_report: true              # 每日报告
+    weekly_report: true             # 每周报告
+    report_dir: "./reports"         # 报告存储目录
+
+# 日志配置
+logging:
+  level: "INFO"                     # 日志级别: DEBUG, INFO, WARNING, ERROR
+  file: "api_monitor.log"           # 日志文件
+  max_size_mb: 10                   # 最大文件大小(MB)
+  backup_count: 5                   # 备份文件数量
+
+# Prometheus集成（可选）
+prometheus:
+  enabled: false
+  pushgateway_url: "http://prometheus:9091"
+  job_name: "api_monitor"
+  interval: 30
+
+# 使用说明：
+# 1. 复制此文件为 config.yaml
+# 2. 修改服务地址和端口为实际值
+# 3. 根据需要调整监控配置
+# 4. 运行监控脚本:
+#    python api_monitor.py --once        # 单次运行
+#    python api_monitor.py --continuous  # 持续运行
+#    python api_monitor.py -c config.yaml --once  # 使用指定配置文件

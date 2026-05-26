@@ -1,0 +1,177 @@
+# 监控告警模块 - 测试环境配置
+# 专用于Docker容器化测试环境
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/monitoring
+  compression:
+    enabled: true
+
+spring:
+  profiles:
+    active: test
+  
+  # 数据源配置
+  datasource:
+    url: jdbc:postgresql://postgres-monitoring:5432/monitoring_db
+    username: monitoring_user
+    password: monitoring_pass_2026
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: MonitoringPool
+  
+  # Redis配置
+  data:
+    redis:
+      host: redis-monitoring
+      port: 6379
+      password: redis_monitoring_pass_2026
+      database: 0
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: rabbitmq-monitoring
+    port: 5672
+    username: guest
+    password: guest
+    connection-timeout: 5000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+    show-sql: false
+  
+  # 邮件配置（测试环境使用模拟邮件）
+  mail:
+    host: localhost
+    port: 1025
+    test-connection: false
+
+# 监控指标配置
+monitoring:
+  metrics:
+    system:
+      enabled: true
+      collection-interval: 30s
+    application:
+      enabled: true
+      collection-interval: 60s
+    business:
+      enabled: true
+      collection-interval: 300s
+  
+  alerting:
+    enabled: true
+    rule-engine:
+      update-interval: 60s
+      rule-directory: /app/data/alerts
+    channels:
+      email:
+        enabled: false
+      dingtalk:
+        enabled: false
+      wecom:
+        enabled: false
+    history:
+      retention-days: 30
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+    enabled-by-default: false
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: monitoring-backend
+      environment: test
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles: 0.5,0.75,0.95,0.99
+  server:
+    port: 9091
+
+# 日志配置
+logging:
+  level:
+    com.qizhilian.monitoring: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/monitoring-backend.log
+    max-size: 50MB
+    max-history: 7
+
+# 测试环境特定配置
+app:
+  environment: test
+  version: 1.0.0
+  api:
+    rate-limit:
+      enabled: false
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+      allow-credentials: true
+  
+  # 数据模拟
+  simulation:
+    enabled: true
+    metrics:
+      enabled: true
+      interval: 5000
+    alerts:
+      enabled: true
+      interval: 30000
+  
+  # 性能监控
+  performance:
+    slow-query-threshold: 1000
+    log-slow-queries: true
+  
+  # 安全配置（测试环境简化）
+  security:
+    enabled: false
+    cors-enabled: true

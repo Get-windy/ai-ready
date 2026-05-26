@@ -1,0 +1,161 @@
+# 生产环境配置
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 1024
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+    max-connections: 10000
+    connection-timeout: 5000
+
+spring:
+  datasource:
+    # 默认PostgreSQL, 可选MySQL: jdbc:mysql://prod-mysql-cluster:3306/erp_purchase_prod?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    url: jdbc:postgresql://prod-postgres-cluster:5432/erp_purchase_prod
+    username: purchase_prod
+    password: ${PROD_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+  
+  redis:
+    host: prod-redis-cluster
+    port: 6379
+    password: ${PROD_REDIS_PASSWORD}
+    database: 0
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 50
+        max-idle: 20
+        min-idle: 10
+        max-wait: 5000ms
+      cluster:
+        refresh:
+          adaptive: true
+          period: 2000
+  
+  rabbitmq:
+    host: prod-rabbitmq-cluster
+    port: 5672
+    username: purchase_prod
+    password: ${PROD_MQ_PASSWORD}
+    virtual-host: /erp_purchase_prod
+    publisher-confirms: true
+    publisher-returns: true
+    template:
+      mandatory: true
+      retry:
+        enabled: true
+        initial-interval: 1000
+        multiplier: 2.0
+        max-interval: 10000
+        max-attempts: 3
+  
+  # 生产环境禁用详细SQL日志
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+  
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: true
+      key-prefix: erp:purchase:
+
+# 生产环境日志配置
+logging:
+  level:
+    cn.aiedge.erp.purchase: INFO
+    org.springframework.web: WARN
+    org.mybatis: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/erp-purchase/erp-purchase.log
+    max-size: 100MB
+    max-history: 90
+    total-size-cap: 10GB
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      file-name-pattern: /var/log/erp-purchase/erp-purchase-%d{yyyy-MM-dd}.%i.log
+
+# 生产环境采购模块配置
+erp:
+  purchase:
+    business:
+      auto-approve-enabled: false
+      approval-threshold: 50000.00
+      default-currency: CNY
+      tax-rate: 0.13
+    integration:
+      finance:
+        base-url: https://finance.ai-ready.com
+        timeout: 10000
+      stock:
+        base-url: https://stock.ai-ready.com
+        timeout: 10000
+      supplier:
+        base-url: https://supplier.ai-ready.com
+        timeout: 8000
+    security:
+      allowed-origins: https://ai-ready.com,https://admin.ai-ready.com,https://mobile.ai-ready.com
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      max-age: 7200
+
+# MyBatis-Plus生产配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# Sa-Token生产配置
+sa-token:
+  jwt-secret-key: ${JWT_SECRET_KEY}
+  timeout: 1800
+  token-style: uuid
+
+# 生产环境监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /internal/actuator
+    jmx:
+      exposure:
+        exclude: '*'
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 15s
+        descriptions: true
+    tags:
+      environment: production
+      region: ${REGION:cn-east-1}
+      application: erp-purchase-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 0.1

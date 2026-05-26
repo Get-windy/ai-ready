@@ -1,0 +1,201 @@
+# ==========================================
+# 数据库安全基线配置 (Database Security Baseline)
+# AI-Ready 测试环境
+# ==========================================
+
+database_security:
+  name: "AI-Ready Test Environment Database Security Baseline"
+  version: "1.0.0"
+  date: "2026-04-29"
+  environment: "test"
+
+  # 1. PostgreSQL安全配置
+  postgresql:
+    # 访问控制
+    access_control:
+      - rule: "禁用超级用户远程访问"
+        command: "ALTER SYSTEM SET listen_addresses = 'localhost,172.17.0.0/16';"
+        severity: "critical"
+        
+      - rule: "创建应用专用用户"
+        commands:
+          - "CREATE USER ai_ready_app WITH PASSWORD 'ChangeMe123!';"
+          - "GRANT CONNECT ON DATABASE ai_ready_test TO ai_ready_app;"
+          - "GRANT USAGE ON SCHEMA public TO ai_ready_app;"
+          - "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ai_ready_app;"
+          - "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ai_ready_app;"
+        severity: "high"
+        
+      - rule: "回收公共schema创建权限"
+        command: "REVOKE CREATE ON SCHEMA public FROM PUBLIC;"
+        severity: "high"
+        
+      - rule: "配置pg_hba.conf"
+        config:
+          - "# TYPE  DATABASE        USER            ADDRESS                 METHOD"
+          - "local   all             postgres                                peer"
+          - "host    ai_ready_test   ai_ready_app    172.17.0.0/16           scram-sha-256"
+          - "host    ai_ready_test   ai_ready_app    127.0.0.1/32            scram-sha-256"
+          - "host    all             all             0.0.0.0/0               reject"
+        severity: "critical"
+    
+    # 认证配置
+    authentication:
+      password_encryption: "scram-sha-256"
+      ssl_mode: "prefer"
+      ssl_cert_file: "/etc/ssl/certs/server.crt"
+      ssl_key_file: "/etc/ssl/private/server.key"
+      
+    # 审计日志
+    audit_logging:
+      log_connections: true
+      log_disconnections: true
+      log_duration: true
+      log_min_duration_statement: 1000  # 记录超过1秒的查询
+      log_checkpoints: true
+      log_lock_waits: true
+      log_temp_files: 0  # 记录所有临时文件
+      log_autovacuum_min_duration: 0
+      
+    # 连接限制
+    connection_limits:
+      max_connections: 200
+      superuser_reserved_connections: 5
+      shared_buffers: "256MB"
+      effective_cache_size: "768MB"
+      
+    # 数据加密
+    encryption:
+      ssl_enabled: true
+      ssl_min_protocol_version: "TLSv1.2"
+      tablespace_encryption: false  # 测试环境禁用
+
+  # 2. Redis安全配置
+  redis:
+    # 访问控制
+    access_control:
+      - rule: "启用密码认证"
+        command: "CONFIG SET requirepass 'RedisPass123!'"
+        severity: "critical"
+        
+      - rule: "重命名危险命令"
+        commands:
+          - "RENAME CONFIG CONFIG_a7f3d9e2"
+          - "RENAME FLUSHDB FLUSHDB_a7f3d9e2"
+          - "RENAME FLUSHALL FLUSHALL_a7f3d9e2"
+          - "RENAME DEBUG DEBUG_a7f3d9e2"
+          - "RENAME SHUTDOWN SHUTDOWN_a7f3d9e2"
+        severity: "high"
+        
+      - rule: "绑定到特定IP"
+        config: "bind 127.0.0.1 172.17.0.1"
+        severity: "high"
+        
+      - rule: "禁用保护模式"
+        config: "protected-mode yes"
+        severity: "medium"
+    
+    # 连接限制
+    connection_limits:
+      maxclients: 10000
+      timeout: 300
+      tcp-keepalive: 60
+      
+    # 持久化安全
+    persistence:
+      save:
+        - "900 1"
+        - "300 10"
+        - "60 10000"
+      stop-writes-on-bgsave-error: "yes"
+      rdbcompression: "yes"
+      rdbchecksum: "yes"
+      
+    # 内存管理
+    memory:
+      maxmemory: "512mb"
+      maxmemory-policy: "allkeys-lru"
+
+  # 3. Kafka安全配置
+  kafka:
+    # 访问控制
+    access_control:
+      - rule: "启用SASL/PLAIN认证"
+        config:
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+        severity: "high"
+        
+      - rule: "配置ACL"
+        commands:
+          - "kafka-acls --bootstrap-server localhost:9092 --add --allow-principal User:ai-ready --operation Read --topic '*'"
+          - "kafka-acls --bootstrap-server localhost:9092 --add --allow-principal User:ai-ready --operation Write --topic '*'"
+        severity: "high"
+    
+    # 传输加密
+    encryption:
+      inter_broker_protocol: "SASL_SSL"
+      ssl_endpoint_identification_algorithm: ""
+      
+    # 日志配置
+    audit_logging:
+      authorizer.class.name: "kafka.security.authorizer.AclAuthorizer"
+      super.users: "User:admin"
+
+  # 4. 数据备份策略
+  backup_strategy:
+    postgresql:
+      schedule: "0 2 * * *"  # 每天凌晨2点
+      retention: 30  # 保留30天
+      type: "pg_dump"
+      encryption: true
+      
+    redis:
+      schedule: "0 */6 * * *"  # 每6小时
+      retention: 7
+      type: "BGSAVE"
+      
+    kafka:
+      schedule: "0 3 * * *"
+      retention: 7
+      type: "mirror-maker"
+
+  # 5. 数据库监控
+  monitoring:
+    postgresql:
+      enabled: true
+      metrics:
+        - "connection_count"
+        - "transaction_rate"
+        - "lock_waits"
+        - "replication_lag"
+        - "table_bloat"
+        
+    redis:
+      enabled: true
+      metrics:
+        - "connected_clients"
+        - "used_memory"
+        - "evicted_keys"
+        - "hit_rate"
+        
+    kafka:
+      enabled: true
+      metrics:
+        - "under_replicated_partitions"
+        - "offline_partitions"
+        - "active_controller_count"
+
+# 验证命令
+verification_commands:
+  - name: "检查PostgreSQL用户"
+    command: "psql -U postgres -c \"\\du\""
+    
+  - name: "检查PostgreSQL连接"
+    command: "psql -U ai_ready_app -d ai_ready_test -c \"SELECT 1\""
+    
+  - name: "检查Redis认证"
+    command: "redis-cli AUTH RedisPass123! && redis-cli PING"
+    
+  - name: "检查Kafka ACL"
+    command: "kafka-acls --bootstrap-server localhost:9092 --list"

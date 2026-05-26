@@ -1,0 +1,108 @@
+{
+  "title": "AI-Ready Log Analysis",
+  "description": "Real-time log analysis for AI-Ready services",
+  "tags": ["ai-ready", "logs", "application"],
+  "version": 1,
+  "panels": [
+    {
+      "id": "log-summary",
+      "title": "Log Summary",
+      "type": "stat",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "query": "*",
+          "aggregation": "count"
+        }
+      ],
+      "gridPos": {"h": 3, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "id": "log-level-distribution",
+      "title": "Log Level Distribution",
+      "type": "pie-chart",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "group": [
+            {"type": "terms", "field": "log_level", "size": 10, "orderBy": "count", "order": "desc"}
+          ],
+          "metric": {"type": "count"}
+        }
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0}
+    },
+    {
+      "id": "log-trend",
+      "title": "Log Trend (Last 24h)",
+      "type": "timeseries",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "timeField": "@timestamp",
+          "metric": {"type": "count"},
+          "bucketAgg": {"type": "date_histogram", "field": "@timestamp", "interval": "1h"}
+        }
+      ],
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 3}
+    },
+    {
+      "id": "error-log",
+      "title": "Error & Warning Logs",
+      "type": "table",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "query": "log_level:ERROR OR log_level:WARN",
+          "columns": ["@timestamp", "log_level", "service", "message"],
+          "size": 10,
+          "sort": [{"@timestamp": "desc"}]
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9}
+    },
+    {
+      "id": "top-services",
+      "title": "Top Services by Log Volume",
+      "type": "bar-chart",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "group": [
+            {"type": "terms", "field": "service", "size": 10, "orderBy": "count", "order": "desc"}
+          ],
+          "metric": {"type": "count"}
+        }
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 3}
+    },
+    {
+      "id": "trace-search",
+      "title": "Trace ID Search",
+      "type": "table",
+      "dataSource": "elasticsearch",
+      "targets": [
+        {
+          "index": "ai-ready-logs-*",
+          "columns": ["@timestamp", "trace_id", "service", "log_level", "message"],
+          "size": 10
+        }
+      ],
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 9}
+    }
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "7d", "30d"]
+  }
+}

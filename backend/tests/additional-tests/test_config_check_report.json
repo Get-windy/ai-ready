@@ -1,0 +1,78 @@
+{
+  "config_files": [
+    {
+      "name": "pytest.ini",
+      "exists": true,
+      "size": 2093
+    },
+    {
+      "name": "conftest.py",
+      "exists": true,
+      "size": 6082
+    }
+  ],
+  "test_directories": [
+    {
+      "name": "api",
+      "exists": true
+    },
+    {
+      "name": "unit",
+      "exists": true
+    },
+    {
+      "name": "integration",
+      "exists": true
+    },
+    {
+      "name": "e2e",
+      "exists": true
+    },
+    {
+      "name": "performance",
+      "exists": true
+    },
+    {
+      "name": "reports",
+      "exists": true
+    },
+    {
+      "name": "results",
+      "exists": true
+    },
+    {
+      "name": "scripts",
+      "exists": true
+    },
+    {
+      "name": "docs",
+      "exists": true
+    }
+  ],
+  "scripts": [
+    {
+      "name": "optimized-test-runner.sh",
+      "exists": true,
+      "size": 7321
+    },
+    {
+      "name": "test-execution-script.sh",
+      "exists": true,
+      "size": 27298
+    }
+  ],
+  "documents": [
+    {
+      "name": "TEST_FRAMEWORK_MAINTENANCE.md",
+      "exists": true,
+      "size": 7871
+    },
+    {
+      "name": "api_automation_test_template.md",
+      "exists": true,
+      "size": 13304
+    }
+  ],
+  "issues": [],
+  "status": "passed"
+}

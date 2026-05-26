@@ -1,0 +1,367 @@
+# AI-Ready Alert Notification Channels Configuration
+# 告警通知渠道配置
+# Version: v1.0
+# Last Updated: 2026-03-30
+
+# ========================================
+# 企业微信通知配置
+# ========================================
+wechat_work:
+  enabled: true
+  # 企业微信机器人Webhook
+  webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+  # 消息模板
+  templates:
+    critical: |
+      🔴 **严重告警**
+      **告警名称**: {{ .AlertName }}
+      **服务**: {{ .Labels.service }}
+      **环境**: {{ .Labels.environment }}
+      **描述**: {{ .Annotations.description }}
+      **触发时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      **运行手册**: {{ .Annotations.runbook_url }}
+      
+    warning: |
+      🟠 **警告告警**
+      **告警名称**: {{ .AlertName }}
+      **服务**: {{ .Labels.service }}
+      **描述**: {{ .Annotations.description }}
+      **触发时间**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+      
+    info: |
+      🔵 **信息告警**
+      **告警名称**: {{ .AlertName }}
+      **描述**: {{ .Annotations.description }}
+      
+  # 通知频率限制
+  rate_limit:
+    max_per_minute: 10
+    max_per_hour: 100
+
+# ========================================
+# 钉钉通知配置
+# ========================================
+dingtalk:
+  enabled: true
+  # 钉钉机器人Webhook
+  webhook_url: "${DINGTALK_WEBHOOK_URL}"
+  # 加签密钥
+  secret: "${DINGTALK_SECRET}"
+  # 消息模板
+  templates:
+    critical: |
+      {
+        "msgtype": "markdown",
+        "markdown": {
+          "title": "【严重告警】{{ .AlertName }}",
+          "text": "### 🔴 严重告警\n\n**告警名称**: {{ .AlertName }}\n\n**服务**: {{ .Labels.service }}\n\n**环境**: {{ .Labels.environment }}\n\n**描述**: {{ .Annotations.description }}\n\n**触发时间**: {{ .StartsAt.Format \"2006-01-02 15:04:05\" }}\n\n**运行手册**: [查看]({{ .Annotations.runbook_url }})"
+        },
+        "at": {
+          "atMobiles": ["13800138000", "13800138001"],
+          "isAtAll": false
+        }
+      }
+      
+    warning: |
+      {
+        "msgtype": "markdown",
+        "markdown": {
+          "title": "【警告告警】{{ .AlertName }}",
+          "text": "### 🟠 警告告警\n\n**告警名称**: {{ .AlertName }}\n\n**服务**: {{ .Labels.service }}\n\n**描述**: {{ .Annotations.description }}\n\n**触发时间**: {{ .StartsAt.Format \"2006-01-02 15:04:05\" }}"
+        }
+      }
+
+# ========================================
+# 邮件通知配置
+# ========================================
+email:
+  enabled: true
+  smtp_host: "smtp.exmail.qq.com"
+  smtp_port: 465
+  smtp_user: "${EMAIL_USER}"
+  smtp_password: "${EMAIL_PASSWORD}"
+  smtp_from: "alert@ai-ready.cn"
+  
+  # 收件人配置
+  recipients:
+    critical:
+      - "devops@ai-ready.cn"
+      - "backend@ai-ready.cn"
+      - "management@ai-ready.cn"
+    warning:
+      - "devops@ai-ready.cn"
+      - "backend@ai-ready.cn"
+    info:
+      - "devops@ai-ready.cn"
+  
+  # 邮件模板
+  templates:
+    critical:
+      subject: "[严重] AI-Ready告警: {{ .AlertName }}"
+      body: |
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            .header { background-color: #FF0000; color: white; padding: 20px; }
+            .content { padding: 20px; }
+            .field { margin-bottom: 10px; }
+            .label { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🔴 严重告警</h1>
+          </div>
+          <div class="content">
+            <div class="field">
+              <span class="label">告警名称:</span> {{ .AlertName }}
+            </div>
+            <div class="field">
+              <span class="label">服务:</span> {{ .Labels.service }}
+            </div>
+            <div class="field">
+              <span class="label">环境:</span> {{ .Labels.environment }}
+            </div>
+            <div class="field">
+              <span class="label">描述:</span> {{ .Annotations.description }}
+            </div>
+            <div class="field">
+              <span class="label">触发时间:</span> {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+            </div>
+            <div class="field">
+              <span class="label">运行手册:</span> <a href="{{ .Annotations.runbook_url }}">查看</a>
+            </div>
+          </div>
+        </body>
+        </html>
+
+# ========================================
+# 短信通知配置
+# ========================================
+sms:
+  enabled: true
+  provider: "aliyun"
+  
+  # 阿里云短信配置
+  aliyun:
+    access_key_id: "${ALIYUN_ACCESS_KEY_ID}"
+    access_key_secret: "${ALIYUN_ACCESS_KEY_SECRET}"
+    sign_name: "AI-Ready"
+    template_code:
+      critical: "SMS_123456789"
+      warning: "SMS_987654321"
+  
+  # 收件人配置 (仅critical级别)
+  recipients:
+    critical:
+      - "13800138000"
+      - "13800138001"
+      - "13800138002"
+  
+  # 发送频率限制
+  rate_limit:
+    max_per_day_per_number: 10
+    min_interval_seconds: 60
+
+# ========================================
+# 电话通知配置
+# ========================================
+phone:
+  enabled: true
+  provider: "aliyun"
+  
+  # 阿里云语音配置
+  aliyun:
+    access_key_id: "${ALIYUN_ACCESS_KEY_ID}"
+    access_key_secret: "${ALIYUN_ACCESS_KEY_SECRET}"
+    tts_code: "TTS_123456789"
+  
+  # 收件人配置 (仅critical级别)
+  recipients:
+    critical:
+      - "13800138000"  # 值班人员
+      - "13800138001"  # 备用人员
+  
+  # 呼叫策略
+  strategy:
+    max_retries: 3
+    retry_interval_seconds: 60
+    timeout_seconds: 30
+
+# ========================================
+# Webhook通知配置
+# ========================================
+webhook:
+  enabled: true
+  # 自定义Webhook URL
+  urls:
+    - "${WEBHOOK_URL_1}"
+    - "${WEBHOOK_URL_2}"
+  
+  # 请求配置
+  config:
+    method: "POST"
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer ${WEBHOOK_TOKEN}"
+    timeout_seconds: 10
+    max_retries: 3
+
+# ========================================
+# Slack通知配置 (可选)
+# ========================================
+slack:
+  enabled: false
+  webhook_url: "${SLACK_WEBHOOK_URL}"
+  channel: "#alerts"
+  username: "AI-Ready Bot"
+  
+  templates:
+    critical: |
+      {
+        "channel": "#alerts",
+        "username": "AI-Ready Alert",
+        "icon_emoji": ":red_circle:",
+        "attachments": [{
+          "color": "danger",
+          "title": "Critical Alert: {{ .AlertName }}",
+          "text": "{{ .Annotations.description }}",
+          "fields": [
+            {"title": "Service", "value": "{{ .Labels.service }}", "short": true},
+            {"title": "Environment", "value": "{{ .Labels.environment }}", "short": true}
+          ],
+          "footer": "AI-Ready Monitoring",
+          "ts": {{ .StartsAt.Unix }}
+        }]
+      }
+
+# ========================================
+# PagerDuty通知配置 (可选)
+# ========================================
+pagerduty:
+  enabled: false
+  service_key: "${PAGERDUTY_SERVICE_KEY}"
+  url: "https://events.pagerduty.com/generic/2010-04-15/create_event.json"
+  
+  config:
+    client: "AI-Ready Monitoring"
+    client_url: "https://monitor.ai-ready.cn"
+
+# ========================================
+# 通知路由配置
+# ========================================
+routing:
+  # 默认路由
+  default:
+    receiver: "wechat-work-default"
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+  
+  # 按严重级别路由
+  routes:
+    # Critical级别 - 全渠道通知
+    - match:
+        severity: critical
+      receiver: "critical-all-channels"
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: true
+      
+    # Warning级别 - 企业微信+邮件
+    - match:
+        severity: warning
+      receiver: "warning-wechat-email"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      
+    # Info级别 - 企业微信
+    - match:
+        severity: info
+      receiver: "info-wechat"
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 12h
+      
+    # 按团队路由
+    - match:
+        team: devops
+      receiver: "devops-team"
+      
+    - match:
+        team: backend
+      receiver: "backend-team"
+      
+    - match:
+        team: ai
+      receiver: "ai-team"
+      
+    - match:
+        team: security
+      receiver: "security-team"
+
+# ========================================
+# 接收器配置
+# ========================================
+receivers:
+  # 默认接收器
+  - name: "wechat-work-default"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+  
+  # Critical级别全渠道
+  - name: "critical-all-channels"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    dingtalk_configs:
+      - webhook_url: "${DINGTALK_WEBHOOK_URL}"
+        secret: "${DINGTALK_SECRET}"
+    email_configs:
+      - to: "devops@ai-ready.cn,backend@ai-ready.cn,management@ai-ready.cn"
+        send_resolved: true
+    sms_configs:
+      - numbers: ["13800138000", "13800138001", "13800138002"]
+  
+  # Warning级别
+  - name: "warning-wechat-email"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    email_configs:
+      - to: "devops@ai-ready.cn,backend@ai-ready.cn"
+  
+  # Info级别
+  - name: "info-wechat"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+  
+  # DevOps团队
+  - name: "devops-team"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    email_configs:
+      - to: "devops@ai-ready.cn"
+  
+  # Backend团队
+  - name: "backend-team"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    email_configs:
+      - to: "backend@ai-ready.cn"
+  
+  # AI团队
+  - name: "ai-team"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    email_configs:
+      - to: "ai@ai-ready.cn"
+  
+  # Security团队
+  - name: "security-team"
+    wechat_configs:
+      - webhook_url: "${WECHAT_WORK_WEBHOOK_URL}"
+    email_configs:
+      - to: "security@ai-ready.cn"

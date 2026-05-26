@@ -1,0 +1,55 @@
+# 开发环境配置
+environment:
+  name: "dev"
+  description: "开发环境"
+  url: "http://dev.ai-ready.local"
+  api_base_url: "http://dev.ai-ready.local/api"
+
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "ai_ready_dev"
+    user: "dev_user"
+    password: "dev_password_2026"
+    pool_size: 5
+    max_overflow: 10
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: "redis_dev_2026"
+    max_connections: 20
+
+message_queue:
+  rabbitmq:
+    host: "localhost"
+    port: 5672
+    vhost: "/dev"
+    username: "dev_user"
+    password: "rabbitmq_dev_2026"
+    queue_prefix: "dev_"
+
+api_gateway:
+  url: "http://gateway.dev.ai-ready.local"
+  timeout: 60
+  retry_count: 5
+
+monitoring:
+  prometheus:
+    url: "http://prometheus.dev.ai-ready.local"
+    scrape_interval: 30
+  grafana:
+    url: "http://grafana.dev.ai-ready.local"
+    dashboard_id: "dev_env"
+
+test_data:
+  users:
+    count: 100
+    active_ratio: 0.9
+  products:
+    count: 500
+    categories: ["电子产品", "办公用品"]
+  orders:
+    count: 1000
+    date_range: "1 month"

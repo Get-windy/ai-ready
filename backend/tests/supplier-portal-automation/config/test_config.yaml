@@ -1,0 +1,100 @@
+# 供应商协同门户测试配置
+
+# 测试环境配置
+test_environment:
+  base_url: "http://localhost:8080/api/supplier"
+  timeout: 30  # 请求超时时间（秒）
+  verify_ssl: false  # 测试环境不验证SSL证书
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5432
+  name: "supplier_test_db"
+  username: "test_user"
+  password: "test_password"
+  max_connections: 20
+
+# Redis配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 1
+
+# 测试数据配置
+test_data:
+  # 供应商测试数据
+  supplier:
+    total_count: 50
+    batch_size: 10
+  
+  # 合同测试数据  
+  contract:
+    total_count: 30
+    batch_size: 5
+  
+  # 订单测试数据
+  order:
+    total_count: 100
+    batch_size: 20
+
+# 性能测试配置
+performance_test:
+  concurrent_users: [10, 50, 100, 200]  # 并发用户数
+  ramp_up_time: 10  # 逐步增加用户时间（秒）
+  test_duration: 300  # 测试持续时间（秒）
+  
+  # SLA要求
+  sla_requirements:
+    response_time_95th: 2000  # 95%请求响应时间≤2秒
+    error_rate: 0.01  # 错误率≤1%
+
+# 接口端点配置
+endpoints:
+  # 供应商信息管理接口
+  supplier:
+    register: "/suppliers/register"
+    login: "/suppliers/login"
+    info: "/suppliers/{supplier_id}"
+    update: "/suppliers/{supplier_id}"
+    list: "/suppliers"
+    search: "/suppliers/search"
+  
+  # 合同管理接口
+  contract:
+    create: "/contracts"
+    get: "/contracts/{contract_id}"
+    update: "/contracts/{contract_id}"
+    list: "/contracts"
+    approve: "/contracts/{contract_id}/approve"
+    reject: "/contracts/{contract_id}/reject"
+  
+  # 订单协同接口
+  order:
+    publish: "/orders/publish"
+    accept: "/orders/{order_id}/accept"
+    reject: "/orders/{order_id}/reject"
+    update: "/orders/{order_id}"
+    track: "/orders/{order_id}/track"
+    cancel: "/orders/{order_id}/cancel"
+
+# 认证配置
+authentication:
+  admin_token: "admin_test_token_12345"
+  supplier_token_prefix: "supplier_token_"
+  token_expiry_hours: 24
+
+# 日志配置
+logging:
+  level: "INFO"
+  file_path: "./logs/test_run_{timestamp}.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+# 测试报告配置
+reporting:
+  html_report: true
+  json_report: true
+  allure_report: true
+  output_dir: "./reports/{timestamp}"

@@ -1,0 +1,59 @@
+# 测试环境配置
+test:
+  environment: test
+  base-url: http://localhost:8080
+  
+  # 数据库配置
+  database:
+    url: jdbc:mysql://localhost:3306/erp_test
+    username: root
+    password: password
+    driver: com.mysql.cj.jdbc.Driver
+    max-pool-size: 10
+    connection-timeout: 30000
+  
+  # 超时配置（单位：秒）
+  timeout:
+    implicit: 10
+    page-load: 30
+    script: 60
+    api: 30
+    database: 10
+  
+  # 报告配置
+  report:
+    output-dir: target/reports/
+    format: html,json
+    attachments: true
+    theme: default
+    detailed-steps: true
+  
+  # 用户配置
+  user:
+    admin:
+      username: admin
+      password: admin123
+    normal:
+      username: user
+      password: user123
+    test:
+      username: tester
+      password: tester123
+  
+  # 采购合同测试配置
+  purchase-contract:
+    default-supplier-id: SUP-001
+    default-template-id: TMP-001
+    default-currency: CNY
+    default-payment-terms: "NET 30"
+    default-delivery-terms: "FOB Shanghai"
+    
+  # API路径配置
+  api:
+    base-path: /api
+    purchase-contract:
+      base: /erp/purchase-contract/v1
+      endpoints:
+        contracts: /contracts
+        approvals: /approvals
+        reports: /reports

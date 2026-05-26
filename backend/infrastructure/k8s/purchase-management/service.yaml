@@ -1,0 +1,129 @@
+# ERP采购管理模块Kubernetes服务配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-purchase-service
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+  annotations:
+    # 负载均衡器注解
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # Prometheus监控注解
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/scheme: "http"
+spec:
+  selector:
+    app: erp-purchase-service
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None
+---
+# Ingress路由配置
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: erp-purchase-ingress
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://test.ai-ready.com, https://admin-test.ai-ready.com"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-max-age: "1728000"
+    # 限流配置
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "1000"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+spec:
+  tls:
+  - hosts:
+    - purchase.test.ai-ready.com
+    secretName: erp-tls-cert
+  rules:
+  - host: purchase.test.ai-ready.com
+    http:
+      paths:
+      - path: /api/v1/purchase(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: erp-purchase-service
+            port:
+              number: 80
+      - path: /api/admin/purchase(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: erp-purchase-service
+            port:
+              number: 80
+      - path: /api/mobile/purchase(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: erp-purchase-service
+            port:
+              number: 80
+      - path: /actuator/purchase(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: erp-purchase-service
+            port:
+              number: 80
+---
+# 内部服务发现配置
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-purchase-service-headless
+  namespace: erp
+  labels:
+    app: erp-purchase-service
+    component: purchase-management
+    environment: test
+    "service.istio.io/canonical-name": "erp-purchase-service"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  selector:
+    app: erp-purchase-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: grpc
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  publishNotReadyAddresses: true
