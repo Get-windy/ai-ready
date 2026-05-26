@@ -236,16 +236,4 @@ public class PurchaseOrder {
      * 总数量
      */
     private BigDecimal totalQuantity;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private Long updateBy;
-
-    /**
-     * 审批人ID
-     */
-    private Long approvedBy;
-
-    /**
-     * 审批时间
-     */
-    private LocalDateTime approvedTime;
 }

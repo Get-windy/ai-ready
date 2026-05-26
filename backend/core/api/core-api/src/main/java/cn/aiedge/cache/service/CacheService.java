@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class CacheService {
 
-    @Autowired
+    @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
 
     // ==================== 基础操作 ====================
@@ -29,143 +29,93 @@ public class CacheService {
      * @param value 值
      */
     public void set(String key, Object value) {
-        redisTemplate.opsForValue().set(key, value);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(key, value);
+        }
     }
 
-    /**
-     * 设置缓存（带过期时间）
-     *
-     * @param key     键
-     * @param value   值
-     * @param timeout 过期时间
-     * @param unit    时间单位
-     */
     public void set(String key, Object value, long timeout, TimeUnit unit) {
-        redisTemplate.opsForValue().set(key, value, timeout, unit);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(key, value, timeout, unit);
+        }
     }
 
-    /**
-     * 设置缓存（秒为单位）
-     *
-     * @param key     键
-     * @param value   值
-     * @param seconds 过期时间（秒）
-     */
     public void setEx(String key, Object value, long seconds) {
-        redisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
+        }
     }
 
-    /**
-     * 设置缓存（如果不存在）
-     *
-     * @param key   键
-     * @param value 值
-     * @return 是否设置成功
-     */
     public Boolean setIfAbsent(String key, Object value) {
-        return redisTemplate.opsForValue().setIfAbsent(key, value);
+        if (redisTemplate != null) {
+            return redisTemplate.opsForValue().setIfAbsent(key, value);
+        }
+        return false;
     }
 
-    /**
-     * 设置缓存（如果不存在，带过期时间）
-     *
-     * @param key     键
-     * @param value   值
-     * @param timeout 过期时间
-     * @param unit    时间单位
-     * @return 是否设置成功
-     */
     public Boolean setIfAbsent(String key, Object value, long timeout, TimeUnit unit) {
-        return redisTemplate.opsForValue().setIfAbsent(key, value, timeout, unit);
+        if (redisTemplate != null) {
+            return redisTemplate.opsForValue().setIfAbsent(key, value, timeout, unit);
+        }
+        return false;
     }
 
-    /**
-     * 获取缓存
-     *
-     * @param key 键
-     * @return 值
-     */
     @SuppressWarnings("unchecked")
     public <T> T get(String key) {
-        return (T) redisTemplate.opsForValue().get(key);
-    }
-
-    /**
-     * 获取缓存（指定类型）
-     *
-     * @param key   键
-     * @param clazz 值类型
-     * @return 值
-     */
-    @SuppressWarnings("unchecked")
-    public <T> T get(String key, Class<T> clazz) {
-        Object value = redisTemplate.opsForValue().get(key);
-        if (value != null && clazz.isInstance(value)) {
-            return (T) value;
+        if (redisTemplate != null) {
+            return (T) redisTemplate.opsForValue().get(key);
         }
         return null;
     }
 
-    /**
-     * 删除缓存
-     *
-     * @param key 键
-     * @return 是否删除成功
-     */
-    public Boolean delete(String key) {
-        return redisTemplate.delete(key);
+    @SuppressWarnings("unchecked")
+    public <T> T get(String key, Class<T> clazz) {
+        if (redisTemplate != null) {
+            Object value = redisTemplate.opsForValue().get(key);
+            if (value != null && clazz.isInstance(value)) {
+                return (T) value;
+            }
+        }
+        return null;
     }
 
-    /**
-     * 清除缓存（别名）
-     *
-     * @param key 键
-     * @return 是否清除成功
-     */
+    public Boolean delete(String key) {
+        if (redisTemplate != null) {
+            return redisTemplate.delete(key);
+        }
+        return false;
+    }
+
     public Boolean evict(String key) {
         return delete(key);
     }
 
-    /**
-     * 批量删除缓存
-     *
-     * @param keys 键集合
-     * @return 删除数量
-     */
     public Long delete(Collection<String> keys) {
-        return redisTemplate.delete(keys);
+        if (redisTemplate != null) {
+            return redisTemplate.delete(keys);
+        }
+        return 0L;
     }
 
-    /**
-     * 判断缓存是否存在
-     *
-     * @param key 键
-     * @return 是否存在
-     */
     public Boolean hasKey(String key) {
-        return redisTemplate.hasKey(key);
+        if (redisTemplate != null) {
+            return redisTemplate.hasKey(key);
+        }
+        return false;
     }
 
-    /**
-     * 设置过期时间
-     *
-     * @param key     键
-     * @param timeout 过期时间
-     * @param unit    时间单位
-     * @return 是否设置成功
-     */
     public Boolean expire(String key, long timeout, TimeUnit unit) {
-        return redisTemplate.expire(key, timeout, unit);
+        if (redisTemplate != null) {
+            return redisTemplate.expire(key, timeout, unit);
+        }
+        return false;
     }
 
-    /**
-     * 获取过期时间
-     *
-     * @param key 键
-     * @return 过期时间（秒），-1表示永不过期，-2表示已过期或不存在
-     */
     public Long getExpire(String key) {
-        return redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (redisTemplate != null) {
+            return redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        }
+        return -2L;
     }
 
     // ==================== 自增/自减操作 ====================

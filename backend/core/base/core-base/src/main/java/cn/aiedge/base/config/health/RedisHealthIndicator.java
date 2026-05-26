@@ -1,41 +1,34 @@
 package cn.aiedge.base.config.health;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Properties;
 
-/**
- * Redis 缓存健康检查指示器
- * 
- * 检查项：
- * 1. Redis 连接状态
- * 2. Redis 内存使用情况
- * 3. Redis 响应时间
- * 4. 连接池活跃连接数
- * 
- * @author devops-engineer
- * @since 1.0.0
- */
 @Component
+@ConditionalOnClass(name = "org.springframework.data.redis.connection.RedisConnectionFactory")
 public class RedisHealthIndicator implements HealthIndicator {
 
-    private final RedisConnectionFactory redisConnectionFactory;
-    private final RedisTemplate<String, Object> redisTemplate;
-
-    public RedisHealthIndicator(RedisConnectionFactory redisConnectionFactory, 
-                                 RedisTemplate<String, Object> redisTemplate) {
-        this.redisConnectionFactory = redisConnectionFactory;
-        this.redisTemplate = redisTemplate;
-    }
+    @Autowired(required = false)
+    private RedisConnectionFactory redisConnectionFactory;
+    
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public Health health() {
+        if (redisConnectionFactory == null || redisTemplate == null) {
+            return Health.unknown()
+                    .withDetail("redis", "not configured")
+                    .build();
+        }
+        
         try {
-            // 测试 PING 命令响应时间
             long startTime = System.currentTimeMillis();
             String pingResult = redisTemplate.getConnectionFactory()
                     .getConnection()
@@ -52,13 +45,11 @@ public class RedisHealthIndicator implements HealthIndicator {
                     .withDetail("redis", "connected")
                     .withDetail("pingTimeMs", pingTime);
 
-            // 获取 Redis INFO 信息
             try {
                 Properties info = redisTemplate.getConnectionFactory()
                         .getConnection()
                         .info();
                 
-                // 内存使用信息
                 String usedMemory = info.getProperty("used_memory_human", "unknown");
                 String maxMemory = info.getProperty("maxmemory_human", "0B");
                 String memoryRatio = calculateMemoryRatio(info);
@@ -67,17 +58,14 @@ public class RedisHealthIndicator implements HealthIndicator {
                        .withDetail("maxMemory", maxMemory)
                        .withDetail("memoryRatio", memoryRatio);
 
-                // 连接信息
                 String connectedClients = info.getProperty("connected_clients", "0");
                 String blockedClients = info.getProperty("blocked_clients", "0");
                 builder.withDetail("connectedClients", connectedClients)
                        .withDetail("blockedClients", blockedClients);
 
-                // Redis 版本
                 String redisVersion = info.getProperty("redis_version", "unknown");
                 builder.withDetail("version", redisVersion);
 
-                // 内存警告阈值
                 if (memoryRatio != null && !memoryRatio.equals("unknown")) {
                     double ratio = Double.parseDouble(memoryRatio.replace("%", ""));
                     if (ratio > 80) {
@@ -85,7 +73,6 @@ public class RedisHealthIndicator implements HealthIndicator {
                     }
                 }
 
-                // 响应时间警告
                 if (pingTime > 50) {
                     builder.withDetail("warning", "Redis response time is slow");
                 }
@@ -105,9 +92,6 @@ public class RedisHealthIndicator implements HealthIndicator {
         }
     }
 
-    /**
-     * 计算内存使用比例
-     */
     private String calculateMemoryRatio(Properties info) {
         try {
             long usedMemory = Long.parseLong(info.getProperty("used_memory", "0"));

@@ -2,13 +2,13 @@ package cn.aiedge.export.service.impl;
 
 import cn.aiedge.export.service.DataImportService;
 import cn.aiedge.cache.service.CacheService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -18,20 +18,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
 
-/**
- * 数据导入服务实现
- * 
- * 支持Excel和CSV格式的数据导入
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DataImportServiceImpl implements DataImportService {
 
-    private final CacheService cacheService;
+    @Autowired(required = false)
+    private CacheService cacheService;
 
     // 数据类型字段配置缓存Key
     private static final String FIELD_CONFIG_KEY = "import:fields:";

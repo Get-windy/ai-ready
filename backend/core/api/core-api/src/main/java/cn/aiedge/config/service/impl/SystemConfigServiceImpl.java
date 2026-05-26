@@ -4,23 +4,20 @@ import cn.aiedge.cache.service.CacheService;
 import cn.aiedge.config.model.ConfigChangeLog;
 import cn.aiedge.config.model.SystemConfig;
 import cn.aiedge.config.service.SystemConfigService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 系统配置服务实现
- */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SystemConfigServiceImpl implements SystemConfigService {
 
-    private final CacheService cacheService;
+    @Autowired(required = false)
+    private CacheService cacheService;
     
     private static final String CONFIG_KEY = "sys:config:";
     private static final String LOG_KEY = "sys:config:log:";
@@ -73,8 +70,11 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         SystemConfig builtin = BUILTIN_CONFIGS.get(configKey);
         if (builtin != null) return builtin;
         
-        String key = CONFIG_KEY + tenantId + ":" + configKey;
-        return cacheService.get(key, SystemConfig.class);
+        if (cacheService != null) {
+            String key = CONFIG_KEY + tenantId + ":" + configKey;
+            return cacheService.get(key, SystemConfig.class);
+        }
+        return null;
     }
 
     @Override
@@ -133,8 +133,10 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         }
         config.setTenantId(tenantId);
         
-        String key = CONFIG_KEY + tenantId + ":" + config.getConfigKey();
-        cacheService.set(key, config);
+        if (cacheService != null) {
+            String key = CONFIG_KEY + tenantId + ":" + config.getConfigKey();
+            cacheService.set(key, config);
+        }
         
         log.info("保存配置: key={}", config.getConfigKey());
         return config;
@@ -175,25 +177,30 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             return false;
         }
         
-        String key = CONFIG_KEY + tenantId + ":" + configKey;
-        cacheService.delete(key);
+        if (cacheService != null) {
+            String key = CONFIG_KEY + tenantId + ":" + configKey;
+            cacheService.delete(key);
+        }
         return true;
     }
 
     @Override
     public List<ConfigChangeLog> getConfigChangeLogs(String configKey, Long tenantId) {
-        String key = LOG_KEY + tenantId + ":" + configKey;
-        List<Object> logs = cacheService.lRange(key, 0, 100);
-        
-        List<ConfigChangeLog> result = new ArrayList<>();
-        if (logs != null) {
-            for (Object obj : logs) {
-                if (obj instanceof ConfigChangeLog) {
-                    result.add((ConfigChangeLog) obj);
+        if (cacheService != null) {
+            String key = LOG_KEY + tenantId + ":" + configKey;
+            List<Object> logs = cacheService.lRange(key, 0, 100);
+            
+            List<ConfigChangeLog> result = new ArrayList<>();
+            if (logs != null) {
+                for (Object obj : logs) {
+                    if (obj instanceof ConfigChangeLog) {
+                        result.add((ConfigChangeLog) obj);
+                    }
                 }
             }
+            return result;
         }
-        return result;
+        return new ArrayList<>();
     }
 
     @Override
@@ -211,9 +218,11 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         logEntry.setOperateTime(LocalDateTime.now());
         logEntry.setTenantId(tenantId);
         
-        String key = LOG_KEY + tenantId + ":" + config.getConfigKey();
-        cacheService.lPush(key, logEntry);
-        cacheService.expire(key, 365, TimeUnit.DAYS);
+        if (cacheService != null) {
+            String key = LOG_KEY + tenantId + ":" + config.getConfigKey();
+            cacheService.lPush(key, logEntry);
+            cacheService.expire(key, 365, TimeUnit.DAYS);
+        }
     }
 
     @Override

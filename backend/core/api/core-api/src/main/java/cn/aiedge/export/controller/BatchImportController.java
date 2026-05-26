@@ -1,7 +1,6 @@
 package cn.aiedge.export.controller;
 
 import cn.aiedge.export.service.BatchImportService;
-import cn.aiedge.export.service.impl.BatchImportServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,12 +14,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/**
- * 批量导入控制器
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @RestController
 @RequestMapping("/api/import")
 @RequiredArgsConstructor
@@ -28,7 +21,6 @@ import java.util.Map;
 public class BatchImportController {
 
     private final BatchImportService batchImportService;
-    private final BatchImportServiceImpl batchImportServiceImpl;
 
     @PostMapping("/upload")
     @Operation(summary = "上传导入文件")
@@ -36,11 +28,9 @@ public class BatchImportController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("dataType") String dataType) throws IOException {
         
-        // 创建任务
         String taskId = batchImportService.createImportTask(dataType, file.getOriginalFilename());
         
-        // 异步执行导入
-        batchImportServiceImpl.executeImport(taskId, dataType, file.getInputStream(), null);
+        batchImportService.executeImport(taskId, dataType, file.getInputStream(), null);
         
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -74,7 +64,7 @@ public class BatchImportController {
     public void downloadTemplate(@PathVariable String dataType, HttpServletResponse response) throws Exception {
         BatchImportService.ImportTemplate template = batchImportService.getTemplate(dataType);
         
-        byte[] data = batchImportServiceImpl.downloadTemplate(dataType);
+        byte[] data = batchImportService.downloadTemplate(dataType);
         
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", 
@@ -98,8 +88,6 @@ public class BatchImportController {
             "product", "产品数据"
         ));
     }
-
-    // ==================== 辅助方法 ====================
 
     private String encodeFilename(String filename) throws Exception {
         return URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");

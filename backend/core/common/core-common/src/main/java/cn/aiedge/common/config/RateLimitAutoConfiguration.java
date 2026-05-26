@@ -1,6 +1,6 @@
 package cn.aiedge.common.config;
 
-import cn.aiedge.common.ratelimit.RateLimitConfig;
+import cn.aiedge.common.ratelimit.AiReadyRateLimitConfig;
 import cn.aiedge.common.ratelimit.RateLimitInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,29 +11,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * 限流自动配置类
- * 
- * 自动配置限流相关的组件
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @Slf4j
 @Configuration
-@EnableConfigurationProperties(RateLimitConfig.class)
+@EnableConfigurationProperties(AiReadyRateLimitConfig.class)
 @ConditionalOnProperty(name = "ai-ready.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitAutoConfiguration {
     
-    /**
-     * 创建限流拦截器
-     * 
-     * @param redisTemplate Redis模板
-     * @param config 限流配置
-     * @return 限流拦截器
-     */
     @Bean
-    public RateLimitInterceptor rateLimitInterceptor(RedisTemplate<String, Object> redisTemplate, RateLimitConfig config) {
+    public RateLimitInterceptor rateLimitInterceptor(RedisTemplate<String, Object> redisTemplate, AiReadyRateLimitConfig config) {
         log.info("初始化限流拦截器，配置：{}", config);
         return new RateLimitInterceptor(redisTemplate, config);
     }

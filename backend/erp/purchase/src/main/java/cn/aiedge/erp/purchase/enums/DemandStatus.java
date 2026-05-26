@@ -1,14 +1,11 @@
 package cn.aiedge.erp.purchase.enums;
 
-import lombok.Getter;
-
 /**
  * 采购需求状态枚举
  * 
  * @author AI-Ready Team
  * @since 1.0.0
  */
-@Getter
 public enum DemandStatus {
     
     /**
@@ -42,6 +39,14 @@ public enum DemandStatus {
     DemandStatus(int value, String description) {
         this.value = value;
         this.description = description;
+    }
+    
+    public int getValue() {
+        return value;
+    }
+    
+    public String getDescription() {
+        return description;
     }
     
     /**

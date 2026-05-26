@@ -2,12 +2,12 @@ package cn.aiedge.base.aspect;
 
 import cn.aiedge.common.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -16,36 +16,24 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-/**
- * 安全切面
- * 
- * 功能：
- * 1. SQL注入防护
- * 2. XSS攻击防护
- * 3. 接口防刷限流
- * 4. 敏感操作审计日志
- */
 @Slf4j
 @Aspect
 @Component
-@RequiredArgsConstructor
 public class SecurityAspect {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
-    // SQL注入检测模式
     private static final Pattern SQL_INJECTION_PATTERN = Pattern.compile(
         "(?i)(select|insert|update|delete|drop|truncate|union|exec|execute|script|alert|javascript)",
         Pattern.CASE_INSENSITIVE
     );
 
-    // XSS攻击检测模式
     private static final Pattern XSS_PATTERN = Pattern.compile(
         "(?i)(<script|javascript:|on\\w+=|alert\\(|confirm\\(|prompt\\()",
         Pattern.CASE_INSENSITIVE
     );
 
-    // 限流配置
     private static final int RATE_LIMIT_REQUESTS = 100;
     private static final int RATE_LIMIT_WINDOW_SECONDS = 60;
 
@@ -64,7 +52,9 @@ public class SecurityAspect {
         String requestMethod = request.getMethod();
 
         try {
-            checkRateLimit(clientIp, requestUri);
+            if (redisTemplate != null) {
+                checkRateLimit(clientIp, requestUri);
+            }
             checkSqlInjection(joinPoint.getArgs());
             checkXssAttack(joinPoint.getArgs());
 
@@ -86,6 +76,8 @@ public class SecurityAspect {
     }
 
     private void checkRateLimit(String clientIp, String requestUri) {
+        if (redisTemplate == null) return;
+        
         String rateKey = String.format("rate:limit:%s:%s", clientIp, requestUri);
         String globalRateKey = String.format("rate:limit:%s:global", clientIp);
 

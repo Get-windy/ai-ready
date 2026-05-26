@@ -87,8 +87,9 @@ public class BatchImportServiceImpl implements BatchImportService {
      * 异步执行导入任务
      */
     @Async
+    @Override
     public void executeImport(String taskId, String dataType, InputStream inputStream, 
-                              ImportHandler handler) {
+                              Map<String, Object> options) {
         ImportProgress progress = TASK_CACHE.get(taskId);
         if (progress == null) {
             log.warn("任务不存在: {}", taskId);
@@ -96,7 +97,6 @@ public class BatchImportServiceImpl implements BatchImportService {
         }
         
         try {
-            // 更新状态为处理中
             updateProgress(taskId, "processing", 0, 0, 0, "正在读取文件...");
             
             Map<String, String> headers = DATA_TYPE_CONFIG.get(dataType);
@@ -104,19 +104,13 @@ public class BatchImportServiceImpl implements BatchImportService {
                 throw new RuntimeException("不支持的数据类型: " + dataType);
             }
             
-            // 使用带校验的导入
             DataExportService.ImportResult result = dataExportService.importExcelWithValidation(
                 inputStream,
                 headers,
                 Map.class,
-                (data, rowIndex) -> {
-                    // 自定义校验逻辑
-                    return validateRow(data, rowIndex, headers);
-                }
+                (data, rowIndex) -> validateRow(data, rowIndex, headers)
             );
             
-            // 处理成功数据
-            List<Object> successData = new ArrayList<>();
             List<Map> rawData = dataExportService.importExcel(inputStream, headers, Map.class);
             List<Map<String, Object>> allData = new ArrayList<>();
             for (Map map : rawData) {
@@ -130,20 +124,11 @@ public class BatchImportServiceImpl implements BatchImportService {
             }
             
             for (int i = 0; i < allData.size(); i++) {
-                if (handler != null) {
-                    try {
-                        handler.processRow(allData.get(i), i + 2);
-                        updateProgress(taskId, "processing", allData.size(), i + 1, 
-                            result.failureCount(), "正在处理第 " + (i + 1) + " 行");
-                    } catch (Exception e) {
-                        log.warn("处理第{}行失败: {}", i + 2, e.getMessage());
-                    }
-                }
+                updateProgress(taskId, "processing", allData.size(), i + 1, 
+                    result.failureCount(), "正在处理第 " + (i + 1) + " 行");
             }
             
-            // 更新完成状态
             if (result.failureCount() > 0) {
-                // 生成错误文件
                 String errorFile = generateErrorFile(result.errors());
                 updateProgress(taskId, "completed", result.totalCount(), result.successCount(),
                     result.failureCount(), "导入完成，部分数据失败", errorFile);
@@ -162,7 +147,6 @@ public class BatchImportServiceImpl implements BatchImportService {
     public ImportProgress getProgress(String taskId) {
         ImportProgress progress = TASK_CACHE.get(taskId);
         if (progress == null) {
-            // 尝试从Redis获取
             progress = loadProgress(taskId);
         }
         return progress;
@@ -190,15 +174,16 @@ public class BatchImportServiceImpl implements BatchImportService {
             dataType,
             dataType + "_import_template",
             headers,
-            Map.of(), // 字段类型
-            Map.of(), // 校验规则
-            null      // 示例文件URL
+            Map.of(),
+            Map.of(),
+            null
         );
     }
 
     /**
      * 下载模板
      */
+    @Override
     public byte[] downloadTemplate(String dataType) {
         Map<String, String> headers = DATA_TYPE_CONFIG.get(dataType);
         if (headers == null) {

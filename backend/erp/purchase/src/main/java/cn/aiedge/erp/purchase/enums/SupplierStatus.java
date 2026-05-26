@@ -1,94 +1,16 @@
 package cn.aiedge.erp.purchase.enums;
 
-import lombok.Getter;
-
-/**
- * 供应商状态枚举
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
-@Getter
 public enum SupplierStatus {
     
-    /**
-     * 待审核
-     * - 新注册供应商
-     * - 需要资质审核
-     * - 不能参与采购
-     */
     PENDING_APPROVAL("PENDING_APPROVAL", "待审核"),
-    
-    /**
-     * 已批准
-     * - 审核通过
-     * - 可以参与采购
-     * - 正常合作状态
-     */
     APPROVED("APPROVED", "已批准"),
-    
-    /**
-     * 已激活
-     * - 已完成首次合作
-     * - 建立正式合作关系
-     * - 可以参与所有采购
-     */
     ACTIVE("ACTIVE", "已激活"),
-    
-    /**
-     * 已暂停
-     * - 暂时停止合作
-     * - 需要整改
-     * - 不能参与新采购
-     */
     SUSPENDED("SUSPENDED", "已暂停"),
-    
-    /**
-     * 黑名单
-     * - 存在严重问题
-     * - 禁止合作
-     * - 需要特殊审批
-     */
     BLACKLISTED("BLACKLISTED", "黑名单"),
-    
-    /**
-     * 已终止
-     * - 合作关系结束
-     * - 历史记录保留
-     * - 不能参与任何采购
-     */
     TERMINATED("TERMINATED", "已终止"),
-    
-    /**
-     * 试用期
-     * - 正在试用评估
-     * - 限制性合作
-     * - 需要定期评估
-     */
     TRIAL("TRIAL", "试用期"),
-    
-    /**
-     * 观察期
-     * - 存在问题但未到暂停
-     * - 加强监控
-     * - 限制参与重要采购
-     */
     UNDER_OBSERVATION("UNDER_OBSERVATION", "观察期"),
-    
-    /**
-     * 资质过期
-     * - 资质证书过期
-     * - 需要重新认证
-     * - 限制参与采购
-     */
     CERTIFICATION_EXPIRED("CERTIFICATION_EXPIRED", "资质过期"),
-    
-    /**
-     * 资料不全
-     * - 缺少必要资料
-     * - 需要补充材料
-     * - 限制参与采购
-     */
     INCOMPLETE("INCOMPLETE", "资料不全");
     
     private final String code;
@@ -99,9 +21,14 @@ public enum SupplierStatus {
         this.description = description;
     }
     
-    /**
-     * 根据code获取枚举
-     */
+    public String getCode() {
+        return code;
+    }
+    
+    public String getDescription() {
+        return description;
+    }
+    
     public static SupplierStatus fromCode(String code) {
         for (SupplierStatus status : values()) {
             if (status.getCode().equals(code)) {
@@ -111,54 +38,29 @@ public enum SupplierStatus {
         return PENDING_APPROVAL;
     }
     
-    /**
-     * 判断是否可参与采购
-     */
     public boolean canParticipateInProcurement() {
         return this == APPROVED || this == ACTIVE || this == TRIAL;
     }
     
-    /**
-     * 判断是否需要特殊审批
-     */
     public boolean requiresSpecialApproval() {
-        return this == SUSPENDED || 
-               this == BLACKLISTED || 
-               this == UNDER_OBSERVATION ||
-               this == CERTIFICATION_EXPIRED ||
-               this == INCOMPLETE;
+        return this == SUSPENDED || this == BLACKLISTED || 
+               this == UNDER_OBSERVATION || this == CERTIFICATION_EXPIRED || this == INCOMPLETE;
     }
     
-    /**
-     * 判断是否为正常合作状态
-     */
     public boolean isNormalCooperationStatus() {
         return this == APPROVED || this == ACTIVE;
     }
     
-    /**
-     * 判断是否为问题状态
-     */
     public boolean isProblemStatus() {
-        return this == SUSPENDED || 
-               this == BLACKLISTED || 
-               this == UNDER_OBSERVATION ||
-               this == CERTIFICATION_EXPIRED ||
-               this == INCOMPLETE;
+        return this == SUSPENDED || this == BLACKLISTED || 
+               this == UNDER_OBSERVATION || this == CERTIFICATION_EXPIRED || this == INCOMPLETE;
     }
     
-    /**
-     * 判断是否为终止状态
-     */
     public boolean isTerminatedStatus() {
         return this == TERMINATED;
     }
     
-    /**
-     * 获取状态转换规则
-     */
     public static boolean canTransition(SupplierStatus from, SupplierStatus to) {
-        // 状态转换规则
         return switch (from) {
             case PENDING_APPROVAL -> to == APPROVED || to == BLACKLISTED;
             case APPROVED -> to == ACTIVE || to == SUSPENDED || to == BLACKLISTED || to == TERMINATED;
@@ -173,9 +75,6 @@ public enum SupplierStatus {
         };
     }
     
-    /**
-     * 获取状态描述
-     */
     public String getStatusDescription() {
         return switch (this) {
             case PENDING_APPROVAL -> "供应商已提交申请，等待审核";
@@ -191,9 +90,6 @@ public enum SupplierStatus {
         };
     }
     
-    /**
-     * 获取状态颜色（用于UI显示）
-     */
     public String getStatusColor() {
         return switch (this) {
             case PENDING_APPROVAL -> "orange";

@@ -17,9 +17,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,15 +44,25 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
-    private final UserMapper userMapper;
-    private final RoleMapper roleMapper;
-    private final PermissionMapper permissionMapper;
-    private final UserRoleMapper userRoleMapper;
-    private final PasswordEncoder passwordEncoder;
-    private final RedisTemplate<String, Object> redisTemplate;
+    @Autowired
+    private UserMapper userMapper;
+    
+    @Autowired
+    private RoleMapper roleMapper;
+    
+    @Autowired
+    private PermissionMapper permissionMapper;
+    
+    @Autowired
+    private UserRoleMapper userRoleMapper;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
     // 本地缓存 - 用户基础信息（高频读取）
     private final Cache<String, User> userLocalCache = Caffeine.newBuilder()
@@ -124,33 +134,32 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public UserVO getDetail(Long id) {
-        // 优化：多级缓存查询
         String cacheKey = USER_CACHE_KEY_PREFIX + id;
         
-        // 1. 本地缓存
         User user = userLocalCache.getIfPresent(String.valueOf(id));
         if (user != null) {
             log.debug("User {} hit local cache", id);
             return buildUserVOWithCache(user);
         }
         
-        // 2. Redis缓存
-        user = (User) redisTemplate.opsForValue().get(cacheKey);
-        if (user != null) {
-            log.debug("User {} hit redis cache", id);
-            userLocalCache.put(String.valueOf(id), user);
-            return buildUserVOWithCache(user);
+        if (redisTemplate != null) {
+            user = (User) redisTemplate.opsForValue().get(cacheKey);
+            if (user != null) {
+                log.debug("User {} hit redis cache", id);
+                userLocalCache.put(String.valueOf(id), user);
+                return buildUserVOWithCache(user);
+            }
         }
         
-        // 3. 数据库查询
         user = getById(id);
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
         
-        // 写入缓存
         userLocalCache.put(String.valueOf(id), user);
-        redisTemplate.opsForValue().set(cacheKey, user, USER_CACHE_TTL, TimeUnit.MINUTES);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(cacheKey, user, USER_CACHE_TTL, TimeUnit.MINUTES);
+        }
         
         return buildUserVOWithCache(user);
     }
@@ -174,26 +183,27 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
      * 从缓存获取用户角色
      */
     private List<Role> getUserRolesFromCache(Long userId) {
-        // 1. 本地缓存
         List<Role> roles = userRoleLocalCache.getIfPresent(userId);
         if (roles != null) {
             return roles;
         }
         
-        // 2. Redis缓存
-        String cacheKey = USER_ROLES_CACHE_KEY_PREFIX + userId;
-        roles = (List<Role>) redisTemplate.opsForValue().get(cacheKey);
-        if (roles != null) {
-            userRoleLocalCache.put(userId, roles);
-            return roles;
+        if (redisTemplate != null) {
+            String cacheKey = USER_ROLES_CACHE_KEY_PREFIX + userId;
+            roles = (List<Role>) redisTemplate.opsForValue().get(cacheKey);
+            if (roles != null) {
+                userRoleLocalCache.put(userId, roles);
+                return roles;
+            }
         }
         
-        // 3. 数据库查询
         roles = roleMapper.selectByUserId(userId);
         
-        // 写入缓存
         userRoleLocalCache.put(userId, roles);
-        redisTemplate.opsForValue().set(cacheKey, roles, USER_CACHE_TTL, TimeUnit.MINUTES);
+        if (redisTemplate != null) {
+            String cacheKey = USER_ROLES_CACHE_KEY_PREFIX + userId;
+            redisTemplate.opsForValue().set(cacheKey, roles, USER_CACHE_TTL, TimeUnit.MINUTES);
+        }
         
         return roles;
     }
@@ -420,7 +430,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     private void evictUserCache(Long userId) {
         String cacheKey = USER_CACHE_KEY_PREFIX + userId;
         userLocalCache.invalidate(String.valueOf(userId));
-        redisTemplate.delete(cacheKey);
+        if (redisTemplate != null) {
+            redisTemplate.delete(cacheKey);
+        }
         evictUserRoleCache(userId);
     }
 
@@ -430,7 +442,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     private void evictUserRoleCache(Long userId) {
         String cacheKey = USER_ROLES_CACHE_KEY_PREFIX + userId;
         userRoleLocalCache.invalidate(userId);
-        redisTemplate.delete(cacheKey);
+        if (redisTemplate != null) {
+            redisTemplate.delete(cacheKey);
+        }
     }
 
     @Override
@@ -466,15 +480,22 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public List<String> getPermissionCodes(Long userId) {
-        // 优化：使用缓存
-        String cacheKey = USER_PERMISSIONS_CACHE_KEY_PREFIX + userId;
-        List<String> permissions = (List<String>) redisTemplate.opsForValue().get(cacheKey);
+        if (redisTemplate != null) {
+            String cacheKey = USER_PERMISSIONS_CACHE_KEY_PREFIX + userId;
+            List<String> permissions = (List<String>) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (permissions != null) {
+                return permissions;
+            }
+        }
         
-        if (permissions == null) {
-            List<Permission> perms = permissionMapper.selectByUserId(userId);
-            permissions = perms.stream()
-                    .map(Permission::getPermissionCode)
-                    .collect(Collectors.toList());
+        List<Permission> perms = permissionMapper.selectByUserId(userId);
+        List<String> permissions = perms.stream()
+                .map(Permission::getPermissionCode)
+                .collect(Collectors.toList());
+        
+        if (redisTemplate != null) {
+            String cacheKey = USER_PERMISSIONS_CACHE_KEY_PREFIX + userId;
             redisTemplate.opsForValue().set(cacheKey, permissions, USER_CACHE_TTL, TimeUnit.MINUTES);
         }
         

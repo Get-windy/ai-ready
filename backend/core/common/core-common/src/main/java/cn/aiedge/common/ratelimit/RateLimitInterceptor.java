@@ -26,11 +26,10 @@ import java.lang.reflect.Method;
 public class RateLimitInterceptor implements HandlerInterceptor {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RateLimitConfig rateLimitConfig;
+    private final AiReadyRateLimitConfig rateLimitConfig;
     private TokenBucketLimiter tokenBucketLimiter;
 
-    // 手动添加构造方法，以防 @RequiredArgsConstructor 不生效
-    public RateLimitInterceptor(RedisTemplate<String, Object> redisTemplate, RateLimitConfig rateLimitConfig) {
+    public RateLimitInterceptor(RedisTemplate<String, Object> redisTemplate, AiReadyRateLimitConfig rateLimitConfig) {
         this.redisTemplate = redisTemplate;
         this.rateLimitConfig = rateLimitConfig;
     }

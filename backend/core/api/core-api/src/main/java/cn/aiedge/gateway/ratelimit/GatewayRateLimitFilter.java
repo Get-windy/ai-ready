@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GatewayRateLimitFilter implements GlobalFilter, Ordered {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RateLimitConfig rateLimitConfig;
+    private final AiReadyRateLimitConfig rateLimitConfig;
     
     // 限流器缓存
     private final Map<String, TokenBucketLimiter> tokenBucketLimiters = new ConcurrentHashMap<>();
@@ -135,7 +135,7 @@ public class GatewayRateLimitFilter implements GlobalFilter, Ordered {
      * API级别限流检查
      */
     private boolean checkApiRateLimit(String key, String path) {
-        RateLimitConfig.ApiLimit apiLimit = rateLimitConfig.getApiLimits().get(path);
+        AiReadyRateLimitConfig.ApiLimit apiLimit = rateLimitConfig.getApiLimits().get(path);
         if (apiLimit == null) {
             // 使用默认配置
             int defaultQps = rateLimitConfig.getDefaultQps();

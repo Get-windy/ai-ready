@@ -6,6 +6,7 @@ import cn.aiedge.search.model.*;
 import cn.aiedge.search.service.SearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -15,19 +16,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/**
- * 搜索服务实现
- * 
- * 基于Redis实现搜索功能：
- * - 使用ZSet存储搜索词和热度
- * - 使用Set存储用户搜索历史
- * - 使用Hash存储搜索索引
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class SearchServiceImpl implements SearchService {
 

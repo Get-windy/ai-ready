@@ -10,22 +10,31 @@ import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
 
-/**
- * 智企连·AI-Ready 应用启动类
- * 
- * 基于SmartAdmin框架，借鉴Odoo设计思想
- * 支持多租户、RBAC权限、Agent调用层
- * 
- * @author AI-Ready Team
- * @version 1.0.0
- */
 @SpringBootApplication(scanBasePackages = {
-    "cn.aiedge.auth",
+    "cn.aiedge.base",
+    "cn.aiedge.assistant",
+    "cn.aiedge.audit",
+    "cn.aiedge.cache",
+    "cn.aiedge.common",
     "cn.aiedge.config",
+    "cn.aiedge.dict",
     "cn.aiedge.export",
+    "cn.aiedge.feedback",
+    "cn.aiedge.finance",
+    "cn.aiedge.integration",
+    "cn.aiedge.inventory",
+    "cn.aiedge.knowledge",
+    "cn.aiedge.monitor",
+    "cn.aiedge.mq",
+    "cn.aiedge.notification",
+    "cn.aiedge.order",
+    "cn.aiedge.report",
+    "cn.aiedge.role",
+    "cn.aiedge.runner",
+    "cn.aiedge.scheduler",
     "cn.aiedge.search",
-    "cn.aiedge.service",
-    "cn.aiedge.agent"
+    "cn.aiedge.storage",
+    "cn.aiedge.user"
 })
 @EnableTransactionManagement
 @MapperScan("cn.aiedge.**.mapper")
