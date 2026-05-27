@@ -68,7 +68,7 @@ public class AgentInvokeController {
                         return null;
                     }
                     ResponseEntity<?> resp = invoke(req, httpRequest);
-                    return resp.getBody();
+                    return (JsonRpcResponse) resp.getBody();
                 })
                 .filter(r -> r != null)
                 .toList();
@@ -81,7 +81,7 @@ public class AgentInvokeController {
         String requestId = String.valueOf(request.getId());
         String capabilityCode = null;
         String clientIp = getClientIp(httpRequest);
-        Long agentId = null;
+        String agentId = null;
         Long userId = null;
         Long tenantId = null;
 
@@ -112,7 +112,7 @@ public class AgentInvokeController {
                     ? (Map<String, Object>) params.get("arguments")
                     : Map.of();
 
-            agentId = AgentCallContextHolder.getContext().getAgentId();
+            agentId = AgentCallContextHolder.get().getAgentId();
             userId = context.get("user_id") instanceof Number ? ((Number) context.get("user_id")).longValue() : null;
             tenantId = context.get("tenant_id") instanceof Number ? ((Number) context.get("tenant_id")).longValue() : null;
 

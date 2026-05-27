@@ -35,8 +35,7 @@
         <extentreports.version>5.0.9</extentreports.version>
         
         <!-- 数据生成工具版本 -->
-        <faker.version>2.2.3</faker.version>
-        <commons-faker.version>1.0.2</commons-faker.version>
+        <faker.version>1.0.2</faker.version>
     </properties>
 
     <dependencies>
@@ -263,26 +262,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Extent Reports Plugin -->
-            <plugin>
-                <groupId>com.aventstack</groupId>
-                <artifactId>extentreports-maven-plugin</artifactId>
-                <version>3.1.5</version>
-                <configuration>
-                    <reportName>AI-Ready Test Report</reportName>
-                    <outputDirectory>${project.basedir}/reports/extent</outputDirectory>
-                    <documentTitle>AI-Ready Test Report</documentTitle>
-                    <reportFileName>index</reportFileName>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+            
         </plugins>
     </build>
 </project>

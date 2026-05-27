@@ -23,6 +23,14 @@ public class DashboardMetricsDTO {
     private List<MetricCardDTO> cards;
     private List<MetricChartDTO> charts;
     
+    public Map<String, Object> toMap() {
+        return Map.of(
+            "updateTime", updateTime != null ? updateTime.toString() : "",
+            "cards", cards != null ? cards : List.of(),
+            "charts", charts != null ? charts : List.of()
+        );
+    }
+    
     @Data
     @Builder
     @NoArgsConstructor

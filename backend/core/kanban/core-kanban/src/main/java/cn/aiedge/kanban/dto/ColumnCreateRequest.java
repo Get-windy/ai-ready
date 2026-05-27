@@ -2,6 +2,7 @@ package cn.aiedge.kanban.dto;
 
 import lombok.Data;
 
+@Data
 public class ColumnCreateRequest {
 
     private String modelName;

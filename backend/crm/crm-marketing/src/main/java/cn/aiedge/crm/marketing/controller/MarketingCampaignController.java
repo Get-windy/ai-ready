@@ -18,9 +18,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -244,9 +242,24 @@ public class MarketingCampaignController {
                     .eq(MarketingCampaign::getDeleted, 0)
                     .count());
         }
-        stats.put("totalBudget", campaignService.baseMapper.sumBudget(1L));
-        stats.put("totalActualCost", campaignService.baseMapper.sumActualCost(1L));
-        stats.put("totalActualRevenue", campaignService.baseMapper.sumActualRevenue(1L));
+        List<MarketingCampaign> allCampaigns = campaignService.lambdaQuery()
+                .eq(MarketingCampaign::getDeleted, 0)
+                .list();
+        BigDecimal totalBudget = allCampaigns.stream()
+                .map(MarketingCampaign::getBudget)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalActualCost = allCampaigns.stream()
+                .map(MarketingCampaign::getActualCost)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalActualRevenue = allCampaigns.stream()
+                .map(MarketingCampaign::getActualRevenue)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.put("totalBudget", totalBudget);
+        stats.put("totalActualCost", totalActualCost);
+        stats.put("totalActualRevenue", totalActualRevenue);
         return stats;
     }
 

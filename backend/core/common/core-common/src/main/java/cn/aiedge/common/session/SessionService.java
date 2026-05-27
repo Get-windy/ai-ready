@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "spring.redis.enabled", havingValue = "true", matchIfMissing = false)
 public class SessionService {
 
     private final RedisTemplate<String, Object> redisTemplate;

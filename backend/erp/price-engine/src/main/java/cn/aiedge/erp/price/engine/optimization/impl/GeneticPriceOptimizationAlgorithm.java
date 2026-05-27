@@ -59,19 +59,18 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
             // 执行优化
             Population finalPopulation = ga.evolve(initialPopulation, stoppingCondition);
             
-            // 获取最优解
             Chromosome bestChromosome = finalPopulation.getFittestChromosome();
             
-            // 解码最优解
+            List<Integer> bestRepresentation = extractRepresentationFromChromosome(bestChromosome);
+            
             List<OptimizationResult.OptimizedPrice> optimizedPrices = decodeChromosome(
                     (BinaryChromosome) bestChromosome, 
-                    request.priceVariables()
+                    request.priceVariables(),
+                    bestRepresentation
             );
             
-            // 计算适应度值
             BigDecimal fitnessValue = BigDecimal.valueOf(bestChromosome.getFitness());
             
-            // 计算优化指标
             OptimizationResult.OptimizationMetrics metrics = calculateMetrics(
                     request, startTime, System.currentTimeMillis()
             );
@@ -233,34 +232,54 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
             representation.add(random.nextInt(2));
         }
         
-        return new BinaryChromosome(
-                representation.toArray(new Integer[0]),
-                chromosome -> calculateFitness(chromosome, request)
-        );
+        final List<Integer> finalRepresentation = new ArrayList<>(representation);
+        final OptimizationRequest finalRequest = request;
+        
+        return new BinaryChromosome(representation) {
+            @Override
+            public double fitness() {
+                return calculateFitnessForChromosome(finalRepresentation, finalRequest);
+            }
+            
+            @Override
+            protected List<Integer> getRepresentation() {
+                return finalRepresentation;
+            }
+            
+            @Override
+            public AbstractListChromosome<Integer> newFixedLengthChromosome(List<Integer> chromosomeRepresentation) {
+                final List<Integer> rep = new ArrayList<>(chromosomeRepresentation);
+                return new BinaryChromosome(chromosomeRepresentation) {
+                    @Override
+                    public double fitness() {
+                        return calculateFitnessForChromosome(rep, finalRequest);
+                    }
+                    
+                    @Override
+                    protected List<Integer> getRepresentation() {
+                        return rep;
+                    }
+                    
+                    @Override
+                    public AbstractListChromosome<Integer> newFixedLengthChromosome(List<Integer> newRep) {
+                        return this;
+                    }
+                };
+            }
+        };
     }
     
-    private int calculateChromosomeLength(OptimizationRequest request) {
-        // 每个变量使用16位二进制表示
-        return request.priceVariables().size() * 16;
-    }
-    
-    private double calculateFitness(Chromosome chromosome, OptimizationRequest request) {
-        String cacheKey = chromosome.toString() + "_" + request.requestId();
+    private double calculateFitnessForChromosome(List<Integer> representation, OptimizationRequest request) {
+        String cacheKey = representation.toString() + "_" + request.requestId();
         
         if (fitnessCache.containsKey(cacheKey)) {
             return fitnessCache.get(cacheKey);
         }
         
-        // 解码染色体
-        List<BigDecimal> decodedValues = decodeChromosomeValues(
-                (BinaryChromosome) chromosome, 
-                request.priceVariables()
-        );
+        List<BigDecimal> decodedValues = decodeChromosomeValuesFromRep(representation, request.priceVariables());
         
-        // 计算适应度（这里简化为目标函数值）
         double fitness = calculateObjectiveFunction(decodedValues, request);
         
-        // 应用约束惩罚
         double penalty = calculateConstraintPenalty(decodedValues, request);
         fitness -= penalty;
         
@@ -268,8 +287,54 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
         return fitness;
     }
     
+    private List<BigDecimal> decodeChromosomeValuesFromRep(List<Integer> representation, List<PriceVariable> variables) {
+        List<BigDecimal> values = new ArrayList<>();
+        
+        int bitsPerVariable = 16;
+        for (int i = 0; i < variables.size(); i++) {
+            PriceVariable variable = variables.get(i);
+            
+            int startIndex = i * bitsPerVariable;
+            int binaryValue = 0;
+            
+            for (int j = 0; j < bitsPerVariable; j++) {
+                binaryValue = (binaryValue << 1) | representation.get(startIndex + j);
+            }
+            
+            BigDecimal minValue = variable.minValue();
+            BigDecimal maxValue = variable.maxValue();
+            
+            double normalized = binaryValue / (double) ((1 << bitsPerVariable) - 1);
+            BigDecimal value = minValue.add(
+                    maxValue.subtract(minValue).multiply(BigDecimal.valueOf(normalized))
+            );
+            
+            values.add(value.setScale(2, RoundingMode.HALF_UP));
+        }
+        
+        return values;
+    }
+    
+    private int calculateChromosomeLength(OptimizationRequest request) {
+        return request.priceVariables().size() * 16;
+    }
+    
+    private List<Integer> extractRepresentationFromChromosome(Chromosome chromosome) {
+        String str = chromosome.toString();
+        List<Integer> representation = new ArrayList<>();
+        
+        for (char c : str.toCharArray()) {
+            if (c == '0') {
+                representation.add(0);
+            } else if (c == '1') {
+                representation.add(1);
+            }
+        }
+        
+        return representation;
+    }
+    
     private double calculateObjectiveFunction(List<BigDecimal> values, OptimizationRequest request) {
-        // 简化的目标函数：最大化利润
         // 实际应用中需要根据业务逻辑实现
         double totalProfit = 0.0;
         
@@ -310,10 +375,11 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
     
     private List<OptimizationResult.OptimizedPrice> decodeChromosome(
             BinaryChromosome chromosome, 
-            List<PriceVariable> variables
+            List<PriceVariable> variables,
+            List<Integer> representation
     ) {
         List<OptimizationResult.OptimizedPrice> result = new ArrayList<>();
-        List<BigDecimal> values = decodeChromosomeValues(chromosome, variables);
+        List<BigDecimal> values = decodeChromosomeValuesFromRep(representation, variables);
         
         for (int i = 0; i < variables.size(); i++) {
             PriceVariable variable = variables.get(i);
@@ -331,7 +397,7 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
                     variable.variableName(),
                     optimizedValue,
                     improvement,
-                    BigDecimal.valueOf(0.85), // 置信度
+                    BigDecimal.valueOf(0.85),
                     Arrays.asList(
                             new OptimizationResult.PriceImpact(
                                     "PROFIT_IMPACT",
@@ -344,46 +410,6 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
         }
         
         return result;
-    }
-    
-    private List<BigDecimal> decodeChromosomeValues(
-            BinaryChromosome chromosome, 
-            List<PriceVariable> variables
-    ) {
-        List<BigDecimal> values = new ArrayList<>();
-        List<Integer> representation = chromosome.getRepresentation();
-        
-        int bitsPerVariable = 16;
-        for (int i = 0; i < variables.size(); i++) {
-            PriceVariable variable = variables.get(i);
-            
-            // 提取该变量的二进制位
-            int startIndex = i * bitsPerVariable;
-            int binaryValue = 0;
-            
-            for (int j = 0; j < bitsPerVariable; j++) {
-                binaryValue = (binaryValue << 1) | representation.get(startIndex + j);
-            }
-            
-            // 将二进制值映射到价格范围
-            BigDecimal minValue = variable.minValue();
-            BigDecimal maxValue = variable.maxValue();
-            
-            double normalized = binaryValue / (double) ((1 << bitsPerVariable) - 1);
-            BigDecimal value = minValue.add(
-                    maxValue.subtract(minValue).multiply(BigDecimal.valueOf(normalized))
-            );
-            
-            // 应用步长
-            if (variable.stepSize() != null && variable.stepSize().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal steps = value.subtract(minValue).divide(variable.stepSize(), 0, RoundingMode.HALF_UP);
-                value = minValue.add(steps.multiply(variable.stepSize()));
-            }
-            
-            values.add(value);
-        }
-        
-        return values;
     }
     
     private OptimizationResult.OptimizationMetrics calculateMetrics(

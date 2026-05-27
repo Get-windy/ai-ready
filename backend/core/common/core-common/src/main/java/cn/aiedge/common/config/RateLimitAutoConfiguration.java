@@ -14,7 +14,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Slf4j
 @Configuration
 @EnableConfigurationProperties(AiReadyRateLimitConfig.class)
-@ConditionalOnProperty(name = "ai-ready.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "ai-ready.ratelimit.enabled", havingValue = "true", matchIfMissing = false)
 public class RateLimitAutoConfiguration {
     
     @Bean
@@ -27,6 +27,7 @@ public class RateLimitAutoConfiguration {
      * Web MVC配置，注册限流拦截器
      */
     @Configuration
+    @ConditionalOnProperty(name = "ai-ready.ratelimit.enabled", havingValue = "true", matchIfMissing = false)
     public static class RateLimitWebMvcConfig implements WebMvcConfigurer {
         
         private final RateLimitInterceptor rateLimitInterceptor;

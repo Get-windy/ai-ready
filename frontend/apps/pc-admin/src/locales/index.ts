@@ -1,8 +1,6 @@
 import { createI18n } from 'vue-i18n'
-import zhCN from './locales/zh-CN'
-import enUS from './locales/en-US'
-import jaJP from './locales/ja-JP'
-import koKR from './locales/ko-KR'
+import zhCN from './zh-CN'
+import enUS from './en-US'
 
 // 支持的语言类型
 export type LocaleCode = 'zh-CN' | 'en-US' | 'ja-JP' | 'ko-KR'
@@ -99,9 +97,7 @@ const i18n = createI18n({
   fallbackLocale: 'zh-CN',
   messages: {
     'zh-CN': zhCN,
-    'en-US': enUS,
-    'ja-JP': jaJP,
-    'ko-KR': koKR
+    'en-US': enUS
   },
   datetimeFormats: {
     'zh-CN': {
@@ -110,16 +106,6 @@ const i18n = createI18n({
       full: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
     },
     'en-US': {
-      short: { year: 'numeric', month: 'short', day: 'numeric' },
-      long: { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' },
-      full: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
-    },
-    'ja-JP': {
-      short: { year: 'numeric', month: 'short', day: 'numeric' },
-      long: { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' },
-      full: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
-    },
-    'ko-KR': {
       short: { year: 'numeric', month: 'short', day: 'numeric' },
       long: { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' },
       full: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }
@@ -133,16 +119,6 @@ const i18n = createI18n({
     },
     'en-US': {
       currency: { style: 'currency', currency: 'USD' },
-      decimal: { style: 'decimal', minimumFractionDigits: 2 },
-      percent: { style: 'percent', useGrouping: false }
-    },
-    'ja-JP': {
-      currency: { style: 'currency', currency: 'JPY' },
-      decimal: { style: 'decimal', minimumFractionDigits: 2 },
-      percent: { style: 'percent', useGrouping: false }
-    },
-    'ko-KR': {
-      currency: { style: 'currency', currency: 'KRW' },
       decimal: { style: 'decimal', minimumFractionDigits: 2 },
       percent: { style: 'percent', useGrouping: false }
     }

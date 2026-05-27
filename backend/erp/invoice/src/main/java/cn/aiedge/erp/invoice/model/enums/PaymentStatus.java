@@ -52,7 +52,19 @@ public enum PaymentStatus {
     /**
      * 付款处理中 - 付款正在处理
      */
-    PROCESSING("付款处理中", "Payment processing");
+    PROCESSING("付款处理中", "Payment processing"),
+    
+    /**
+     * 已匹配 - 付款已与发票匹配
+     */
+    MATCHED("已匹配", "Payment matched"),
+    
+    /**
+     * 部分匹配 - 付款部分匹配
+     */
+    PARTIALLY_MATCHED("部分匹配", "Partially matched"),
+    
+    VOIDED("已作废", "Voided");
     
     private final String chineseName;
     private final String description;

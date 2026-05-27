@@ -12,6 +12,26 @@ import java.util.List;
 public class VolumeDiscountCalculator implements DiscountStrategy {
     
     @Override
+    public DiscountRule.DiscountType getDiscountType() {
+        return DiscountRule.DiscountType.VOLUME;
+    }
+    
+    @Override
+    public boolean isApplicable(DiscountRule rule, PriceCalculationRequest request) {
+        if (rule == null || request == null) {
+            return false;
+        }
+        if (rule.getDiscountType() != DiscountRule.DiscountType.VOLUME) {
+            return false;
+        }
+        Integer quantity = request.getQuantity();
+        if (quantity == null || rule.getMinQuantity() == null) {
+            return false;
+        }
+        return quantity >= rule.getMinQuantity();
+    }
+    
+    @Override
     public boolean validateRuleParameters(DiscountRule rule) {
         if (rule.getDiscountValue() == null || rule.getDiscountValue().compareTo(BigDecimal.ZERO) <= 0) {
             return false;

@@ -4,10 +4,12 @@ public enum StockCheckStatus {
     DRAFT(0, "草稿"),
     PENDING_APPROVAL(1, "待审批"),
     APPROVED(2, "已审批"),
-    CHECKING(3, "盘点中"),
-    COMPLETED(4, "已完成"),
-    ADJUSTED(5, "已调整"),
-    CANCELLED(6, "已取消");
+    REJECTED(3, "已拒绝"),
+    CHECKING(4, "盘点中"),
+    IN_PROGRESS(5, "进行中"),
+    COMPLETED(6, "已完成"),
+    ADJUSTED(7, "已调整"),
+    CANCELLED(8, "已取消");
 
     private final Integer code;
     private final String desc;

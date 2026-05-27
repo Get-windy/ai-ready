@@ -27,7 +27,7 @@ public class AgentAuditService {
      */
     public void logCall(
             String requestId,
-            Long agentId,
+            String agentId,
             String capabilityCode,
             Map<String, Object> requestParams,
             Object responseResult,

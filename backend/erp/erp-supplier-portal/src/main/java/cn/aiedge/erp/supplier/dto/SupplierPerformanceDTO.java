@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -66,6 +67,9 @@ public class SupplierPerformanceDTO {
     
     @Schema(description = "综合评分（0-100）", example = "90.5")
     private Double comprehensiveScore;
+    
+    @Schema(description = "综合评分（BigDecimal）", example = "93.75")
+    private BigDecimal overallScore;
     
     @Schema(description = "等级评定：A/B/C/D", example = "A")
     private String performanceLevel;

@@ -21,9 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -321,7 +319,15 @@ public class ContractController {
                     .eq(Contract::getDeleted, 0)
                     .count());
         }
-        stats.put("totalContractAmount", contractService.baseMapper.sumEffectiveContractAmount(1L));
+        List<Contract> effectiveContracts = contractService.lambdaQuery()
+                .eq(Contract::getStatus, ContractStatus.EFFECTIVE.getCode())
+                .eq(Contract::getDeleted, 0)
+                .list();
+        BigDecimal totalContractAmount = effectiveContracts.stream()
+                .map(Contract::getContractAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.put("totalContractAmount", totalContractAmount);
         return stats;
     }
 

@@ -12,6 +12,30 @@ import java.util.List;
 public class BundleDiscountCalculator implements DiscountStrategy {
     
     @Override
+    public DiscountRule.DiscountType getDiscountType() {
+        return DiscountRule.DiscountType.BUNDLE;
+    }
+    
+    @Override
+    public boolean isApplicable(DiscountRule rule, PriceCalculationRequest request) {
+        if (rule == null || request == null) {
+            return false;
+        }
+        if (rule.getDiscountType() != DiscountRule.DiscountType.BUNDLE) {
+            return false;
+        }
+        List<String> bundleProductIds = rule.getBundleProductIds();
+        if (bundleProductIds == null || bundleProductIds.isEmpty()) {
+            return false;
+        }
+        String productId = request.getProductId();
+        if (productId == null) {
+            return false;
+        }
+        return bundleProductIds.contains(productId);
+    }
+    
+    @Override
     public boolean validateRuleParameters(DiscountRule rule) {
         if (rule.getDiscountValue() == null || rule.getDiscountValue().compareTo(BigDecimal.ZERO) <= 0) {
             return false;

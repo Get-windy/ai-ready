@@ -18,9 +18,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -211,8 +209,20 @@ public class ReceiptController {
                     .eq(Receipt::getDeleted, 0)
                     .count());
         }
-        stats.put("totalReceiptAmount", receiptService.baseMapper.sumReceiptAmount(1L));
-        stats.put("totalVerifiedAmount", receiptService.baseMapper.sumVerifiedAmount(1L));
+        List<Receipt> completedReceipts = receiptService.lambdaQuery()
+                .eq(Receipt::getStatus, ReceiptStatus.COMPLETED.getCode())
+                .eq(Receipt::getDeleted, 0)
+                .list();
+        BigDecimal totalReceiptAmount = completedReceipts.stream()
+                .map(Receipt::getReceiptAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalVerifiedAmount = completedReceipts.stream()
+                .map(Receipt::getVerifiedAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.put("totalReceiptAmount", totalReceiptAmount);
+        stats.put("totalVerifiedAmount", totalVerifiedAmount);
         return stats;
     }
 

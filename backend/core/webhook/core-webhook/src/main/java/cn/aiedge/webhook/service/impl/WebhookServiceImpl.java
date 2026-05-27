@@ -175,41 +175,42 @@ public class WebhookServiceImpl implements WebhookService {
 
     @Override
     public WebhookLog executeWebhook(Webhook webhook, WebhookPayload payload) {
-        WebhookLog log = new WebhookLog();
-        log.setWebhookId(webhook.getId());
-        log.setWebhookCode(webhook.getWebhookCode());
-        log.setWebhookName(webhook.getWebhookName());
-        log.setModelName(payload.getModelName());
-        log.setTriggerEvent(payload.getTriggerEvent());
-        log.setRecordId(payload.getRecordId());
-        log.setRequestBody(JSONUtil.toJsonStr(payload));
-        log.setTriggerTime(LocalDateTime.now());
-        log.setRetryAttempt(webhook.getRetryCount());
+        WebhookLog webhookLog = new WebhookLog();
+        webhookLog.setWebhookId(webhook.getId());
+        webhookLog.setWebhookCode(webhook.getWebhookCode());
+        webhookLog.setWebhookName(webhook.getWebhookName());
+        webhookLog.setModelName(payload.getModelName());
+        webhookLog.setTriggerEvent(payload.getTriggerEvent());
+        webhookLog.setRecordId(payload.getRecordId());
+        webhookLog.setRequestBody(JSONUtil.toJsonStr(payload));
+        webhookLog.setTriggerTime(LocalDateTime.now());
+        webhookLog.setRetryAttempt(webhook.getRetryCount());
 
         try {
             HttpRequest request = createHttpRequest(webhook, payload);
             HttpResponse response = request.timeout(webhook.getTimeout()).execute();
 
-            log.setResponseStatus(String.valueOf(response.getStatus()));
-            log.setResponseBody(response.body());
-            log.setSuccess(response.isOk());
-            log.setExecutionTime(LocalDateTime.now());
-            log.setExecutionDuration(
-                log.getExecutionTime().toEpochSecond() - log.getTriggerTime().toEpochSecond()
+            webhookLog.setResponseStatus(String.valueOf(response.getStatus()));
+            webhookLog.setResponseBody(response.body());
+            webhookLog.setSuccess(response.isOk());
+            webhookLog.setExecutionTime(LocalDateTime.now());
+            webhookLog.setExecutionDuration(
+                webhookLog.getExecutionTime().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() - 
+                webhookLog.getTriggerTime().atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
             );
 
             if (!response.isOk()) {
-                log.setErrorMessage("HTTP状态码: " + response.getStatus());
+                webhookLog.setErrorMessage("HTTP状态码: " + response.getStatus());
             }
 
-            logMapper.insert(log);
-            return log;
+            logMapper.insert(webhookLog);
+            return webhookLog;
 
         } catch (Exception e) {
-            log.setSuccess(false);
-            log.setErrorMessage(e.getMessage());
-            log.setExecutionTime(LocalDateTime.now());
-            logMapper.insert(log);
+            webhookLog.setSuccess(false);
+            webhookLog.setErrorMessage(e.getMessage());
+            webhookLog.setExecutionTime(LocalDateTime.now());
+            logMapper.insert(webhookLog);
 
             if (webhook.getRetryCount() < webhook.getMaxRetry()) {
                 webhook.setRetryCount(webhook.getRetryCount() + 1);
@@ -217,7 +218,7 @@ public class WebhookServiceImpl implements WebhookService {
             }
 
             log.error("Webhook执行失败: {}", webhook.getWebhookName(), e);
-            return log;
+            return webhookLog;
         }
     }
 
@@ -226,10 +227,10 @@ public class WebhookServiceImpl implements WebhookService {
     public void retryFailedWebhooks() {
         List<WebhookLog> pendingRetries = logMapper.selectPendingRetries(10);
 
-        for (WebhookLog log : pendingRetries) {
-            Webhook webhook = webhookMapper.selectById(log.getWebhookId());
+        for (WebhookLog webhookLog : pendingRetries) {
+            Webhook webhook = webhookMapper.selectById(webhookLog.getWebhookId());
             if (webhook != null && webhook.getActive()) {
-                WebhookPayload payload = JSONUtil.toBean(log.getRequestBody(), WebhookPayload.class);
+                WebhookPayload payload = JSONUtil.toBean(webhookLog.getRequestBody(), WebhookPayload.class);
                 executeWebhook(webhook, payload);
             }
         }

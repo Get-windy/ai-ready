@@ -37,26 +37,6 @@ public record ExecutionRequest(
 }
 
 /**
- * 执行目标
- */
-record ExecutionTarget(
-        String targetId,
-        TargetType targetType,
-        String referenceId,
-        Map<String, Object> targetData,
-        List<ExecutionAction> actions
-) {
-    public enum TargetType {
-        PRODUCT,            // 产品
-        CUSTOMER,           // 客户
-        ORDER,              // 订单
-        CATEGORY,           // 品类
-        REGION,             // 区域
-        CHANNEL             // 渠道
-    }
-}
-
-/**
  * 执行动作
  */
 record ExecutionAction(

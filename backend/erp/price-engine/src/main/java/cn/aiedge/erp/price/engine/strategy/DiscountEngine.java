@@ -1,5 +1,9 @@
 package cn.aiedge.erp.price.engine.strategy;
 
+import cn.aiedge.erp.price.engine.strategy.calculator.VolumeDiscountCalculator;
+import cn.aiedge.erp.price.engine.strategy.calculator.BundleDiscountCalculator;
+import cn.aiedge.erp.price.engine.strategy.calculator.StandardDiscountCalculator;
+import cn.aiedge.erp.price.engine.strategy.calculator.PromotionalDiscountCalculator;
 import cn.aiedge.erp.price.engine.strategy.entity.DiscountRule;
 import cn.aiedge.erp.price.engine.strategy.entity.PriceCalculationRequest;
 import cn.aiedge.erp.price.engine.strategy.entity.PriceCalculationResult;

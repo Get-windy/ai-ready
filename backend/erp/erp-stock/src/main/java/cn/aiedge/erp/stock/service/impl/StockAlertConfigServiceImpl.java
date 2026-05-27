@@ -103,4 +103,9 @@ public class StockAlertConfigServiceImpl extends ServiceImpl<StockAlertConfigMap
         }
         return alertConfigs;
     }
+
+    @Override
+    public Integer countActive(Long tenantId) {
+        return baseMapper.countActive(tenantId);
+    }
 }

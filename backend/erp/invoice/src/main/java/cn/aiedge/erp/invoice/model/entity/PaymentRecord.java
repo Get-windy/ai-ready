@@ -316,8 +316,8 @@ public class PaymentRecord extends BaseEntity {
         this.paymentStatus = PaymentStatus.CANCELLED;
         this.matchingNotes = (this.matchingNotes != null ? this.matchingNotes + "\n" : "") + 
                              "取消匹配: " + reason;
-        this.deleted = true;
-        this.deletedAt = LocalDateTime.now();
+        setDeleted(true);
+        setDeletedAt(LocalDateTime.now());
     }
     
     /**
@@ -369,7 +369,7 @@ public class PaymentRecord extends BaseEntity {
      * 检查是否可匹配
      */
     public boolean canMatch() {
-        return !deleted && 
+        return !isDeleted() && 
                !posted && 
                paymentStatus != PaymentStatus.CANCELLED && 
                paymentStatus != PaymentStatus.REFUNDED && 
@@ -384,5 +384,33 @@ public class PaymentRecord extends BaseEntity {
     public String getDisplayName() {
         return paymentReference + " - " + paymentAmount + " " + currencyCode + 
                (matchedAmount != null ? " (已匹配: " + matchedAmount + ")" : "");
+    }
+    
+    @Override
+    public boolean validate() {
+        if (paymentReference == null || paymentReference.trim().isEmpty()) {
+            return false;
+        }
+        if (invoiceId == null) {
+            return false;
+        }
+        if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+        if (paymentDate == null) {
+            return false;
+        }
+        if (paymentMethod == null) {
+            return false;
+        }
+        if (paymentStatus == null) {
+            return false;
+        }
+        return true;
+    }
+    
+    @Override
+    public String getEntityType() {
+        return "PAYMENT_RECORD";
     }
 }

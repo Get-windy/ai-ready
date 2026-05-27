@@ -2,6 +2,7 @@ package cn.aiedge.webhook.dto;
 
 import lombok.Data;
 
+@Data
 public class WebhookCreateRequest {
 
     private String webhookName;

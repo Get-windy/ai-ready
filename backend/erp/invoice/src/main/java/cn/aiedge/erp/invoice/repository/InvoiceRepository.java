@@ -3,6 +3,7 @@ package cn.aiedge.erp.invoice.repository;
 import cn.aiedge.erp.invoice.model.entity.Invoice;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
 import cn.aiedge.erp.invoice.model.enums.PaymentStatus;
+import cn.aiedge.erp.invoice.model.enums.MatchingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -119,4 +120,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                    "WHERE due_date < CURDATE() AND payment_status IN ('PENDING', 'PARTIALLY_PAID')", 
            nativeQuery = true)
     int batchUpdateOverdueStatus();
+    
+    List<Invoice> findByMatchingStatus(MatchingStatus matchingStatus);
+    
+    @Query("SELECT i FROM Invoice i WHERE i.customerId = :customerId AND i.matchingStatus = :matchingStatus AND i.invoiceDate BETWEEN :startDate AND :endDate")
+    List<Invoice> findUnmatchedByCustomerId(@Param("customerId") Long customerId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT i FROM Invoice i WHERE i.supplierId = :supplierId AND i.matchingStatus = :matchingStatus AND i.invoiceDate BETWEEN :startDate AND :endDate")
+    List<Invoice> findUnmatchedBySupplierId(@Param("supplierId") Long supplierId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT i FROM Invoice i WHERE i.matchingStatus = :matchingStatus AND i.invoiceDate BETWEEN :startDate AND :endDate")
+    List<Invoice> findUnmatchedInvoices(@Param("matchingStatus") MatchingStatus matchingStatus, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT i FROM Invoice i WHERE i.matchingStatus = 'UNMATCHED' AND i.invoiceDate BETWEEN :startDate AND :endDate")
+    List<Invoice> findUnmatchedInvoices(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    
+    @Query("SELECT i FROM Invoice i WHERE i.dueDate BETWEEN :startDate AND :endDate AND i.matchingStatus = 'UNMATCHED' AND i.invoiceStatus IN ('VALIDATED', 'APPROVED')")
+    List<Invoice> findDueInvoicesForAutoMatching(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }

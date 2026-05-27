@@ -13,7 +13,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,43 +23,34 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/**
- * 采购订单服务实现类
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, PurchaseOrder>
         implements PurchaseOrderService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PurchaseOrderServiceImpl.class);
     private final PurchaseOrderItemMapper orderItemMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createOrder(PurchaseOrder order) {
-        // 生成订单号
         order.setOrderNo(generateOrderNo());
-        order.setStatus(OrderStatus.DRAFT); // 草稿状态
+        order.setStatus(OrderStatus.DRAFT);
         order.setReceivedAmount(BigDecimal.ZERO);
         order.setCreateTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         order.setCreateBy(StpUtil.getLoginIdAsLong());
         
-        // 计算订单金额
         calculateOrderAmount(order);
         
         save(order);
-        log.info("创建采购订单成功: orderId={}, orderNo={}", order.getId(), order.getOrderNo());
+        logger.info("创建采购订单成功: orderId={}, orderNo={}", order.getId(), order.getOrderNo());
         return order.getId();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateOrder(PurchaseOrder order) {
-        // 检查订单状态
         PurchaseOrder existing = getById(order.getId());
         if (existing == null) {
             throw BusinessException.notFound("订单不存在");
@@ -70,7 +62,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setUpdateTime(LocalDateTime.now());
         order.setUpdateBy(StpUtil.getLoginIdAsLong());
         updateById(order);
-        log.info("更新采购订单成功: orderId={}", order.getId());
+        logger.info("更新采购订单成功: orderId={}", order.getId());
     }
 
     @Override
@@ -85,7 +77,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         }
         
         removeById(orderId);
-        log.info("删除采购订单成功: orderId={}", orderId);
+        logger.info("删除采购订单成功: orderId={}", orderId);
     }
 
     @Override
@@ -99,10 +91,10 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.badRequest("只有草稿状态的订单才能提交审批");
         }
         
-        order.setStatus(OrderStatus.PENDING_APPROVAL); // 待审批
+        order.setStatus(OrderStatus.PENDING_APPROVAL);
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("提交采购订单审批: orderId={}", orderId);
+        logger.info("提交采购订单审批: orderId={}", orderId);
     }
 
     @Override
@@ -116,12 +108,12 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.badRequest("订单不在待审批状态");
         }
         
-        order.setStatus(OrderStatus.APPROVED); // 已审批
+        order.setStatus(OrderStatus.APPROVED);
         order.setApprovedBy(StpUtil.getLoginIdAsLong());
         order.setApprovedTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("审批通过采购订单: orderId={}", orderId);
+        logger.info("审批通过采购订单: orderId={}", orderId);
     }
 
     @Override
@@ -132,11 +124,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.notFound("订单不存在");
         }
         
-        order.setStatus(OrderStatus.DRAFT); // 退回草稿
+        order.setStatus(OrderStatus.DRAFT);
         order.setRemark(order.getRemark() + " [审批拒绝: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("审批拒绝采购订单: orderId={}, reason={}", orderId, reason);
+        logger.info("审批拒绝采购订单: orderId={}, reason={}", orderId, reason);
     }
 
     @Override
@@ -150,11 +142,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.badRequest("订单已开始入库，无法取消");
         }
         
-        order.setStatus(OrderStatus.CANCELLED); // 已取消
+        order.setStatus(OrderStatus.CANCELLED);
         order.setRemark(order.getRemark() + " [取消原因: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("取消采购订单: orderId={}, reason={}", orderId, reason);
+        logger.info("取消采购订单: orderId={}, reason={}", orderId, reason);
     }
 
     @Override
@@ -176,11 +168,8 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
 
     @Override
     public List<Object> getOrderItems(Long orderId) {
-        // TODO: 实现订单明细查询
         return List.of();
     }
-
-    // ==================== 新增方法 ====================
 
     @Override
     public PurchaseOrder submitOrder(Long orderId) {
@@ -188,7 +177,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.PENDING_APPROVAL); // 待审批
+        order.setStatus(OrderStatus.PENDING_APPROVAL);
         updateById(order);
         return order;
     }
@@ -199,7 +188,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.APPROVED); // 已审批
+        order.setStatus(OrderStatus.APPROVED);
         order.setApprovedBy(approverId);
         order.setApprovedTime(LocalDateTime.now());
         updateById(order);
@@ -212,7 +201,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.ISSUED); // 已下达
+        order.setStatus(OrderStatus.ISSUED);
         updateById(order);
         return order;
     }
@@ -226,7 +215,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierName(contract.getSupplierName());
         order.setTotalAmount(contract.getTotalAmount());
         order.setOrderNo(generateOrderNo());
-        order.setStatus(OrderStatus.DRAFT); // 草稿
+        order.setStatus(OrderStatus.DRAFT);
         save(order);
 
         if (items != null && !items.isEmpty()) {
@@ -243,7 +232,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.IN_PROGRESS); // 执行中
+        order.setStatus(OrderStatus.IN_PROGRESS);
         updateById(order);
         return order;
     }
@@ -266,23 +255,15 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.COMPLETED); // 已完成
+        order.setStatus(OrderStatus.COMPLETED);
         updateById(order);
         return order;
     }
 
-    // ==================== 私有方法 ====================
-
-    /**
-     * 生成订单号
-     */
     private String generateOrderNo() {
         return "PO" + System.currentTimeMillis();
     }
 
-    /**
-     * 计算订单金额
-     */
     private void calculateOrderAmount(PurchaseOrder order) {
         if (order.getTotalAmount() == null) {
             order.setTotalAmount(BigDecimal.ZERO);
@@ -290,8 +271,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             order.setTotalAmountWithTax(BigDecimal.ZERO);
         }
     }
-
-    // ==================== 新增采购执行方法 ====================
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -308,7 +287,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierConfirmTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("供应商确认订单: orderId={}", orderId);
+        logger.info("供应商确认订单: orderId={}", orderId);
     }
 
     @Override
@@ -328,7 +307,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setShipTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("发货通知: orderId={}, trackingNumber={}", orderId, trackingNumber);
+        logger.info("发货通知: orderId={}, trackingNumber={}", orderId, trackingNumber);
     }
 
     @Override
@@ -348,7 +327,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setReceiveTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         
-        // 更新订单状态为部分入库或已完成
         BigDecimal totalQuantity = order.getTotalQuantity();
         if (receivedQuantity.compareTo(totalQuantity) < 0) {
             order.setStatus(OrderStatus.PARTIAL_RECEIVED);
@@ -357,7 +335,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         }
         
         updateById(order);
-        log.info("收货确认: orderId={}, receivedQuantity={}, qualityCheckResult={}", 
+        logger.info("收货确认: orderId={}, receivedQuantity={}, qualityCheckResult={}", 
                 orderId, receivedQuantity, qualityCheckResult);
     }
 
@@ -378,7 +356,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setInvoiceDate(invoiceDate);
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
-        log.info("发票提交: orderId={}, invoiceNumber={}, invoiceAmount={}", 
+        logger.info("发票提交: orderId={}, invoiceNumber={}, invoiceAmount={}", 
                 orderId, invoiceNumber, invoiceAmount);
     }
 
@@ -394,7 +372,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     public Map<String, Object> getPurchaseStatistics(Long tenantId, LocalDate startDate, LocalDate endDate) {
         Map<String, Object> statistics = new HashMap<>();
         
-        // 查询订单总数
         LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PurchaseOrder::getTenantId, tenantId)
                 .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
@@ -403,7 +380,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         long totalOrders = count(wrapper);
         statistics.put("totalOrders", totalOrders);
         
-        // 查询订单总额
         wrapper.clear();
         wrapper.eq(PurchaseOrder::getTenantId, tenantId)
                 .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
@@ -415,7 +391,6 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         statistics.put("totalAmount", totalAmount);
         
-        // 按状态统计
         for (OrderStatus status : OrderStatus.values()) {
             wrapper.clear();
             wrapper.eq(PurchaseOrder::getTenantId, tenantId)

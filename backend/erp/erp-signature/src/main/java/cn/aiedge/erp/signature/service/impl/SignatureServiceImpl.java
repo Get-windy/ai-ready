@@ -42,12 +42,12 @@ public class SignatureServiceImpl implements SignatureService {
         record.setDeliveryPersonId(request.getDeliveryPersonId());
         record.setDeliveryPersonName(request.getDeliveryPersonName());
         record.setSignTime(LocalDateTime.now());
-        record.setStatus(SignatureStatus.SIGNED.getCode());
+        record.setStatus(1);
         record.setRemark(request.getRemark());
 
         if (photo != null && !photo.isEmpty()) {
             try {
-                String photoHash = SecureUtil.md5(photo.getBytes());
+                String photoHash = SecureUtil.md5(new String(photo.getBytes(), "UTF-8"));
                 record.setPhotoPath(photoHash);
                 record.setIntegrityHash(generateIntegrityHash(record, photoHash));
             } catch (IOException e) {
@@ -82,7 +82,7 @@ public class SignatureServiceImpl implements SignatureService {
         record.setDeliveryPersonId(request.getDeliveryPersonId());
         record.setDeliveryPersonName(request.getDeliveryPersonName());
         record.setSignTime(LocalDateTime.now());
-        record.setStatus(SignatureStatus.SIGNED.getCode());
+        record.setStatus(1);
         record.setRemark(request.getRemark());
 
         String dataHash = SecureUtil.md5(request.getSignatureData());
@@ -155,7 +155,7 @@ public class SignatureServiceImpl implements SignatureService {
         record.setVerified(verified);
         record.setVerifyTime(LocalDateTime.now());
         if (verified) {
-            record.setStatus(SignatureStatus.VERIFIED.getCode());
+            record.setStatus(2);
         }
         signatureMapper.updateById(record);
 

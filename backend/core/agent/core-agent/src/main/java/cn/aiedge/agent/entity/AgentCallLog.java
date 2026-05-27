@@ -26,7 +26,7 @@ public class AgentCallLog {
     /**
      * Agent ID（从 API Key 获取）
      */
-    private Long agentId;
+    private String agentId;
 
     /**
      * 能力编码

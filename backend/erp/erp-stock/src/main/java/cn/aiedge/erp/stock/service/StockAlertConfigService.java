@@ -25,4 +25,6 @@ public interface StockAlertConfigService extends IService<StockAlertConfig> {
     void deactivateConfig(Long configId);
 
     List<StockAlertConfig> checkAlerts();
+
+    Integer countActive(Long tenantId);
 }

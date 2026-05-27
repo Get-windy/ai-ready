@@ -214,8 +214,8 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
         }
         
         transfer.setStatus(StockTransferStatus.COMPLETED.getCode());
-        transfer.setExecutedBy(userId);
-        transfer.setExecutedTime(LocalDateTime.now());
+        transfer.setExecuteBy(userId);
+        transfer.setExecuteTime(LocalDateTime.now());
         transfer.setUpdateTime(LocalDateTime.now());
         this.updateById(transfer);
         

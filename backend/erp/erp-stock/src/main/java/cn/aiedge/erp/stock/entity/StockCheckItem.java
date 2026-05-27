@@ -55,7 +55,11 @@ public class StockCheckItem {
 
     private Integer checkStatus;
 
+    private Integer status;
+
     private String checkNote;
+
+    private String note;
 
     private LocalDateTime checkedTime;
 

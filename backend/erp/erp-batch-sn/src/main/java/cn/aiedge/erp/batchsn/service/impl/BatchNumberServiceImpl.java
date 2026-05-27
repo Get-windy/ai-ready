@@ -355,11 +355,8 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
         // 排序
         if (StringUtils.hasText(sortField)) {
             boolean isDesc = "desc".equalsIgnoreCase(sortDirection);
-            if (isDesc) {
-                wrapper.orderByDesc(StringUtils.hasText(sortField), true, sortField);
-            } else {
-                wrapper.orderByAsc(StringUtils.hasText(sortField), true, sortField);
-            }
+            String orderSql = sortField + (isDesc ? " DESC" : " ASC");
+            wrapper.last("ORDER BY " + orderSql);
         } else {
             wrapper.orderByDesc(BatchNumber::getCreatedAt);
         }

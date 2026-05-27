@@ -2,6 +2,7 @@ package cn.aiedge.automation.dto;
 
 import lombok.Data;
 
+@Data
 public class AutomationRuleCreateRequest {
 
     private String ruleName;

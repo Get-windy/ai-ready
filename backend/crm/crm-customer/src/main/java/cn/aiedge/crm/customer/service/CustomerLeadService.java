@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service;
 
+import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerLead;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;

@@ -1,7 +1,10 @@
 package cn.aiedge.erp.signature.dto;
 
+import java.time.LocalDateTime;
+
 import lombok.Data;
 
+@Data
 public class IntegrityVerifyResult {
 
     private Long signatureId;

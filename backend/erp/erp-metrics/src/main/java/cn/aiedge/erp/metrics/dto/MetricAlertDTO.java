@@ -31,4 +31,9 @@ public class MetricAlertDTO {
     private String acknowledgedBy;
     private LocalDateTime resolvedAt;
     private String resolvedBy;
+    private String severity;
+    private String direction;
+    private boolean acknowledged;
+    private boolean resolved;
+    private String resolutionNote;
 }

@@ -102,7 +102,7 @@ public class StockAlertConfigController {
         stats.put("totalConfigs", stockAlertConfigService.lambdaQuery()
                 .eq(StockAlertConfig::getDeleted, 0)
                 .count());
-        stats.put("activeConfigs", stockAlertConfigService.baseMapper.countActive(1L));
+        stats.put("activeConfigs", stockAlertConfigService.countActive(1L));
         return stats;
     }
 }

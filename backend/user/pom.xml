@@ -25,6 +25,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.2.0</spring-boot.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
     </properties>
     
     <dependencies>
@@ -155,7 +156,7 @@
                             <artifactId>lombok</artifactId>
                             <version>1.18.30</version>
                         </path>
-                                            <path>
+                        <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${mapstruct.version}</version>

@@ -38,6 +38,27 @@ public class SupplierDTO {
     @Schema(description = "供应商类型：1-生产商，2-代理商，3-经销商，4-服务商，5-其他", example = "1", required = true)
     private Integer supplierType;
     
+    @Schema(description = "地址", example = "北京市朝阳区测试路123号")
+    private String address;
+    
+    @Schema(description = "注册日期", example = "2020-01-01T00:00:00")
+    private LocalDateTime registrationDate;
+    
+    @Schema(description = "状态：1-正常，0-禁用", example = "1")
+    private Integer status;
+    
+    @Schema(description = "信用等级", example = "AAA")
+    private String creditRating;
+    
+    @Schema(description = "绩效评分", example = "95.5")
+    private Double performanceScore;
+    
+    @Schema(description = "备注")
+    private String remarks;
+    
+    @Schema(description = "分类ID", example = "100")
+    private Long categoryId;
+    
     @Schema(description = "企业性质：1-国有企业，2-民营企业，3-外资企业，4-合资企业，5-其他", example = "2")
     private Integer enterpriseNature;
     

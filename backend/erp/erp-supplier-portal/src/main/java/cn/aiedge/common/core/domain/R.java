@@ -30,6 +30,15 @@ public class R<T> implements Serializable {
         return r;
     }
     
+    public static <T> R<T> ok(String msg, T data) {
+        R<T> r = new R<>();
+        r.setCode(200);
+        r.setMsg(msg);
+        r.setData(data);
+        r.setSuccess(true);
+        return r;
+    }
+    
     public static <T> R<T> fail(String msg) {
         R<T> r = new R<>();
         r.setCode(500);

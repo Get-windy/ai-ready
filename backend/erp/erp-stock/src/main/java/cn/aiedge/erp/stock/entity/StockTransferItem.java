@@ -35,7 +35,13 @@ public class StockTransferItem {
 
     private BigDecimal actualQuantity;
 
+    private BigDecimal quantity;
+
     private BigDecimal unitCost;
+
+    private BigDecimal unitPrice;
+
+    private Integer status;
 
     private BigDecimal lineAmount;
 

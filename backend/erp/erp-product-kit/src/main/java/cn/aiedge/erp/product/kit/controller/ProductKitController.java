@@ -167,7 +167,10 @@ public class ProductKitController {
     @Operation(summary = "套装统计")
     public Map<String, Object> statistics() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("activeKits", productKitService.baseMapper.countActiveKits(1L));
+        stats.put("activeKits", productKitService.lambdaQuery()
+                .eq(ProductKit::getDeleted, 0)
+                .eq(ProductKit::getStatus, 1)
+                .count());
         stats.put("totalKits", productKitService.lambdaQuery()
                 .eq(ProductKit::getDeleted, 0)
                 .count());

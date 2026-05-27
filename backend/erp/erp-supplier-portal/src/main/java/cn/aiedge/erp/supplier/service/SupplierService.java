@@ -190,4 +190,63 @@ public interface SupplierService {
      * @return 供应商实体
      */
     Supplier getById(Long id);
+    
+    /**
+     * 审批供应商
+     * 
+     * @param id 供应商ID
+     * @param comment 审批意见
+     * @return 审批结果
+     */
+    R<SupplierDTO> approveSupplier(Long id, String comment);
+    
+    /**
+     * 验证供应商资质
+     * 
+     * @param id 供应商ID
+     * @return 验证结果
+     */
+    R<Boolean> verifyQualification(Long id);
+    
+    /**
+     * 将供应商加入黑名单
+     * 
+     * @param id 供应商ID
+     * @param reason 加入原因
+     * @return 操作结果
+     */
+    R<Boolean> addToBlacklist(Long id, String reason);
+    
+    /**
+     * 评估供应商绩效
+     * 
+     * @param id 供应商ID
+     * @return 评估结果
+     */
+    R<SupplierPerformanceDTO> evaluatePerformance(Long id);
+    
+    /**
+     * 获取供应商列表
+     * 
+     * @param queryDTO 查询条件
+     * @return 分页结果
+     */
+    R<PageResult<SupplierDTO>> getSupplierList(SupplierQueryDTO queryDTO);
+    
+    /**
+     * 获取供应商统计信息
+     * 
+     * @return 统计信息
+     */
+    R<Map<String, Object>> getStatistics();
+    
+    /**
+     * 上传供应商资质文件
+     * 
+     * @param id 供应商ID
+     * @param fileType 文件类型
+     * @param fileContent 文件内容
+     * @return 上传结果
+     */
+    R<String> uploadQualificationFile(Long id, String fileType, String fileContent);
 }

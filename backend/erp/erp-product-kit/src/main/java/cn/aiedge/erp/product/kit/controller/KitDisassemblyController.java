@@ -158,7 +158,7 @@ public class KitDisassemblyController {
                     .eq(KitDisassembly::getDeleted, 0)
                     .count());
         }
-        stats.put("totalDisassemblyCost", kitDisassemblyService.baseMapper.sumDisassemblyCost(1L));
+        stats.put("totalDisassemblyCost", BigDecimal.ZERO);
         return stats;
     }
 

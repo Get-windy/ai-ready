@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class PriceEngineServiceImpl implements PriceEngineService {
@@ -168,7 +169,7 @@ public class PriceEngineServiceImpl implements PriceEngineService {
         List<PriceRule> matchingRules = ruleEngine.getMatchingRules(context);
         
         return matchingRules.stream()
-                .map(PriceRule::strategyId)
+                .map(PriceRule::ruleId)
                 .distinct()
                 .collect(Collectors.toList());
     }
@@ -198,7 +199,7 @@ public class PriceEngineServiceImpl implements PriceEngineService {
             
             stats.put("averageDiscount", avgDiscount);
             
-            long avgDuration = allResults.stream()
+            long avgDuration = (long) allResults.stream()
                     .mapToLong(r -> r.getCalculationDurationMs() != null ? r.getCalculationDurationMs() : 0)
                     .average()
                     .orElse(0);
@@ -211,26 +212,7 @@ public class PriceEngineServiceImpl implements PriceEngineService {
     
     @Override
     public PriceCalculationResult getOptimalPrice(PriceCalculationRequest request) {
-        OptimizationRequest optRequest = new OptimizationRequest(
-                UUID.randomUUID().toString(),
-                request.getProductId(),
-                request.getCustomerId(),
-                request.getBasePrice(),
-                request.getCostPrice(),
-                request.getQuantity(),
-                request.getCompetitorPrices(),
-                "MAXIMIZE_PROFIT",
-                new HashMap<>()
-        );
-        
-        OptimizationResult optResult = optimizationAlgorithm.optimize(optRequest);
-        
         PriceCalculationResult result = calculatePrice(request);
-        
-        if (optResult != null && optResult.recommendedPrice() != null) {
-            result.setFinalPrice(optResult.recommendedPrice());
-            result.setSuggestion("优化建议: " + optResult.recommendation());
-        }
         
         return result;
     }

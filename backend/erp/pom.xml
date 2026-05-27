@@ -20,15 +20,11 @@
     
     <modules>
         <module>party</module>
-        <!-- customer: 已整合到 party 模块，客户等级管理功能在 party/CustomerGrade 中实现 -->
-        <!-- <module>customer</module> -->
         <module>purchase</module>
         <module>erp-purchase-return</module>
         <module>sales</module>
         <module>erp-stock</module>
         <module>erp-order</module>
-        <!-- erp-monitor: 已停用, MyBatis-Plus与erp-metrics的JPA框架冲突, 待统一ORM后合并 -->
-        <!-- <module>erp-monitor</module> -->
         <module>erp-expense</module>
         <module>erp-supplier-portal</module>
         <module>erp-batch-sn</module>
@@ -39,41 +35,15 @@
         <module>erp-printing</module>
         <module>erp-signature</module>
         <module>erp-delivery-route</module>
-        <!-- erp-purchase-exchange 模块尚未创建，前端已就绪 -->
-        <!-- <module>erp-purchase-exchange</module> -->
+        <module>erp-payment</module>
+        <module>erp-product-kit</module>
+        <module>erp-sale-return</module>
     </modules>
     
     <properties>
         <erp-common.version>1.0.0-SNAPSHOT</erp-common.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-    
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                                            <path>
-                            <groupId>org.mapstruct</groupId>
-                            <artifactId>mapstruct-processor</artifactId>
-                            <version>${mapstruct.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
     
     <dependencyManagement>
         <dependencies>

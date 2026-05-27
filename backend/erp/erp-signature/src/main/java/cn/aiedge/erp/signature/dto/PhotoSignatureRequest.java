@@ -2,6 +2,7 @@ package cn.aiedge.erp.signature.dto;
 
 import lombok.Data;
 
+@Data
 public class PhotoSignatureRequest {
 
     private String orderNo;

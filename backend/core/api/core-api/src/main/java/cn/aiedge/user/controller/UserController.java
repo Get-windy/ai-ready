@@ -16,9 +16,9 @@ import java.util.List;
 /**
  * 用户管理控制器
  */
-@Tag(name = "用户管理", description = "用户增删改查接口")
+@Tag(name = "用户管理V2", description = "用户增删改查接口(新版)")
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/v2/user")
 @RequiredArgsConstructor
 public class UserController {
 

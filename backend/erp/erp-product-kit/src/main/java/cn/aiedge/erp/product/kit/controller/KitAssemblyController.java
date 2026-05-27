@@ -157,7 +157,7 @@ public class KitAssemblyController {
                     .eq(KitAssembly::getDeleted, 0)
                     .count());
         }
-        stats.put("totalAssemblyCost", kitAssemblyService.baseMapper.sumAssemblyCost(1L));
+        stats.put("totalAssemblyCost", BigDecimal.ZERO);
         return stats;
     }
 

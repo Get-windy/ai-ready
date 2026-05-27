@@ -5,10 +5,34 @@ server:
 spring:
   main:
     allow-bean-definition-overriding: true
+    web-application-type: servlet
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration
+      - org.springframework.cloud.gateway.config.GatewayMetricsAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/devdb
     username: devuser
     password: Dev@2026#Local
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+  redis:
+    enabled: true
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+ai-ready:
+  ratelimit:
+    enabled: true
+  rate-limit:
+    enabled: true
 
 logging:
   level:

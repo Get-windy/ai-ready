@@ -14,6 +14,7 @@ public class PageResult<T> implements Serializable {
     private static final long serialVersionUID = 1L;
     
     private List<T> list;
+    private List<T> records;
     private Long total;
     private Integer pageNum;
     private Integer pageSize;

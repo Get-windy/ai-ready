@@ -2,13 +2,11 @@ package cn.aiedge.erp.stock.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import lombok.experimental.Accessors;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@Accessors(chain = true)
 @TableName("erp_stock_transfer")
 public class StockTransfer {
 
@@ -29,21 +27,17 @@ public class StockTransfer {
 
     private String toWarehouseName;
 
-    private LocalDateTime transferDate;
-
-    private Integer status;
-
     private BigDecimal totalQuantity;
 
     private BigDecimal totalAmount;
+
+    private Integer status;
 
     private Long applicantId;
 
     private String applicantName;
 
-    private Long departmentId;
-
-    private String departmentName;
+    private LocalDateTime applyTime;
 
     private Long approvedBy;
 
@@ -51,30 +45,30 @@ public class StockTransfer {
 
     private String approvedNote;
 
-    private Long executedBy;
+    private LocalDateTime updateTime;
 
-    private LocalDateTime executedTime;
+    private Long executeBy;
+
+    private LocalDateTime executeTime;
+
+    private Integer totalItems;
 
     private String remark;
-
-    @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
-    private String extInfo;
 
     @TableLogic
     private Integer deleted;
 
     @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    private Long createBy;
 
     @TableField(fill = FieldFill.INSERT)
-    private Long createBy;
+    private LocalDateTime createTime;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateBy;
 
     @Version
-    private Integer versionNo;
+    private Integer version;
+
+    private String extInfo;
 }

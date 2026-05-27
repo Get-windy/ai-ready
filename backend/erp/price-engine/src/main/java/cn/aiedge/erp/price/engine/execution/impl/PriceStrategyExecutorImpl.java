@@ -1,15 +1,27 @@
 package cn.aiedge.erp.price.engine.execution.impl;
 
 import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.ExecutionStatus;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.ExecutionStatus.Status;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.ExecutionStatus.StatusTransition;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.PreExecutionCheck;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.PreExecutionCheck.CheckItem;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.PreExecutionCheck.CheckSeverity;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.HealthStatus;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.HealthStatus.ComponentHealth;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.Dependency;
+import cn.aiedge.erp.price.engine.execution.IPriceStrategyExecutor.Risk;
 import cn.aiedge.erp.price.engine.execution.dto.ExecutionRequest;
 import cn.aiedge.erp.price.engine.execution.dto.ExecutionResult;
-import cn.aiedge.erp.price.engine.execution.dto.ExecutionResult.*;
+import cn.aiedge.erp.price.engine.execution.dto.ExecutionResult.TargetResult;
+import cn.aiedge.erp.price.engine.execution.dto.ExecutionResult.ExecutionLog;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Component
 public class PriceStrategyExecutorImpl implements IPriceStrategyExecutor {
@@ -74,7 +86,7 @@ public class PriceStrategyExecutorImpl implements IPriceStrategyExecutor {
             long durationMs = java.time.Duration.between(startTime, endTime).toMillis();
             
             boolean allSuccess = targetResults.stream().allMatch(TargetResult::success);
-            ExecutionStatus finalStatus = allSuccess ? ExecutionStatus.COMPLETED : ExecutionStatus.PARTIALLY_COMPLETED;
+            ExecutionResult.ExecutionStatus finalStatus = allSuccess ? ExecutionResult.ExecutionStatus.COMPLETED : ExecutionResult.ExecutionStatus.PARTIALLY_COMPLETED;
             
             successfulExecutions++;
             totalExecutionTimeMs += durationMs;
@@ -129,7 +141,7 @@ public class PriceStrategyExecutorImpl implements IPriceStrategyExecutor {
                 executionId,
                 strategyId,
                 false,
-                ExecutionStatus.FAILED,
+                ExecutionResult.ExecutionStatus.FAILED,
                 new ArrayList<>(),
                 BigDecimal.ZERO,
                 new HashMap<>(),
@@ -202,7 +214,7 @@ public class PriceStrategyExecutorImpl implements IPriceStrategyExecutor {
         
         if (request.targets() == null || request.targets().isEmpty()) {
             missingDependencies.add(new Dependency("targets", "执行目标", 
-                    DependencyType.EXTERNAL_SERVICE, null, false));
+                    Dependency.DependencyType.EXTERNAL_SERVICE, null, false));
         }
         
         boolean canExecute = checks.stream()

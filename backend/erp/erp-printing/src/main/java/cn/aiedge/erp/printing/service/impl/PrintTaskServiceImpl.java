@@ -181,7 +181,8 @@ public class PrintTaskServiceImpl implements PrintTaskService {
             task.setCompleteTime(LocalDateTime.now());
             if (task.getStartTime() != null) {
                 task.setPrintDuration(
-                    task.getCompleteTime().toEpochSecond() - task.getStartTime().toEpochSecond()
+                    task.getCompleteTime().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() - 
+                    task.getStartTime().atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
                 );
             }
             createPrintLog(task);

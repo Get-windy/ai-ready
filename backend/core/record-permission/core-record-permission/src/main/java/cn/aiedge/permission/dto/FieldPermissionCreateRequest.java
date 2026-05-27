@@ -2,6 +2,7 @@ package cn.aiedge.permission.dto;
 
 import lombok.Data;
 
+@Data
 public class FieldPermissionCreateRequest {
 
     private String modelName;

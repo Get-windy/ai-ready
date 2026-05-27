@@ -21,14 +21,13 @@ public class SupplierPortalServiceImpl implements SupplierPortalService {
     private final SupplierPerformanceMapper performanceMapper;
     private final InquiryQuotationMapper inquiryQuotationMapper;
     private final SupplierPointsRecordMapper pointsRecordMapper;
-    private final SupplierRepository supplierRepository;
     
     private String getCurrentTenantId() {
-        return SecurityUtils.getCurrentTenantId();
+        return SecurityUtils.getTenantId();
     }
     
     private String getCurrentUserId() {
-        return SecurityUtils.getCurrentUserId();
+        return SecurityUtils.getUserId();
     }
     
     @Override

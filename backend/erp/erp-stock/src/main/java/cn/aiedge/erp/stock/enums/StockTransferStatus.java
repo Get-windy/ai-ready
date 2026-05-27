@@ -4,9 +4,10 @@ public enum StockTransferStatus {
     DRAFT(0, "草稿"),
     PENDING_APPROVAL(1, "待审批"),
     APPROVED(2, "已审批"),
-    IN_TRANSFER(3, "调拨中"),
-    COMPLETED(4, "已完成"),
-    CANCELLED(5, "已取消");
+    REJECTED(3, "已拒绝"),
+    IN_TRANSFER(4, "调拨中"),
+    COMPLETED(5, "已完成"),
+    CANCELLED(6, "已取消");
 
     private final Integer code;
     private final String desc;

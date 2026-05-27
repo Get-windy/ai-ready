@@ -6,7 +6,7 @@ import cn.aiedge.erp.price.engine.strategy.entity.PriceCalculationRequest;
 import cn.aiedge.erp.price.engine.strategy.entity.PricingStrategy;
 import cn.aiedge.erp.price.engine.strategy.entity.DiscountRule;
 import cn.aiedge.erp.price.engine.strategy.algorithm.pricing.*;
-import cn.aiedge.erp.price.engine.strategy.algorithm.discount.*;
+import cn.aiedge.erp.price.engine.strategy.calculator.*;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -35,10 +35,10 @@ public class PricingStrategyFactory {
      * 注册定价算法
      */
     private void registerPricingAlgorithms() {
-        pricingAlgorithms.put(PricingStrategy.StrategyType.COST_PLUS, new CostBasedPricingStrategy());
-        pricingAlgorithms.put(PricingStrategy.StrategyType.MARKET_ORIENTED, new MarketBasedPricingStrategy());
-        pricingAlgorithms.put(PricingStrategy.StrategyType.VALUE_ORIENTED, new ValueBasedPricingStrategy());
-        pricingAlgorithms.put(PricingStrategy.StrategyType.COMPETITIVE, new CompetitivePricingStrategy());
+        pricingAlgorithms.put(PricingStrategy.StrategyType.COST_BASED, new CostBasedPricingStrategy());
+        pricingAlgorithms.put(PricingStrategy.StrategyType.MARKET_BASED, new MarketBasedPricingStrategy());
+        pricingAlgorithms.put(PricingStrategy.StrategyType.VALUE_BASED, new ValueBasedPricingStrategy());
+        pricingAlgorithms.put(PricingStrategy.StrategyType.COMPETITIVE_BASED, new CompetitivePricingStrategy());
     }
     
     /**
@@ -118,21 +118,21 @@ public class PricingStrategyFactory {
      */
     public PricingStrategy.StrategyType recommendStrategyTypeForCustomerGrade(String customerGrade) {
         if (customerGrade == null) {
-            return PricingStrategy.StrategyType.COST_PLUS;
+            return PricingStrategy.StrategyType.COST_BASED;
         }
         
         switch (customerGrade.toUpperCase()) {
             case "VIP":
             case "PREMIUM":
-                return PricingStrategy.StrategyType.VALUE_ORIENTED;
+                return PricingStrategy.StrategyType.VALUE_BASED;
             case "GOLD":
             case "SILVER":
-                return PricingStrategy.StrategyType.MARKET_ORIENTED;
+                return PricingStrategy.StrategyType.MARKET_BASED;
             case "STANDARD":
             case "BASIC":
-                return PricingStrategy.StrategyType.COMPETITIVE;
+                return PricingStrategy.StrategyType.COMPETITIVE_BASED;
             default:
-                return PricingStrategy.StrategyType.COST_PLUS;
+                return PricingStrategy.StrategyType.COST_BASED;
         }
     }
     
@@ -141,21 +141,21 @@ public class PricingStrategyFactory {
      */
     public PricingStrategy.StrategyType recommendStrategyTypeForProductType(String productType) {
         if (productType == null) {
-            return PricingStrategy.StrategyType.COST_PLUS;
+            return PricingStrategy.StrategyType.COST_BASED;
         }
         
         switch (productType.toUpperCase()) {
             case "LUXURY":
             case "PREMIUM":
-                return PricingStrategy.StrategyType.VALUE_ORIENTED;
+                return PricingStrategy.StrategyType.VALUE_BASED;
             case "COMMODITY":
             case "STANDARD":
-                return PricingStrategy.StrategyType.MARKET_ORIENTED;
+                return PricingStrategy.StrategyType.MARKET_BASED;
             case "PROMOTIONAL":
             case "DISCOUNTED":
-                return PricingStrategy.StrategyType.COMPETITIVE;
+                return PricingStrategy.StrategyType.COMPETITIVE_BASED;
             default:
-                return PricingStrategy.StrategyType.COST_PLUS;
+                return PricingStrategy.StrategyType.COST_BASED;
         }
     }
     

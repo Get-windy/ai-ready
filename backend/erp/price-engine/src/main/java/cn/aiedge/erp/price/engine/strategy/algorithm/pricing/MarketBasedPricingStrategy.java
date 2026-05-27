@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 市场导向定价算法
@@ -22,7 +25,7 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
     
     @Override
     public PricingStrategy.StrategyType getAlgorithmType() {
-        return PricingStrategy.StrategyType.MARKET_ORIENTED;
+        return PricingStrategy.StrategyType.MARKET_BASED;
     }
     
     @Override
@@ -31,16 +34,10 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
             return false;
         }
         
-        // 市场导向定价适用于有市场数据或竞争情况的场景
-        boolean hasMarketData = request.getMarketAveragePrice() != null || 
-                               request.getCompetitorPrices() != null ||
-                               (request.getMarketFactors() != null && !request.getMarketFactors().isEmpty());
+        boolean hasMarketData = request.getMarketReferencePrice() != null || 
+                               request.getCompetitorPrices() != null;
         
-        boolean isCompetitiveProduct = request.getProductType() == null ||
-                                      request.getProductType().toUpperCase().contains("COMMODITY") ||
-                                      request.getProductType().toUpperCase().contains("STANDARD");
-        
-        return hasMarketData && isCompetitiveProduct;
+        return hasMarketData;
     }
     
     @Override
@@ -51,9 +48,8 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         
         LocalDateTime startTime = LocalDateTime.now();
         
-        // 验证策略类型
-        if (strategy.getStrategyType() != PricingStrategy.StrategyType.MARKET_ORIENTED) {
-            throw new IllegalArgumentException("策略类型不匹配，期望: MARKET_ORIENTED, 实际: " + strategy.getStrategyType());
+        if (strategy.getStrategyType() != PricingStrategy.StrategyType.MARKET_BASED) {
+            throw new IllegalArgumentException("策略类型不匹配，期望: MARKET_BASED, 实际: " + strategy.getStrategyType());
         }
         
         // 计算市场基准价格
@@ -62,39 +58,33 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         // 计算市场系数
         BigDecimal marketFactor = calculateMarketFactor(request, strategy.getParameters());
         
-        // 计算最终价格
         BigDecimal finalPrice = marketBasePrice.multiply(marketFactor)
                                               .setScale(2, RoundingMode.HALF_UP);
         
         // 如果有成本数据，计算毛利润
-        BigDecimal cost = request.getProductCost();
-        BigDecimal grossProfit = null;
-        BigDecimal grossMargin = null;
+        BigDecimal cost = request.getCostPrice();
+        BigDecimal grossProfitMargin = null;
         
         if (cost != null && cost.compareTo(BigDecimal.ZERO) > 0) {
-            grossProfit = finalPrice.subtract(cost);
-            grossMargin = grossProfit.divide(finalPrice, 4, RoundingMode.HALF_UP);
+            grossProfitMargin = finalPrice.subtract(cost)
+                    .divide(finalPrice, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
         }
         
-        // 创建计算结果
         PriceCalculationResult result = new PriceCalculationResult();
         result.setBasePrice(marketBasePrice);
         result.setFinalPrice(finalPrice);
-        result.setGrossProfit(grossProfit);
-        result.setGrossMargin(grossMargin);
+        result.setCostPrice(cost);
+        result.setGrossProfitMargin(grossProfitMargin);
         result.setCalculationStartTime(startTime);
         result.setCalculationEndTime(LocalDateTime.now());
-        result.setStrategyApplied("市场导向定价算法");
-        result.setStrategyType(PricingStrategy.StrategyType.MARKET_ORIENTED.name());
-        result.setCalculationNotes(String.format(
+        result.setCalculationExplanation(String.format(
             "市场基准价: %s, 市场系数: %.2f, 最终价格: %s",
             marketBasePrice.toPlainString(),
             marketFactor.doubleValue(),
             finalPrice.toPlainString()
         ));
         result.setSuccess(true);
-        result.setErrorCode(0);
-        result.setErrorMessage("");
         
         return result;
     }
@@ -112,13 +102,12 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
             score += 30;
         }
         
-        if (request.getMarketAveragePrice() != null) {
+        if (request.getMarketReferencePrice() != null) {
             score += 25;
         }
         
-        // 根据客户等级调整分数
-        if (request.getCustomerGrade() != null) {
-            switch (request.getCustomerGrade().toUpperCase()) {
+        if (request.getCustomerLevel() != null) {
+            switch (request.getCustomerLevel().toUpperCase()) {
                 case "GOLD":
                 case "SILVER":
                     score += 20;
@@ -131,21 +120,6 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
                     score += 10;
                     break;
             }
-        }
-        
-        // 根据产品类型调整分数
-        if (request.getProductType() != null) {
-            String productType = request.getProductType().toUpperCase();
-            if (productType.contains("COMMODITY") || productType.contains("COMPETITIVE")) {
-                score += 25;
-            } else if (productType.contains("STANDARD")) {
-                score += 20;
-            }
-        }
-        
-        // 如果有市场因素数据，增加分数
-        if (request.getMarketFactors() != null && !request.getMarketFactors().isEmpty()) {
-            score += 20;
         }
         
         return score;
@@ -168,24 +142,21 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         BigDecimal marketBasePrice = null;
         
         // 1. 首先使用市场平均价
-        if (request.getMarketAveragePrice() != null) {
-            marketBasePrice = request.getMarketAveragePrice();
+        if (request.getMarketReferencePrice() != null) {
+            marketBasePrice = request.getMarketReferencePrice();
         }
         
-        // 2. 如果没有市场平均价，使用竞争对手价格的中位数
         if (marketBasePrice == null && request.getCompetitorPrices() != null && !request.getCompetitorPrices().isEmpty()) {
-            marketBasePrice = calculateMedianPrice(request.getCompetitorPrices());
+            List<BigDecimal> priceList = new ArrayList<>(request.getCompetitorPrices().values());
+            marketBasePrice = calculateMedianPrice(priceList);
         }
         
-        // 3. 如果都没有，使用产品标准价
-        if (marketBasePrice == null && request.getProductStandardPrice() != null) {
-            marketBasePrice = request.getProductStandardPrice();
+        if (marketBasePrice == null && request.getBasePrice() != null) {
+            marketBasePrice = request.getBasePrice();
         }
         
-        // 4. 如果还是没有，使用产品成本加成
-        if (marketBasePrice == null && request.getProductCost() != null) {
-            // 默认20%利润率
-            marketBasePrice = request.getProductCost().multiply(new BigDecimal("1.20"))
+        if (marketBasePrice == null && request.getCostPrice() != null) {
+            marketBasePrice = request.getCostPrice().multiply(new BigDecimal("1.20"))
                                     .setScale(2, RoundingMode.HALF_UP);
         }
         
@@ -196,10 +167,7 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         return marketBasePrice;
     }
     
-    /**
-     * 计算市场系数
-     */
-    private BigDecimal calculateMarketFactor(PriceCalculationRequest request, String parameters) {
+    private BigDecimal calculateMarketFactor(PriceCalculationRequest request, Map<String, Object> parameters) {
         BigDecimal baseFactor = extractMarketFactor(parameters);
         
         // 应用市场因素调整
@@ -214,25 +182,6 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
             );
         }
         
-        // 2. 市场需求影响
-        if (request.getMarketFactors() != null && request.getMarketFactors().containsKey("demandLevel")) {
-            BigDecimal demandFactor = calculateDemandFactor(request);
-            BigDecimal demandWeight = extractParameter(parameters, "demandWeight", new BigDecimal("0.3"));
-            adjustedFactor = adjustedFactor.multiply(
-                BigDecimal.ONE.add(demandFactor.subtract(BigDecimal.ONE).multiply(demandWeight))
-            );
-        }
-        
-        // 3. 季节性影响
-        if (request.getSeasonalFactors() != null && !request.getSeasonalFactors().isEmpty()) {
-            BigDecimal seasonalFactor = calculateSeasonalFactor(request);
-            BigDecimal seasonWeight = extractParameter(parameters, "seasonWeight", new BigDecimal("0.3"));
-            adjustedFactor = adjustedFactor.multiply(
-                BigDecimal.ONE.add(seasonalFactor.subtract(BigDecimal.ONE).multiply(seasonWeight))
-            );
-        }
-        
-        // 确保系数在有效范围内
         BigDecimal minFactor = extractParameter(parameters, "minMarketFactor", new BigDecimal("0.5"));
         BigDecimal maxFactor = extractParameter(parameters, "maxMarketFactor", new BigDecimal("2.0"));
         
@@ -245,75 +194,40 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         return adjustedFactor.setScale(4, RoundingMode.HALF_UP);
     }
     
-    /**
-     * 计算竞争对手价格影响系数
-     */
     private BigDecimal calculateCompetitorFactor(PriceCalculationRequest request) {
         BigDecimal marketBasePrice = calculateMarketBasePrice(request);
-        BigDecimal competitorMedian = calculateMedianPrice(request.getCompetitorPrices());
+        Map<String, BigDecimal> competitorPrices = request.getCompetitorPrices();
+        
+        if (competitorPrices == null || competitorPrices.isEmpty()) {
+            return BigDecimal.ONE;
+        }
+        
+        List<BigDecimal> priceList = new ArrayList<>(competitorPrices.values());
+        BigDecimal competitorMedian = calculateMedianPrice(priceList);
         
         if (competitorMedian == null || competitorMedian.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ONE;
         }
         
-        // 如果我们的基准价高于竞争对手中位数，可能需要降价
-        // 如果低于竞争对手中位数，可以适当提价
         BigDecimal ratio = marketBasePrice.divide(competitorMedian, 4, RoundingMode.HALF_UP);
         
         if (ratio.compareTo(new BigDecimal("1.1")) > 0) {
-            // 价格比竞争对手高10%以上，建议降价系数
             return new BigDecimal("0.95");
         } else if (ratio.compareTo(new BigDecimal("0.9")) < 0) {
-            // 价格比竞争对手低10%以上，可以适当提价
             return new BigDecimal("1.05");
         } else {
             return BigDecimal.ONE;
         }
     }
     
-    /**
-     * 计算市场需求影响系数
-     */
     private BigDecimal calculateDemandFactor(PriceCalculationRequest request) {
-        String demandLevel = request.getMarketFactors().get("demandLevel");
-        if (demandLevel == null) {
-            return BigDecimal.ONE;
-        }
-        
-        switch (demandLevel.toUpperCase()) {
-            case "HIGH":
-            case "VERY_HIGH":
-                return new BigDecimal("1.15"); // 需求旺盛，可以提价
-            case "MEDIUM":
-                return new BigDecimal("1.05");
-            case "LOW":
-                return new BigDecimal("0.95");
-            case "VERY_LOW":
-                return new BigDecimal("0.85"); // 需求低迷，需要降价
-            default:
-                return BigDecimal.ONE;
-        }
-    }
-    
-    /**
-     * 计算季节性影响系数
-     */
-    private BigDecimal calculateSeasonalFactor(PriceCalculationRequest request) {
-        // 这里可以扩展为更复杂的季节性计算
-        // 简单实现：如果有季节性因素，根据季度调整
-        if (request.getSeasonalFactors() != null) {
-            BigDecimal seasonalFactor = request.getSeasonalFactors().values().stream()
-                    .findFirst()
-                    .orElse(BigDecimal.ONE);
-            return seasonalFactor;
-        }
-        
         return BigDecimal.ONE;
     }
     
-    /**
-     * 计算价格中位数
-     */
+    private BigDecimal calculateSeasonalFactor(PriceCalculationRequest request) {
+        return BigDecimal.ONE;
+    }
+    
     private BigDecimal calculateMedianPrice(java.util.List<BigDecimal> prices) {
         if (prices == null || prices.isEmpty()) {
             return null;
@@ -334,32 +248,27 @@ public class MarketBasedPricingStrategy implements PricingAlgorithm {
         }
     }
     
-    /**
-     * 提取市场系数
-     */
-    private BigDecimal extractMarketFactor(String parameters) {
+    private BigDecimal extractMarketFactor(Map<String, Object> parameters) {
         return extractParameter(parameters, "marketFactor", new BigDecimal("1.0"));
     }
     
-    /**
-     * 从参数中提取指定字段的值
-     */
-    private BigDecimal extractParameter(String parameters, String fieldName, BigDecimal defaultValue) {
-        if (parameters == null || !parameters.contains("\"" + fieldName + "\":")) {
+    private BigDecimal extractParameter(Map<String, Object> parameters, String fieldName, BigDecimal defaultValue) {
+        if (parameters == null) {
             return defaultValue;
         }
         
         try {
-            String[] parts = parameters.split("\"" + fieldName + "\":");
-            if (parts.length > 1) {
-                String valuePart = parts[1].split(",")[0].trim();
-                if (valuePart.endsWith("}") || valuePart.endsWith("]")) {
-                    valuePart = valuePart.substring(0, valuePart.length() - 1);
+            Object value = parameters.get(fieldName);
+            if (value != null) {
+                if (value instanceof BigDecimal) {
+                    return (BigDecimal) value;
+                } else if (value instanceof Number) {
+                    return new BigDecimal(value.toString());
+                } else if (value instanceof String) {
+                    return new BigDecimal((String) value);
                 }
-                return new BigDecimal(valuePart);
             }
         } catch (Exception e) {
-            // 解析失败
         }
         
         return defaultValue;
