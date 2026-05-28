@@ -1,6 +1,5 @@
 <template>
   <a-layout class="basic-layout">
-    <!-- 侧边栏 - PC端 -->
     <a-layout-sider
       v-if="isDesktopView"
       v-model:collapsed="collapsed"
@@ -25,86 +24,41 @@
         mode="inline"
         theme="dark"
       >
-        <a-menu-item
-          key="dashboard"
-          @click="navigateTo('/dashboard')"
-        >
-          <DashboardOutlined />
-          <span>{{ t('menu.dashboard') }}</span>
-        </a-menu-item>
-
-        <a-sub-menu key="erp">
-          <template #icon>
-            <ShopOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.erp') }}
-          </template>
+        <template v-for="menu in userStore.menus" :key="menu.id">
           <a-menu-item
-            key="purchase"
-            @click="navigateTo('/erp/purchase')"
+            v-if="menu.menuType === 1 && !menu.children?.length"
+            :key="menu.menuCode"
+            @click="navigateTo(menu.path || '/')"
           >
-            {{ t('menu.purchase') }}
+            <component :is="getIcon(menu.icon)" v-if="menu.icon" />
+            <span>{{ menu.menuName }}</span>
           </a-menu-item>
-          <a-menu-item
-            key="sale"
-            @click="navigateTo('/erp/sale')"
+          
+          <a-sub-menu
+            v-else-if="menu.menuType === 0"
+            :key="menu.menuCode"
           >
-            {{ t('menu.sale') }}
-          </a-menu-item>
-          <a-menu-item
-            key="stock"
-            @click="navigateTo('/erp/stock')"
-          >
-            {{ t('menu.stock') }}
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="crm">
-          <template #icon>
-            <TeamOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.crm') }}
-          </template>
-          <a-menu-item
-            key="lead"
-            @click="navigateTo('/crm/lead')"
-          >
-            {{ t('menu.lead') }}
-          </a-menu-item>
-          <a-menu-item
-            key="customer"
-            @click="navigateTo('/crm/customer')"
-          >
-            {{ t('menu.customer') }}
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="system">
-          <template #icon>
-            <SettingOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.system') }}
-          </template>
-          <a-menu-item
-            key="user"
-            @click="navigateTo('/system/user')"
-          >
-            {{ t('menu.user') }}
-          </a-menu-item>
-          <a-menu-item
-            key="role"
-            @click="navigateTo('/system/role')"
-          >
-            {{ t('menu.role') }}
-          </a-menu-item>
-        </a-sub-menu>
+            <template #icon>
+              <component :is="getIcon(menu.icon)" v-if="menu.icon" />
+            </template>
+            <template #title>
+              {{ menu.menuName }}
+            </template>
+            <template v-for="child in menu.children" :key="child.id">
+              <a-menu-item
+                v-if="child.menuType === 1"
+                :key="child.menuCode"
+                @click="navigateTo(child.path || '/')"
+              >
+                <component :is="getIcon(child.icon)" v-if="child.icon" />
+                <span>{{ child.menuName }}</span>
+              </a-menu-item>
+            </template>
+          </a-sub-menu>
+        </template>
       </a-menu>
     </a-layout-sider>
 
-    <!-- 移动端抽屉菜单 -->
     <a-drawer
       v-if="!isDesktopView"
       v-model:open="mobileMenuVisible"
@@ -118,82 +72,38 @@
         mode="inline"
         theme="dark"
       >
-        <a-menu-item
-          key="dashboard"
-          @click="handleMobileMenuClick('/dashboard')"
-        >
-          <DashboardOutlined />
-          <span>{{ t('menu.dashboard') }}</span>
-        </a-menu-item>
-
-        <a-sub-menu key="erp">
-          <template #icon>
-            <ShopOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.erp') }}
-          </template>
+        <template v-for="menu in userStore.menus" :key="menu.id">
           <a-menu-item
-            key="purchase"
-            @click="handleMobileMenuClick('/erp/purchase')"
+            v-if="menu.menuType === 1 && !menu.children?.length"
+            :key="menu.menuCode"
+            @click="handleMobileMenuClick(menu.path || '/')"
           >
-            {{ t('menu.purchase') }}
+            <component :is="getIcon(menu.icon)" v-if="menu.icon" />
+            <span>{{ menu.menuName }}</span>
           </a-menu-item>
-          <a-menu-item
-            key="sale"
-            @click="handleMobileMenuClick('/erp/sale')"
+          
+          <a-sub-menu
+            v-else-if="menu.menuType === 0"
+            :key="menu.menuCode"
           >
-            {{ t('menu.sale') }}
-          </a-menu-item>
-          <a-menu-item
-            key="stock"
-            @click="handleMobileMenuClick('/erp/stock')"
-          >
-            {{ t('menu.stock') }}
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="crm">
-          <template #icon>
-            <TeamOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.crm') }}
-          </template>
-          <a-menu-item
-            key="lead"
-            @click="handleMobileMenuClick('/crm/lead')"
-          >
-            {{ t('menu.lead') }}
-          </a-menu-item>
-          <a-menu-item
-            key="customer"
-            @click="handleMobileMenuClick('/crm/customer')"
-          >
-            {{ t('menu.customer') }}
-          </a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="system">
-          <template #icon>
-            <SettingOutlined />
-          </template>
-          <template #title>
-            {{ t('menu.system') }}
-          </template>
-          <a-menu-item
-            key="user"
-            @click="handleMobileMenuClick('/system/user')"
-          >
-            {{ t('menu.user') }}
-          </a-menu-item>
-          <a-menu-item
-            key="role"
-            @click="handleMobileMenuClick('/system/role')"
-          >
-            {{ t('menu.role') }}
-          </a-menu-item>
-        </a-sub-menu>
+            <template #icon>
+              <component :is="getIcon(menu.icon)" v-if="menu.icon" />
+            </template>
+            <template #title>
+              {{ menu.menuName }}
+            </template>
+            <template v-for="child in menu.children" :key="child.id">
+              <a-menu-item
+                v-if="child.menuType === 1"
+                :key="child.menuCode"
+                @click="handleMobileMenuClick(child.path || '/')"
+              >
+                <component :is="getIcon(child.icon)" v-if="child.icon" />
+                <span>{{ child.menuName }}</span>
+              </a-menu-item>
+            </template>
+          </a-sub-menu>
+        </template>
       </a-menu>
     </a-drawer>
 
@@ -229,10 +139,8 @@
         </div>
 
         <div class="header-right">
-          <!-- 语言切换 - 隐藏在移动端 -->
           <LocaleSwitcher v-if="isDesktopView" />
           
-          <!-- 用户下拉菜单 -->
           <a-dropdown>
             <div class="user-info">
               <a-avatar
@@ -292,7 +200,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   DashboardOutlined,
@@ -301,13 +209,42 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MenuOutlined
+  MenuOutlined,
+  ShoppingOutlined,
+  ShoppingCartOutlined,
+  ContainerOutlined,
+  FileTextOutlined,
+  UserOutlined,
+  SafetyOutlined,
+  AccountBookOutlined,
+  MoneyCollectOutlined,
+  BarChartOutlined,
+  AppstoreOutlined,
+  BranchesOutlined,
+  StarOutlined,
+  UserAddOutlined,
+  FileOutlined,
+  InboxOutlined,
+  SendOutlined,
+  AuditOutlined,
+  RestOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+  ApartmentOutlined,
+  IdcardOutlined,
+  UnorderedListOutlined,
+  QuestionCircleOutlined,
+  MonitorOutlined,
+  LineChartOutlined,
+  CheckSquareOutlined,
+  RollbackOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import { useResponsive } from '@/composables/useResponsiveState'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const userStore = useUserStore()
 const { isMobileView, isTabletView, isDesktopView } = useResponsive()
@@ -317,18 +254,59 @@ const selectedKeys = ref(['dashboard'])
 const openKeys = ref(['erp'])
 const mobileMenuVisible = ref(false)
 
+const iconMap: Record<string, any> = {
+  'DashboardOutlined': DashboardOutlined,
+  'ShopOutlined': ShopOutlined,
+  'TeamOutlined': TeamOutlined,
+  'SettingOutlined': SettingOutlined,
+  'ShoppingOutlined': ShoppingOutlined,
+  'ShoppingCartOutlined': ShoppingCartOutlined,
+  'ContainerOutlined': ContainerOutlined,
+  'FileTextOutlined': FileTextOutlined,
+  'UserOutlined': UserOutlined,
+  'SafetyOutlined': SafetyOutlined,
+  'AccountBookOutlined': AccountBookOutlined,
+  'MoneyCollectOutlined': MoneyCollectOutlined,
+  'BarChartOutlined': BarChartOutlined,
+  'AppstoreOutlined': AppstoreOutlined,
+  'BranchesOutlined': BranchesOutlined,
+  'StarOutlined': StarOutlined,
+  'UserAddOutlined': UserAddOutlined,
+  'FileOutlined': FileOutlined,
+  'InboxOutlined': InboxOutlined,
+  'SendOutlined': SendOutlined,
+  'AuditOutlined': AuditOutlined,
+  'RestOutlined': RestOutlined,
+  'DollarOutlined': DollarOutlined,
+  'CheckCircleOutlined': CheckCircleOutlined,
+  'ApartmentOutlined': ApartmentOutlined,
+  'IdcardOutlined': IdcardOutlined,
+  'UnorderedListOutlined': UnorderedListOutlined,
+  'QuestionCircleOutlined': QuestionCircleOutlined,
+  'MonitorOutlined': MonitorOutlined,
+  'LineChartOutlined': LineChartOutlined,
+  'CheckSquareOutlined': CheckSquareOutlined,
+  'RollbackOutlined': RollbackOutlined
+}
+
+const getIcon = (iconName?: string) => {
+  if (!iconName) return null
+  return iconMap[iconName] || DashboardOutlined
+}
+
 const currentTitle = computed(() => {
-  const menuMap: Record<string, string> = {
-    dashboard: t('menu.dashboard'),
-    purchase: t('menu.purchase'),
-    sale: t('menu.sale'),
-    stock: t('menu.stock'),
-    lead: t('menu.lead'),
-    customer: t('menu.customer'),
-    user: t('menu.user'),
-    role: t('menu.role')
+  const currentPath = route.path
+  const findMenuName = (menus: any[], path: string): string => {
+    for (const menu of menus) {
+      if (menu.path === path) return menu.menuName
+      if (menu.children) {
+        const found = findMenuName(menu.children, path)
+        if (found) return found
+      }
+    }
+    return ''
   }
-  return menuMap[selectedKeys.value[0]] || ''
+  return findMenuName(userStore.menus, currentPath) || t('menu.dashboard')
 })
 
 const headerHeight = computed(() => {
@@ -451,7 +429,6 @@ const handleLogout = async () => {
   opacity: 0;
 }
 
-/* 响应式样式 */
 @media (max-width: 768px) {
   .layout-header {
     padding: 0 16px;

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { userApi, type UserInfo, type LoginForm, type LoginResponse } from '@/api/user'
+import { menuApi, type MenuInfo } from '@/api/menu'
 
 interface UserState {
   token: string
@@ -7,6 +8,7 @@ interface UserState {
   userInfo: UserInfo | null
   permissions: string[]
   roles: string[]
+  menus: MenuInfo[]
 }
 
 export const useUserStore = defineStore('user', {
@@ -15,7 +17,8 @@ export const useUserStore = defineStore('user', {
     userId: 0,
     userInfo: null,
     permissions: [],
-    roles: []
+    roles: [],
+    menus: []
   }),
 
   getters: {
@@ -52,6 +55,10 @@ export const useUserStore = defineStore('user', {
           this.permissions = res.data.permissions || []
           this.roles = res.data.roles || []
         }
+        const menuRes = await menuApi.getUserClientMenus(this.userId, 'pc-admin', 1)
+        if (menuRes.data) {
+          this.menus = menuRes.data
+        }
       } catch (error) {
         console.error('获取用户信息失败:', error)
         this.logout()
@@ -67,6 +74,7 @@ export const useUserStore = defineStore('user', {
         this.userInfo = null
         this.permissions = []
         this.roles = []
+        this.menus = []
         localStorage.removeItem('token')
       }
     },
@@ -95,6 +103,6 @@ export const useUserStore = defineStore('user', {
   persist: {
     key: 'user-store',
     storage: localStorage,
-    paths: ['token', 'userInfo', 'userId', 'permissions', 'roles']
+    paths: ['token', 'userInfo', 'userId', 'permissions', 'roles', 'menus']
   }
 })

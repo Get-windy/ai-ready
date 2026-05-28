@@ -49,6 +49,11 @@ public class MenuDTO {
     private String component;
     
     /**
+     * 路由名称
+     */
+    private String routeName;
+    
+    /**
      * 权限标识
      */
     private String permissions;
@@ -97,6 +102,11 @@ public class MenuDTO {
      * 外部链接（0：否 1：是）
      */
     private Integer external;
+    
+    /**
+     * 客户端类型
+     */
+    private String clientType;
     
     /**
      * 备注

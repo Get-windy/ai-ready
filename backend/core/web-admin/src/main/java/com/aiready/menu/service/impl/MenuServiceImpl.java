@@ -143,7 +143,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         if (request.getOnlyEnabled()) {
             wrapper.eq(Menu::getStatus, 1);
         }
-        wrapper.eq(Menu::getDeleted, 0); // 排除已删除的
+        wrapper.eq(Menu::getDeleted, 0);
         wrapper.orderByAsc(Menu::getSortOrder).orderByAsc(Menu::getId);
 
         List<Menu> menus = menuMapper.selectList(wrapper);
@@ -168,6 +168,16 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
     public List<MenuDTO> getUserMenus(Long userId) {
         List<Menu> menus = menuMapper.selectMenusByUserId(userId);
         List<MenuDTO> menuDTOs = menus.stream().map(this::convertToDTO).collect(Collectors.toList());
+        return buildTree(menuDTOs);
+    }
+
+    @Override
+    public List<MenuDTO> getUserClientMenus(Long userId, String clientType, Long tenantId) {
+        List<Menu> menus = menuMapper.selectMenusByUserId(userId);
+        List<MenuDTO> menuDTOs = menus.stream()
+                .filter(menu -> menu.getMenuType() != 3)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
         return buildTree(menuDTOs);
     }
 
@@ -338,6 +348,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         dto.setIcon(menu.getIcon());
         dto.setPath(menu.getPath());
         dto.setComponent(menu.getComponent());
+        dto.setRouteName(menu.getRouteName());
         dto.setPermissions(menu.getPermissions());
         if (menu.getPermissions() != null && !menu.getPermissions().isEmpty()) {
             dto.setPermissionList(Arrays.asList(menu.getPermissions().split(",")));
@@ -350,6 +361,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         dto.setVisible(menu.getVisible());
         dto.setKeepAlive(menu.getKeepAlive());
         dto.setExternal(menu.getExternal());
+        dto.setClientType(menu.getClientType());
         dto.setRemark(menu.getRemark());
         dto.setCreateTime(menu.getCreateTime());
         dto.setUpdateTime(menu.getUpdateTime());

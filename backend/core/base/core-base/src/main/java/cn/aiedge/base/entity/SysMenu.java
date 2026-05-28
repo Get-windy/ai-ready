@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 菜单实体
@@ -126,4 +127,10 @@ public class SysMenu {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    /**
+     * 子菜单列表（非数据库字段）
+     */
+    @TableField(exist = false)
+    private List<SysMenu> children;
 }

@@ -205,13 +205,19 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
      * 构建菜单树
      */
     private List<SysMenu> buildMenuTree(List<SysMenu> allMenus, Long parentId) {
+        log.info("[菜单服务] buildMenuTree 开始: allMenus.size={}, parentId={}", allMenus.size(), parentId);
         List<SysMenu> tree = new ArrayList<>();
         for (SysMenu menu : allMenus) {
+            log.info("[菜单服务] 检查菜单: id={}, menuName={}, parentId={}", menu.getId(), menu.getMenuName(), menu.getParentId());
             if (menu.getParentId().equals(parentId)) {
-                // 递归获取子菜单（简化版，实际可添加children字段）
+                log.info("[菜单服务] 找到匹配菜单: id={}, menuName={}", menu.getId(), menu.getMenuName());
+                List<SysMenu> children = buildMenuTree(allMenus, menu.getId());
+                log.info("[菜单服务] 子菜单数量: parentId={}, children.size={}", menu.getId(), children.size());
+                menu.setChildren(children);
                 tree.add(menu);
             }
         }
+        log.info("[菜单服务] buildMenuTree 完成: tree.size={}, parentId={}", tree.size(), parentId);
         return tree;
     }
 }

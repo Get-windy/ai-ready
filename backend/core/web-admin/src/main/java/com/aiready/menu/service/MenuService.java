@@ -52,6 +52,11 @@ public interface MenuService extends IService<Menu> {
     List<MenuDTO> getUserMenus(Long userId);
     
     /**
+     * 获取用户客户端菜单（前端动态路由）
+     */
+    List<MenuDTO> getUserClientMenus(Long userId, String clientType, Long tenantId);
+    
+    /**
      * 获取角色菜单
      */
     List<MenuDTO> getRoleMenus(Long roleId);

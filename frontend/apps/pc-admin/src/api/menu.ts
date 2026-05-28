@@ -120,6 +120,11 @@ export const menuApi = {
     return request.get(`/menu/user/${userId}`)
   },
 
+  // 获取用户客户端菜单
+  getUserClientMenus(userId: number, clientType: string, tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
+    return request.get(`/menu/user/client/${clientType}`, { params: { userId, tenantId } })
+  },
+
   // 获取角色菜单
   getRoleMenus(roleId: number): Promise<ApiResponse<MenuInfo[]>> {
     return request.get(`/menu/role/${roleId}`)

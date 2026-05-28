@@ -96,6 +96,18 @@ public class MenuController {
     }
 
     /**
+     * 获取用户客户端菜单（前端动态路由使用）
+     */
+    @GetMapping("/user/client/{clientType}")
+    @Operation(summary = "获取用户客户端菜单")
+    public List<MenuDTO> getUserClientMenus(
+            @PathVariable String clientType,
+            @RequestParam Long userId,
+            @RequestParam(required = false, defaultValue = "1") Long tenantId) {
+        return menuService.getUserClientMenus(userId, clientType, tenantId);
+    }
+
+    /**
      * 获取角色菜单
      */
     @GetMapping("/role/{roleId}")

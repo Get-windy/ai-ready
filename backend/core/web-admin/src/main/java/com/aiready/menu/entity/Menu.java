@@ -18,6 +18,11 @@ public class Menu {
     private Long id;
     
     /**
+     * 租户ID
+     */
+    private Long tenantId;
+    
+    /**
      * 父菜单ID（0表示顶级菜单）
      */
     private Long parentId;
@@ -48,18 +53,24 @@ public class Menu {
     private String component;
     
     /**
+     * 路由名称
+     */
+    private String routeName;
+    
+    /**
      * 权限标识（多个用逗号分隔）
      */
     private String permissions;
     
     /**
-     * 菜单类型（1：目录 2：菜单 3：按钮）
+     * 菜单类型（0：目录 1：菜单 2：按钮）
      */
     private Integer menuType;
     
     /**
      * 排序顺序
      */
+    @TableField("sort")
     private Integer sortOrder;
     
     /**
@@ -75,12 +86,19 @@ public class Menu {
     /**
      * 是否缓存（0：否 1：是）
      */
+    @TableField("is_cache")
     private Integer keepAlive;
     
     /**
      * 外部链接（0：否 1：是）
      */
+    @TableField("is_external")
     private Integer external;
+    
+    /**
+     * 客户端类型
+     */
+    private String clientType;
     
     /**
      * 备注
