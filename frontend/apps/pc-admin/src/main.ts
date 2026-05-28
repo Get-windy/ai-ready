@@ -6,10 +6,14 @@ import router from './router'
 import { setupI18n } from './locales'
 import { initErrorReporter } from './utils/errorReporter'
 import { permission, role } from './directives/permission'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import 'ant-design-vue/dist/reset.css'
 import './styles/variables.css'
 import './styles/components.css'
 import './styles/index.css'
+
+dayjs.locale('zh-cn')
 
 // 创建 Pinia 实例
 const pinia = createPinia()

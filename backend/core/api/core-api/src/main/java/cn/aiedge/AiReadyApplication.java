@@ -18,7 +18,8 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.base",
     "cn.aiedge.common",
     "cn.aiedge.config",
-    "cn.aiedge.user"
+    "cn.aiedge.user",
+    "cn.aiedge.auth"
 }, exclude = {
     JpaRepositoriesAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,

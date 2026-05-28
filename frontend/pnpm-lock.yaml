@@ -377,6 +377,18 @@ importers:
 
   packages/components:
     dependencies:
+      '@ant-design/icons-vue':
+        specifier: ^7.0.1
+        version: 7.0.1(vue@3.5.34)
+      '@vueuse/core':
+        specifier: ^10.9.0
+        version: 10.11.1(vue@3.5.34)
+      ant-design-vue:
+        specifier: ^4.1.0
+        version: 4.2.6(vue@3.5.34)
+      dayjs:
+        specifier: ^1.11.10
+        version: 1.11.21
       element-plus:
         specifier: ^2.4.0
         version: 2.14.0(vue@3.5.34)

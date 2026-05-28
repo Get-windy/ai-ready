@@ -34,7 +34,11 @@
   },
   "dependencies": {
     "vue": "^3.4.0",
-    "element-plus": "^2.4.0"
+    "element-plus": "^2.4.0",
+    "@vueuse/core": "^10.9.0",
+    "ant-design-vue": "^4.1.0",
+    "@ant-design/icons-vue": "^7.0.1",
+    "dayjs": "^1.11.10"
   },
   "peerDependencies": {
     "vue": "^3.0.0",

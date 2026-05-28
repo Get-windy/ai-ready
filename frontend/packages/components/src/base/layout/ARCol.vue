@@ -43,6 +43,8 @@ const colStyle = computed(() => ({
 </script>
 
 <style lang="scss" scoped>
+@use "sass:math";
+
 .ar-col {
   position: relative;
   padding: var(--ar-col-padding, 0);

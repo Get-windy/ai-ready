@@ -5,17 +5,17 @@
       <h1 class="page-title">监控大盘</h1>
       <p class="page-subtitle">
         系统整体运行状态实时监控
-        <el-link type="primary" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
+        <a @click="handleRefresh" style="color: #1890ff; cursor: pointer;">
+          <ReloadOutlined />
           更新数据
-        </el-link>
+        </a>
       </p>
     </div>
 
     <!-- KPI Cards Row -->
     <div class="kpi-row">
-      <el-card class="kpi-card" shadow="never">
-        <template #header>
+      <a-card class="kpi-card" :bordered="false">
+        <template #title>
           <span class="card-title">系统健康度</span>
         </template>
         <div class="kpi-value">
@@ -23,14 +23,14 @@
           <span class="unit">%</span>
         </div>
         <div class="kpi-sub">
-          <el-icon class="trend-icon up"><TrendUp /></el-icon>
+          <ArrowUpOutlined class="trend-icon up" />
           <span class="trend-value">+2.3%</span>
           <span class="trend-label">环比上期</span>
         </div>
-      </el-card>
+      </a-card>
 
-      <el-card class="kpi-card" shadow="never">
-        <template #header>
+      <a-card class="kpi-card" :bordered="false">
+        <template #title>
           <span class="card-title">平均响应时间</span>
         </template>
         <div class="kpi-value">
@@ -38,14 +38,14 @@
           <span class="unit">ms</span>
         </div>
         <div class="kpi-sub">
-          <el-icon class="trend-icon down"><TrendDown /></el-icon>
+          <ArrowDownOutlined class="trend-icon down" />
           <span class="trend-value">-12%</span>
           <span class="trend-label">环比上期</span>
         </div>
-      </el-card>
+      </a-card>
 
-      <el-card class="kpi-card" shadow="never">
-        <template #header>
+      <a-card class="kpi-card" :bordered="false">
+        <template #title>
           <span class="card-title">当前吞吐量</span>
         </template>
         <div class="kpi-value">
@@ -53,14 +53,14 @@
           <span class="unit">req/s</span>
         </div>
         <div class="kpi-sub">
-          <el-icon class="trend-icon up"><TrendUp /></el-icon>
+          <ArrowUpOutlined class="trend-icon up" />
           <span class="trend-value">+8.5%</span>
           <span class="trend-label">环比上期</span>
         </div>
-      </el-card>
+      </a-card>
 
-      <el-card class="kpi-card" shadow="never">
-        <template #header>
+      <a-card class="kpi-card" :bordered="false">
+        <template #title>
           <span class="card-title">错误率</span>
         </template>
         <div class="kpi-value">
@@ -68,11 +68,11 @@
           <span class="unit">%</span>
         </div>
         <div class="kpi-sub">
-          <el-icon class="trend-icon stable"><Stable /></el-icon>
+          <DashboardOutlined class="trend-icon stable" />
           <span class="trend-value">0%</span>
           <span class="trend-label">环比上期</span>
         </div>
-      </el-card>
+      </a-card>
     </div>
 
     <!-- Main Content Area -->
@@ -80,10 +80,12 @@
       <!-- Left Column -->
       <div class="left-column">
         <!-- Service Status -->
-        <el-card class="status-card" shadow="never">
-          <template #header>
+        <a-card class="status-card" :bordered="false">
+          <template #title>
             <span class="card-title">服务健康状态</span>
-            <el-link type="primary" @click="handleViewServices">查看全部</el-link>
+          </template>
+          <template #extra>
+            <a @click="handleViewServices" style="color: #1890ff; cursor: pointer;">查看全部</a>
           </template>
           <div class="service-grid">
             <div 
@@ -94,9 +96,9 @@
               @click="handleServiceClick(service)"
             >
               <div class="service-icon">
-                <el-icon :size="32">
-                  <component :is="serviceIconMap[service.type]" />
-                </el-icon>
+                <CloudServerOutlined v-if="service.type === 'api'" :style="{ fontSize: '32px' }" />
+                <DatabaseOutlined v-if="service.type === 'database'" :style="{ fontSize: '32px' }" />
+                <DesktopOutlined v-if="service.type === 'cache' || service.type === 'queue'" :style="{ fontSize: '32px' }" />
               </div>
               <div class="service-info">
                 <div class="service-name">{{ service.name }}</div>
@@ -104,13 +106,13 @@
               </div>
             </div>
           </div>
-        </el-card>
+        </a-card>
 
         <!-- Alerts -->
-        <el-card class="alerts-card" shadow="never">
-          <template #header>
+        <a-card class="alerts-card" :bordered="false">
+          <template #title>
             <span class="card-title">最近告警</span>
-            <el-badge v-if="pendingAlerts > 0" :value="pendingAlerts" :type="pendingAlerts > 3 ? 'danger' : 'warning'" />
+            <a-badge v-if="pendingAlerts > 0" :count="pendingAlerts" :status="pendingAlerts > 3 ? 'error' : 'warning'" />
           </template>
           <div class="alerts-list">
             <div 
@@ -120,51 +122,50 @@
               :class="`level-${alert.level.toLowerCase()}`"
             >
               <div class="alert-header">
-                <el-icon :class="`level-icon ${alert.level.toLowerCase()}`">
-                  <component :is="alertIconMap[alert.level as keyof typeof alertIconMap]" />
-                </el-icon>
+                <CloseCircleOutlined v-if="alert.level === 'P0' || alert.level === 'P1'" :class="`level-icon ${alert.level.toLowerCase()}`" />
+                <WarningOutlined v-if="alert.level === 'P2'" :class="`level-icon ${alert.level.toLowerCase()}`" />
+                <AlertOutlined v-if="alert.level === 'P3'" :class="`level-icon ${alert.level.toLowerCase()}`" />
                 <span class="alert-title">{{ alert.title }}</span>
               </div>
               <div class="alert-message">{{ alert.message }}</div>
               <div class="alert-footer">
                 <span class="alert-time">{{ formatTime(alert.timestamp) }}</span>
-                <el-button 
+                <a-button 
                   v-if="!alert.acknowledged" 
                   type="primary" 
                   size="small"
                   @click="handleAcknowledge(alert)"
                 >
                   确认
-                </el-button>
+                </a-button>
               </div>
             </div>
           </div>
-        </el-card>
+        </a-card>
       </div>
 
       <!-- Right Column -->
       <div class="right-column">
         <!-- Performance Chart -->
-        <el-card class="chart-card" shadow="never">
-          <template #header>
+        <a-card class="chart-card" :bordered="false">
+          <template #title>
             <span class="card-title">性能趋势</span>
-            <el-date-picker
-              v-model="timeRange"
-              type="timerange"
-              range-separator="至"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
+          </template>
+          <template #extra>
+            <a-range-picker
+              v-model:value="timeRange"
+              show-time
+              format="YYYY-MM-DD HH:mm:ss"
               size="small"
-              style="margin-left: 12px"
               @change="handleTimeRangeChange"
             />
           </template>
           <div ref="chartRef" class="echarts-container"></div>
-        </el-card>
+        </a-card>
 
         <!-- Resource Usage -->
-        <el-card class="resource-card" shadow="never">
-          <template #header>
+        <a-card class="resource-card" :bordered="false">
+          <template #title>
             <span class="card-title">资源使用率</span>
           </template>
           <div class="resource-grid">
@@ -173,8 +174,8 @@
                 <span class="resource-name">CPU</span>
                 <span class="resource-value">{{ cpuUsage }}%</span>
               </div>
-              <el-progress
-                :percentage="cpuUsage"
+              <a-progress
+                :percent="cpuUsage"
                 :status="getCpuStatus"
                 :stroke-width="16"
               />
@@ -185,8 +186,8 @@
                 <span class="resource-name">内存</span>
                 <span class="resource-value">{{ memoryUsage }}%</span>
               </div>
-              <el-progress
-                :percentage="memoryUsage"
+              <a-progress
+                :percent="memoryUsage"
                 :status="getMemoryStatus"
                 :stroke-width="16"
               />
@@ -197,8 +198,8 @@
                 <span class="resource-name">磁盘</span>
                 <span class="resource-value">{{ diskUsage }}%</span>
               </div>
-              <el-progress
-                :percentage="diskUsage"
+              <a-progress
+                :percent="diskUsage"
                 :status="getDiskStatus"
                 :stroke-width="16"
               />
@@ -209,13 +210,13 @@
                 <span class="resource-name">网络</span>
                 <span class="resource-value">{{ networkUsage }} MB/s</span>
               </div>
-              <el-progress
-                :percentage="networkUsage / 100 * 10"
+              <a-progress
+                :percent="networkUsage / 100 * 10"
                 :stroke-width="16"
               />
             </div>
           </div>
-        </el-card>
+        </a-card>
       </div>
     </div>
   </div>
@@ -223,20 +224,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { 
-  Refresh, 
-  TrendUp, 
-  TrendDown, 
-  Stable,
-  Monitor,
-  Database,
-  Server,
-  AlertCircle,
-  CircleClose,
-  Warning,
-  CircleCheck
-} from '@element-plus/icons-vue';
+import { message } from 'ant-design-vue';
+import {
+  ReloadOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  CloudServerOutlined,
+  AlertOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  DesktopOutlined
+} from '@ant-design/icons-vue';
 import * as ECharts from 'echarts';
+import dayjs from 'dayjs';
 
 // Types
 interface Service {
@@ -256,7 +259,10 @@ interface Alert {
 }
 
 // State
-const timeRange = ref(['2026-04-26 07:00:00', '2026-04-26 15:00:00']);
+const timeRange = ref<[dayjs.Dayjs, dayjs.Dayjs]>([
+  dayjs().subtract(8, 'hour'),
+  dayjs()
+]);
 const chartRef = ref<HTMLElement | null>(null);
 let chartInstance: ECharts.ECharts | null = null;
 
@@ -306,30 +312,16 @@ const networkUsage = ref(850);
 const recentAlerts = computed(() => alerts.value.slice(0, 5));
 const pendingAlerts = computed(() => alerts.value.filter(a => !a.acknowledged).length);
 
-const serviceIconMap = {
-  api: Server,
-  database: Database,
-  cache: Monitor,
-  queue: Monitor
-};
-
-const alertIconMap = {
-  'P0': CircleClose,
-  'P1': CircleClose,
-  'P2': Warning,
-  'P3': AlertCircle
-};
-
 const getCpuStatus = computed(() => 
-  cpuUsage.value > 80 ? 'exception' : cpuUsage.value > 60 ? 'warning' : undefined
+  cpuUsage.value > 80 ? 'exception' : cpuUsage.value > 60 ? 'active' : 'normal'
 );
 
 const getMemoryStatus = computed(() => 
-  memoryUsage.value > 80 ? 'exception' : memoryUsage.value > 60 ? 'warning' : undefined
+  memoryUsage.value > 80 ? 'exception' : memoryUsage.value > 60 ? 'active' : 'normal'
 );
 
 const getDiskStatus = computed(() => 
-  diskUsage.value > 80 ? 'exception' : diskUsage.value > 60 ? 'warning' : undefined
+  diskUsage.value > 80 ? 'exception' : diskUsage.value > 60 ? 'active' : 'normal'
 );
 
 // Methods
@@ -354,15 +346,15 @@ const formatTime = (timestamp: string) => {
 };
 
 const handleRefresh = () => {
-  ElMessage.success('数据已刷新');
+  message.success('数据已刷新');
 };
 
 const handleViewServices = () => {
-  ElMessage.info('查看服务详情');
+  message.info('查看服务详情');
 };
 
 const handleServiceClick = (service: Service) => {
-  ElMessage.info(`查看服务: ${service.name}`);
+  message.info(`查看服务: ${service.name}`);
 };
 
 const handleAcknowledge = (alert: Alert) => {
@@ -370,7 +362,7 @@ const handleAcknowledge = (alert: Alert) => {
   if (index !== -1) {
     alerts.value[index].acknowledged = true;
   }
-  ElMessage.success('告警已确认');
+  message.success('告警已确认');
 };
 
 const handleTimeRangeChange = (dates: any) => {
@@ -550,8 +542,7 @@ onUnmounted(() => {
 }
 
 .trend-icon {
-  width: 16px;
-  height: 16px;
+  font-size: 16px;
 }
 
 .trend-icon.up {
@@ -600,7 +591,7 @@ onUnmounted(() => {
 }
 
 /* Status Card */
-.status-card :deep(.el-card__header) {
+.status-card :deep(.ant-card-head) {
   padding: 16px 20px;
 }
 
@@ -626,15 +617,15 @@ onUnmounted(() => {
   transform: translateX(4px);
 }
 
-.service-item.status-running .service-icon .el-icon {
+.service-item.status-running .service-icon {
   color: #67C23A;
 }
 
-.service-item.status-warning .service-icon .el-icon {
+.service-item.status-warning .service-icon {
   color: #E6A23C;
 }
 
-.service-item.status-error .service-icon .el-icon {
+.service-item.status-error .service-icon {
   color: #F56C6C;
 }
 
@@ -660,7 +651,7 @@ onUnmounted(() => {
 }
 
 /* Alerts Card */
-.alerts-card :deep(.el-card__header) {
+.alerts-card :deep(.ant-card-head) {
   padding: 16px 20px;
   display: flex;
   justify-content: space-between;
@@ -704,8 +695,7 @@ onUnmounted(() => {
 }
 
 .level-icon {
-  width: 16px;
-  height: 16px;
+  font-size: 16px;
 }
 
 .alert-item.level-p0 .level-icon, .alert-item.level-p1 .level-icon {
@@ -741,7 +731,7 @@ onUnmounted(() => {
 }
 
 /* Chart Card */
-.chart-card :deep(.el-card__header) {
+.chart-card :deep(.ant-card-head) {
   padding: 16px 20px;
 }
 
@@ -751,7 +741,7 @@ onUnmounted(() => {
 }
 
 /* Resource Card */
-.resource-card :deep(.el-card__header) {
+.resource-card :deep(.ant-card-head) {
   padding: 16px 20px;
 }
 

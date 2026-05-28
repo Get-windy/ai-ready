@@ -15,7 +15,7 @@
             <div class="logo-icon">
               🚀
             </div>
-            <h1>智企连·AI-Ready</h1>
+            <h1>企智连·AI-Ready</h1>
           </div>
           <p>企业智能管理系统</p>
         </div>
@@ -136,6 +136,7 @@ import {
   LoadingOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { setupDynamicRoutes } from '@/router'
 
 const router = useRouter()
 const route = useRoute()
@@ -243,13 +244,20 @@ const handleSubmit = async () => {
         localStorage.removeItem('rememberedUsername')
       }
       
+      // 加载动态路由
+      await setupDynamicRoutes()
+      
       // 跳转到目标页面或首页
       const redirect = (route.query.redirect as string) || '/dashboard'
       await router.push(redirect)
+    } else {
+      message.error('登录失败，请检查用户名和密码')
+      refreshCaptcha()
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('登录失败:', error)
-    // 登录失败时刷新验证码
+    const errorMsg = error?.message || error?.response?.data?.message || '登录失败，请稍后重试'
+    message.error(errorMsg)
     refreshCaptcha()
   } finally {
     loading.value = false
@@ -447,7 +455,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: transparent;
   transition: all 0.3s;
 }
 
@@ -460,6 +468,8 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  background: #fff;
 }
 
 .captcha-loading {

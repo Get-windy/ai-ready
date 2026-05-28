@@ -188,40 +188,45 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         log.info("初始化权限模板...");
         
         try {
-            // 检查是否已有系统模板
-            List<PermissionTemplate> existingTemplates = templateService.getSystemTemplates();
-            if (!existingTemplates.isEmpty()) {
-                log.info("权限模板已存在，跳过初始化");
-                return;
-            }
-
-            // 创建管理员权限模板
+            // 创建管理员权限模板（使用 saveOrUpdate 避免重复）
             PermissionTemplate adminTemplate = new PermissionTemplate();
             adminTemplate.setTemplateName("管理员权限模板");
             adminTemplate.setTemplateCode("ADMIN_TEMPLATE");
             adminTemplate.setDescription("包含系统管理权限的模板");
-            adminTemplate.setTemplateType(1); // 系统默认
-            adminTemplate.setStatus(0); // 启用
+            adminTemplate.setTemplateType(1);
+            adminTemplate.setStatus(0);
             adminTemplate.setTenantId(1L);
-            adminTemplate.setPermissionConfig(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L)); // 包含上面创建的权限ID
+            adminTemplate.setPermissionConfig(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L));
             adminTemplate.setCreateTime(LocalDateTime.now());
             adminTemplate.setUpdateTime(LocalDateTime.now());
             
-            templateService.save(adminTemplate);
+            PermissionTemplate existingAdmin = templateService.getOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PermissionTemplate>()
+                    .eq(PermissionTemplate::getTemplateCode, "ADMIN_TEMPLATE"));
+            if (existingAdmin != null) {
+                adminTemplate.setId(existingAdmin.getId());
+            }
+            templateService.saveOrUpdate(adminTemplate);
 
-            // 创建普通用户权限模板
+            // 创建普通用户权限模板（使用 saveOrUpdate 避免重复）
             PermissionTemplate userTemplate = new PermissionTemplate();
             userTemplate.setTemplateName("普通用户权限模板");
             userTemplate.setTemplateCode("USER_TEMPLATE");
             userTemplate.setDescription("包含基本用户权限的模板");
-            userTemplate.setTemplateType(1); // 系统默认
-            userTemplate.setStatus(0); // 启用
+            userTemplate.setTemplateType(1);
+            userTemplate.setStatus(0);
             userTemplate.setTenantId(1L);
-            userTemplate.setPermissionConfig(Arrays.asList(1L, 2L, 3L)); // 只包含基本权限
+            userTemplate.setPermissionConfig(Arrays.asList(1L, 2L, 3L));
             userTemplate.setCreateTime(LocalDateTime.now());
             userTemplate.setUpdateTime(LocalDateTime.now());
             
-            templateService.save(userTemplate);
+            PermissionTemplate existingUser = templateService.getOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PermissionTemplate>()
+                    .eq(PermissionTemplate::getTemplateCode, "USER_TEMPLATE"));
+            if (existingUser != null) {
+                userTemplate.setId(existingUser.getId());
+            }
+            templateService.saveOrUpdate(userTemplate);
 
             log.info("权限模板初始化完成");
         } catch (Exception e) {

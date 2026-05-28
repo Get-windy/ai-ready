@@ -35,8 +35,8 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.badRequest("用户名或密码错误");
         }
 
-        // 检查用户状态
-        if (user.getStatus() != 1) {
+        // 检查用户状态 (0正常 1停用)
+        if (user.getStatus() == 1) {
             throw BusinessException.badRequest("用户已被禁用");
         }
 

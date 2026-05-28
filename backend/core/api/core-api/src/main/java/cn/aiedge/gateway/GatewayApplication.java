@@ -2,7 +2,6 @@ package cn.aiedge.gateway;
 
 import cn.aiedge.gateway.config.GatewayConfig;
 import cn.aiedge.gateway.config.properties.GatewayProperties;
-import cn.aiedge.gateway.security.GatewaySecurityConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,8 +18,7 @@ import org.springframework.context.annotation.Import;
 @EnableDiscoveryClient
 @EnableConfigurationProperties(GatewayProperties.class)
 @Import({
-    GatewayConfig.class,
-    GatewaySecurityConfig.class
+    GatewayConfig.class
 })
 public class GatewayApplication {
 

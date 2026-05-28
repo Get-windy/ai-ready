@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { userApi, type UserInfo, type LoginForm } from '@/api/user'
+import { userApi, type UserInfo, type LoginForm, type LoginResponse } from '@/api/user'
 
 interface UserState {
   token: string
@@ -30,9 +30,10 @@ export const useUserStore = defineStore('user', {
     async login(loginForm: LoginForm) {
       try {
         const res = await userApi.login(loginForm)
-        if (res.data) {
-          this.token = res.data
-          localStorage.setItem('token', res.data)
+        if (res.data && res.data.token) {
+          this.token = res.data.token
+          this.userId = res.data.userId || 0
+          localStorage.setItem('token', res.data.token)
           return true
         }
         return false
@@ -47,7 +48,7 @@ export const useUserStore = defineStore('user', {
         const res = await userApi.getUserInfo()
         if (res.data) {
           this.userInfo = res.data
-          this.userId = res.data.id
+          this.userId = res.data.userId
           this.permissions = res.data.permissions || []
           this.roles = res.data.roles || []
         }

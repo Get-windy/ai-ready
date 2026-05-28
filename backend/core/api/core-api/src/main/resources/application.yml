@@ -7,6 +7,21 @@ spring:
     name: ai-ready-gateway
   profiles:
     active: dev
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: false
 
 # 日志配置
 logging:

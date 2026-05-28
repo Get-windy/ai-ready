@@ -1,22 +1,18 @@
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 
+// 登录响应
+export interface LoginResponse {
+  token: string
+  tokenName: string
+  userId: number
+}
+
 // 用户信息
 export interface UserInfo {
-  id: number
-  tenantId: number
+  userId: number
   username: string
-  nickname: string
-  email: string
-  phone: string
-  avatar: string
-  gender: number
-  userType: number
-  status: number
-  deptId: number
-  postId: number
-  createTime: string
-  roles?: string[]
-  permissions?: string[]
+  roles: string[]
+  permissions: string[]
 }
 
 // 登录表单
@@ -41,24 +37,22 @@ export interface UserQuery {
 // 用户API - 修复版
 export const userApi = {
   // 登录
-  login(data: LoginForm): Promise<ApiResponse<string>> {
-    return request.post('/user/login', null, {
-      params: {
-        username: data.username,
-        password: data.password,
-        tenantId: data.tenantId || 1
-      }
+  login(data: LoginForm): Promise<ApiResponse<LoginResponse>> {
+    return request.post('/auth/login', {
+      username: data.username,
+      password: data.password,
+      tenantId: data.tenantId || 1
     })
   },
 
   // 登出
   logout(): Promise<ApiResponse<void>> {
-    return request.post('/user/logout')
+    return request.post('/auth/logout')
   },
 
   // 获取当前用户信息 - 新增
   getUserInfo(): Promise<ApiResponse<UserInfo>> {
-    return request.get('/user/info')
+    return request.get('/auth/userinfo')
   },
 
   // 分页查询用户
