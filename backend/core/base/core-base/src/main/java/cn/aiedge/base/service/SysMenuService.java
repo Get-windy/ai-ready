@@ -39,6 +39,16 @@ public interface SysMenuService extends IService<SysMenu> {
     List<SysMenu> getUserMenuTree(Long userId);
 
     /**
+     * 按客户端类型获取菜单树
+     */
+    List<SysMenu> getMenuByClientType(String clientType, Long tenantId);
+
+    /**
+     * 按客户端类型获取用户菜单树
+     */
+    List<SysMenu> getUserMenuByClientType(String clientType, Long userId);
+
+    /**
      * 获取子菜单
      */
     List<SysMenu> getChildrenMenus(Long parentId, Long tenantId);

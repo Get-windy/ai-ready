@@ -102,6 +102,51 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     }
 
     @Override
+    public List<SysMenu> getMenuByClientType(String clientType, Long tenantId) {
+        LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysMenu::getClientType, clientType)
+               .eq(SysMenu::getTenantId, tenantId)
+               .eq(SysMenu::getStatus, 0)
+               .orderByAsc(SysMenu::getSort);
+        List<SysMenu> menus = list(wrapper);
+        return buildMenuTree(menus, 0L);
+    }
+
+    @Override
+    public List<SysMenu> getUserMenuByClientType(String clientType, Long userId) {
+        log.info("[菜单服务] getUserMenuByClientType 开始: clientType={}, userId={}", clientType, userId);
+        
+        // 获取用户角色ID列表
+        List<Long> roleIds = baseMapper.selectRoleIdsByUserId(userId);
+        log.info("[菜单服务] 用户角色ID列表: {}", roleIds);
+        if (roleIds.isEmpty()) {
+            log.warn("[菜单服务] 用户没有角色，返回空列表");
+            return new ArrayList<>();
+        }
+
+        // 获取角色关联的菜单ID列表
+        List<Long> menuIds = baseMapper.selectMenuIdsByRoleIds(roleIds);
+        log.info("[菜单服务] 角色关联的菜单ID列表: {}", menuIds);
+        if (menuIds.isEmpty()) {
+            log.warn("[菜单服务] 角色没有关联菜单，返回空列表");
+            return new ArrayList<>();
+        }
+
+        // 获取菜单列表并按客户端类型过滤
+        LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysMenu::getId, menuIds)
+               .eq(SysMenu::getClientType, clientType)
+               .eq(SysMenu::getStatus, 0)
+               .orderByAsc(SysMenu::getSort);
+        List<SysMenu> menus = list(wrapper);
+        log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());
+        
+        List<SysMenu> tree = buildMenuTree(menus, 0L);
+        log.info("[菜单服务] 构建的菜单树数量: {}", tree.size());
+        return tree;
+    }
+
+    @Override
     public List<SysMenu> getChildrenMenus(Long parentId, Long tenantId) {
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysMenu::getParentId, parentId)

@@ -136,7 +136,7 @@ import {
   LoadingOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { setupDynamicRoutes } from '@/router'
+import { resetDynamicRoutesLoaded } from '@/router/guard'
 
 const router = useRouter()
 const route = useRoute()
@@ -224,6 +224,8 @@ const handleSubmit = async () => {
   try {
     loading.value = true
     
+    console.log('[登录] 开始登录:', formState)
+    
     // 表单验证
     await formRef.value?.validate()
     
@@ -233,6 +235,11 @@ const handleSubmit = async () => {
       password: formState.password,
       tenantId: formState.tenantId
     })
+    
+    console.log('[登录] 登录结果:', success)
+    console.log('[登录] token:', userStore.token)
+    console.log('[登录] localStorage token:', localStorage.getItem('token'))
+    console.log('[登录] isLoggedIn:', userStore.isLoggedIn)
     
     if (success) {
       message.success('登录成功，欢迎回来！')
@@ -244,12 +251,16 @@ const handleSubmit = async () => {
         localStorage.removeItem('rememberedUsername')
       }
       
-      // 加载动态路由
-      await setupDynamicRoutes()
+      // 重置动态路由加载状态，让路由守卫重新加载
+      resetDynamicRoutesLoaded()
+      
+      console.log('[登录] 准备跳转到:', (route.query.redirect as string) || '/dashboard')
       
       // 跳转到目标页面或首页
       const redirect = (route.query.redirect as string) || '/dashboard'
       await router.push(redirect)
+      
+      console.log('[登录] 跳转完成')
     } else {
       message.error('登录失败，请检查用户名和密码')
       refreshCaptcha()

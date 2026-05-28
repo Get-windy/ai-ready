@@ -13,7 +13,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/devdb
     username: devuser
-    password: Dev@2026#Local
+    password: devuser123
   data:
     redis:
       host: localhost

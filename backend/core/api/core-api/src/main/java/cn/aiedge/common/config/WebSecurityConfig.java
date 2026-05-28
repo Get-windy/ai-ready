@@ -21,22 +21,7 @@ public class WebSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                // 允许访问健康检查端点
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                // 允许访问Swagger文档
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
-                // 允许访问认证相关接口
-                .requestMatchers("/auth/**", "/api/auth/**", "/oauth/**", "/api/oauth/**").permitAll()
-                // 允许登录页面
-                .requestMatchers("/login", "/login/**").permitAll()
-                // 允许静态资源
-                .requestMatchers("/static/**", "/public/**", "/favicon.ico").permitAll()
-                // 允许错误页面
-                .requestMatchers("/error").permitAll()
-                // 允许XXL-Job接口
-                .requestMatchers("/xxl-job-admin/**").permitAll()
-                // 其他请求需要认证
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
             )
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.disable());

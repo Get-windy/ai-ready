@@ -30,11 +30,6 @@ declare module 'vue-router' {
  */
 export const constantRoutes: RouteRecordRaw[] = [
   {
-    path: '/',
-    redirect: '/login',
-    meta: { requiresAuth: false }
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/login/index.vue'),
@@ -42,7 +37,7 @@ export const constantRoutes: RouteRecordRaw[] = [
     beforeEnter: (to, from, next) => {
       const token = localStorage.getItem('token')
       if (token) {
-        next({ path: '/' })
+        next({ path: '/dashboard' })
       } else {
         next()
       }

@@ -83,6 +83,32 @@ public class SysMenuController {
     }
 
     /**
+     * 按客户端类型获取菜单树
+     */
+    @Operation(summary = "按客户端类型获取菜单树")
+    @GetMapping("/client/{clientType}")
+    @SaCheckLogin
+    public Result<List<SysMenu>> getMenuByClientType(
+            @PathVariable String clientType,
+            @RequestParam Long tenantId) {
+        List<SysMenu> tree = menuService.getMenuByClientType(clientType, tenantId);
+        return Result.ok(tree);
+    }
+
+    /**
+     * 按客户端类型获取用户菜单树
+     */
+    @Operation(summary = "按客户端类型获取用户菜单树")
+    @GetMapping("/user/client/{clientType}")
+    @SaCheckLogin
+    public Result<List<SysMenu>> getUserMenuByClientType(
+            @PathVariable String clientType,
+            @RequestParam Long userId) {
+        List<SysMenu> tree = menuService.getUserMenuByClientType(clientType, userId);
+        return Result.ok(tree);
+    }
+
+    /**
      * 获取子菜单列表
      */
     @Operation(summary = "获取子菜单列表")

@@ -1,171 +1,129 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import request from '@/utils/request'
 
-/**
- * 动态路由（需要权限）
- */
-export const asyncRoutes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    name: 'Layout',
-    component: () => import('@/layouts/BasicLayout.vue'),
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/dashboard/index.vue'),
-        meta: { 
-          title: '工作台', 
-          icon: 'DashboardOutlined',
-          affix: true,
-          keepAlive: true
-        }
-      },
-      {
-        path: 'erp',
-        name: 'ErpModule',
-        redirect: '/erp/purchase',
-        meta: { title: 'ERP管理', icon: 'ShopOutlined' },
-        children: [
-          {
-            path: 'purchase',
-            name: 'PurchaseOrder',
-            component: () => import('@/views/erp/purchase/index.vue'),
-            meta: { 
-              title: '采购订单', 
-              icon: 'ShoppingOutlined',
-              permissions: ['erp:purchase:view'],
-              keepAlive: true
-            }
-          },
-          {
-            path: 'sale',
-            name: 'SaleOrder',
-            component: () => import('@/views/erp/sale/index.vue'),
-            meta: { 
-              title: '销售订单', 
-              icon: 'ShoppingCartOutlined',
-              permissions: ['erp:sale:view'],
-              keepAlive: true
-            }
-          },
-          {
-            path: 'stock',
-            name: 'Stock',
-            component: () => import('@/views/erp/stock/index.vue'),
-            meta: { 
-              title: '库存管理', 
-              icon: 'ContainerOutlined',
-              permissions: ['erp:stock:view'],
-              keepAlive: true
-            }
-          }
-        ]
-      },
-      {
-        path: 'crm',
-        name: 'CrmModule',
-        redirect: '/crm/customer',
-        meta: { title: 'CRM管理', icon: 'TeamOutlined' },
-        children: [
-          {
-            path: 'customer',
-            name: 'Customer',
-            component: () => import('@/views/crm/customer/index.vue'),
-            meta: { 
-              title: '客户管理', 
-              icon: 'TeamOutlined',
-              permissions: ['crm:customer:view'],
-              keepAlive: true
-            }
-          }
-        ]
-      },
-      {
-        path: 'system',
-        name: 'SystemModule',
-        redirect: '/system/user',
-        meta: { title: '系统设置', icon: 'SettingOutlined' },
-        children: [
-          {
-            path: 'user',
-            name: 'SystemUser',
-            component: () => import('@/views/system/user/index.vue'),
-            meta: { 
-              title: '用户管理', 
-              icon: 'UserOutlined',
-              permissions: ['system:user:view'],
-              keepAlive: true
-            }
-          },
-          {
-            path: 'role',
-            name: 'SystemRole',
-            component: () => import('@/views/system/role/index.vue'),
-            meta: { 
-              title: '角色管理', 
-              icon: 'SafetyOutlined',
-              permissions: ['system:role:view']
-            }
-          },
-          {
-            path: 'permission',
-            name: 'SystemPermission',
-            component: () => import('@/views/system/permission/index.vue'),
-            meta: { 
-              title: '权限管理', 
-              icon: 'KeyOutlined',
-              permissions: ['system:permission:view']
-            }
-          },
-          {
-            path: 'menu',
-            name: 'SystemMenu',
-            component: () => import('@/views/system/menu/index.vue'),
-            meta: { 
-              title: '菜单管理', 
-              icon: 'MenuOutlined',
-              permissions: ['system:menu:view']
-            }
-          },
-          {
-            path: 'department',
-            name: 'SystemDepartment',
-            component: () => import('@/views/system/department/index.vue'),
-            meta: { 
-              title: '部门管理', 
-              icon: 'ApartmentOutlined',
-              permissions: ['system:department:view'],
-              keepAlive: true
-            }
-          },
-          {
-            path: 'position',
-            name: 'SystemPosition',
-            component: () => import('@/views/system/position/index.vue'),
-            meta: { 
-              title: '岗位管理', 
-              icon: 'IdcardOutlined',
-              permissions: ['system:position:view'],
-              keepAlive: true
-            }
-          }
-        ]
-      }
-    ]
+const CLIENT_TYPE = 'pc-admin'
+
+interface MenuItem {
+  id: number
+  parentId: number
+  menuName: string
+  menuCode: string
+  menuType: number
+  path?: string
+  component?: string
+  routeName?: string
+  redirect?: string
+  icon?: string
+  sort: number
+  isExternal?: number
+  isCache?: number
+  visible: number
+  status: number
+  clientType?: string
+  children?: MenuItem[]
+}
+
+function transformMenuToRoute(menu: MenuItem): RouteRecordRaw {
+  const route: RouteRecordRaw = {
+    path: menu.path || '',
+    name: menu.routeName || menu.menuCode,
+    meta: {
+      title: menu.menuName,
+      icon: menu.icon,
+      keepAlive: menu.isCache === 1,
+      hidden: menu.visible === 0,
+      requiresAuth: true
+    }
   }
-]
+
+  if (menu.menuType === 1 && menu.component) {
+    const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
+    route.component = () => import(/* @vite-ignore */ `../views/${componentPath}.vue`)
+  }
+
+  if (menu.children && menu.children.length > 0) {
+    route.children = menu.children.map(child => transformMenuToRoute(child))
+  }
+
+  if (menu.redirect) {
+    route.redirect = menu.redirect
+  }
+
+  return route
+}
+
+function buildMenuTree(menus: MenuItem[], parentId: number = 0): MenuItem[] {
+  return menus
+    .filter(menu => menu.parentId === parentId)
+    .sort((a, b) => a.sort - b.sort)
+    .map(menu => ({
+      ...menu,
+      children: buildMenuTree(menus, menu.id)
+    }))
+}
 
 export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
+  console.log('[动态路由] 开始加载动态路由...')
   const userStore = useUserStore()
-  const permissions = userStore.permissions || []
-  
-  if (permissions.includes('*')) {
-    return asyncRoutes
+  const userId = userStore.userId
+  const tenantId = 1
+
+  console.log('[动态路由] 用户信息:', { userId, tenantId, token: userStore.token })
+
+  try {
+    console.log('[动态路由] 调用菜单API...')
+    const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, {
+      params: { userId, tenantId }
+    })
+
+    console.log('[动态路由] API响应:', response)
+    console.log('[动态路由] API响应数据:', response.data)
+
+    if (response.data && response.data.length > 0) {
+      console.log('[动态路由] 菜单数据数量:', response.data.length)
+      const menuTree = buildMenuTree(response.data)
+      console.log('[动态路由] 菜单树:', menuTree)
+      const layoutRoute: RouteRecordRaw = {
+        path: '/',
+        name: 'Layout',
+        component: () => import('@/layouts/BasicLayout.vue'),
+        redirect: '/dashboard',
+        meta: { requiresAuth: true },
+        children: menuTree.map(menu => transformMenuToRoute(menu))
+      }
+      console.log('[动态路由] Layout路由:', layoutRoute)
+      return [layoutRoute]
+    } else {
+      console.log('[动态路由] 菜单数据为空，使用fallback路由')
+    }
+  } catch (error) {
+    console.error('[动态路由] API调用失败:', error)
+    console.error('[动态路由] 错误详情:', error?.response?.data || error?.message)
   }
-  
-  return filterRoutesByPermission(asyncRoutes)
+
+  console.log('[动态路由] 返回fallback路由')
+  return getFallbackRoutes()
+}
+
+function getFallbackRoutes(): RouteRecordRaw[] {
+  return [
+    {
+      path: '/',
+      name: 'Layout',
+      component: () => import('@/layouts/BasicLayout.vue'),
+      redirect: '/dashboard',
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'Dashboard',
+          component: () => import('@/views/dashboard/index.vue'),
+          meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true }
+        }
+      ]
+    }
+  ]
 }
 
 export function checkRouteAccess(route: any): boolean {

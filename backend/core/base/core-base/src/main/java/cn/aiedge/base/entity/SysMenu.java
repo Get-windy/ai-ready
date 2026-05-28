@@ -100,6 +100,11 @@ public class SysMenu {
     private Integer status;
 
     /**
+     * 客户端类型（pc-admin, mobile-admin, mobile-mall, pda-warehouse, driver-delivery, print-client）
+     */
+    private String clientType;
+
+    /**
      * 备注
      */
     private String remark;
