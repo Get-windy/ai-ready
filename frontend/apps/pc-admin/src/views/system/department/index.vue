@@ -39,6 +39,7 @@
           <a-space>
             <a-button
               type="primary"
+              :loading="submittingLoading"
               @click="handleAddRoot"
             >
               <template #icon>
@@ -66,7 +67,7 @@
         <a-tree
           v-model:expanded-keys="expandedKeys"
           v-model:selected-keys="selectedKeys"
-          :tree-data="treeData as any"
+          :tree-data="(filteredTreeData as any)"
           :field-names="{ children: 'children', title: 'departmentName', key: 'id' }"
           show-line
           draggable
@@ -96,8 +97,8 @@
         </a-tree>
 
         <a-empty
-          v-if="!treeData.length && !treeLoading"
-          description="暂无部门数据"
+          v-if="!filteredTreeData.length && !treeLoading"
+          :description="searchKeyword ? '未找到匹配的部门' : '暂无部门数据'"
         />
       </a-spin>
     </a-card>
@@ -106,7 +107,7 @@
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
-      :confirm-loading="modalLoading"
+      :confirm-loading="submittingLoading"
       width="600px"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
@@ -262,6 +263,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 // TreeDropEvent type removed - using any for compatibility
@@ -279,6 +281,9 @@ import {
 } from '@ant-design/icons-vue'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { userApi, type UserInfo } from '@/api/user'
+import { useSubmitLock } from '@/composables'
+
+const router = useRouter()
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -289,9 +294,47 @@ const treeLoading = ref(false)
 const expandedKeys = ref<number[]>([])
 const selectedKeys = ref<number[]>([])
 
+// 根据搜索关键词过滤树数据（保留匹配节点的父级路径）
+const filterTree = (nodes: DepartmentInfo[], keyword: string): DepartmentInfo[] => {
+  if (!keyword) return nodes
+  const lowerKeyword = keyword.toLowerCase()
+  const result: DepartmentInfo[] = []
+  for (const node of nodes) {
+    const nameMatch = node.departmentName?.toLowerCase().includes(lowerKeyword)
+    const filteredChildren = node.children ? filterTree(node.children, keyword) : []
+    if (nameMatch || filteredChildren.length > 0) {
+      result.push({ ...node, children: filteredChildren.length > 0 ? filteredChildren : node.children })
+    }
+  }
+  return result
+}
+
+// 收集所有匹配搜索关键词的节点ID（用于自动展开）
+const collectMatchedIds = (nodes: DepartmentInfo[], keyword: string): number[] => {
+  if (!keyword) return []
+  const ids: number[] = []
+  const lowerKeyword = keyword.toLowerCase()
+  const traverse = (items: DepartmentInfo[]) => {
+    items.forEach(item => {
+      const nameMatch = item.departmentName?.toLowerCase().includes(lowerKeyword)
+      const childMatches = item.children ? collectMatchedIds(item.children, keyword) : []
+      if (nameMatch || childMatches.length > 0) {
+        ids.push(item.id, ...childMatches)
+      }
+    })
+  }
+  traverse(nodes)
+  return ids
+}
+
+// 过滤后的树数据
+const filteredTreeData = computed(() => {
+  return filterTree(treeData.value, searchKeyword.value)
+})
+
 // 弹窗相关
 const modalVisible = ref(false)
-const modalLoading = ref(false)
+const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
 const modalTitle = computed(() => isEdit.value ? '编辑部门' : '新增部门')
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
@@ -382,8 +425,13 @@ const fetchLeaderList = async () => {
 
 // 搜索
 const handleSearch = () => {
-  // TODO: 实现搜索过滤
-  message.info('搜索功能待实现')
+  if (searchKeyword.value) {
+    // 自动展开匹配关键词的节点
+    expandedKeys.value = collectMatchedIds(treeData.value, searchKeyword.value)
+  } else {
+    // 无关键词时展开全部
+    expandedKeys.value = getAllNodeIds(treeData.value)
+  }
 }
 
 // 展开全部
@@ -497,24 +545,26 @@ const handleEdit = (node: DepartmentInfo) => {
 // 提交表单
 const handleModalOk = async () => {
   try {
-    await formRef.value?.validate()
-    modalLoading.value = true
-    
-    if (isEdit.value) {
-      await departmentApi.update(formState.id!, formState)
-      message.success('更新成功')
-    } else {
-      await departmentApi.create(formState)
-      message.success('创建成功')
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+
+      if (isEdit.value) {
+        await departmentApi.update(formState.id!, formState)
+        message.success('更新成功')
+      } else {
+        await departmentApi.create(formState)
+        message.success('创建成功')
+      }
+
+      modalVisible.value = false
+      fetchTreeData()
+      fetchParentTreeData()
+    })
+    void result
+  } catch (error: any) {
+    if (error) {
+      message.error(error?.message || '操作失败')
     }
-    
-    modalVisible.value = false
-    fetchTreeData()
-    fetchParentTreeData()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    modalLoading.value = false
   }
 }
 
@@ -552,8 +602,7 @@ const handleManagePersonnel = () => {
     message.warning('请先选择一个部门')
     return
   }
-  // TODO: 跳转到人员管理页面
-  message.info('人员管理功能待实现')
+  router.push({ path: '/system/department/personnel', query: { deptId: selectedKeys.value[0] } })
 }
 
 // 过滤负责人

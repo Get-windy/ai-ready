@@ -114,7 +114,7 @@ public class PurchaseOrderController {
     public ApiResponse<PageResult<PurchaseOrder>> pageOrders(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
-            @RequestParam Long tenantId,
+            @RequestParam(required = false) Long tenantId,
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) Long supplierId,
             @RequestParam(required = false) Integer status) {

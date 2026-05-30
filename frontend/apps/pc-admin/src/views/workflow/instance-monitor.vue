@@ -83,7 +83,7 @@
             <a-button
               type="link"
               size="small"
-              @click="handleViewFlowChart()"
+              @click="handleViewFlowChart(record)"
             >
               流程图
             </a-button>
@@ -167,7 +167,10 @@
       :footer="null"
     >
       <div class="flow-chart-container">
-        <a-empty description="流程图加载中..." />
+        <a-spin :spinning="flowChartLoading" tip="流程图加载中...">
+          <img v-if="flowChartImage" :src="flowChartImage" alt="流程图" style="max-width: 100%; max-height: 500px" />
+          <a-empty v-else-if="!flowChartLoading" :description="flowChartError || '流程图加载中...'" />
+        </a-spin>
       </div>
     </a-modal>
   </div>
@@ -179,6 +182,7 @@ import { message, Modal } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import type { TableProps } from 'ant-design-vue'
+import request from '@/utils/request'
 
 // 查询表单
 const queryForm = reactive({
@@ -220,13 +224,37 @@ const detailData = ref<any>({})
 
 // 流程图对话框
 const flowChartVisible = ref(false)
+const flowChartLoading = ref(false)
+const flowChartImage = ref<string | null>(null)
+const flowChartError = ref<string | null>(null)
 
 // 查询
 const handleQuery = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端API获取数据
-    // 模拟数据
+    // 调用后端API获取数据，失败时加载模拟数据
+    try {
+      const res = await request.get('/workflow/instance/page', {
+        params: {
+          processName: queryForm.processName || undefined,
+          status: queryForm.status,
+          startDate: queryForm.dateRange?.[0],
+          endDate: queryForm.dateRange?.[1],
+          pageNum: pagination.current,
+          pageSize: pagination.pageSize
+        }
+      })
+      if (res.data?.records?.length) {
+        tableData.value = res.data.records
+        pagination.total = res.data.total || 0
+        return
+      }
+      pagination.total = 0
+    } catch {
+      console.warn('[instance-monitor] 后端API不可用，使用模拟数据')
+    }
+
+    // 模拟数据（API不可用时的回退）
     tableData.value = [
       {
         instanceId: 'INST-001',
@@ -293,9 +321,28 @@ const handleViewDetail = (record: any) => {
 }
 
 // 查看流程图
-const handleViewFlowChart = () => {
+const handleViewFlowChart = async (record: any) => {
   flowChartVisible.value = true
-  // TODO: 加载流程图
+  flowChartLoading.value = true
+  flowChartError.value = null
+  flowChartImage.value = null
+  try {
+    // 尝试从后端获取流程图（支持 BPMN SVG 或图片 URL）
+    const res = await request.get('/workflow/instance/diagram', {
+      params: { instanceId: record.instanceId }
+    })
+    if (res.data?.svg) {
+      flowChartImage.value = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(res.data.svg)))
+    } else if (res.data?.imageUrl) {
+      flowChartImage.value = res.data.imageUrl
+    } else {
+      flowChartError.value = '暂无可用的流程图'
+    }
+  } catch {
+    flowChartError.value = '流程图加载失败'
+  } finally {
+    flowChartLoading.value = false
+  }
 }
 
 // 流程干预
@@ -310,9 +357,15 @@ const handleIntervention = async (command: string, record: any) => {
     title: '确认操作',
     content: `确定要${actions[command]}流程"${record.processName}"吗？`,
     onOk: async () => {
-      // TODO: 调用后端API执行干预操作
-      message.success(`${actions[command]}成功`)
-      handleQuery()
+      try {
+        await request.post(`/workflow/instance/${record.instanceId}/intervene`, {
+          action: command
+        })
+        message.success(`${actions[command]}成功`)
+        handleQuery()
+      } catch {
+        message.error(`${actions[command]}失败`)
+      }
     }
   })
 }

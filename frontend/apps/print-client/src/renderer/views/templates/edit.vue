@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { message } from 'ant-design-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -139,9 +140,9 @@ const saveTemplate = async () => {
     } else {
       await window.electronAPI.templates.updateTemplate(template.value)
     }
-    alert('保存成功')
+    message.success('保存成功')
   } catch (err) {
-    alert('保存失败: ' + err)
+    message.error('保存失败: ' + (err?.message || err))
   }
 }
 

@@ -1,93 +1,61 @@
 <template>
-  <el-table
+  <a-table
     ref="tableRef"
-    :data="data"
-    :height="height"
-    :max-height="maxHeight"
-    :stripe="stripe"
-    :border="border"
-    :size="size"
-    :fit="fit"
-    :show-header="showHeader"
-    :highlight-current-row="highlightCurrentRow"
-    :current-row-key="currentRowKey"
-    :row-class-name="rowClassName"
-    :row-style="rowStyle"
-    :cell-class-name="cellClassName"
-    :cell-style="cellStyle"
-    :header-row-class-name="headerRowClassName"
-    :header-row-style="headerRowStyle"
-    :header-cell-class-name="headerCellClassName"
-    :header-cell-style="headerCellStyle"
+    :columns="columns"
+    :data-source="data"
     :row-key="rowKey"
-    :empty-text="emptyText"
-    :default-expand-all="defaultExpandAll"
-    :expand-row-keys="expandRowKeys"
-    :default-sort="defaultSort"
-    :tooltip-effect="tooltipEffect"
-    :show-summary="showSummary"
-    :sum-text="sumText"
-    :summary-method="summaryMethod"
-    :span-method="spanMethod"
-    :select-on-indeterminate="selectOnIndeterminate"
-    :indent="indent"
-    :lazy="lazy"
-    :load="load"
-    :tree-props="treeProps"
-    :table-layout="tableLayout"
-    :scrollbar-always-on="scrollbarAlwaysOn"
-    :flexible="flexible"
-    @select="emit('select', $event)"
-    @select-all="emit('select-all', $event)"
-    @selection-change="emit('selection-change', $event)"
-    @cell-mouse-enter="emit('cell-mouse-enter', $event)"
-    @cell-mouse-leave="emit('cell-mouse-leave', $event)"
-    @cell-click="emit('cell-click', $event)"
-    @cell-dblclick="emit('cell-dblclick', $event)"
-    @row-click="emit('row-click', $event)"
-    @row-contextmenu="emit('row-contextmenu', $event)"
-    @row-dblclick="emit('row-dblclick', $event)"
-    @header-click="emit('header-click', $event)"
-    @header-contextmenu="emit('header-contextmenu', $event)"
-    @sort-change="emit('sort-change', $event)"
-    @filter-change="emit('filter-change', $event)"
-    @current-change="emit('current-change', $event)"
-    @header-dragend="emit('header-dragend', $event)"
-    @expand-change="emit('expand-change', $event)"
+    :loading="loading"
+    :bordered="bordered"
+    :size="size"
+    :show-header="showHeader"
+    :pagination="paginationConfig"
+    :row-selection="rowSelectionConfig"
+    :scroll="scrollConfig"
+    :locale="localeConfig"
+    @change="handleChange"
   >
-    <slot />
-    
-    <!-- 默认插槽 -->
-    <template v-if="$slots.empty" #empty>
-      <slot name="empty" />
+    <template v-for="(_, slot) in $slots" :key="slot" #[slot]="scope">
+      <slot :name="slot" v-bind="scope" />
     </template>
-    
-    <template v-if="$slots.append" #append>
-      <slot name="append" />
-    </template>
-  </el-table>
+  </a-table>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { ElTable } from 'element-plus'
-import type {
-  TableProps,
-  TableColumnCtx,
-  TableData,
-  Sort,
-  Filter
-} from 'element-plus'
+import { ref, computed } from 'vue'
+import type { TableProps, TablePaginationConfig } from 'ant-design-vue'
+
+interface Column {
+  title: string
+  dataIndex?: string
+  key?: string
+  width?: number | string
+  minWidth?: number | string
+  fixed?: boolean | 'left' | 'right'
+  align?: 'left' | 'center' | 'right'
+  ellipsis?: boolean
+  sorter?: boolean | ((a: any, b: any) => number)
+  defaultSortOrder?: 'ascend' | 'descend'
+  filters?: { text: string; value: any }[]
+  customRender?: (args: { text: any; record: any; index: number }) => any
+  slots?: { customRender?: string }
+  [key: string]: any
+}
 
 interface Props {
-  data?: TableData[]
-  height?: string | number
-  maxHeight?: string | number
-  stripe?: boolean
-  border?: boolean
-  size?: 'large' | 'default' | 'small'
-  fit?: boolean
+  data?: any[]
+  columns?: Column[]
+  rowKey?: string | ((record: any) => string)
+  loading?: boolean
+  bordered?: boolean
+  size?: 'default' | 'middle' | 'small'
   showHeader?: boolean
+  pagination?: TablePaginationConfig | false
+  rowSelection?: TableProps['rowSelection']
+  scrollX?: number | string | true
+  scrollY?: number | string
+  emptyText?: string
+  stripe?: boolean
+  fit?: boolean
   highlightCurrentRow?: boolean
   currentRowKey?: string | number
   rowClassName?: TableProps['rowClassName']
@@ -98,121 +66,114 @@ interface Props {
   headerRowStyle?: TableProps['headerRowStyle']
   headerCellClassName?: TableProps['headerCellClassName']
   headerCellStyle?: TableProps['headerCellStyle']
-  rowKey?: string | ((row: TableData) => string)
-  emptyText?: string
   defaultExpandAll?: boolean
-  expandRowKeys?: TableData[]
-  defaultSort?: Sort
-  tooltipEffect?: 'dark' | 'light'
+  expandRowKeys?: any[]
   showSummary?: boolean
   sumText?: string
   summaryMethod?: TableProps['summaryMethod']
   spanMethod?: TableProps['spanMethod']
   selectOnIndeterminate?: boolean
   indent?: number
-  lazy?: boolean
-  load?: TableProps['load']
-  treeProps?: TableProps['treeProps']
+  treeProps?: any
   tableLayout?: 'auto' | 'fixed'
-  scrollbarAlwaysOn?: boolean
-  flexible?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  stripe: false,
-  border: false,
+  data: () => [],
+  columns: () => [],
+  rowKey: 'id',
+  loading: false,
+  bordered: false,
   size: 'default',
-  fit: true,
   showHeader: true,
+  pagination: undefined,
+  stripe: false,
+  fit: true,
   highlightCurrentRow: false,
   showSummary: false,
   selectOnIndeterminate: true,
   indent: 16,
-  lazy: false,
-  tableLayout: 'auto',
-  scrollbarAlwaysOn: false,
-  flexible: false
+  tableLayout: 'auto'
 })
 
 const emit = defineEmits<{
-  (e: 'select', selection: TableData[], row: TableData): void
-  (e: 'select-all', selection: TableData[]): void
-  (e: 'selection-change', selection: TableData[]): void
-  (e: 'cell-mouse-enter', row: TableData, column: TableColumnCtx<TableData>, cell: HTMLElement, event: Event): void
-  (e: 'cell-mouse-leave', row: TableData, column: TableColumnCtx<TableData>, cell: HTMLElement, event: Event): void
-  (e: 'cell-click', row: TableData, column: TableColumnCtx<TableData>, cell: HTMLElement, event: Event): void
-  (e: 'cell-dblclick', row: TableData, column: TableColumnCtx<TableData>, cell: HTMLElement, event: Event): void
-  (e: 'row-click', row: TableData, column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'row-contextmenu', row: TableData, column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'row-dblclick', row: TableData, column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'header-click', column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'header-contextmenu', column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'sort-change', sort: Sort): void
-  (e: 'filter-change', filters: Filter): void
-  (e: 'current-change', currentRow: TableData | null, oldCurrentRow: TableData | null): void
-  (e: 'header-dragend', newWidth: number, oldWidth: number, column: TableColumnCtx<TableData>, event: Event): void
-  (e: 'expand-change', row: TableData, expandedRows: TableData[]): void
+  (e: 'change', pagination: any, filters: any, sorter: any): void
+  (e: 'select', record: any, selected: boolean, selectedRows: any[]): void
+  (e: 'select-all', selected: boolean, selectedRows: any[], changeRows: any[]): void
+  (e: 'selection-change', selectedRowKeys: any[], selectedRows: any[]): void
+  (e: 'cell-click', record: any, column: any, event: Event): void
+  (e: 'row-click', record: any, index: number, event: Event): void
+  (e: 'row-dblclick', record: any, index: number, event: Event): void
+  (e: 'current-change', currentRow: any): void
+  (e: 'expand-change', expanded: boolean, record: any): void
+  (e: 'sorter-change', sorter: any): void
+  (e: 'page-change', page: number): void
+  (e: 'page-size-change', size: number): void
 }>()
 
-const tableRef = ref<InstanceType<typeof ElTable>>()
+const tableRef = ref()
 
-// 表格操作方法
-const clearSelection = () => {
-  if (!tableRef.value) return
-  tableRef.value.clearSelection()
-}
+const paginationConfig = computed(() => {
+  if (props.pagination === false) return false
+  if (props.pagination) {
+    const p = { ...props.pagination }
+    return {
+      ...p,
+      onChange: (page: number) => {
+        emit('page-change', page)
+        if (props.pagination && typeof props.pagination === 'object') {
+          props.pagination.onChange?.(page)
+        }
+      },
+      onShowSizeChange: (current: number, size: number) => {
+        emit('page-size-change', size)
+        if (props.pagination && typeof props.pagination === 'object') {
+          props.pagination.onShowSizeChange?.(current, size)
+        }
+      }
+    }
+  }
+  return undefined
+})
 
-const toggleRowSelection = (row: TableData, selected?: boolean) => {
-  if (!tableRef.value) return
-  tableRef.value.toggleRowSelection(row, selected)
-}
+const rowSelectionConfig = computed(() => {
+  if (!props.rowSelection) return undefined
+  return {
+    ...props.rowSelection,
+    onChange: (selectedRowKeys: any[], selectedRows: any[]) => {
+      emit('selection-change', selectedRowKeys, selectedRows)
+      props.rowSelection?.onChange?.(selectedRowKeys, selectedRows)
+    },
+    onSelect: (record: any, selected: boolean, selectedRows: any[]) => {
+      emit('select', record, selected, selectedRows)
+      props.rowSelection?.onSelect?.(record, selected, selectedRows)
+    },
+    onSelectAll: (selected: boolean, selectedRows: any[], changeRows: any[]) => {
+      emit('select-all', selected, selectedRows, changeRows)
+      props.rowSelection?.onSelectAll?.(selected, selectedRows, changeRows)
+    }
+  }
+})
 
-const toggleAllSelection = () => {
-  if (!tableRef.value) return
-  tableRef.value.toggleAllSelection()
-}
+const scrollConfig = computed(() => {
+  if (!props.scrollX && !props.scrollY) return undefined
+  return {
+    x: props.scrollX ?? undefined,
+    y: props.scrollY ?? undefined
+  }
+})
 
-const toggleRowExpansion = (row: TableData, expanded?: boolean) => {
-  if (!tableRef.value) return
-  tableRef.value.toggleRowExpansion(row, expanded)
-}
+const localeConfig = computed(() => {
+  if (!props.emptyText) return undefined
+  return { emptyText: props.emptyText }
+})
 
-const setCurrentRow = (row?: TableData) => {
-  if (!tableRef.value) return
-  tableRef.value.setCurrentRow(row)
-}
-
-const clearSort = () => {
-  if (!tableRef.value) return
-  tableRef.value.clearSort()
-}
-
-const clearFilter = (columnKeys?: string[]) => {
-  if (!tableRef.value) return
-  tableRef.value.clearFilter(columnKeys)
-}
-
-const doLayout = () => {
-  if (!tableRef.value) return
-  tableRef.value.doLayout()
-}
-
-const sort = (prop: string, order: 'ascending' | 'descending') => {
-  if (!tableRef.value) return
-  tableRef.value.sort(prop, order)
+const handleChange = (pagination: any, filters: any, sorter: any) => {
+  emit('change', pagination, filters, sorter)
 }
 
 // 暴露方法
 defineExpose({
-  clearSelection,
-  toggleRowSelection,
-  toggleAllSelection,
-  toggleRowExpansion,
-  setCurrentRow,
-  clearSort,
-  clearFilter,
-  doLayout,
-  sort,
   tableRef
 })
 </script>
@@ -224,21 +185,21 @@ defineExpose({
     font-weight: 600;
     color: var(--ar-text-color-primary, #303133);
   }
-  
+
   &__row {
     &:hover {
       background-color: var(--ar-bg-color-hover, #f5f7fa);
     }
-    
+
     &--selected {
       background-color: var(--ar-bg-color-selected, #ecf5ff);
     }
   }
-  
+
   &__cell {
     padding: 12px 0;
   }
-  
+
   &__empty {
     padding: 40px 0;
     color: var(--ar-text-color-secondary, #909399);

@@ -64,7 +64,7 @@ const handleStartCheck = async (task: CheckTask) => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('开始盘点失败:', err) })
 }
 
 const handleScanCheck = () => {

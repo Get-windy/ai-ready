@@ -20,7 +20,7 @@ onMounted(async () => {
   
   try {
     const [bannerRes, categoryRes, hotRes, recommendRes] = await Promise.all([
-      api.product.getRecommendations(),
+      api.product.getBanners(),
       api.product.getCategories(),
       api.product.getHotProducts(),
       api.product.getRecommendations()

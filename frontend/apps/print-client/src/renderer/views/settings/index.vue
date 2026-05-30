@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Field from '@/components/common/Field.vue'
@@ -41,7 +42,7 @@ const handleSave = async () => {
       await window.electronAPI.connection.connect(settings.value.serverUrl)
     }
     
-    alert('设置已保存')
+    message.success('设置已保存')
   } finally {
     saving.value = false
   }
@@ -49,7 +50,7 @@ const handleSave = async () => {
 
 const handleTestConnection = async () => {
   if (!settings.value.serverUrl) {
-    alert('请输入服务器地址')
+    message.warning('请输入服务器地址')
     return
   }
   
@@ -62,27 +63,27 @@ const handleTestConnection = async () => {
     connectionStatus.value = status
     
     if (status === 'connected') {
-      alert('连接成功')
+      message.success('连接成功')
     } else {
-      alert('连接失败')
+      message.error('连接失败')
     }
   } catch (error) {
     connectionStatus.value = 'disconnected'
-    alert('连接失败: ' + error)
+    message.error('连接失败: ' + (error?.message || error))
   }
 }
 
 const handleTestPrint = async () => {
   if (!settings.value.defaultPrinter) {
-    alert('请选择默认打印机')
+    message.warning('请选择默认打印机')
     return
   }
   
   try {
     await window.electronAPI.printers.testPrint(settings.value.defaultPrinter)
-    alert('测试打印已发送')
+    message.success('测试打印已发送')
   } catch (error) {
-    alert('测试打印失败: ' + error)
+    message.error('测试打印失败: ' + (error?.message || error))
   }
 }
 

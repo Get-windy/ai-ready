@@ -123,6 +123,7 @@
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { BellOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 
 interface CollectionReminder {
   id: number
@@ -279,37 +280,23 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          customerName: '客户A',
-          orderNo: 'SO20260328001',
-          amount: 10000,
-          overdueDays: 5,
-          status: 0,
-          lastReminderDate: '2026-04-08',
-          nextReminderDate: '2026-04-14',
-          reminderCount: 1
-        },
-        {
-          id: 2,
-          customerName: '客户B',
-          orderNo: 'SO20260328002',
-          amount: 15000,
-          overdueDays: 15,
-          status: 1,
-          lastReminderDate: '2026-04-10',
-          nextReminderDate: '2026-04-15',
-          reminderCount: 2
-        }
-      ]
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await request.get('/api/finance/collection-reminder/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

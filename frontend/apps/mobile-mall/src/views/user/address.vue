@@ -79,7 +79,7 @@ const handleDelete = (address: any) => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('删除地址操作失败:', err) })
 }
 
 const handleSelect = (address: any) => {

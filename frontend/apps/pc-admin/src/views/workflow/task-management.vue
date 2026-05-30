@@ -279,10 +279,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import type { TableProps } from 'ant-design-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
+import request from '@/utils/request'
 
 // 当前标签页
 const activeTab = ref('todo')
@@ -354,8 +355,34 @@ const handleTabChange = () => {
 const handleQuery = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端API获取数据
-    // 模拟数据
+    // 调用后端API获取数据，失败时加载模拟数据
+    let apiData: any[] = []
+    try {
+      const res = await request.get('/workflow/task/page', {
+        params: {
+          tab: activeTab.value,
+          taskName: queryForm.taskName || undefined,
+          processName: queryForm.processName || undefined,
+          priority: queryForm.priority,
+          startDate: queryForm.dateRange?.[0],
+          endDate: queryForm.dateRange?.[1],
+          pageNum: pagination.current,
+          pageSize: pagination.pageSize
+        }
+      })
+      apiData = res.data?.records || []
+      pagination.total = res.data?.total || apiData.length
+    } catch {
+      // API 不可用时使用模拟数据
+      console.warn('[workflow] 后端API不可用，使用模拟数据')
+    }
+
+    if (apiData.length > 0) {
+      tableData.value = apiData
+      return
+    }
+
+    // 模拟数据（API不可用时的回退）
     if (activeTab.value === 'todo') {
       tableData.value = [
         {
@@ -432,6 +459,8 @@ const handleViewDetail = (record: any) => {
 
 // 审批
 const handleApprove = (record: any) => {
+  ;(approveForm as any)._taskId = record.taskId
+  ;(approveForm as any)._record = record
   approveForm.approval = 'approve'
   approveForm.comment = ''
   approveForm.returnNode = undefined
@@ -440,18 +469,35 @@ const handleApprove = (record: any) => {
 
 // 确认审批
 const handleConfirmApprove = async () => {
-  try {
-    // TODO: 调用后端API提交审批
-    message.success('审批成功')
-    approveVisible.value = false
-    handleQuery()
-  } catch (error) {
-    message.error('审批失败')
+  const actionLabels: Record<string, string> = {
+    approve: '同意',
+    reject: '拒绝',
+    return: '退回'
   }
+  Modal.confirm({
+    title: '确认审批',
+    content: `确定要${actionLabels[approveForm.approval] || '审批'}该任务吗？`,
+    async onOk() {
+      try {
+        await request.post('/workflow/task/approve', {
+          taskId: (approveForm as any)._taskId,
+          approval: approveForm.approval,
+          comment: approveForm.comment,
+          returnNode: approveForm.approval === 'return' ? approveForm.returnNode : undefined
+        })
+        message.success('审批成功')
+        approveVisible.value = false
+        handleQuery()
+      } catch {
+        message.error('审批失败')
+      }
+    }
+  })
 }
 
 // 转办/委托
 const handleTransfer = (command: string, record: any) => {
+  ;(transferForm as any)._taskId = record.taskId
   transferForm.type = command
   transferForm.targetUser = undefined
   transferForm.comment = ''
@@ -465,14 +511,26 @@ const handleConfirmTransfer = async () => {
     return
   }
 
-  try {
-    // TODO: 调用后端API执行转办/委托
-    message.success(`${transferForm.type === 'transfer' ? '转办' : '委托'}成功`)
-    transferVisible.value = false
-    handleQuery()
-  } catch (error) {
-    message.error('操作失败')
-  }
+  const actionLabel = transferForm.type === 'transfer' ? '转办' : '委托'
+  Modal.confirm({
+    title: `确认${actionLabel}`,
+    content: `确定要${actionLabel}该任务给用户"${transferForm.targetUser}"吗？`,
+    async onOk() {
+      try {
+        await request.post('/workflow/task/transfer', {
+          taskId: (transferForm as any)._taskId,
+          type: transferForm.type,
+          targetUser: transferForm.targetUser,
+          comment: transferForm.comment
+        })
+        message.success(`${actionLabel}成功`)
+        transferVisible.value = false
+        handleQuery()
+      } catch {
+        message.error(`${actionLabel}失败`)
+      }
+    }
+  })
 }
 
 // 获取优先级颜色

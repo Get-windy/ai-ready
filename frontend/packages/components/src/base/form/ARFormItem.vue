@@ -1,38 +1,29 @@
 <template>
-  <el-form-item
-    :prop="prop"
+  <a-form-item
+    :name="name"
     :label="label"
-    :label-width="labelWidth"
-    :required="required"
     :rules="rules"
-    :error="error"
-    :show-message="showMessage"
-    :inline-message="inlineMessage"
-    :size="size"
+    :required="required"
+    :validate-status="validateStatus"
+    :help="help"
   >
     <template v-if="$slots.label" #label>
       <slot name="label" />
     </template>
-    
-    <template v-if="$slots.default" #default>
-      <slot />
-    </template>
-    
-    <template v-if="$slots.error" #error>
-      <slot name="error" />
-    </template>
-  </el-form-item>
+    <slot />
+  </a-form-item>
 </template>
 
 <script setup lang="ts">
-import type { FormItemRule } from 'element-plus'
+import { computed } from 'vue'
+import type { Rule } from 'ant-design-vue'
 
 interface Props {
-  prop?: string
+  name?: string
   label?: string
   labelWidth?: string | number
   required?: boolean
-  rules?: FormItemRule | FormItemRule[]
+  rules?: Rule | Rule[]
   error?: string
   showMessage?: boolean
   inlineMessage?: boolean
@@ -44,6 +35,14 @@ const props = withDefaults(defineProps<Props>(), {
   inlineMessage: false,
   size: 'default'
 })
+
+const validateStatus = computed(() => {
+  return props.error ? 'error' : undefined
+})
+
+const help = computed(() => {
+  return props.showMessage ? props.error : undefined
+})
 </script>
 
 <style lang="scss" scoped>
@@ -52,12 +51,12 @@ const props = withDefaults(defineProps<Props>(), {
     font-weight: 500;
     color: var(--ar-text-color-primary, #303133);
   }
-  
+
   &__content {
     display: flex;
     align-items: center;
   }
-  
+
   &__error {
     font-size: 12px;
     color: var(--ar-color-danger, #f56c6c);

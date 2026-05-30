@@ -21,7 +21,7 @@ const handleRemoveItem = (id: string) => {
     message: '确定要删除该商品吗？'
   }).then(() => {
     cartStore.removeItem(id)
-  }).catch(() => {})
+  }).catch((err) => { console.error('删除商品操作失败:', err) })
 }
 
 const handleCheckout = () => {

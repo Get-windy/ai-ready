@@ -76,7 +76,7 @@ const handleConfirmReceive = async () => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('收货确认失败:', err) })
 }
 
 const handleClearItems = () => {
@@ -85,7 +85,7 @@ const handleClearItems = () => {
     message: '确定清空已扫描的商品列表？'
   }).then(() => {
     scannedItems.value = []
-  }).catch(() => {})
+  }).catch((err) => { console.error('清空列表操作失败:', err) })
 }
 
 const goBack = () => {

@@ -1,158 +1,183 @@
-// AI-Ready ERP 组件库 CSS 变量定义
-// 颜色系统 - 主色调
+/* ============================================================
+ * AI-Ready UI Component Library — Design Tokens / CSS Variables
+ * ============================================================ */
+
 :root {
-  // 品牌色
+  /* ── 主色调 ─────────────────────────────────────────── */
   --ar-color-primary: #409eff;
   --ar-color-primary-light-3: rgba(64, 158, 255, 0.3);
   --ar-color-primary-light-5: rgba(64, 158, 255, 0.5);
   --ar-color-primary-light-7: rgba(64, 158, 255, 0.7);
   --ar-color-primary-light-9: rgba(64, 158, 255, 0.9);
   --ar-color-primary-dark-2: #3a8ee6;
-  
-  // 成功色
-  --ar-color-success: #67c23a;
-  --ar-color-success-light: #85ce61;
-  --ar-color-success-lighter: #f0f9eb;
-  --ar-color-success-dark: #5daf34;
-  
-  // 警告色
-  --ar-color-warning: #e6a23c;
-  --ar-color-warning-light: #ebb563;
-  --ar-color-warning-lighter: #fdf6ec;
-  --ar-color-warning-dark: #cf9236;
-  
-  // 危险色
-  --ar-color-danger: #f56c6c;
-  --ar-color-danger-light: #f78989;
-  --ar-color-danger-lighter: #fef0f0;
-  --ar-color-danger-dark: #dd6161;
-  
-  // 信息色
-  --ar-color-info: #909399;
-  --ar-color-info-light: #a6a9ad;
-  --ar-color-info-lighter: #f4f4f5;
-  --ar-color-info-dark: #82848a;
-  
-  // 中性色
-  --ar-color-black: #000000;
   --ar-color-white: #ffffff;
-  --ar-color-transparent: transparent;
-  
-  // 文本色
+
+  --ar-color-success: #67c23a;
+  --ar-color-success-light-3: rgba(103, 194, 58, 0.3);
+  --ar-color-success-light-5: rgba(103, 194, 58, 0.5);
+  --ar-color-success-dark-2: #5daf34;
+
+  --ar-color-warning: #e6a23c;
+  --ar-color-warning-light-3: rgba(230, 162, 60, 0.3);
+  --ar-color-warning-light-5: rgba(230, 162, 60, 0.5);
+  --ar-color-warning-dark-2: #cf9236;
+
+  --ar-color-danger: #f56c6c;
+  --ar-color-danger-light-3: rgba(245, 108, 108, 0.3);
+  --ar-color-danger-light-5: rgba(245, 108, 108, 0.5);
+  --ar-color-danger-dark-2: #dd6161;
+
+  --ar-color-info: #909399;
+  --ar-color-info-light-3: rgba(144, 147, 153, 0.3);
+  --ar-color-info-light-5: rgba(144, 147, 153, 0.5);
+  --ar-color-info-dark-2: #82848a;
+
+  /* ── 中性色 ─────────────────────────────────────────── */
+  --ar-bg-color: #ffffff;
+  --ar-bg-color-page: #f2f3f5;
+  --ar-bg-color-disabled: #f5f7fa;
+  --ar-fill-color: #f0f2f5;
+  --ar-fill-color-light: #f5f7fa;
+
   --ar-text-color-primary: #303133;
   --ar-text-color-regular: #606266;
   --ar-text-color-secondary: #909399;
   --ar-text-color-placeholder: #c0c4cc;
   --ar-text-color-disabled: #c0c4cc;
-  
-  // 边框色
+
   --ar-border-color-base: #dcdfe6;
   --ar-border-color-light: #e4e7ed;
   --ar-border-color-lighter: #ebeef5;
   --ar-border-color-extra-light: #f2f6fc;
-  --ar-border-color-dark: #d4d7de;
-  --ar-border-color-darker: #cdd0d6;
-  
-  // 背景色
-  --ar-bg-color: #ffffff;
-  --ar-bg-color-page: #f2f3f5;
-  --ar-bg-color-overlay: #ffffff;
-  --ar-bg-color-disabled: #f5f7fa;
-  
-  // 填充色
-  --ar-fill-color: #f0f2f5;
-  --ar-fill-color-light: #f5f7fa;
-  --ar-fill-color-lighter: #fafafa;
-  --ar-fill-color-extra-light: #fafcff;
-  --ar-fill-color-dark: #ebedf0;
-  --ar-fill-color-darker: #e6e8eb;
-  --ar-fill-color-blank: #ffffff;
-  
-  // 阴影
-  --ar-box-shadow-base: 0 2px 4px rgba(0, 0, 0, .12), 0 0 6px rgba(0, 0, 0, .04);
-  --ar-box-shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  --ar-box-shadow-medium: 0 4px 16px rgba(0, 0, 0, .1);
-  --ar-box-shadow-dark: 0 6px 20px rgba(0, 0, 0, .15);
-  
-  // 字体
-  --ar-font-family: 'PingFang SC', 'Helvetica Neue', Arial, 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --ar-font-size-extra-large: 20px;
-  --ar-font-size-large: 18px;
-  --ar-font-size-medium: 16px;
-  --ar-font-size-base: 14px;
-  --ar-font-size-small: 13px;
+
+  /* ── 字体 ───────────────────────────────────────────── */
+  --ar-font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
   --ar-font-size-extra-small: 12px;
+  --ar-font-size-small: 13px;
+  --ar-font-size-base: 14px;
+  --ar-font-size-medium: 16px;
+  --ar-font-size-large: 18px;
   --ar-font-weight-primary: 500;
-  --ar-font-weight-secondary: 100;
-  --ar-font-line-height-primary: 24px;
-  --ar-font-line-height-secondary: 16px;
-  
-  // 圆角
-  --ar-border-radius-base: 4px;
+
+  /* ── 圆角 ───────────────────────────────────────────── */
   --ar-border-radius-small: 2px;
+  --ar-border-radius-base: 4px;
   --ar-border-radius-round: 20px;
   --ar-border-radius-circle: 50%;
-  
-  // 间距
+
+  /* ── 间距 ───────────────────────────────────────────── */
   --ar-spacing-xs: 4px;
   --ar-spacing-sm: 8px;
   --ar-spacing-md: 12px;
   --ar-spacing-lg: 16px;
-  --ar-spacing-xl: 20px;
-  --ar-spacing-xxl: 24px;
-  
-  // 动画
-  --ar-transition-duration-fast: 0.1s;
-  --ar-transition-duration: 0.2s;
-  --ar-transition-duration-slow: 0.3s;
-  --ar-transition-function-ease-in-out-bezier: cubic-bezier(.645, .045, .355, 1);
-  --ar-transition-function-fast-bezier: cubic-bezier(.23, 1, .32, 1);
-  
-  // Z-Index 层级
+  --ar-spacing-xl: 24px;
+
+  /* ── 阴影 ───────────────────────────────────────────── */
+  --ar-box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  --ar-box-shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+
+  /* ── 层级 ───────────────────────────────────────────── */
   --ar-index-normal: 1;
   --ar-index-top: 1000;
-  --ar-index-popper: 2000;
-  --ar-index-dialog: 3000;
   --ar-index-modal: 4000;
-  --ar-index-toast: 5000;
-  
-  // 组件特定变量 - Button
-  --ar-button-font-weight: 500;
-  --ar-button-border-radius: var(--ar-border-radius-base);
-  --ar-button-padding-horizontal: 16px;
-  --ar-button-padding-vertical: 8px;
-  
-  // Input
-  --ar-input-height: 36px;
-  --ar-input-font-size: var(--ar-font-size-base);
-  --ar-input-border-radius: var(--ar-border-radius-base);
-  --ar-input-padding-horizontal: 12px;
-  
-  // Table
-  --ar-table-border-color: var(--ar-border-color-light);
-  --ar-table-header-bg-color: var(--ar-bg-color-page);
-  --ar-table-row-hover-bg-color: var(--ar-fill-color-light);
-  
-  // Dialog
-  --ar-dialog-bg-color: var(--ar-bg-color-overlay);
-  --ar-dialog-box-shadow: var(--ar-box-shadow-medium);
-  --ar-dialog-border-radius: var(--ar-border-radius-base);
-  
-  // Layout
-  --ar-layout-header-height: 60px;
-  --ar-layout-sidebar-width: 240px;
-  --ar-layout-sidebar-collapsed-width: 64px;
+
+  /* ── 过渡 ───────────────────────────────────────────── */
+  --ar-transition-duration: 0.2s;
+
+  /* ── 按钮特定变量 ───────────────────────────────────── */
+  --ar-button-default-color: #606266;
+  --ar-button-default-bg: #fff;
+  --ar-button-default-border: #dcdfe6;
+  --ar-button-default-hover-color: #409eff;
+  --ar-button-default-hover-bg: #fff;
+  --ar-button-default-hover-border: #c6e2ff;
+  --ar-button-default-active-color: #3a8ee6;
+  --ar-button-default-active-bg: #fff;
+  --ar-button-default-active-border: #3a8ee6;
+
+  --ar-button-primary-color: #fff;
+  --ar-button-primary-bg: #409eff;
+  --ar-button-primary-border: #409eff;
+  --ar-button-primary-hover-bg: #66b1ff;
+  --ar-button-primary-hover-border: #66b1ff;
+  --ar-button-primary-active-bg: #3a8ee6;
+  --ar-button-primary-active-border: #3a8ee6;
+
+  --ar-button-success-color: #fff;
+  --ar-button-success-bg: #67c23a;
+  --ar-button-success-border: #67c23a;
+  --ar-button-success-hover-bg: #85ce61;
+  --ar-button-success-hover-border: #85ce61;
+  --ar-button-success-active-bg: #5daf34;
+  --ar-button-success-active-border: #5daf34;
+
+  --ar-button-warning-color: #fff;
+  --ar-button-warning-bg: #e6a23c;
+  --ar-button-warning-border: #e6a23c;
+  --ar-button-warning-hover-bg: #ebb563;
+  --ar-button-warning-hover-border: #ebb563;
+  --ar-button-warning-active-bg: #cf9236;
+  --ar-button-warning-active-border: #cf9236;
+
+  --ar-button-danger-color: #fff;
+  --ar-button-danger-bg: #f56c6c;
+  --ar-button-danger-border: #f56c6c;
+  --ar-button-danger-hover-bg: #f78989;
+  --ar-button-danger-hover-border: #f78989;
+  --ar-button-danger-active-bg: #dd6161;
+  --ar-button-danger-active-border: #dd6161;
+
+  --ar-button-info-color: #fff;
+  --ar-button-info-bg: #909399;
+  --ar-button-info-border: #909399;
+  --ar-button-info-hover-bg: #a6a9ad;
+  --ar-button-info-hover-border: #a6a9ad;
+  --ar-button-info-active-bg: #82848a;
+  --ar-button-info-active-border: #82848a;
 }
 
-// 深色主题变量
-[data-theme="dark"] {
+/* ── 深色主题 ─────────────────────────────────────────── */
+[data-theme='dark'],
+.dark {
   --ar-bg-color: #141414;
-  --ar-bg-color-page: #000000;
-  --ar-bg-color-overlay: #1d1d1d;
-  --ar-text-color-primary: #e5e5e5;
-  --ar-text-color-regular: #a8a8a8;
-  --ar-border-color-base: #434343;
-  --ar-border-color-light: #303030;
+  --ar-bg-color-page: #0a0a0a;
+  --ar-bg-color-disabled: #262626;
   --ar-fill-color: #262626;
-  --ar-fill-color-light: #1f1f1f;
+  --ar-fill-color-light: #2a2a2b;
+
+  --ar-text-color-primary: #e5e5e5;
+  --ar-text-color-regular: #a9a9a9;
+  --ar-text-color-secondary: #8c8c8c;
+  --ar-text-color-placeholder: #5c5c5c;
+  --ar-text-color-disabled: #5c5c5c;
+
+  --ar-border-color-base: #434343;
+  --ar-border-color-light: #3a3a3a;
+  --ar-border-color-lighter: #333333;
+  --ar-border-color-extra-light: #2a2a2b;
+
+  --ar-color-primary: #1668dc;
+  --ar-color-primary-dark-2: #1356b5;
+  --ar-color-success: #49aa19;
+  --ar-color-success-dark-2: #3d8e15;
+  --ar-color-warning: #d89614;
+  --ar-color-warning-dark-2: #b87d11;
+  --ar-color-danger: #dc4446;
+  --ar-color-danger-dark-2: #b93a3c;
+  --ar-color-info: #595959;
+  --ar-color-info-dark-2: #4a4a4a;
+
+  --ar-box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.24), 0 0 6px rgba(0, 0, 0, 0.12);
+  --ar-box-shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.24);
+
+  /* 按钮颜色覆盖 */
+  --ar-button-default-color: #a9a9a9;
+  --ar-button-default-bg: #262626;
+  --ar-button-default-border: #434343;
+  --ar-button-default-hover-color: #1668dc;
+  --ar-button-default-hover-bg: #262626;
+  --ar-button-default-hover-border: #1668dc;
+  --ar-button-default-active-color: #1356b5;
+  --ar-button-default-active-bg: #262626;
+  --ar-button-default-active-border: #1356b5;
 }

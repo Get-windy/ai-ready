@@ -115,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { CanvasBoard, FlowNode, ConnectionManager, NodeLibrary } from '@/components/Workflow/Canvas'
 import type { CanvasState, CanvasConfig, NodePosition } from '@/types/workflow/canvas'
@@ -492,9 +492,9 @@ function handleConnectionContextMenu(connectionId: string, event: MouseEvent): v
 }
 
 /**
- * 键盘事件
+ * 键盘事件处理（在 onMounted 注册，onUnmounted 清理）
  */
-document.addEventListener('keydown', (event) => {
+function handleCanvasKeydown(event: KeyboardEvent) {
   // Delete键删除选中节点或连线
   if (event.key === 'Delete') {
     if (selectedNodeId.value) {
@@ -517,6 +517,14 @@ document.addEventListener('keydown', (event) => {
   if (event.ctrlKey && event.key === 'z') {
     message.info('撤销功能暂未实现')
   }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleCanvasKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleCanvasKeydown)
 })
 
 /**
@@ -527,14 +535,14 @@ document.addEventListener('keydown', (event) => {
  * 处理节点库节点拖拽开始
  */
 function handleLibraryNodeDragStart(nodeType: NodeType, event: DragEvent): void {
-  console.log('节点库拖拽开始:', nodeType)
+  // 节点库拖拽开始
 }
 
 /**
  * 处理节点库节点拖拽结束
  */
 function handleLibraryNodeDragEnd(): void {
-  console.log('节点库拖拽结束')
+  // 节点库拖拽结束
 }
 
 /**

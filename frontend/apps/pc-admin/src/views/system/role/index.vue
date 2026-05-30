@@ -101,6 +101,7 @@
           <a-space>
             <a-button
               type="primary"
+              :loading="submittingLoading"
               @click="handleAdd"
             >
               <template #icon>
@@ -162,18 +163,14 @@
               >
                 菜单
               </a-button>
-              <a-popconfirm
-                title="确定要删除此角色吗？"
-                @confirm="handleDelete(record)"
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
               >
-                <a-button
-                  type="link"
-                  size="small"
-                  danger
-                >
-                  删除
-                </a-button>
-              </a-popconfirm>
+                删除
+              </a-button>
             </a-space>
           </template>
         </template>
@@ -184,7 +181,7 @@
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
-      :confirm-loading="modalLoading"
+      :confirm-loading="submittingLoading"
       width="600px"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
@@ -317,7 +314,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 import {
   SearchOutlined,
@@ -325,6 +322,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons-vue'
 import { roleApi, type RoleInfo } from '@/api/role'
+import { useSubmitLock } from '@/composables'
 
 // 搜索表单
 const searchForm = reactive({
@@ -360,7 +358,7 @@ const columns: TableProps['columns'] = [
 
 // 弹窗相关
 const modalVisible = ref(false)
-const modalLoading = ref(false)
+const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
 const modalTitle = computed(() => isEdit.value ? '编辑角色' : '新增角色')
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
@@ -468,23 +466,25 @@ const handleEdit = (record: RoleInfo) => {
 // 提交表单
 const handleModalOk = async () => {
   try {
-    await formRef.value?.validate()
-    modalLoading.value = true
-    
-    if (isEdit.value) {
-      await roleApi.update(formState.id, formState)
-      message.success('更新成功')
-    } else {
-      await roleApi.create(formState)
-      message.success('创建成功')
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+
+      if (isEdit.value) {
+        await roleApi.update(formState.id, formState)
+        message.success('更新成功')
+      } else {
+        await roleApi.create(formState)
+        message.success('创建成功')
+      }
+
+      modalVisible.value = false
+      fetchData()
+    })
+    void result
+  } catch (error: any) {
+    if (error) {
+      message.error(error?.message || '操作失败')
     }
-    
-    modalVisible.value = false
-    fetchData()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    modalLoading.value = false
   }
 }
 
@@ -494,14 +494,24 @@ const handleModalCancel = () => {
 }
 
 // 删除角色
-const handleDelete = async (record: RoleInfo) => {
-  try {
-    await roleApi.delete(record.id)
-    message.success('删除成功')
-    fetchData()
-  } catch (error: any) {
-    message.error(error.message || '删除失败')
-  }
+const handleDeleteConfirm = (record: RoleInfo) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除角色 "${record.roleName}" 吗？此操作不可撤销。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      try {
+        await roleApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error.message || '删除失败')
+      }
+    }
+  })
 }
 
 // 状态切换

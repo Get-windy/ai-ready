@@ -2,182 +2,126 @@
   <div class="batch-list-container">
     <!-- 搜索和筛选区域 -->
     <div class="batch-search-area">
-      <el-row :gutter="20" class="mb-4">
-        <el-col :span="6">
-          <el-input
-            v-model="searchParams.batchNo"
+      <a-row :gutter="20" class="mb-4">
+        <a-col :span="6">
+          <a-input
+            v-model:value="searchParams.batchNo"
             placeholder="批次号"
-            clearable
+            allow-clear
             @clear="handleSearch"
-            @keyup.enter="handleSearch"
+            @press-enter="handleSearch"
           >
             <template #prefix>
-              <el-icon><Search /></el-icon>
+              <SearchOutlined />
             </template>
-          </el-input>
-        </el-col>
-        <el-col :span="6">
-          <el-input
-            v-model="searchParams.productName"
+          </a-input>
+        </a-col>
+        <a-col :span="6">
+          <a-input
+            v-model:value="searchParams.productName"
             placeholder="产品名称"
-            clearable
+            allow-clear
             @clear="handleSearch"
-            @keyup.enter="handleSearch"
+            @press-enter="handleSearch"
           >
             <template #prefix>
-              <el-icon><Goods /></el-icon>
+              <AppstoreOutlined />
             </template>
-          </el-input>
-        </el-col>
-        <el-col :span="6">
-          <el-date-picker
-            v-model="searchParams.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+          </a-input>
+        </a-col>
+        <a-col :span="6">
+          <a-range-picker
+            v-model:value="searchParams.dateRange"
+            :placeholder="['开始日期', '结束日期']"
             @change="handleSearch"
             style="width: 100%"
           />
-        </el-col>
-        <el-col :span="6" class="flex items-center">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon class="mr-1"><Search /></el-icon>搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon class="mr-1"><Refresh /></el-icon>重置
-          </el-button>
-          <el-button type="success" @click="handleExport">
-            <el-icon class="mr-1"><Download /></el-icon>导出
-          </el-button>
-        </el-col>
-      </el-row>
+        </a-col>
+        <a-col :span="6" class="flex items-center">
+          <a-button type="primary" @click="handleSearch">
+            <template #icon><SearchOutlined /></template>搜索
+          </a-button>
+          <a-button @click="handleReset" style="margin-left: 8px">
+            <template #icon><ReloadOutlined /></template>重置
+          </a-button>
+          <a-button @click="handleExport" style="margin-left: 8px">
+            <template #icon><DownloadOutlined /></template>导出
+          </a-button>
+        </a-col>
+      </a-row>
     </div>
 
     <!-- 批次列表表格 -->
     <div class="batch-table-area">
-      <el-table
-        :data="batchList"
-        v-loading="loading"
-        stripe
-        border
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
+      <a-table
+        :columns="columns"
+        :data-source="batchList"
+        :loading="loading"
+        :row-selection="rowSelection"
+        :pagination="tablePagination"
+        row-key="id"
+        bordered
+        @change="handleTableChange"
         @row-click="handleRowClick"
-        highlight-current-row
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="batchNo" label="批次号" width="180" sortable>
-          <template #default="{ row }">
-            <el-tag type="info" size="small">{{ row.batchNo }}</el-tag>
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'batchNo'">
+            <a-tag>{{ record.batchNo }}</a-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="productName" label="产品名称" width="180" />
-        <el-table-column prop="productCode" label="产品编码" width="150" />
-        <el-table-column prop="quantity" label="数量" width="120" align="right">
-          <template #default="{ row }">
-            <span class="font-medium">{{ formatNumber(row.quantity) }}</span>
+          <template v-else-if="column.key === 'quantity'">
+            <span class="font-medium">{{ formatNumber(record.quantity) }}</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="unit" label="单位" width="80" />
-        <el-table-column prop="productionDate" label="生产日期" width="140" sortable>
-          <template #default="{ row }">
-            {{ formatDate(row.productionDate) }}
+          <template v-else-if="column.key === 'productionDate'">
+            {{ formatDate(record.productionDate) }}
           </template>
-        </el-table-column>
-        <el-table-column prop="expiryDate" label="有效期至" width="140" sortable>
-          <template #default="{ row }">
-            <span :class="{'text-red-500 font-medium': isExpiring(row.expiryDate)}">
-              {{ formatDate(row.expiryDate) }}
+          <template v-else-if="column.key === 'expiryDate'">
+            <span :class="{ 'text-red-500 font-medium': isExpiring(record.expiryDate) }">
+              {{ formatDate(record.expiryDate) }}
             </span>
           </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="120" filterable>
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
           </template>
-        </el-table-column>
-        <el-table-column prop="warehouse" label="仓库" width="150" />
-        <el-table-column prop="location" label="库位" width="120" />
-        <el-table-column prop="supplier" label="供应商" width="150" />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              @click.stop="handleViewDetail(row)"
-              link
-            >
-              <el-icon><View /></el-icon>详情
-            </el-button>
-            <el-button
-              type="warning"
-              size="small"
-              @click.stop="handleEdit(row)"
-              link
-            >
-              <el-icon><Edit /></el-icon>编辑
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click.stop="handleDelete(row)"
-              link
-            >
-              <el-icon><Delete /></el-icon>删除
-            </el-button>
+          <template v-else-if="column.key === 'action'">
+            <a-button type="link" size="small" @click.stop="handleViewDetail(record)">
+              <template #icon><EyeOutlined /></template>详情
+            </a-button>
+            <a-button type="link" size="small" @click.stop="handleEdit(record)">
+              <template #icon><EditOutlined /></template>编辑
+            </a-button>
+            <a-button type="link" danger size="small" @click.stop="handleDelete(record)">
+              <template #icon><DeleteOutlined /></template>删除
+            </a-button>
           </template>
-        </el-table-column>
-      </el-table>
+        </template>
+      </a-table>
 
-      <!-- 分页 -->
-      <div class="mt-4 flex justify-between items-center">
-        <div class="selected-info">
-          已选择 {{ selectionCount }} 项
-          <el-button
-            v-if="selectionCount > 0"
-            type="danger"
-            size="small"
-            @click="handleBatchDelete"
-            class="ml-2"
-          >
-            批量删除
-          </el-button>
-        </div>
-        <el-pagination
-          v-model:current-page="pagination.currentPage"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
+      <!-- 批量操作 & 分页已集成在 a-table 中 -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
 import {
-  Search,
-  Goods,
-  Refresh,
-  Download,
-  View,
-  Edit,
-  Delete
-} from '@element-plus/icons-vue'
+  SearchOutlined,
+  AppstoreOutlined,
+  ReloadOutlined,
+  DownloadOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined
+} from '@ant-design/icons-vue'
 import type { BatchItem, BatchStatus, SearchParams } from './types'
 import { formatDate, formatNumber } from '@/utils/formatters'
 
 // 响应式数据
 const loading = ref(false)
 const batchList = ref<BatchItem[]>([])
-const selectedRows = ref<BatchItem[]>([])
+const selectedRowKeys = ref<(string | number)[]>([])
 
 // 搜索参数
 const searchParams = reactive<SearchParams>({
@@ -190,24 +134,56 @@ const searchParams = reactive<SearchParams>({
 
 // 分页参数
 const pagination = reactive({
-  currentPage: 1,
+  current: 1,
   pageSize: 20,
   total: 0
 })
 
 // 计算属性
-const selectionCount = computed(() => selectedRows.value.length)
+const selectionCount = computed(() => selectedRowKeys.value.length)
+
+// 表格列配置
+const columns = [
+  { title: '批次号', dataIndex: 'batchNo', key: 'batchNo', width: 180, sorter: true },
+  { title: '产品名称', dataIndex: 'productName', key: 'productName', width: 180 },
+  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 150 },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 120, align: 'right' as const },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
+  { title: '生产日期', dataIndex: 'productionDate', key: 'productionDate', width: 140, sorter: true },
+  { title: '有效期至', dataIndex: 'expiryDate', key: 'expiryDate', width: 140, sorter: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+  { title: '仓库', dataIndex: 'warehouse', key: 'warehouse', width: 150 },
+  { title: '库位', dataIndex: 'location', key: 'location', width: 120 },
+  { title: '供应商', dataIndex: 'supplier', key: 'supplier', width: 150 },
+  { title: '操作', key: 'action', width: 220, fixed: 'right' as const }
+]
+
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: (string | number)[], rows: BatchItem[]) => {
+    selectedRowKeys.value = keys
+  }
+}))
+
+const tablePagination = computed(() => ({
+  current: pagination.current,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  showSizeChanger: true,
+  showTotal: (total: number) => `共 ${total} 条`,
+  pageSizeOptions: ['10', '20', '50', '100']
+}))
 
 // 状态映射
-const statusMap: Record<BatchStatus, { text: string; type: string }> = {
-  'normal': { text: '正常', type: 'success' },
-  'warning': { text: '预警', type: 'warning' },
-  'expired': { text: '过期', type: 'danger' },
-  'locked': { text: '锁定', type: 'info' },
-  'out_of_stock': { text: '缺货', type: '' }
+const statusMap: Record<BatchStatus, { text: string; color: string }> = {
+  'normal': { text: '正常', color: 'green' },
+  'warning': { text: '预警', color: 'orange' },
+  'expired': { text: '过期', color: 'red' },
+  'locked': { text: '锁定', color: 'blue' },
+  'out_of_stock': { text: '缺货', color: 'default' }
 }
 
-// 方法
+// 搜索
 const handleSearch = async () => {
   loading.value = true
   try {
@@ -215,7 +191,7 @@ const handleSearch = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pageNum: pagination.currentPage,
+        pageNum: pagination.current,
         pageSize: pagination.pageSize,
         batchNo: searchParams.batchNo,
         productName: searchParams.productName,
@@ -248,21 +224,22 @@ const handleReset = () => {
   searchParams.dateRange = []
   searchParams.status = ''
   searchParams.warehouse = ''
+  pagination.current = 1
   handleSearch()
 }
 
 const handleExport = () => {
-  // 导出逻辑
-  console.log('导出批次数据')
+  // TODO: 实现导出批次数据功能
 }
 
-const handleSelectionChange = (rows: BatchItem[]) => {
-  selectedRows.value = rows
+const handleTableChange = (pag: any) => {
+  pagination.current = pag.current
+  pagination.pageSize = pag.pageSize
+  handleSearch()
 }
 
-const handleRowClick = (row: BatchItem) => {
-  console.log('点击行:', row)
-  emit('row-click', row)
+const handleRowClick = (record: BatchItem) => {
+  emit('row-click', record)
 }
 
 const handleViewDetail = (row: BatchItem) => {
@@ -273,73 +250,44 @@ const handleEdit = (row: BatchItem) => {
   emit('edit', row)
 }
 
-const handleDelete = async (row: BatchItem) => {
-  try {
-    // 确认删除
-    await ElMessageBox.confirm(
-      `确定删除批次 ${row.batchNo} 吗？`,
-      '警告',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    // 调用删除API
-    // await batchApi.delete(row.id)
-    ElMessage.success('删除成功')
-    handleSearch()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败')
-    }
-  }
+const handleDelete = (row: BatchItem) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定删除批次 ${row.batchNo} 吗？`,
+    okText: '确定',
+    cancelText: '取消',
+    okType: 'danger',
+    onOk: async () => {
+      message.success('删除成功')
+      handleSearch()
+    },
+    onCancel: () => { /* noop */ }
+  })
 }
 
-const handleBatchDelete = async () => {
-  if (selectedRows.value.length === 0) {
-    ElMessage.warning('请先选择要删除的批次')
+const handleBatchDelete = () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要删除的批次')
     return
   }
-  
-  try {
-    const batchNos = selectedRows.value.map(row => row.batchNo).join(', ')
-    await ElMessageBox.confirm(
-      `确定删除选中的 ${selectedRows.value.length} 个批次吗？\n${batchNos}`,
-      '警告',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    // 批量删除API调用
-    // const ids = selectedRows.value.map(row => row.id)
-    // await batchApi.batchDelete(ids)
-    ElMessage.success('批量删除成功')
-    selectedRows.value = []
-    handleSearch()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('批量删除失败')
+
+  const selectedCount = selectedRowKeys.value.length
+  Modal.confirm({
+    title: '确认批量删除',
+    content: `确定删除选中的 ${selectedCount} 个批次吗？`,
+    okText: '确定',
+    cancelText: '取消',
+    okType: 'danger',
+    onOk: async () => {
+      message.success('批量删除成功')
+      selectedRowKeys.value = []
+      handleSearch()
     }
-  }
+  })
 }
 
-const handleSizeChange = (size: number) => {
-  pagination.pageSize = size
-  handleSearch()
-}
-
-const handleCurrentChange = (page: number) => {
-  pagination.currentPage = page
-  handleSearch()
-}
-
-const getStatusType = (status: BatchStatus) => {
-  return statusMap[status]?.type || ''
+const getStatusColor = (status: BatchStatus) => {
+  return statusMap[status]?.color || 'default'
 }
 
 const getStatusText = (status: BatchStatus) => {
@@ -351,29 +299,6 @@ const isExpiring = (expiryDate: string) => {
   const now = new Date()
   const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 3600 * 24))
   return diffDays <= 30 && diffDays > 0
-}
-
-// 模拟数据生成
-const generateMockData = (): BatchItem[] => {
-  const products = ['维生素C片', '阿莫西林胶囊', '布洛芬缓释片', '头孢克肟片', '板蓝根颗粒']
-  const warehouses = ['原料仓库', '成品仓库', '冷库', '危险品仓库']
-  const suppliers = ['上海制药', '北京医药', '广州药业', '成都生物']
-  
-  return Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    batchNo: `BATCH${String(i + 1001).padStart(4, '0')}`,
-    productName: products[i % products.length],
-    productCode: `PROD${String(i + 1000).padStart(4, '0')}`,
-    quantity: Math.floor(Math.random() * 10000) + 1000,
-    unit: '盒',
-    productionDate: new Date(Date.now() - Math.random() * 365 * 24 * 3600 * 1000).toISOString(),
-    expiryDate: new Date(Date.now() + Math.random() * 365 * 24 * 3600 * 1000).toISOString(),
-    status: ['normal', 'warning', 'expired', 'locked', 'out_of_stock'][i % 5] as BatchStatus,
-    warehouse: warehouses[i % warehouses.length],
-    location: `A${Math.floor(i / 5) + 1}-${(i % 5) + 1}`,
-    supplier: suppliers[i % suppliers.length],
-    remark: `批次备注 ${i + 1}`
-  }))
 }
 
 // 事件定义
@@ -394,19 +319,19 @@ onMounted(() => {
   padding: 20px;
   background: #fff;
   border-radius: 8px;
-  
+
   .batch-search-area {
     margin-bottom: 20px;
     padding: 16px;
     background: #f8f9fa;
     border-radius: 6px;
-    
+
     .flex {
       display: flex;
       align-items: center;
     }
   }
-  
+
   .batch-table-area {
     .selected-info {
       color: #666;
@@ -437,12 +362,5 @@ onMounted(() => {
 
 .font-medium {
   font-weight: 500;
-}
-
-.el-table {
-  :deep(.el-table__row:hover) {
-    cursor: pointer;
-    background-color: #f5f7fa;
-  }
 }
 </style>

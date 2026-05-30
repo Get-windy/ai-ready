@@ -32,6 +32,7 @@ export default {
     dict: '字典管理',
     log: '操作日志',
     profile: '个人中心',
+    logout: '退出登录',
   },
   
   // 操作按钮
@@ -561,5 +562,28 @@ export default {
     light: '浅色',
     dark: '深色',
     auto: '自动',
+  },
+
+  // 无障碍访问 (Accessibility)
+  a11y: {
+    skipToContent: '跳到主要内容',
+    expandSidebar: '展开侧边栏',
+    collapseSidebar: '收起侧边栏',
+    openMenu: '打开菜单',
+    closeMenu: '关闭菜单',
+    userMenu: '用户菜单',
+    loading: '正在加载',
+    loaded: '加载完成',
+    errorOccurred: '发生错误',
+    formError: '表单验证错误',
+    required: '必填',
+    refresh: '刷新数据',
+    close: '关闭',
+    dialog: '对话框',
+    notification: '通知',
+    search: '搜索',
+    nextPage: '下一页',
+    previousPage: '上一页',
+    openInNew: '在新窗口打开',
   },
 }

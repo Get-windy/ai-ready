@@ -89,7 +89,7 @@ const handleSubmit = async () => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('签收操作失败:', err) })
 }
 </script>
 

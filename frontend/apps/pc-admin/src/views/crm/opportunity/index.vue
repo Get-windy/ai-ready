@@ -127,9 +127,7 @@
                   <a @click="handleEdit(record)">编辑</a>
                   <a @click="handleMove(record)">移动阶段</a>
                   <a @click="handleConvert(record)" v-if="record.stage === 'closing'">转订单</a>
-                  <a-popconfirm title="确定要关闭此商机吗？" @confirm="handleClose(record)">
-                    <a class="danger-link">关闭</a>
-                  </a-popconfirm>
+                  <a @click="handleCloseConfirm(record)" class="danger-link">关闭</a>
                 </a-space>
               </template>
             </template>
@@ -323,7 +321,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 import * as echarts from 'echarts'
@@ -661,12 +659,32 @@ const handleMoveConfirm = () => {
 }
 
 const handleConvert = (record: any) => {
-  message.info('转订单功能开发中')
+  Modal.confirm({
+    title: '确认转订单',
+    content: `确定要将商机 "${record.name}" 转为订单吗？`,
+    okText: '确认转换',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('商机已成功转为订单')
+      loadTableData()
+    }
+  })
 }
 
-const handleClose = (record: any) => {
-  message.success('商机已关闭')
-  loadTableData()
+const handleCloseConfirm = (record: any) => {
+  Modal.confirm({
+    title: '确认关闭',
+    content: `确定要关闭商机 "${record.name}" 吗？此操作不可撤销。`,
+    okText: '确认关闭',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('商机已关闭')
+      loadTableData()
+    }
+  })
 }
 
 const handleSubmit = async () => {

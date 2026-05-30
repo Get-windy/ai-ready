@@ -49,7 +49,7 @@ public class DataPermissionServiceImpl extends ServiceImpl<DataPermissionMapper,
             }
         }
 
-        dataPermission.setStatus(0);
+        dataPermission.setStatus(1); // 默认启用状态
         dataPermission.setCreateTime(LocalDateTime.now());
         dataPermission.setUpdateTime(LocalDateTime.now());
         dataPermission.setCreateBy(StpUtil.getLoginIdAsLong());
@@ -103,7 +103,7 @@ public class DataPermissionServiceImpl extends ServiceImpl<DataPermissionMapper,
     public List<DataPermission> getUserDataPermissions(Long userId) {
         LambdaQueryWrapper<DataPermission> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(DataPermission::getUserId, userId)
-               .eq(DataPermission::getStatus, 0); // 只获取启用的权限
+               .eq(DataPermission::getStatus, 1); // status=1启用
         return list(wrapper);
     }
 

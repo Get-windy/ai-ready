@@ -75,7 +75,7 @@ const handleAccept = async (order: DeliveryOrder) => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('接单操作失败:', err) })
 }
 
 const handleReject = async (order: DeliveryOrder) => {
@@ -91,7 +91,7 @@ const handleReject = async (order: DeliveryOrder) => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('拒单操作失败:', err) })
 }
 
 const handleStartDelivery = async (order: DeliveryOrder) => {

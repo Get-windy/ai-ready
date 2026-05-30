@@ -104,7 +104,7 @@ const handleSubmitOrder = async () => {
       closeToast()
       submitting.value = false
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('订单创建失败:', err) })
 }
 
 const handleSelectPayment = (method: string) => {

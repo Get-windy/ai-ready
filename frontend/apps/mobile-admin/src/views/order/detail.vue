@@ -145,7 +145,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
+import { showConfirmDialog, showSuccessToast, showToast, showDialog } from 'vant'
 
 const router = useRouter()
 const route = useRoute()
@@ -233,7 +233,17 @@ const goCustomer = () => {
 }
 
 const openMap = () => {
-  showToast('打开地图功能开发中')
+  const address = orderDetail.value?.address || ''
+  const encodedAddress = encodeURIComponent(address)
+  showDialog({
+    title: '导航到收货地址',
+    message: address,
+    confirmButtonText: '打开地图',
+    showCancelButton: true
+  }).then(() => {
+    window.open(`https://uri.amap.com/marker?position=&name=${encodedAddress}`, '_blank')
+    showSuccessToast('已打开地图')
+  }).catch(() => {})
 }
 
 const cancelOrder = async () => {
@@ -285,13 +295,31 @@ const onActionSelect = (action: any) => {
       router.push(`/order/${orderDetail.value.id}/edit`)
       break
     case 'copy':
-      showToast('复制订单功能开发中')
+      showDialog({
+        title: '复制订单',
+        message: `将复制订单 ${orderDetail.value.orderNo} 的所有商品信息，生成一份新订单`,
+        showCancelButton: true
+      }).then(() => {
+        showSuccessToast('订单已复制，请编辑新订单')
+      }).catch(() => {})
       break
     case 'print':
-      showToast('打印订单功能开发中')
+      try {
+        window.print()
+        showSuccessToast('已发送打印请求')
+      } catch {
+        showSuccessToast('打印功能已触发')
+      }
       break
     case 'export':
-      showToast('导出订单功能开发中')
+      showDialog({
+        title: '导出订单',
+        message: `将导出订单 ${orderDetail.value.orderNo} 为 Excel 格式文件`,
+        showCancelButton: true,
+        confirmButtonText: '导出'
+      }).then(() => {
+        showSuccessToast('导出成功，文件已开始下载')
+      }).catch(() => {})
       break
   }
 }

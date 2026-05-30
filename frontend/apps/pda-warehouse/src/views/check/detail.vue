@@ -77,7 +77,7 @@ const handleConfirmCheck = async () => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('盘点完成确认失败:', err) })
 }
 
 const handleReportDifference = async () => {

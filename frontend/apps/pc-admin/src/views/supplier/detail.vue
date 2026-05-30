@@ -1,84 +1,289 @@
+<template>
+  <DetailLayout
+    :breadcrumb-items="breadcrumbItems"
+    :title="supplier?.supplierName || ''"
+    :status="getStatusLabel(supplier?.cooperationStatus)"
+    :status-type="getStatusType(supplier?.cooperationStatus)"
+    :show-pager="true"
+    :current-index="currentIndex"
+    :total-count="totalCount"
+    :tabs="tabs"
+    :active-tab="activeTab"
+    :show-related-documents="false"
+    :show-activity-log="true"
+    :activity-logs="activityLogs"
+    :loading="loading"
+    :error="error"
+    @breadcrumb-click="handleBreadcrumbClick"
+    @prev="handlePrev"
+    @next="handleNext"
+    @tab-change="handleTabChange"
+  >
+    <template #header-extra>
+      <a-tag :color="getLevelColor(supplier?.supplierLevel)">
+        {{ supplier?.supplierLevel }}级供应商
+      </a-tag>
+    </template>
+
+    <template #actions>
+      <a-button type="primary" @click="handleEdit">编辑</a-button>
+      <a-button @click="handleEvaluate">绩效评估</a-button>
+      <a-button @click="handleAddPoints">增加积分</a-button>
+      <a-button @click="handleConsumePoints">消费积分</a-button>
+    </template>
+
+    <!-- 基本信息 Tab -->
+    <template #tab-basic>
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-descriptions :column="1" bordered size="small" title="基础信息">
+            <a-descriptions-item label="供应商编码">{{ supplier?.supplierCode }}</a-descriptions-item>
+            <a-descriptions-item label="供应商名称">{{ supplier?.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="简称">{{ supplier?.shortName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="供应商等级">
+              <a-tag :color="getLevelColor(supplier?.supplierLevel)">{{ supplier?.supplierLevel }}级</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="合作状态">
+              <a-tag :color="getStatusColor(supplier?.cooperationStatus)">
+                {{ getStatusLabel(supplier?.cooperationStatus) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="门户状态">
+              <a-tag :color="supplier?.portalStatus === 1 ? 'purple' : 'default'">
+                {{ supplier?.portalStatus === 1 ? '已激活' : supplier?.portalStatus === 2 ? '已禁用' : '未激活' }}
+              </a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-col>
+        <a-col :span="12">
+          <a-descriptions :column="1" bordered size="small" title="联系信息">
+            <a-descriptions-item label="联系人">{{ supplier?.contactPerson || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ supplier?.contactPhone || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="邮箱">{{ supplier?.email || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="地址">{{ supplier?.province }}{{ supplier?.city }} {{ supplier?.address || '-' }}</a-descriptions-item>
+          </a-descriptions>
+          <a-descriptions :column="1" bordered size="small" title="财务信息" style="margin-top: 16px">
+            <a-descriptions-item label="开户银行">{{ supplier?.bankName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="银行账号">{{ supplier?.bankAccount || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="税号">{{ supplier?.taxNumber || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24" style="margin-top: 16px">
+        <a-col :span="24">
+          <a-descriptions :column="1" bordered size="small" title="评分信息">
+            <a-descriptions-item label="综合评分">
+              <a-rate :value="Math.round((supplier?.comprehensiveScore || 0) / 20)" disabled allow-half style="font-size: 16px" />
+              <span style="margin-left: 8px; font-weight: 600">{{ formatScore(supplier?.comprehensiveScore) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="总积分">{{ supplier?.totalPoints || 0 }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ supplier?.createTime || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注">{{ supplier?.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </a-col>
+      </a-row>
+    </template>
+
+    <!-- 绩效记录 Tab -->
+    <template #tab-performance>
+      <a-table
+        :columns="performanceColumns"
+        :data-source="performances"
+        row-key="id"
+        :pagination="{ pageSize: 10 }"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'comprehensiveScore'">
+            <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 12px" />
+          </template>
+        </template>
+      </a-table>
+      <a-empty v-if="performances.length === 0" description="暂无绩效评估记录" />
+    </template>
+
+    <!-- 询价报价 Tab -->
+    <template #tab-inquiry>
+      <a-table
+        :columns="inquiryColumns"
+        :data-source="inquiries"
+        row-key="id"
+        :pagination="{ pageSize: 10 }"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'quotationStatus'">
+            <a-tag :color="getQuotationStatusColor(record.quotationStatus)">
+              {{ getQuotationStatusLabel(record.quotationStatus) }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'quotationAmount'">
+            ¥{{ record.quotationAmount?.toFixed(2) || '-' }}
+          </template>
+        </template>
+      </a-table>
+      <a-empty v-if="inquiries.length === 0" description="暂无询价记录" />
+    </template>
+
+    <!-- 积分记录 Tab -->
+    <template #tab-points>
+      <a-table
+        :columns="pointsColumns"
+        :data-source="pointsRecords"
+        row-key="id"
+        :pagination="{ pageSize: 10 }"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'changeAmount'">
+            <span :style="{ color: record.changeAmount > 0 ? '#07c160' : '#ff4d4f', fontWeight: 600 }">
+              {{ record.changeAmount > 0 ? '+' : '' }}{{ record.changeAmount }}
+            </span>
+          </template>
+          <template v-else-if="column.key === 'balance'">
+            <span style="font-weight: 600">{{ record.balance }}</span>
+          </template>
+        </template>
+      </a-table>
+      <a-empty v-if="pointsRecords.length === 0" description="暂无积分记录" />
+    </template>
+  </DetailLayout>
+
+  <a-modal
+    v-model:open="addPointsVisible"
+    title="增加积分"
+    width="460px"
+    @ok="handleAddPointsOk"
+    @cancel="addPointsVisible = false"
+    :confirm-loading="addPointsSubmitting"
+  >
+    <a-form :model="addPointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
+      <a-form-item label="增加积分" required>
+        <a-input-number v-model:value="addPointsForm.points" :min="1" style="width: 100%" placeholder="请输入增加积分数" />
+      </a-form-item>
+      <a-form-item label="原因" required>
+        <a-input v-model:value="addPointsForm.reason" placeholder="请输入积分增加原因" />
+      </a-form-item>
+      <a-form-item label="日期">
+        <a-date-picker v-model:value="addPointsForm.date" style="width: 100%" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
+
+  <a-modal
+    v-model:open="consumePointsVisible"
+    title="消费积分"
+    width="460px"
+    @ok="handleConsumePointsOk"
+    @cancel="consumePointsVisible = false"
+    :confirm-loading="consumePointsSubmitting"
+  >
+    <a-form :model="consumePointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+      <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
+      <a-form-item label="消费积分" required>
+        <a-input-number v-model:value="consumePointsForm.points" :min="1" :max="supplier?.totalPoints ?? 0" style="width: 100%" placeholder="请输入消费积分数" />
+      </a-form-item>
+      <a-form-item label="用途" required>
+        <a-input v-model:value="consumePointsForm.reason" placeholder="请输入积分消费用途" />
+      </a-form-item>
+      <a-form-item label="日期">
+        <a-date-picker v-model:value="consumePointsForm.date" style="width: 100%" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
+</template>
+
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { message, Modal } from 'ant-design-vue'
+import { DetailLayout } from '@ai-ready/components'
+import request from '@/utils/request'
+import { supplierApi, type Supplier } from '@/api/supplier'
 
 const router = useRouter()
 const route = useRoute()
-const supplierId = ref(route.params.id as string)
 
-interface SupplierDetail {
-  id: number
-  supplierCode: string
-  supplierName: string
-  shortName: string
-  supplierType: number
-  supplierLevel: string
-  cooperationStatus: number
-  contactPerson: string
-  contactPhone: string
-  email: string
-  address: string
-  province: string
-  city: string
-  bankName: string
-  bankAccount: string
-  taxNumber: string
-  comprehensiveScore: number
-  totalPoints: number
-  portalStatus: number
-  portalAccountId: string
-  createTime: string
-  updateTime: string
-  remark: string
-}
-
-interface PerformanceRecord {
-  id: number
-  supplierId: number
-  period: string
-  periodType: number
-  qualityScore: number
-  deliveryScore: number
-  priceScore: number
-  serviceScore: number
-  comprehensiveScore: number
-  evaluateTime: string
-  evaluator: string
-  remark: string
-}
-
-interface InquiryRecord {
-  id: number
-  inquiryNo: string
-  inquiryTitle: string
-  inquiryStatus: number
-  createTime: string
-  quotationAmount: number
-  quotationStatus: number
-}
-
-const supplier = ref<SupplierDetail | null>(null)
-const performances = ref<PerformanceRecord[]>([])
-const inquiries = ref<InquiryRecord[]>([])
-const pointsRecords = ref<any[]>([])
+const supplier = ref<Supplier | null>(null)
 const loading = ref(false)
+const error = ref<string | null>(null)
+const currentIndex = ref(1)
+const totalCount = ref(1)
 const activeTab = ref('basic')
 
-onMounted(async () => {
-  loadSupplierDetail()
-  loadPerformances()
-  loadInquiries()
-  loadPointsRecords()
+const addPointsVisible = ref(false)
+const addPointsSubmitting = ref(false)
+const addPointsForm = ref({ points: 0, reason: '', date: new Date().toISOString().slice(0, 10) })
+
+const consumePointsVisible = ref(false)
+const consumePointsSubmitting = ref(false)
+const consumePointsForm = ref({ points: 0, reason: '', date: new Date().toISOString().slice(0, 10) })
+
+const performances = ref<any[]>([])
+const inquiries = ref<any[]>([])
+const pointsRecords = ref<any[]>([])
+
+const breadcrumbItems = computed(() => [
+  { text: '供应商管理', path: '/supplier' },
+  { text: supplier.value?.supplierName || '' }
+])
+
+const tabs = [
+  { key: 'basic', label: '基本信息' },
+  { key: 'performance', label: '绩效记录', count: performances.value.length },
+  { key: 'inquiry', label: '询价报价', count: inquiries.value.length },
+  { key: 'points', label: '积分记录', count: pointsRecords.value.length }
+]
+
+const activityLogs = computed(() => {
+  const logs = []
+  if (supplier.value) {
+    logs.push({ id: 1, time: supplier.value.createTime || '', user: '系统', action: '创建供应商' })
+    if (supplier.value.updateTime && supplier.value.updateTime !== supplier.value.createTime) {
+      logs.push({ id: 2, time: supplier.value.updateTime, user: '管理员', action: '更新供应商信息' })
+    }
+  }
+  performances.value.slice(0, 3).forEach((p, i) => {
+    logs.push({ id: i + 10, time: p.evaluateTime || '', user: p.evaluator || '系统', action: `绩效评估: ${formatScore(p.comprehensiveScore)}分` })
+  })
+  return logs
 })
 
+const performanceColumns = [
+  { title: '评估周期', dataIndex: 'period', key: 'period', width: 120 },
+  { title: '质量评分', dataIndex: 'qualityScore', key: 'qualityScore', width: 80 },
+  { title: '交付评分', dataIndex: 'deliveryScore', key: 'deliveryScore', width: 80 },
+  { title: '价格评分', dataIndex: 'priceScore', key: 'priceScore', width: 80 },
+  { title: '服务评分', dataIndex: 'serviceScore', key: 'serviceScore', width: 80 },
+  { title: '综合评分', key: 'comprehensiveScore', width: 120 },
+  { title: '评估时间', dataIndex: 'evaluateTime', key: 'evaluateTime', width: 140 },
+  { title: '评估人', dataIndex: 'evaluator', key: 'evaluator', width: 100 }
+]
+
+const inquiryColumns = [
+  { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 160 },
+  { title: '询价标题', dataIndex: 'inquiryTitle', key: 'inquiryTitle' },
+  { title: '报价金额', key: 'quotationAmount', width: 120 },
+  { title: '报价状态', key: 'quotationStatus', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 150 }
+]
+
+const pointsColumns = [
+  { title: '变动金额', key: 'changeAmount', width: 100 },
+  { title: '余额', key: 'balance', width: 80 },
+  { title: '来源/用途', dataIndex: 'description', key: 'description' },
+  { title: '时间', dataIndex: 'createTime', key: 'createTime', width: 150 }
+]
+
+// ── 数据加载 ──────────────────────────────────────────
 const loadSupplierDetail = async () => {
-  loading.value = true
+  loading.value = true; error.value = null
   try {
-    const response = await fetch(`/api/supplier/${supplierId.value}`)
-    const data = await response.json()
-    if (data.code === 200) {
-      supplier.value = data.data
-    }
+    const id = Number(route.params.id)
+    supplier.value = await supplierApi.getById(id)
+  } catch (err: any) {
+    error.value = err?.message || '获取供应商详情失败'
   } finally {
     loading.value = false
   }
@@ -86,584 +291,155 @@ const loadSupplierDetail = async () => {
 
 const loadPerformances = async () => {
   try {
-    const response = await fetch(`/api/supplier/${supplierId.value}/performance/history`)
-    const data = await response.json()
-    if (data.code === 200) {
-      performances.value = data.data || []
-    }
-  } catch {
-    performances.value = []
-  }
+    const id = Number(route.params.id)
+    performances.value = (await supplierApi.getPerformanceHistory(id)) || []
+  } catch { performances.value = [] }
 }
 
 const loadInquiries = async () => {
   try {
-    const response = await fetch(`/api/v1/supplier-portal/inquiries/supplier/${supplierId.value}`)
-    const data = await response.json()
-    if (data.code === 200) {
-      inquiries.value = data.data || []
-    }
-  } catch {
-    inquiries.value = []
-  }
+    const id = Number(route.params.id)
+    inquiries.value = (await supplierApi.getInquiries(id)) || []
+  } catch { inquiries.value = [] }
 }
 
 const loadPointsRecords = async () => {
   try {
-    const response = await fetch(`/api/v1/supplier-portal/points/${supplierId.value}/records`)
-    const data = await response.json()
-    if (data.code === 200) {
-      pointsRecords.value = data.data || []
-    }
+    const id = Number(route.params.id)
+    pointsRecords.value = (await supplierApi.getPointsRecords(id)) || []
+  } catch { pointsRecords.value = [] }
+}
+
+// ── 操作 ──────────────────────────────────────────────
+const handleBreadcrumbClick = (item: any) => { if (item.path) router.push(item.path) }
+
+const handlePrev = async () => {
+  const prevId = supplier.value ? supplier.value.id - 1 : 0
+  if (prevId < 1) {
+    message.warning('已是第一条')
+    return
+  }
+  try {
+    await supplierApi.getById(prevId)
+    router.push(`/supplier/detail/${prevId}`)
   } catch {
-    pointsRecords.value = []
+    message.warning('已是第一条')
   }
 }
 
-const handleEdit = () => {
-  router.push(`/supplier/edit/${supplierId.value}`)
+const handleNext = async () => {
+  const nextId = supplier.value ? supplier.value.id + 1 : 1
+  try {
+    await supplierApi.getById(nextId)
+    router.push(`/supplier/detail/${nextId}`)
+  } catch {
+    message.warning('已是最后一条')
+  }
+}
+const handleTabChange = (key: string) => { activeTab.value = key }
+const handleEdit = () => router.push(`/supplier/edit/${route.params.id}`)
+const handleEvaluate = () => router.push(`/supplier/performance/${route.params.id}/evaluate`)
+
+const handleAddPoints = () => {
+  addPointsForm.value = { points: 0, reason: '', date: new Date().toISOString().slice(0, 10) }
+  addPointsVisible.value = true
 }
 
-const handleEvaluate = () => {
-  router.push(`/supplier/performance/${supplierId.value}/evaluate`)
-}
-
-const handleAddPoints = async () => {
-  const points = prompt('请输入增加积分数量')
-  if (points) {
-    const reason = prompt('请输入增加原因')
-    if (reason) {
-      try {
-        const response = await fetch(`/api/v1/supplier-portal/points/${supplierId.value}/add?points=${points}&reason=${encodeURIComponent(reason)}`, {
-          method: 'POST'
-        })
-        const data = await response.json()
-        if (data.code === 200) {
-          alert('积分增加成功')
-          loadSupplierDetail()
-          loadPointsRecords()
-        }
-      } catch {
-        alert('操作失败')
-      }
-    }
+const handleAddPointsOk = async () => {
+  if (!addPointsForm.value.points || addPointsForm.value.points < 1) {
+    message.warning('请输入有效的积分数')
+    return
+  }
+  if (!addPointsForm.value.reason.trim()) {
+    message.warning('请输入积分增加原因')
+    return
+  }
+  addPointsSubmitting.value = true
+  try {
+    await request.post(`/supplier-portal/points/${supplier.value!.id}/add`, {
+      points: addPointsForm.value.points,
+      reason: addPointsForm.value.reason,
+      date: addPointsForm.value.date
+    })
+    message.success(`成功增加 ${addPointsForm.value.points} 积分`)
+    addPointsVisible.value = false
+    loadSupplierDetail()
+    loadPointsRecords()
+  } catch (err: any) {
+    message.error(err?.message || '增加积分失败')
+  } finally {
+    addPointsSubmitting.value = false
   }
 }
 
-const handleConsumePoints = async () => {
-  const points = prompt('请输入消费积分数量')
-  if (points) {
-    const reason = prompt('请输入消费原因')
-    if (reason) {
-      try {
-        const response = await fetch(`/api/v1/supplier-portal/points/${supplierId.value}/consume?points=${points}&reason=${encodeURIComponent(reason)}`, {
-          method: 'POST'
-        })
-        const data = await response.json()
-        if (data.code === 200) {
-          alert('积分消费成功')
-          loadSupplierDetail()
-          loadPointsRecords()
-        }
-      } catch {
-        alert('操作失败')
-      }
-    }
+const handleConsumePoints = () => {
+  consumePointsForm.value = { points: 0, reason: '', date: new Date().toISOString().slice(0, 10) }
+  consumePointsVisible.value = true
+}
+
+const handleConsumePointsOk = async () => {
+  const available = supplier.value?.totalPoints ?? 0
+  if (!consumePointsForm.value.points || consumePointsForm.value.points < 1) {
+    message.warning('请输入有效的积分数')
+    return
+  }
+  if (consumePointsForm.value.points > available) {
+    message.warning(`消费积分不能超过当前积分(${available})`)
+    return
+  }
+  if (!consumePointsForm.value.reason.trim()) {
+    message.warning('请输入积分消费用途')
+    return
+  }
+  consumePointsSubmitting.value = true
+  try {
+    await request.post(`/supplier-portal/points/${supplier.value!.id}/consume`, {
+      points: consumePointsForm.value.points,
+      reason: consumePointsForm.value.reason,
+      date: consumePointsForm.value.date
+    })
+    message.success(`成功消费 ${consumePointsForm.value.points} 积分`)
+    consumePointsVisible.value = false
+    loadSupplierDetail()
+    loadPointsRecords()
+  } catch (err: any) {
+    message.error(err?.message || '积分消费失败')
+  } finally {
+    consumePointsSubmitting.value = false
   }
 }
 
-const handleBack = () => {
-  router.push('/supplier')
+// ── 辅助 ──────────────────────────────────────────────
+const formatScore = (score?: number) => score ? score.toFixed(1) : '0.0'
+const getLevelColor = (level?: string) => {
+  const colors: Record<string, string> = { A: '#07c160', B: '#1890ff', C: '#faad14', D: '#ff4d4f', E: '#999' }
+  return level ? (colors[level] || '#999') : '#999'
+}
+const getStatusColor = (status?: number) => {
+  const colors: Record<number, string> = { 1: 'green', 2: 'orange', 3: 'red', 4: 'default' }
+  return status ? (colors[status] || 'default') : 'default'
+}
+const getStatusLabel = (status?: number) => {
+  const labels: Record<number, string> = { 1: '正常合作', 2: '暂停合作', 3: '终止合作', 4: '潜在供应商' }
+  return status ? (labels[status] || '未知') : '未知'
+}
+const getStatusType = (status?: number): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+  const types: Record<number, any> = { 1: 'success', 2: 'warning', 3: 'danger', 4: 'info' }
+  return status ? (types[status] || 'default') : 'default'
+}
+const getQuotationStatusColor = (status?: number) => {
+  const colors: Record<number, string> = { 0: 'default', 1: 'blue', 2: 'green', 3: 'red' }
+  return status !== undefined ? (colors[status] || 'default') : 'default'
+}
+const getQuotationStatusLabel = (status?: number) => {
+  const labels: Record<number, string> = { 0: '待报价', 1: '已报价', 2: '已接受', 3: '已拒绝' }
+  return status !== undefined ? (labels[status] || '未知') : '未知'
 }
 
-const getLevelColor = (level: string) => {
-  const colors: Record<string, string> = {
-    'A': '#07c160',
-    'B': '#1988fa',
-    'C': '#ff976a',
-    'D': '#f44',
-    'E': '#969799'
-  }
-  return colors[level] || '#969799'
-}
-
-const getStatusLabel = (status: number) => {
-  const labels: Record<number, string> = {
-    1: '正常合作',
-    2: '暂停合作',
-    3: '终止合作',
-    4: '潜在供应商'
-  }
-  return labels[status] || '未知'
-}
-
-const getInquiryStatusLabel = (status: number) => {
-  const labels: Record<number, string> = {
-    0: '待报价',
-    1: '已报价',
-    2: '已接受',
-    3: '已拒绝'
-  }
-  return labels[status] || '未知'
-}
-
-const formatScore = (score: number) => {
-  return score ? score.toFixed(1) : '0.0'
-}
+onMounted(() => {
+  loadSupplierDetail()
+  loadPerformances()
+  loadInquiries()
+  loadPointsRecords()
+})
 </script>
-
-<template>
-  <div class="supplier-detail-page">
-    <div class="page-header">
-      <button class="back-btn" @click="handleBack">← 返回</button>
-      <h1>供应商详情</h1>
-      <div class="header-actions">
-        <button class="edit-btn" @click="handleEdit">编辑</button>
-        <button class="evaluate-btn" @click="handleEvaluate">绩效评估</button>
-      </div>
-    </div>
-
-    <div class="loading-state" v-if="loading">
-      <div class="spinner"></div>
-      <p>加载中...</p>
-    </div>
-
-    <div class="detail-content" v-if="supplier && !loading">
-      <div class="supplier-summary">
-        <div class="summary-header">
-          <span class="supplier-name">{{ supplier.supplierName }}</span>
-          <span class="supplier-code">{{ supplier.supplierCode }}</span>
-          <span class="level-badge" :style="{ color: getLevelColor(supplier.supplierLevel) }">
-            {{ supplier.supplierLevel }}级
-          </span>
-        </div>
-        <div class="summary-stats">
-          <div class="stat-item">
-            <span class="label">综合评分</span>
-            <span class="value">{{ formatScore(supplier.comprehensiveScore) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">总积分</span>
-            <span class="value">{{ supplier.totalPoints }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">合作状态</span>
-            <span class="value">{{ getStatusLabel(supplier.cooperationStatus) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">门户状态</span>
-            <span class="value">{{ supplier.portalStatus === 1 ? '已激活' : '未激活' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button 
-          :class="{ active: activeTab === 'basic' }"
-          @click="activeTab = 'basic'"
-        >基本信息</button>
-        <button 
-          :class="{ active: activeTab === 'performance' }"
-          @click="activeTab = 'performance'"
-        >绩效记录</button>
-        <button 
-          :class="{ active: activeTab === 'inquiry' }"
-          @click="activeTab = 'inquiry'"
-        >询价报价</button>
-        <button 
-          :class="{ active: activeTab === 'points' }"
-          @click="activeTab = 'points'"
-        >积分记录</button>
-      </div>
-
-      <div class="tab-content">
-        <div v-if="activeTab === 'basic'" class="basic-info">
-          <div class="info-section">
-            <h3>基本信息</h3>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">简称</span>
-                <span class="value">{{ supplier.shortName || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">供应商类型</span>
-                <span class="value">{{ supplier.supplierType === 1 ? '生产型' : '贸易型' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">联系人</span>
-                <span class="value">{{ supplier.contactPerson }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">联系电话</span>
-                <span class="value">{{ supplier.contactPhone }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">邮箱</span>
-                <span class="value">{{ supplier.email || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">地址</span>
-                <span class="value">{{ supplier.province }} {{ supplier.city }} {{ supplier.address }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-section">
-            <h3>财务信息</h3>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">开户银行</span>
-                <span class="value">{{ supplier.bankName || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">银行账号</span>
-                <span class="value">{{ supplier.bankAccount || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">税号</span>
-                <span class="value">{{ supplier.taxNumber || '-' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-section">
-            <h3>其他信息</h3>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">创建时间</span>
-                <span class="value">{{ supplier.createTime }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">更新时间</span>
-                <span class="value">{{ supplier.updateTime }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">备注</span>
-                <span class="value">{{ supplier.remark || '-' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="activeTab === 'performance'" class="performance-list">
-          <table>
-            <thead>
-              <tr>
-                <th>评估周期</th>
-                <th>质量评分</th>
-                <th>交付评分</th>
-                <th>价格评分</th>
-                <th>服务评分</th>
-                <th>综合评分</th>
-                <th>评估人</th>
-                <th>评估时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="perf in performances" :key="perf.id">
-                <td>{{ perf.period }}</td>
-                <td>{{ formatScore(perf.qualityScore) }}</td>
-                <td>{{ formatScore(perf.deliveryScore) }}</td>
-                <td>{{ formatScore(perf.priceScore) }}</td>
-                <td>{{ formatScore(perf.serviceScore) }}</td>
-                <td>{{ formatScore(perf.comprehensiveScore) }}</td>
-                <td>{{ perf.evaluator }}</td>
-                <td>{{ perf.evaluateTime }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="performances.length === 0" class="empty-state">
-            <p>暂无绩效记录</p>
-          </div>
-        </div>
-
-        <div v-if="activeTab === 'inquiry'" class="inquiry-list">
-          <table>
-            <thead>
-              <tr>
-                <th>询价单号</th>
-                <th>标题</th>
-                <th>报价金额</th>
-                <th>状态</th>
-                <th>创建时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="inquiry in inquiries" :key="inquiry.id">
-                <td>{{ inquiry.inquiryNo }}</td>
-                <td>{{ inquiry.inquiryTitle }}</td>
-                <td>{{ inquiry.quotationAmount || '-' }}</td>
-                <td>{{ getInquiryStatusLabel(inquiry.inquiryStatus) }}</td>
-                <td>{{ inquiry.createTime }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="inquiries.length === 0" class="empty-state">
-            <p>暂无询价记录</p>
-          </div>
-        </div>
-
-        <div v-if="activeTab === 'points'" class="points-list">
-          <div class="points-actions">
-            <button class="add-btn" @click="handleAddPoints">增加积分</button>
-            <button class="consume-btn" @click="handleConsumePoints">消费积分</button>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>记录时间</th>
-                <th>积分变动</th>
-                <th>变动类型</th>
-                <th>原因</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="record in pointsRecords" :key="record.id">
-                <td>{{ record.createTime }}</td>
-                <td>{{ record.points }}</td>
-                <td>{{ record.points > 0 ? '增加' : '消费' }}</td>
-                <td>{{ record.reason }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="pointsRecords.length === 0" class="empty-state">
-            <p>暂无积分记录</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<style lang="scss" scoped>
-.supplier-detail-page {
-  padding: 20px;
-  background: #f5f7fa;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-
-  .back-btn {
-    padding: 8px 15px;
-    background: #fff;
-    border: 1px solid #dcdfe6;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  h1 {
-    flex: 1;
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 10px;
-
-    .edit-btn, .evaluate-btn {
-      padding: 8px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .edit-btn {
-      background: #f7f8fa;
-      color: #333;
-      border: 1px solid #dcdfe6;
-    }
-
-    .evaluate-btn {
-      background: #07c160;
-      color: #fff;
-    }
-  }
-}
-
-.supplier-summary {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-
-  .summary-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-
-    .supplier-name {
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .supplier-code {
-      font-size: 14px;
-      color: #969799;
-    }
-
-    .level-badge {
-      font-weight: 600;
-    }
-  }
-
-  .summary-stats {
-    display: flex;
-    gap: 20px;
-
-    .stat-item {
-      .label {
-        font-size: 12px;
-        color: #969799;
-      }
-
-      .value {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        margin-left: 5px;
-      }
-    }
-  }
-}
-
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-
-  button {
-    padding: 10px 20px;
-    background: #fff;
-    border: 1px solid #dcdfe6;
-    border-radius: 4px;
-    cursor: pointer;
-
-    &.active {
-      background: #1988fa;
-      color: #fff;
-      border-color: #1988fa;
-    }
-  }
-}
-
-.tab-content {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-
-  .basic-info {
-    .info-section {
-      margin-bottom: 20px;
-
-      h3 {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #ebedf0;
-      }
-
-      .info-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-
-        .info-item {
-          .label {
-            font-size: 12px;
-            color: #969799;
-          }
-
-          .value {
-            font-size: 14px;
-            color: #333;
-            margin-top: 5px;
-          }
-        }
-      }
-    }
-  }
-
-  .performance-list, .inquiry-list, .points-list {
-    table {
-      width: 100%;
-      border-collapse: collapse;
-
-      th, td {
-        padding: 10px 15px;
-        text-align: left;
-        border-bottom: 1px solid #ebedf0;
-      }
-
-      th {
-        background: #f7f8fa;
-        font-weight: 600;
-      }
-    }
-
-    .points-actions {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-
-      .add-btn, .consume-btn {
-        padding: 8px 15px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      .add-btn {
-        background: #07c160;
-        color: #fff;
-      }
-
-      .consume-btn {
-        background: #ff976a;
-        color: #fff;
-      }
-    }
-  }
-
-  .empty-state {
-    padding: 30px;
-    text-align: center;
-    color: #969799;
-  }
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid #ebedf0;
-    border-top-color: #1988fa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  p {
-    margin-top: 10px;
-    color: #969799;
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-</style>

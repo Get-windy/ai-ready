@@ -37,7 +37,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
             throw new RuntimeException("菜单编码已存在");
         }
 
-        menu.setStatus(0);
+        menu.setStatus(1); // 默认启用状态
         menu.setVisible(1);
         menu.setCreateTime(LocalDateTime.now());
         menu.setUpdateTime(LocalDateTime.now());
@@ -106,7 +106,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysMenu::getClientType, clientType)
                .eq(SysMenu::getTenantId, tenantId)
-               .eq(SysMenu::getStatus, 0)
+               .eq(SysMenu::getStatus, 1) // status=1启用
                .orderByAsc(SysMenu::getSort);
         List<SysMenu> menus = list(wrapper);
         return buildMenuTree(menus, 0L);
@@ -136,7 +136,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysMenu::getId, menuIds)
                .eq(SysMenu::getClientType, clientType)
-               .eq(SysMenu::getStatus, 0)
+               .eq(SysMenu::getStatus, 1) // status=1启用
                .orderByAsc(SysMenu::getSort);
         List<SysMenu> menus = list(wrapper);
         log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());

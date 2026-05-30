@@ -3,6 +3,9 @@
   <div
     v-else
     class="error-boundary-fallback"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true"
   >
     <a-result
       status="error"
@@ -13,21 +16,26 @@
         <a-space>
           <a-button
             type="primary"
+            aria-label="重新尝试加载页面"
             @click="handleRetry"
           >
             <template #icon>
-              <ReloadOutlined />
+              <ReloadOutlined aria-hidden="true" />
             </template>
             重新尝试
           </a-button>
-          <a-button @click="handleGoHome">
+          <a-button
+            aria-label="返回首页"
+            @click="handleGoHome"
+          >
             <template #icon>
-              <HomeOutlined />
+              <HomeOutlined aria-hidden="true" />
             </template>
             返回首页
           </a-button>
           <a-button
             type="link"
+            aria-label="查看错误详情"
             @click="handleShowDetails"
           >
             查看详情
@@ -40,6 +48,8 @@
     <a-modal
       v-model:open="showDetails"
       title="错误详情"
+      aria-label="错误详情对话框"
+      :aria-modal="true"
       :footer="null"
       width="600px"
     >

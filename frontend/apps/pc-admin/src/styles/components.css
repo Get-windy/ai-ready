@@ -42,7 +42,7 @@
 }
 
 .ai-btn-default {
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   border-color: var(--color-border-base);
   color: var(--color-text-primary);
 }
@@ -136,7 +136,7 @@
   border: 1px solid var(--color-border-base);
   border-radius: var(--border-radius-base);
   color: var(--color-text-primary);
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   transition: border-color var(--duration-fast) var(--ease-in-out);
   outline: none;
 }
@@ -172,7 +172,7 @@
   border: 1px solid var(--color-border-base);
   border-radius: var(--border-radius-base);
   color: var(--color-text-primary);
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   transition: border-color var(--duration-fast) var(--ease-in-out);
   outline: none;
   cursor: pointer;
@@ -195,7 +195,7 @@
 
 /* ==================== 表格样式 ==================== */
 .ai-table-container {
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   border-radius: var(--border-radius-base);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -264,7 +264,7 @@
 
 /* ==================== 卡片样式 ==================== */
 .ai-card {
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   border-radius: var(--border-radius-base);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -489,7 +489,7 @@
   flex-direction: column;
   align-items: center;
   padding: var(--spacing-md);
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   border-radius: var(--border-radius-md);
   border: 1px solid var(--color-border-light);
   transition: all var(--duration-base) var(--ease-in-out);
@@ -539,7 +539,7 @@
   flex-direction: column;
   align-items: center;
   padding: var(--spacing-md);
-  background-color: #fff;
+  background-color: var(--color-bg-container);
   border-radius: var(--border-radius-md);
   border: 1px solid var(--color-border-light);
   cursor: pointer;
@@ -593,24 +593,22 @@
 }
 
 /* 暗色主题支持 */
-:root.dark {
-  .test-environment-card {
-    background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%);
-    border-color: #303030;
-  }
-  
-  .test-environment-card-header {
-    background-color: rgba(31, 31, 31, 0.8);
-    border-bottom-color: #303030;
-  }
-  
-  .test-environment-metric-card,
-  .test-environment-service-item {
-    background-color: #1f1f1f;
-    border-color: #303030;
-  }
-  
-  .test-environment-service-icon {
-    background-color: #2a2a2a;
-  }
+:root.dark .test-environment-card {
+  background: linear-gradient(135deg, var(--color-bg-container) 0%, #2a2a2a 100%);
+  border-color: var(--color-border-light);
+}
+
+:root.dark .test-environment-card-header {
+  background-color: rgba(31, 31, 31, 0.8);
+  border-bottom-color: var(--color-border-light);
+}
+
+:root.dark .test-environment-metric-card,
+:root.dark .test-environment-service-item {
+  background-color: var(--color-bg-container);
+  border-color: var(--color-border-light);
+}
+
+:root.dark .test-environment-service-icon {
+  background-color: #2a2a2a;
 }

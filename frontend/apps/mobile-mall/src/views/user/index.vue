@@ -24,7 +24,7 @@ const handleLogout = () => {
   }).then(() => {
     userStore.logout()
     router.push('/login')
-  }).catch(() => {})
+  }).catch((err) => { console.error('退出登录操作失败:', err) })
 }
 
 onMounted(() => {

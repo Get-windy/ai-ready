@@ -24,9 +24,95 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-function transformMenuToRoute(menu: MenuItem): RouteRecordRaw {
+const componentMap: Record<string, () => Promise<any>> = {
+  'charts/index': () => import('@/views/charts/index.vue'),
+  'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
+  'crm/customer/detail/CustomerDetail': () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
+  'crm/customer/index': () => import('@/views/crm/customer/index.vue'),
+  'crm/invoice/index': () => import('@/views/crm/invoice/index.vue'),
+  'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
+  'crm/opportunity/index': () => import('@/views/crm/opportunity/index.vue'),
+  'crm/quotation/index': () => import('@/views/crm/quotation/index.vue'),
+  'crm/supplier/index': () => import('@/views/crm/supplier/index.vue'),
+  'dashboard/index': () => import('@/views/dashboard/index.vue'),
+  'finance/accounts-payable/index': () => import('@/views/finance/accounts-payable/index.vue'),
+  'finance/accounts-payable/payment-approval': () => import('@/views/finance/accounts-payable/payment-approval.vue'),
+  'finance/accounts-receivable/aging-analysis': () => import('@/views/finance/accounts-receivable/aging-analysis.vue'),
+  'finance/accounts-receivable/collection-reminder': () => import('@/views/finance/accounts-receivable/collection-reminder.vue'),
+  'finance/accounts-receivable/index': () => import('@/views/finance/accounts-receivable/index.vue'),
+  'finance/accounts-receivable/payment-record': () => import('@/views/finance/accounts-receivable/payment-record.vue'),
+  'finance/index': () => import('@/views/finance/index.vue'),
+  'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
+  'finance/reports/index': () => import('@/views/finance/reports/index.vue'),
+  'finance/voucher/index': () => import('@/views/finance/voucher/index.vue'),
+  'notification/index': () => import('@/views/notification/index.vue'),
+  'order-center/index': () => import('@/views/order-center/index.vue'),
+  'profile/index': () => import('@/views/profile/index.vue'),
+  'purchase/detail/inbound/InboundDetail': () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
+  'purchase/detail/inquiry/InquiryDetail': () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
+  'purchase/detail/OrderDetail': () => import('@/views/purchase/detail/OrderDetail.vue'),
+  'purchase/index': () => import('@/views/purchase/index.vue'),
+  'sale/detail/OrderDetail': () => import('@/views/sale/detail/OrderDetail.vue'),
+  'sale/index': () => import('@/views/sale/index.vue'),
+  'stock/detail/StockDetail': () => import('@/views/stock/detail/StockDetail.vue'),
+  'stock/index': () => import('@/views/stock/index.vue'),
+  'supplier/create': () => import('@/views/supplier/create.vue'),
+  'supplier/detail': () => import('@/views/supplier/detail.vue'),
+  'supplier/edit': () => import('@/views/supplier/edit.vue'),
+  'supplier/index': () => import('@/views/supplier/index.vue'),
+  'supplier/inquiry/index': () => import('@/views/supplier/inquiry/index.vue'),
+  'supplier/performance/index': () => import('@/views/supplier/performance/index.vue'),
+  'system/config/index': () => import('@/views/system/config/index.vue'),
+  'system/department/index': () => import('@/views/system/department/index.vue'),
+  'system/dict/index': () => import('@/views/system/dict/index.vue'),
+  'system/log/index': () => import('@/views/system/log/index.vue'),
+  'system/menu/index': () => import('@/views/system/menu/index.vue'),
+  'system/permission/index': () => import('@/views/system/permission/index.vue'),
+  'system/position/index': () => import('@/views/system/position/index.vue'),
+  'system/role/index': () => import('@/views/system/role/index.vue'),
+  'system/user/index': () => import('@/views/system/user/index.vue'),
+  'workflow/instance-monitor': () => import('@/views/workflow/instance-monitor.vue'),
+  'workflow/process-analysis': () => import('@/views/workflow/process-analysis.vue'),
+  'workflow/task-management': () => import('@/views/workflow/task-management.vue'),
+
+  // ERP 模块
+  'erp/purchase/index': () => import('@/views/erp/purchase/index.vue'),
+  'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
+  'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
+  'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
+  'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
+  'erp/purchase-exchange/index': () => import('@/views/erp/purchase-exchange/index.vue'),
+  'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
+  'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
+  'erp/return/index': () => import('@/views/erp/return/index.vue'),
+  'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
+  'erp/sales-report/components/SalesReportCharts': () => import('@/views/erp/sales-report/components/SalesReportCharts.vue'),
+  'erp/sales-report/components/SalesReportFilters': () => import('@/views/erp/sales-report/components/SalesReportFilters.vue'),
+  'erp/sales-report/components/SalesReportSummary': () => import('@/views/erp/sales-report/components/SalesReportSummary.vue'),
+  'erp/sales-report/components/SalesReportTable': () => import('@/views/erp/sales-report/components/SalesReportTable.vue'),
+  'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
+}
+
+function getComponent(componentPath: string) {
+  const normalizedPath = componentPath.replace(/^views\//, '').replace(/\.vue$/, '')
+  if (componentMap[normalizedPath]) {
+    return componentMap[normalizedPath]
+  }
+  console.warn('[动态路由] 未找到组件映射:', normalizedPath, '尝试直接导入')
+  return () => import(`../views/${normalizedPath}.vue`)
+}
+
+function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRecordRaw {
+  let routePath = menu.path || ''
+  
+  if (parentPath && menu.path && menu.path.startsWith(parentPath + '/')) {
+    routePath = menu.path.substring(parentPath.length + 1)
+  } else if (menu.path && menu.path.startsWith('/')) {
+    routePath = menu.path.substring(1)
+  }
+  
   const route: RouteRecordRaw = {
-    path: menu.path || '',
+    path: routePath,
     name: menu.routeName || menu.menuCode,
     meta: {
       title: menu.menuName,
@@ -39,11 +125,14 @@ function transformMenuToRoute(menu: MenuItem): RouteRecordRaw {
 
   if (menu.menuType === 1 && menu.component) {
     const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
-    route.component = () => import(/* @vite-ignore */ `../views/${componentPath}.vue`)
+    route.component = getComponent(componentPath)
   }
 
   if (menu.children && menu.children.length > 0) {
-    route.children = menu.children.map(child => transformMenuToRoute(child))
+    route.children = menu.children.map(child => transformMenuToRoute(child, menu.path || parentPath))
+    if (menu.menuType === 0 && !menu.redirect) {
+      route.redirect = menu.path + '/' + (route.children[0].path || '')
+    }
   }
 
   if (menu.redirect) {
@@ -66,7 +155,7 @@ function buildMenuTree(menus: MenuItem[], parentId: number = 0): MenuItem[] {
 export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   const userStore = useUserStore()
   const userId = userStore.userId
-  const tenantId = 1
+  const tenantId = userStore.tenantId || 1
 
   try {
     const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, {
@@ -83,12 +172,24 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         component: () => import('@/layouts/BasicLayout.vue'),
         redirect: '/dashboard',
         meta: { requiresAuth: true },
-        children: menuTree.map(menu => transformMenuToRoute(menu))
+        children: menuTree.map(menu => {
+          const route = transformMenuToRoute(menu)
+          return route
+        })
       }
+
       return [layoutRoute]
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[动态路由] 加载失败:', error)
+    
+    // 检查是否是401错误，如果是则抛出错误让路由守卫处理
+    if (error?.response?.status === 401 || error?.status === 401) {
+      throw error
+    }
+
+    // 其他错误，返回fallback路由
+    return getFallbackRoutes()
   }
 
   return getFallbackRoutes()
@@ -108,6 +209,166 @@ function getFallbackRoutes(): RouteRecordRaw[] {
           name: 'Dashboard',
           component: () => import('@/views/dashboard/index.vue'),
           meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'purchase',
+          name: 'Purchase',
+          component: () => import('@/views/purchase/index.vue'),
+          meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'purchase/order/:id',
+          name: 'PurchaseOrderDetail',
+          component: () => import('@/views/purchase/detail/OrderDetail.vue'),
+          meta: { title: '采购订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'sale',
+          name: 'Sale',
+          component: () => import('@/views/sale/index.vue'),
+          meta: { title: '销售管理', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'stock',
+          name: 'Stock',
+          component: () => import('@/views/stock/index.vue'),
+          meta: { title: '库存管理', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'finance',
+          name: 'Finance',
+          component: () => import('@/views/finance/index.vue'),
+          meta: { title: '财务管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'crm/customer',
+          name: 'CrmCustomer',
+          component: () => import('@/views/crm/customer/index.vue'),
+          meta: { title: '客户管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'crm/customer/:id',
+          name: 'CrmCustomerDetail',
+          component: () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
+          meta: { title: '客户详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'sale/order/:id',
+          name: 'SaleOrderDetail',
+          component: () => import('@/views/sale/detail/OrderDetail.vue'),
+          meta: { title: '销售订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'purchase/inquiry/:id',
+          name: 'PurchaseInquiryDetail',
+          component: () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
+          meta: { title: '询价详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'purchase/inbound/:id',
+          name: 'PurchaseInboundDetail',
+          component: () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
+          meta: { title: '入库详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'stock/detail/:id',
+          name: 'StockDetail',
+          component: () => import('@/views/stock/detail/StockDetail.vue'),
+          meta: { title: '库存详情', icon: 'ContainerOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'supplier/detail/:id',
+          name: 'SupplierDetail',
+          component: () => import('@/views/supplier/detail.vue'),
+          meta: { title: '供应商详情', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'supplier/create',
+          name: 'SupplierCreate',
+          component: () => import('@/views/supplier/create.vue'),
+          meta: { title: '新增供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'supplier/edit/:id',
+          name: 'SupplierEdit',
+          component: () => import('@/views/supplier/edit.vue'),
+          meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        // ERP 模块
+        {
+          path: 'erp',
+          name: 'ErpLayout',
+          component: () => import('@/layouts/BasicLayout.vue'),
+          redirect: '/erp/purchase',
+          meta: { title: 'ERP管理', icon: 'AppstoreOutlined', requiresAuth: true },
+          children: [
+            {
+              path: 'purchase',
+              name: 'ErpPurchase',
+              component: () => import('@/views/erp/purchase/index.vue'),
+              meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'sale',
+              name: 'ErpSale',
+              component: () => import('@/views/erp/sale/index.vue'),
+              meta: { title: '销售管理', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'stock',
+              name: 'ErpStock',
+              component: () => import('@/views/erp/stock/index.vue'),
+              meta: { title: '库存管理', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'purchase-exchange',
+              name: 'ErpPurchaseExchange',
+              component: () => import('@/views/erp/purchase-exchange/index.vue'),
+              meta: { title: '采购换货', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'stock-in',
+              name: 'ErpStockIn',
+              component: () => import('@/views/erp/stock-in/index.vue'),
+              meta: { title: '入库管理', icon: 'InboxOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'stocktake',
+              name: 'ErpStocktake',
+              component: () => import('@/views/erp/stocktake/index.vue'),
+              meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'return',
+              name: 'ErpReturn',
+              component: () => import('@/views/erp/return/index.vue'),
+              meta: { title: '退货管理', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'shipment',
+              name: 'ErpShipment',
+              component: () => import('@/views/erp/shipment/index.vue'),
+              meta: { title: '发货管理', icon: 'SendOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'sales-analysis',
+              name: 'ErpSalesAnalysis',
+              component: () => import('@/views/erp/sales-analysis/index.vue'),
+              meta: { title: '销售分析', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'sales-report',
+              name: 'ErpSalesReport',
+              component: () => import('@/views/erp/sales-report/index.vue'),
+              meta: { title: '销售报表', icon: 'LineChartOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'pricing/approval',
+              name: 'ErpPricingApproval',
+              component: () => import('@/views/erp/pricing/approval/index.vue'),
+              meta: { title: '定价审批', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
+            }
+          ]
         }
       ]
     }

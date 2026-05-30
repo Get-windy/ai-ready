@@ -89,9 +89,7 @@
                 @print-success="handlePrintSuccess(record)"
                 @print-error="handlePrintError"
               />
-              <a-popconfirm title="确定要作废吗？" @confirm="handleCancel(record)">
-                <a class="danger-link" v-if="record.status === 'issued'">作废</a>
-              </a-popconfirm>
+              <a @click="handleCancelConfirm(record)" class="danger-link" v-if="record.status === 'issued'">作废</a>
             </a-space>
           </template>
         </template>
@@ -221,7 +219,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
@@ -428,9 +426,19 @@ const handlePrintError = (error: any) => {
   message.error(`打印失败: ${error.message || '未知错误'}`)
 }
 
-const handleCancel = (record: any) => {
-  message.success('发票已作废')
-  loadTableData()
+const handleCancelConfirm = (record: any) => {
+  Modal.confirm({
+    title: '确认作废',
+    content: `确定要作废发票 "${record.invoiceNo}" 吗？此操作不可撤销。`,
+    okText: '确认作废',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('发票已作废')
+      loadTableData()
+    }
+  })
 }
 
 const handleSubmit = async () => {

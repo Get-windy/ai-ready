@@ -1,34 +1,31 @@
 <template>
-  <el-form
+  <a-form
     ref="formRef"
     :model="model"
     :rules="rules"
-    :label-position="labelPosition"
-    :label-width="labelWidth"
-    :label-suffix="labelSuffix"
-    :inline="inline"
-    :inline-message="inlineMessage"
-    :status-icon="statusIcon"
-    :show-message="showMessage"
+    :label-col="labelColConfig"
+    :wrapper-col="wrapperColConfig"
+    :colon="false"
+    :layout="inline ? 'inline' : 'horizontal'"
     :size="size"
     :disabled="disabled"
     :validate-on-rule-change="validateOnRuleChange"
-    :hide-required-asterisk="hideRequiredAsterisk"
-    @validate="emit('validate', $event)"
-    @submit.prevent="handleSubmit"
+    @finish="handleFinish"
+    @finish-failed="handleFinishFailed"
   >
     <slot />
-  </el-form>
+  </a-form>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { ElForm } from 'element-plus'
-import type { FormRules, FormItemProp } from 'element-plus'
+import type { FormInstance, Rule } from 'ant-design-vue'
+
+export type { FormInstance, Rule } from 'ant-design-vue'
 
 interface Props {
   model?: Record<string, any>
-  rules?: FormRules
+  rules?: Record<string, Rule[]>
   labelPosition?: 'left' | 'right' | 'top'
   labelWidth?: string | number
   labelSuffix?: string
@@ -55,43 +52,61 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'validate', prop: FormItemProp, isValid: boolean, message: string): void
+  (e: 'validate', name: string, status: boolean, errorMessages: string[]): void
+  (e: 'finish', values: Record<string, any>): void
+  (e: 'finish-failed', errorInfo: { values: Record<string, any>; errorFields: any[]; outOfDate: boolean }): void
   (e: 'submit'): void
 }>()
 
-const formRef = ref<InstanceType<typeof ElForm>>()
+const formRef = ref<FormInstance>()
 
-// 表单验证方法
-const validate = async (callback?: (isValid: boolean, invalidFields?: Record<string, any>) => void) => {
-  if (!formRef.value) return
-  return formRef.value.validate(callback)
-}
+const labelColConfig = computed(() => {
+  if (props.labelWidth) {
+    const width = typeof props.labelWidth === 'number' ? `${props.labelWidth}px` : props.labelWidth
+    return { style: { width } }
+  }
+  return { span: 6 }
+})
 
-const validateField = async (props: FormItemProp | FormItemProp[], callback?: (isValid: boolean, invalidFields?: Record<string, any>) => void) => {
-  if (!formRef.value) return
-  return formRef.value.validateField(props, callback)
-}
+const wrapperColConfig = computed(() => {
+  if (props.labelWidth) return undefined
+  return { span: 18 }
+})
 
-const resetFields = (props?: FormItemProp | FormItemProp[]) => {
-  if (!formRef.value) return
-  formRef.value.resetFields(props)
-}
-
-const clearValidate = (props?: FormItemProp | FormItemProp[]) => {
-  if (!formRef.value) return
-  formRef.value.clearValidate(props)
-}
-
-const scrollToField = (prop: FormItemProp) => {
-  if (!formRef.value) return
-  formRef.value.scrollToField(prop)
-}
-
-const handleSubmit = () => {
+const handleFinish = (values: Record<string, any>) => {
+  emit('finish', values)
   emit('submit')
 }
 
-// 暴露方法给模板
+const handleFinishFailed = (errorInfo: any) => {
+  emit('finish-failed', errorInfo)
+}
+
+const validate = async () => {
+  if (!formRef.value) return
+  return formRef.value.validate()
+}
+
+const validateField = async (name: string | string[]) => {
+  if (!formRef.value) return
+  return formRef.value.validate(name)
+}
+
+const resetFields = (names?: string | string[]) => {
+  if (!formRef.value) return
+  formRef.value.resetFields(names)
+}
+
+const clearValidate = (names?: string | string[]) => {
+  if (!formRef.value) return
+  formRef.value.clearValidate(names)
+}
+
+const scrollToField = (name: string) => {
+  if (!formRef.value) return
+  formRef.value.scrollToField(name)
+}
+
 defineExpose({
   validate,
   validateField,
@@ -104,11 +119,11 @@ defineExpose({
 <style lang="scss" scoped>
 .ar-form {
   &--inline {
-    .el-form-item {
+    .ant-form-item {
       margin-right: var(--ar-spacing-lg, 16px);
     }
   }
-  
+
   &--disabled {
     opacity: 0.6;
     pointer-events: none;

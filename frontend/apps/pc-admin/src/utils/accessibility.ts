@@ -154,18 +154,19 @@ export function useKeyboardNavigation(
  */
 export function useHighContrast() {
   const isHighContrast = ref(false)
-  
+  let mediaQuery: MediaQueryList | null = null
+
   const checkHighContrast = () => {
     // 检查系统高对比度设置
-    const mediaQuery = window.matchMedia('(prefers-contrast: high)')
-    isHighContrast.value = mediaQuery.matches
-    
+    const mq = window.matchMedia('(prefers-contrast: high)')
+    isHighContrast.value = mq.matches
+
     // 检查用户自定义设置
     const stored = localStorage.getItem('highContrast')
     if (stored === 'true') {
       isHighContrast.value = true
     }
-    
+
     // 应用高对比度类
     if (isHighContrast.value) {
       document.documentElement.classList.add('high-contrast')
@@ -173,26 +174,33 @@ export function useHighContrast() {
       document.documentElement.classList.remove('high-contrast')
     }
   }
-  
+
   const toggleHighContrast = () => {
     isHighContrast.value = !isHighContrast.value
     localStorage.setItem('highContrast', String(isHighContrast.value))
-    
+
     if (isHighContrast.value) {
       document.documentElement.classList.add('high-contrast')
     } else {
       document.documentElement.classList.remove('high-contrast')
     }
   }
-  
+
   onMounted(() => {
     checkHighContrast()
-    
+
     // 监听系统设置变化
-    const mediaQuery = window.matchMedia('(prefers-contrast: high)')
+    mediaQuery = window.matchMedia('(prefers-contrast: high)')
     mediaQuery.addEventListener('change', checkHighContrast)
   })
-  
+
+  onUnmounted(() => {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', checkHighContrast)
+      mediaQuery = null
+    }
+  })
+
   return {
     isHighContrast,
     toggleHighContrast
@@ -303,25 +311,33 @@ export function useKeyboardShortcuts(
  */
 export function useReducedMotion() {
   const prefersReducedMotion = ref(false)
-  
+  let mediaQuery: MediaQueryList | null = null
+
   const checkReducedMotion = () => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    prefersReducedMotion.value = mediaQuery.matches
-    
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    prefersReducedMotion.value = mq.matches
+
     if (prefersReducedMotion.value) {
       document.documentElement.classList.add('reduced-motion')
     } else {
       document.documentElement.classList.remove('reduced-motion')
     }
   }
-  
+
   onMounted(() => {
     checkReducedMotion()
-    
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     mediaQuery.addEventListener('change', checkReducedMotion)
   })
-  
+
+  onUnmounted(() => {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener('change', checkReducedMotion)
+      mediaQuery = null
+    }
+  })
+
   return {
     prefersReducedMotion
   }

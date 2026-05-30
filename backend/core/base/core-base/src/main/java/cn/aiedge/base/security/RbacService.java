@@ -47,7 +47,7 @@ public class RbacService {
         List<SysPermission> permissions = permissionService.lambdaQuery()
                 .eq(SysPermission::getApiPath, apiPath)
                 .eq(SysPermission::getMethod, method)
-                .eq(SysPermission::getStatus, 0)
+                .eq(SysPermission::getStatus, 1) // status=1启用
                 .list();
         
         // 检查是否匹配

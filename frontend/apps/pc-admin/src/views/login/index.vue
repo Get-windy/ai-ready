@@ -1,6 +1,6 @@
 <template>
   <div class="login-container">
-    <div class="login-background">
+    <div class="login-background" aria-hidden="true">
       <div class="background-shapes">
         <div class="shape shape-1" />
         <div class="shape shape-2" />
@@ -12,12 +12,12 @@
       <div class="login-box">
         <div class="login-header">
           <div class="logo">
-            <div class="logo-icon">
+            <div class="logo-icon" aria-hidden="true">
               🚀
             </div>
             <h1>企智连·AI-Ready</h1>
           </div>
-          <p>企业智能管理系统</p>
+          <p role="doc-subtitle">企业智能管理系统</p>
         </div>
         
         <a-form
@@ -25,37 +25,43 @@
           :model="formState"
           :rules="rules"
           layout="vertical"
+          role="form"
+          :aria-label="t('login.title')"
           @finish="handleSubmit"
         >
-          <a-form-item name="username">
+          <a-form-item name="username" id="form-item-username">
             <a-input
               v-model:value="formState.username"
               size="large"
               placeholder="请输入用户名"
+              aria-required="true"
+              :aria-describedby="formState.username ? '' : 'form-item-username-error'"
               @keyup.enter="focusNextInput('password')"
             >
               <template #prefix>
-                <UserOutlined />
+                <UserOutlined aria-hidden="true" />
               </template>
             </a-input>
           </a-form-item>
 
-          <a-form-item name="password">
+          <a-form-item name="password" id="form-item-password">
             <a-input-password
               ref="passwordInput"
               v-model:value="formState.password"
               size="large"
               placeholder="请输入密码"
+              aria-required="true"
+              :aria-describedby="formState.password ? '' : 'form-item-password-error'"
               @keyup.enter="focusNextInput('captcha')"
             >
               <template #prefix>
-                <LockOutlined />
+                <LockOutlined aria-hidden="true" />
               </template>
             </a-input-password>
           </a-form-item>
 
           <!-- 验证码区域 -->
-          <a-form-item name="captcha">
+          <a-form-item name="captcha" id="form-item-captcha">
             <div class="captcha-container">
               <a-input
                 ref="captchaInput"
@@ -63,26 +69,35 @@
                 size="large"
                 placeholder="请输入验证码"
                 class="captcha-input"
+                aria-required="true"
+                :aria-describedby="formState.captcha ? '' : 'form-item-captcha-error'"
                 @keyup.enter="handleSubmit"
               >
                 <template #prefix>
-                  <SafetyOutlined />
+                  <SafetyOutlined aria-hidden="true" />
                 </template>
               </a-input>
               <div
                 class="captcha-image"
+                role="button"
+                aria-label="刷新验证码"
+                tabindex="0"
                 @click="refreshCaptcha"
+                @keydown.enter="refreshCaptcha"
+                @keydown.space.prevent="refreshCaptcha"
               >
                 <img
                   v-if="captchaUrl"
                   :src="captchaUrl"
-                  alt="验证码"
+                  alt="验证码图片，点击刷新"
                 >
                 <div
                   v-else
                   class="captcha-loading"
+                  role="status"
+                  aria-label="验证码加载中"
                 >
-                  <LoadingOutlined />
+                  <LoadingOutlined aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -94,7 +109,11 @@
             </a-checkbox>
             <a
               class="forgot-password"
+              role="button"
+              aria-label="忘记密码"
+              tabindex="0"
               @click="handleForgotPassword"
+              @keydown.enter="handleForgotPassword"
             >忘记密码？</a>
           </div>
 
@@ -104,6 +123,7 @@
               html-type="submit"
               size="large"
               :loading="loading"
+              :aria-busy="loading"
               block
               class="login-button"
             >
@@ -113,10 +133,12 @@
 
           <div class="login-footer">
             <span class="footer-text">还没有账号？</span>
-            <a
+            <a-button
+              type="link"
+              :loading="registerLoading"
               class="register-link"
               @click="handleRegister"
-            >立即注册</a>
+            >立即注册</a-button>
           </div>
         </a-form>
       </div>
@@ -137,6 +159,7 @@ import {
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { resetDynamicRoutesLoaded } from '@/router/guard'
+import { useSubmitLock } from '@/composables'
 
 const router = useRouter()
 const route = useRoute()
@@ -149,6 +172,7 @@ const captchaInput = ref()
 
 // 状态管理
 const loading = ref(false)
+const { isSubmitting: registerLoading } = useSubmitLock()
 const rememberMe = ref(false)
 const captchaUrl = ref('')
 const captchaKey = ref('')
@@ -223,44 +247,33 @@ const focusNextInput = (inputName: string) => {
 const handleSubmit = async () => {
   try {
     loading.value = true
-    
-    console.log('[登录] 开始登录:', formState)
-    
+
     // 表单验证
     await formRef.value?.validate()
-    
+
     // 执行登录
     const success = await userStore.login({
       username: formState.username,
       password: formState.password,
       tenantId: formState.tenantId
     })
-    
-    console.log('[登录] 登录结果:', success)
-    console.log('[登录] token:', userStore.token)
-    console.log('[登录] localStorage token:', localStorage.getItem('token'))
-    console.log('[登录] isLoggedIn:', userStore.isLoggedIn)
-    
+
     if (success) {
       message.success('登录成功，欢迎回来！')
-      
+
       // 处理记住我功能
       if (rememberMe.value) {
         localStorage.setItem('rememberedUsername', formState.username)
       } else {
         localStorage.removeItem('rememberedUsername')
       }
-      
+
       // 重置动态路由加载状态，让路由守卫重新加载
       resetDynamicRoutesLoaded()
-      
-      console.log('[登录] 准备跳转到:', (route.query.redirect as string) || '/dashboard')
-      
+
       // 跳转到目标页面或首页
       const redirect = (route.query.redirect as string) || '/dashboard'
       await router.push(redirect)
-      
-      console.log('[登录] 跳转完成')
     } else {
       message.error('登录失败，请检查用户名和密码')
       refreshCaptcha()
@@ -281,8 +294,14 @@ const handleForgotPassword = () => {
 }
 
 // 注册账号
-const handleRegister = () => {
-  router.push('/register')
+const handleRegister = async () => {
+  if (registerLoading.value) return
+  registerLoading.value = true
+  try {
+    await router.push('/register')
+  } finally {
+    registerLoading.value = false
+  }
 }
 
 // 初始化
@@ -544,10 +563,16 @@ onMounted(() => {
   color: #667eea;
   font-weight: 500;
   margin-left: 4px;
+  padding: 0;
+  font-size: 14px;
 }
 
 .register-link:hover {
   color: #764ba2;
+}
+
+:deep(.register-link.ant-btn-link) {
+  padding: 0 0 0 1px;
 }
 
 /* 响应式设计 */

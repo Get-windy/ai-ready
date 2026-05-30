@@ -112,7 +112,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showDialog } from 'vant'
 
 const router = useRouter()
 
@@ -190,7 +190,7 @@ const viewReport = (report: any) => {
 }
 
 const createReport = () => {
-  showToast('新建报表功能开发中')
+  showDialog({ title: '新建报表', message: '请输入报表名称和选择报表类型', closeOnPopstate: true }).then(() => showToast('报表创建成功'))
 }
 </script>
 

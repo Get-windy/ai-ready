@@ -46,7 +46,7 @@ public class PermissionTemplateServiceImpl extends ServiceImpl<PermissionTemplat
             throw new RuntimeException("权限模板编码已存在");
         }
 
-        template.setStatus(0);
+        template.setStatus(1); // 默认启用状态
         template.setCreateTime(LocalDateTime.now());
         template.setUpdateTime(LocalDateTime.now());
         template.setCreateBy(StpUtil.getLoginIdAsLong());

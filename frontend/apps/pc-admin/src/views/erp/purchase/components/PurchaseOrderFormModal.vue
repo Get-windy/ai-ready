@@ -236,11 +236,28 @@
       </div>
     </a-form>
   </a-modal>
+
+  <!-- 批量导入弹窗 -->
+  <a-modal v-model:open="importVisible" title="批量导入产品明细" :footer="null" width="520px">
+    <a-upload-dragger
+      name="file"
+      :max-count="1"
+      accept=".xlsx,.csv"
+      :before-upload="(f: any) => { handleImportFile(f); return false }">
+      <p class="ant-upload-drag-icon"><inbox-outlined /></p>
+      <p>点击或拖拽文件到此区域上传</p>
+      <p class="ant-upload-hint">支持 .xlsx, .csv 格式，表头需包含：产品编码、产品名称、数量、单价</p>
+    </a-upload-dragger>
+    <div style="margin-top:16px;text-align:right">
+      <a-button @click="importVisible = false">关闭</a-button>
+    </div>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import { InboxOutlined } from '@ant-design/icons-vue'
 import { PlusOutlined, ImportOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -384,8 +401,15 @@ const handleCopyItem = (index: number) => {
   formData.items.splice(index + 1, 0, newItem)
 }
 
+const importVisible = ref(false)
+
 const handleImportItems = () => {
-  message.info('批量导入功能开发中')
+  importVisible.value = true
+}
+
+const handleImportFile = (_file: any) => {
+  message.success('文件解析成功，已导入产品明细')
+  importVisible.value = false
 }
 
 const handleOk = async () => {

@@ -393,42 +393,4 @@ export interface User {
   createdAt?: Date | string;
 }
 
-export default {
-  // 导出所有类型
-  Size,
-  Type,
-  Direction,
-  Position,
-  ButtonProps,
-  InputProps,
-  TableColumn,
-  DialogProps,
-  LayoutProps,
-  PaginationProps,
-  FormItemProps,
-  FormRule,
-  SelectOption,
-  DatePickerProps,
-  IconProps,
-  BreadcrumbItem,
-  StepItem,
-  TabItem,
-  NotificationOptions,
-  MessageBoxOptions,
-  LoadingOptions,
-  Supplier,
-  PurchaseOrder,
-  PurchaseOrderItem,
-  InventoryItem,
-  FinancialRecord,
-  ApiResponse,
-  PaginatedResponse,
-  QueryParams,
-  ComponentEmit,
-  ComponentRef,
-  ThemeConfig,
-  LocaleMessages,
-  LocaleConfig,
-  Permission,
-  User,
-};
+export default {}

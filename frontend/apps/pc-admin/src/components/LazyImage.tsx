@@ -185,7 +185,7 @@ export const LazyImage = defineComponent({
       // 占位图样式
       const placeholderStyle = {
         ...style,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: 'var(--ar-fill-color-light, #f5f7fa)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -205,13 +205,13 @@ export const LazyImage = defineComponent({
             <div class="lazy-image-placeholder" style={placeholderStyle}>
               {error.value ? (
                 <div class="lazy-image-error">
-                  <PictureOutlined style={{ fontSize: '32px', color: '#d9d9d9' }} />
-                  <p style={{ marginTop: '8px', color: '#999' }}>图片加载失败</p>
+                  <PictureOutlined style={{ fontSize: '32px', color: 'var(--ar-border-color-dark, #d4d7de)' }} />
+                  <p style={{ marginTop: '8px', color: 'var(--ar-text-color-secondary, #909399)' }}>图片加载失败</p>
                 </div>
               ) : (
                 <div class="lazy-image-loading">
                   <div class="loading-spinner" />
-                  <p style={{ marginTop: '8px', color: '#999' }}>加载中...</p>
+                  <p style={{ marginTop: '8px', color: 'var(--ar-text-color-secondary, #909399)' }}>加载中...</p>
                 </div>
               )}
             </div>

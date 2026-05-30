@@ -65,7 +65,7 @@ const handleSubmit = async () => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('收款操作失败:', err) })
 }
 </script>
 

@@ -140,6 +140,31 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="出库单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="出库单号">{{ currentRecord.shipmentNo }}</a-descriptions-item>
+        <a-descriptions-item label="销售订单">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
+        <a-descriptions-item label="出库金额">¥{{ currentRecord.totalAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="出库日期">{{ currentRecord.shipmentDate }}</a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
+        <a-descriptions-item label="物流单号">{{ currentRecord.trackingNo || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -147,7 +172,9 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { outboundApi, type SaleOutbound } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import request from '@/utils/request'
 
 interface Shipment {
   id: number
@@ -163,6 +190,8 @@ interface Shipment {
 
 const loading = ref(false)
 const dataSource = ref<Shipment[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<Shipment | null>(null)
 
 const queryParams = reactive({
   shipmentNo: '',
@@ -269,7 +298,8 @@ const handleCreate = () => {
 }
 
 const handleView = (record: Shipment) => {
-  message.info(`查看出库单: ${record.shipmentNo}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handleApprove = (record: Shipment) => {
@@ -301,37 +331,23 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          shipmentNo: 'SO20260328001',
-          orderNo: 'SO20260328001',
-          customerName: '客户A',
-          warehouseName: '主仓库',
-          totalAmount: 10000,
-          status: 0,
-          shipmentDate: '2026-04-15',
-          operator: '张三'
-        },
-        {
-          id: 2,
-          shipmentNo: 'SO20260328002',
-          orderNo: 'SO20260328002',
-          customerName: '客户B',
-          warehouseName: '主仓库',
-          totalAmount: 15000,
-          status: 1,
-          shipmentDate: '2026-04-16',
-          operator: '李四'
-        }
-      ]
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await request.get('/erp/sale/outbound/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

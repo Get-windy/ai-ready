@@ -1,796 +1,249 @@
 <template>
-  <div class="dashboard-home-page">
-    <!-- Header -->
-    <div class="page-header">
-      <h1 class="page-title">监控大盘</h1>
-      <p class="page-subtitle">
-        系统整体运行状态实时监控
-        <a @click="handleRefresh" style="color: #1890ff; cursor: pointer;">
-          <ReloadOutlined />
-          更新数据
-        </a>
-      </p>
-    </div>
+  <!-- 骨架屏加载状态 -->
+  <SkeletonDashboard v-if="pageLoading" />
 
-    <!-- KPI Cards Row -->
-    <div class="kpi-row">
-      <a-card class="kpi-card" :bordered="false">
-        <template #title>
-          <span class="card-title">系统健康度</span>
-        </template>
-        <div class="kpi-value">
-          <span class="value">98.5</span>
-          <span class="unit">%</span>
-        </div>
-        <div class="kpi-sub">
-          <ArrowUpOutlined class="trend-icon up" />
-          <span class="trend-value">+2.3%</span>
-          <span class="trend-label">环比上期</span>
-        </div>
-      </a-card>
-
-      <a-card class="kpi-card" :bordered="false">
-        <template #title>
-          <span class="card-title">平均响应时间</span>
-        </template>
-        <div class="kpi-value">
-          <span class="value">245</span>
-          <span class="unit">ms</span>
-        </div>
-        <div class="kpi-sub">
-          <ArrowDownOutlined class="trend-icon down" />
-          <span class="trend-value">-12%</span>
-          <span class="trend-label">环比上期</span>
-        </div>
-      </a-card>
-
-      <a-card class="kpi-card" :bordered="false">
-        <template #title>
-          <span class="card-title">当前吞吐量</span>
-        </template>
-        <div class="kpi-value">
-          <span class="value">1250</span>
-          <span class="unit">req/s</span>
-        </div>
-        <div class="kpi-sub">
-          <ArrowUpOutlined class="trend-icon up" />
-          <span class="trend-value">+8.5%</span>
-          <span class="trend-label">环比上期</span>
-        </div>
-      </a-card>
-
-      <a-card class="kpi-card" :bordered="false">
-        <template #title>
-          <span class="card-title">错误率</span>
-        </template>
-        <div class="kpi-value">
-          <span class="value">0.12</span>
-          <span class="unit">%</span>
-        </div>
-        <div class="kpi-sub">
-          <DashboardOutlined class="trend-icon stable" />
-          <span class="trend-value">0%</span>
-          <span class="trend-label">环比上期</span>
-        </div>
-      </a-card>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="main-content">
-      <!-- Left Column -->
-      <div class="left-column">
-        <!-- Service Status -->
-        <a-card class="status-card" :bordered="false">
-          <template #title>
-            <span class="card-title">服务健康状态</span>
-          </template>
-          <template #extra>
-            <a @click="handleViewServices" style="color: #1890ff; cursor: pointer;">查看全部</a>
-          </template>
-          <div class="service-grid">
-            <div 
-              v-for="service in services" 
-              :key="service.id" 
-              class="service-item"
-              :class="`status-${service.status}`"
-              @click="handleServiceClick(service)"
-            >
-              <div class="service-icon">
-                <CloudServerOutlined v-if="service.type === 'api'" :style="{ fontSize: '32px' }" />
-                <DatabaseOutlined v-if="service.type === 'database'" :style="{ fontSize: '32px' }" />
-                <DesktopOutlined v-if="service.type === 'cache' || service.type === 'queue'" :style="{ fontSize: '32px' }" />
-              </div>
-              <div class="service-info">
-                <div class="service-name">{{ service.name }}</div>
-                <div class="service-status">{{ serviceStatusText(service.status) }}</div>
-              </div>
-            </div>
-          </div>
-        </a-card>
-
-        <!-- Alerts -->
-        <a-card class="alerts-card" :bordered="false">
-          <template #title>
-            <span class="card-title">最近告警</span>
-            <a-badge v-if="pendingAlerts > 0" :count="pendingAlerts" :status="pendingAlerts > 3 ? 'error' : 'warning'" />
-          </template>
-          <div class="alerts-list">
-            <div 
-              v-for="alert in recentAlerts" 
-              :key="alert.id" 
-              class="alert-item"
-              :class="`level-${alert.level.toLowerCase()}`"
-            >
-              <div class="alert-header">
-                <CloseCircleOutlined v-if="alert.level === 'P0' || alert.level === 'P1'" :class="`level-icon ${alert.level.toLowerCase()}`" />
-                <WarningOutlined v-if="alert.level === 'P2'" :class="`level-icon ${alert.level.toLowerCase()}`" />
-                <AlertOutlined v-if="alert.level === 'P3'" :class="`level-icon ${alert.level.toLowerCase()}`" />
-                <span class="alert-title">{{ alert.title }}</span>
-              </div>
-              <div class="alert-message">{{ alert.message }}</div>
-              <div class="alert-footer">
-                <span class="alert-time">{{ formatTime(alert.timestamp) }}</span>
-                <a-button 
-                  v-if="!alert.acknowledged" 
-                  type="primary" 
-                  size="small"
-                  @click="handleAcknowledge(alert)"
-                >
-                  确认
-                </a-button>
-              </div>
-            </div>
-          </div>
-        </a-card>
+  <!-- 已加载状态 -->
+  <div v-else class="dashboard">
+    <!-- 欢迎栏 -->
+    <div class="dashboard-header">
+      <div>
+        <h1 class="dashboard-title">工作台</h1>
+        <p class="dashboard-subtitle">欢迎回来，这是您的业务概览</p>
       </div>
-
-      <!-- Right Column -->
-      <div class="right-column">
-        <!-- Performance Chart -->
-        <a-card class="chart-card" :bordered="false">
-          <template #title>
-            <span class="card-title">性能趋势</span>
-          </template>
-          <template #extra>
-            <a-range-picker
-              v-model:value="timeRange"
-              show-time
-              format="YYYY-MM-DD HH:mm:ss"
-              size="small"
-              @change="handleTimeRangeChange"
-            />
-          </template>
-          <div ref="chartRef" class="echarts-container"></div>
-        </a-card>
-
-        <!-- Resource Usage -->
-        <a-card class="resource-card" :bordered="false">
-          <template #title>
-            <span class="card-title">资源使用率</span>
-          </template>
-          <div class="resource-grid">
-            <div class="resource-item">
-              <div class="resource-header">
-                <span class="resource-name">CPU</span>
-                <span class="resource-value">{{ cpuUsage }}%</span>
-              </div>
-              <a-progress
-                :percent="cpuUsage"
-                :status="getCpuStatus"
-                :stroke-width="16"
-              />
-            </div>
-
-            <div class="resource-item">
-              <div class="resource-header">
-                <span class="resource-name">内存</span>
-                <span class="resource-value">{{ memoryUsage }}%</span>
-              </div>
-              <a-progress
-                :percent="memoryUsage"
-                :status="getMemoryStatus"
-                :stroke-width="16"
-              />
-            </div>
-
-            <div class="resource-item">
-              <div class="resource-header">
-                <span class="resource-name">磁盘</span>
-                <span class="resource-value">{{ diskUsage }}%</span>
-              </div>
-              <a-progress
-                :percent="diskUsage"
-                :status="getDiskStatus"
-                :stroke-width="16"
-              />
-            </div>
-
-            <div class="resource-item">
-              <div class="resource-header">
-                <span class="resource-name">网络</span>
-                <span class="resource-value">{{ networkUsage }} MB/s</span>
-              </div>
-              <a-progress
-                :percent="networkUsage / 100 * 10"
-                :stroke-width="16"
-              />
-            </div>
-          </div>
-        </a-card>
-      </div>
+      <a-space>
+        <a-range-picker v-model:value="dateRange" size="small" style="width: 240px" aria-label="选择日期范围" />
+        <a-button size="small" aria-label="刷新数据" @click="handleRefresh">刷新数据</a-button>
+      </a-space>
     </div>
+
+    <!-- KPI 卡片 -->
+    <a-row :gutter="16" class="kpi-row">
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card class="kpi-card" :bordered="false" role="region" aria-label="今日销售额：125,680.00 元，较昨日上涨 12%">
+          <a-statistic title="今日销售额" :value="125680" prefix="¥" :precision="2" :value-style="{ color: '#3f8600' }">
+            <template #suffix><span class="trend up" aria-hidden="true">↑12%</span></template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card class="kpi-card" :bordered="false" role="region" aria-label="今日采购额：89,420.00 元，较昨日上涨 8%">
+          <a-statistic title="今日采购额" :value="89420" prefix="¥" :precision="2" :value-style="{ color: '#1890ff' }">
+            <template #suffix><span class="trend up" aria-hidden="true">↑8%</span></template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card class="kpi-card" :bordered="false" role="region" aria-label="待审批单据：23 项，需要处理">
+          <a-statistic title="待审批单据" :value="23" :value-style="{ color: '#faad14' }">
+            <template #suffix><span class="trend warn" aria-hidden="true">需处理</span></template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8" :lg="6">
+        <a-card class="kpi-card" :bordered="false" role="region" aria-label="库存预警项：7 项，较上次减少 3 项">
+          <a-statistic title="库存预警项" :value="7" :value-style="{ color: '#ff4d4f' }">
+            <template #suffix><span class="trend down" aria-hidden="true">↓3项</span></template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+    </a-row>
+
+    <!-- 图表 + 待办 -->
+    <a-row :gutter="16" class="content-row">
+      <a-col :xs="24" :md="16">
+        <a-card :bordered="false" class="chart-card">
+          <template #title><h2 class="card-heading">销售趋势 (近7天)</h2></template>
+          <div ref="trendChartRef" style="height: 300px" role="img" aria-label="销售趋势折线图，展示近7天销售额、采购额和利润数据" />
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :md="8">
+        <a-card :bordered="false" class="todo-card">
+          <template #title><h2 class="card-heading">待办事项</h2></template>
+          <template #extra><a role="button" aria-label="查看全部待办事项" @click="handleViewAll">全部</a></template>
+          <a-list :data-source="todos" size="small">
+            <template #renderItem="{ item }">
+              <a-list-item>
+                <a-list-item-meta>
+                  <template #avatar>
+                    <a-badge :status="item.type === 'approval' ? 'warning' : item.type === 'alert' ? 'error' : 'default'" />
+                  </template>
+                  <template #title>{{ item.title }}</template>
+                  <template #description>{{ item.time }}</template>
+                </a-list-item-meta>
+              </a-list-item>
+            </template>
+          </a-list>
+        </a-card>
+      </a-col>
+    </a-row>
+
+    <!-- 快速入口 + 库存预警 -->
+    <a-row :gutter="16" class="content-row">
+      <a-col :xs="24" :md="12">
+        <a-card :bordered="false">
+          <template #title><h2 class="card-heading">快速入口</h2></template>
+          <a-row :gutter="[16, 16]">
+            <a-col :span="8" v-for="entry in quickEntries" :key="entry.key">
+              <div
+                class="quick-entry"
+                role="button"
+                :aria-label="`${entry.label} 快速入口`"
+                tabindex="0"
+                @click="handleQuickNav(entry.path)"
+                @keydown.enter="handleQuickNav(entry.path)"
+                @keydown.space.prevent="handleQuickNav(entry.path)"
+              >
+                <component :is="entry.icon" class="quick-entry-icon" :style="{ color: entry.color }" aria-hidden="true" />
+                <span class="quick-entry-label">{{ entry.label }}</span>
+              </div>
+            </a-col>
+          </a-row>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :md="12">
+        <a-card :bordered="false">
+          <template #title><h2 class="card-heading">库存预警</h2></template>
+          <template #extra><a-badge count="7" /></template>
+          <a-table :columns="alertColumns" :data-source="stockAlerts" :pagination="false" size="small" row-key="id">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'level'">
+                <a-tag :color="record.level === 'high' ? 'red' : 'orange'">{{ record.level === 'high' ? '缺货' : '低库存' }}</a-tag>
+              </template>
+            </template>
+          </a-table>
+        </a-card>
+      </a-col>
+    </a-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { message } from 'ant-design-vue';
+import { ref, onMounted, onBeforeUnmount, nextTick, h } from 'vue'
+import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import {
-  ReloadOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  DashboardOutlined,
-  DatabaseOutlined,
-  CloudServerOutlined,
-  AlertOutlined,
-  CloseCircleOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  DesktopOutlined
-} from '@ant-design/icons-vue';
-import * as ECharts from 'echarts';
-import dayjs from 'dayjs';
+  ShoppingCartOutlined, ShoppingOutlined, ContainerOutlined,
+  DollarOutlined, TeamOutlined, FileTextOutlined
+} from '@ant-design/icons-vue'
+import { SkeletonDashboard } from '@/components/Skeleton'
 
-// Types
-interface Service {
-  id: string;
-  name: string;
-  type: 'api' | 'database' | 'cache' | 'queue';
-  status: 'running' | 'warning' | 'error';
+const router = useRouter()
+
+/** 页面级加载状态 */
+const pageLoading = ref(true)
+
+const dateRange = ref<any>(null)
+const trendChartRef = ref<HTMLElement | null>(null)
+let chartInstance: any = null
+
+// ── 待办 ──────────────────────────────────────────────
+const todos = [
+  { id: 1, title: '采购订单 PO-2024-0128 待审批', time: '10分钟前', type: 'approval' },
+  { id: 2, title: '销售退货 SR-2024-0056 待处理', time: '30分钟前', type: 'approval' },
+  { id: 3, title: '库存预警：物料 M08001 低于安全库存', time: '1小时前', type: 'alert' },
+  { id: 4, title: '付款申请 PAY-2024-0089 待审核', time: '2小时前', type: 'approval' },
+  { id: 5, title: '客户 深圳科技 信用额度即将超限', time: '3小时前', type: 'alert' }
+]
+
+// ── 快速入口 ──────────────────────────────────────────
+const quickEntries = [
+  { key: 'purchase', label: '采购管理', icon: ShoppingCartOutlined, color: '#1890ff', path: '/purchase' },
+  { key: 'sale', label: '销售管理', icon: ShoppingOutlined, color: '#52c41a', path: '/sale' },
+  { key: 'stock', label: '库存管理', icon: ContainerOutlined, color: '#faad14', path: '/stock' },
+  { key: 'finance', label: '财务管理', icon: DollarOutlined, color: '#722ed1', path: '/finance' },
+  { key: 'customer', label: '客户管理', icon: TeamOutlined, color: '#eb2f96', path: '/crm/customer' },
+  { key: 'order', label: '订单中心', icon: FileTextOutlined, color: '#13c2c2', path: '/order-center' }
+]
+
+// ── 库存预警 ──────────────────────────────────────────
+const alertColumns = [
+  { title: '物料编码', dataIndex: 'code', key: 'code', width: 120 },
+  { title: '物料名称', dataIndex: 'name', key: 'name' },
+  { title: '当前库存', dataIndex: 'current', key: 'current', width: 80 },
+  { title: '安全库存', dataIndex: 'safe', key: 'safe', width: 80 },
+  { title: '状态', key: 'level', width: 80 }
+]
+
+const stockAlerts = [
+  { id: 1, code: 'M08001', name: '电子元器件A', current: 12, safe: 50, level: 'high' },
+  { id: 2, code: 'M08015', name: '包装材料B', current: 8, safe: 30, level: 'high' },
+  { id: 3, code: 'M08023', name: '五金配件C', current: 45, safe: 100, level: 'low' },
+  { id: 4, code: 'M08042', name: '橡胶密封圈D', current: 22, safe: 60, level: 'low' }
+]
+
+// ── ECharts 趋势图 ────────────────────────────────────
+const initChart = async () => {
+  await nextTick()
+  if (!trendChartRef.value) return
+
+  try {
+    const echartsModule: any = await import('echarts')
+    const echartsInst = echartsModule.default || echartsModule
+    chartInstance = echartsInst.init(trendChartRef.value)
+    chartInstance.setOption({
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['销售额', '采购额', '利润'], bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+      xAxis: { type: 'category', boundaryGap: false, data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] },
+      yAxis: { type: 'value', axisLabel: { formatter: '¥{value}' } },
+      series: [
+        { name: '销售额', type: 'line', smooth: true, data: [18200, 23400, 16200, 28400, 22100, 19300, 25800], itemStyle: { color: '#1890ff' }, areaStyle: { color: 'rgba(24,144,255,0.08)' } },
+        { name: '采购额', type: 'line', smooth: true, data: [12300, 15800, 11200, 19200, 14500, 13800, 17600], itemStyle: { color: '#faad14' }, areaStyle: { color: 'rgba(250,173,20,0.08)' } },
+        { name: '利润', type: 'line', smooth: true, data: [5900, 7600, 5000, 9200, 7600, 5500, 8200], itemStyle: { color: '#52c41a' }, areaStyle: { color: 'rgba(82,196,26,0.08)' } }
+      ]
+    })
+  } catch {
+    // ECharts not available - show fallback
+    if (trendChartRef.value) {
+      trendChartRef.value.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999">图表加载中...</div>'
+    }
+  }
 }
 
-interface Alert {
-  id: string;
-  level: 'P0' | 'P1' | 'P2' | 'P3';
-  title: string;
-  message: string;
-  timestamp: string;
-  acknowledged: boolean;
-}
+// ── 操作 ──────────────────────────────────────────────
+const handleRefresh = () => { pageLoading.value = true; setTimeout(() => { pageLoading.value = false; nextTick(() => initChart()); }, 800); message.success('数据已刷新'); }
+const handleViewAll = () => router.push('/notification')
+const handleQuickNav = (path: string) => router.push(path)
 
-// State
-const timeRange = ref<[dayjs.Dayjs, dayjs.Dayjs]>([
-  dayjs().subtract(8, 'hour'),
-  dayjs()
-]);
-const chartRef = ref<HTMLElement | null>(null);
-let chartInstance: ECharts.ECharts | null = null;
-
-// Services data
-const services = ref<Service[]>([
-  { id: 'api-gateway', name: 'API网关', type: 'api', status: 'running' },
-  { id: 'database', name: '主数据库', type: 'database', status: 'running' },
-  { id: 'redis', name: 'Redis缓存', type: 'cache', status: 'warning' },
-  { id: 'kafka', name: '消息队列', type: 'queue', status: 'running' }
-]);
-
-// Alerts data
-const alerts = ref<Alert[]>([
-  { 
-    id: '1', 
-    level: 'P1', 
-    title: 'Redis内存使用率过高', 
-    message: 'Redis缓存内存使用率达到85%', 
-    timestamp: new Date(Date.now() - 5 * 60000).toISOString(), 
-    acknowledged: false 
-  },
-  { 
-    id: '2', 
-    level: 'P2', 
-    title: 'API响应时间波动', 
-    message: '过去10分钟内API平均响应时间波动超过20%', 
-    timestamp: new Date(Date.now() - 15 * 60000).toISOString(), 
-    acknowledged: false 
-  },
-  { 
-    id: '3', 
-    level: 'P3', 
-    title: '磁盘空间预警', 
-    message: '日志存储磁盘空间剩余15%', 
-    timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), 
-    acknowledged: true 
-  }
-]);
-
-// Resource data
-const cpuUsage = ref(35);
-const memoryUsage = ref(62);
-const diskUsage = ref(45);
-const networkUsage = ref(850);
-
-// Computed
-const recentAlerts = computed(() => alerts.value.slice(0, 5));
-const pendingAlerts = computed(() => alerts.value.filter(a => !a.acknowledged).length);
-
-const getCpuStatus = computed(() => 
-  cpuUsage.value > 80 ? 'exception' : cpuUsage.value > 60 ? 'active' : 'normal'
-);
-
-const getMemoryStatus = computed(() => 
-  memoryUsage.value > 80 ? 'exception' : memoryUsage.value > 60 ? 'active' : 'normal'
-);
-
-const getDiskStatus = computed(() => 
-  diskUsage.value > 80 ? 'exception' : diskUsage.value > 60 ? 'active' : 'normal'
-);
-
-// Methods
-const serviceStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    running: '运行中',
-    warning: '预警',
-    error: '异常'
-  };
-  return texts[status] || '未知';
-};
-
-const formatTime = (timestamp: string) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-  return date.toLocaleString('zh-CN');
-};
-
-const handleRefresh = () => {
-  message.success('数据已刷新');
-};
-
-const handleViewServices = () => {
-  message.info('查看服务详情');
-};
-
-const handleServiceClick = (service: Service) => {
-  message.info(`查看服务: ${service.name}`);
-};
-
-const handleAcknowledge = (alert: Alert) => {
-  const index = alerts.value.findIndex(a => a.id === alert.id);
-  if (index !== -1) {
-    alerts.value[index].acknowledged = true;
-  }
-  message.success('告警已确认');
-};
-
-const handleTimeRangeChange = (dates: any) => {
-  console.log('Time range changed:', dates);
-};
-
-// Chart initialization
-const initChart = () => {
-  if (!chartRef.value) return;
-  
-  chartInstance = ECharts.init(chartRef.value, 'light');
-  
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        const params0 = params[0];
-        return `${params0.name}<br/>${params0.seriesName}: ${params0.value.toFixed(2)}ms`;
-      }
-    },
-    legend: {
-      data: ['响应时间', '错误率'],
-      bottom: 0
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '15%',
-      top: '10%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00']
-    },
-    yAxis: [
-      {
-        type: 'value',
-        name: '响应时间(ms)',
-        position: 'left',
-        splitLine: {
-          lineStyle: {
-            type: 'dashed'
-          }
-        }
-      },
-      {
-        type: 'value',
-        name: '错误率(%)',
-        position: 'right',
-        min: 0,
-        max: 1,
-        splitLine: {
-          lineStyle: {
-            type: 'dashed'
-          }
-        }
-      }
-    ],
-    series: [
-      {
-        name: '响应时间',
-        type: 'line',
-        smooth: true,
-        data: [245, 238, 252, 248, 242, 247, 255, 249, 245],
-        itemStyle: { color: '#409EFF' }
-      },
-      {
-        name: '错误率',
-        type: 'line',
-        smooth: true,
-        yAxisIndex: 1,
-        data: [0.12, 0.11, 0.13, 0.12, 0.11, 0.12, 0.13, 0.12, 0.12],
-        itemStyle: { color: '#F56C6C' }
-      }
-    ]
-  };
-  
-  chartInstance.setOption(option);
-};
-
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize();
-  }
-};
-
-// Lifecycle
 onMounted(() => {
-  initChart();
-  window.addEventListener('resize', handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-  if (chartInstance) {
-    chartInstance.dispose();
-  }
-});
+  // 模拟数据加载（后续替换为真实 API 调用）
+  setTimeout(() => {
+    pageLoading.value = false
+    nextTick(() => initChart())
+  }, 1200)
+})
+onBeforeUnmount(() => { chartInstance?.dispose() })
 </script>
 
 <style scoped>
-.dashboard-home-page {
-  padding: 24px;
-  background: #F5F7FA;
-  min-height: 100vh;
-}
+.dashboard { padding: var(--spacing-xxl); background-color: var(--color-bg-layout); min-height: 100%; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xxl); flex-wrap: wrap; gap: var(--spacing-md); }
+.dashboard-title { font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); margin: 0; }
+.dashboard-subtitle { color: var(--color-text-tertiary); margin: var(--spacing-xs) 0 0; font-size: var(--font-size-sm); }
 
-.page-header {
-  margin-bottom: 24px;
-}
+.kpi-row { margin-bottom: var(--spacing-lg); }
+.kpi-card { border-radius: var(--border-radius-lg); transition: box-shadow var(--motion-duration-base); cursor: default; }
+.kpi-card :deep(.ant-card-body) { padding: var(--spacing-xl) var(--spacing-xxl); }
 
-.page-title {
-  margin: 0 0 8px 0;
-  font-size: 32px;
-  font-weight: 600;
-  color: #303133;
-}
+.trend { font-size: var(--font-size-sm); margin-left: var(--spacing-sm); }
+.trend.up { color: var(--color-success); }
+.trend.down { color: var(--color-danger); }
+.trend.warn { color: var(--color-warning); }
 
-.page-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: #909399;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.content-row { margin-bottom: var(--spacing-lg); }
+.chart-card, .todo-card { border-radius: var(--border-radius-lg); height: 380px; }
+.chart-card :deep(.ant-card-body), .todo-card :deep(.ant-card-body) { padding: var(--spacing-lg) var(--spacing-xxl); }
 
-/* KPI Row */
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.kpi-card {
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.kpi-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.card-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #606266;
-}
-
-.kpi-value {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  margin: 16px 0;
-}
-
-.kpi-value .value {
-  font-size: 36px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.kpi-value .unit {
-  font-size: 14px;
-  color: #909399;
-}
-
-.kpi-sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.trend-icon {
-  font-size: 16px;
-}
-
-.trend-icon.up {
-  color: #67C23A;
-}
-
-.trend-icon.down {
-  color: #F56C6C;
-}
-
-.trend-icon.stable {
-  color: #909399;
-}
-
-.trend-value {
-  font-weight: 500;
-}
-
-.trend-value.up {
-  color: #67C23A;
-}
-
-.trend-value.down {
-  color: #F56C6C;
-}
-
-.trend-value.stable {
-  color: #909399;
-}
-
-.trend-label {
-  color: #909399;
-}
-
-/* Main Content */
-.main-content {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 24px;
-}
-
-.left-column, .right-column {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* Status Card */
-.status-card :deep(.ant-card-head) {
-  padding: 16px 20px;
-}
-
-.service-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.service-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.service-item:hover {
-  background: #F5F7FA;
-  transform: translateX(4px);
-}
-
-.service-item.status-running .service-icon {
-  color: #67C23A;
-}
-
-.service-item.status-warning .service-icon {
-  color: #E6A23C;
-}
-
-.service-item.status-error .service-icon {
-  color: #F56C6C;
-}
-
-.service-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #F0F2F5;
-  border-radius: 8px;
-}
-
-.service-name {
-  font-weight: 500;
-  font-size: 14px;
-  color: #303133;
-}
-
-.service-status {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* Alerts Card */
-.alerts-card :deep(.ant-card-head) {
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.alerts-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.alert-item {
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  transition: all 0.3s;
-}
-
-.alert-item:hover {
-  background: #F5F7FA;
-}
-
-.alert-item.level-p0, .alert-item.level-p1 {
-  border-left: 3px solid #F56C6C;
-}
-
-.alert-item.level-p2 {
-  border-left: 3px solid #E6A23C;
-}
-
-.alert-item.level-p3 {
-  border-left: 3px solid #409EFF;
-}
-
-.alert-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.level-icon {
-  font-size: 16px;
-}
-
-.alert-item.level-p0 .level-icon, .alert-item.level-p1 .level-icon {
-  color: #F56C6C;
-}
-
-.alert-item.level-p2 .level-icon {
-  color: #E6A23C;
-}
-
-.alert-item.level-p3 .level-icon {
-  color: #409EFF;
-}
-
-.alert-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.alert-message {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
-}
-
-.alert-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: #909399;
-}
-
-/* Chart Card */
-.chart-card :deep(.ant-card-head) {
-  padding: 16px 20px;
-}
-
-.echarts-container {
-  width: 100%;
-  height: 300px;
-}
-
-/* Resource Card */
-.resource-card :deep(.ant-card-head) {
-  padding: 16px 20px;
-}
-
-.resource-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.resource-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.resource-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.resource-name {
-  color: #303133;
-}
-
-.resource-value {
-  color: #909399;
-}
-
-/* Responsive */
-@media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 1fr;
-  }
-  
-  .kpi-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+.card-heading { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin: 0; color: var(--color-text-primary); }
+.quick-entry { display: flex; flex-direction: column; align-items: center; padding: var(--spacing-lg) var(--spacing-sm); border-radius: var(--border-radius-lg); cursor: pointer; transition: all var(--motion-duration-fast); background: var(--color-bg-layout); border: 1px solid var(--color-border-light); }
+.quick-entry:hover { background: var(--color-primary-bg); border-color: var(--color-primary-border); transform: translateY(-2px); }
+.quick-entry:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.quick-entry-icon { font-size: 28px; margin-bottom: var(--spacing-sm); }
+.quick-entry-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 
 @media (max-width: 768px) {
-  .kpi-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .service-grid {
-    grid-template-columns: 1fr;
-  }
+  .dashboard { padding: var(--spacing-lg); }
+  .dashboard-header { flex-direction: column; align-items: flex-start; }
+  .kpi-card :deep(.ant-card-body) { padding: var(--spacing-lg); }
 }
 </style>

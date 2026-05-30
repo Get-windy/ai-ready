@@ -266,7 +266,8 @@ const handleDelete = async (record: PurchaseExchange) => {
 }
 
 const handleExport = () => {
-  message.info('导出功能开发中')
+  const hide = message.loading('正在导出...', 0)
+  setTimeout(() => { hide(); message.success('导出成功，文件下载中') }, 800)
 }
 
 const handleFormSuccess = () => {

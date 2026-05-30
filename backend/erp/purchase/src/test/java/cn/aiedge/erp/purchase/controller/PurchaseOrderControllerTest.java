@@ -51,8 +51,8 @@ class PurchaseOrderControllerTest {
         testOrder.setTaxAmount(new BigDecimal("6500.00"));
         testOrder.setTotalAmountWithTax(new BigDecimal("56500.00"));
         testOrder.setOrderDate(LocalDateTime.now());
-        testOrder.setExpectedDate(LocalDateTime.now().plusDays(7));
-        testOrder.setStatus(OrderStatus.PENDING_APPROVAL);
+        testOrder.setDeliveryDate(LocalDateTime.now().plusDays(7));
+        testOrder.setStatus(1);
     }
 
     @Test
@@ -103,7 +103,7 @@ class PurchaseOrderControllerTest {
     void testSubmitOrderForApproval() throws Exception {
         PurchaseOrder submittedOrder = new PurchaseOrder();
         submittedOrder.setId(1L);
-        submittedOrder.setStatus(OrderStatus.PENDING_APPROVAL);
+        submittedOrder.setStatus(1);
         
         when(purchaseOrderService.submitOrder(1L)).thenReturn(submittedOrder);
 
@@ -116,7 +116,7 @@ class PurchaseOrderControllerTest {
     void testApprovePurchaseOrder() throws Exception {
         PurchaseOrder approvedOrder = new PurchaseOrder();
         approvedOrder.setId(1L);
-        approvedOrder.setStatus(OrderStatus.APPROVED);
+        approvedOrder.setStatus(2);
         
         when(purchaseOrderService.approveOrder(eq(1L), anyLong(), anyString())).thenReturn(approvedOrder);
 
@@ -170,7 +170,7 @@ class PurchaseOrderControllerTest {
     void testIssueOrder() throws Exception {
         PurchaseOrder issuedOrder = new PurchaseOrder();
         issuedOrder.setId(1L);
-        issuedOrder.setStatus(OrderStatus.ISSUED);
+        issuedOrder.setStatus(3);
         
         when(purchaseOrderService.issueOrder(1L)).thenReturn(issuedOrder);
 

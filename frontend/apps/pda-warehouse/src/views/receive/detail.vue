@@ -80,7 +80,7 @@ const handleConfirmReceive = async () => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('收货确认操作失败:', err) })
 }
 
 const handleReportException = () => {

@@ -76,6 +76,12 @@
             <version>${sa-token.version}</version>
         </dependency>
 
+        <!-- Flyway 数据库版本管理 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
         <!-- Knife4j API文档 -->
         <dependency>
             <groupId>com.github.xiaoymin</groupId>

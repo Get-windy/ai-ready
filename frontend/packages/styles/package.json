@@ -1,0 +1,32 @@
+{
+  "name": "@ai-ready/styles",
+  "version": "0.1.0",
+  "description": "AI-Ready 共享样式与 Design Token 常量",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "keywords": [
+    "design-tokens",
+    "styles",
+    "animations",
+    "ai-ready"
+  ],
+  "author": "AI-Ready Team",
+  "license": "MIT"
+}

@@ -1,37 +1,29 @@
 <template>
   <div class="supplier-table">
-    <ARTable
-      :data="data"
+    <a-table
       :columns="mergedColumns"
+      :data-source="data"
       :loading="loading"
-      :pagination="pagination"
-      :page-size="pageSize"
-      :total="total"
-      :current-page="currentPage"
-      @page-change="handlePageChange"
-      @sort-change="handleSortChange"
+      :pagination="paginationConfig"
+      :row-selection="selectable ? rowSelection : undefined"
+      row-key="id"
+      @change="handleTableChange"
     >
-      <template v-if="showActions" #actions="{ row }">
-        <div class="table-actions">
-          <ARButton size="small" type="primary" @click="$emit('view', row)">
-            查看
-          </ARButton>
-          <ARButton size="small" type="default" @click="$emit('edit', row)">
-            编辑
-          </ARButton>
-          <ARButton size="small" type="danger" @click="$emit('delete', row)">
-            删除
-          </ARButton>
-        </div>
+      <template v-if="showActions" #bodyCell="{ column, record }">
+        <template v-if="column.key === 'action'">
+          <div class="table-actions">
+            <a-button size="small" type="primary" @click="emit('view', record)">查看</a-button>
+            <a-button size="small" @click="emit('edit', record)">编辑</a-button>
+            <a-button size="small" danger @click="emit('delete', record)">删除</a-button>
+          </div>
+        </template>
       </template>
-    </ARTable>
+    </a-table>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import ARTable from '../../../base/table/ARTable.vue'
-import ARButton from '../../../base/button/ARButton.vue'
+import { computed, ref } from 'vue'
 import type { Supplier, TableColumn } from '../../../types'
 import { defaultColumns } from './index.ts'
 
@@ -55,7 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
   pagination: true,
   pageSize: 10,
   total: 0,
-  currentPage: 1,
+  currentPage: 1
 })
 
 const emit = defineEmits<{
@@ -67,19 +59,48 @@ const emit = defineEmits<{
   (e: 'sort-change', sort: { prop: string; order: 'ascending' | 'descending' }): void
 }>()
 
+const selectedRowKeys = ref<(string | number)[]>([])
+
 const mergedColumns = computed(() => {
-  if (props.columns.length > 0) {
-    return props.columns
+  let cols = props.columns.length > 0 ? props.columns : defaultColumns as any
+  if (props.showActions) {
+    cols = [
+      ...cols,
+      { title: '操作', key: 'action', width: 220, fixed: 'right' as const }
+    ]
   }
-  return defaultColumns
+  return cols
 })
 
-const handlePageChange = (page: number) => {
-  emit('page-change', page)
-}
+const paginationConfig = computed(() => {
+  if (!props.pagination) return false
+  return {
+    current: props.currentPage,
+    pageSize: props.pageSize,
+    total: props.total,
+    showSizeChanger: true,
+    showTotal: (total: number) => `共 ${total} 条`
+  }
+})
 
-const handleSortChange = (sort: { prop: string; order: 'ascending' | 'descending' }) => {
-  emit('sort-change', sort)
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: (string | number)[], rows: Supplier[]) => {
+    selectedRowKeys.value = keys
+    emit('selection-change', rows)
+  }
+}))
+
+const handleTableChange = (pag: any, _filters: any, sorter: any) => {
+  if (pag.current !== props.currentPage) {
+    emit('page-change', pag.current)
+  }
+  if (sorter.field) {
+    emit('sort-change', {
+      prop: sorter.field,
+      order: sorter.order === 'ascend' ? 'ascending' : 'descending'
+    })
+  }
 }
 </script>
 

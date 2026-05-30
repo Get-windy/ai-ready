@@ -8,6 +8,20 @@ export { default as ARForm, ARFormItem, ARSelect } from './base/form';
 export { default as ARTable, ARTableColumn } from './base/table';
 export { default as ARDialog } from './base/dialog';
 
+// 布局组件
+export { ControlPanel, ModuleLayout, SearchPanel, DetailLayout } from './layout';
+export * from './layout/types';
+
+// 业务组件
+export { KanbanBoard, KanbanColumn, KanbanCard, KanbanView } from './business/kanban';
+export { CalendarView } from './business/calendar';
+export { GraphView } from './business/graph';
+export { PrintButton } from './business/print-button';
+export { ImportExport } from './business/import-export';
+export { ARChart } from './business/charts';
+export { FilePreview } from './business/file-preview';
+export { SupplierTable } from './business/erp-purchase/supplier-table';
+
 // 工具函数
 export * from './utils';
 
@@ -35,7 +49,7 @@ export const install = (app: App, options = {}): void => {
   }
 
   // 布局组件
-  const layoutComponents = import.meta.glob('./layouts/**/index.ts', { eager: true });
+  const layoutComponents = import.meta.glob('./layout/**/index.ts', { eager: true });
   for (const path in layoutComponents) {
     const module = layoutComponents[path] as any;
     if (module.default && module.default.install) {

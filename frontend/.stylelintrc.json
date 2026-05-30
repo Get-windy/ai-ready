@@ -1,0 +1,33 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-standard-vue"
+  ],
+  "rules": {
+    "color-no-hex": [true, {
+      "severity": "warning"
+    }],
+    "color-named": "never",
+    "color-function-notation": "modern",
+    "declaration-no-important": [true, {
+      "severity": "warning"
+    }],
+    "selector-max-id": 1,
+    "max-nesting-depth": [3, {
+      "severity": "warning"
+    }],
+    "unit-allowed-list": ["px", "%", "em", "rem", "vh", "vw", "s", "ms", "deg", "fr"],
+    "selector-class-pattern": null,
+    "no-descending-specificity": null,
+    "declaration-block-no-duplicate-properties": true,
+    "font-family-no-missing-generic-family-keyword": true,
+    "property-no-vendor-prefix": [true, {
+      "severity": "warning"
+    }],
+    "value-no-vendor-prefix": [true, {
+      "severity": "warning"
+    }],
+    "alpha-value-notation": "number",
+    "hue-degree-notation": "angle"
+  }
+}

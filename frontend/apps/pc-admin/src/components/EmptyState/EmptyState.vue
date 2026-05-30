@@ -170,7 +170,7 @@ const handleAdd = () => {
   align-items: center;
   justify-content: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--ar-text-color-secondary, #909399);
 }
 
 .empty-image {
@@ -180,7 +180,7 @@ const handleAdd = () => {
 .empty-image svg {
   width: 120px;
   height: 120px;
-  fill: #d9d9d9;
+  fill: var(--ar-border-color-dark, #d4d7de);
 }
 
 .empty-text {
@@ -190,7 +190,7 @@ const handleAdd = () => {
 
 .title {
   font-size: 18px;
-  color: #333;
+  color: var(--ar-text-color-primary, #303133);
   margin-bottom: 8px;
 }
 

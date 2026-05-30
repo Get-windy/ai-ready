@@ -70,8 +70,7 @@ public class Menu {
     /**
      * 排序顺序
      */
-    @TableField("sort")
-    private Integer sortOrder;
+    private Integer sort;
     
     /**
      * 状态（0：禁用 1：启用）
@@ -86,14 +85,12 @@ public class Menu {
     /**
      * 是否缓存（0：否 1：是）
      */
-    @TableField("is_cache")
-    private Integer keepAlive;
+    private Integer isCache;
     
     /**
      * 外部链接（0：否 1：是）
      */
-    @TableField("is_external")
-    private Integer external;
+    private Integer isExternal;
     
     /**
      * 客户端类型

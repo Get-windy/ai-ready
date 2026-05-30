@@ -32,6 +32,7 @@ export default {
     dict: 'Dictionaries',
     log: 'Logs',
     profile: 'Profile',
+    logout: 'Logout',
   },
   
   // Actions
@@ -547,5 +548,28 @@ export default {
     light: 'Light',
     dark: 'Dark',
     auto: 'Auto',
+  },
+
+  // Accessibility (WCAG 2.1 AA)
+  a11y: {
+    skipToContent: 'Skip to main content',
+    expandSidebar: 'Expand sidebar',
+    collapseSidebar: 'Collapse sidebar',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
+    userMenu: 'User menu',
+    loading: 'Loading',
+    loaded: 'Loaded',
+    errorOccurred: 'An error occurred',
+    formError: 'Form validation error',
+    required: 'Required',
+    refresh: 'Refresh data',
+    close: 'Close',
+    dialog: 'Dialog',
+    notification: 'Notification',
+    search: 'Search',
+    nextPage: 'Next page',
+    previousPage: 'Previous page',
+    openInNew: 'Open in new window',
   },
 }

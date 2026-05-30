@@ -40,8 +40,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
             throw new RuntimeException("用户不存在");
         }
 
-        // 检查状态
-        if (user.getStatus() != 0) {
+        // 检查状态 (status=1启用, status=0停用)
+        if (user.getStatus() != 1) {
             throw new RuntimeException("用户已禁用或锁定");
         }
 

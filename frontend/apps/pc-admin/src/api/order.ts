@@ -208,56 +208,56 @@ export const purchaseOrderApi = {
    * 分页查询采购订单
    */
   getPage(params: OrderQuery): Promise<ApiResponse<PageResponse<PurchaseOrder>>> {
-    return request.get('/purchase-order/page', { params })
+    return request.get('/api/purchase-order/page', { params })
   },
 
   /**
    * 获取采购订单详情
    */
   getById(id: number): Promise<ApiResponse<PurchaseOrder>> {
-    return request.get(`/purchase-order/${id}`)
+    return request.get(`/api/purchase-order/${id}`)
   },
 
   /**
    * 创建采购订单
    */
   create(data: Partial<PurchaseOrder>): Promise<ApiResponse<boolean>> {
-    return request.post('/purchase-order', data)
+    return request.post('/api/purchase-order', data)
   },
 
   /**
    * 更新采购订单
    */
   update(id: number, data: Partial<PurchaseOrder>): Promise<ApiResponse<boolean>> {
-    return request.put(`/purchase-order/${id}`, data)
+    return request.put(`/api/purchase-order/${id}`, data)
   },
 
   /**
    * 删除采购订单
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/purchase-order/${id}`)
+    return request.delete(`/api/purchase-order/${id}`)
   },
 
   /**
    * 批量删除采购订单
    */
   batchDelete(ids: number[]): Promise<ApiResponse<boolean>> {
-    return request.delete('/purchase-order/batch', { data: ids })
+    return request.delete('/api/purchase-order/batch', { data: ids })
   },
 
   /**
    * 提交订单审批
    */
   submit(id: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/purchase-order/${id}/submit`)
+    return request.post(`/api/purchase-order/${id}/submit`)
   },
 
   /**
    * 审批订单
    */
   approve(id: number, approved: boolean, comment?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/purchase-order/${id}/approve`, null, {
+    return request.post(`/api/purchase-order/${id}/approve`, null, {
       params: { approved, comment }
     })
   },
@@ -266,14 +266,14 @@ export const purchaseOrderApi = {
    * 取消订单
    */
   cancel(id: number, reason?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/purchase-order/${id}/cancel`, null, { params: { reason } })
+    return request.post(`/api/purchase-order/${id}/cancel`, null, { params: { reason } })
   },
 
   /**
    * 导出采购订单
    */
   export(params: OrderQuery): Promise<Blob> {
-    return request.get('/purchase-order/export', { params, responseType: 'blob' })
+    return request.get('/api/purchase-order/export', { params, responseType: 'blob' })
   }
 }
 

@@ -109,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import * as echarts from 'echarts'
@@ -174,10 +174,16 @@ const loadPending = () => {
   pendingFinished.value = true
 }
 
+let chart: echarts.ECharts | null = null
+
+const handleResize = () => {
+  chart?.resize()
+}
+
 const initSalesChart = () => {
   if (!salesChartRef.value) return
 
-  const chart = echarts.init(salesChartRef.value)
+  chart = echarts.init(salesChartRef.value)
   const option = {
     tooltip: {
       trigger: 'axis'
@@ -219,7 +225,7 @@ const initSalesChart = () => {
   }
   chart.setOption(option)
 
-  window.addEventListener('resize', () => chart.resize())
+  window.addEventListener('resize', handleResize)
 }
 
 const handleQuickAction = (action: any) => {
@@ -277,6 +283,14 @@ const goApproval = () => router.push('/approval')
 const goApprovalDetail = (item: any) => router.push(`/approval/${item.id}`)
 const goOrder = () => router.push('/order')
 const goOrderDetail = (order: any) => router.push(`/order/${order.id}`)
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
+})
 </script>
 
 <style scoped lang="scss">

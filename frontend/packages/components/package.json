@@ -30,11 +30,12 @@
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint . --ext .vue,.ts,.js",
     "format": "prettier --write \"**/*.{vue,ts,js,json,scss,css}\"",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
     "prepare": "pnpm run build"
   },
   "dependencies": {
     "vue": "^3.4.0",
-    "element-plus": "^2.4.0",
     "@vueuse/core": "^10.9.0",
     "ant-design-vue": "^4.1.0",
     "@ant-design/icons-vue": "^7.0.1",
@@ -42,7 +43,7 @@
   },
   "peerDependencies": {
     "vue": "^3.0.0",
-    "element-plus": "^2.0.0"
+    "ant-design-vue": "^4.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
@@ -54,13 +55,23 @@
     "eslint": "^9.0.0",
     "prettier": "^3.3.0",
     "@types/node": "^20.0.0",
-    "sass": "^1.72.0"
+    "sass": "^1.72.0",
+    "@storybook/vue3-vite": "^8.3.0",
+    "@storybook/vue3": "^8.3.0",
+    "@storybook/addon-essentials": "^8.3.0",
+    "@storybook/addon-interactions": "^8.3.0",
+    "@storybook/addon-a11y": "^8.3.0",
+    "@storybook/addon-links": "^8.3.0",
+    "@storybook/manager-api": "^8.3.0",
+    "@storybook/theming": "^8.3.0",
+    "@storybook/test": "^8.3.0",
+    "@storybook/blocks": "^8.3.0"
   },
   "keywords": [
     "vue",
     "ui",
     "components",
-    "element-plus",
+    "ant-design-vue",
     "erp",
     "ai-ready"
   ],

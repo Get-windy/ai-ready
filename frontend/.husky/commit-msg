@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 校验 commit 消息格式
+# 允许格式: feat/fix/docs/style/refactor/perf/test/chore/revert: 描述
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# 跳过 merge 与 rebase commit
+if echo "$COMMIT_MSG" | grep -qE '^(Merge|Revert|Squash)'; then
+  exit 0
+fi
+
+REQUIRED_PATTERN="^(feat|fix|docs|style|refactor|perf|test|chore|revert|build|ci)(\(.+\))?:\s(.+)$"
+
+if ! echo "$COMMIT_MSG" | head -1 | grep -qE "$REQUIRED_PATTERN"; then
+  echo ""
+  echo "  [ERROR] Commit 消息格式不符合规范。"
+  echo "  期望格式: <type>(<scope>): <subject>"
+  echo ""
+  echo "  允许的 type: feat, fix, docs, style, refactor, perf, test, chore, revert, build, ci"
+  echo "  示例: feat(auth): 添加登录功能"
+  echo "        fix: 修复表格分页错误"
+  echo ""
+  exit 1
+fi
+
+# 主题行最大长度检查
+SUBJECT_LENGTH=$(echo "$COMMIT_MSG" | head -1 | wc -c)
+if [ "$SUBJECT_LENGTH" -gt 100 ]; then
+  echo ""
+  echo "  [ERROR] Commit 标题不能超过 100 个字符（当前 $SUBJECT_LENGTH 个）。"
+  echo ""
+  exit 1
+fi
+
+exit 0

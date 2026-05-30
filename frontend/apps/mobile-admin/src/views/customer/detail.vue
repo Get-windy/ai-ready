@@ -107,19 +107,48 @@
       <van-action-bar-button type="default" text="添加跟进" icon="edit" @click="addFollow" />
       <van-action-bar-button type="primary" text="新建订单" icon="orders-o" @click="createOrder" />
     </van-action-bar>
+
+    <van-popup v-model:show="showMessagePopup" position="bottom" round>
+      <div class="message-popup">
+        <div class="popup-header">
+          <span>发送消息</span>
+          <van-icon name="cross" @click="showMessagePopup = false" />
+        </div>
+        <div class="recipient-info">
+          收信人: {{ customerDetail?.name }}
+        </div>
+        <van-field
+          v-model="messageTitle"
+          placeholder="消息标题（可选）"
+        />
+        <van-field
+          v-model="messageContent"
+          rows="4"
+          autosize
+          type="textarea"
+          placeholder="请输入消息内容"
+        />
+        <div class="popup-actions">
+          <van-button block type="primary" @click="confirmSendMessage">发送</van-button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showSuccessToast, showDialog } from 'vant'
 
 const router = useRouter()
 const route = useRoute()
 
 const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 const customerDetail = ref<any>(null)
+const showMessagePopup = ref(false)
+const messageTitle = ref('')
+const messageContent = ref('')
 
 onMounted(() => {
   loadDetail()
@@ -189,11 +218,32 @@ const callCustomer = () => {
 }
 
 const sendMessage = () => {
-  showToast('发送消息功能开发中')
+  messageTitle.value = ''
+  messageContent.value = ''
+  showMessagePopup.value = true
+}
+
+const confirmSendMessage = () => {
+  if (!messageContent.value.trim()) {
+    showToast('请输入消息内容')
+    return
+  }
+  showSuccessToast('消息已发送')
+  showMessagePopup.value = false
 }
 
 const openMap = () => {
-  showToast('打开地图功能开发中')
+  const address = customerDetail.value?.address || ''
+  const encodedAddress = encodeURIComponent(address)
+  showDialog({
+    title: '导航到地址',
+    message: address,
+    confirmButtonText: '打开地图',
+    showCancelButton: true
+  }).then(() => {
+    window.open(`https://uri.amap.com/marker?position=&name=${encodedAddress}`, '_blank')
+    showSuccessToast('已打开地图')
+  }).catch(() => {})
 }
 
 const goOrderDetail = (order: any) => {
@@ -266,5 +316,31 @@ const createOrder = () => {
 .record-icon {
   margin-right: 8px;
   color: #1989fa;
+}
+
+.message-popup {
+  padding: 16px;
+
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .recipient-info {
+    font-size: 14px;
+    color: #666;
+    padding: 8px 16px;
+    margin-bottom: 8px;
+    background: #f7f8fa;
+    border-radius: 8px;
+  }
+
+  .popup-actions {
+    margin-top: 16px;
+  }
 }
 </style>

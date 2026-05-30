@@ -166,6 +166,34 @@
         </template>
       </a-table>
     </a-modal>
+
+    <!-- 库存详情弹窗 -->
+    <a-modal
+      v-model:open="detailVisible"
+      title="库存详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="商品编码">{{ currentRecord.productCode }}</a-descriptions-item>
+        <a-descriptions-item label="商品名称">{{ currentRecord.productName }}</a-descriptions-item>
+        <a-descriptions-item label="规格">{{ currentRecord.specification }}</a-descriptions-item>
+        <a-descriptions-item label="单位">{{ currentRecord.unit }}</a-descriptions-item>
+        <a-descriptions-item label="库存数量">
+          <span :class="{ 'low-stock': currentRecord.quantity < currentRecord.minQuantity, 'over-stock': currentRecord.quantity > currentRecord.maxQuantity }">
+            {{ currentRecord.quantity }}
+          </span>
+        </a-descriptions-item>
+        <a-descriptions-item label="最低库存">{{ currentRecord.minQuantity }}</a-descriptions-item>
+        <a-descriptions-item label="最高库存">{{ currentRecord.maxQuantity }}</a-descriptions-item>
+        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
+        <a-descriptions-item label="最后入库">{{ currentRecord.lastInTime }}</a-descriptions-item>
+        <a-descriptions-item label="最后出库">{{ currentRecord.lastOutTime }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -190,6 +218,8 @@ interface StockItem {
 
 const loading = ref(false)
 const logModalVisible = ref(false)
+const detailVisible = ref(false)
+const currentRecord = ref<StockItem | null>(null)
 
 const queryParams = reactive({
   productCode: '',
@@ -248,7 +278,7 @@ const handleInbound = () => message.info('入库操作')
 const handleOutbound = () => message.info('出库操作')
 const handleStocktake = () => message.info('库存盘点')
 const handleExport = () => message.info('导出库存')
-const handleView = (record: StockItem) => message.info('查看: ' + record.productName)
+const handleView = (record: StockItem) => { currentRecord.value = record; detailVisible.value = true }
 const handleStockLog = (record: StockItem) => { logModalVisible.value = true }
 </script>
 

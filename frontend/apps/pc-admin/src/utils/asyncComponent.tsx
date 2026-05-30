@@ -141,7 +141,7 @@ export function preloadRouteComponents(routes: any[]) {
   routes.forEach((route) => {
     if (route.component && typeof route.component === 'function') {
       // 预加载组件，但不实际渲染
-      route.component().catch(() => {})
+      route.component().catch((err: unknown) => { console.error('预加载路由组件失败:', err) })
     }
     if (route.children) {
       preloadRouteComponents(route.children)

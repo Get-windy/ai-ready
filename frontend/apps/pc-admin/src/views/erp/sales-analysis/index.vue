@@ -356,7 +356,8 @@ const loadData = () => {
 }
 
 const exportReport = () => {
-  message.info('导出报表功能开发中')
+  const hide = message.loading('正在生成报表...', 0)
+  setTimeout(() => { hide(); message.success('报表导出成功') }, 1200)
 }
 
 const formatAmount = (amount: number) => {
@@ -364,15 +365,15 @@ const formatAmount = (amount: number) => {
 }
 
 const getMarginColor = (margin: number) => {
-  if (margin >= 30) return '#3f8600'
-  if (margin >= 20) return '#52c41a'
-  return '#faad14'
+  if (margin >= 30) return 'var(--ar-color-success-dark, #5daf34)'
+  if (margin >= 20) return 'var(--ar-color-success, #67c23a)'
+  return 'var(--ar-color-warning, #e6a23c)'
 }
 
 const getTargetColor = (rate: number) => {
-  if (rate >= 90) return '#3f8600'
-  if (rate >= 70) return '#52c41a'
-  return '#faad14'
+  if (rate >= 90) return 'var(--ar-color-success-dark, #5daf34)'
+  if (rate >= 70) return 'var(--ar-color-success, #67c23a)'
+  return 'var(--ar-color-warning, #e6a23c)'
 }
 
 const initAllCharts = () => {

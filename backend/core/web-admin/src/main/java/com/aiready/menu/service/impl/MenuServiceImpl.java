@@ -355,12 +355,12 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         }
         dto.setMenuType(menu.getMenuType());
         dto.setMenuTypeDesc(getMenuTypeDesc(menu.getMenuType()));
-        dto.setSortOrder(menu.getSortOrder());
+        dto.setSortOrder(menu.getSort());
         dto.setStatus(menu.getStatus());
         dto.setStatusDesc(menu.getStatus() != null && menu.getStatus() == 1 ? "启用" : "禁用");
         dto.setVisible(menu.getVisible());
-        dto.setKeepAlive(menu.getKeepAlive());
-        dto.setExternal(menu.getExternal());
+        dto.setKeepAlive(menu.getIsCache());
+        dto.setExternal(menu.getIsExternal());
         dto.setClientType(menu.getClientType());
         dto.setRemark(menu.getRemark());
         dto.setCreateTime(menu.getCreateTime());

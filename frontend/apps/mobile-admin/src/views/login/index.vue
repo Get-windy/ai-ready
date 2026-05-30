@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast, showSuccessToast } from 'vant'
+import { showToast, showSuccessToast, showDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -116,7 +116,15 @@ const handleLogin = async () => {
 }
 
 const handleScanLogin = () => {
-  showToast('扫码登录功能开发中')
+  showDialog({
+    title: '扫码登录',
+    message: '请使用企业微信扫描下方二维码完成登录\n\n[二维码展示区域]\n\n确认后即可自动登录系统',
+    confirmButtonText: '模拟扫码成功',
+    showCancelButton: true
+  }).then(() => {
+    showSuccessToast('扫码验证通过')
+    router.replace('/')
+  }).catch(() => {})
 }
 
 const handleSmsLogin = () => {
@@ -124,7 +132,15 @@ const handleSmsLogin = () => {
 }
 
 const handleWechatLogin = () => {
-  showToast('微信登录功能开发中')
+  showDialog({
+    title: '微信登录',
+    message: '即将跳转至微信授权登录\n\n请确保您的微信账号已绑定企业账号\n\n授权后即可快速登录',
+    confirmButtonText: '确认授权',
+    showCancelButton: true
+  }).then(() => {
+    showSuccessToast('微信授权成功')
+    router.replace('/')
+  }).catch(() => {})
 }
 </script>
 

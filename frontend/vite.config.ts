@@ -1,9 +1,15 @@
+/**
+ * 根级 Vite 配置 — 模板/后备配置
+ *
+ * 实际构建由各 app 自己的 vite.config.ts 接管（例如 apps/pc-admin/vite.config.ts）。
+ * 此文件仅作为 pnpm workspace 根目录占位，确保 `npx vite` 在仓库根目录运行
+ * 时不会直接报错；日常开发请使用每个 app 各自的 dev/build 脚本。
+ */
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { createSvgIconsPlugin } from 'vite-plugin-svg-icons'
 
 // 获取环境变量
@@ -66,14 +72,12 @@ export default defineConfig({
         }
       ],
       dts: 'src/types/auto-imports.d.ts',
-      resolvers: [ElementPlusResolver()]
     }),
     // 自动导入组件
     Components({
       dirs: ['src/components/common', 'src/components/layout'],
       extensions: ['vue'],
       dts: 'src/types/components.d.ts',
-      resolvers: [ElementPlusResolver()]
     }),
     // SVG图标插件
     createSvgIconsPlugin({
@@ -141,6 +145,6 @@ export default defineConfig({
   
   // 优化配置
   optimizeDeps: {
-    include: ['vue', 'vue-router', 'pinia', 'element-plus', '@vueuse/core']
+    include: ['vue', 'vue-router', 'pinia', 'ant-design-vue', '@vueuse/core']
   }
 })

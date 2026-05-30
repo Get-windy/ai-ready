@@ -178,6 +178,90 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="销售订单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="订单日期">{{ currentRecord.orderDate }}</a-descriptions-item>
+        <a-descriptions-item label="交货日期">{{ currentRecord.deliveryDate }}</a-descriptions-item>
+        <a-descriptions-item label="销售员">{{ currentRecord.salesperson }}</a-descriptions-item>
+        <a-descriptions-item label="订单金额">¥{{ currentRecord.totalAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="创建时间">{{ currentRecord.createTime || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
+
+    <!-- 新增/编辑订单表单对话框 -->
+    <a-modal
+      v-model:open="saleFormVisible"
+      :title="editingSaleOrder ? '编辑销售订单' : '新建销售订单'"
+      width="600px"
+      :confirm-loading="saleFormLoading"
+      @ok="handleSaleFormSubmit"
+      @cancel="handleSaleFormCancel"
+    >
+      <a-form
+        :model="saleForm"
+        layout="vertical"
+      >
+        <a-form-item label="客户名称" required>
+          <a-select
+            v-model:value="saleForm.customerId"
+            placeholder="请选择客户"
+            style="width: 100%"
+          >
+            <a-select-option :value="1">客户A</a-select-option>
+            <a-select-option :value="2">客户B</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="订单日期" required>
+          <a-date-picker
+            v-model:value="saleForm.orderDate"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="交货日期">
+          <a-date-picker
+            v-model:value="saleForm.deliveryDate"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="销售员">
+          <a-input
+            v-model:value="saleForm.salesperson"
+            placeholder="请输入销售员"
+          />
+        </a-form-item>
+        <a-form-item label="订单金额" required>
+          <a-input-number
+            v-model:value="saleForm.totalAmount"
+            :min="0"
+            :precision="2"
+            style="width: 100%"
+            placeholder="请输入订单金额"
+          />
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea
+            v-model:value="saleForm.remark"
+            :rows="3"
+            placeholder="请输入备注"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -191,6 +275,11 @@ import PrintButton from '@/components/business/print-button/PrintButton.vue'
 // 类型定义
 const loading = ref(false)
 const dataSource = ref<SalesOrder[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<SalesOrder | null>(null)
+const saleFormVisible = ref(false)
+const editingSaleOrder = ref<SalesOrder | null>(null)
+const saleFormLoading = ref(false)
 
 const queryParams = reactive({
   orderNo: '',
@@ -205,6 +294,15 @@ const pagination = reactive({
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
+})
+
+const saleForm = reactive({
+  customerId: undefined as number | undefined,
+  orderDate: '',
+  deliveryDate: '',
+  salesperson: '',
+  totalAmount: undefined as number | undefined,
+  remark: ''
 })
 
 const columns = [
@@ -304,20 +402,27 @@ const handleReset = () => {
 
 // 新增订单
 const handleAdd = () => {
-  message.info('打开新增订单表单')
-  // TODO: 打开新增订单表单
+  editingSaleOrder.value = null
+  resetSaleForm()
+  saleFormVisible.value = true
 }
 
 // 查看订单
 const handleView = (record: SalesOrder) => {
-  message.info(`查看订单: ${record.orderNo}`)
-  // TODO: 打开查看订单详情
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 // 编辑订单
 const handleEdit = (record: SalesOrder) => {
-  message.info(`编辑订单: ${record.orderNo}`)
-  // TODO: 打开编辑订单表单
+  editingSaleOrder.value = record
+  saleForm.customerId = record.customerId
+  saleForm.orderDate = record.orderDate
+  saleForm.deliveryDate = record.deliveryDate
+  saleForm.salesperson = record.salesperson
+  saleForm.totalAmount = record.totalAmount
+  saleForm.remark = record.remark
+  saleFormVisible.value = true
 }
 
 // 提交订单
@@ -360,9 +465,25 @@ const handleDelete = async (record: SalesOrder) => {
 }
 
 // 导出
-const handleExport = () => {
-  message.info('导出销售订单')
-  // TODO: 实现导出功能
+const handleExport = async () => {
+  const hide = message.loading('正在导出...', 0)
+  try {
+    const blob = await salesOrderApi.export({
+      tenantId: 1,
+      ...queryParams
+    })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `销售订单_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  } finally {
+    hide()
+  }
 }
 
 // 表格变化
@@ -399,6 +520,59 @@ const handlePrintSuccess = (record: SalesOrder) => {
 
 const handlePrintError = (error: any) => {
   message.error(`打印失败: ${error.message || '未知错误'}`)
+}
+
+// 表单提交
+const handleSaleFormSubmit = async () => {
+  saleFormLoading.value = true
+  try {
+    if (editingSaleOrder.value) {
+      // 编辑模式
+      await salesOrderApi.update(editingSaleOrder.value.id, {
+        customerId: saleForm.customerId,
+        orderDate: saleForm.orderDate,
+        deliveryDate: saleForm.deliveryDate,
+        salesperson: saleForm.salesperson,
+        totalAmount: saleForm.totalAmount,
+        remark: saleForm.remark
+      })
+      message.success('订单更新成功')
+    } else {
+      // 新增模式
+      await salesOrderApi.create({
+        tenantId: 1,
+        customerId: saleForm.customerId,
+        orderDate: saleForm.orderDate,
+        deliveryDate: saleForm.deliveryDate,
+        salesperson: saleForm.salesperson,
+        totalAmount: saleForm.totalAmount,
+        remark: saleForm.remark
+      })
+      message.success('订单创建成功')
+    }
+    saleFormVisible.value = false
+    fetchData()
+  } catch {
+    message.error('操作失败')
+  } finally {
+    saleFormLoading.value = false
+  }
+}
+
+// 表单取消
+const handleSaleFormCancel = () => {
+  saleFormVisible.value = false
+  resetSaleForm()
+}
+
+// 重置表单
+const resetSaleForm = () => {
+  saleForm.customerId = undefined
+  saleForm.orderDate = ''
+  saleForm.deliveryDate = ''
+  saleForm.salesperson = ''
+  saleForm.totalAmount = undefined
+  saleForm.remark = ''
 }
 
 onMounted(() => {

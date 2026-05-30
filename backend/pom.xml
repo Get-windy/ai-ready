@@ -75,7 +75,10 @@
         
         <!-- XXL-Job -->
         <xxl-job.version>2.4.1</xxl-job.version>
-        
+
+        <!-- Flyway -->
+        <flyway.version>10.8.1</flyway.version>
+
         <!-- API Documentation -->
         <springdoc.version>2.5.0</springdoc.version>
         <swagger2markup.version>1.3.3</swagger2markup.version>
@@ -147,7 +150,19 @@
                 <version>${postgresql.version}</version>
                 <scope>runtime</scope>
             </dependency>
-            
+
+            <!-- Flyway 数据库版本管理 -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+
             <!-- MyBatis Plus -->
             <dependency>
                 <groupId>com.baomidou</groupId>

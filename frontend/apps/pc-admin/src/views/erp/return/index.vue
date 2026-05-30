@@ -141,6 +141,30 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="退货单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="退货单号">{{ currentRecord.returnNo }}</a-descriptions-item>
+        <a-descriptions-item label="销售订单">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="退货金额">¥{{ currentRecord.returnAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="退货原因" :span="2">{{ currentRecord.returnReason }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="退货日期">{{ currentRecord.returnDate }}</a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -148,6 +172,8 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { saleReturnApi, type SaleReturn } from '@/api/erp'
+import request from '@/utils/request'
 
 interface ReturnOrder {
   id: number
@@ -163,6 +189,8 @@ interface ReturnOrder {
 
 const loading = ref(false)
 const dataSource = ref<ReturnOrder[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<ReturnOrder | null>(null)
 
 const queryParams = reactive({
   returnNo: '',
@@ -271,7 +299,8 @@ const handleCreate = () => {
 }
 
 const handleView = (record: ReturnOrder) => {
-  message.info(`查看退货单: ${record.returnNo}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handleApprove = (record: ReturnOrder) => {
@@ -299,37 +328,23 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          returnNo: 'RT20260328001',
-          orderNo: 'SO20260328001',
-          customerName: '客户A',
-          returnAmount: 5000,
-          returnReason: '质量问题',
-          status: 0,
-          returnDate: '2026-04-13',
-          operator: '张三'
-        },
-        {
-          id: 2,
-          returnNo: 'RT20260328002',
-          orderNo: 'SO20260328002',
-          customerName: '客户B',
-          returnAmount: 3000,
-          returnReason: '规格不符',
-          status: 1,
-          returnDate: '2026-04-12',
-          operator: '李四'
-        }
-      ]
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await request.get('/erp/sale/return/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

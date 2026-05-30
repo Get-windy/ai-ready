@@ -61,9 +61,7 @@
               <a @click="handleSend(record)" v-if="record.status === 'draft'">发送</a>
               <a @click="handleConvert(record)" v-if="record.status === 'accepted'">转订单</a>
               <a @click="handleCopy(record)">复制</a>
-              <a-popconfirm title="确定要删除吗？" @confirm="handleDelete(record)">
-                <a class="danger-link" v-if="record.status === 'draft'">删除</a>
-              </a-popconfirm>
+              <a @click="handleDeleteConfirm(record)" class="danger-link" v-if="record.status === 'draft'">删除</a>
             </a-space>
           </template>
         </template>
@@ -254,7 +252,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 
@@ -487,16 +485,53 @@ const handleSend = (record: any) => {
 }
 
 const handleConvert = (record: any) => {
-  message.info('转订单功能开发中')
+  Modal.confirm({
+    title: '确认转订单',
+    content: `确定要将报价 "${record.quotationName}" 转为销售订单吗？`,
+    okText: '确认转换',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('报价已成功转为订单')
+      loadTableData()
+    }
+  })
 }
 
 const handleCopy = (record: any) => {
-  message.info('复制报价功能开发中')
+  Modal.confirm({
+    title: '复制报价',
+    content: `确定要复制报价 "${record.quotationName}" 吗？将创建一个新的草稿报价单。`,
+    okText: '确认复制',
+    cancelText: '取消',
+    centered: true,
+    onOk() {
+      modalTitle.value = '新建报价（复制）'
+      generateQuotationNo()
+      Object.assign(formData, {
+        ...record,
+        id: undefined,
+        quotationNo: formData.quotationNo,
+        items: (record.items || [{ productName: '', spec: '', quantity: 1, unit: '', price: 0, discount: 0, subtotal: 0 }]).map((item: any) => ({ ...item }))
+      })
+      modalVisible.value = true
+    }
+  })
 }
 
-const handleDelete = (record: any) => {
-  message.success('删除成功')
-  loadTableData()
+const handleDeleteConfirm = (record: any) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除报价 "${record.quotationName}" 吗？此操作不可撤销。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('删除成功')
+      loadTableData()
+    }
+  })
 }
 
 const handleSubmit = async () => {

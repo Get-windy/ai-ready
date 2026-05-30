@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { message } from 'ant-design-vue'
 import Card from '@/components/common/Card.vue'
 
 const router = useRouter()
@@ -80,9 +81,9 @@ const handleReprint = async () => {
   
   try {
     await window.electronAPI.tasks.reprint(taskId.value)
-    alert('已重新发送打印任务')
+    message.success('已重新发送打印任务')
   } catch (err) {
-    alert('重新打印失败: ' + err)
+    message.error('重新打印失败: ' + (err?.message || err))
   }
 }
 
@@ -94,7 +95,7 @@ const handleCancel = async () => {
       await window.electronAPI.tasks.cancel(taskId.value)
       router.back()
     } catch (err) {
-      alert('取消失败: ' + err)
+      message.error('取消失败: ' + (err?.message || err))
     }
   }
 }

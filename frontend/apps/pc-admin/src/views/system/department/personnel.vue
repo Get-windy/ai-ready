@@ -375,6 +375,7 @@ import {
   SwapOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { positionApi, type PositionInfo } from '@/api/position'
@@ -574,9 +575,11 @@ const handleAddModalOk = async () => {
     await addFormRef.value?.validate()
     addModalLoading.value = true
     
-    // TODO: 调用添加部门人员API
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
+    await request.post('/department/personnel/add', {
+      deptId: currentDepartment.value?.id,
+      userIds: addFormState.userIds,
+      positionId: addFormState.positionId
+    })
     message.success('添加成功')
     addModalVisible.value = false
     fetchData()
@@ -608,9 +611,12 @@ const handleTransferModalOk = async () => {
     await transferFormRef.value?.validate()
     transferModalLoading.value = true
     
-    // TODO: 调用批量调动API
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
+    await request.post('/department/personnel/transfer', {
+      deptId: currentDepartment.value?.id,
+      targetDeptId: transferFormState.targetDepartmentId,
+      userIds: selectedRowKeys.value,
+      positionId: transferFormState.newPositionId
+    })
     message.success('调动成功')
     transferModalVisible.value = false
     selectedRowKeys.value = []
@@ -642,9 +648,12 @@ const handleSingleTransferModalOk = async () => {
     await singleTransferFormRef.value?.validate()
     singleTransferModalLoading.value = true
     
-    // TODO: 调用单人调动API
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
+    await request.post('/department/personnel/transfer', {
+      deptId: currentDepartment.value?.id,
+      targetDeptId: singleTransferFormState.targetDepartmentId,
+      userIds: [selectedUser.value!.id],
+      positionId: singleTransferFormState.newPositionId
+    })
     message.success('调动成功')
     singleTransferModalVisible.value = false
     fetchData()
@@ -666,8 +675,9 @@ const handleRemove = (user: UserInfo) => {
     title: '确认移除',
     content: `确定要将用户 "${user.nickname || user.username}" 从当前部门移除吗？`,
     async onOk() {
-      // TODO: 调用移除部门人员API
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await request.delete('/department/personnel/remove', {
+        params: { deptId: currentDepartment.value?.id, userId: user.id }
+      })
       message.success('移除成功')
       fetchData()
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Empty from '@/components/common/Empty.vue'
@@ -33,9 +34,9 @@ const handleSetDefault = async (printerName: string) => {
 const handleTestPrint = async (printerName: string) => {
   try {
     await window.electronAPI.printers.testPrint(printerName)
-    alert('测试打印已发送到 ' + printerName)
+    message.success('测试打印已发送到 ' + printerName)
   } catch (error) {
-    alert('测试打印失败: ' + error)
+    message.error('测试打印失败: ' + (error?.message || error))
   }
 }
 

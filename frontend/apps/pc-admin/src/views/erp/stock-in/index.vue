@@ -140,6 +140,30 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="入库单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="入库单号">{{ currentRecord.inboundNo }}</a-descriptions-item>
+        <a-descriptions-item label="采购订单">{{ currentRecord.purchaseOrderNo }}</a-descriptions-item>
+        <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
+        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
+        <a-descriptions-item label="入库金额">¥{{ currentRecord.totalAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="入库日期">{{ currentRecord.inboundDate }}</a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -148,6 +172,7 @@ import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import request from '@/utils/request'
 
 interface StockIn {
   id: number
@@ -163,6 +188,8 @@ interface StockIn {
 
 const loading = ref(false)
 const dataSource = ref<StockIn[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<StockIn | null>(null)
 
 const queryParams = reactive({
   inboundNo: '',
@@ -269,7 +296,8 @@ const handleCreate = () => {
 }
 
 const handleView = (record: StockIn) => {
-  message.info(`查看出库单: ${record.inboundNo}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handleApprove = (record: StockIn) => {
@@ -301,37 +329,23 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          inboundNo: 'IN20260328001',
-          purchaseOrderNo: 'PO20260328001',
-          supplierName: '供应商A',
-          warehouseName: '主仓库',
-          totalAmount: 20000,
-          status: 0,
-          inboundDate: '2026-04-14',
-          operator: '张三'
-        },
-        {
-          id: 2,
-          inboundNo: 'IN20260328002',
-          purchaseOrderNo: 'PO20260328002',
-          supplierName: '供应商B',
-          warehouseName: '主仓库',
-          totalAmount: 15000,
-          status: 1,
-          inboundDate: '2026-04-15',
-          operator: '李四'
-        }
-      ]
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await request.get('/erp/purchase/inbound/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

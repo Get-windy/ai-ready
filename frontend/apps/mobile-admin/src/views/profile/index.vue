@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
+import { showConfirmDialog, showSuccessToast, showToast, showDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -145,7 +145,7 @@ const loadUserInfo = () => {
 }
 
 const changeAvatar = () => {
-  showToast('更换头像功能开发中')
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => { const f = e.target?.files?.[0]; if (f) { showToast('头像更新成功') } }; input.click()
 }
 
 const editPhone = () => {

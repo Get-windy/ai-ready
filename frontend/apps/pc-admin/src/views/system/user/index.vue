@@ -101,6 +101,7 @@
           <a-space>
             <a-button
               type="primary"
+              :loading="submittingLoading"
               @click="handleAdd"
             >
               <template #icon>
@@ -110,7 +111,8 @@
             </a-button>
             <a-button
               danger
-              :disabled="!selectedRowKeys.length"
+              :loading="batchDeleteLoading"
+              :disabled="!selectedRowKeys.length || batchDeleteLoading"
               @click="handleBatchDelete"
             >
               <template #icon>
@@ -122,12 +124,20 @@
         </div>
       </template>
       
+      <!-- 骨架屏加载状态 -->
+      <SkeletonTable
+        v-if="loading"
+        :rows="5"
+        :columns="7"
+      />
+
+      <!-- 数据表格 -->
       <a-table
+        v-else
         :columns="columns"
         :data-source="tableData"
-        :loading="loading"
         :pagination="pagination"
-        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
+        :row-selection="{ selectedRowKeys, onChange: onSelectChange, preserveSelectedRowKeys: true }"
         row-key="id"
         @change="handleTableChange"
       >
@@ -150,19 +160,19 @@
               </div>
             </a-space>
           </template>
-          
+
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            <a-tag :color="record.status === 0 ? 'success' : 'warning'">
               {{ record.status === 0 ? '正常' : '停用' }}
             </a-tag>
           </template>
-          
+
           <template v-else-if="column.key === 'userType'">
             <a-tag :color="getUserTypeColor(record.userType)">
               {{ getUserTypeName(record.userType) }}
             </a-tag>
           </template>
-          
+
           <template v-else-if="column.key === 'action'">
             <a-space>
               <a-button
@@ -214,7 +224,7 @@
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
-      :confirm-loading="modalLoading"
+      :confirm-loading="submittingLoading"
       width="600px"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
@@ -356,8 +366,10 @@ import {
   KeyOutlined,
   StopOutlined
 } from '@ant-design/icons-vue'
+import { SkeletonTable } from '@/components/Skeleton'
 import { userApi, type UserInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
+import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 
 // 搜索表单
 const searchForm = reactive({
@@ -370,6 +382,13 @@ const searchForm = reactive({
 const tableData = ref<UserInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
+const { isSubmitting: batchDeleteLoading } = useSubmitLock()
+
+const { executeOptimistic, isUndoing: isUndoInProgress } = useOptimisticUpdate<UserInfo>({
+  dataList: tableData,
+  showUndo: true,
+  undoTimeout: 5000,
+})
 
 // 分页配置
 const pagination = reactive({
@@ -394,7 +413,7 @@ const columns: TableProps['columns'] = [
 
 // 弹窗相关
 const modalVisible = ref(false)
-const modalLoading = ref(false)
+const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
 const modalTitle = computed(() => isEdit.value ? '编辑用户' : '新增用户')
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
@@ -414,7 +433,13 @@ const formState = reactive({
 const formRules = {
   username: { required: true, message: '请输入用户名', trigger: 'blur' },
   nickname: { required: true, message: '请输入昵称', trigger: 'blur' },
-  password: { required: true, message: '请输入密码', trigger: 'blur' },
+  password: { required: true, message: '请输入密码', min: 6, trigger: 'blur' },
+  email: [
+    { required: false, type: 'email', message: '请输入有效邮箱地址', trigger: 'blur' }
+  ],
+  phone: [
+    { required: false, pattern: /^1[3-9]d{9}$/, message: '请输入有效手机号', trigger: 'blur' }
+  ],
 }
 
 // 角色分配相关
@@ -503,23 +528,27 @@ const handleEdit = (record: UserInfo) => {
 // 提交表单
 const handleModalOk = async () => {
   try {
-    await formRef.value?.validate()
-    modalLoading.value = true
-    
-    if (isEdit.value) {
-      await userApi.update(formState.id, formState)
-      message.success('更新成功')
-    } else {
-      await userApi.create(formState as any)
-      message.success('创建成功')
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+
+      if (isEdit.value) {
+        await userApi.update(formState.id, formState)
+        message.success('更新成功')
+      } else {
+        await userApi.create(formState as any)
+        message.success('创建成功')
+      }
+
+      modalVisible.value = false
+      fetchData()
+    })
+    // result 为 undefined 表示操作被锁定（防重复提交），无需提示错误
+    void result
+  } catch (error: any) {
+    // 跳过因锁定而提前返回的情况
+    if (error) {
+      message.error(error?.message || '操作失败')
     }
-    
-    modalVisible.value = false
-    fetchData()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    modalLoading.value = false
   }
 }
 
@@ -530,28 +559,90 @@ const handleModalCancel = () => {
 
 // 删除用户
 const handleDelete = (record: UserInfo) => {
+  // 深拷贝一份记录数据，用于撤销时重新创建
+  const savedRecord = { ...record }
+
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除用户 "${record.username}" 吗？`,
     async onOk() {
-      await userApi.delete(record.id)
-      message.success('删除成功')
-      fetchData()
-    }
+      return executeOptimistic(
+        // 1) 乐观变更：从列表中移除该项
+        (list) => list.filter((item) => item.id !== record.id),
+        // 2) 回滚：恢复原始列表
+        (originalList) => {
+          tableData.value = originalList
+        },
+        // 3) API 调用
+        () => userApi.delete(record.id),
+        // 4) 撤销恢复：重新创建用户
+        async () => {
+          const createData = {
+            ...savedRecord,
+            password: '123456',
+          } as Record<string, any>
+          delete createData.id
+          await userApi.create(createData as any)
+          await fetchData()
+        },
+        // 5) 覆盖 actionName 以显示正确文案
+        '删除'
+      )
+    },
   })
 }
 
-// 批量删除
+// 批量删除（乐观更新 + 撤销支持）
 const handleBatchDelete = () => {
+  if (batchDeleteLoading.value) return
+
+  const idsToDelete = [...selectedRowKeys.value] as number[]
+  // 保存被删除的完整记录，用于撤销时恢复
+  const deletedItems = tableData.value.filter((item) =>
+    idsToDelete.includes(item.id)
+  )
+
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个用户吗？`,
+    content: `确定要删除选中的 ${idsToDelete.length} 个用户吗？`,
     async onOk() {
-      await userApi.batchDelete(selectedRowKeys.value)
-      message.success('删除成功')
-      selectedRowKeys.value = []
-      fetchData()
-    }
+      batchDeleteLoading.value = true
+
+      const result = await executeOptimistic(
+        // 1) 乐观变更：批量移除选中项
+        (list) => list.filter((item) => !idsToDelete.includes(item.id)),
+        // 2) 回滚：恢复原始列表
+        (originalList) => {
+          tableData.value = originalList
+        },
+        // 3) API 调用
+        () => userApi.batchDelete(idsToDelete),
+        // 4) 撤销恢复：逐个重新创建被删用户
+        async () => {
+          for (const item of deletedItems) {
+            try {
+              const createData = {
+                ...item,
+                password: '123456',
+              } as Record<string, any>
+              delete createData.id
+              await userApi.create(createData as any)
+            } catch {
+              // 单个恢复失败不中断其他恢复
+            }
+          }
+          await fetchData()
+        },
+        // 5) 覆盖 actionName 以显示正确文案
+        '删除'
+      )
+
+      if (result) {
+        selectedRowKeys.value = []
+      }
+
+      batchDeleteLoading.value = false
+    },
   })
 }
 
@@ -567,12 +658,26 @@ const handleResetPassword = (record: UserInfo) => {
   })
 }
 
-// 切换状态
+// 切换状态（乐观更新：立即变更 UI，失败则回滚）
 const handleToggleStatus = async (record: UserInfo) => {
   const newStatus = record.status === 0 ? 1 : 0
-  await userApi.updateStatus(record.id, newStatus)
-  message.success('状态更新成功')
-  fetchData()
+
+  await executeOptimistic(
+    // 1) 乐观变更：立即更新列表中该项的状态
+    (list) =>
+      list.map((item) =>
+        item.id === record.id ? { ...item, status: newStatus } : item
+      ),
+    // 2) 回滚：恢复原始状态
+    (originalList) => {
+      tableData.value = originalList
+    },
+    // 3) API 调用
+    () => userApi.updateStatus(record.id, newStatus),
+    // 4) 不需要撤销恢复（toggle 操作可逆），只需 actionName 覆盖
+    undefined,
+    '更新状态'
+  )
 }
 
 // 分配角色
@@ -586,7 +691,7 @@ const handleAssignRole = async (record: UserInfo) => {
       title: r.roleName
     }))
   }
-  // TODO: 加载用户已有角色
+  try { const userRes = await userApi.getById(record.id); if (userRes.data?.roleIds) { targetRoleKeys.value = userRes.data.roleIds.map(String); } } catch { targetRoleKeys.value = []; }
   targetRoleKeys.value = []
   roleModalVisible.value = true
 }
@@ -608,7 +713,7 @@ const filterRoleOption = (input: string, option: any) => {
 
 // 辅助函数
 const getUserTypeColor = (type: number) => {
-  const colors: Record<number, string> = { 0: 'red', 1: 'orange', 2: 'blue' }
+  const colors: Record<number, string> = { 0: 'gold', 1: 'blue', 2: 'default' }
   return colors[type] || 'default'
 }
 

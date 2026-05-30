@@ -17,7 +17,9 @@
     "noFallthroughCasesInSwitch": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@ai-ready/components": ["../../packages/components/src"],
+      "@ai-ready/components/*": ["../../packages/components/src/*"]
     },
     "types": ["vite/client"]
   },

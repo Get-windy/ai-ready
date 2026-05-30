@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
 
@@ -97,11 +97,17 @@ const stats = reactive({
   returnAmount: 0
 })
 
+let chart: echarts.ECharts | null = null
+
+const handleResize = () => {
+  chart?.resize()
+}
+
 const initChart = () => {
   nextTick(() => {
     if (!chartRef.value) return
 
-    const chart = echarts.init(chartRef.value)
+    chart = echarts.init(chartRef.value)
     const option = {
       title: {
         text: '销售趋势'
@@ -144,7 +150,7 @@ const initChart = () => {
     }
     chart.setOption(option)
 
-    window.addEventListener('resize', () => chart.resize())
+    window.addEventListener('resize', handleResize)
   })
 }
 
@@ -160,6 +166,14 @@ const handleQuery = () => {
 onMounted(() => {
   handleQuery()
   initChart()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
 })
 </script>
 

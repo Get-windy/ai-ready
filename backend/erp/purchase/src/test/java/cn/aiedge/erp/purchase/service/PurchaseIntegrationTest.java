@@ -265,21 +265,21 @@ class PurchaseIntegrationTest {
 
         PurchaseOrder generatedOrder = orderService.generateOrderFromContract(generatedContract, orderItems);
         assertNotNull(generatedOrder, "采购订单生成应成功");
-        assertEquals(OrderStatus.DRAFT, generatedOrder.getStatus(), "订单初始状态应为草稿");
+        assertEquals(0, generatedOrder.getStatus(), "订单初始状态应为草稿");
 
         // Step 9: 订单审批和下达
-        orderTemplate.setStatus(OrderStatus.DRAFT);
+        orderTemplate.setStatus(0);
         when(orderMapper.updateStatus(anyLong(), any(), any())).thenReturn(1);
 
         PurchaseOrder submittedOrder = orderService.submitOrder(generatedOrder.getId());
-        assertEquals(OrderStatus.PENDING_APPROVAL, submittedOrder.getStatus(), "订单状态应为待审批");
+        assertEquals(1, submittedOrder.getStatus(), "订单状态应为待审批");
 
-        orderTemplate.setStatus(OrderStatus.PENDING_APPROVAL);
+        orderTemplate.setStatus(1);
         PurchaseOrder approvedOrder = orderService.approveOrder(generatedOrder.getId(), 2L, "审批通过");
-        assertEquals(OrderStatus.APPROVED, approvedOrder.getStatus(), "订单状态应为已审批");
+        assertEquals(2, approvedOrder.getStatus(), "订单状态应为已审批");
 
         PurchaseOrder issuedOrder = orderService.issueOrder(generatedOrder.getId());
-        assertEquals(OrderStatus.ISSUED, issuedOrder.getStatus(), "订单状态应为已下达");
+        assertEquals(3, issuedOrder.getStatus(), "订单状态应为已下达");
 
         // 验证整个流程的完整性
         verify(inquiryMapper, times(1)).insert(any());
@@ -484,7 +484,7 @@ class PurchaseIntegrationTest {
         order.setId(1L);
         order.setContractId(contract.getId());
         order.setSupplierId(quote1.getSupplierId());
-        order.setStatus(OrderStatus.DRAFT);
+        order.setStatus(0);
         order.setTotalAmount(BigDecimal.valueOf(10000));
 
         when(orderMapper.findById(anyLong())).thenReturn(order);
@@ -493,23 +493,23 @@ class PurchaseIntegrationTest {
 
         // DRAFT -> PENDING_APPROVAL -> APPROVED -> ISSUED
         PurchaseOrder submitted = orderService.submitOrder(order.getId());
-        assertEquals(OrderStatus.PENDING_APPROVAL, submitted.getStatus(), "状态应为待审批");
+        assertEquals(1, submitted.getStatus(), "状态应为待审批");
 
-        order.setStatus(OrderStatus.PENDING_APPROVAL);
+        order.setStatus(1);
         PurchaseOrder approved = orderService.approveOrder(order.getId(), 2L, "审批通过");
-        assertEquals(OrderStatus.APPROVED, approved.getStatus(), "状态应为已审批");
+        assertEquals(2, approved.getStatus(), "状态应为已审批");
 
-        order.setStatus(OrderStatus.APPROVED);
+        order.setStatus(2);
         PurchaseOrder issued = orderService.issueOrder(order.getId());
-        assertEquals(OrderStatus.ISSUED, issued.getStatus(), "状态应为已下达");
+        assertEquals(3, issued.getStatus(), "状态应为已下达");
 
         // ISSUED -> IN_PROGRESS（开始执行）
-        order.setStatus(OrderStatus.ISSUED);
+        order.setStatus(3);
         PurchaseOrder inProgress = orderService.startFulfillment(order.getId());
-        assertEquals(OrderStatus.IN_PROGRESS, inProgress.getStatus(), "状态应为执行中");
+        assertEquals(5, inProgress.getStatus(), "状态应为执行中");
 
         // 更新履行进度
-        order.setStatus(OrderStatus.IN_PROGRESS);
+        order.setStatus(5);
         PurchaseOrder progressUpdated = orderService.updateFulfillmentProgress(
             order.getId(), BigDecimal.valueOf(5000), BigDecimal.valueOf(50)
         );
@@ -517,11 +517,11 @@ class PurchaseIntegrationTest {
             "履行百分比应为50%");
 
         // IN_PROGRESS -> COMPLETED（履行完成）
-        order.setStatus(OrderStatus.IN_PROGRESS);
+        order.setStatus(5);
         order.setFulfillmentPercent(BigDecimal.valueOf(100));
         when(orderMapper.updateCompletionTime(anyLong(), any())).thenReturn(1);
         PurchaseOrder completed = orderService.completeOrder(order.getId());
-        assertEquals(OrderStatus.COMPLETED, completed.getStatus(), "状态应为已完成");
+        assertEquals(6, completed.getStatus(), "状态应为已完成");
     }
 
     @Test

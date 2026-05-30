@@ -140,6 +140,34 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="盘点单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="盘点单号">{{ currentRecord.stocktakeNo }}</a-descriptions-item>
+        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
+        <a-descriptions-item label="盘点日期">{{ currentRecord.stocktakeDate }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="系统数量">{{ currentRecord.systemQuantity }}</a-descriptions-item>
+        <a-descriptions-item label="实际数量">{{ currentRecord.actualQuantity }}</a-descriptions-item>
+        <a-descriptions-item label="差异">
+          <span :class="{ 'positive': currentRecord.difference > 0, 'negative': currentRecord.difference < 0 }">
+            {{ currentRecord.difference > 0 ? '+' : '' }}{{ currentRecord.difference }}
+          </span>
+        </a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -147,6 +175,7 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { stockCheckApi, type StockCheck } from '@/api/erp'
 
 interface Stocktake {
   id: number
@@ -162,6 +191,8 @@ interface Stocktake {
 
 const loading = ref(false)
 const dataSource = ref<Stocktake[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<Stocktake | null>(null)
 
 const queryParams = reactive({
   stocktakeNo: '',
@@ -268,7 +299,8 @@ const handleCreate = () => {
 }
 
 const handleView = (record: Stocktake) => {
-  message.info(`查看盘点单: ${record.stocktakeNo}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handleStart = (record: Stocktake) => {
@@ -292,37 +324,33 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          stocktakeNo: 'ST20260328001',
-          warehouseName: '主仓库',
-          stocktakeDate: '2026-04-14',
-          systemQuantity: 1000,
-          actualQuantity: 980,
-          difference: -20,
-          status: 2,
-          operator: '张三'
-        },
-        {
-          id: 2,
-          stocktakeNo: 'ST20260328002',
-          warehouseName: '分仓库',
-          stocktakeDate: '2026-04-15',
-          systemQuantity: 500,
-          actualQuantity: 520,
-          difference: 20,
-          status: 0,
-          operator: '李四'
-        }
-      ]
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await stockCheckApi.page({
+      tenantId: 1,
+      keyword: queryParams.stocktakeNo || undefined,
+      status: queryParams.status,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records.map((item) => ({
+        id: item.id,
+        stocktakeNo: item.checkNo,
+        warehouseName: item.warehouseName,
+        stocktakeDate: item.checkDate,
+        systemQuantity: item.systemQuantity || 0,
+        actualQuantity: item.actualQuantity || 0,
+        difference: (item.actualQuantity || 0) - (item.systemQuantity || 0),
+        status: item.status,
+        operator: item.creatorName || ''
+      }))
+      pagination.total = res.data.total || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

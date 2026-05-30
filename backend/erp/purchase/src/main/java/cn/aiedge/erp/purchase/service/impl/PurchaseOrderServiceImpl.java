@@ -4,7 +4,6 @@ import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.entity.PurchaseContract;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
 import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
-import cn.aiedge.erp.purchase.enums.OrderStatus;
 import cn.aiedge.erp.purchase.mapper.PurchaseOrderMapper;
 import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
@@ -19,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -35,8 +35,10 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     @Transactional(rollbackFor = Exception.class)
     public Long createOrder(PurchaseOrder order) {
         order.setOrderNo(generateOrderNo());
-        order.setStatus(OrderStatus.DRAFT);
+        order.setStatus(0);
+        order.setPaidAmount(BigDecimal.ZERO);
         order.setReceivedAmount(BigDecimal.ZERO);
+        order.setFulfillmentPercent(BigDecimal.ZERO);
         order.setCreateTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         order.setCreateBy(StpUtil.getLoginIdAsLong());
@@ -55,7 +57,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (existing == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (existing.getStatus().getValue() > OrderStatus.PENDING_APPROVAL.getValue()) {
+        if (existing.getStatus() > 1) {
             throw BusinessException.badRequest("订单已审批，无法修改");
         }
         
@@ -72,7 +74,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (existing == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (existing.getStatus().getValue() > OrderStatus.PENDING_APPROVAL.getValue()) {
+        if (existing.getStatus() > 1) {
             throw BusinessException.badRequest("订单已审批，无法删除");
         }
         
@@ -87,11 +89,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (order.getStatus() != OrderStatus.DRAFT) {
+        if (order.getStatus() != 0) {
             throw BusinessException.badRequest("只有草稿状态的订单才能提交审批");
         }
         
-        order.setStatus(OrderStatus.PENDING_APPROVAL);
+        order.setStatus(1);
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
         logger.info("提交采购订单审批: orderId={}", orderId);
@@ -104,13 +106,13 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (order.getStatus() != OrderStatus.PENDING_APPROVAL) {
+        if (order.getStatus() != 1) {
             throw BusinessException.badRequest("订单不在待审批状态");
         }
         
-        order.setStatus(OrderStatus.APPROVED);
-        order.setApprovedBy(StpUtil.getLoginIdAsLong());
-        order.setApprovedTime(LocalDateTime.now());
+        order.setStatus(2);
+        order.setApprovalUserId(StpUtil.getLoginIdAsLong());
+        order.setApprovalTime(LocalDateTime.now());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
         logger.info("审批通过采购订单: orderId={}", orderId);
@@ -124,7 +126,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             throw BusinessException.notFound("订单不存在");
         }
         
-        order.setStatus(OrderStatus.DRAFT);
+        order.setStatus(0);
         order.setRemark(order.getRemark() + " [审批拒绝: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
@@ -138,11 +140,12 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (order.getStatus().getValue() >= OrderStatus.ISSUED.getValue()) {
+        if (order.getStatus() >= 3) {
             throw BusinessException.badRequest("订单已开始入库，无法取消");
         }
         
-        order.setStatus(OrderStatus.CANCELLED);
+        order.setStatus(4);
+        order.setCancellationFlag(1);
         order.setRemark(order.getRemark() + " [取消原因: " + reason + "]");
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
@@ -163,51 +166,77 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
 
     @Override
     public PurchaseOrder getOrderDetail(Long orderId) {
-        return getById(orderId);
+        PurchaseOrder order = getById(orderId);
+        if (order == null) {
+            throw BusinessException.notFound("订单不存在");
+        }
+        return order;
     }
 
     @Override
     public List<Object> getOrderItems(Long orderId) {
-        return List.of();
+        return Collections.singletonList(orderItemMapper.findByOrderId(orderId));
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder submitOrder(Long orderId) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.PENDING_APPROVAL);
+        if (order.getStatus() != 0) {
+            throw BusinessException.badRequest("只有草稿状态的订单才能提交");
+        }
+        
+        order.setStatus(1);
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("提交采购订单: orderId={}", orderId);
         return order;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder approveOrder(Long orderId, Long approverId, String comment) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.APPROVED);
-        order.setApprovedBy(approverId);
-        order.setApprovedTime(LocalDateTime.now());
+        if (order.getStatus() != 1) {
+            throw BusinessException.badRequest("订单不在待审批状态");
+        }
+        
+        order.setStatus(2);
+        order.setApprovalUserId(approverId);
+        order.setApprovalTime(LocalDateTime.now());
+        order.setRemark(order.getRemark() + " [审批意见: " + comment + "]");
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("审批采购订单: orderId={}, approverId={}, comment={}", orderId, approverId, comment);
         return order;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder issueOrder(Long orderId) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.ISSUED);
+        if (order.getStatus() != 2) {
+            throw BusinessException.badRequest("订单未审批，无法下达");
+        }
+        
+        order.setStatus(3);
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("下达采购订单: orderId={}", orderId);
         return order;
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder generateOrderFromContract(PurchaseContract contract, List<PurchaseOrderItem> items) {
         PurchaseOrder order = new PurchaseOrder();
         order.setContractId(contract.getId());
@@ -215,7 +244,9 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setSupplierName(contract.getSupplierName());
         order.setTotalAmount(contract.getTotalAmount());
         order.setOrderNo(generateOrderNo());
-        order.setStatus(OrderStatus.DRAFT);
+        order.setStatus(0);
+        order.setCreateTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
         save(order);
 
         if (items != null && !items.isEmpty()) {
@@ -223,53 +254,59 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             orderItemMapper.batchInsert(items);
         }
 
+        logger.info("从合同生成采购订单: orderId={}, contractId={}", order.getId(), contract.getId());
         return order;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder startFulfillment(Long orderId) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.IN_PROGRESS);
+        if (order.getStatus() != 3) {
+            throw BusinessException.badRequest("订单未下达，无法开始履行");
+        }
+        
+        order.setStatus(5);
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("开始履行采购订单: orderId={}", orderId);
         return order;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder updateFulfillmentProgress(Long orderId, BigDecimal receivedAmount, BigDecimal fulfillmentPercent) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
+        
         order.setReceivedAmount(receivedAmount);
         order.setFulfillmentPercent(fulfillmentPercent);
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("更新履行进度: orderId={}, receivedAmount={}, fulfillmentPercent={}", 
+                orderId, receivedAmount, fulfillmentPercent);
         return order;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public PurchaseOrder completeOrder(Long orderId) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        order.setStatus(OrderStatus.COMPLETED);
+        
+        order.setStatus(6);
+        order.setClosedFlag(1);
+        order.setUpdateTime(LocalDateTime.now());
         updateById(order);
+        logger.info("完成采购订单: orderId={}", orderId);
         return order;
-    }
-
-    private String generateOrderNo() {
-        return "PO" + System.currentTimeMillis();
-    }
-
-    private void calculateOrderAmount(PurchaseOrder order) {
-        if (order.getTotalAmount() == null) {
-            order.setTotalAmount(BigDecimal.ZERO);
-            order.setTaxAmount(BigDecimal.ZERO);
-            order.setTotalAmountWithTax(BigDecimal.ZERO);
-        }
     }
 
     @Override
@@ -279,7 +316,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (order.getStatus() != OrderStatus.APPROVED && order.getStatus() != OrderStatus.ISSUED) {
+        if (order.getStatus() != 2 && order.getStatus() != 3) {
             throw BusinessException.badRequest("只有已审批或已下达的订单才能进行供应商确认");
         }
         
@@ -297,7 +334,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (!order.getSupplierConfirmed()) {
+        if (!Boolean.TRUE.equals(order.getSupplierConfirmed())) {
             throw BusinessException.badRequest("订单未经过供应商确认，无法发货");
         }
         
@@ -317,7 +354,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (!order.getShipped()) {
+        if (!Boolean.TRUE.equals(order.getShipped())) {
             throw BusinessException.badRequest("订单未发货，无法收货");
         }
         
@@ -328,10 +365,10 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         order.setUpdateTime(LocalDateTime.now());
         
         BigDecimal totalQuantity = order.getTotalQuantity();
-        if (receivedQuantity.compareTo(totalQuantity) < 0) {
-            order.setStatus(OrderStatus.PARTIAL_RECEIVED);
+        if (totalQuantity != null && receivedQuantity.compareTo(totalQuantity) < 0) {
+            order.setStatus(5);
         } else {
-            order.setStatus(OrderStatus.COMPLETED);
+            order.setStatus(6);
         }
         
         updateById(order);
@@ -346,14 +383,14 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         if (order == null) {
             throw BusinessException.notFound("订单不存在");
         }
-        if (!order.getReceived()) {
+        if (!Boolean.TRUE.equals(order.getReceived())) {
             throw BusinessException.badRequest("订单未收货，无法提交发票");
         }
         
-        order.setInvoiceSubmitted(true);
+        order.setInvoiceStatus(1);
         order.setInvoiceNumber(invoiceNumber);
         order.setInvoiceAmount(invoiceAmount);
-        order.setInvoiceDate(invoiceDate);
+        order.setInvoiceDate(invoiceDate.atStartOfDay());
         order.setUpdateTime(LocalDateTime.now());
         updateById(order);
         logger.info("发票提交: orderId={}, invoiceNumber={}, invoiceAmount={}", 
@@ -363,7 +400,7 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     @Override
     public List<PurchaseOrder> getPendingApprovalOrders() {
         LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PurchaseOrder::getStatus, OrderStatus.PENDING_APPROVAL)
+        wrapper.eq(PurchaseOrder::getStatus, 1)
                 .orderByDesc(PurchaseOrder::getCreateTime);
         return list(wrapper);
     }
@@ -391,14 +428,14 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         statistics.put("totalAmount", totalAmount);
         
-        for (OrderStatus status : OrderStatus.values()) {
+        for (int i = 0; i <= 6; i++) {
             wrapper.clear();
             wrapper.eq(PurchaseOrder::getTenantId, tenantId)
-                    .eq(PurchaseOrder::getStatus, status)
+                    .eq(PurchaseOrder::getStatus, i)
                     .ge(startDate != null, PurchaseOrder::getCreateTime, startDate.atStartOfDay())
                     .le(endDate != null, PurchaseOrder::getCreateTime, endDate.atTime(23, 59, 59));
             long count = count(wrapper);
-            statistics.put("status_" + status.getValue(), count);
+            statistics.put("status_" + i, count);
         }
         
         return statistics;
@@ -421,13 +458,42 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
             record.put("orderNo", order.getOrderNo());
             record.put("supplierName", order.getSupplierName());
             record.put("totalAmount", order.getTotalAmount());
-            record.put("status", order.getStatus().getDescription());
+            record.put("status", getStatusDescription(order.getStatus()));
             record.put("createTime", order.getCreateTime());
-            record.put("approvedTime", order.getApprovedTime());
+            record.put("approvalTime", order.getApprovalTime());
             
             report.add(record);
         }
         
         return report;
+    }
+
+    private String generateOrderNo() {
+        return "PO" + System.currentTimeMillis();
+    }
+
+    private void calculateOrderAmount(PurchaseOrder order) {
+        if (order.getTotalAmount() == null) {
+            order.setTotalAmount(BigDecimal.ZERO);
+            order.setTaxAmount(BigDecimal.ZERO);
+            order.setTotalAmountWithTax(BigDecimal.ZERO);
+        } else {
+            BigDecimal taxAmount = order.getTaxAmount() != null ? order.getTaxAmount() : BigDecimal.ZERO;
+            order.setTotalAmountWithTax(order.getTotalAmount().add(taxAmount));
+        }
+    }
+
+    private String getStatusDescription(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "草稿";
+            case 1: return "待审批";
+            case 2: return "已审批";
+            case 3: return "已下达";
+            case 4: return "已取消";
+            case 5: return "履行中";
+            case 6: return "已完成";
+            default: return "未知";
+        }
     }
 }

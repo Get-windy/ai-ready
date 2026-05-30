@@ -51,4 +51,11 @@ public abstract class BaseEntity {
      */
     @TableLogic
     private Integer deleted;
+
+    /**
+     * 乐观锁版本号（防止并发更新冲突）
+     */
+    @Version
+    @TableField(fill = FieldFill.INSERT)
+    private Integer version;
 }

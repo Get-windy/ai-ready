@@ -315,7 +315,11 @@ const setFieldValue = (field: string, value: any) => {
 
 // 设置字段错误
 const setFieldError = (field: string, error: string) => {
-  // TODO: 实现字段错误设置
+  // 通过 Ant Design form rules 系统实现字段验证反馈
+  const target = formRef.value?.getFieldInstance?.(field)
+  if (target) {
+    target.setFields?.([{ name: field, errors: error ? [error] : [], validating: false }])
+  }
 }
 
 // 重置表单

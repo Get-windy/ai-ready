@@ -79,7 +79,8 @@ export const useUserStore = defineStore('delivery-user', () => {
     try {
       const res = await api.user.getStatistics()
       stats.value = res.data || stats.value
-    } catch {
+    } catch (err) {
+      console.error('获取统计数据失败:', err)
     }
   }
 

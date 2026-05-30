@@ -173,6 +173,31 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="应收账款详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="应收金额">¥{{ currentRecord.amount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="已收金额">¥{{ currentRecord.paidAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="未收金额">¥{{ currentRecord.unpaidAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="到期日期">
+          <span :class="{ 'overdue': isOverdue(currentRecord.dueDate) }">{{ currentRecord.dueDate }}</span>
+        </a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -195,6 +220,8 @@ interface AccountsReceivable {
 
 const loading = ref(false)
 const dataSource = ref<AccountsReceivable[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<AccountsReceivable | null>(null)
 
 const queryParams = reactive({
   customerName: '',
@@ -317,7 +344,8 @@ const handleAdd = () => {
 
 // 查看
 const handleView = (record: AccountsReceivable) => {
-  message.info(`查看应收: ${record.customerName}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 // 收款

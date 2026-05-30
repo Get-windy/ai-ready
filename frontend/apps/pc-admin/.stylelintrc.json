@@ -1,0 +1,16 @@
+{
+  "extends": [
+    "../../.stylelintrc.json"
+  ],
+  "ignoreFiles": [
+    "src/views/login/**"
+  ],
+  "rules": {
+    "selector-pseudo-class-no-unknown": [true, {
+      "ignorePseudoClasses": ["deep", "slotted", "global"]
+    }],
+    "selector-pseudo-element-no-unknown": [true, {
+      "ignorePseudoElements": ["v-deep", "v-slotted", "v-global"]
+    }]
+  }
+}

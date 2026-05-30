@@ -104,7 +104,7 @@ const handleStartDelivery = async (task: DeliveryTask) => {
     } finally {
       closeToast()
     }
-  }).catch(() => {})
+  }).catch((err) => { console.error('开始配送失败:', err) })
 }
 
 const handleViewDetail = (task: DeliveryTask) => {
@@ -121,7 +121,7 @@ const handleCallCustomer = (task: DeliveryTask) => {
     message: `拨打 ${task.customerPhone}？`
   }).then(() => {
     window.location.href = `tel:${task.customerPhone}`
-  }).catch(() => {})
+  }).catch((err) => { console.error('拨打客户电话失败:', err) })
 }
 
 const formatDistance = (distance: number) => {

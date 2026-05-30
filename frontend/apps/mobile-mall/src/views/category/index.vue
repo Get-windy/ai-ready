@@ -97,7 +97,7 @@ const handleSubCategoryClick = (subCategory: any) => {
               <img 
                 v-if="sub.image" 
                 :src="sub.image" 
-                alt="sub.name"
+                :alt="sub.name"
               />
               <div v-else class="placeholder-image">
                 {{ sub.name.charAt(0) }}

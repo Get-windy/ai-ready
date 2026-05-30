@@ -102,6 +102,7 @@
           <a-space>
             <a-button
               type="primary"
+              :loading="submittingLoading"
               @click="handleAdd"
             >
               <template #icon>
@@ -117,7 +118,8 @@
             </a-button>
             <a-button
               danger
-              :disabled="!selectedRowKeys.length"
+              :loading="batchDeleteLoading"
+              :disabled="!selectedRowKeys.length || batchDeleteLoading"
               @click="handleBatchDelete"
             >
               <template #icon>
@@ -199,7 +201,7 @@
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
-      :confirm-loading="modalLoading"
+      :confirm-loading="submittingLoading"
       width="600px"
       @ok="handleModalOk"
       @cancel="handleModalCancel"
@@ -495,6 +497,7 @@ import {
 } from '@ant-design/icons-vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
+import { useSubmitLock } from '@/composables'
 
 // 搜索表单
 const searchForm = reactive<PositionQuery>({
@@ -537,7 +540,8 @@ const columns: TableProps['columns'] = [
 
 // 弹窗相关
 const modalVisible = ref(false)
-const modalLoading = ref(false)
+const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
+const { isSubmitting: batchDeleteLoading } = useSubmitLock()
 const modalTitle = computed(() => isEdit.value ? '编辑岗位' : '新增岗位')
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
@@ -575,7 +579,7 @@ const categoryColumns: TableProps['columns'] = [
 ]
 
 const categoryFormModalVisible = ref(false)
-const categoryFormModalLoading = ref(false)
+const { isSubmitting: categoryFormModalLoading, withSubmitLock: withCategoryFormSubmitLock } = useSubmitLock()
 const categoryFormTitle = computed(() => isCategoryEdit.value ? '编辑分类' : '新增分类')
 const isCategoryEdit = ref(false)
 const categoryFormRef = ref<FormInstance>()
@@ -599,7 +603,7 @@ const categoryList = ref<PositionCategory[]>([])
 
 // 部门关联相关
 const departmentModalVisible = ref(false)
-const departmentModalLoading = ref(false)
+const { isSubmitting: departmentModalLoading, withSubmitLock: withDepartmentSubmitLock } = useSubmitLock()
 const departmentList = ref<DepartmentInfo[]>([])
 const targetDepartmentId = ref<number>()
 const currentPositionId = ref(0)
@@ -706,23 +710,25 @@ const handleEdit = (record: PositionInfo) => {
 // 提交表单
 const handleModalOk = async () => {
   try {
-    await formRef.value?.validate()
-    modalLoading.value = true
-    
-    if (isEdit.value) {
-      await positionApi.update(formState.id!, formState)
-      message.success('更新成功')
-    } else {
-      await positionApi.create(formState)
-      message.success('创建成功')
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+
+      if (isEdit.value) {
+        await positionApi.update(formState.id!, formState)
+        message.success('更新成功')
+      } else {
+        await positionApi.create(formState)
+        message.success('创建成功')
+      }
+
+      modalVisible.value = false
+      fetchData()
+    })
+    void result
+  } catch (error: any) {
+    if (error) {
+      message.error(error?.message || '操作失败')
     }
-    
-    modalVisible.value = false
-    fetchData()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    modalLoading.value = false
   }
 }
 
@@ -746,14 +752,22 @@ const handleDelete = (record: PositionInfo) => {
 
 // 批量删除
 const handleBatchDelete = () => {
+  if (batchDeleteLoading.value) return
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除选中的 ${selectedRowKeys.value.length} 个岗位吗？`,
     async onOk() {
-      await positionApi.batchDelete(selectedRowKeys.value)
-      message.success('删除成功')
-      selectedRowKeys.value = []
-      fetchData()
+      batchDeleteLoading.value = true
+      try {
+        await positionApi.batchDelete(selectedRowKeys.value)
+        message.success('删除成功')
+        selectedRowKeys.value = []
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.message || '删除失败')
+      } finally {
+        batchDeleteLoading.value = false
+      }
     }
   })
 }
@@ -807,24 +821,26 @@ const handleEditCategory = (record: PositionCategory) => {
 
 const handleCategoryFormModalOk = async () => {
   try {
-    await categoryFormRef.value?.validate()
-    categoryFormModalLoading.value = true
-    
-    if (isCategoryEdit.value) {
-      await positionApi.updateCategory(categoryFormState.id!, categoryFormState)
-      message.success('更新成功')
-    } else {
-      await positionApi.createCategory(categoryFormState)
-      message.success('创建成功')
+    const result = await withCategoryFormSubmitLock(async () => {
+      await categoryFormRef.value?.validate()
+
+      if (isCategoryEdit.value) {
+        await positionApi.updateCategory(categoryFormState.id!, categoryFormState)
+        message.success('更新成功')
+      } else {
+        await positionApi.createCategory(categoryFormState)
+        message.success('创建成功')
+      }
+
+      categoryFormModalVisible.value = false
+      fetchCategoryData()
+      fetchCategoryList()
+    })
+    void result
+  } catch (error: any) {
+    if (error) {
+      message.error(error?.message || '操作失败')
     }
-    
-    categoryFormModalVisible.value = false
-    fetchCategoryData()
-    fetchCategoryList()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    categoryFormModalLoading.value = false
   }
 }
 
@@ -855,16 +871,18 @@ const handleAssignDepartment = (record: PositionInfo) => {
 }
 
 const handleDepartmentModalOk = async () => {
-  departmentModalLoading.value = true
   try {
-    await positionApi.update(currentPositionId.value, { departmentId: targetDepartmentId.value })
-    message.success('部门关联成功')
-    departmentModalVisible.value = false
-    fetchData()
-  } catch (error) {
-    message.error('操作失败')
-  } finally {
-    departmentModalLoading.value = false
+    const result = await withDepartmentSubmitLock(async () => {
+      await positionApi.update(currentPositionId.value, { departmentId: targetDepartmentId.value })
+      message.success('部门关联成功')
+      departmentModalVisible.value = false
+      fetchData()
+    })
+    void result
+  } catch (error: any) {
+    if (error) {
+      message.error(error?.message || '操作失败')
+    }
   }
 }
 

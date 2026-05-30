@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview",
+    "build:sw": "npx esbuild src/sw.ts --bundle --format=iife --target=es2017 --outfile=public/sw.js --minify",
+    "preview": "vite build && vite preview",
     "test": "vitest"
   },
   "dependencies": {

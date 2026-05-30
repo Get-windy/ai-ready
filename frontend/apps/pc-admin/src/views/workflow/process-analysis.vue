@@ -153,6 +153,7 @@
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
+import request from '@/utils/request'
 
 // 统计卡片数据
 const statisticCards = ref([
@@ -303,15 +304,48 @@ const efficiencyData = ref([
 ])
 
 // 刷新数据
-const handleRefresh = () => {
-  // TODO: 调用后端API刷新数据
-  message.success('刷新成功')
+const handleRefresh = async () => {
+  try {
+    const res = await request.get('/workflow/analysis/refresh')
+    if (res.data) {
+      if (res.data.statistics) {
+        const stats = res.data.statistics
+        statisticCards.value = [
+          { title: '流程实例总数', value: stats.totalInstances || 0, suffix: '个' },
+          { title: '运行中实例', value: stats.runningInstances || 0, suffix: '个' },
+          { title: '待办任务数', value: stats.todoTasks || 0, suffix: '个' },
+          { title: '平均处理时长', value: stats.avgDuration || 0, suffix: '天' }
+        ]
+      }
+      if (res.data.processDuration) {
+        processDurationData.value = res.data.processDuration
+      }
+      if (res.data.nodeDuration) {
+        nodeDurationData.value = res.data.nodeDuration
+      }
+    }
+    message.success('数据刷新成功')
+  } catch {
+    message.error('刷新数据失败')
+  }
 }
 
 // 报表日期变化
-const handleReportDateChange: TableProps['onChange'] = () => {
-  // TODO: 根据日期范围加载报表数据
-  message.info('数据加载中...')
+const handleReportDateChange = async () => {
+  try {
+    const res = await request.get('/workflow/analysis/report', {
+      params: {
+        startDate: reportDateRange.value?.[0],
+        endDate: reportDateRange.value?.[1]
+      }
+    })
+    if (res.data?.records?.length) {
+      efficiencyData.value = res.data.records
+    }
+    message.success('报表数据加载成功')
+  } catch {
+    message.error('加载报表数据失败')
+  }
 }
 
 // 获取进度条颜色

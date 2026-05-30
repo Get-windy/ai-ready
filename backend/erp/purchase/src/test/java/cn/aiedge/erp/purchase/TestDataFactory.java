@@ -28,11 +28,11 @@ public class TestDataFactory {
         order.setSupplierId(100L);
         order.setSupplierName("测试供应商有限公司");
         order.setOrderDate(LocalDateTime.now());
-        order.setExpectedDate(LocalDateTime.now().plusDays(7));
+        order.setDeliveryDate(LocalDateTime.now().plusDays(7));
         order.setTotalAmount(new BigDecimal("50000.00"));
         order.setTaxAmount(new BigDecimal("6500.00"));
         order.setTotalAmountWithTax(new BigDecimal("56500.00"));
-        order.setStatus(OrderStatus.DRAFT);
+        order.setStatus(0);
         order.setCreateBy(1L);
         order.setCreateTime(LocalDateTime.now());
         
@@ -151,7 +151,7 @@ public class TestDataFactory {
     public static PurchaseOrder createLongDeliveryOrder() {
         PurchaseOrder order = createPurchaseOrder();
         order.setOrderNo("PO-LONG-001");
-        order.setExpectedDate(LocalDateTime.now().plusMonths(6));
+        order.setDeliveryDate(LocalDateTime.now().plusMonths(6));
         return order;
     }
 

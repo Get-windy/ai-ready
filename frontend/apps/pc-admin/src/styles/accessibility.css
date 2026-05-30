@@ -74,6 +74,18 @@
 }
 
 /* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 手动切换的减少动画 class（与媒体查询互补） */
 .reduced-motion *,
 .reduced-motion *::before,
 .reduced-motion *::after {
@@ -83,7 +95,65 @@
   scroll-behavior: auto !important;
 }
 
-/* 焦点样式 */
+/* 高对比度模式 — 系统级媒体查询 */
+@media (prefers-contrast: high) {
+  body {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    border: 2px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .ant-btn {
+    border: 2px solid #000 !important;
+  }
+
+  .ant-btn-primary {
+    background: #000 !important;
+    color: #fff !important;
+    border-color: #000 !important;
+  }
+
+  .ant-table {
+    border: 2px solid #000 !important;
+  }
+
+  .ant-table th,
+  .ant-table td {
+    border: 1px solid #000 !important;
+  }
+
+  img,
+  svg {
+    filter: none !important;
+  }
+
+  *:focus {
+    outline: 3px solid #000 !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (prefers-contrast: low) {
+  body {
+    color: #333 !important;
+    background: #fafafa !important;
+  }
+}
+
+/* 焦点样式 — 鼠标点击不显示 outline，键盘 Tab 才显示 */
 :focus {
   outline: 2px solid #1890ff;
   outline-offset: 2px;
@@ -96,9 +166,53 @@
 :focus-visible {
   outline: 2px solid #1890ff;
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-/* 跳过链接 */
+/* 确保交互元素在键盘导航时有明显指示 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 黑暗主题下的焦点样式 */
+@media (prefers-color-scheme: dark) {
+  :focus-visible {
+    outline-color: #4dabf7;
+    box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.3);
+  }
+}
+
+/* 跳过链接 — 键盘 Tab 时可见 */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  background: #1890ff;
+  color: #fff;
+  padding: 12px 20px;
+  z-index: 10000;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 0 0 4px 4px;
+  transition: top 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.skip-to-content:focus {
+  top: 0;
+  outline: 3px solid #fff;
+  outline-offset: -6px;
+}
+
+/* 保留旧选择器向后兼容 */
 .skip-link {
   position: absolute;
   top: -40px;

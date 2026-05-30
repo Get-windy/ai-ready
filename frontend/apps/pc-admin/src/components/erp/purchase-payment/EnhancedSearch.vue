@@ -191,6 +191,23 @@
         </a-tag>
       </a-space>
     </div>
+
+    <!-- 选择搜索条件弹窗 -->
+    <a-modal
+      v-model:open="loadSearchModalVisible"
+      title="选择搜索条件"
+      @ok="handleLoadSearchOk"
+    >
+      <a-radio-group v-model:value="selectedSearchTimestamp" style="width: 100%">
+        <div
+          v-for="item in searchHistory"
+          :key="item.timestamp"
+          class="history-item"
+        >
+          <a-radio :value="item.timestamp">{{ item.name }}</a-radio>
+        </div>
+      </a-radio-group>
+    </a-modal>
   </div>
 </template>
 
@@ -333,33 +350,30 @@ const handleSaveSearch = () => {
   }
 }
 
-// 加载搜索历史
+// 加载搜索历史弹窗
+const loadSearchModalVisible = ref(false)
+const selectedSearchTimestamp = ref<number>(0)
+
 const handleLoadSearch = () => {
-  const items = searchHistory.value
-  if (items.length === 0) {
+  if (searchHistory.value.length === 0) {
     message.info('暂无保存的搜索条件')
     return
   }
-  
-  Modal.confirm({
-    title: '选择搜索条件',
-    content: (
-      <div>
-        {items.map(item => (
-          <div key={item.timestamp} class="history-item">
-            <a-radio value={item.timestamp}>{item.name}</a-radio>
-          </div>
-        ))}
-      </div>
-    ),
-    onOk(selectedTimestamp: number) {
-      const item = items.find(i => i.timestamp === selectedTimestamp)
-      if (item) {
-        Object.assign(formState, item.params)
-        handleSearch()
-      }
-    }
-  })
+  selectedSearchTimestamp.value = 0
+  loadSearchModalVisible.value = true
+}
+
+const handleLoadSearchOk = () => {
+  if (!selectedSearchTimestamp.value) {
+    message.warning('请选择一个搜索条件')
+    return
+  }
+  const item = searchHistory.value.find(i => i.timestamp === selectedSearchTimestamp.value)
+  if (item) {
+    Object.assign(formState, item.params)
+    loadSearchModalVisible.value = false
+    handleSearch()
+  }
 }
 
 // 点击历史搜索标签

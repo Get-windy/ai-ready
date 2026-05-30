@@ -205,18 +205,14 @@
               >
                 编辑
               </a-button>
-              <a-popconfirm
-                title="确定要删除此权限及其子权限吗？"
-                @confirm="handleDelete(record)"
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteConfirm(record)"
               >
-                <a-button
-                  type="link"
-                  size="small"
-                  danger
-                >
-                  删除
-                </a-button>
-              </a-popconfirm>
+                删除
+              </a-button>
             </a-space>
           </template>
         </template>
@@ -414,7 +410,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   SearchOutlined,
@@ -650,14 +646,24 @@ const handleModalCancel = () => {
 }
 
 // 删除权限
-const handleDelete = async (record: PermissionInfo) => {
-  try {
-    await permissionApi.delete(record.id)
-    message.success('删除成功')
-    fetchData()
-  } catch (error: any) {
-    message.error(error.message || '删除失败')
-  }
+const handleDeleteConfirm = (record: PermissionInfo) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除权限 "${record.permissionName}" 及其子权限吗？此操作不可撤销。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      try {
+        await permissionApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch (error: any) {
+        message.error(error.message || '删除失败')
+      }
+    }
+  })
 }
 
 onMounted(() => {

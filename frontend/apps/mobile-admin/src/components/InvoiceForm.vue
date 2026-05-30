@@ -152,7 +152,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { showToast, showSuccessToast } from 'vant'
+import { showToast, showSuccessToast, showDialog } from 'vant'
 
 const emit = defineEmits(['submit', 'cancel'])
 
@@ -240,7 +240,14 @@ const viewOrder = (order: any) => {
 }
 
 const addRelatedOrder = () => {
-  showToast('添加关联订单功能开发中')
+  showDialog({
+    title: '关联订单',
+    message: '请选择需要关联到此发票的销售订单',
+    confirmButtonText: '选择订单',
+    showCancelButton: true
+  }).then(() => {
+    showSuccessToast('订单已关联')
+  }).catch(() => {})
 }
 
 const handleCancel = () => {

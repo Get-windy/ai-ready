@@ -6,7 +6,7 @@
     label-width="120px"
     class="purchase-order-form"
   >
-    <ARFormItem label="采购订单号" prop="orderNumber" required>
+    <ARFormItem label="采购订单号" name="orderNumber" required>
       <ARInput
         v-model="formData.orderNumber"
         placeholder="请输入采购订单号"
@@ -15,26 +15,26 @@
       />
     </ARFormItem>
 
-    <ARFormItem label="供应商" prop="supplierId" required>
-      <ARSelect
-        v-model="formData.supplierId"
+    <ARFormItem label="供应商" name="supplierId" required>
+      <a-select
+        v-model:value="formData.supplierId"
         placeholder="请选择供应商"
-        filterable
-        clearable
+        show-search
+        allow-clear
       >
-        <el-option
+        <a-select-option
           v-for="supplier in supplierOptions"
           :key="supplier.id"
-          :label="supplier.name"
           :value="supplier.id"
-        />
-      </ARSelect>
+        >
+          {{ supplier.name }}
+        </a-select-option>
+      </a-select>
     </ARFormItem>
 
-    <ARFormItem label="订单日期" prop="orderDate" required>
-      <el-date-picker
-        v-model="formData.orderDate"
-        type="date"
+    <ARFormItem label="订单日期" name="orderDate" required>
+      <a-date-picker
+        v-model:value="formData.orderDate"
         placeholder="请选择订单日期"
         format="YYYY-MM-DD"
         value-format="YYYY-MM-DD"
@@ -42,10 +42,9 @@
       />
     </ARFormItem>
 
-    <ARFormItem label="预计到货日期" prop="expectedDeliveryDate">
-      <el-date-picker
-        v-model="formData.expectedDeliveryDate"
-        type="date"
+    <ARFormItem label="预计到货日期" name="expectedDeliveryDate">
+      <a-date-picker
+        v-model:value="formData.expectedDeliveryDate"
         placeholder="请选择预计到货日期"
         format="YYYY-MM-DD"
         value-format="YYYY-MM-DD"
@@ -53,7 +52,7 @@
       />
     </ARFormItem>
 
-    <ARFormItem label="采购员" prop="purchaser">
+    <ARFormItem label="采购员" name="purchaser">
       <ARInput
         v-model="formData.purchaser"
         placeholder="请输入采购员姓名"
@@ -61,28 +60,28 @@
       />
     </ARFormItem>
 
-    <ARFormItem label="订单状态" prop="status" required>
-      <ARSelect
-        v-model="formData.status"
+    <ARFormItem label="订单状态" name="status" required>
+      <a-select
+        v-model:value="formData.status"
         placeholder="请选择订单状态"
       >
-        <el-option
+        <a-select-option
           v-for="status in statusOptions"
           :key="status.value"
-          :label="status.label"
           :value="status.value"
-        />
-      </ARSelect>
+        >
+          {{ status.label }}
+        </a-select-option>
+      </a-select>
     </ARFormItem>
 
-    <ARFormItem label="订单备注" prop="remark">
-      <el-input
-        v-model="formData.remark"
-        type="textarea"
+    <ARFormItem label="订单备注" name="remark">
+      <a-textarea
+        v-model:value="formData.remark"
         :rows="3"
         placeholder="请输入订单备注信息"
-        maxlength="500"
-        show-word-limit
+        :maxlength="500"
+        show-count
       />
     </ARFormItem>
 
@@ -98,78 +97,48 @@
           添加商品
         </ARButton>
       </div>
-      
-      <ARTable
-        :data="formData.products"
-        border
-        stripe
+
+      <a-table
+        :columns="productColumns"
+        :data-source="formData.products"
+        :pagination="false"
+        bordered
         style="margin-top: 10px"
       >
-        <ARTableColumn prop="productName" label="商品名称" min-width="180">
-          <template #default="{ row }">
-            <ARInput
-              v-model="row.productName"
-              placeholder="请输入商品名称"
-              clearable
-            />
+        <template #bodyCell="{ column, record, index }">
+          <template v-if="column.key === 'productName'">
+            <ARInput v-model="record.productName" placeholder="请输入商品名称" clearable />
           </template>
-        </ARTableColumn>
-        
-        <ARTableColumn prop="sku" label="SKU编码" min-width="150">
-          <template #default="{ row }">
-            <ARInput
-              v-model="row.sku"
-              placeholder="请输入SKU编码"
-              clearable
-            />
+          <template v-else-if="column.key === 'sku'">
+            <ARInput v-model="record.sku" placeholder="请输入SKU编码" clearable />
           </template>
-        </ARTableColumn>
-        
-        <ARTableColumn prop="quantity" label="数量" width="120">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.quantity"
+          <template v-else-if="column.key === 'quantity'">
+            <a-input-number
+              v-model:value="record.quantity"
               :min="1"
               :max="99999"
               :step="1"
-              controls-position="right"
               style="width: 100%"
             />
           </template>
-        </ARTableColumn>
-        
-        <ARTableColumn prop="unitPrice" label="单价(元)" width="120">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.unitPrice"
+          <template v-else-if="column.key === 'unitPrice'">
+            <a-input-number
+              v-model:value="record.unitPrice"
               :min="0"
               :step="0.01"
               :precision="2"
-              controls-position="right"
               style="width: 100%"
             />
           </template>
-        </ARTableColumn>
-        
-        <ARTableColumn prop="amount" label="金额(元)" width="120">
-          <template #default="{ row }">
-            <span>{{ (row.quantity * row.unitPrice).toFixed(2) }}</span>
+          <template v-else-if="column.key === 'amount'">
+            <span>{{ (record.quantity * record.unitPrice).toFixed(2) }}</span>
           </template>
-        </ARTableColumn>
-        
-        <ARTableColumn prop="action" label="操作" width="80" fixed="right">
-          <template #default="{ $index }">
-            <ARButton
-              type="danger"
-              size="small"
-              @click="removeProductItem($index)"
-            >
-              删除
-            </ARButton>
+          <template v-else-if="column.key === 'action'">
+            <ARButton type="danger" size="small" @click="removeProductItem(index)">删除</ARButton>
           </template>
-        </ARTableColumn>
-      </ARTable>
-      
+        </template>
+      </a-table>
+
       <div class="product-table-footer">
         <span>总计: {{ totalAmount.toFixed(2) }} 元</span>
       </div>
@@ -192,7 +161,8 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance } from 'ant-design-vue'
+import type { Rule } from 'ant-design-vue'
 
 // 采购订单表单数据
 interface ProductItem {
@@ -224,6 +194,16 @@ const emit = defineEmits<{
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
+
+// 表格列配置
+const productColumns = [
+  { title: '商品名称', dataIndex: 'productName', key: 'productName' },
+  { title: 'SKU编码', dataIndex: 'sku', key: 'sku' },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 120 },
+  { title: '单价(元)', dataIndex: 'unitPrice', key: 'unitPrice', width: 120 },
+  { title: '金额(元)', key: 'amount', width: 120 },
+  { title: '操作', key: 'action', width: 80 }
+]
 
 // 表单数据
 const formData = reactive<PurchaseOrderFormData>({
@@ -260,7 +240,7 @@ const statusOptions = ref([
 ])
 
 // 表单验证规则
-const formRules = {
+const formRules: Record<string, Rule[]> = {
   orderNumber: [
     { required: true, message: '请输入采购订单号', trigger: 'blur' },
     { min: 5, max: 50, message: '长度在 5 到 50 个字符', trigger: 'blur' }
@@ -303,14 +283,12 @@ const removeProductItem = (index: number) => {
 // 提交表单
 const submitForm = async () => {
   if (!formRef.value) return
-  
+
   try {
-    const valid = await formRef.value.validate()
-    if (!valid) return
-    
+    await formRef.value.validate()
+
     submitting.value = true
-    
-    // 准备提交数据
+
     const submitData: PurchaseOrderFormData = {
       ...formData,
       products: formData.products.map(product => ({
@@ -318,7 +296,7 @@ const submitForm = async () => {
         amount: product.quantity * product.unitPrice
       }))
     }
-    
+
     emit('submit', submitData)
   } catch (error) {
     console.error('表单验证失败:', error)
@@ -358,13 +336,13 @@ defineExpose({
       align-items: stretch;
     }
   }
-  
+
   .product-table-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
-    
+
     h4 {
       margin: 0;
       font-size: 16px;
@@ -372,7 +350,7 @@ defineExpose({
       color: var(--ar-text-color-primary, #303133);
     }
   }
-  
+
   .product-table-footer {
     margin-top: 12px;
     padding: 8px 12px;
@@ -381,7 +359,7 @@ defineExpose({
     font-weight: 600;
     text-align: right;
   }
-  
+
   .form-actions {
     margin-top: 20px;
     padding-top: 20px;

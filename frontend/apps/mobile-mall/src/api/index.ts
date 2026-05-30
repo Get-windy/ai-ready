@@ -54,7 +54,8 @@ export const api = {
       request.get(`/products/categories/${categoryId}/products`, { params }),
     search: (keyword: string, params: any) => request.get('/products/search', { params: { keyword, ...params } }),
     getRecommendations: () => request.get('/products/recommendations'),
-    getHotProducts: () => request.get('/products/hot')
+    getHotProducts: () => request.get('/products/hot'),
+    getBanners: () => request.get('/products/banners')
   },
   
   cart: {

@@ -38,28 +38,18 @@ export interface RouterGuardOptions {
 export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
   // 前置守卫
   router.beforeEach(async (to, from, next) => {
-    console.log('[路由守卫] 开始:', { 
-      to: to.path, 
-      from: from.path, 
-      requiresAuth: to.meta.requiresAuth,
-      name: to.name,
-      matched: to.matched.length,
-      dynamicRoutesLoaded 
-    })
     
     try {
       const userStore = useUserStore()
       
       // 如果是登录页，直接放行
       if (to.path === '/login' || to.path === '/register') {
-        console.log('[路由守卫] 登录/注册页，直接放行')
         next()
         return
       }
       
       // 检查是否已登录
       if (!userStore.isLoggedIn) {
-        console.log('[路由守卫] 未登录，跳转到登录页')
         message.warning('请先登录')
         next({
           path: '/login',
@@ -70,10 +60,8 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 检查用户信息是否已加载
       if (!userStore.userInfo) {
-        console.log('[路由守卫] 加载用户信息...')
         try {
           await userStore.getUserInfo()
-          console.log('[路由守卫] 用户信息加载完成:', userStore.userInfo)
         } catch (error) {
           console.error('[路由守卫] 用户信息加载失败:', error)
           // 用户信息加载失败，可能是token过期，清除登录状态
@@ -85,51 +73,58 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 加载动态路由（首次或刷新页面时）
       if (!dynamicRoutesLoaded) {
-        console.log('[路由守卫] 开始加载动态路由...')
         try {
           const dynamicRoutes = await loadDynamicRoutes()
-          console.log('[路由守卫] 动态路由加载完成:', dynamicRoutes)
           
           dynamicRoutes.forEach(route => {
             const children = route.children
             if (children && children.length > 0) {
               const { children: _, ...parentRoute } = route
-              console.log('[路由守卫] 注册父路由:', parentRoute.path, parentRoute.name)
               router.addRoute(parentRoute as any)
               children.forEach((child: any) => {
-                console.log('[路由守卫] 注册子路由:', child.path, child.name)
                 router.addRoute(route.name as string, child)
               })
             } else {
-              console.log('[路由守卫] 注册路由:', route.path, route.name)
               router.addRoute(route)
             }
           })
           
           dynamicRoutesLoaded = true
-          console.log('[路由守卫] 所有路由已处理，重新导航到:', to.path)
+          if (!dynamicRoutes || dynamicRoutes.length === 0) {
+            console.log('[路由守卫] 动态路由为空，使用fallback')
+            dynamicRoutesLoaded = true
+            next({ path: '/dashboard', replace: true })
+            return
+          }
+          
+          // 检查路由是否已注册，避免重复注册
+          const existingRoutes = router.getRoutes()
+          console.log('[路由守卫] 已有路由数量:', existingRoutes.length)
+          
           next({ path: to.path, replace: true })
-          return
-        } catch (error) {
-          console.error('[路由守卫] 动态路由加载失败:', error)
-          dynamicRoutesLoaded = true // 标记为已加载，避免无限循环
+            // 检查路由是否已存在
+            const exists = existingRoutes.some(r => r.path === route.path || r.name === route.name)
+            if (!exists) {
+              console.log('[路由守卫] 注册新路由:', route.path, route.name)
+          
+            } else {
+              console.log('[路由守卫] 路由已存在，跳过:', route.path, route.name)
+          // 其他错误，使用fallback路由
+          dynamicRoutesLoaded = true
           next({ path: '/dashboard', replace: true })
           return
         }
-      }
+          // 重新导航到目标路由
+          next({ ...to, replace: true })
 
       // 如果匹配到 404 路由，说明路由不存在
       if (to.matched.length === 0) {
-        console.log('[路由守卫] 路由不存在，跳转到首页')
         next({ path: '/dashboard', replace: true })
         return
       }
 
-      console.log('[路由守卫] 动态路由已加载，检查权限...')
-      
       // 检查路由权限
       if (!checkRouteAccess(to)) {
-        console.log('[路由守卫] 无权限访问:', to.path)
         message.error('您没有权限访问此页面')
         next({ path: '/403' })
         return
@@ -140,12 +135,10 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 执行自定义前置守卫
       if (options?.beforeEach) {
-        console.log('[路由守卫] 执行自定义前置守卫')
         await options.beforeEach(to, from, next)
         return
       }
 
-      console.log('[路由守卫] 放行到:', to.path)
       next()
     } catch (error) {
       console.error('[路由守卫] 错误:', error)

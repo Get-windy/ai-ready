@@ -1,8 +1,8 @@
 <template>
-  <a-layout class="basic-layout">
+  <a-layout class="basic-layout" aria-label="主导航布局">
     <a-layout-sider
-      v-if="isDesktopView"
-      v-model:collapsed="collapsed"
+      v-if="isDesktopView || isTabletView"
+      v-model:collapsed="isTabletView ? true : collapsed"
       :trigger="null"
       collapsible
       theme="dark"
@@ -23,6 +23,8 @@
         v-model:open-keys="openKeys"
         mode="inline"
         theme="dark"
+        role="navigation"
+        aria-label="侧边栏导航菜单"
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
           <a-menu-item
@@ -33,7 +35,7 @@
             <component :is="getIcon(menu.icon)" v-if="menu.icon" />
             <span>{{ menu.menuName }}</span>
           </a-menu-item>
-          
+
           <a-sub-menu
             v-else-if="menu.menuType === 0"
             :key="menu.menuCode"
@@ -60,10 +62,10 @@
     </a-layout-sider>
 
     <a-drawer
-      v-if="!isDesktopView"
+      v-if="!isDesktopView && !isTabletView"
       v-model:open="mobileMenuVisible"
       placement="left"
-      :closable="false"
+      :closable="true"
       :width="256"
     >
       <a-menu
@@ -71,6 +73,8 @@
         v-model:open-keys="openKeys"
         mode="inline"
         theme="dark"
+        role="navigation"
+        aria-label="移动端导航菜单"
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
           <a-menu-item
@@ -110,23 +114,42 @@
     <a-layout>
       <a-layout-header
         class="layout-header"
+        role="banner"
         :style="{ height: headerHeight }"
       >
         <div class="header-left">
           <MenuUnfoldOutlined
-            v-if="collapsed && isDesktopView"
+            v-if="collapsed && (isDesktopView || isTabletView)"
             class="trigger"
+            role="button"
+            :aria-label="t('a11y.expandSidebar')"
+            :aria-expanded="!collapsed"
+            tabindex="0"
             @click="collapsed = !collapsed"
+            @keydown.enter="collapsed = !collapsed"
+            @keydown.space.prevent="collapsed = !collapsed"
           />
           <MenuFoldOutlined
-            v-else-if="isDesktopView"
+            v-else-if="isDesktopView || isTabletView"
             class="trigger"
+            role="button"
+            :aria-label="t('a11y.collapseSidebar')"
+            :aria-expanded="!collapsed"
+            tabindex="0"
             @click="collapsed = !collapsed"
+            @keydown.enter="collapsed = !collapsed"
+            @keydown.space.prevent="collapsed = !collapsed"
           />
           <MenuOutlined
-            v-if="!isDesktopView"
+            v-if="!isDesktopView && !isTabletView"
             class="trigger"
+            role="button"
+            :aria-label="t('a11y.openMenu')"
+            :aria-expanded="mobileMenuVisible"
+            tabindex="0"
             @click="mobileMenuVisible = true"
+            @keydown.enter="mobileMenuVisible = true"
+            @keydown.space.prevent="mobileMenuVisible = true"
           />
           <a-breadcrumb v-if="isDesktopView || isTabletView">
             <a-breadcrumb-item>{{ t('menu.dashboard') }}</a-breadcrumb-item>
@@ -142,7 +165,7 @@
           <LocaleSwitcher v-if="isDesktopView" />
           
           <a-dropdown>
-            <div class="user-info">
+            <div class="user-info" role="button" :aria-label="t('a11y.userMenu')" tabindex="0">
               <a-avatar
                 :size="isMobileView ? 28 : 32"
                 :src="userStore.userInfo?.avatar"
@@ -170,7 +193,7 @@
                   key="logout"
                   @click="handleLogout"
                 >
-                  {{ t('login.logoutSuccess') }}
+                  {{ t('menu.logout') }}
                 </a-menu-item>
               </a-menu>
             </template>
@@ -178,11 +201,13 @@
         </div>
       </a-layout-header>
 
-      <a-layout-content 
+      <a-layout-content
+        id="main-content"
         class="layout-content"
-        :style="{ 
+        role="main"
+        :style="{
           padding: contentPadding,
-          minHeight: contentMinHeight 
+          minHeight: contentMinHeight
         }"
       >
         <router-view v-slot="{ Component }">
@@ -365,15 +390,15 @@ const handleLogout = async () => {
 }
 
 .layout-header {
-  background: #fff;
+  background: var(--color-bg-layout);
   padding: 0 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-base);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-index-sticky);
 }
 
 .header-left {
@@ -389,7 +414,7 @@ const handleLogout = async () => {
 }
 
 .trigger:hover {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .mobile-title {
@@ -414,9 +439,9 @@ const handleLogout = async () => {
 }
 
 .layout-content {
-  background: #fff;
-  border-radius: 4px;
-  transition: all 0.3s ease;
+  background: var(--color-bg-layout);
+  border-radius: var(--border-radius-base);
+  transition: all var(--motion-duration-base) var(--motion-ease-in-out);
 }
 
 .fade-enter-active,

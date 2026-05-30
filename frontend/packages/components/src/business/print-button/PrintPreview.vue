@@ -23,6 +23,15 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const previewContent = ref<string>('')
+
+// 基本的XSS消毒：移除script标签和事件处理器
+const sanitizedContent = computed(() => {
+  if (!previewContent.value) return ''
+  return previewContent.value
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\son\w+\s*=\s*\w+/gi, '')
+})
 const previewLoading = ref(false)
 const previewError = ref<string>('')
 const zoomLevel = ref(100)
@@ -287,7 +296,8 @@ const previewStyle = computed(() => ({
         </div>
 
         <div v-else class="preview-paper" :style="previewStyle">
-          <div class="preview-content" v-html="previewContent"></div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div class="preview-content" v-html="sanitizedContent"></div>
         </div>
       </div>
     </div>

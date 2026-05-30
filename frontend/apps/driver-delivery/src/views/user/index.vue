@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, Cell, CellGroup, Avatar, Button, Dialog } from 'vant'
+import { NavBar, Cell, CellGroup, Avatar, Button, Dialog, showDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -27,7 +27,7 @@ onMounted(async () => {
   if (!userStore.isLoggedIn) {
     userStore.init()
   }
-  
+
   stats.value = {
     todayDeliveries: 8,
     todayIncome: 120,
@@ -43,14 +43,18 @@ const handleLogout = () => {
   }).then(() => {
     userStore.logout()
     router.push('/login')
-  }).catch(() => {})
+  }).catch((err) => { console.error('退出登录操作失败:', err) })
 }
 
 const handleMenuClick = (item: any) => {
   if (item.path) {
     router.push(item.path)
   } else {
-    Dialog.alert({ message: '功能开发中' })
+    showDialog({
+      title: '帮助中心',
+      message: '如有疑问，请联系配送调度中心\n\n联系电话：400-888-0002\n工作时间：周一至周日 8:00-22:00\n\n常见问题：\n1. 如何接单配送？系统自动派单后，在"待配送"列表中点击"开始配送"\n2. 如何处理异常订单？在订单详情页点击"异常上报"提交情况\n3. 如何查看收入明细？进入"收入明细"查看每日/每月收入\n4. 如何联系客户？在订单详情中可拨打客户电话',
+      confirmButtonText: '我知道了'
+    })
   }
 }
 </script>

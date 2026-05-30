@@ -1,39 +1,27 @@
 <template>
-  <el-dialog
-    v-model="visible"
+  <a-modal
+    v-model:open="visible"
     :title="title"
     :width="width"
-    :fullscreen="fullscreen"
-    :top="top"
-    :modal="modal"
-    :modal-class="modalClass"
-    :append-to-body="appendToBody"
-    :lock-scroll="lockScroll"
-    :custom-class="customClass"
-    :open-delay="openDelay"
-    :close-delay="closeDelay"
-    :close-on-click-modal="closeOnClickModal"
-    :close-on-press-escape="closeOnPressEscape"
-    :show-close="showClose"
-    :before-close="beforeClose"
-    :center="center"
-    :align-center="alignCenter"
+    :mask-closable="closeOnClickModal"
+    :keyboard="closeOnPressEscape"
     :destroy-on-close="destroyOnClose"
-    @open="emit('open')"
-    @opened="emit('opened')"
-    @close="emit('close')"
-    @closed="emit('closed')"
+    :centered="center || alignCenter"
+    :footer="$slots.footer ? undefined : null"
+    @ok="emit('open')"
+    @cancel="handleCancel"
+    @after-close="emit('closed')"
   >
     <template v-if="$slots.title" #title>
       <slot name="title" />
     </template>
-    
+
     <slot />
-    
+
     <template v-if="$slots.footer" #footer>
       <slot name="footer" />
     </template>
-  </el-dialog>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
@@ -93,7 +81,23 @@ watch(() => props.modelValue, (newVal) => {
 // 监听内部visible变化
 watch(visible, (newVal) => {
   emit('update:modelValue', newVal)
+  if (newVal) {
+    emit('open')
+    emit('opened')
+  } else {
+    emit('close')
+  }
 })
+
+const handleCancel = () => {
+  if (props.beforeClose) {
+    props.beforeClose(() => {
+      visible.value = false
+    })
+  } else {
+    visible.value = false
+  }
+}
 
 // 对话框操作方法
 const open = () => {
@@ -118,35 +122,35 @@ defineExpose({
     align-items: center;
     justify-content: space-between;
     padding: 20px 20px 10px;
-    
+
     &__title {
       font-size: 18px;
       font-weight: 600;
       color: var(--ar-text-color-primary, #303133);
       margin: 0;
     }
-    
+
     &__close {
       cursor: pointer;
       color: var(--ar-text-color-secondary, #909399);
       font-size: 16px;
-      
+
       &:hover {
         color: var(--ar-text-color-primary, #303133);
       }
     }
   }
-  
+
   &__body {
     padding: 20px;
     color: var(--ar-text-color-regular, #606266);
   }
-  
+
   &__footer {
     padding: 10px 20px 20px;
     text-align: right;
     border-top: 1px solid var(--ar-border-color-base, #dcdfe6);
-    
+
     &--center {
       text-align: center;
     }

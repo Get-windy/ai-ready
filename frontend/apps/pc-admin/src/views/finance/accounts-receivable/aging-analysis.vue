@@ -125,9 +125,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import request from '@/utils/request'
 
 interface AgingData {
   id: number
@@ -201,11 +202,17 @@ const getAgingColor = (days: number) => {
   return 'red'
 }
 
+let chart: echarts.ECharts | null = null
+
+const handleResize = () => {
+  chart?.resize()
+}
+
 const initChart = () => {
   nextTick(() => {
     if (!chartRef.value) return
 
-    const chart = echarts.init(chartRef.value)
+    chart = echarts.init(chartRef.value)
     const option = {
       title: {
         text: '账龄分布'
@@ -252,7 +259,7 @@ const initChart = () => {
     }
     chart.setOption(option)
 
-    window.addEventListener('resize', () => chart.resize())
+    window.addEventListener('resize', handleResize)
   })
 }
 
@@ -269,53 +276,47 @@ const handleReset = () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          customerName: '客户A',
-          orderNo: 'SO20260328001',
-          totalAmount: 5000,
-          dueDate: '2026-04-15',
-          agingDays: 2
-        },
-        {
-          id: 2,
-          customerName: '客户B',
-          orderNo: 'SO20260328002',
-          totalAmount: 15000,
-          dueDate: '2026-03-10',
-          agingDays: 34
-        },
-        {
-          id: 3,
-          customerName: '客户C',
-          orderNo: 'SO20260328003',
-          totalAmount: 20000,
-          dueDate: '2026-01-15',
-          agingDays: 88
-        }
-      ]
-
-      stats.aging30 = 5000
-      stats.aging60 = 15000
-      stats.aging90 = 20000
-      stats.aging90plus = 10000
-
-      pagination.total = dataSource.value.length
-      loading.value = false
-
-      initChart()
-    }, 500)
+    const res = await request.get('/api/finance/accounts-receivable/aging', {
+      params: {
+        customerName: queryParams.customerName || undefined,
+        endDate: queryParams.endDate || undefined,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+      stats.aging30 = res.data.aging30 || 0
+      stats.aging60 = res.data.aging60 || 0
+      stats.aging90 = res.data.aging90 || 0
+      stats.aging90plus = res.data.aging90plus || 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+      stats.aging30 = 0
+      stats.aging60 = 0
+      stats.aging90 = 0
+      stats.aging90plus = 0
+    }
+    initChart()
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
   fetchData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
 })
 </script>
 

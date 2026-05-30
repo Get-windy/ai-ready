@@ -180,28 +180,28 @@ const handleCancel = () => {
 }
 
 .icon-wrapper.type-info {
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--ar-color-info-lighter, #f4f4f5);
+  color: var(--ar-color-primary, #409eff);
 }
 
 .icon-wrapper.type-success {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--ar-color-success-lighter, #f0f9eb);
+  color: var(--ar-color-success, #67c23a);
 }
 
 .icon-wrapper.type-warning {
-  background: #fff7e6;
-  color: #faad14;
+  background: var(--ar-color-warning-lighter, #fdf6ec);
+  color: var(--ar-color-warning, #e6a23c);
 }
 
 .icon-wrapper.type-error {
-  background: #fff1f0;
-  color: #ff4d4f;
+  background: var(--ar-color-danger-lighter, #fef0f0);
+  color: var(--ar-color-danger, #f56c6c);
 }
 
 .icon-wrapper.type-question {
-  background: #f3f3f3;
-  color: #8c8c8c;
+  background: var(--ar-fill-color, #f0f2f5);
+  color: var(--ar-text-color-secondary, #909399);
 }
 
 .dialog-icon {
@@ -214,21 +214,21 @@ const handleCancel = () => {
 
 .message {
   font-size: 14px;
-  color: #333;
+  color: var(--ar-text-color-primary, #303133);
   margin-bottom: 8px;
   line-height: 1.5;
 }
 
 .description {
   font-size: 12px;
-  color: #666;
+  color: var(--ar-text-color-regular, #606266);
   line-height: 1.5;
 }
 
 .dialog-form {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--ar-border-color-light, #e4e7ed);
 }
 
 .custom-content {

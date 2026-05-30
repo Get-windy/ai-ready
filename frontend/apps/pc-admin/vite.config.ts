@@ -77,6 +77,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@ai-ready/components': resolve(__dirname, '../../packages/components/src'),
     },
   },
 

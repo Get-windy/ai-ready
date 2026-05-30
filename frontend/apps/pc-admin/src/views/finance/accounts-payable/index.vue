@@ -161,6 +161,29 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="应付账款详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="供应商名称">{{ currentRecord.supplierName }}</a-descriptions-item>
+        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="应付金额">¥{{ currentRecord.amount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="已付金额">¥{{ currentRecord.paidAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="未付金额">¥{{ currentRecord.unpaidAmount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="到期日期">{{ currentRecord.dueDate }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -168,6 +191,7 @@
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 
 interface AccountsPayable {
   id: number
@@ -183,6 +207,8 @@ interface AccountsPayable {
 
 const loading = ref(false)
 const dataSource = ref<AccountsPayable[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<AccountsPayable | null>(null)
 
 const queryParams = reactive({
   supplierName: '',
@@ -295,7 +321,8 @@ const handleAdd = () => {
 }
 
 const handleView = (record: AccountsPayable) => {
-  message.info(`查看应付: ${record.supplierName}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handlePayment = (record: AccountsPayable) => {
@@ -315,41 +342,29 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          supplierName: '供应商A',
-          orderNo: 'PO20260328001',
-          amount: 8000,
-          paidAmount: 4000,
-          unpaidAmount: 4000,
-          status: 1,
-          dueDate: '2026-04-20',
-          remark: ''
-        },
-        {
-          id: 2,
-          supplierName: '供应商B',
-          orderNo: 'PO20260328002',
-          amount: 12000,
-          paidAmount: 0,
-          unpaidAmount: 12000,
-          status: 0,
-          dueDate: '2026-04-25',
-          remark: ''
-        }
-      ]
-
+    const res = await request.get('/api/finance/accounts-payable/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
       stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
       stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
       stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+      stats.totalAmount = 0
+      stats.paidAmount = 0
+      stats.unpaidAmount = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }

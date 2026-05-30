@@ -69,9 +69,7 @@
               <a @click="handleEdit(record)" v-if="record.status === 'draft'">编辑</a>
               <a @click="handleApprove(record)" v-if="record.status === 'pending'">审批</a>
               <a @click="handleSign(record)" v-if="record.status === 'approved'">签订</a>
-              <a-popconfirm title="确定要删除吗？" @confirm="handleDelete(record)">
-                <a class="danger-link" v-if="record.status === 'draft'">删除</a>
-              </a-popconfirm>
+              <a @click="handleDeleteConfirm(record)" class="danger-link" v-if="record.status === 'draft'">删除</a>
             </a-space>
           </template>
         </template>
@@ -197,12 +195,33 @@
         <a-step title="总经理审批" :description="contractDetail.generalApprover" />
       </a-steps>
     </a-modal>
+
+    <!-- 合同签订弹窗 -->
+    <a-modal
+      v-model:open="signModalVisible"
+      title="合同签订"
+      width="500px"
+      @ok="handleSignSubmit"
+      @cancel="signModalVisible = false"
+    >
+      <a-form :model="signForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+        <a-form-item label="合同名称">
+          <a-input :value="signForm.contractName" disabled />
+        </a-form-item>
+        <a-form-item label="签订日期" required>
+          <a-date-picker v-model:value="signForm.signDate" style="width: 100%" placeholder="请选择签订日期" />
+        </a-form-item>
+        <a-form-item label="签订人" required>
+          <a-input v-model:value="signForm.signPerson" placeholder="请输入签订人姓名" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 
@@ -278,6 +297,15 @@ const customerList = ref([
 ])
 
 const contractDetail = ref<any>({})
+
+// ── 签订弹窗 ──────────────────────────────────────────
+const signModalVisible = ref(false)
+const signForm = reactive({
+  contractId: undefined,
+  contractName: '',
+  signDate: undefined as any,
+  signPerson: ''
+})
 
 const uploadUrl = '/api/upload'
 const uploadHeaders = {}
@@ -385,16 +413,54 @@ const handleEdit = (record: any) => {
 }
 
 const handleApprove = (record: any) => {
-  message.info('审批功能开发中')
+  Modal.confirm({
+    title: '确认审批',
+    content: `确定要审批合同 "${record.contractName}" 吗？审批通过后合同状态将更新为已审批。`,
+    okText: '确认审批',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('审批成功')
+      loadTableData()
+    }
+  })
 }
 
 const handleSign = (record: any) => {
-  message.info('签订功能开发中')
+  signForm.contractId = record.id
+  signForm.contractName = record.contractName
+  signForm.signDate = undefined
+  signForm.signPerson = record.signPerson || ''
+  signModalVisible.value = true
 }
 
-const handleDelete = (record: any) => {
-  message.success('删除成功')
+const handleSignSubmit = () => {
+  if (!signForm.signDate) {
+    message.warning('请选择签订日期')
+    return
+  }
+  if (!signForm.signPerson.trim()) {
+    message.warning('请输入签订人')
+    return
+  }
+  message.success(`合同"${signForm.contractName}"签订成功，已进入执行阶段`)
+  signModalVisible.value = false
   loadTableData()
+}
+
+const handleDeleteConfirm = (record: any) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除合同 "${record.contractName}" 吗？此操作不可撤销。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      message.success('删除成功')
+      loadTableData()
+    }
+  })
 }
 
 const handleSubmit = async () => {

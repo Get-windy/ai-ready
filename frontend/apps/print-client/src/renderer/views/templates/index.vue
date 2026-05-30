@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import Card from '@/components/common/Card.vue'
 
 const router = useRouter()
@@ -103,7 +104,7 @@ const handleDelete = async (template: PrintTemplate) => {
       await window.electronAPI.templates.deleteTemplate(template.id)
       templates.value = templates.value.filter(t => t.id !== template.id)
     } catch (err) {
-      alert('删除失败: ' + err)
+      message.error('删除失败: ' + (err?.message || err))
     }
   }
 }
@@ -115,7 +116,7 @@ const handleSetDefault = async (template: PrintTemplate) => {
       t.isDefault = t.id === template.id
     })
   } catch (err) {
-    alert('设置失败: ' + err)
+    message.error('设置失败: ' + (err?.message || err))
   }
 }
 

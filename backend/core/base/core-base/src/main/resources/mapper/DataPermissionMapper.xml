@@ -10,7 +10,7 @@
         <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
             #{roleId}
         </foreach>
-        AND status = 0
+        AND status = 1
         AND deleted = 0
     </select>
 

@@ -85,6 +85,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
+import request from '@/utils/request'
 
 const router = useRouter()
 const loading = ref(false)
@@ -136,7 +137,11 @@ const rules: Record<string, Rule[]> = {
 const handleRegister = async () => {
   loading.value = true
   try {
-    // TODO: 实现注册逻辑
+    await request.post('/auth/register', {
+      username: formState.username,
+      email: formState.email,
+      password: formState.password
+    })
     message.success('注册成功，请登录')
     router.push('/login')
   } catch (error) {

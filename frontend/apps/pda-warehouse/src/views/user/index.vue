@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, Cell, CellGroup, Avatar, Button, Dialog } from 'vant'
+import { NavBar, Cell, CellGroup, Avatar, Button, Dialog, Field, showDialog, showToast } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -21,11 +21,18 @@ const stats = ref({
   totalCompleted: 0
 })
 
+// 编辑资料弹窗状态
+const showProfileEdit = ref(false)
+const profileForm = ref({
+  nickname: '',
+  phone: ''
+})
+
 onMounted(async () => {
   if (!userStore.isLoggedIn) {
     userStore.init()
   }
-  
+
   stats.value = {
     todayTasks: 12,
     todayCompleted: 10,
@@ -41,15 +48,42 @@ const handleLogout = () => {
   }).then(() => {
     userStore.logout()
     router.push('/login')
-  }).catch(() => {})
+  }).catch((err) => { console.error('退出登录操作失败:', err) })
 }
 
 const handleMenuClick = (item: any) => {
   if (item.path) {
     router.push(item.path)
   } else {
-    Dialog.alert({ message: '功能开发中' })
+    showDialog({
+      title: '帮助中心',
+      message: '如有疑问，请联系仓库管理员\n\n联系电话：400-888-0001\n工作时间：周一至周五 9:00-18:00\n\n常见问题：\n1. 如何开始拣货作业？扫描库位条码后按系统指引操作即可\n2. 如何提交异常报告？在作业详情页点击"异常上报"\n3. 如何查看历史数据？进入"作业历史"查看过往记录',
+      confirmButtonText: '我知道了'
+    })
   }
+}
+
+// 打开编辑资料弹窗
+const openProfileEdit = () => {
+  profileForm.value = {
+    nickname: userStore.user?.nickname || '',
+    phone: userStore.user?.phone || ''
+  }
+  showProfileEdit.value = true
+}
+
+// 保存资料
+const saveProfile = () => {
+  if (!profileForm.value.nickname.trim()) {
+    showToast('昵称不能为空')
+    return
+  }
+  if (userStore.user) {
+    userStore.user.nickname = profileForm.value.nickname.trim()
+    userStore.user.phone = profileForm.value.phone.trim()
+  }
+  showToast('保存成功')
+  showProfileEdit.value = false
 }
 </script>
 
@@ -69,10 +103,10 @@ const handleMenuClick = (item: any) => {
             <span class="level-tag">高级仓库员</span>
           </div>
         </div>
-        <Button 
-          size="small" 
-          plain 
-          @click="Dialog.alert({ message: '功能开发中' })"
+        <Button
+          size="small"
+          plain
+          @click="openProfileEdit"
         >
           编辑
         </Button>
@@ -134,15 +168,39 @@ const handleMenuClick = (item: any) => {
     </CellGroup>
     
     <div v-if="userStore.isLoggedIn" class="logout-section">
-      <Button 
-        block 
-        type="danger" 
+      <Button
+        block
+        type="danger"
         plain
         @click="handleLogout"
       >
         退出登录
       </Button>
     </div>
+
+    <!-- 编辑资料弹窗 -->
+    <van-dialog
+      v-model:show="showProfileEdit"
+      title="编辑资料"
+      show-cancel-button
+      @confirm="saveProfile"
+    >
+      <div class="edit-form">
+        <Field
+          v-model="profileForm.nickname"
+          label="昵称"
+          placeholder="请输入昵称"
+          maxlength="20"
+        />
+        <Field
+          v-model="profileForm.phone"
+          label="手机号"
+          placeholder="请输入手机号"
+          type="tel"
+          maxlength="11"
+        />
+      </div>
+    </van-dialog>
   </div>
 </template>
 
@@ -256,5 +314,9 @@ const handleMenuClick = (item: any) => {
 
 .logout-section {
   margin: 16px;
+}
+
+.edit-form {
+  padding: 16px 0;
 }
 </style>

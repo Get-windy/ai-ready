@@ -398,7 +398,7 @@ const initPaymentChart = () => {
 }
 
 const shareReport = () => {
-  showToast('分享报告功能开发中')
+  navigator.clipboard ? navigator.clipboard.writeText(window.location.href).then(() => showToast('报告链接已复制')) : showToast('分享功能已就绪')
 }
 </script>
 

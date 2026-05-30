@@ -5,6 +5,7 @@ import { menuApi, type MenuInfo } from '@/api/menu'
 interface UserState {
   token: string
   userId: number
+  tenantId: number
   userInfo: UserInfo | null
   permissions: string[]
   roles: string[]
@@ -15,6 +16,7 @@ export const useUserStore = defineStore('user', {
   state: (): UserState => ({
     token: localStorage.getItem('token') || '',
     userId: 0,
+    tenantId: Number(localStorage.getItem('tenantId')) || 1,
     userInfo: null,
     permissions: [],
     roles: [],
@@ -36,7 +38,9 @@ export const useUserStore = defineStore('user', {
         if (res.data && res.data.token) {
           this.token = res.data.token
           this.userId = res.data.userId || 0
+          this.tenantId = loginForm.tenantId || 1
           localStorage.setItem('token', res.data.token)
+          localStorage.setItem('tenantId', String(loginForm.tenantId || 1))
           return true
         }
         return false
@@ -55,7 +59,7 @@ export const useUserStore = defineStore('user', {
           this.permissions = res.data.permissions || []
           this.roles = res.data.roles || []
         }
-        const menuRes = await menuApi.getUserClientMenus(this.userId, 'pc-admin', 1)
+        const menuRes = await menuApi.getUserClientMenus(this.userId, 'pc-admin', this.tenantId)
         if (menuRes.data) {
           this.menus = menuRes.data
         }
@@ -71,11 +75,13 @@ export const useUserStore = defineStore('user', {
       } finally {
         this.token = ''
         this.userId = 0
+        this.tenantId = 1
         this.userInfo = null
         this.permissions = []
         this.roles = []
         this.menus = []
         localStorage.removeItem('token')
+        localStorage.removeItem('tenantId')
       }
     },
 
@@ -103,6 +109,6 @@ export const useUserStore = defineStore('user', {
   persist: {
     key: 'user-store',
     storage: localStorage,
-    paths: ['token', 'userInfo', 'userId', 'permissions', 'roles', 'menus']
+    paths: ['token', 'userInfo', 'userId', 'tenantId', 'permissions', 'roles', 'menus']
   }
 })

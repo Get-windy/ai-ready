@@ -7,14 +7,39 @@
     "dev": "pnpm --filter './apps/*' dev",
     "build": "pnpm --filter './apps/*' build",
     "lint": "eslint .",
-    "test": "vitest"
+    "lint:style": "stylelint '**/*.{css,scss,vue}' --fix",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "storybook": "pnpm --filter @ai-ready/ui-components storybook",
+    "build-storybook": "pnpm --filter @ai-ready/ui-components build-storybook",
+    "analyze:pc-admin": "cd apps/pc-admin && npx vite build --mode analyze",
+    "prepare": "husky"
   },
   "dependencies": {},
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@types/node": "^18.x",
     "eslint": "^8.x",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "stylelint": "^16.0.0",
+    "stylelint-config-standard": "^37.0.0",
+    "stylelint-config-standard-vue": "^1.0.0",
     "typescript": "^5.x",
     "vitest": "^1.x"
+  },
+  "lint-staged": {
+    "*.vue": [
+      "eslint --fix",
+      "stylelint --fix"
+    ],
+    "*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{css,scss,less}": [
+      "stylelint --fix"
+    ]
   },
   "engines": {
     "node": ">=18",

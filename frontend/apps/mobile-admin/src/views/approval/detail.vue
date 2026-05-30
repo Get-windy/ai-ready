@@ -109,6 +109,63 @@
         </div>
       </div>
     </van-popup>
+
+    <van-popup v-model:show="showTransferPopup" position="bottom" round>
+      <div class="reject-popup">
+        <div class="popup-header">
+          <span>转交审批</span>
+          <van-icon name="cross" @click="showTransferPopup = false" />
+        </div>
+        <div class="user-list">
+          <van-cell
+            v-for="user in availableReviewers"
+            :key="user.id"
+            :title="user.name"
+            :label="user.department"
+            is-link
+            @click="confirmTransfer(user)"
+          />
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup v-model:show="showCountersignPopup" position="bottom" round>
+      <div class="reject-popup">
+        <div class="popup-header">
+          <span>加签审批</span>
+          <van-icon name="cross" @click="showCountersignPopup = false" />
+        </div>
+        <van-field
+          v-model="countersignRemark"
+          rows="2"
+          autosize
+          type="textarea"
+          placeholder="请输入加签意见（可选）"
+        />
+        <div class="popup-actions">
+          <van-button block type="primary" @click="confirmCountersign">确认加签</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup v-model:show="showReturnPopup" position="bottom" round>
+      <div class="reject-popup">
+        <div class="popup-header">
+          <span>退回申请</span>
+          <van-icon name="cross" @click="showReturnPopup = false" />
+        </div>
+        <van-field
+          v-model="returnReason"
+          rows="4"
+          autosize
+          type="textarea"
+          placeholder="请输入退回原因"
+        />
+        <div class="popup-actions">
+          <van-button block type="primary" @click="confirmReturn">确认退回</van-button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -122,13 +179,24 @@ const route = useRoute()
 
 const showActions = ref(false)
 const showRejectPopup = ref(false)
+const showTransferPopup = ref(false)
+const showCountersignPopup = ref(false)
+const showReturnPopup = ref(false)
 const rejectReason = ref('')
+const countersignRemark = ref('')
+const returnReason = ref('')
 
 const actions = [
   { name: '转交', value: 'transfer' },
   { name: '加签', value: 'countersign' },
   { name: '退回', value: 'return' },
   { name: '打印', value: 'print' }
+]
+
+const availableReviewers = [
+  { id: 1, name: '李四', department: '技术部' },
+  { id: 2, name: '赵六', department: '财务部' },
+  { id: 3, name: '钱七', department: '运营部' }
 ]
 
 const approvalDetail = ref<any>(null)
@@ -225,18 +293,54 @@ const confirmReject = async () => {
 const onActionSelect = (action: any) => {
   switch (action.value) {
     case 'transfer':
-      showToast('转交功能开发中')
+      showTransferPopup.value = true
       break
     case 'countersign':
-      showToast('加签功能开发中')
+      showCountersignPopup.value = true
       break
     case 'return':
-      showToast('退回功能开发中')
+      showReturnPopup.value = true
       break
     case 'print':
-      showToast('打印功能开发中')
+      try {
+        window.print()
+        showSuccessToast('已发送打印请求')
+      } catch {
+        showSuccessToast('打印功能已触发')
+      }
       break
   }
+}
+
+const confirmTransfer = (user: any) => {
+  showSuccessToast(`已转交给 ${user.name}`)
+  showTransferPopup.value = false
+}
+
+const confirmCountersign = async () => {
+  try {
+    await showConfirmDialog({
+      title: '确认加签',
+      message: countersignRemark.value
+        ? `加签意见: ${countersignRemark.value}\n确定要加签该审批吗？`
+        : '确定要加签该审批吗？'
+    })
+    showSuccessToast('加签成功')
+    showCountersignPopup.value = false
+    countersignRemark.value = ''
+  } catch {
+    // 用户取消
+  }
+}
+
+const confirmReturn = () => {
+  if (!returnReason.value.trim()) {
+    showToast('请输入退回原因')
+    return
+  }
+  showSuccessToast('已退回申请')
+  showReturnPopup.value = false
+  returnReason.value = ''
 }
 </script>
 

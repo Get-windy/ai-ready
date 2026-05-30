@@ -1,5 +1,6 @@
 import axios from 'axios'
 import dayjs from 'dayjs'
+import { captureException, isSentryInitialized } from './sentry'
 
 // 错误类型定义
 export interface ErrorReport {
@@ -56,9 +57,18 @@ export function initErrorReporter(app: {
   // 设置全局错误处理器
   app.config.errorHandler = (err: unknown, instance: unknown, info: string) => {
     const error = err as Error
-    
+
     console.error('[Global Error]', error, info)
-    
+
+    // 1) 上报 Sentry（双通道：Sentry + 自定义上报）
+    captureException(error, {
+      type: 'global',
+      componentInfo: info,
+      componentInstance: getComponentName(instance),
+      url: window.location.href,
+    })
+
+    // 2) 自定义错误上报（作为 Sentry 的补充/降级通道）
     reportError({
       type: 'global',
       error,
@@ -74,12 +84,21 @@ export function initErrorReporter(app: {
   // 捕获未处理的 Promise 错误
   window.addEventListener('unhandledrejection', (event) => {
     console.error('[Unhandled Promise]', event.reason)
-    
+
+    const errorObj = event.reason instanceof Error
+      ? event.reason
+      : new Error(String(event.reason))
+
+    // 1) 上报 Sentry
+    captureException(errorObj, {
+      type: 'promise',
+      url: window.location.href,
+    })
+
+    // 2) 自定义上报
     reportError({
       type: 'promise',
-      error: event.reason instanceof Error 
-        ? event.reason 
-        : new Error(String(event.reason)),
+      error: errorObj,
       timestamp: new Date().toISOString(),
       url: window.location.href,
       userAgent: navigator.userAgent,
@@ -91,19 +110,31 @@ export function initErrorReporter(app: {
   window.addEventListener('error', (event) => {
     if (event.target !== window) {
       const target = event.target as HTMLElement
-      
+
       console.error('[Resource Error]', target.src || target.href)
-      
+
+      const errorMsg = `Resource load failed: ${target.src || target.href}`
+
+      // 1) 上报 Sentry
+      captureException(errorMsg, {
+        type: 'resource',
+        tagName: (target as any).tagName,
+        src: (target as any).src,
+        href: (target as any).href,
+        url: window.location.href,
+      })
+
+      // 2) 自定义上报
       reportError({
         type: 'resource',
-        error: `Resource load failed: ${target.src || target.href}`,
+        error: errorMsg,
         timestamp: new Date().toISOString(),
         url: window.location.href,
         userAgent: navigator.userAgent,
         extra: {
           tagName: target.tagName,
-          src: target.src,
-          href: target.href
+          src: (target as any).src,
+          href: (target as any).href
         }
       })
     }

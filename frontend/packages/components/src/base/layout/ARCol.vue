@@ -43,8 +43,6 @@ const colStyle = computed(() => ({
 </script>
 
 <style lang="scss" scoped>
-@use "sass:math";
-
 .ar-col {
   position: relative;
   padding: var(--ar-col-padding, 0);
@@ -64,12 +62,12 @@ const colStyle = computed(() => ({
   // Generate column classes from 1 to 24
   @for $i from 1 through 24 {
     &--#{$i} {
-      flex: 0 0 percentage(math.div($i, 24));
-      max-width: percentage(math.div($i, 24));
+      flex: 0 0 calc($i / 24 * 100%);
+      max-width: calc($i / 24 * 100%);
     }
 
     &--offset-#{$i} {
-      margin-left: percentage(math.div($i, 24));
+      margin-left: calc($i / 24 * 100%);
     }
 
     &--order-#{$i} {

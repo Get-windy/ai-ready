@@ -146,6 +146,29 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal
+      v-model:open="detailVisible"
+      title="收款记录详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" v-if="currentRecord">
+        <a-descriptions-item label="客户名称">{{ currentRecord.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
+        <a-descriptions-item label="收款金额">¥{{ currentRecord.amount?.toFixed(2) }}</a-descriptions-item>
+        <a-descriptions-item label="收款方式">
+          <a-tag>{{ getPaymentMethodText(currentRecord.paymentMethod) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="收款日期">{{ currentRecord.paymentDate }}</a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
+        <a-descriptions-item label="收款账户">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="text-align: right; margin-top: 16px">
+        <a-button @click="detailVisible = false">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -153,6 +176,7 @@
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 
 interface PaymentRecord {
   id: number
@@ -167,6 +191,8 @@ interface PaymentRecord {
 
 const loading = ref(false)
 const dataSource = ref<PaymentRecord[]>([])
+const detailVisible = ref(false)
+const currentRecord = ref<PaymentRecord | null>(null)
 
 const queryParams = reactive({
   customerName: '',
@@ -266,7 +292,8 @@ const handleAdd = () => {
 }
 
 const handleView = (record: PaymentRecord) => {
-  message.info(`查看收款记录: ${record.customerName}`)
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handlePrint = (record: PaymentRecord) => {
@@ -286,38 +313,27 @@ const handleTableChange = (pag: any) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // TODO: 调用实际API
-    setTimeout(() => {
-      dataSource.value = [
-        {
-          id: 1,
-          customerName: '客户A',
-          orderNo: 'SO20260328001',
-          amount: 5000,
-          paymentMethod: 'bank',
-          paymentDate: '2026-04-13',
-          operator: '张三',
-          remark: ''
-        },
-        {
-          id: 2,
-          customerName: '客户B',
-          orderNo: 'SO20260328002',
-          amount: 3000,
-          paymentMethod: 'wechat',
-          paymentDate: '2026-04-13',
-          operator: '李四',
-          remark: ''
-        }
-      ]
-
-      stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
-      stats.todayAmount = stats.totalAmount // 简化处理
-      pagination.total = dataSource.value.length
-      loading.value = false
-    }, 500)
+    const res = await request.get('/api/finance/payment-record/page', {
+      params: {
+        ...queryParams,
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    if (res.data?.records) {
+      dataSource.value = res.data.records
+      pagination.total = res.data.total || 0
+      stats.totalAmount = res.data.totalAmount ?? dataSource.value.reduce((sum, item) => sum + item.amount, 0)
+      stats.todayAmount = res.data.todayAmount ?? 0
+    } else {
+      dataSource.value = []
+      pagination.total = 0
+      stats.totalAmount = 0
+      stats.todayAmount = 0
+    }
   } catch (error) {
     message.error('获取数据失败')
+  } finally {
     loading.value = false
   }
 }
