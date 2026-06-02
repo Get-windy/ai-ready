@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { api } from '@/api'
 
 const router = useRouter()
 
@@ -49,67 +50,22 @@ onMounted(async () => {
 const loadOrders = async () => {
   loading.value = true
   try {
-    const response = await fetch('/api/v1/delivery-route/orders/today')
-    const data = await response.json()
-    if (data.code === 200) {
-      orders.value = data.data || []
-    } else {
-      orders.value = []
-    }
-  } catch (error) {
+    const res: any = await api.order.getList({ status: 'pending', pageSize: 50 })
+    orders.value = res?.records || res?.data || (Array.isArray(res) ? res : [])
+  } catch {
     orders.value = []
   } finally {
     loading.value = false
   }
 }
 
-const getMockOrders = (): DeliveryOrder[] => [
-  {
-    id: '1',
-    orderNo: 'DO20240115001',
-    customerName: '张先生',
-    customerPhone: '13800138001',
-    address: '北京市朝阳区建国路88号',
-    latitude: 39.9087,
-    longitude: 116.4716,
-    items: [{ productName: '大米', quantity: 10, unit: '袋' }],
-    status: 'pending',
-    priority: 1,
-    estimatedTime: 30,
-    distance: 5.2,
-    remark: '请送到门口'
-  },
-  {
-    id: '2',
-    orderNo: 'DO20240115002',
-    customerName: '李女士',
-    customerPhone: '13800138002',
-    address: '北京市海淀区中关村大街1号',
-    latitude: 39.9841,
-    longitude: 116.3074,
-    items: [{ productName: '食用油', quantity: 5, unit: '桶' }],
-    status: 'pending',
-    priority: 2,
-    estimatedTime: 45,
-    distance: 8.5,
-    remark: '下午配送'
-  },
-  {
-    id: '3',
-    orderNo: 'DO20240115003',
-    customerName: '王经理',
-    customerPhone: '13800138003',
-    address: '北京市西城区金融街10号',
-    latitude: 39.9139,
-    longitude: 116.3663,
-    items: [{ productName: '调味品套装', quantity: 2, unit: '套' }],
-    status: 'pending',
-    priority: 3,
-    estimatedTime: 20,
-    distance: 3.8,
-    remark: '公司前台签收'
-  }
-]
+const handleNavigate = (order: DeliveryOrder) => {
+  router.push({ path: '/navigation', query: { lat: order.latitude, lng: order.longitude, orderId: order.id } })
+}
+
+const handleViewDetail = (order: DeliveryOrder) => {
+  router.push(`/delivery/${order.id}`)
+}
 
 const getCurrentLocation = async () => {
   try {

@@ -1,22 +1,27 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
+    :loading="loading"
+    :pagination="pagination"
+    :table-key="'purchase-exchange-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建换货"
+    @add="handleAdd"
+    @edit="handleEdit"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建换货
-      </a-button>
+    <template #toolbar-actions>
       <a-button @click="handleExport">
         <template #icon><ExportOutlined /></template>
         导出
@@ -24,35 +29,40 @@
     </template>
 
     <template #batch-actions>
-      <a-button @click="handleBatchApprove">批量审批</a-button>
+      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 0" @click="handleEdit(record)">编辑</a>
-              <a v-if="record.status === 0" @click="handleSubmit(record)">提交</a>
-              <a v-if="record.status === 1" @click="handleApprove(record)">审批</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <template #status="{ record }">
+      <a-tag :color="getStatusColor(record.status)">
+        {{ getStatusText(record.status) }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="编辑">
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="提交">
+          <a-button type="link" size="small" @click="handleSubmit(record)">
+            <template #icon><SendOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 1" title="审批">
+          <a-button type="link" size="small" @click="handleApprove(record)">
+            <template #icon><CheckCircleOutlined /></template>
+          </a-button>
+        </a-tooltip>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 详情弹窗 -->
   <a-modal
@@ -153,15 +163,56 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import TableList from '@/components/TableList/TableList.vue'
 import { purchaseExchangeApi } from '@/api/purchase-exchange'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
+const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
-const selectedRowKeys = ref<number[]>([])
-const currentView = ref('list')
+const searchFilters = reactive<Record<string, any>>({})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+const columns = [
+  { title: '换货单号', dataIndex: 'exchangeNo', key: 'exchangeNo', width: 160, sortable: true },
+  { title: '关联订单', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140 },
+  { title: '换货日期', dataIndex: 'exchangeDate', key: 'exchangeDate', width: 110, type: 'date' as const },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
+  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, type: 'action' as const }
+]
+
+const filterFields = [
+  { key: 'exchangeNo', label: '换货单号', type: 'input' as const, placeholder: '输入换货单号' },
+  { key: 'orderNo', label: '关联订单', type: 'input' as const, placeholder: '输入订单号' },
+  { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '输入供应商' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 }, { label: '待审批', value: 1 }, { label: '已审批', value: 2 },
+    { label: '换货中', value: 3 }, { label: '完成', value: 4 }, { label: '已取消', value: 5 }
+  ]},
+  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+]
+
+const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green', 3: 'blue', 4: 'success', 5: 'red' }
+const statusTextMap: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已审批', 3: '换货中', 4: '完成', 5: '已取消' }
+
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  return [
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
+
+function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
+function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
+
+// ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 
@@ -204,127 +255,62 @@ const exchangeItemColumns = [
 ]
 
 const handleAddExchangeItem = () => {
-  formData.items.push({
-    tempKey: genTempKey(),
-    outProductName: '',
-    inProductName: '',
-    quantity: 1
-  })
+  formData.items.push({ tempKey: genTempKey(), outProductName: '', inProductName: '', quantity: 1 })
 }
-
-const handleRemoveExchangeItem = (index: number) => {
-  formData.items.splice(index, 1)
-}
-
-const breadcrumbItems = computed(() => [
-  { text: '采购管理', path: '/purchase' },
-  { text: '换货单' }
-])
-
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
-
-const columns = [
-  { title: '换货单号', dataIndex: 'exchangeNo', key: 'exchangeNo', width: 180 },
-  { title: '关联订单', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '换货日期', dataIndex: 'exchangeDate', key: 'exchangeDate', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 200 }
-]
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => { selectedRowKeys.value = keys }
-}))
-
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green', 3: 'blue', 4: 'success', 5: 'red' }
-  return colors[status] || 'default'
-}
-
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已审批', 3: '换货中', 4: '完成', 5: '已取消' }
-  return texts[status] || '未知'
-}
+const handleRemoveExchangeItem = (index: number) => { formData.items.splice(index, 1) }
 
 const resetForm = () => {
-  formData.orderNo = ''
-  formData.reason = undefined
-  formData.exchangeDate = undefined
-  formData.remark = ''
-  formData.items = []
-  editingId.value = null
+  formData.orderNo = ''; formData.reason = undefined; formData.exchangeDate = undefined
+  formData.remark = ''; formData.items = []; editingId.value = null
 }
 
-const fetchData = async () => {
+async function fetchData() {
   loading.value = true
   try {
-    const res = await purchaseExchangeApi.page({ current: pagination.current, size: pagination.pageSize, tenantId: 1 })
-    dataSource.value = res.records || []
-    pagination.total = res.total || 0
-  } catch {
-    message.error('获取数据失败')
-  } finally {
-    loading.value = false
-  }
+    const res = await purchaseExchangeApi.page({ current: pagination.current, size: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    dataSource.value = (res as any).data?.records || (res as any).records || []
+    pagination.total = (res as any).data?.total || (res as any).total || 0
+  } catch { message.error('获取数据失败') }
+  finally { loading.value = false }
 }
 
-const handleViewChange = (view: string) => { currentView.value = view }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handlePageChange = (page: number) => { pagination.current = page; fetchData() }
-const handlePageSizeChange = (size: number) => { pagination.pageSize = size; pagination.current = 1; fetchData() }
+function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 
-// ── 新建换货 ──────────────────────────────────────────
-const handleAdd = () => {
-  formMode.value = 'add'
-  resetForm()
-  formModalVisible.value = true
-}
+function handleAdd() { formMode.value = 'add'; resetForm(); formModalVisible.value = true }
 
-// ── 查看详情 ──────────────────────────────────────────
-const handleView = (record: any) => {
-  currentRecord.value = record
-  detailVisible.value = true
-}
-
-// ── 编辑换货 ──────────────────────────────────────────
-const handleEdit = (record: any) => {
-  formMode.value = 'edit'
-  editingId.value = record.id
-  formData.orderNo = record.orderNo || ''
-  formData.reason = record.reason || undefined
-  formData.exchangeDate = record.exchangeDate
-  formData.remark = record.remark || ''
+function handleEdit(record: any) {
+  formMode.value = 'edit'; editingId.value = record.id
+  formData.orderNo = record.orderNo || ''; formData.reason = record.reason || undefined
+  formData.exchangeDate = record.exchangeDate; formData.remark = record.remark || ''
   formData.items = (record.items || []).map((item: any) => ({
-    tempKey: genTempKey(),
-    outProductName: item.outProductName || '',
-    inProductName: item.inProductName || '',
-    quantity: item.quantity || 1
+    tempKey: genTempKey(), outProductName: item.outProductName || '', inProductName: item.inProductName || '', quantity: item.quantity || 1
   }))
   formModalVisible.value = true
 }
 
-// ── 表单提交 ──────────────────────────────────────────
-const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
+async function handleDelete(record: any) {
+  try { await purchaseExchangeApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
+}
+
+async function handleBatchDelete(ids: number[]) {
+  let successCount = 0; let failCount = 0
+  for (const id of ids) {
+    try { await purchaseExchangeApi.delete(id); successCount++ } catch { failCount++ }
   }
+  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
+  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  fetchData()
+}
+
+const handleFormSubmit = async () => {
+  try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
     const data = {
-      orderNo: formData.orderNo,
-      reason: formData.reason,
-      exchangeDate: formData.exchangeDate,
+      orderNo: formData.orderNo, reason: formData.reason, exchangeDate: formData.exchangeDate,
       remark: formData.remark,
-      items: formData.items.map(item => ({
-        outProductName: item.outProductName,
-        inProductName: item.inProductName,
-        quantity: item.quantity
-      }))
+      items: formData.items.map(item => ({ outProductName: item.outProductName, inProductName: item.inProductName, quantity: item.quantity }))
     }
     if (formMode.value === 'edit' && editingId.value) {
       await purchaseExchangeApi.update(editingId.value, data as any)
@@ -333,116 +319,62 @@ const handleFormSubmit = async () => {
       await purchaseExchangeApi.create(data as any)
       message.success('新建换货单成功')
     }
-    formModalVisible.value = false
-    fetchData()
-  } catch {
-    message.error(formMode.value === 'edit' ? '编辑失败' : '新建失败')
-  } finally {
-    formSubmitting.value = false
-  }
+    formModalVisible.value = false; fetchData()
+  } catch { message.error(formMode.value === 'edit' ? '编辑失败' : '新建失败') }
+  finally { formSubmitting.value = false }
 }
 
-// ── 提交换货 ──────────────────────────────────────────
-const handleSubmit = (record: any) => {
+function handleSubmit(record: any) {
   Modal.confirm({
-    title: '提交换货单',
-    content: `确定提交换货单 "${record.exchangeNo}" 吗？`,
-    okText: '确认提交',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await purchaseExchangeApi.submit(record.id)
-        message.success('提交成功')
-        fetchData()
-      } catch { message.error('提交失败') }
-    }
+    title: '提交换货单', content: `提交换货单 "${record.exchangeNo}" ？`, okText: '确认提交', centered: true,
+    async onOk() { try { await purchaseExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch { message.error('提交失败') } }
   })
 }
 
-// ── 审批换货 ──────────────────────────────────────────
-const handleApprove = (record: any) => {
+function handleApprove(record: any) {
   Modal.confirm({
-    title: '审批换货单',
-    content: `确定审批换货单 "${record.exchangeNo}" 吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await purchaseExchangeApi.approve(record.id, { approved: true })
-        message.success('审批成功')
-        fetchData()
-      } catch { message.error('审批失败') }
-    }
+    title: '审批换货单', content: `审批换货单 "${record.exchangeNo}" ？`, okText: '确认审批', centered: true,
+    async onOk() { try { await purchaseExchangeApi.approve(record.id, { approved: true }); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
   })
 }
 
-// ── 导出功能 ──────────────────────────────────────────
-const handleExport = () => {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['换货单号', '关联订单', '供应商', '换货日期', '状态', '创建人', '创建时间']
-    const rows = dataSource.value.map(row => [
-      row.exchangeNo || '',
-      row.orderNo || '',
-      row.supplierName || '',
-      row.exchangeDate || '',
-      getStatusText(row.status),
-      row.creatorName || '',
-      row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `换货单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hideLoading()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hideLoading()
-    message.error('导出失败')
-  }
-}
-
-// ── 批量审批 ──────────────────────────────────────────
-const handleBatchApprove = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要审批的换货单')
-    return
-  }
-  const count = selectedRowKeys.value.length
+function handleBatchApprove() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) { message.warning('请选择换货单'); return }
   Modal.confirm({
-    title: '批量审批',
-    content: `确定要批量审批选中的 ${count} 个换货单吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
+    title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await purchaseExchangeApi.approve(id, { approved: true })
-          successCount++
-        } catch {
-          failCount++
-        }
+      let success = 0; let fail = 0
+      for (const id of keys) {
+        try { await purchaseExchangeApi.approve(id, { approved: true }); success++ } catch { fail++ }
       }
-      if (failCount === 0) {
-        message.success(`批量审批完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`审批完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
+      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
+      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
       fetchData()
     }
   })
 }
 
-onMounted(() => { fetchData() })
+function handleExport() {
+  const hideLoading = message.loading('正在生成导出文件...', 0)
+  try {
+    const headers = ['换货单号', '关联订单', '供应商', '换货日期', '状态', '创建人', '创建时间']
+    const rows = dataSource.value.map((row: any) => [
+      row.exchangeNo || '', row.orderNo || '', row.supplierName || '', row.exchangeDate || '',
+      getStatusText(row.status), row.creatorName || '', row.createTime || ''
+    ])
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
+    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = `换货单_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
+}
+
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+
+onMounted(() => fetchData())
 </script>

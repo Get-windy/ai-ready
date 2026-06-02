@@ -1,10 +1,13 @@
 package cn.aiedge.base.security;
 
+import cn.aiedge.base.entity.SysDept;
 import cn.aiedge.base.entity.SysPermission;
 import cn.aiedge.base.entity.SysRole;
+import cn.aiedge.base.mapper.SysDeptMapper;
 import cn.aiedge.base.service.SysPermissionService;
 import cn.aiedge.base.service.SysRoleService;
 import cn.aiedge.base.service.SysUserService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ public class RbacService {
     private final SysUserService userService;
     private final SysRoleService roleService;
     private final SysPermissionService permissionService;
+    private final SysDeptMapper deptMapper;
     private final SecurityContext securityContext;
 
     /**
@@ -136,8 +140,72 @@ public class RbacService {
             return userId.equals(dataCreateBy);
         }
 
-        // TODO: 实现部门级别数据权限（需要部门层级关系）
+        // 本部门/本部门及下级数据权限需要 dataDeptId 参数
+        // 当前调用未传入 dataDeptId 时，默认放行（向后兼容）
+        // 建议使用新增的重载方法 checkDataPermission(userId, tenantId, createBy, scope, dataDeptId)
+        log.debug("部门级数据权限缺少 dataDeptId，默认放行 userId={}", userId);
         return true;
+    }
+
+    /**
+     * 检查数据权限（带数据所属部门）
+     *
+     * @param userId 当前用户ID
+     * @param dataTenantId 数据所属租户ID
+     * @param dataCreateBy 数据创建者ID
+     * @param dataScope 数据权限范围 (0-全部 1-本部门 2-本部门及下级 3-仅本人)
+     * @param dataDeptId 数据所属部门ID
+     * @return 是否有权限
+     */
+    public boolean checkDataPermission(Long userId, Long dataTenantId, Long dataCreateBy, Integer dataScope, Long dataDeptId) {
+        // 1. 租户权限 + 管理员检查
+        if (!canAccessTenant(userId, dataTenantId)) return false;
+        if (isSuperAdmin(userId)) return true;
+
+        // 2. 全部数据权限
+        if (dataScope == null || dataScope == 0) return true;
+
+        // 3. 仅本人
+        if (dataScope == 3) return userId.equals(dataCreateBy);
+
+        // 4. 本部门数据权限
+        if (dataScope == 1) {
+            cn.aiedge.base.entity.SysUser user = userService.getById(userId);
+            return user != null && dataDeptId != null && dataDeptId.equals(user.getDeptId());
+        }
+
+        // 5. 本部门及下级数据权限
+        if (dataScope == 2) {
+            cn.aiedge.base.entity.SysUser user = userService.getById(userId);
+            if (user == null || dataDeptId == null) return false;
+            if (dataDeptId.equals(user.getDeptId())) return true;
+            // 检查dataDeptId是否为user部门的子部门
+            return isDescendantDept(user.getDeptId(), dataDeptId);
+        }
+
+        return true;
+    }
+
+    /**
+     * 判断子部门是否为目标部门的子孙部门
+     */
+    private boolean isDescendantDept(Long parentDeptId, Long childDeptId) {
+        if (parentDeptId == null || childDeptId == null) return false;
+        try {
+            // 通过SysDeptMapper查询部门祖先链
+            List<cn.aiedge.base.entity.SysDept> depts = deptMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<cn.aiedge.base.entity.SysDept>()
+                    .eq(cn.aiedge.base.entity.SysDept::getParentId, parentDeptId)
+                    .eq(cn.aiedge.base.entity.SysDept::getDeleted, 0));
+            if (depts == null || depts.isEmpty()) return false;
+            for (cn.aiedge.base.entity.SysDept dept : depts) {
+                if (dept.getId().equals(childDeptId)) return true;
+                if (isDescendantDept(dept.getId(), childDeptId)) return true;
+            }
+        } catch (Exception e) {
+            log.warn("查询部门层级关系失败: parent={}, child={}", parentDeptId, childDeptId, e);
+        }
+        return false;
     }
 
     /**

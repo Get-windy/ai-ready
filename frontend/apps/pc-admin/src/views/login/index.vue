@@ -29,6 +29,21 @@
           :aria-label="t('login.title')"
           @finish="handleSubmit"
         >
+          <a-form-item name="tenantName" id="form-item-tenant">
+            <a-input
+              v-model:value="formState.tenantName"
+              size="large"
+              placeholder="请输入租户名称"
+              aria-required="true"
+              aria-label="租户名称"
+              @keyup.enter="focusNextInput('username')"
+            >
+              <template #prefix>
+                <ShopOutlined aria-hidden="true" />
+              </template>
+            </a-input>
+          </a-form-item>
+
           <a-form-item name="username" id="form-item-username">
             <a-input
               v-model:value="formState.username"
@@ -151,16 +166,20 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
 import {
   UserOutlined,
   LockOutlined,
   SafetyOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  ShopOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { userApi } from '@/api/user'
 import { resetDynamicRoutesLoaded } from '@/router/guard'
 import { useSubmitLock } from '@/composables'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
@@ -182,11 +201,14 @@ const formState = reactive({
   username: '',
   password: '',
   captcha: '',
-  tenantId: 1
+  tenantName: ''
 })
 
 // 表单验证规则
 const rules = {
+  tenantName: [
+    { required: true, message: '请输入租户名称', trigger: 'blur' }
+  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
@@ -204,23 +226,11 @@ const rules = {
 // 获取验证码
 const fetchCaptcha = async () => {
   try {
-    captchaKey.value = Date.now().toString()
-    // 模拟验证码API调用，实际项目中替换为真实的API
-    // const response = await axios.get('/api/captcha', {
-    //   params: { key: captchaKey.value }
-    // })
-    // captchaUrl.value = response.data.image
-    
-    // 临时模拟验证码图片
-    captchaUrl.value = `data:image/svg+xml,${encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="100" height="40">
-        <rect width="100%" height="100%" fill="#f0f0f0"/>
-        <text x="10" y="25" font-family="Arial" font-size="20" font-weight="bold" fill="#333">
-          ${Math.random().toString(36).substring(2, 6).toUpperCase()}
-        </text>
-      </svg>
-    `)}`
-    
+    const res = await userApi.getCaptcha()
+    if (res.data) {
+      captchaUrl.value = res.data.img
+      captchaKey.value = res.data.uuid
+    }
   } catch (error) {
     console.error('获取验证码失败:', error)
     message.warning('获取验证码失败，请刷新重试')
@@ -251,15 +261,18 @@ const handleSubmit = async () => {
     // 表单验证
     await formRef.value?.validate()
 
-    // 执行登录
+    // 执行登录（传递租户名称，后端验证）
     const success = await userStore.login({
       username: formState.username,
       password: formState.password,
-      tenantId: formState.tenantId
+      tenantName: formState.tenantName
     })
 
     if (success) {
       message.success('登录成功，欢迎回来！')
+
+      // 保存租户名到localStorage
+      localStorage.setItem('rememberedTenantName', formState.tenantName)
 
       // 处理记住我功能
       if (rememberMe.value) {
@@ -305,14 +318,20 @@ const handleRegister = async () => {
 }
 
 // 初始化
-onMounted(() => {
+onMounted(async () => {
+  // 检查是否有记住的租户名
+  const rememberedTenantName = localStorage.getItem('rememberedTenantName')
+  if (rememberedTenantName) {
+    formState.tenantName = rememberedTenantName
+  }
+
   // 检查是否有记住的用户名
   const rememberedUsername = localStorage.getItem('rememberedUsername')
   if (rememberedUsername) {
     formState.username = rememberedUsername
     rememberMe.value = true
   }
-  
+
   // 获取验证码
   fetchCaptcha()
 })

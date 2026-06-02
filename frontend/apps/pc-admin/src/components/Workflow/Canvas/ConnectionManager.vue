@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import Connection from './Connection.vue'
-import type { Connection } from '@/types/workflow/connection'
+import type { Connection as ConnectionType } from '@/types/workflow/connection'
 import type { NodePosition } from '@/types/workflow/canvas'
 
 /**
@@ -34,7 +34,7 @@ import type { NodePosition } from '@/types/workflow/canvas'
  */
 interface Props {
   /** 连线列表 */
-  connections: Connection[]
+  connections: ConnectionType[]
   /** 是否正在创建连线 */
   isCreatingConnection: boolean
   /** 临时连线起点 */

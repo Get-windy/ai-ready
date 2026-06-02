@@ -1,59 +1,60 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
+    :loading="loading"
+    :pagination="pagination"
+    :table-key="'sale-customer-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建客户"
+    @add="handleAdd"
+    @edit="handleEdit"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建客户
-      </a-button>
+    <template #toolbar-actions>
       <a-button @click="handleExport">
         <template #icon><ExportOutlined /></template>
         导出
       </a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-    :error="error"
-    :empty="!loading && !error && dataSource.length === 0"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'green' : 'default'">
-              {{ record.status === 1 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'level'">
-            <a-tag :color="getLevelColor(record.level)">
-              {{ getLevelText(record.level) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a @click="handleEdit(record)">编辑</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <template #status="{ record }">
+      <a-tag :color="record.status === 1 ? 'green' : 'default'">
+        {{ record.status === 1 ? '正常' : '停用' }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #level="{ record }">
+      <a-tag :color="getLevelColor(record.level)">
+        {{ getLevelText(record.level) }}
+      </a-tag>
+    </template>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="编辑">
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 新建/编辑客户弹窗 -->
   <a-modal
@@ -113,8 +114,6 @@
             </a-select>
           </a-form-item>
         </a-col>
-      </a-row>
-      <a-row>
         <a-col :span="12">
           <a-form-item label="客户类型" name="customerType" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
             <a-select v-model:value="formData.customerType" placeholder="请选择客户类型">
@@ -125,6 +124,8 @@
             </a-select>
           </a-form-item>
         </a-col>
+      </a-row>
+      <a-row>
         <a-col :span="12">
           <a-form-item label="状态" name="status" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
             <a-select v-model:value="formData.status" placeholder="请选择状态">
@@ -134,10 +135,10 @@
           </a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="联系地址" name="address" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
+      <a-form-item label="联系地址" name="address">
         <a-textarea v-model:value="formData.address" placeholder="请输入联系地址" :rows="2" />
       </a-form-item>
-      <a-form-item label="备注" name="remark" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
+      <a-form-item label="备注" name="remark">
         <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
       </a-form-item>
     </a-form>
@@ -147,98 +148,56 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import { ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import TableList from '@/components/TableList/TableList.vue'
+import { customerApi } from '@/api/customer'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
-
+const userStore = useUserStore()
+const tableRef = ref()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
-const selectedRowKeys = ref<number[]>([])
-const currentView = ref('list')
-
-const breadcrumbItems = computed(() => [
-  { text: '销售管理', path: '/sale' },
-  { text: '客户' }
-])
-
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0
-})
+const searchFilters = reactive<Record<string, any>>({})
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
 const columns = [
-  { title: '客户编码', dataIndex: 'customerCode', key: 'customerCode', width: 150 },
-  { title: '客户名称', dataIndex: 'customerName', key: 'customerName' },
-  { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 100 },
-  { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
-  { title: '等级', dataIndex: 'level', key: 'level', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 120 }
+  { title: '客户编码', dataIndex: 'code', key: 'code', width: 130 },
+  { title: '客户名称', dataIndex: 'name', key: 'name', width: 160, sortable: true },
+  { title: '联系人', dataIndex: 'contactPerson', key: 'contactPerson', width: 100 },
+  { title: '联系电话', dataIndex: 'phone', key: 'phone', width: 120 },
+  { title: '等级', dataIndex: 'level', key: 'level', width: 80, slotName: 'level' },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80, type: 'status' as const, slotName: 'status' },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 120, fixed: 'right' as const, type: 'action' as const }
 ]
 
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => {
-    selectedRowKeys.value = keys
-  }
-}))
+const filterFields = [
+  { key: 'code', label: '客户编码', type: 'input' as const, placeholder: '输入客户编码' },
+  { key: 'name', label: '客户名称', type: 'input' as const, placeholder: '输入客户名称' },
+  { key: 'contactPerson', label: '联系人', type: 'input' as const, placeholder: '输入联系人' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '正常', value: 1 }, { label: '停用', value: 0 }
+  ]},
+  { key: 'level', label: '等级', type: 'select' as const, options: [
+    { label: 'A级', value: 1 }, { label: 'B级', value: 2 }, { label: 'C级', value: 3 }
+  ]},
+  { key: 'dateRange', label: '创建日期', type: 'dateRange' as const }
+]
 
-const getLevelColor = (level: number) => {
-  const colors: Record<number, string> = {
-    1: 'gold',
-    2: 'blue',
-    3: 'default'
-  }
-  return colors[level] || 'default'
-}
+const levelColorMap: Record<number, string> = { 1: 'gold', 2: 'blue', 3: 'default' }
+const levelTextMap: Record<number, string> = { 1: 'A级', 2: 'B级', 3: 'C级' }
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  return [{ label: '本页数量', value: dataSource.value.length, type: 'default' as const }]
+})
+function getLevelColor(level: number): string { return levelColorMap[level] || 'default' }
+function getLevelText(level: number): string { return levelTextMap[level] || '未知' }
 
-const getLevelText = (level: number) => {
-  const texts: Record<number, string> = {
-    1: 'A级',
-    2: 'B级',
-    3: 'C级'
-  }
-  return texts[level] || '未知'
-}
-
-const fetchData = async () => {
-  loading.value = true
-  try {
-    dataSource.value = []
-    pagination.total = 0
-  } catch (error) {
-    message.error('获取数据失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleViewChange = (view: string) => {
-  currentView.value = view
-}
-
-const handleClearSelection = () => {
-  selectedRowKeys.value = []
-}
-
-const handlePageChange = (page: number) => {
-  pagination.current = page
-  fetchData()
-}
-
-const handlePageSizeChange = (size: number) => {
-  pagination.pageSize = size
-  pagination.current = 1
-  fetchData()
-}
-
-// ========== 客户表单弹窗 ==========
+// ── 客户表单弹窗 ──
 const formModalVisible = ref(false)
 const formSubmitting = ref(false)
 const formMode = ref<'add' | 'edit'>('add')
@@ -256,7 +215,6 @@ const formData = reactive({
   status: 1,
   remark: ''
 })
-
 const formRules = {
   customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
   customerCode: [{ required: true, message: '请输入客户编码', trigger: 'blur' }],
@@ -269,7 +227,49 @@ const formRules = {
   customerType: [{ required: true, message: '请选择客户类型', trigger: 'change' }]
 }
 
-const handleAdd = () => {
+async function fetchData() {
+  loading.value = true; error.value = null
+  try {
+    const params: Record<string, any> = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      tenantId: userStore.tenantId,
+      ...searchFilters
+    }
+    // 映射搜索字段到API字段名
+    if (params.name === undefined && searchFilters.name) params.name = searchFilters.name
+    if (params.code === undefined && searchFilters.code) params.code = searchFilters.code
+    if (params.contactPerson === undefined && searchFilters.contactPerson) params.contactPerson = searchFilters.contactPerson
+
+    const res = await customerApi.getPage(params)
+    const pageData = (res as any).data
+    dataSource.value = pageData?.records || []
+    pagination.total = pageData?.total || 0
+  } catch { error.value = '获取数据失败' }
+  finally { loading.value = false }
+}
+
+function handleView(record: any) {
+  router.push(`/crm/customer/${record.id}`)
+}
+
+function handleEdit(record: any) {
+  formMode.value = 'edit'
+  formData.id = record.id
+  formData.customerName = record.name || ''
+  formData.customerCode = record.code || ''
+  formData.contactName = record.contactPerson || ''
+  formData.contactPhone = record.phone || ''
+  formData.email = record.email || ''
+  formData.address = record.address || ''
+  formData.customerType = record.industry || undefined
+  formData.level = record.level || 3
+  formData.status = record.status ?? 1
+  formData.remark = record.description || ''
+  formModalVisible.value = true
+}
+
+function handleAdd() {
   formMode.value = 'add'
   formData.id = undefined
   formData.customerName = ''
@@ -285,59 +285,78 @@ const handleAdd = () => {
   formModalVisible.value = true
 }
 
-const handleView = (record: any) => {
-  router.push(`/crm/customer/${record.id}`)
+async function handleDelete(record: any) {
+  Modal.confirm({
+    title: '删除客户', content: `确认删除客户 "${record.name}"？`, okText: '确认删除', cancelText: '取消', centered: true,
+    async onOk() {
+      try { await customerApi.delete(record.id); message.success('删除成功'); fetchData() }
+      catch { message.error('删除失败') }
+    }
+  })
 }
 
-const handleEdit = (record: any) => {
-  formMode.value = 'edit'
-  formData.id = record.id
-  formData.customerName = record.customerName || ''
-  formData.customerCode = record.customerCode || ''
-  formData.contactName = record.contactName || ''
-  formData.contactPhone = record.contactPhone || ''
-  formData.email = record.email || ''
-  formData.address = record.address || ''
-  formData.customerType = record.customerType || undefined
-  formData.level = record.level || 3
-  formData.status = record.status ?? 1
-  formData.remark = record.remark || ''
-  formModalVisible.value = true
+async function handleBatchDelete(ids: number[]) {
+  Modal.confirm({
+    title: '批量删除', content: `确认删除选中的 ${ids.length} 个客户？`, okText: '确认删除', cancelText: '取消', centered: true,
+    async onOk() {
+      try { await customerApi.batchDelete(ids); message.success('批量删除成功'); fetchData() }
+      catch { message.error('批量删除失败') }
+    }
+  })
 }
 
 const handleFormSubmit = async () => {
   try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
-    // await customerApi.save(formData)
+    const payload = {
+      name: formData.customerName,
+      code: formData.customerCode,
+      contactPerson: formData.contactName,
+      phone: formData.contactPhone,
+      email: formData.email,
+      address: formData.address,
+      industry: formData.customerType,
+      level: formData.level,
+      status: formData.status,
+      description: formData.remark
+    }
     if (formMode.value === 'add') {
+      await customerApi.create(payload)
       message.success('新建客户成功')
     } else {
+      await customerApi.update(formData.id!, payload)
       message.success('编辑客户成功')
     }
     formModalVisible.value = false
     fetchData()
   } catch {
-    message.error('操作失败')
+    message.error(formMode.value === 'add' ? '新建客户失败' : '编辑客户失败')
   } finally {
     formSubmitting.value = false
   }
 }
 
-const handleExport = async () => {
-  const hide = message.loading('正在导出...', 0)
+function handleExport() {
+  const hideLoading = message.loading('正在生成导出文件...', 0)
   try {
-    // await customerApi.export(pagination.current, pagination.pageSize)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    hide()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hide()
-    message.error('导出失败')
-  }
+    const headers = ['客户编码', '客户名称', '联系人', '联系电话', '等级', '状态', '创建时间']
+    const rows = dataSource.value.map((row: any) => [
+      row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
+      getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
+    ])
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
+    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = `客户列表_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
 }
 
-onMounted(() => {
-  fetchData()
-})
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+
+onMounted(() => fetchData())
 </script>

@@ -111,19 +111,19 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'quantity'">
-            <span :class="{ 'low-stock': record.quantity < record.minQuantity, 'over-stock': record.quantity > record.maxQuantity }">
+            <span :class="{ 'low-stock': record.quantity < (record.minStock ?? 0), 'over-stock': record.quantity > (record.maxStock ?? 999999) }">
               {{ record.quantity }} {{ record.unit }}
             </span>
           </template>
           <template v-else-if="column.key === 'warningStatus'">
             <a-tag
-              v-if="record.quantity < record.minQuantity"
+              v-if="record.quantity < (record.minStock ?? 0)"
               color="red"
             >
               低库存
             </a-tag>
             <a-tag
-              v-else-if="record.quantity > record.maxQuantity"
+              v-else-if="record.quantity > (record.maxStock ?? 999999)"
               color="orange"
             >
               超储
@@ -180,15 +180,15 @@
         <a-descriptions-item label="规格">{{ currentRecord.specification }}</a-descriptions-item>
         <a-descriptions-item label="单位">{{ currentRecord.unit }}</a-descriptions-item>
         <a-descriptions-item label="库存数量">
-          <span :class="{ 'low-stock': currentRecord.quantity < currentRecord.minQuantity, 'over-stock': currentRecord.quantity > currentRecord.maxQuantity }">
+          <span :class="{ 'low-stock': currentRecord.quantity < (currentRecord.minStock ?? 0), 'over-stock': currentRecord.quantity > (currentRecord.maxStock ?? 999999) }">
             {{ currentRecord.quantity }}
           </span>
         </a-descriptions-item>
-        <a-descriptions-item label="最低库存">{{ currentRecord.minQuantity }}</a-descriptions-item>
-        <a-descriptions-item label="最高库存">{{ currentRecord.maxQuantity }}</a-descriptions-item>
+        <a-descriptions-item label="最低库存">{{ currentRecord.minStock }}</a-descriptions-item>
+        <a-descriptions-item label="最高库存">{{ currentRecord.maxStock }}</a-descriptions-item>
         <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="最后入库">{{ currentRecord.lastInTime }}</a-descriptions-item>
-        <a-descriptions-item label="最后出库">{{ currentRecord.lastOutTime }}</a-descriptions-item>
+        <a-descriptions-item label="最后入库">{{ currentRecord.lastInboundDate }}</a-descriptions-item>
+        <a-descriptions-item label="最后出库">{{ currentRecord.lastOutboundDate }}</a-descriptions-item>
       </a-descriptions>
       <div style="text-align: right; margin-top: 16px">
         <a-button @click="detailVisible = false">关闭</a-button>
@@ -198,68 +198,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
+import { stockApi, type StockItem, type PageQuery } from '@/api/erp'
 
-interface StockItem {
-  id: number
-  productCode: string
-  productName: string
-  specification: string
-  unit: string
-  quantity: number
-  minQuantity: number
-  maxQuantity: number
-  warehouseName: string
-  lastInTime: string
-  lastOutTime: string
-}
-
+const router = useRouter()
 const loading = ref(false)
 const logModalVisible = ref(false)
 const detailVisible = ref(false)
 const currentRecord = ref<StockItem | null>(null)
 
-const queryParams = reactive({
+const queryParams = reactive<Record<string, any>>({
   productCode: '',
   productName: '',
   warehouseId: undefined as number | undefined,
   warningStatus: undefined as number | undefined
 })
 
-const dataSource = ref<StockItem[]>([
-  { id: 1, productCode: 'P001', productName: '商品A', specification: '500g', unit: '件', quantity: 150, minQuantity: 50, maxQuantity: 500, warehouseName: '主仓库', lastInTime: '2026-03-28', lastOutTime: '2026-03-27' },
-  { id: 2, productCode: 'P002', productName: '商品B', specification: '1kg', unit: '箱', quantity: 30, minQuantity: 100, maxQuantity: 300, warehouseName: '主仓库', lastInTime: '2026-03-26', lastOutTime: '2026-03-28' },
-  { id: 3, productCode: 'P003', productName: '商品C', specification: '100ml', unit: '瓶', quantity: 600, minQuantity: 200, maxQuantity: 500, warehouseName: '分仓库', lastInTime: '2026-03-25', lastOutTime: '2026-03-20' },
-  { id: 4, productCode: 'P004', productName: '商品D', specification: '2L', unit: '桶', quantity: 250, minQuantity: 100, maxQuantity: 400, warehouseName: '主仓库', lastInTime: '2026-03-27', lastOutTime: '2026-03-26' }
-])
-
-const stockLogs = ref([
-  { id: 1, type: 'in', quantity: 100, orderNo: 'PO20260328001', time: '2026-03-28 10:00', operator: '张三' },
-  { id: 2, type: 'out', quantity: 50, orderNo: 'SO20260328001', time: '2026-03-27 14:30', operator: '李四' },
-  { id: 3, type: 'in', quantity: 200, orderNo: 'PO20260327002', time: '2026-03-26 09:15', operator: '王五' }
-])
-
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 4,
-  showSizeChanger: true
-})
+const dataSource = ref<StockItem[]>([])
+const stockLogs = ref<any[]>([])
+const pagination = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true })
 
 const columns = [
   { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
   { title: '商品名称', dataIndex: 'productName', key: 'productName' },
   { title: '规格', dataIndex: 'specification', key: 'specification', width: 80 },
   { title: '库存数量', dataIndex: 'quantity', key: 'quantity', width: 120 },
-  { title: '最低库存', dataIndex: 'minQuantity', key: 'minQuantity', width: 100 },
-  { title: '最高库存', dataIndex: 'maxQuantity', key: 'maxQuantity', width: 100 },
+  { title: '最低库存', dataIndex: 'minStock', key: 'minStock', width: 100 },
+  { title: '最高库存', dataIndex: 'maxStock', key: 'maxStock', width: 100 },
   { title: '预警状态', dataIndex: 'warningStatus', key: 'warningStatus', width: 100 },
   { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
-  { title: '最后入库', dataIndex: 'lastInTime', key: 'lastInTime', width: 110 },
-  { title: '最后出库', dataIndex: 'lastOutTime', key: 'lastOutTime', width: 110 },
-  { title: '操作', key: 'action', fixed: 'right', width: 120 }
+  { title: '最后入库', dataIndex: 'lastInboundDate', key: 'lastInboundDate', width: 110 },
+  { title: '最后出库', dataIndex: 'lastOutboundDate', key: 'lastOutboundDate', width: 110 },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 120 }
 ]
 
 const logColumns = [
@@ -270,16 +244,44 @@ const logColumns = [
   { title: '操作人', dataIndex: 'operator', key: 'operator' }
 ]
 
-const handleSearch = () => message.info('查询')
-const handleReset = () => { queryParams.productCode = ''; queryParams.productName = ''; queryParams.warehouseId = undefined; queryParams.warningStatus = undefined }
-const handleTableChange = (pag: any) => { pagination.current = pag.current }
+const fetchData = async () => {
+  loading.value = true
+  try {
+    const params: PageQuery = {
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      keyword: queryParams.productName || undefined,
+      ...queryParams
+    }
+    const res = await stockApi.page(params)
+    dataSource.value = res.records || []
+    pagination.total = res.total
+  } catch (err: any) {
+    message.error('加载库存数据失败: ' + (err?.message || '未知错误'))
+  } finally {
+    loading.value = false
+  }
+}
 
-const handleInbound = () => message.info('入库操作')
-const handleOutbound = () => message.info('出库操作')
-const handleStocktake = () => message.info('库存盘点')
-const handleExport = () => message.info('导出库存')
+const handleSearch = () => { pagination.current = 1; fetchData() }
+const handleReset = () => { queryParams.productCode = ''; queryParams.productName = ''; queryParams.warehouseId = undefined; queryParams.warningStatus = undefined }
+const handleTableChange = (pag: any) => { pagination.current = pag.current; fetchData() }
+
+const handleInbound = () => router.push('/erp/stock-in')
+const handleOutbound = () => router.push('/erp/stock-out')
+const handleStocktake = () => router.push('/erp/stocktake')
+const handleExport = async () => {
+  try {
+    await request.get('/erp/stock/export', { responseType: 'blob' })
+    message.success('导出成功')
+  } catch {
+    message.info('导出功能将在后续版本实现')
+  }
+}
 const handleView = (record: StockItem) => { currentRecord.value = record; detailVisible.value = true }
-const handleStockLog = (record: StockItem) => { logModalVisible.value = true }
+const handleStockLog = () => { message.info('库存流水功能将在后续版本实现') }
+
+onMounted(() => { fetchData() })
 </script>
 
 <style scoped>

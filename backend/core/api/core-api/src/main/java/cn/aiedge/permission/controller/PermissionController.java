@@ -91,7 +91,7 @@ public class PermissionController {
     @PostMapping("/user/assign-roles")
     @RequirePermission("system:role:assign")
     public void assignUserRoles(@RequestBody UserRoleDTO dto) {
-        permissionService.assignUserRoles(dto.getUserId(), dto.getRoleIds());
+        permissionService.assignUserRoles(dto.getUserId(), dto.getTenantId(), dto.getRoleIds());
     }
 
     @Operation(summary = "清除用户角色")
@@ -116,7 +116,7 @@ public class PermissionController {
     @PostMapping("/role/assign-permissions")
     @RequirePermission("system:permission:assign")
     public void assignRolePermissions(@RequestBody RoleDTO dto) {
-        permissionService.assignRolePermissions(dto.getRoleId(), dto.getPermissionIds());
+        permissionService.assignRolePermissions(dto.getRoleId(), dto.getTenantId(), dto.getPermissionIds());
     }
 
     @Operation(summary = "清除角色权限")

@@ -21,8 +21,8 @@ public class AuthDTO {
             @NotBlank(message = "密码不能为空")
             String password,
             
-            @NotNull(message = "租户ID不能为空")
-            Long tenantId
+            @NotBlank(message = "租户名称不能为空")
+            String tenantName
     ) {}
 
     /**

@@ -84,8 +84,12 @@ public interface PermissionService {
 
     /**
      * 分配用户角色
+     *
+     * @param userId   用户ID
+     * @param tenantId 租户ID
+     * @param roleIds  角色ID列表
      */
-    void assignUserRoles(Long userId, List<Long> roleIds);
+    void assignUserRoles(Long userId, Long tenantId, List<Long> roleIds);
 
     /**
      * 清除用户角色
@@ -101,8 +105,12 @@ public interface PermissionService {
 
     /**
      * 分配角色权限
+     *
+     * @param roleId        角色ID
+     * @param tenantId      租户ID
+     * @param permissionIds 权限ID列表
      */
-    void assignRolePermissions(Long roleId, List<Long> permissionIds);
+    void assignRolePermissions(Long roleId, Long tenantId, List<Long> permissionIds);
 
     /**
      * 清除角色权限

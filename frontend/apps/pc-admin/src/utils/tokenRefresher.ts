@@ -132,11 +132,20 @@ export async function refreshTokenAndRetry(
   } catch (error) {
     processQueue(error, null)
 
-    // 刷新失败，清除登录状态
+    // 刷新失败，清除登录状态（不调用logout API，避免无限循环）
     removeToken()
     try {
       const userStore = useUserStore()
-      userStore.logout()
+      // 直接清除状态，不调用API
+      userStore.token = ''
+      userStore.userId = 0
+      userStore.tenantId = 1
+      userStore.userInfo = null
+      userStore.permissions = []
+      userStore.roles = []
+      userStore.menus = []
+      localStorage.removeItem('token')
+      localStorage.removeItem('tenantId')
     } catch {
       // Store may not be available
     }

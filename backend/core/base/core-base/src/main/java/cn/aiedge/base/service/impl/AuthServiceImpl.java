@@ -81,6 +81,12 @@ public class AuthServiceImpl implements AuthService {
         // Sa-Token 登录
         StpUtil.login(user.getId());
 
+        // 存储租户ID和部门ID到会话，供后续权限检查使用
+        StpUtil.getSession().set("tenantId", user.getTenantId());
+        StpUtil.getSession().set("deptId", user.getDeptId());
+        log.debug("用户会话已保存租户信息: userId={}, tenantId={}, deptId={}",
+                user.getId(), user.getTenantId(), user.getDeptId());
+
         // 获取Token信息
         String tokenValue = StpUtil.getTokenValue();
         long tokenTimeout = StpUtil.getTokenTimeout();
@@ -127,8 +133,30 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginVO refreshToken(String refreshToken) {
-        // TODO: 实现刷新令牌逻辑
-        throw BusinessException.badRequest("暂不支持刷新令牌");
+        if (!StpUtil.isLogin()) {
+            throw BusinessException.unauthorized("用户未登录，请重新登录");
+        }
+        Long userId = StpUtil.getLoginIdAsLong();
+        String newToken = StpUtil.getTokenValue();
+
+        User user = userService.getById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+
+        LoginVO vo = new LoginVO();
+        vo.setAccessToken(newToken);
+        vo.setTokenType("Bearer");
+        LoginVO.UserInfo userInfo = new LoginVO.UserInfo();
+        userInfo.setId(userId);
+        userInfo.setUsername(user.getUsername());
+        userInfo.setNickname(user.getNickname());
+        userInfo.setAvatar(user.getAvatar());
+        userInfo.setEmail(user.getEmail());
+        userInfo.setPhone(user.getPhone());
+        userInfo.setDeptId(user.getDeptId());
+        vo.setUserInfo(userInfo);
+        return vo;
     }
 
     @Override

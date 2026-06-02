@@ -380,7 +380,9 @@ import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { positionApi, type PositionInfo } from '@/api/position'
 import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -476,7 +478,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await userApi.getPage({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       deptId: currentDepartment.value?.id,
       ...searchForm,
       pageNum: pagination.current,
@@ -497,7 +499,7 @@ const fetchData = async () => {
 const fetchAvailableUsers = async () => {
   try {
     const res = await userApi.getList({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       status: 0,
       pageSize: 1000
     })
@@ -514,7 +516,7 @@ const fetchAvailableUsers = async () => {
 // 加载岗位列表
 const fetchPositionList = async () => {
   try {
-    const res = await positionApi.getList({ tenantId: 1, status: 0 })
+    const res = await positionApi.getList({ tenantId: userStore.tenantId, status: 0 })
     if (res.data) {
       positionList.value = res.data
     }
@@ -526,7 +528,7 @@ const fetchPositionList = async () => {
 // 加载部门树
 const fetchDepartmentTree = async () => {
   try {
-    const res = await departmentApi.getTree({ tenantId: 1, status: 0 })
+    const res = await departmentApi.getTree({ tenantId: userStore.tenantId, status: 0 })
     if (res.data) {
       departmentTreeData.value = res.data
     }

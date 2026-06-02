@@ -256,6 +256,7 @@ import { message } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import type { TableProps } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
 
 const loading = ref(false)
 const activeTab = ref('pending')
@@ -342,22 +343,12 @@ onUnmounted(() => {
 const loadSuggestions = async () => {
   loading.value = true
   try {
-    const response = await fetch('/api/v1/erp-stock/replenishment/list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pageNum: pagination.current,
-        pageSize: pagination.pageSize,
-        status: 'pending'
-      })
-    })
-    const data = await response.json()
-    if (data.code === 200) {
-      pendingSuggestions.value = data.data.records || []
-      pagination.total = data.data.total || 0
-    }
-  } catch (error) {
-    message.error('获取补货建议失败')
+    const params = { pageNum: pagination.current, pageSize: pagination.pageSize, status: 'pending' }
+    const res = await replenishmentApi.list(params)
+    pendingSuggestions.value = res.records || []
+    pagination.total = res.total
+  } catch (err: any) {
+    message.error('获取补货建议失败: ' + (err?.message || ''))
   } finally {
     loading.value = false
   }
@@ -365,18 +356,15 @@ const loadSuggestions = async () => {
 
 const generateSuggestions = async () => {
   loading.value = true
-  message.loading('正在生成补货建议...')
+  message.loading('正在生成补货建议...', 0)
   try {
-    const response = await fetch('/api/v1/erp-stock/replenishment/generate', { method: 'POST' })
-    const data = await response.json()
-    if (data.code === 200) {
-      await loadSuggestions()
-      message.success('补货建议已生成')
-    } else {
-      message.error(data.message || '生成失败')
-    }
-  } catch (error) {
-    message.error('生成补货建议失败')
+    await replenishmentApi.generate()
+    await loadSuggestions()
+    message.destroy()
+    message.success('补货建议已生成')
+  } catch (err: any) {
+    message.destroy()
+    message.error('生成补货建议失败: ' + (err?.message || ''))
   } finally {
     loading.value = false
   }

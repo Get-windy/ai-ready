@@ -54,27 +54,9 @@ interface Props {
   scrollX?: number | string | true
   scrollY?: number | string
   emptyText?: string
-  stripe?: boolean
-  fit?: boolean
-  highlightCurrentRow?: boolean
-  currentRowKey?: string | number
   rowClassName?: TableProps['rowClassName']
-  rowStyle?: TableProps['rowStyle']
-  cellClassName?: TableProps['cellClassName']
-  cellStyle?: TableProps['cellStyle']
-  headerRowClassName?: TableProps['headerRowClassName']
-  headerRowStyle?: TableProps['headerRowStyle']
-  headerCellClassName?: TableProps['headerCellClassName']
-  headerCellStyle?: TableProps['headerCellStyle']
   defaultExpandAll?: boolean
   expandRowKeys?: any[]
-  showSummary?: boolean
-  sumText?: string
-  summaryMethod?: TableProps['summaryMethod']
-  spanMethod?: TableProps['spanMethod']
-  selectOnIndeterminate?: boolean
-  indent?: number
-  treeProps?: any
   tableLayout?: 'auto' | 'fixed'
 }
 

@@ -38,7 +38,7 @@ export const purchaseOrderApi = {
   page(params: PurchaseOrderQuery): Promise<ApiResponse<PageResponse<PurchaseOrder>>> {
     console.log('[purchaseApi] page请求参数:', JSON.stringify(params))
     console.log('[purchaseApi] tenantId:', params.tenantId, 'current:', params.current, 'size:', params.size)
-    return request.get('/erp/purchase/order/page', params)
+    return request.get('/erp/purchase/order/page', { params } as any)
   },
 
   // 获取详情

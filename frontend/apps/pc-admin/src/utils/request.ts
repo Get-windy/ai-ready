@@ -39,10 +39,10 @@ export interface RetryConfig {
 }
 
 /** 扩展的 Axios 请求配置（支持重试和跳过刷新） */
-interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
+interface ExtendedAxiosRequestConfig extends Partial<InternalAxiosRequestConfig> {
   retryConfig?: RetryConfig
   _retryCount?: number
-  _skipAuthRefresh?: boolean  // 跳过 Token 刷新（用于 login/refresh 端点自身）
+  _skipAuthRefresh?: boolean
 }
 
 // ── 默认重试配置 ────────────────────────────────────────
@@ -142,6 +142,11 @@ service.interceptors.response.use(
     // 业务错误：401 → Token 刷新
     if (code === 401) {
       const config = response.config as ExtendedAxiosRequestConfig
+      // 如果是登录请求失败，直接显示后端返回的错误消息
+      if (config.url?.includes('/auth/login')) {
+        message.error(msg || '登录失败')
+        return Promise.reject(new Error(msg || '登录失败'))
+      }
       if (!config._skipAuthRefresh) {
         return refreshTokenAndRetry((newToken) => {
           config.headers.Authorization = `Bearer ${newToken}`
@@ -257,11 +262,19 @@ service.interceptors.response.use(
 export function handleUnauthorized() {
   try {
     const userStore = useUserStore()
-    userStore.logout()
+    // 直接清除状态，不调用logout API（避免无限循环）
+    userStore.token = ''
+    userStore.userId = 0
+    userStore.tenantId = 1
+    userStore.userInfo = null
+    userStore.permissions = []
+    userStore.roles = []
+    userStore.menus = []
   } catch (e) {
     console.error('清除用户状态失败:', e)
-    localStorage.removeItem('token')
   }
+  localStorage.removeItem('token')
+  localStorage.removeItem('tenantId')
   if (window.location.pathname !== '/login') {
     window.location.href = '/login'
   }

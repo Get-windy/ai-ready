@@ -2,6 +2,7 @@ package com.aiready.system.aspect;
 
 import com.aiready.system.entity.SystemLog;
 import com.aiready.system.service.SystemLogService;
+import cn.dev33.satoken.stp.StpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.aspectj.lang.JoinPoint;
@@ -239,18 +240,34 @@ public class SystemLogAspect {
     }
 
     /**
-     * 获取当前用户ID（需集成认证模块）
+     * 获取当前用户ID
      */
     private Long getCurrentUserId() {
-        // TODO: 从Sa-Token或Session中获取当前用户ID
-        return 1L;
+        try {
+            if (StpUtil.isLogin()) {
+                return StpUtil.getLoginIdAsLong();
+            }
+        } catch (Exception e) {
+            // 非登录态或无认证时返回系统用户
+        }
+        return 0L;
     }
 
     /**
-     * 获取当前用户名（需集成认证模块）
+     * 获取当前用户名
      */
     private String getCurrentUsername() {
-        // TODO: 从Sa-Token或Session中获取当前用户名
-        return "admin";
+        try {
+            if (StpUtil.isLogin()) {
+                String username = StpUtil.getSession().getString("username");
+                if (username != null && !username.isEmpty()) {
+                    return username;
+                }
+                return StpUtil.getLoginIdAsString();
+            }
+        } catch (Exception e) {
+            // 非登录态或无认证时返回系统用户
+        }
+        return "system";
     }
 }

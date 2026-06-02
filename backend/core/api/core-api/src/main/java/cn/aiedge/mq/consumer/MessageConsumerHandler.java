@@ -5,6 +5,9 @@ import cn.aiedge.mq.model.MessageEntity;
 import cn.aiedge.mq.model.MessageEntity.EmailPayload;
 import cn.aiedge.mq.model.MessageEntity.SmsPayload;
 import cn.aiedge.mq.model.MessageEntity.NotificationPayload;
+import cn.aiedge.notification.channel.EmailChannel;
+import cn.aiedge.notification.entity.NotificationRecord;
+import cn.aiedge.notification.service.NotificationService;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,9 @@ import java.io.IOException;
 @ConditionalOnProperty(prefix = "mq.rabbit", name = "enabled", havingValue = "true")
 public class MessageConsumerHandler {
 
+    private final EmailChannel emailChannel;
+    private final NotificationService notificationService;
+
     // ==================== 邮件消费者 ====================
 
     /**
@@ -46,9 +52,7 @@ public class MessageConsumerHandler {
             }
 
             log.info("处理邮件消息: to={}, subject={}", email.getTo(), email.getSubject());
-            
-            // TODO: 实际发送邮件逻辑
-            // emailService.send(email.getTo(), email.getSubject(), email.getContent());
+            notificationService.sendEmail(email.getTo(), email.getSubject(), email.getContent());
             
             channel.basicAck(deliveryTag, false);
             log.debug("邮件消息处理完成: messageId={}", message.getMessageId());
@@ -78,9 +82,7 @@ public class MessageConsumerHandler {
             }
 
             log.info("处理短信消息: phone={}", sms.getPhone());
-            
-            // TODO: 实际发送短信逻辑
-            // smsService.send(sms.getPhone(), sms.getContent());
+            notificationService.sendSms(sms.getPhone(), sms.getContent());
             
             channel.basicAck(deliveryTag, false);
             log.debug("短信消息处理完成: messageId={}", message.getMessageId());
@@ -110,9 +112,7 @@ public class MessageConsumerHandler {
             }
 
             log.info("处理通知消息: userId={}, title={}", notification.getUserId(), notification.getTitle());
-            
-            // TODO: 实际发送通知逻辑
-            // notificationService.send(notification.getUserId(), notification.getTitle(), notification.getContent());
+            notificationService.sendSiteMessage(notification.getUserId(), notification.getTitle(), notification.getContent());
             
             channel.basicAck(deliveryTag, false);
             log.debug("通知消息处理完成: messageId={}", message.getMessageId());
@@ -146,9 +146,8 @@ public class MessageConsumerHandler {
             Object data = syncData.get("data");
             
             log.info("处理数据同步消息: dataType={}", dataType);
-            
-            // TODO: 实际数据同步逻辑
-            // dataSyncService.sync(dataType, data);
+            log.warn("数据同步处理器已接收消息，完整同步实现待配置: dataType={}", dataType);
+            // 数据同步接入点：可在此注入 DataSyncService 同步到目标系统
             
             channel.basicAck(deliveryTag, false);
             log.debug("数据同步消息处理完成: messageId={}", message.getMessageId());

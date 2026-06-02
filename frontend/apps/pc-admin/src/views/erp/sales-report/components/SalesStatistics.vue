@@ -83,98 +83,56 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import { salesReportApi, type SalesStats } from '@/api/sales-report'
 
 const chartRef = ref<HTMLElement>()
 
-const queryParams = reactive({
-  dateRange: [] as string[]
-})
-
-const stats = reactive({
-  totalSales: 0,
-  orderCount: 0,
-  avgOrderValue: 0,
-  returnAmount: 0
-})
-
+const queryParams = reactive({ dateRange: [] as string[] })
+const stats = reactive<SalesStats>({ totalSales: 0, orderCount: 0, avgOrderValue: 0, returnAmount: 0 })
 let chart: echarts.ECharts | null = null
 
-const handleResize = () => {
-  chart?.resize()
-}
+const handleResize = () => { chart?.resize() }
 
-const initChart = () => {
+const initChart = (data?: { date: string; sales: number; orders: number }[]) => {
   nextTick(() => {
     if (!chartRef.value) return
-
-    chart = echarts.init(chartRef.value)
-    const option = {
-      title: {
-        text: '销售趋势'
-      },
-      tooltip: {
-        trigger: 'axis'
-      },
-      legend: {
-        data: ['销售额', '订单数']
-      },
-      xAxis: {
-        type: 'category',
-        data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-      },
-      yAxis: [
-        {
-          type: 'value',
-          name: '销售额（元）',
-          position: 'left'
-        },
-        {
-          type: 'value',
-          name: '订单数',
-          position: 'right'
-        }
-      ],
+    if (!chart) chart = echarts.init(chartRef.value)
+    const dates = data?.map(d => d.date) || ['周一','周二','周三','周四','周五','周六','周日']
+    const sales = data?.map(d => d.sales) || [0,0,0,0,0,0,0]
+    const orders = data?.map(d => d.orders) || [0,0,0,0,0,0,0]
+    chart.setOption({
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['销售额','订单数'] },
+      xAxis: { type: 'category', data: dates },
+      yAxis: [{ type: 'value', name: '销售额(元)' }, { type: 'value', name: '订单数' }],
       series: [
-        {
-          name: '销售额',
-          type: 'bar',
-          data: [12000, 15000, 10000, 18000, 20000, 22000, 19000]
-        },
-        {
-          name: '订单数',
-          type: 'line',
-          yAxisIndex: 1,
-          data: [12, 15, 10, 18, 20, 22, 19]
-        }
+        { name: '销售额', type: 'bar', data: sales },
+        { name: '订单数', type: 'line', yAxisIndex: 1, data: orders }
       ]
-    }
-    chart.setOption(option)
-
+    })
     window.addEventListener('resize', handleResize)
   })
 }
 
-const handleQuery = () => {
-  message.info('查询销售统计')
-  // 模拟数据更新
-  stats.totalSales = 116000
-  stats.orderCount = 116
-  stats.avgOrderValue = 1000
-  stats.returnAmount = 5000
+const handleQuery = async () => {
+  try {
+    const params = queryParams.dateRange.length === 2
+      ? { startDate: queryParams.dateRange[0], endDate: queryParams.dateRange[1] } : {}
+    const [statsRes, trendRes] = await Promise.allSettled([
+      salesReportApi.getStatistics(params),
+      salesReportApi.getSalesTrend(params)
+    ])
+    if (statsRes.status === 'fulfilled' && statsRes.value.data) {
+      Object.assign(stats, statsRes.value.data)
+    }
+    if (trendRes.status === 'fulfilled') {
+      initChart(trendRes.value.data || undefined)
+    } else { initChart() }
+  } catch { message.info('加载统计数据失败') }
 }
 
-onMounted(() => {
-  handleQuery()
-  initChart()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
-})
+onMounted(() => handleQuery())
+onUnmounted(() => { window.removeEventListener('resize', handleResize); chart?.dispose(); chart = null })
 </script>
 
 <style scoped>

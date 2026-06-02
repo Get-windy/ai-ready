@@ -170,7 +170,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     private void updateAdminPassword() {
         try {
             // 使用Hutool BCrypt生成密码哈希
-            String passwordHash = BCrypt.hashpw("admin123", BCrypt.gensalt());
+            String passwordHash = BCrypt.hashpw("Admin@123", BCrypt.gensalt());
             
             jdbcTemplate.update("UPDATE sys_user SET password = ? WHERE username = 'admin' AND tenant_id = 1", passwordHash);
             log.info("Admin用户密码已更新");
@@ -260,7 +260,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         """);
         
         // 生成BCrypt密码哈希
-        String passwordHash = BCrypt.hashpw("admin123", BCrypt.gensalt());
+        String passwordHash = BCrypt.hashpw("Admin@123", BCrypt.gensalt());
         
         // 插入默认管理员用户
         jdbcTemplate.update("""
@@ -283,6 +283,6 @@ public class DatabaseInitializer implements CommandLineRunner {
             ON CONFLICT DO NOTHING
         """);
         
-        log.info("基础表创建完成！Admin密码: admin123");
+        log.info("基础表创建完成！Admin密码: Admin@123");
     }
 }

@@ -23,7 +23,6 @@ export {
 // 响应式管理
 export {
   useChartResponsive,
-  getBreakpoint,
   getBreakpointConfig,
   getResponsiveFontSize,
   getResponsivePadding,

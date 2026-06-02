@@ -498,8 +498,10 @@ import {
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
+import { useUserStore } from '@/stores/user'
 
 // 搜索表单
+const userStore = useUserStore()
 const searchForm = reactive<PositionQuery>({
   positionCode: '',
   positionName: '',
@@ -614,7 +616,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await positionApi.getPage({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       ...searchForm,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
@@ -633,7 +635,7 @@ const fetchData = async () => {
 // 加载岗位分类列表
 const fetchCategoryList = async () => {
   try {
-    const res = await positionApi.getCategoryList({ tenantId: 1, status: 0 })
+    const res = await positionApi.getCategoryList({ tenantId: userStore.tenantId, status: 0 })
     if (res.data) {
       categoryList.value = res.data
     }
@@ -645,7 +647,7 @@ const fetchCategoryList = async () => {
 // 加载部门列表
 const fetchDepartmentList = async () => {
   try {
-    const res = await departmentApi.getList({ tenantId: 1, status: 0 })
+    const res = await departmentApi.getList({ tenantId: userStore.tenantId, status: 0 })
     if (res.data) {
       departmentList.value = res.data
     }
@@ -789,7 +791,7 @@ const handleCategoryManage = () => {
 const fetchCategoryData = async () => {
   categoryLoading.value = true
   try {
-    const res = await positionApi.getCategoryPage({ tenantId: 1, size: 100 })
+    const res = await positionApi.getCategoryPage({ tenantId: userStore.tenantId, size: 100 })
     if (res.data) {
       categoryData.value = res.data.records
     }

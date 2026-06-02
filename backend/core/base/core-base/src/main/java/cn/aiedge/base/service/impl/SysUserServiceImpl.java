@@ -54,6 +54,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
 
+        // 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
+        StpUtil.getSession().set("tenantId", tenantId);
+
         // 更新登录信息
         baseMapper.updateLoginInfo(user.getId(), loginIp);
 

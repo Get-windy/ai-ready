@@ -131,7 +131,9 @@ import { message } from 'ant-design-vue'
 import { ModuleLayout } from '@ai-ready/components'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
 import { salesOrderApi } from '@/api/order'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const router = useRouter()
 
 interface UnifiedOrder {
@@ -186,7 +188,7 @@ const fetchData = async () => {
     const params: any = {
       current: pagination.current,
       size: pagination.pageSize,
-      tenantId: 1
+      tenantId: userStore.tenantId
     }
     if (filterStatus.value !== undefined) {
       params.status = filterStatus.value

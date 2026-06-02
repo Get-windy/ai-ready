@@ -28,7 +28,7 @@ onMounted(async () => {
 const initMap = async () => {
   try {
     const AMap = await AMapLoader.load({
-      key: '',
+      key: import.meta.env.VITE_AMAP_KEY || '',
       version: '2.0',
       plugins: ['AMap.Geolocation', 'AMap.Marker', 'AMap.Navigation']
     })

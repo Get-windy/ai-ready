@@ -8,6 +8,7 @@ import { setupI18n } from './locales'
 import { initErrorReporter } from './utils/errorReporter'
 import { permission, role } from './directives/permission'
 import featureFlag from './directives/featureFlag'
+import shortcutDirective from './directives/shortcut'
 import { initMockServer } from '@/mocks'
 import { initFeatureFlags, getFeatureFlagService } from '@/utils/featureFlags'
 import { initSentry, setSentryUser, clearSentryUser } from '@/utils/sentry'
@@ -45,6 +46,7 @@ app.use(pinia)
 app.directive('permission', permission)
 app.directive('role', role)
 app.directive('feature-flag', featureFlag)
+app.directive('shortcut', shortcutDirective)
 
 // 提供 Feature Flag 服务（全局注入，组件可通过 inject 获取）
 app.provide('featureFlagService', getFeatureFlagService())

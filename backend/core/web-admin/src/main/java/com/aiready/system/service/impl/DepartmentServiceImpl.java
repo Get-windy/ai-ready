@@ -5,6 +5,8 @@ import com.aiready.system.mapper.DepartmentMapper;
 import com.aiready.system.service.DepartmentService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -19,6 +21,9 @@ import java.util.stream.Collectors;
  */
 @Service
 public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Department> implements DepartmentService {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public Department getByDeptCode(String deptCode) {
@@ -110,8 +115,10 @@ public class DepartmentServiceImpl extends ServiceImpl<DepartmentMapper, Departm
 
     @Override
     public boolean hasUsers(Long deptId) {
-        // TODO: 需要集成用户模块后实现
-        return false;
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sys_user WHERE dept_id = ? AND deleted = 0",
+            Integer.class, deptId);
+        return count != null && count > 0;
     }
 
     @Override

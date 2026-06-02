@@ -17,7 +17,12 @@ public class RoleDTO {
      * 角色ID
      */
     private Long roleId;
-    
+
+    /**
+     * 租户ID
+     */
+    private Long tenantId;
+
     /**
      * 权限ID列表
      */

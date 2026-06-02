@@ -97,7 +97,7 @@ const iconComponent = computed(() => {
     check: () => import('@ant-design/icons-vue').then(m => m.CheckOutlined),
     info: () => import('@ant-design/icons-vue').then(m => m.InfoCircleOutlined),
     warning: () => import('@ant-design/icons-vue').then(m => m.WarningOutlined),
-    error: () => import('@ant-design/icons-vue').then(m => m.ErrorOutlined),
+    error: () => import('@ant-design/icons-vue').then(m => m.StopOutlined),
     download: () => import('@ant-design/icons-vue').then(m => m.DownloadOutlined),
     upload: () => import('@ant-design/icons-vue').then(m => m.UploadOutlined),
     eye: () => import('@ant-design/icons-vue').then(m => m.EyeOutlined),

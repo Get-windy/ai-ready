@@ -2,6 +2,7 @@ package com.aiready.log.aspect;
 
 import com.aiready.log.annotation.OperationLog;
 import com.aiready.log.service.OperationLogService;
+import cn.dev33.satoken.stp.StpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -114,9 +115,17 @@ public class OperationLogAspect {
             operationLog.setStatus(1);
         }
         
-        // TODO: 从SecurityContext获取当前用户信息
-        // operationLog.setOperatorId(currentUser.getId());
-        // operationLog.setOperatorName(currentUser.getUsername());
+        // 从Sa-Token获取当前用户信息
+        try {
+            if (StpUtil.isLogin()) {
+                operationLog.setOperatorId(StpUtil.getLoginIdAsLong());
+                String username = StpUtil.getSession().getString("username");
+                operationLog.setOperatorName(username != null ? username : StpUtil.getLoginIdAsString());
+            }
+        } catch (Exception e) {
+            // 非登录态时不设置操作人
+            log.debug("获取当前用户信息失败: {}", e.getMessage());
+        }
         
         // 异步保存日志
         operationLogService.saveLogAsync(operationLog);

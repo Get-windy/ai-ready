@@ -1,0 +1,1 @@
+<template><div><van-nav-bar title="关于我们" left-arrow @click-left="$router.back()"/><div style="text-align:center;padding:40px"><van-image width="80" height="80" round src="https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg"/><h3>智企连管理端</h3><p>版本 1.0.0</p><p style="color:#999">企业数字化管理平台</p></div></div></template>

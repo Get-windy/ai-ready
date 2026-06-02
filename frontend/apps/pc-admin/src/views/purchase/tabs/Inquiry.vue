@@ -1,26 +1,27 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
     :loading="loading"
-    :error="error"
-    :empty="!loading && !error && dataSource.length === 0"
-    empty-text="暂无询价单"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+    :pagination="pagination"
+    :table-key="'purchase-inquiry-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建询价"
+    @add="handleAdd"
+    @edit="handleEdit"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建询价
-      </a-button>
+    <template #toolbar-actions>
       <a-button @click="handleExport">
         <template #icon><ExportOutlined /></template>
         导出
@@ -28,34 +29,46 @@
     </template>
 
     <template #batch-actions>
-      <a-button @click="handleBatchSend">批量发送</a-button>
-      <a-button danger @click="handleBatchDelete">批量删除</a-button>
+      <a-button size="small" @click="handleBatchSend">批量发送</a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 0" @click="handleEdit(record)">编辑</a>
-              <a v-if="record.status === 0" @click="handleSend(record)">发送</a>
-              <a v-if="record.status === 0" @click="handleDeleteConfirm(record)" class="danger">删除</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <template #status="{ record }">
+      <a-tag :color="getStatusColor(record.status)">
+        {{ getStatusText(record.status) }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="编辑">
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="发送">
+          <a-button type="link" size="small" @click="handleSend(record)">
+            <template #icon><SendOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-popconfirm
+          v-if="record.status === 0"
+          title="确定删除该询价单？"
+          @confirm="handleDelete(record)"
+        >
+          <a-tooltip title="删除">
+            <a-button type="link" size="small" danger>
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
+        </a-popconfirm>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 详情弹窗 -->
   <a-modal
@@ -159,17 +172,56 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import TableList from '@/components/TableList/TableList.vue'
 import { inquiryApi } from '@/api/erp'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
+const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
 const error = ref<string | null>(null)
-const selectedRowKeys = ref<(string | number)[]>([])
-const currentView = ref('list')
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
+const searchFilters = reactive<Record<string, any>>({})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// ── 表格列定义 ──────────────────────────────────────────
+const columns = [
+  { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 160, sortable: true },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140 },
+  { title: '询价日期', dataIndex: 'inquiryDate', key: 'inquiryDate', width: 110, type: 'date' as const },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
+  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, type: 'action' as const }
+]
+
+// ── 筛选字段 ────────────────────────────────────────────
+const filterFields = [
+  { key: 'inquiryNo', label: '询价单号', type: 'input' as const, placeholder: '输入询价单号' },
+  { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '输入供应商' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 }, { label: '已发送', value: 1 }, { label: '已报价', value: 2 }
+  ]},
+  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+]
+
+const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green' }
+const statusTextMap: Record<number, string> = { 0: '草稿', 1: '已发送', 2: '已报价' }
+
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  return [
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
+
+function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
+function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
+
+// ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 
@@ -235,44 +287,6 @@ const handleSupplierChange = (val: number) => {
   formData.supplierId = val
 }
 
-const breadcrumbItems = computed(() => [
-  { text: '采购管理', path: '/purchase' },
-  { text: '询价单' }
-])
-
-const columns = [
-  { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 180 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '询价日期', dataIndex: 'inquiryDate', key: 'inquiryDate', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 150 }
-]
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: (string | number)[]) => { selectedRowKeys.value = keys }
-}))
-
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green' }
-  return colors[status] || 'default'
-}
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = { 0: '草稿', 1: '已发送', 2: '已报价' }
-  return texts[status] || '未知'
-}
-
-const fetchData = async () => {
-  loading.value = true; error.value = null
-  try {
-    const res = await inquiryApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: 1 })
-    dataSource.value = res.records || []; pagination.total = res.total || 0
-  }
-  catch { error.value = '获取数据失败' }
-  finally { loading.value = false }
-}
-
 const resetForm = () => {
   formData.supplierId = undefined
   formData.inquiryDate = undefined
@@ -281,23 +295,26 @@ const resetForm = () => {
   editingId.value = null
 }
 
-const handleViewChange = (view: string) => { currentView.value = view }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handlePageChange = (page: number) => { pagination.current = page; fetchData() }
-const handlePageSizeChange = (size: number) => { pagination.pageSize = size; pagination.current = 1; fetchData() }
+// ── 数据请求 ────────────────────────────────────────────
+async function fetchData() {
+  loading.value = true; error.value = null
+  try {
+    const res = await inquiryApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
+  } catch {
+    error.value = '获取数据失败'
+  } finally { loading.value = false }
+}
 
-// ── 新建询价 ──────────────────────────────────────────
-const handleAdd = () => {
+function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+
+function handleAdd() {
   formMode.value = 'add'
   resetForm()
   formModalVisible.value = true
 }
 
-// ── 查看详情 ──────────────────────────────────────────
-const handleView = (record: any) => { currentRecord.value = record; detailVisible.value = true }
-
-// ── 编辑询价 ──────────────────────────────────────────
-const handleEdit = (record: any) => {
+function handleEdit(record: any) {
   formMode.value = 'edit'
   editingId.value = record.id
   formData.supplierId = record.supplierId
@@ -313,13 +330,25 @@ const handleEdit = (record: any) => {
   formModalVisible.value = true
 }
 
+async function handleDelete(record: any) {
+  try { await inquiryApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
+}
+
+async function handleBatchDelete(ids: number[]) {
+  let successCount = 0; let failCount = 0
+  for (const id of ids) {
+    try { await inquiryApi.delete(id); successCount++ }
+    catch { failCount++ }
+  }
+  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
+  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  fetchData()
+}
+
 // ── 表单提交 ──────────────────────────────────────────
 const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
-  }
+  try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
     const data = {
@@ -350,145 +379,60 @@ const handleFormSubmit = async () => {
 }
 
 // ── 发送询价 ──────────────────────────────────────────
-const handleSend = (record: any) => {
+function handleSend(record: any) {
   Modal.confirm({
     title: '发送询价单',
     content: `确定发送询价单 "${record.inquiryNo}" 吗？`,
-    okText: '确认发送',
-    cancelText: '取消',
-    centered: true,
+    okText: '确认发送', cancelText: '取消', centered: true,
     async onOk() {
-      try {
-        await inquiryApi.send(record.id)
-        message.success(`询价单 "${record.inquiryNo}" 发送成功`)
-        fetchData()
-      } catch { message.error('发送失败') }
+      try { await inquiryApi.send(record.id); message.success('发送成功'); fetchData() }
+      catch { message.error('发送失败') }
     }
   })
 }
 
-// ── 删除询价 ──────────────────────────────────────────
-const handleDeleteConfirm = (record: any) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除询价单 "${record.inquiryNo}" 吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await inquiryApi.delete(record.id)
-        message.success('删除成功')
-        fetchData()
-      } catch { message.error('删除失败') }
-    }
-  })
-}
-
-// ── 导出功能 ──────────────────────────────────────────
-const handleExport = () => {
+// ── 导出 ──────────────────────────────────────────────
+function handleExport() {
   const hideLoading = message.loading('正在生成导出文件...', 0)
   try {
     const headers = ['询价单号', '供应商', '询价日期', '状态', '创建时间']
     const rows = dataSource.value.map(row => [
-      row.inquiryNo || '',
-      row.supplierName || '',
-      row.inquiryDate || '',
-      getStatusText(row.status),
-      row.createTime || ''
+      row.inquiryNo || '', row.supplierName || '', row.inquiryDate || '',
+      getStatusText(row.status), row.createTime || ''
     ])
     const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
     const BOM = '﻿'
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
-    link.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hideLoading()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hideLoading()
-    message.error('导出失败')
-  }
+    link.href = url; link.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url)
+    hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
 }
 
 // ── 批量发送 ──────────────────────────────────────────
-const handleBatchSend = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要发送的询价单')
-    return
-  }
-  const count = selectedRowKeys.value.length
+function handleBatchSend() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) { message.warning('请选择询价单'); return }
   Modal.confirm({
-    title: '批量发送',
-    content: `确定要批量发送选中的 ${count} 个询价单吗？`,
-    okText: '确认发送',
-    cancelText: '取消',
-    centered: true,
+    title: '批量发送', content: `发送选中的 ${keys.length} 个询价单？`, okText: '确认', centered: true,
     async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await inquiryApi.send(id as number)
-          successCount++
-        } catch {
-          failCount++
-        }
+      let success = 0; let fail = 0
+      for (const id of keys) {
+        try { await inquiryApi.send(id); success++ } catch { fail++ }
       }
-      if (failCount === 0) {
-        message.success(`批量发送完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`发送完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
+      if (fail === 0) { message.success(`批量发送完成，成功 ${success} 个`) }
+      else { message.warning(`发送完成: 成功 ${success} 个, 失败 ${fail} 个`) }
       fetchData()
     }
   })
 }
 
-// ── 批量删除 ──────────────────────────────────────────
-const handleBatchDelete = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要删除的询价单')
-    return
-  }
-  const count = selectedRowKeys.value.length
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要批量删除选中的 ${count} 个询价单吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await inquiryApi.delete(id as number)
-          successCount++
-        } catch {
-          failCount++
-        }
-      }
-      if (failCount === 0) {
-        message.success(`批量删除完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
-      fetchData()
-    }
-  })
-}
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
 onMounted(() => fetchData())
 </script>
-
-<style scoped>
-.danger { color: #ff4d4f; }
-</style>

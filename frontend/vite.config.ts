@@ -51,6 +51,10 @@ const proxyConfig = {
     target: process.env.VITE_PROXY_TARGET || 'http://localhost:8080',
     changeOrigin: process.env.VITE_PROXY_CHANGE_ORIGIN === 'true',
     rewrite: (path: string) => path.replace(/^\/api\/mobile/, '/mobile')
+  },
+  '/api/auth': {
+    target: process.env.VITE_PROXY_TARGET || 'http://localhost:8080',
+    changeOrigin: true
   }
 }
 

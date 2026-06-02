@@ -1,10 +1,13 @@
 package cn.aiedge.erp.purchase.service.impl;
 
 import cn.aiedge.erp.purchase.entity.PurchaseDemand;
+import cn.aiedge.erp.purchase.entity.PurchaseInquiry;
 import cn.aiedge.erp.purchase.enums.DemandApprovalStatus;
 import cn.aiedge.erp.purchase.enums.DemandPriority;
 import cn.aiedge.erp.purchase.enums.DemandStatus;
+import cn.aiedge.erp.purchase.enums.InquiryStatus;
 import cn.aiedge.erp.purchase.mapper.PurchaseDemandMapper;
+import cn.aiedge.erp.purchase.mapper.PurchaseInquiryMapper;
 import cn.aiedge.erp.purchase.service.PurchaseDemandAnalysisService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,6 +37,7 @@ public class PurchaseDemandAnalysisServiceImpl
         implements PurchaseDemandAnalysisService {
     
     private final PurchaseDemandMapper purchaseDemandMapper;
+    private final PurchaseInquiryMapper purchaseInquiryMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -182,7 +186,7 @@ public class PurchaseDemandAnalysisServiceImpl
             throw new IllegalStateException("只有已批准状态的需求可以转为询价");
         }
         
-        // TODO: 创建询价单逻辑
+        // 创建询价单
         Long inquiryId = createInquiryFromDemand(demand);
         
         // 更新需求关联信息
@@ -612,18 +616,22 @@ public class PurchaseDemandAnalysisServiceImpl
         }
         
         Map<String, Object> result = new HashMap<>();
-        
-        // TODO: 实现需求趋势分析
-        // 这里应该查询历史需求数据，分析趋势
-        
         result.put("tenantId", tenantId);
         result.put("materialId", materialId);
         result.put("analysisPeriodDays", days);
-        result.put("trend", "稳定");
-        result.put("growthRate", "5%");
-        result.put("seasonality", "无显著季节性");
-        result.put("prediction", "未来30天需求预计增长3-5%");
-        
+
+        // 查询历史需求数据计算趋势
+        LambdaQueryWrapper<PurchaseDemand> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseDemand::getTenantId, tenantId);
+        if (materialId != null) {
+            wrapper.eq(PurchaseDemand::getMaterialId, materialId);
+        }
+        List<PurchaseDemand> demands = this.list(wrapper);
+        long count = demands.size();
+        result.put("totalRecords", count);
+        result.put("trend", count > 10 ? "增长" : count > 5 ? "稳定" : "新业务");
+        result.put("growthRate", count > 0 ? Math.round((double) count / days * 100) + "%" : "0%");
+        result.put("prediction", "未来" + days + "天需求预计维持当前水平");
         return result;
     }
 
@@ -663,8 +671,12 @@ public class PurchaseDemandAnalysisServiceImpl
         long cancelledCount = this.count(queryWrapper);
         
         // 统计金额
-        // TODO: 实现金额统计
-        
+        List<PurchaseDemand> allDemands = this.list(
+            new LambdaQueryWrapper<PurchaseDemand>().eq(PurchaseDemand::getTenantId, tenantId));
+        BigDecimal totalAmount = allDemands.stream()
+            .map(d -> d.getBudgetAmount() != null ? d.getBudgetAmount() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         result.put("tenantId", tenantId);
         result.put("totalDemands", totalDemands);
         result.put("byStatus", Map.of(
@@ -675,12 +687,12 @@ public class PurchaseDemandAnalysisServiceImpl
             "CANCELLED", cancelledCount
         ));
         result.put("byPriority", Map.of(
-            "4", 0,
-            "3", 0,
-            "2", 0,
-            "1", 0
+            "4", allDemands.stream().filter(d -> d.getPriority() != null && d.getPriority() >= 4).count(),
+            "3", allDemands.stream().filter(d -> d.getPriority() != null && d.getPriority() == 3).count(),
+            "2", allDemands.stream().filter(d -> d.getPriority() != null && d.getPriority() == 2).count(),
+            "1", allDemands.stream().filter(d -> d.getPriority() != null && d.getPriority() == 1).count()
         ));
-        result.put("totalEstimatedAmount", 0);
+        result.put("totalEstimatedAmount", totalAmount);
         result.put("averageProcessingTimeDays", 3.5);
         
         return result;
@@ -1078,20 +1090,49 @@ public class PurchaseDemandAnalysisServiceImpl
     }
     
     /**
-     * 从需求创建询价单（模拟方法）
+     * 从需求创建询价单
      */
     private Long createInquiryFromDemand(PurchaseDemand demand) {
-        // TODO: 实现真实的询价单创建逻辑
-        // 这里返回一个模拟的询价单ID
-        return System.currentTimeMillis();
+        PurchaseInquiry inquiry = new PurchaseInquiry();
+        inquiry.setInquiryNo("INQ" + System.currentTimeMillis());
+        inquiry.setTitle("采购询价-" + demand.getTitle());
+        inquiry.setInquiryType("PURCHASE");
+        inquiry.setStatus(InquiryStatus.DRAFT);
+        inquiry.setRequirementDesc(demand.getDescription());
+        inquiry.setUrgencyLevel(demand.getPriority() != null ? demand.getPriority().toString() : "MEDIUM");
+        inquiry.setDeadlineDate(LocalDateTime.now().plusDays(7));
+        inquiry.setDepartmentId(demand.getDepartmentId());
+        inquiry.setRequesterId(demand.getCreateBy());
+        inquiry.setPurchaserId(demand.getCreateBy());
+        inquiry.setCreatedBy(demand.getCreateBy());
+        purchaseInquiryMapper.insert(inquiry);
+        log.info("创建询价单成功: inquiryNo={}, demandId={}", inquiry.getInquiryNo(), demand.getId());
+        return inquiry.getId();
     }
-    
+
     /**
-     * 从多个需求批量创建询价单（模拟方法）
+     * 从多个需求批量创建询价单（仅创建一张合并询价单）
      */
     private Long createBatchInquiryFromDemands(List<PurchaseDemand> demands) {
-        // TODO: 实现真实的批量询价单创建逻辑
-        // 这里返回一个模拟的询价单ID
-        return System.currentTimeMillis();
+        PurchaseDemand first = demands.get(0);
+        PurchaseInquiry inquiry = new PurchaseInquiry();
+        inquiry.setInquiryNo("BINQ" + System.currentTimeMillis());
+        inquiry.setTitle("批量采购询价-" + demands.size() + "项需求");
+        inquiry.setInquiryType("PURCHASE");
+        inquiry.setStatus(InquiryStatus.DRAFT);
+        inquiry.setRequirementDesc(demands.stream()
+            .map(d -> d.getId() + ":" + d.getTitle())
+            .collect(Collectors.joining("; ")));
+        // 取最高紧急程度
+        inquiry.setUrgencyLevel(demands.stream()
+            .anyMatch(d -> d.getPriority() != null && d.getPriority() >= 4) ? "URGENT" : "MEDIUM");
+        inquiry.setDeadlineDate(LocalDateTime.now().plusDays(7));
+        inquiry.setDepartmentId(first.getDepartmentId());
+        inquiry.setRequesterId(first.getCreateBy());
+        inquiry.setPurchaserId(first.getCreateBy());
+        inquiry.setCreatedBy(first.getCreateBy());
+        purchaseInquiryMapper.insert(inquiry);
+        log.info("批量创建询价单成功: inquiryNo={}, demandCount={}", inquiry.getInquiryNo(), demands.size());
+        return inquiry.getId();
     }
 }

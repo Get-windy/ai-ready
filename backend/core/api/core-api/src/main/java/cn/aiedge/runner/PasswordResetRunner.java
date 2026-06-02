@@ -26,17 +26,17 @@ public class PasswordResetRunner implements CommandLineRunner {
             // 获取admin用户
             User adminUser = userService.getByUsername("admin");
             if (adminUser != null) {
-                // 重置密码为admin123
-                String newPassword = "admin123";
+                // 重置密码为Admin@123
+                String newPassword = "Admin@123";
                 String encodedPassword = passwordEncoder.encode(newPassword);
-                
+
                 // 更新密码
                 userService.resetPassword(adminUser.getId(), encodedPassword);
-                
+
                 System.out.println("===================================");
                 System.out.println("Admin password reset successfully!");
                 System.out.println("Username: admin");
-                System.out.println("Password: admin123");
+                System.out.println("Password: Admin@123");
                 System.out.println("===================================");
             } else {
                 System.out.println("Admin user not found in database.");

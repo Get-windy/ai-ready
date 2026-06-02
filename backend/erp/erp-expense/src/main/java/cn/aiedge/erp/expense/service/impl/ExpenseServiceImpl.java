@@ -11,6 +11,7 @@ import cn.aiedge.erp.expense.repository.ExpenseApplicationRepository;
 import cn.aiedge.erp.expense.repository.ExpenseApprovalRepository;
 import cn.aiedge.erp.expense.repository.ExpenseItemRepository;
 import cn.aiedge.erp.expense.service.ExpenseService;
+import cn.aiedge.erp.expense.service.integration.ExpenseAccountingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +36,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseApplicationRepository expenseApplicationRepository;
     private final ExpenseItemRepository expenseItemRepository;
     private final ExpenseApprovalRepository expenseApprovalRepository;
+    private final ExpenseAccountingService expenseAccountingService;
 
     @Override
     @Transactional
@@ -252,6 +254,24 @@ public class ExpenseServiceImpl implements ExpenseService {
         
         ExpenseApplication saved = expenseApplicationRepository.save(application);
         log.info("费用单审批通过: {}, 状态: {}", saved.getApplicationCode(), saved.getStatus().getDescription());
+
+        // When expense reaches APPROVED status, create accounting voucher via integration
+        if (saved.getStatus() == ExpenseStatus.APPROVED) {
+            try {
+                String voucherNo = expenseAccountingService.createExpenseVoucher(
+                        saved.getId(), saved.getApplicationCode(),
+                        saved.getTotalAmount(), saved.getPurpose());
+                if (voucherNo != null && !voucherNo.isEmpty()) {
+                    saved.setReimbursementVoucherNo(voucherNo);
+                    expenseApplicationRepository.save(saved);
+                    log.info("费用凭证创建成功, 凭证号: {}", voucherNo);
+                }
+            } catch (Exception e) {
+                log.error("创建费用凭证失败, applicationCode={}", saved.getApplicationCode(), e);
+                // Do not rollback the approval - log the error and continue
+            }
+        }
+
         return convertToDTO(saved);
     }
 

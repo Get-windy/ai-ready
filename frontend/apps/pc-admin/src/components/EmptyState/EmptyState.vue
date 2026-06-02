@@ -62,16 +62,7 @@
 
 <script setup lang="ts">
 import { computed, type PropType } from 'vue'
-import {
-  Standard两大图,
-  Standard中图,
-  Standard小图,
-  EmptyNormal,
-  EmptySimple,
-  NetworkError,
-  NoPermission,
-  NoData
-} from '@ant-design/icons-vue'
+import { QuestionCircleOutlined } from '@ant-design/icons-vue'
 
 // Props
 const props = defineProps({
@@ -140,29 +131,6 @@ const handleAdd = () => {
 }
 </script>
 
-<template>
- *   <EmptyState
- *     v-if="list.length === 0"
- *     title="暂无数据"
- *     description="请先创建一些数据"
- *
-/>
- *   
- *   <a-table
- *     v-else
- *     :data-source="list"
- *     :columns="columns"
- *
-/>
- * </template>
-
-/**
- * EmptyState 空状态组件库
- * 
- * 使用方法：
- * 
- * 1. 基本使用
- * ```vue
  * <style scoped>
 .empty-state {
   display: flex;

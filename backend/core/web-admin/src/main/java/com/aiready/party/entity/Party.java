@@ -1,8 +1,7 @@
 package com.aiready.party.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
@@ -12,8 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 往来单位实体类
  */
-@Getter
-@Setter
+@Data
 @EqualsAndHashCode(callSuper = false)
 @TableName("biz_party")
 public class Party {

@@ -91,6 +91,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import { salesReportApi } from '@/api/sales-report'
 
 const chartRef = ref<HTMLElement>()
 
@@ -165,14 +166,26 @@ const initChart = () => {
   })
 }
 
-const handleQuery = () => {
-  message.info('查询销售趋势')
+const handleQuery = async () => {
+  try {
+    const params = queryParams.dateRange.length === 2
+      ? { startDate: queryParams.dateRange[0], endDate: queryParams.dateRange[1] } : {}
+    const res = await salesReportApi.getSalesTrend(params)
+    if (res.data) {
+      const d = res.data
+      stats.currentPeriod = d.reduce((s, v) => s + v.sales, 0)
+      // 更新图表数据...
+      if (chart) {
+        chart.setOption({
+          xAxis: { data: d.map(p => p.date) },
+          series: [{ data: d.map(p => p.sales) }, { data: d.map(p => p.orders) }]
+        })
+      }
+    }
+  } catch { message.info('查询销售趋势失败') }
 }
 
-onMounted(() => {
-  handleQuery()
-  initChart()
-})
+onMounted(() => initChart().then(() => handleQuery()))
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)

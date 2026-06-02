@@ -1,7 +1,7 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.erp.finance.mapper.FinanceReportMapper;
 import cn.aiedge.erp.finance.model.entity.FinanceReport;
-import cn.aiedge.erp.finance.repository.FinanceReportRepository;
 import cn.aiedge.erp.finance.service.FinanceReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,20 +9,18 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 财务报表Service实现类
  */
 @Service
 public class FinanceReportServiceImpl implements FinanceReportService {
-    
+
     @Autowired
-    private FinanceReportRepository financeReportRepository;
-    
+    private FinanceReportMapper financeReportMapper;
+
     @Override
     public boolean generateReport(Integer reportType, String reportPeriod) {
-        // 生成财务报表的逻辑
         FinanceReport report = new FinanceReport();
         report.setReportNo("REPORT_" + LocalDateTime.now().toEpochSecond(ZoneOffset.UTC));
         report.setReportType(reportType);
@@ -30,48 +28,49 @@ public class FinanceReportServiceImpl implements FinanceReportService {
         report.setStatus(1);
         report.setGeneratedBy("system");
         report.setGeneratedAt(LocalDateTime.now());
-        
-        financeReportRepository.save(report);
+
+        financeReportMapper.insert(report);
         return true;
     }
-    
+
     @Override
     public List<FinanceReport> listReports(Integer reportType, String reportPeriod, Integer status) {
         if (reportType != null) {
-            return financeReportRepository.findByReportType(reportType);
+            return financeReportMapper.findByReportType(reportType);
         } else if (reportPeriod != null) {
-            return financeReportRepository.findByReportPeriod(reportPeriod);
+            return financeReportMapper.findByReportPeriod(reportPeriod);
         } else if (status != null) {
-            return financeReportRepository.findByStatus(status);
+            return financeReportMapper.findByStatus(status);
         }
-        return financeReportRepository.findAll();
+        return financeReportMapper.selectList(null);
     }
-    
+
     @Override
     public FinanceReport getReportDetail(String reportNo) {
-        return financeReportRepository.findByReportNo(reportNo);
+        return financeReportMapper.findByReportNo(reportNo);
     }
-    
+
     @Override
     public boolean approveReport(String reportNo, String approvedBy) {
-        FinanceReport report = financeReportRepository.findByReportNo(reportNo);
+        FinanceReport report = financeReportMapper.findByReportNo(reportNo);
         if (report == null) {
             return false;
         }
         report.setStatus(2);
         report.setApprovedBy(approvedBy);
         report.setApprovedAt(LocalDateTime.now());
-        financeReportRepository.save(report);
+        financeReportMapper.updateById(report);
         return true;
     }
-    
+
     @Override
     public boolean deleteDraftReport(String reportNo) {
-        FinanceReport report = financeReportRepository.findByReportNo(reportNo);
+        FinanceReport report = financeReportMapper.findByReportNo(reportNo);
         if (report == null || report.getStatus() != 0) {
             return false;
         }
-        financeReportRepository.delete(report);
+        report.setDeletedFlag(1);
+        financeReportMapper.updateById(report);
         return true;
     }
 }

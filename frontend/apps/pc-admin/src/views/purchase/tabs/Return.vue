@@ -1,22 +1,26 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
+    :loading="loading"
+    :pagination="pagination"
+    :table-key="'purchase-return-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建退货"
+    @add="handleAdd"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建退货
-      </a-button>
+    <template #toolbar-actions>
       <a-button @click="handleExport">
         <template #icon><ExportOutlined /></template>
         导出
@@ -24,36 +28,30 @@
     </template>
 
     <template #batch-actions>
-      <a-button @click="handleBatchApprove">批量审批</a-button>
+      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">
-            ¥{{ record.totalAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 1" @click="handleApprove(record)">审批</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <template #status="{ record }">
+      <a-tag :color="getStatusColor(record.status)">
+        {{ getStatusText(record.status) }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 1" title="审批">
+          <a-button type="link" size="small" @click="handleApprove(record)">
+            <template #icon><CheckCircleOutlined /></template>
+          </a-button>
+        </a-tooltip>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 详情弹窗 -->
   <a-modal
@@ -163,16 +161,58 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, EyeOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import TableList from '@/components/TableList/TableList.vue'
 import { purchaseReturnApi } from '@/api/erp'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
+const tableRef = ref()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
-const selectedRowKeys = ref<number[]>([])
-const currentView = ref('list')
+const searchFilters = reactive<Record<string, any>>({})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+const columns = [
+  { title: '退货单号', dataIndex: 'returnNo', key: 'returnNo', width: 160, sortable: true },
+  { title: '采购订单', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140 },
+  { title: '退货日期', dataIndex: 'returnDate', key: 'returnDate', width: 110, type: 'date' as const },
+  { title: '退货金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, type: 'currency' as const, sortable: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 140, fixed: 'right' as const, type: 'action' as const }
+]
+
+const filterFields = [
+  { key: 'returnNo', label: '退货单号', type: 'input' as const, placeholder: '输入退货单号' },
+  { key: 'orderNo', label: '采购订单', type: 'input' as const, placeholder: '输入订单号' },
+  { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '输入供应商' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 }, { label: '待审批', value: 1 }, { label: '已退货', value: 2 }, { label: '已拒绝', value: 3 }
+  ]},
+  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+]
+
+const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green', 3: 'red' }
+const statusTextMap: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已退货', 3: '已拒绝' }
+
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  const totalAmount = dataSource.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
+  return [
+    { label: '本页金额合计', value: totalAmount, type: 'currency' as const },
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
+
+function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
+function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
+
+// ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 
@@ -214,204 +254,100 @@ const returnItemColumns = [
 ]
 
 const handleAddReturnItem = () => {
-  formData.items.push({
-    tempKey: genTempKey(),
-    productName: '',
-    quantity: 1,
-    unitPrice: 0
-  })
+  formData.items.push({ tempKey: genTempKey(), productName: '', quantity: 1, unitPrice: 0 })
 }
+const handleRemoveReturnItem = (index: number) => { formData.items.splice(index, 1) }
 
-const handleRemoveReturnItem = (index: number) => {
-  formData.items.splice(index, 1)
-}
-
-const breadcrumbItems = computed(() => [
-  { text: '采购管理', path: '/purchase' },
-  { text: '退货单' }
-])
-
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
-
-const columns = [
-  { title: '退货单号', dataIndex: 'returnNo', key: 'returnNo', width: 180 },
-  { title: '采购订单', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '退货日期', dataIndex: 'returnDate', key: 'returnDate', width: 120 },
-  { title: '退货金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 120 }
-]
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => { selectedRowKeys.value = keys }
-}))
-
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green', 3: 'red' }
-  return colors[status] || 'default'
-}
-
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已退货', 3: '已拒绝' }
-  return texts[status] || '未知'
-}
-
-const fetchData = async () => {
-  loading.value = true
+async function fetchData() {
+  loading.value = true; error.value = null
   try {
-    const res = await purchaseReturnApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: 1 })
-    dataSource.value = res.records || []
-    pagination.total = res.total || 0
-  } catch {
-    error.value = '获取数据失败'
-  } finally {
-    loading.value = false
-  }
+    const res = await purchaseReturnApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
+  } catch { error.value = '获取数据失败' }
+  finally { loading.value = false }
 }
 
-const handleViewChange = (view: string) => { currentView.value = view }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handlePageChange = (page: number) => { pagination.current = page; fetchData() }
-const handlePageSizeChange = (size: number) => { pagination.pageSize = size; pagination.current = 1; fetchData() }
+function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 
-// ── 新建退货 ──────────────────────────────────────────
-const handleAdd = () => {
-  formData.orderNo = ''
-  formData.reason = undefined
-  formData.refundType = 1
-  formData.returnDate = undefined
-  formData.remark = ''
-  formData.items = []
+function handleAdd() {
+  formData.orderNo = ''; formData.reason = undefined; formData.refundType = 1
+  formData.returnDate = undefined; formData.remark = ''; formData.items = []
   formModalVisible.value = true
 }
 
-// ── 查看详情 ──────────────────────────────────────────
-const handleView = (record: any) => {
-  currentRecord.value = record
-  detailVisible.value = true
+async function handleDelete(record: any) {
+  try { await purchaseReturnApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
 }
 
-// ── 表单提交 ──────────────────────────────────────────
-const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
+async function handleBatchDelete(ids: number[]) {
+  let successCount = 0; let failCount = 0
+  for (const id of ids) {
+    try { await purchaseReturnApi.delete(id); successCount++ } catch { failCount++ }
   }
+  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
+  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  fetchData()
+}
+
+const handleFormSubmit = async () => {
+  try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
     await purchaseReturnApi.create({
-      orderNo: formData.orderNo,
-      reason: formData.reason,
-      refundType: formData.refundType,
-      returnDate: formData.returnDate,
-      remark: formData.remark,
-      items: formData.items.map(item => ({
-        productName: item.productName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice
-      }))
+      orderNo: formData.orderNo, reason: formData.reason, refundType: formData.refundType,
+      returnDate: formData.returnDate, remark: formData.remark,
+      items: formData.items.map(item => ({ productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice }))
     })
-    message.success('新建退货单成功')
-    formModalVisible.value = false
-    fetchData()
-  } catch {
-    message.error('新建退货单失败')
-  } finally {
-    formSubmitting.value = false
-  }
+    message.success('新建退货单成功'); formModalVisible.value = false; fetchData()
+  } catch { message.error('新建退货单失败') }
+  finally { formSubmitting.value = false }
 }
 
-// ── 审批退货 ──────────────────────────────────────────
-const handleApprove = (record: any) => {
+function handleApprove(record: any) {
   Modal.confirm({
-    title: '审批退货单',
-    content: `确定审批退货单 "${record.returnNo}" 吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await purchaseReturnApi.approve(record.id)
-        message.success('审批成功')
-        fetchData()
-      } catch { message.error('审批失败') }
-    }
+    title: '审批退货单', content: `审批退货单 "${record.returnNo}" ？`, okText: '确认审批', centered: true,
+    async onOk() { try { await purchaseReturnApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
   })
 }
 
-// ── 导出功能 ──────────────────────────────────────────
-const handleExport = () => {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['退货单号', '采购订单', '供应商', '退货日期', '退货金额', '状态', '创建时间']
-    const rows = dataSource.value.map(row => [
-      row.returnNo || '',
-      row.orderNo || '',
-      row.supplierName || '',
-      row.returnDate || '',
-      row.totalAmount?.toFixed(2) || '0.00',
-      getStatusText(row.status),
-      row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `退货单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hideLoading()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hideLoading()
-    message.error('导出失败')
-  }
-}
-
-// ── 批量审批 ──────────────────────────────────────────
-const handleBatchApprove = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要审批的退货单')
-    return
-  }
-  const count = selectedRowKeys.value.length
+function handleBatchApprove() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) { message.warning('请选择退货单'); return }
   Modal.confirm({
-    title: '批量审批',
-    content: `确定要批量审批选中的 ${count} 个退货单吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
+    title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await purchaseReturnApi.approve(id)
-          successCount++
-        } catch {
-          failCount++
-        }
+      let success = 0; let fail = 0
+      for (const id of keys) {
+        try { await purchaseReturnApi.approve(id); success++ } catch { fail++ }
       }
-      if (failCount === 0) {
-        message.success(`批量审批完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`审批完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
+      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
+      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
       fetchData()
     }
   })
 }
 
-onMounted(() => { fetchData() })
-</script>
+function handleExport() {
+  const hideLoading = message.loading('正在生成导出文件...', 0)
+  try {
+    const headers = ['退货单号', '采购订单', '供应商', '退货日期', '退货金额', '状态', '创建时间']
+    const rows = dataSource.value.map((row: any) => [
+      row.returnNo || '', row.orderNo || '', row.supplierName || '', row.returnDate || '',
+      row.totalAmount?.toFixed(2) || '0.00', getStatusText(row.status), row.createTime || ''
+    ])
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
+    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = `退货单_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
+}
 
-<style scoped>
-.danger { color: #ff4d4f; }
-</style>
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+
+onMounted(() => fetchData())
+</script>

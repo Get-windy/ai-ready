@@ -140,23 +140,6 @@ const handleCancel = () => {
 }
 </script>
 
-<template>
- *   <ConfirmDialog
- *     v-model:visible="showDialog"
- *     title="确认删除"
- *     message="确定要删除这条记录吗？"
- *     @ok="handleDelete"
- *
-/>
- * </template>
-
-/**
- * ConfirmDialog 确认弹窗组件库
- * 
- * 使用方法：
- * 
- * 1. 基本使用
- * ```vue
  * <style scoped>
 .confirm-dialog {
   text-align: center;

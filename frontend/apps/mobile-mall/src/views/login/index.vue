@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Form, Field, Button, Checkbox, Divider, Dialog, showLoadingToast, closeToast } from 'vant'
+import { Form, Field, Button, Checkbox, Divider, Dialog, showLoadingToast, closeToast, showToast } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
 
@@ -48,18 +48,8 @@ const handleLogin = async () => {
     Dialog.alert({ message: '登录成功' }).then(() => {
       router.replace('/')
     })
-  } catch {
-    userStore.setUser({
-      id: 1,
-      phone: form.value.phone,
-      nickname: '用户' + form.value.phone.slice(-4),
-      token: 'mock_token_' + Date.now()
-    })
-    userStore.setToken('mock_token_' + Date.now())
-    
-    Dialog.alert({ message: '登录成功' }).then(() => {
-      router.replace('/')
-    })
+  } catch (err: any) {
+    showToast(err?.response?.data?.message || err?.message || '登录失败，请检查网络连接')
   } finally {
     loading.value = false
     closeToast()

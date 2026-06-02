@@ -1,7 +1,7 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.erp.finance.mapper.FinanceTransactionMapper;
 import cn.aiedge.erp.finance.model.entity.FinanceTransaction;
-import cn.aiedge.erp.finance.repository.FinanceTransactionRepository;
 import cn.aiedge.erp.finance.service.FinanceTransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,84 +16,82 @@ import java.util.Map;
  */
 @Service
 public class FinanceTransactionServiceImpl implements FinanceTransactionService {
-    
+
     @Autowired
-    private FinanceTransactionRepository financeTransactionRepository;
-    
+    private FinanceTransactionMapper financeTransactionMapper;
+
     @Override
     public boolean createTransaction(FinanceTransaction transaction) {
         try {
-            financeTransactionRepository.save(transaction);
+            financeTransactionMapper.insert(transaction);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
-    
+
     @Override
-    public List<FinanceTransaction> listTransactions(Integer transactionType, Integer status, 
+    public List<FinanceTransaction> listTransactions(Integer transactionType, Integer status,
             LocalDateTime startDate, LocalDateTime endDate) {
         if (transactionType != null) {
-            return financeTransactionRepository.findByTransactionType(transactionType);
+            return financeTransactionMapper.findByTransactionType(transactionType);
         } else if (status != null) {
-            return financeTransactionRepository.findByStatus(status);
+            return financeTransactionMapper.findByStatus(status);
         } else if (startDate != null && endDate != null) {
-            return financeTransactionRepository.findByTransactionTimeBetween(startDate, endDate);
+            return financeTransactionMapper.findByTransactionTimeBetween(startDate, endDate);
         }
-        return financeTransactionRepository.findAll();
+        return financeTransactionMapper.selectList(null);
     }
-    
+
     @Override
     public Object getTransactionStatistics(Integer bizType, String period) {
-        // 统计交易数据
-        Long total = financeTransactionRepository.count();
-        List<FinanceTransaction> transactions = financeTransactionRepository.findAll();
-        
+        Long total = financeTransactionMapper.selectCount(null);
+        List<FinanceTransaction> transactions = financeTransactionMapper.selectList(null);
+
         Double income = transactions.stream()
-            .filter(t -> t.getTransactionType() == 1)
-            .mapToDouble(t -> t.getAmount().doubleValue())
-            .sum();
-            
+                .filter(t -> t.getTransactionType() == 1)
+                .mapToDouble(t -> t.getAmount().doubleValue())
+                .sum();
+
         Double expense = transactions.stream()
-            .filter(t -> t.getTransactionType() == 2)
-            .mapToDouble(t -> t.getAmount().doubleValue())
-            .sum();
-        
+                .filter(t -> t.getTransactionType() == 2)
+                .mapToDouble(t -> t.getAmount().doubleValue())
+                .sum();
+
         return Map.of(
-            "total", total,
-            "income", income,
-            "expense", expense,
-            "net", income - expense
+                "total", total,
+                "income", income,
+                "expense", expense,
+                "net", income - expense
         );
     }
-    
+
     @Override
     public boolean approveTransaction(Long id, String approvedBy) {
-        FinanceTransaction transaction = financeTransactionRepository.findById(id).orElse(null);
+        FinanceTransaction transaction = financeTransactionMapper.selectById(id);
         if (transaction == null) {
             return false;
         }
         transaction.setStatus(1);
         transaction.setApprovedBy(approvedBy);
         transaction.setApprovedAt(LocalDateTime.now());
-        financeTransactionRepository.save(transaction);
+        financeTransactionMapper.updateById(transaction);
         return true;
     }
-    
+
     @Override
     public boolean revokeTransaction(Long id) {
-        FinanceTransaction transaction = financeTransactionRepository.findById(id).orElse(null);
+        FinanceTransaction transaction = financeTransactionMapper.selectById(id);
         if (transaction == null) {
             return false;
         }
         transaction.setStatus(2);
-        financeTransactionRepository.save(transaction);
+        financeTransactionMapper.updateById(transaction);
         return true;
     }
-    
+
     @Override
     public BigDecimal getAccountBalance(Long accountId) {
-        // 计算账户余额的逻辑
         return BigDecimal.ZERO;
     }
 }

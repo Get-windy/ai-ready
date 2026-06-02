@@ -28,7 +28,9 @@ export const useUserStore = defineStore('user', {
     username: (state) => state.userInfo?.username || '',
     nickname: (state) => state.userInfo?.nickname || '',
     userType: (state) => state.userInfo?.userType || 2,
-    avatar: (state) => state.userInfo?.avatar || ''
+    avatar: (state) => state.userInfo?.avatar || '',
+    isSystemUser: (state) => (state.userInfo?.userType ?? 2) === 0,
+    isEnterpriseAdmin: (state) => (state.userInfo?.userType ?? 2) <= 1
   },
 
   actions: {
@@ -38,9 +40,9 @@ export const useUserStore = defineStore('user', {
         if (res.data && res.data.token) {
           this.token = res.data.token
           this.userId = res.data.userId || 0
-          this.tenantId = loginForm.tenantId || 1
+          this.tenantId = res.data.tenantId || 1
           localStorage.setItem('token', res.data.token)
-          localStorage.setItem('tenantId', String(loginForm.tenantId || 1))
+          localStorage.setItem('tenantId', String(res.data.tenantId || 1))
           return true
         }
         return false

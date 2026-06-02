@@ -109,9 +109,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { api } from '@/api'
 import * as echarts from 'echarts'
 
 const router = useRouter()
@@ -119,7 +120,7 @@ const userStore = useUserStore()
 
 const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
 const refreshing = ref(false)
-const notificationCount = ref(5)
+const notificationCount = ref(0)
 const pendingLoading = ref(false)
 const pendingFinished = ref(false)
 const salesChartRef = ref<HTMLElement>()
@@ -136,10 +137,10 @@ const quickActions = reactive([
 ])
 
 const dashboardData = ref([
-  { label: '今日销售额', value: '¥128,500', trend: 12.5 },
-  { label: '今日订单数', value: '56', trend: 8.3 },
-  { label: '新增客户', value: '12', trend: -2.1 },
-  { label: '待审批', value: '8', trend: 0 }
+  { label: '今日销售额', value: '--', trend: 0 },
+  { label: '今日订单数', value: '--', trend: 0 },
+  { label: '新增客户', value: '--', trend: 0 },
+  { label: '待审批', value: '--', trend: 0 }
 ])
 
 const pendingList = ref<any[]>([])
@@ -156,17 +157,25 @@ const onRefresh = async () => {
 }
 
 const loadDashboardData = async () => {
-  pendingList.value = [
-    { id: 1, title: '采购订单审批', type: 'purchase', typeLabel: '采购', createTime: '2024-01-15 10:30' },
-    { id: 2, title: '费用报销审批', type: 'expense', typeLabel: '报销', createTime: '2024-01-15 09:20' },
-    { id: 3, title: '销售合同审批', type: 'contract', typeLabel: '合同', createTime: '2024-01-15 08:15' }
-  ]
+  try {
+    const res = await api.order.getStatistics({})
+    if (res?.todaySales !== undefined) dashboardData.value[0].value = `¥${res.todaySales?.toLocaleString?.() ?? '--'}`
+    if (res?.todayOrders !== undefined) dashboardData.value[1].value = String(res.todayOrders ?? '--')
+    if (res?.newCustomers !== undefined) dashboardData.value[2].value = String(res.newCustomers ?? '--')
+    if (res?.pendingApprovals !== undefined) dashboardData.value[3].value = String(res.pendingApprovals ?? '--')
+  } catch { /* keep placeholders */ }
 
-  recentOrders.value = [
-    { id: 1, orderNo: 'SO20240115001', customerName: '北京科技有限公司', amount: '25,800', status: 'pending', statusLabel: '待审核' },
-    { id: 2, orderNo: 'SO20240115002', customerName: '上海贸易公司', amount: '18,500', status: 'confirmed', statusLabel: '已确认' },
-    { id: 3, orderNo: 'SO20240114003', customerName: '广州制造企业', amount: '42,300', status: 'shipped', statusLabel: '已发货' }
-  ]
+  try {
+    const pendingRes = await api.approval.getPendingCount()
+    if (pendingRes) notificationCount.value = typeof pendingRes === 'number' ? pendingRes : (pendingRes as any)?.count ?? 0
+    const listRes = await api.approval.getList({ pageNum: 1, pageSize: 5 })
+    pendingList.value = Array.isArray(listRes?.records) ? listRes.records : (Array.isArray(listRes) ? listRes : [])
+  } catch { pendingList.value = [] }
+
+  try {
+    const orderRes = await api.order.getList({ pageNum: 1, pageSize: 3 })
+    recentOrders.value = Array.isArray(orderRes?.records) ? orderRes.records : (Array.isArray(orderRes) ? orderRes : [])
+  } catch { recentOrders.value = [] }
 }
 
 const loadPending = () => {

@@ -42,74 +42,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-
-interface CustomerRanking {
-  id: number
-  rank: number
-  customerName: string
-  totalAmount: number
-  orderCount: number
-  lastOrderDate: string
-}
+import { salesReportApi, type CustomerRankItem } from '@/api/sales-report'
 
 const loading = ref(false)
-const dataSource = ref<CustomerRanking[]>([])
-
-const queryParams = reactive({
-  dateRange: [] as string[]
-})
+const dataSource = ref<CustomerRankItem[]>([])
+const queryParams = reactive({ dateRange: [] as string[] })
 
 const columns = [
   { title: '排名', key: 'rank', width: 100 },
-  { title: '客户名称', dataIndex: 'customerName', key: 'customerName' },
+  { title: '客户名称', dataIndex: 'name', key: 'name' },
   { title: '销售总额', key: 'totalAmount', width: 150 },
   { title: '订单数量', dataIndex: 'orderCount', key: 'orderCount', width: 120 },
-  { title: '最后订单日期', dataIndex: 'lastOrderDate', key: 'lastOrderDate', width: 150 }
+  { title: '增长率', key: 'growth', width: 100 }
 ]
 
-const getRankColor = (rank: number) => {
-  if (rank === 1) return 'gold'
-  if (rank === 2) return 'orange'
-  if (rank === 3) return 'cyan'
-  return 'default'
+const getRankColor = (rank: number) => rank === 1 ? 'gold' : rank === 2 ? 'orange' : rank === 3 ? 'cyan' : 'default'
+
+const handleQuery = async () => {
+  loading.value = true
+  try {
+    const res = await salesReportApi.getCustomerRanking(
+      queryParams.dateRange.length === 2 ? { startDate: queryParams.dateRange[0], endDate: queryParams.dateRange[1] } : {})
+    dataSource.value = res.data || []
+  } catch { message.info('查询失败') }
+  finally { loading.value = false }
 }
 
-const handleQuery = () => {
-  message.info('查询客户排行')
-}
-
-loading.value = true
-setTimeout(() => {
-  dataSource.value = [
-    {
-      id: 1,
-      rank: 1,
-      customerName: '客户A',
-      totalAmount: 500000,
-      orderCount: 50,
-      lastOrderDate: '2026-04-13'
-    },
-    {
-      id: 2,
-      rank: 2,
-      customerName: '客户B',
-      totalAmount: 400000,
-      orderCount: 40,
-      lastOrderDate: '2026-04-12'
-    },
-    {
-      id: 3,
-      rank: 3,
-      customerName: '客户C',
-      totalAmount: 350000,
-      orderCount: 35,
-      lastOrderDate: '2026-04-11'
-    }
-  ]
-  loading.value = false
-}, 500)
+onMounted(() => handleQuery())
 </script>
 
 <style scoped>

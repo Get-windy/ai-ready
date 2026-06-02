@@ -30,6 +30,9 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/api/auth/login",
+                        "/api/auth/captcha",
+                        "/api/auth/captcha/**",
+                        "/api/auth/check",
                         "/api/user/login",
                         "/api/user/register",
                         "/api/temp/reset-password",
@@ -41,12 +44,15 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/error"
                 )
                 .order(0);
-        
+
         // 注册 Sa-Token 拦截器，校验规则为 StpUtil.checkLogin()。
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/api/auth/login",
+                        "/api/auth/captcha",
+                        "/api/auth/captcha/**",
+                        "/api/auth/check",
                         "/api/user/login",
                         "/api/user/register",
                         "/api/temp/reset-password",

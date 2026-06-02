@@ -126,7 +126,9 @@ import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
 import PurchaseOrderFormModal from './components/PurchaseOrderFormModal.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const dataSource = ref<PurchaseOrder[]>([])
 const formModalVisible = ref(false)
@@ -138,7 +140,7 @@ const queryParams = reactive({
   orderNo: '',
   supplierId: undefined as number | undefined,
   status: undefined as number | undefined,
-  tenantId: 1
+  tenantId: userStore.tenantId
 })
 
 const pagination = reactive({

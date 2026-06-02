@@ -11,7 +11,7 @@ ai-ready:
   reset-default-user: true
   default-users:
     - username: "admin"
-      password: "admin123"
+      password: "Admin@123"
       role: "ADMIN"
       email: "admin@ai-ready.cn"
 

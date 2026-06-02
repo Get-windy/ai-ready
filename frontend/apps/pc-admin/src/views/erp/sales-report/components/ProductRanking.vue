@@ -42,79 +42,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-
-interface ProductRanking {
-  id: number
-  rank: number
-  productName: string
-  productCode: string
-  totalAmount: number
-  quantity: number
-  unitPrice: number
-}
+import { salesReportApi, type ProductRankItem } from '@/api/sales-report'
 
 const loading = ref(false)
-const dataSource = ref<ProductRanking[]>([])
-
-const queryParams = reactive({
-  dateRange: [] as string[]
-})
+const dataSource = ref<ProductRankItem[]>([])
+const queryParams = reactive({ dateRange: [] as string[] })
 
 const columns = [
   { title: '排名', key: 'rank', width: 100 },
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
-  { title: '商品名称', dataIndex: 'productName', key: 'productName' },
+  { title: '商品名称', dataIndex: 'name', key: 'name' },
   { title: '销售总额', key: 'totalAmount', width: 150 },
-  { title: '销售数量', dataIndex: 'quantity', key: 'quantity', width: 120 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 120 }
+  { title: '销量', dataIndex: 'volume', key: 'volume', width: 100 },
+  { title: '毛利率', key: 'margin', width: 100 }
 ]
 
-const getRankColor = (rank: number) => {
-  if (rank === 1) return 'gold'
-  if (rank === 2) return 'orange'
-  if (rank === 3) return 'cyan'
-  return 'default'
+const getRankColor = (rank: number) => rank === 1 ? 'gold' : rank === 2 ? 'orange' : rank === 3 ? 'cyan' : 'default'
+
+const handleQuery = async () => {
+  loading.value = true
+  try {
+    const res = await salesReportApi.getProductRanking(
+      queryParams.dateRange.length === 2 ? { startDate: queryParams.dateRange[0], endDate: queryParams.dateRange[1] } : {})
+    dataSource.value = res.data || []
+  } catch { message.info('查询失败') }
+  finally { loading.value = false }
 }
 
-const handleQuery = () => {
-  message.info('查询商品排行')
-}
-
-loading.value = true
-setTimeout(() => {
-  dataSource.value = [
-    {
-      id: 1,
-      rank: 1,
-      productName: '商品A',
-      productCode: 'P001',
-      totalAmount: 300000,
-      quantity: 1000,
-      unitPrice: 300
-    },
-    {
-      id: 2,
-      rank: 2,
-      productName: '商品B',
-      productCode: 'P002',
-      totalAmount: 250000,
-      quantity: 500,
-      unitPrice: 500
-    },
-    {
-      id: 3,
-      rank: 3,
-      productName: '商品C',
-      productCode: 'P003',
-      totalAmount: 200000,
-      quantity: 800,
-      unitPrice: 250
-    }
-  ]
-  loading.value = false
-}, 500)
+onMounted(() => handleQuery())
 </script>
 
 <style scoped>

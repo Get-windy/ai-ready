@@ -2,7 +2,7 @@
  * ERP 统一 API 模块
  * 涵盖采购/销售/库存各子模块的 API 接口
  */
-import request from '@/utils/request'
+import request, { type ApiResponse } from '@/utils/request'
 
 // ── 通用类型 ──────────────────────────────────────────
 export interface PageQuery {
@@ -197,4 +197,73 @@ export const batchApi = {
     return request.get('/erp/batch-sn/batch/page', { params })
   },
   getById(id: number) { return request.get(`/erp/batch-sn/batch/${id}`) },
+}
+
+// ── 智能补货 ──────────────────────────────────────────
+
+export interface ReplenishmentSuggestion {
+  id: number; productCode: string; productName: string
+  currentQty: number; safetyStock: number; shortageQty: number
+  avgDailySales: number; daysOfStock: number; leadTime: number
+  suggestedQty: number; priority: number; reason: string; status?: string
+}
+export const replenishmentApi = {
+  list(params: Record<string, any>): Promise<PageResult<ReplenishmentSuggestion>> {
+    return request.get('/erp/stock/replenishment/list', { params })
+  },
+  generate(): Promise<ApiResponse<void>> {
+    return request.post('/erp/stock/replenishment/generate')
+  },
+  createOrder(suggestionId: number, supplierId: number): Promise<ApiResponse<any>> {
+    return request.post(`/erp/stock/replenishment/${suggestionId}/create-order`, { supplierId })
+  },
+  ignore(id: number, reason: string): Promise<ApiResponse<void>> {
+    return request.put(`/erp/stock/replenishment/${id}/ignore`, null, { params: { reason } })
+  }
+}
+
+// ── 销售订单 ──────────────────────────────────────────
+export interface SaleOrder {
+  id: number; orderNo: string; customerName: string; orderDate: string
+  totalAmount: number; totalAmountWithTax: number; status: number
+  salesmanName: string; remark?: string; createTime: string; updateTime?: string
+}
+export const saleOrderApi = {
+  getPage(params: any): Promise<PageResult<SaleOrder>> {
+    return request.get('/erp/sale/order/page', { params })
+  },
+  getById(id: number) { return request.get(`/erp/sale/order/${id}`) },
+  create(data: any) { return request.post('/erp/sale/order', data) },
+  update(id: number, data: any) { return request.put(`/erp/sale/order/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/sale/order/${id}`) },
+  batchDelete(ids: number[]) { return request.delete('/erp/sale/order/batch', { data: ids }) },
+  submit(id: number) { return request.post(`/erp/sale/order/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/sale/order/${id}/approve`) },
+  batchApprove(ids: number[]) { return request.post('/erp/sale/order/batch-approve', ids) },
+  print(id: number) { return request.get(`/erp/sale/order/${id}/print`) },
+  batchPrint(ids: number[]) { return request.post('/erp/sale/order/batch-print', ids) },
+  export(params: any) { return request.get('/erp/sale/order/export', { params, responseType: 'blob' }) },
+}
+
+// ── 采购订单 ──────────────────────────────────────────
+export interface PurchaseOrder {
+  id: number; orderNo: string; supplierName: string; orderDate: string
+  totalAmount: number; totalAmountWithTax: number; status: number
+  buyerName: string; remark?: string; createTime: string; updateTime?: string
+}
+export const purchaseOrderApi = {
+  getPage(params: any): Promise<PageResult<PurchaseOrder>> {
+    return request.get('/erp/purchase/order/page', { params })
+  },
+  getById(id: number) { return request.get(`/erp/purchase/order/${id}`) },
+  create(data: any) { return request.post('/erp/purchase/order', data) },
+  update(id: number, data: any) { return request.put(`/erp/purchase/order/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/purchase/order/${id}`) },
+  batchDelete(ids: number[]) { return request.delete('/erp/purchase/order/batch', { data: ids }) },
+  submit(id: number) { return request.post(`/erp/purchase/order/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/purchase/order/${id}/approve`) },
+  batchApprove(ids: number[]) { return request.post('/erp/purchase/order/batch-approve', ids) },
+  close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
+  print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
+  export(params: any) { return request.get('/erp/purchase/order/export', { params, responseType: 'blob' }) },
 }

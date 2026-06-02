@@ -20,7 +20,10 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.config",
     "cn.aiedge.user",
     "cn.aiedge.auth",
-    "cn.aiedge.erp.purchase"
+    "cn.aiedge.dashboard",
+    "cn.aiedge.tenant",
+    "cn.aiedge.erp.purchase",
+    "cn.aiedge.erp.finance"
 }, exclude = {
     JpaRepositoriesAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,

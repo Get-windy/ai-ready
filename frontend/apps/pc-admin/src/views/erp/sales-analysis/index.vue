@@ -226,32 +226,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
 
 const activeTab = ref('overview')
 const dateRange = ref<any[]>([])
 const selectedWarehouse = ref<number>()
 const selectedSalesperson = ref<number>()
 
-const warehouses = ref([
-  { id: 1, name: '北京仓库' },
-  { id: 2, name: '上海仓库' },
-  { id: 3, name: '广州仓库' }
-])
+const warehouses = ref<{ id: number; name: string }[]>([])
+const salespersons = ref<{ id: number; name: string }[]>([])
 
-const salespersons = ref([
-  { id: 1, name: '张三' },
-  { id: 2, name: '李四' },
-  { id: 3, name: '王五' }
-])
+const summary = ref<SalesOverview>({ totalAmount: 0, orderCount: 0, avgOrderAmount: 0, grossMargin: 0 })
 
-const summary = ref({
-  totalAmount: 1580000,
-  orderCount: 256,
-  avgOrderAmount: 6171.88,
-  grossMargin: 28.5
+const loadWarehouses = async () => {
+  try {
+    const res = await salesAnalysisApi.getWarehouses()
+    warehouses.value = res.data || []
+  } catch { warehouses.value = [] }
+}
+
+const loadOptions = async () => { await loadWarehouses() }
+
+const buildParams = () => ({
+  warehouseId: selectedWarehouse.value,
+  salespersonId: selectedSalesperson.value ? String(selectedSalesperson.value) : undefined,
+  dateRange: dateRange.value?.length === 2 ? [dateRange.value[0]?.toISOString?.(), dateRange.value[1]?.toISOString?.()] as [string, string] : undefined
 })
 
 const customerRankColumns = [
@@ -285,37 +287,10 @@ const regionColumns = [
   { title: '同比增长', key: 'growth', width: 100 }
 ]
 
-const customerRankData = ref([
-  { rank: 1, name: '北京科技有限公司', orderCount: 45, totalAmount: 520000, growth: 15.2 },
-  { rank: 2, name: '上海贸易公司', orderCount: 38, totalAmount: 380000, growth: 8.5 },
-  { rank: 3, name: '广州制造企业', orderCount: 32, totalAmount: 280000, growth: -2.3 },
-  { rank: 4, name: '深圳电子公司', orderCount: 28, totalAmount: 180000, growth: 12.1 },
-  { rank: 5, name: '杭州互联网公司', orderCount: 25, totalAmount: 150000, growth: 5.8 }
-])
-
-const productRankData = ref([
-  { rank: 1, name: '笔记本电脑', volume: 120, totalAmount: 520000, margin: 32 },
-  { rank: 2, name: '办公桌椅', volume: 85, totalAmount: 280000, margin: 28 },
-  { rank: 3, name: '打印机', volume: 65, totalAmount: 180000, margin: 25 },
-  { rank: 4, name: '显示器', volume: 50, totalAmount: 150000, margin: 30 },
-  { rank: 5, name: '键盘鼠标', volume: 200, totalAmount: 80000, margin: 35 }
-])
-
-const salespersonRankData = ref([
-  { rank: 1, name: '张三', orderCount: 85, totalAmount: 520000, targetRate: 95 },
-  { rank: 2, name: '李四', orderCount: 72, totalAmount: 380000, targetRate: 88 },
-  { rank: 3, name: '王五', orderCount: 65, totalAmount: 280000, targetRate: 75 },
-  { rank: 4, name: '赵六', orderCount: 48, totalAmount: 180000, targetRate: 62 },
-  { rank: 5, name: '钱七', orderCount: 36, totalAmount: 150000, targetRate: 55 }
-])
-
-const regionData = ref([
-  { name: '华北区', orderCount: 85, totalAmount: 520000, growth: 12.5 },
-  { name: '华东区', orderCount: 72, totalAmount: 380000, growth: 8.3 },
-  { name: '华南区', orderCount: 65, totalAmount: 280000, growth: 15.2 },
-  { name: '西南区', orderCount: 48, totalAmount: 180000, growth: -2.1 },
-  { name: '西北区', orderCount: 36, totalAmount: 150000, growth: 5.8 }
-])
+const customerRankData = ref<CustomerRankItem[]>([])
+const productRankData = ref<ProductRankItem[]>([])
+const salespersonRankData = ref<any[]>([])
+const regionData = ref<any[]>([])
 
 const chartRefs = {
   trendChartRef: ref<HTMLElement>(),
@@ -339,26 +314,45 @@ const chartRefs = {
 
 let charts: echarts.ECharts[] = []
 
-onMounted(() => {
+const loadSummary = async () => {
+  try {
+    const res = await salesAnalysisApi.getOverview(buildParams())
+    if (res.data) summary.value = res.data
+  } catch { /* keep defaults */ }
+}
+
+const loadRankingData = async () => {
+  const params = buildParams()
+  try { const r = await salesAnalysisApi.getCustomerRanking(params); customerRankData.value = r.data || [] } catch {}
+  try { const r = await salesAnalysisApi.getProductRanking(params); productRankData.value = r.data || [] } catch {}
+  try { const r = await salesAnalysisApi.getSalespersonRanking(params); salespersonRankData.value = r.data || [] } catch {}
+}
+
+const loadData = async () => {
+  const hide = message.loading('正在加载数据...', 0)
+  await Promise.allSettled([loadSummary(), loadRankingData()])
+  hide()
+  message.success('数据已更新')
+  await nextTick()
   initAllCharts()
-})
-
-onUnmounted(() => {
-  charts.forEach(chart => chart.dispose())
-})
-
-const loadData = () => {
-  message.loading('正在加载数据...')
-  setTimeout(() => {
-    message.success('数据已更新')
-    initAllCharts()
-  }, 500)
 }
 
 const exportReport = () => {
   const hide = message.loading('正在生成报表...', 0)
   setTimeout(() => { hide(); message.success('报表导出成功') }, 1200)
 }
+
+onMounted(async () => {
+  await loadOptions()
+  loadData()
+})
+
+onUnmounted(() => {
+  charts.forEach(chart => chart.dispose())
+})
+
+// Tab切换时按需刷新图表
+watch(activeTab, () => nextTick(() => initAllCharts()))
 
 const formatAmount = (amount: number) => {
   return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })

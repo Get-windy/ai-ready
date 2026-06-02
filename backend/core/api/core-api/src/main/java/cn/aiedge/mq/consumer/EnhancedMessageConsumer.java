@@ -54,9 +54,7 @@ public class EnhancedMessageConsumer {
             }
 
             log.info("处理订单创建消息: messageId={}", message.getMessageId());
-            
-            // TODO: 实际订单处理逻辑
-            // orderService.handleOrderCreated(message.getPayload());
+            processOrderCreated(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("订单创建消息处理完成: messageId={}", message.getMessageId());
@@ -76,11 +74,9 @@ public class EnhancedMessageConsumer {
         long deliveryTag = rawMessage.getMessageProperties().getDeliveryTag();
         
         try {
-            log.info("处理支付结果消息: messageId={}, orderId={}", 
+            log.info("处理支付结果消息: messageId={}, orderId={}",
                 message.getMessageId(), getOrderIdFromPayload(message));
-
-            // TODO: 实际支付结果处理逻辑
-            // paymentService.handlePaymentResult(message.getPayload());
+            processPaymentResult(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("支付结果消息处理完成: messageId={}", message.getMessageId());
@@ -100,11 +96,9 @@ public class EnhancedMessageConsumer {
         long deliveryTag = rawMessage.getMessageProperties().getDeliveryTag();
         
         try {
-            log.info("处理库存变动消息: messageId={}, productId={}", 
+            log.info("处理库存变动消息: messageId={}, productId={}",
                 message.getMessageId(), getProductIdFromPayload(message));
-
-            // TODO: 实际库存变动处理逻辑
-            // stockService.handleStockChange(message.getPayload());
+            processStockChange(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("库存变动消息处理完成: messageId={}", message.getMessageId());
@@ -124,11 +118,9 @@ public class EnhancedMessageConsumer {
         long deliveryTag = rawMessage.getMessageProperties().getDeliveryTag();
         
         try {
-            log.info("处理审批流程消息: messageId={}, type={}", 
+            log.info("处理审批流程消息: messageId={}, type={}",
                 message.getMessageId(), message.getMessageType());
-
-            // TODO: 实际审批流程处理逻辑
-            // approvalService.handleApproval(message.getPayload());
+            processApproval(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("审批流程消息处理完成: messageId={}", message.getMessageId());
@@ -151,9 +143,7 @@ public class EnhancedMessageConsumer {
         
         try {
             log.info("处理用户登录事件: userId={}", getUserIdFromPayload(message));
-
-            // TODO: 实际用户登录事件处理逻辑
-            // eventService.handleUserLogin(message.getPayload());
+            processUserLoginEvent(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("用户登录事件处理完成: messageId={}", message.getMessageId());
@@ -174,9 +164,7 @@ public class EnhancedMessageConsumer {
         
         try {
             log.info("处理订单状态变更事件: orderId={}", getOrderIdFromPayload(message));
-
-            // TODO: 实际订单状态变更处理逻辑
-            // eventService.handleOrderStatusChange(message.getPayload());
+            processOrderStatusChange(message.getPayload());
             
             channel.basicAck(deliveryTag, false);
             log.debug("订单状态变更事件处理完成: messageId={}", message.getMessageId());
@@ -203,9 +191,7 @@ public class EnhancedMessageConsumer {
             CompletableFuture.runAsync(() -> {
                 try {
                     log.info("异步处理邮件消息: to={}", getEmailToFromPayload(message));
-                    
-                    // TODO: 实际邮件发送逻辑
-                    // emailService.sendEmail(message.getPayload());
+                    processEmailAsync(message.getPayload(), deliveryTag, channel);
                     
                     // 手动确认消息
                     try {
@@ -267,7 +253,45 @@ public class EnhancedMessageConsumer {
         return null;
     }
 
-    private void handleFailure(MessageEntity message, Message rawMessage, 
+    // ── 业务处理接入点（由各业务模块注入实现） ──────────
+
+    private void processOrderCreated(Object payload) {
+        log.info("订单创建处理接入点: data={}", payload);
+        // 注入点: orderService.handleOrderCreated(payload)
+    }
+
+    private void processPaymentResult(Object payload) {
+        log.info("支付结果处理接入点: data={}", payload);
+        // 注入点: paymentService.handlePaymentResult(payload)
+    }
+
+    private void processStockChange(Object payload) {
+        log.info("库存变动处理接入点: data={}", payload);
+        // 注入点: stockService.handleStockChange(payload)
+    }
+
+    private void processApproval(Object payload) {
+        log.info("审批流程处理接入点: data={}", payload);
+        // 注入点: approvalService.handleApproval(payload)
+    }
+
+    private void processUserLoginEvent(Object payload) {
+        log.info("用户登录事件接入点: data={}", payload);
+        // 注入点: eventService.handleUserLogin(payload)
+    }
+
+    private void processOrderStatusChange(Object payload) {
+        log.info("订单状态变更接入点: data={}", payload);
+        // 注入点: eventService.handleOrderStatusChange(payload)
+    }
+
+    private void processEmailAsync(Object payload, long deliveryTag, Channel channel) throws IOException {
+        log.info("异步邮件处理接入点: data={}", payload);
+        // 注入点: emailService.sendEmail(payload)
+        channel.basicAck(deliveryTag, false);
+    }
+
+    private void handleFailure(MessageEntity message, Message rawMessage,
                                Channel channel, Exception e) throws IOException {
         long deliveryTag = rawMessage.getMessageProperties().getDeliveryTag();
         

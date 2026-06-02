@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { showToast } from 'vant'
+import { api } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -91,42 +93,16 @@ onMounted(async () => {
 const loadTaskDetail = async () => {
   loading.value = true
   try {
-    const data = await window.electronAPI?.task?.getTaskDetail?.(taskId)
-    task.value = data || getMockTaskDetail(taskId)
+    const res: any = await api.task.getDetail(taskId)
+    task.value = res?.data || res
+  } catch {
+    showToast({ type: 'fail', message: '加载任务详情失败' })
+    task.value = null
   } finally {
     loading.value = false
   }
 }
 
-const getMockTaskDetail = (id: string): TaskDetail => ({
-  id: id,
-  taskNo: 'TASK20240115001',
-  taskType: 'pick',
-  taskStatus: 'in_progress',
-  priority: 'high',
-  warehouseId: 'W001',
-  warehouseName: '主仓库',
-  locationCode: 'A-01-01',
-  productId: 'P001',
-  productName: '优质大米',
-  productCode: 'SP001',
-  productSpec: '5kg/袋',
-  quantity: 50,
-  unit: '袋',
-  batchNo: 'B20240115001',
-  sourceOrderNo: 'SO20240115001',
-  sourceOrderType: '销售订单',
-  createTime: '2024-01-15 08:00',
-  assignTime: '2024-01-15 08:30',
-  startTime: '2024-01-15 09:00',
-  assignee: '拣货员张',
-  remark: '紧急拣货，优先处理',
-  operationLogs: [
-    { id: '1', actionType: 'assign', actionTime: '2024-01-15 08:30', operator: '系统', remark: '自动分配任务' },
-    { id: '2', actionType: 'start', actionTime: '2024-01-15 09:00', operator: '拣货员张', remark: '开始拣货' },
-    { id: '3', actionType: 'scan', actionTime: '2024-01-15 09:15', operator: '拣货员张', quantity: 20, location: 'A-01-01', remark: '扫码拣货20袋' }
-  ]
-})
 
 const handleStartTask = async () => {
   if (confirm('确定开始执行此任务？')) {

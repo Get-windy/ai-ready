@@ -43,11 +43,11 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         menu.setComponent(request.getComponent());
         menu.setPermissions(request.getPermissions());
         menu.setMenuType(request.getMenuType());
-        menu.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        menu.setSort(request.getSortOrder() != null ? request.getSortOrder() : 0);
         menu.setStatus(request.getStatus() != null ? request.getStatus() : 1);
         menu.setVisible(request.getVisible() != null ? request.getVisible() : 1);
-        menu.setKeepAlive(request.getKeepAlive() != null ? request.getKeepAlive() : 0);
-        menu.setExternal(request.getExternal() != null ? request.getExternal() : 0);
+        menu.setIsCache(request.getKeepAlive() != null ? request.getKeepAlive() : 0);
+        menu.setIsExternal(request.getExternal() != null ? request.getExternal() : 0);
         menu.setRemark(request.getRemark());
 
         menu.setCreateBy(operatorId);
@@ -78,11 +78,11 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
         menu.setComponent(request.getComponent());
         menu.setPermissions(request.getPermissions());
         menu.setMenuType(request.getMenuType());
-        menu.setSortOrder(request.getSortOrder());
+        menu.setSort(request.getSortOrder());
         menu.setStatus(request.getStatus());
         menu.setVisible(request.getVisible());
-        menu.setKeepAlive(request.getKeepAlive());
-        menu.setExternal(request.getExternal());
+        menu.setIsCache(request.getKeepAlive());
+        menu.setIsExternal(request.getExternal());
         menu.setRemark(request.getRemark());
 
         menu.setUpdateBy(operatorId);
@@ -144,7 +144,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
             wrapper.eq(Menu::getStatus, 1);
         }
         wrapper.eq(Menu::getDeleted, 0);
-        wrapper.orderByAsc(Menu::getSortOrder).orderByAsc(Menu::getId);
+        wrapper.orderByAsc(Menu::getSort).orderByAsc(Menu::getId);
 
         List<Menu> menus = menuMapper.selectList(wrapper);
         List<MenuDTO> menuDTOs = menus.stream().map(this::convertToDTO).collect(Collectors.toList());
@@ -234,7 +234,7 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements Me
             Long menuId = menuIds.get(i);
             Menu menu = menuMapper.selectById(menuId);
             if (menu != null) {
-                menu.setSortOrder(i);
+                menu.setSort(i);
                 menu.setUpdateBy(operatorId);
                 menu.setUpdateTime(LocalDateTime.now());
                 menus.add(menu);

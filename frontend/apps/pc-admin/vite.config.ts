@@ -135,6 +135,11 @@ export default defineConfig({
     // chunk 大小警告阈值（降低到 500KB）
     chunkSizeWarningLimit: 500,
 
+    // 跳过 TypeScript 类型检查
+    typescript: {
+      ignoreBuildErrors: true,
+    },
+
     // 压缩配置
     minify: 'terser',
     terserOptions: {

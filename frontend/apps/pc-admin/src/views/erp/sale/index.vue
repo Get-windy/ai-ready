@@ -271,8 +271,10 @@ import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { salesOrderApi, type SalesOrder, OrderStatus } from '@/api/order'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import { useUserStore } from '@/stores/user'
 
 // 类型定义
+const userStore = useUserStore()
 const loading = ref(false)
 const dataSource = ref<SalesOrder[]>([])
 const detailVisible = ref(false)
@@ -469,7 +471,7 @@ const handleExport = async () => {
   const hide = message.loading('正在导出...', 0)
   try {
     const blob = await salesOrderApi.export({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       ...queryParams
     })
     const url = window.URL.createObjectURL(blob)
@@ -498,7 +500,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await salesOrderApi.getPage({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       ...queryParams,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
@@ -540,7 +542,7 @@ const handleSaleFormSubmit = async () => {
     } else {
       // 新增模式
       await salesOrderApi.create({
-        tenantId: 1,
+        tenantId: userStore.tenantId,
         customerId: saleForm.customerId,
         orderDate: saleForm.orderDate,
         deliveryDate: saleForm.deliveryDate,

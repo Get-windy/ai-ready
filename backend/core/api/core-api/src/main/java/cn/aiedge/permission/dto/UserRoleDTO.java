@@ -17,7 +17,12 @@ public class UserRoleDTO {
      * 用户ID
      */
     private Long userId;
-    
+
+    /**
+     * 租户ID
+     */
+    private Long tenantId;
+
     /**
      * 角色ID列表
      */

@@ -1,0 +1,1 @@
+<template><div><van-nav-bar title="用户协议" left-arrow @click-left="$router.back()"/><div style="padding:16px"><h3>用户协议</h3><p>欢迎使用智企连管理端。使用本应用即表示您同意以下条款：</p><p>1. 账号管理: 您应妥善保管账号信息。</p><p>2. 使用规范: 不得利用本平台从事违法活动。</p><p>3. 数据归属: 您在平台上产生的数据归您所有。</p><p>4. 免责声明: 因不可抗力导致的服务中断，我们不承担责任。</p></div></div></template>

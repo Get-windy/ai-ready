@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -70,7 +71,7 @@ public class FinanceAccountController {
     @PutMapping("/balance/{accountId}")
     public Result<Void> updateAccountBalance(
             @Parameter(description = "账户ID") @PathVariable Long accountId,
-            @Parameter(description = "金额") @RequestBody Double amount) {
+            @Parameter(description = "金额") @RequestBody BigDecimal amount) {
         boolean success = financeAccountService.updateAccountBalance(accountId, amount);
         return success ? Result.success() : Result.error("更新失败");
     }

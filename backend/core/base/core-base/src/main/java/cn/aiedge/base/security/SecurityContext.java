@@ -20,6 +20,26 @@ public class SecurityContext {
     private final SysUserService userService;
 
     /**
+     * 临时租户ID（ThreadLocal）
+     * 用于登录等未认证场景下，暂存当前操作的租户ID，避免多租户拦截器注入 tenant_id=0
+     */
+    private static final ThreadLocal<Long> TEMP_TENANT_ID = new ThreadLocal<>();
+
+    /**
+     * 设置临时租户ID（用于登录流程等未认证场景）
+     */
+    public void setTempTenantId(Long tenantId) {
+        TEMP_TENANT_ID.set(tenantId);
+    }
+
+    /**
+     * 清除临时租户ID
+     */
+    public void clearTempTenantId() {
+        TEMP_TENANT_ID.remove();
+    }
+
+    /**
      * 获取当前登录用户ID
      */
     public Long getCurrentUserId() {
@@ -52,8 +72,26 @@ public class SecurityContext {
 
     /**
      * 获取当前租户ID
+     * 优先级：临时租户ID（ThreadLocal） > Sa-Token Session > 已登录用户的租户ID
      */
     public Long getCurrentTenantId() {
+        // 1. 优先使用临时租户ID（用于登录等未认证场景，避免递归查询）
+        Long tempTenantId = TEMP_TENANT_ID.get();
+        if (tempTenantId != null) {
+            return tempTenantId;
+        }
+        // 2. 从 Sa-Token Session 获取（登录时存入，避免递归调用 getCurrentUser）
+        try {
+            if (StpUtil.isLogin()) {
+                Object sessionTenantId = StpUtil.getSession().get("tenantId");
+                if (sessionTenantId != null) {
+                    return Long.parseLong(sessionTenantId.toString());
+                }
+            }
+        } catch (Exception ignored) {
+            // session 不可用时忽略
+        }
+        // 3. 最后尝试从已登录用户获取（注意：可能触发多租户拦截器递归）
         SysUser user = getCurrentUser();
         return user != null ? user.getTenantId() : null;
     }

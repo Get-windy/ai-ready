@@ -50,7 +50,7 @@
         <spring-boot-maven-plugin.version>3.2.5</spring-boot-maven-plugin.version>
         
         <!-- Database Dependencies -->
-        <postgresql.version>42.7.2</postgresql.version>
+        <postgresql.version>42.7.11</postgresql.version>
         
         <!-- Testing Dependencies -->
         <junit.version>5.10.2</junit.version>
@@ -77,7 +77,7 @@
         <xxl-job.version>2.4.1</xxl-job.version>
 
         <!-- Flyway -->
-        <flyway.version>10.8.1</flyway.version>
+        <flyway.version>12.6.1</flyway.version>
 
         <!-- API Documentation -->
         <springdoc.version>2.5.0</springdoc.version>
@@ -303,11 +303,16 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
-                        <annotationProcessorPaths combine.self="override">
+                        <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
                                 <artifactId>lombok</artifactId>
                                 <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>0.2.0</version>
                             </path>
                             <path>
                                 <groupId>org.mapstruct</groupId>
@@ -320,36 +325,13 @@
             </plugins>
         </pluginManagement>
         
-        <!-- 强制所有子模块继承 Lombok 和 MapStruct 注解处理器 -->
+        <!-- 强制所有子模块继承 Kotlin 插件 -->
         <plugins>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
                 <executions/>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.12.1</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <parameters>true</parameters>
-                    <annotationProcessorPaths combine.self="override">
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                        <path>
-                            <groupId>org.mapstruct</groupId>
-                            <artifactId>mapstruct-processor</artifactId>
-                            <version>${mapstruct.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
             </plugin>
         </plugins>
     </build>

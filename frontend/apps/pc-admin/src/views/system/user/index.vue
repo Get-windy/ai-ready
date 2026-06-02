@@ -65,6 +65,29 @@
             :xs="24"
             :sm="12"
             :md="6"
+            v-if="userStore.isSystemUser"
+          >
+            <a-form-item label="所属租户">
+              <a-select
+                v-model:value="searchForm.tenantId"
+                placeholder="请选择租户"
+                allow-clear
+                style="width: 100%"
+              >
+                <a-select-option
+                  v-for="tenant in tenantList"
+                  :key="tenant.id"
+                  :value="tenant.id"
+                >
+                  {{ tenant.tenantName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col
+            :xs="24"
+            :sm="12"
+            :md="6"
           >
             <a-form-item>
               <a-space>
@@ -128,7 +151,7 @@
       <SkeletonTable
         v-if="loading"
         :rows="5"
-        :columns="7"
+        :columns="8"
       />
 
       <!-- 数据表格 -->
@@ -171,6 +194,10 @@
             <a-tag :color="getUserTypeColor(record.userType)">
               {{ getUserTypeName(record.userType) }}
             </a-tag>
+          </template>
+
+          <template v-else-if="column.key === 'tenantName'">
+            <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
           </template>
 
           <template v-else-if="column.key === 'action'">
@@ -308,13 +335,31 @@
             placeholder="请选择用户类型"
           >
             <a-select-option :value="0">
-              超级管理员
+              系统用户
             </a-select-option>
             <a-select-option :value="1">
-              管理员
+              企业用户
             </a-select-option>
             <a-select-option :value="2">
-              普通用户
+              代理用户
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          v-if="userStore.isSystemUser"
+          label="所属租户"
+          name="tenantId"
+        >
+          <a-select
+            v-model:value="formState.tenantId"
+            placeholder="请选择租户"
+          >
+            <a-select-option
+              v-for="tenant in tenantList"
+              :key="tenant.id"
+              :value="tenant.id"
+            >
+              {{ tenant.tenantName }}
             </a-select-option>
           </a-select>
         </a-form-item>
@@ -367,15 +412,18 @@ import {
   StopOutlined
 } from '@ant-design/icons-vue'
 import { SkeletonTable } from '@/components/Skeleton'
-import { userApi, type UserInfo } from '@/api/user'
+import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
+import { useUserStore } from '@/stores/user'
 
 // 搜索表单
+const userStore = useUserStore()
 const searchForm = reactive({
   username: '',
   phone: '',
-  status: undefined as number | undefined
+  status: undefined as number | undefined,
+  tenantId: undefined as number | undefined
 })
 
 // 表格数据
@@ -406,6 +454,7 @@ const columns: TableProps['columns'] = [
   { title: '手机号', dataIndex: 'phone', width: 120 },
   { title: '邮箱', dataIndex: 'email', width: 180, ellipsis: true },
   { title: '用户类型', key: 'userType', width: 100 },
+  { title: '所属租户', key: 'tenantName', width: 120 },
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 200, fixed: 'right' }
@@ -427,6 +476,7 @@ const formState = reactive({
   phone: '',
   gender: 0,
   userType: 2,
+  tenantId: userStore.tenantId,
   status: 0
 })
 
@@ -449,12 +499,33 @@ const roleList = ref<{ key: string; title: string }[]>([])
 const targetRoleKeys = ref<string[]>([])
 const currentUserId = ref(0)
 
+// 租户相关
+const tenantList = ref<TenantInfo[]>([])
+const tenantMap = computed(() => {
+  const map: Record<number, string> = {}
+  tenantList.value.forEach((t) => {
+    map[t.id] = t.tenantName
+  })
+  return map
+})
+
+const loadTenants = async () => {
+  try {
+    const res = await userApi.getTenants()
+    if (res.data) {
+      tenantList.value = res.data
+    }
+  } catch {
+    // 静默失败，租户列表为空不影响主要功能
+  }
+}
+
 // 数据加载
 const fetchData = async () => {
   loading.value = true
   try {
     const res = await userApi.getPage({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       ...searchForm,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
@@ -477,7 +548,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  Object.assign(searchForm, { username: '', phone: '', status: undefined })
+  Object.assign(searchForm, { username: '', phone: '', status: undefined, tenantId: undefined })
   handleSearch()
 }
 
@@ -504,6 +575,7 @@ const handleAdd = () => {
     phone: '',
     gender: 0,
     userType: 2,
+    tenantId: userStore.tenantId,
     status: 0
   })
   modalVisible.value = true
@@ -520,6 +592,7 @@ const handleEdit = (record: UserInfo) => {
     phone: record.phone,
     gender: record.gender,
     userType: record.userType,
+    tenantId: record.tenantId,
     status: record.status
   })
   modalVisible.value = true
@@ -684,7 +757,7 @@ const handleToggleStatus = async (record: UserInfo) => {
 const handleAssignRole = async (record: UserInfo) => {
   currentUserId.value = record.id
   // 加载角色列表
-  const res = await roleApi.getPage({ tenantId: 1, size: 100 })
+  const res = await roleApi.getPage({ tenantId: userStore.tenantId, size: 100 })
   if (res.data) {
     roleList.value = res.data.records.map((r: RoleInfo) => ({
       key: String(r.id),
@@ -713,17 +786,18 @@ const filterRoleOption = (input: string, option: any) => {
 
 // 辅助函数
 const getUserTypeColor = (type: number) => {
-  const colors: Record<number, string> = { 0: 'gold', 1: 'blue', 2: 'default' }
+  const colors: Record<number, string> = { 0: 'gold', 1: 'blue', 2: 'green' }
   return colors[type] || 'default'
 }
 
 const getUserTypeName = (type: number) => {
-  const names: Record<number, string> = { 0: '超级管理员', 1: '管理员', 2: '普通用户' }
+  const names: Record<number, string> = { 0: '系统用户', 1: '企业用户', 2: '代理用户' }
   return names[type] || '未知'
 }
 
 onMounted(() => {
   fetchData()
+  loadTenants()
 })
 </script>
 

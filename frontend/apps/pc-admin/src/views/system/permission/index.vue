@@ -424,8 +424,10 @@ import {
   ApiOutlined
 } from '@ant-design/icons-vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
+import { useUserStore } from '@/stores/user'
 
 // 搜索表单
+const userStore = useUserStore()
 const searchForm = reactive({
   permissionName: '',
   permissionType: undefined as number | undefined,
@@ -460,7 +462,7 @@ const parentTreeData = ref<PermissionInfo[]>([])
 const formState = reactive({
   id: 0,
   parentId: 0,
-  tenantId: 1,
+  tenantId: userStore.tenantId,
   permissionName: '',
   permissionCode: '',
   permissionType: 1,
@@ -575,7 +577,7 @@ const handleAdd = (record: PermissionInfo | null) => {
   Object.assign(formState, {
     id: 0,
     parentId: record ? record.id : 0,
-    tenantId: 1,
+    tenantId: userStore.tenantId,
     permissionName: '',
     permissionCode: '',
     permissionType: record ? (record.permissionType === 0 ? 1 : 2) : 0,

@@ -19,9 +19,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { FormInstance, Rule } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 
-export type { FormInstance, Rule } from 'ant-design-vue'
+export type { FormInstance }
+
+export interface Rule {
+  required?: boolean
+  message?: string
+  trigger?: string | string[]
+  min?: number
+  max?: number
+  pattern?: RegExp
+  validator?: (value: any, callback: (error?: string) => void) => void
+}
 
 interface Props {
   model?: Record<string, any>

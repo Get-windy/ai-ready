@@ -1,13 +1,13 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.erp.finance.mapper.FinanceAccountMapper;
 import cn.aiedge.erp.finance.model.entity.FinanceAccount;
-import cn.aiedge.erp.finance.repository.FinanceAccountRepository;
 import cn.aiedge.erp.finance.service.FinanceAccountService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Example;
-import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -16,68 +16,61 @@ import java.util.Map;
  */
 @Service
 public class FinanceAccountServiceImpl implements FinanceAccountService {
-    
+
     @Autowired
-    private FinanceAccountRepository financeAccountRepository;
-    
+    private FinanceAccountMapper financeAccountMapper;
+
     @Override
     public List<FinanceAccount> listAccounts(Integer status, String accountType) {
-        FinanceAccount example = new FinanceAccount();
+        LambdaQueryWrapper<FinanceAccount> wrapper = new LambdaQueryWrapper<>();
         if (status != null) {
-            example.setStatus(status);
+            wrapper.eq(FinanceAccount::getStatus, status);
         }
         if (accountType != null) {
-            example.setAccountType(Integer.valueOf(accountType));
+            wrapper.eq(FinanceAccount::getAccountType, Integer.valueOf(accountType));
         }
-        
-        Example<FinanceAccount> exampleMatcher = Example.of(example, 
-            ExampleMatcher.matching()
-                .withIgnoreNullValues()
-                .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING));
-        
-        return financeAccountRepository.findAll(exampleMatcher);
+        return financeAccountMapper.selectList(wrapper);
     }
-    
+
     @Override
     public Object getAccountStatistics() {
-        // 统计账户总数
-        Long total = financeAccountRepository.count();
-        
-        // 统计启用账户数
-        long enabledCount = financeAccountRepository.findByStatus(1).size();
+        Long total = financeAccountMapper.selectCount(null);
+        long enabledCount = financeAccountMapper.selectList(
+                new LambdaQueryWrapper<FinanceAccount>().eq(FinanceAccount::getStatus, 1)).size();
         Long enabled = enabledCount;
-        
-        // 统计账户余额总计
-        Double totalBalance = financeAccountRepository.findAll().stream()
-            .mapToDouble(FinanceAccount::getBalance).sum();
-        
+
+        BigDecimal totalBalance = financeAccountMapper.selectList(null).stream()
+                .map(FinanceAccount::getBalance)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return Map.of(
-            "total", total,
-            "enabled", enabled,
-            "disabled", total - enabled,
-            "totalBalance", totalBalance
+                "total", total,
+                "enabled", enabled,
+                "disabled", total - enabled,
+                "totalBalance", totalBalance
         );
     }
-    
+
     @Override
     public boolean updateAccountStatus(Long id, Integer status) {
-        FinanceAccount account = financeAccountRepository.findById(id).orElse(null);
+        FinanceAccount account = financeAccountMapper.selectById(id);
         if (account == null) {
             return false;
         }
         account.setStatus(status);
-        financeAccountRepository.save(account);
+        financeAccountMapper.updateById(account);
         return true;
     }
-    
+
     @Override
-    public boolean updateAccountBalance(Long accountId, Double amount) {
-        FinanceAccount account = financeAccountRepository.findById(accountId).orElse(null);
+    public boolean updateAccountBalance(Long accountId, BigDecimal amount) {
+        FinanceAccount account = financeAccountMapper.selectById(accountId);
         if (account == null) {
             return false;
         }
-        account.setBalance(account.getBalance() + amount);
-        financeAccountRepository.save(account);
+        account.setBalance(account.getBalance() != null ? account.getBalance().add(amount) : amount);
+        financeAccountMapper.updateById(account);
         return true;
     }
 }

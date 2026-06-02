@@ -282,7 +282,9 @@ import {
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { userApi, type UserInfo } from '@/api/user'
 import { useSubmitLock } from '@/composables'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const router = useRouter()
 
 // 搜索关键词
@@ -371,7 +373,7 @@ const contextMenuNode = ref<DepartmentInfo | null>(null)
 const fetchTreeData = async () => {
   treeLoading.value = true
   try {
-    const res = await departmentApi.getTree({ tenantId: 1 })
+    const res = await departmentApi.getTree({ tenantId: userStore.tenantId })
     if (res.data) {
       treeData.value = res.data
       // 默认展开所有节点
@@ -402,7 +404,7 @@ const getAllNodeIds = (nodes: DepartmentInfo[]): number[] => {
 // 加载父部门树
 const fetchParentTreeData = async () => {
   try {
-    const res = await departmentApi.getTree({ tenantId: 1, status: 0 })
+    const res = await departmentApi.getTree({ tenantId: userStore.tenantId, status: 0 })
     if (res.data) {
       parentTreeData.value = res.data
     }
@@ -414,7 +416,7 @@ const fetchParentTreeData = async () => {
 // 加载负责人列表
 const fetchLeaderList = async () => {
   try {
-    const res = await userApi.getList({ tenantId: 1, status: 0, pageSize: 1000 })
+    const res = await userApi.getList({ tenantId: userStore.tenantId, status: 0, pageSize: 1000 })
     if (res.data) {
       leaderList.value = res.data
     }

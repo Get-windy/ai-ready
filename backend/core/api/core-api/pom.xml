@@ -36,6 +36,12 @@
             <artifactId>core-agent</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <!-- ERP 业务模块 -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-finance</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
         <!-- ERP 业务模块 (暂时禁用，需要修复 Lombok 注解问题)
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
@@ -103,17 +109,24 @@
             <version>${sa-token.version}</version>
         </dependency>
         
-        <!-- Sa-Token JWT扩展 -->
+        <!-- Sa-Token JWT扩展 (开发环境暂时禁用，使用默认Token模式)
         <dependency>
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-jwt</artifactId>
             <version>${sa-token.version}</version>
         </dependency>
+        -->
         
         <!-- PostgreSQL JDBC Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- Flyway PostgreSQL Support -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
         
         <!-- MyBatis-Plus -->

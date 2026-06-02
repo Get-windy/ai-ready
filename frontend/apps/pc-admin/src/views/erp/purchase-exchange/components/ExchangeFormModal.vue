@@ -144,6 +144,7 @@ import {
   type CreateExchangeRequest
 } from '@/api/purchase-exchange'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
+import { useUserStore } from '@/stores/user'
 
 interface FormItem {
   id?: number
@@ -165,6 +166,7 @@ interface Props {
   record: PurchaseExchange | null
 }
 
+const userStore = useUserStore()
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:visible', value: boolean): void
@@ -236,7 +238,7 @@ const handleOrderSearch = async (keyword: string) => {
     const res = await purchaseOrderApi.page({
       current: 1,
       size: 20,
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       orderNo: keyword
     })
     orderOptions.value = res.data?.records || []

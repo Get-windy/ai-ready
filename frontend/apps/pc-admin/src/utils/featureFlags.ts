@@ -2,7 +2,7 @@
  * Feature Flags 渐进式发布系统
  * 支持按用户/角色/租户/百分比灰度发布功能
  */
-import { reactive, computed } from 'vue'
+import { reactive, computed, type ComputedRef } from 'vue'
 import { useUserStore } from '@/stores/user'
 
 // ── 类型定义 ────────────────────────────────────────────
@@ -262,12 +262,12 @@ export function useFeatureFlags() {
   const context = service.getContext()
   const flags = service.getAllFlags()
 
-  const result: Record<string, ReturnType<typeof computed>> = {}
+  const result: Record<string, ReturnType<typeof computed<boolean>>> = {}
   for (const key of Object.keys(flags)) {
     result[key] = computed(() => service.isEnabled(key, context))
   }
 
-  return result
+  return result as Record<string, ComputedRef<boolean>>
 }
 
 export { getFeatureFlagService as useFeatureFlagService }

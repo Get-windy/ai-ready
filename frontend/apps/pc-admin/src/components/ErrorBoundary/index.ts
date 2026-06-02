@@ -10,7 +10,7 @@ export {
 } from './errorBoundaryUtils'
 
 // 类型导出
-export type { ErrorBoundaryProps } from './ErrorBoundary.vue'
+export type { default as ErrorBoundaryComponent } from './ErrorBoundary.vue'
 
 // 默认导出
 import ErrorBoundary from './ErrorBoundary.vue'

@@ -45,6 +45,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   'finance/reconciliation/index': () => import('@/views/finance/reconciliation/index.vue'),
   'finance/reports/index': () => import('@/views/finance/reports/index.vue'),
   'finance/voucher/index': () => import('@/views/finance/voucher/index.vue'),
+  'finance/voucher/VoucherDetail': () => import('@/views/finance/voucher/VoucherDetail.vue'),
+  'finance/subject/index': () => import('@/views/finance/subject/index.vue'),
+  'finance/receivable/index': () => import('@/views/finance/receivable/index.vue'),
+  'finance/payable/index': () => import('@/views/finance/payable/index.vue'),
+  'finance/report/index': () => import('@/views/finance/report/index.vue'),
   'notification/index': () => import('@/views/notification/index.vue'),
   'order-center/index': () => import('@/views/order-center/index.vue'),
   'profile/index': () => import('@/views/profile/index.vue'),
@@ -71,6 +76,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'system/position/index': () => import('@/views/system/position/index.vue'),
   'system/role/index': () => import('@/views/system/role/index.vue'),
   'system/user/index': () => import('@/views/system/user/index.vue'),
+  'system/tenant/index': () => import('@/views/system/tenant/index.vue'),
   'workflow/instance-monitor': () => import('@/views/workflow/instance-monitor.vue'),
   'workflow/process-analysis': () => import('@/views/workflow/process-analysis.vue'),
   'workflow/task-management': () => import('@/views/workflow/task-management.vue'),
@@ -86,11 +92,23 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
   'erp/return/index': () => import('@/views/erp/return/index.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
-  'erp/sales-report/components/SalesReportCharts': () => import('@/views/erp/sales-report/components/SalesReportCharts.vue'),
-  'erp/sales-report/components/SalesReportFilters': () => import('@/views/erp/sales-report/components/SalesReportFilters.vue'),
-  'erp/sales-report/components/SalesReportSummary': () => import('@/views/erp/sales-report/components/SalesReportSummary.vue'),
-  'erp/sales-report/components/SalesReportTable': () => import('@/views/erp/sales-report/components/SalesReportTable.vue'),
   'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
+  'erp/pricing/tiers/index': () => import('@/views/erp/pricing/tiers/index.vue'),
+  'fixed-asset/index': () => import('@/views/fixed-asset/index.vue'),
+  'fixed-asset/asset/index': () => import('@/views/fixed-asset/asset/index.vue'),
+  'fixed-asset/asset/detail': () => import('@/views/fixed-asset/asset/AssetDetail.vue'),
+  'fixed-asset/category/index': () => import('@/views/fixed-asset/category/index.vue'),
+  'fixed-asset/depreciation/index': () => import('@/views/fixed-asset/depreciation/index.vue'),
+  'fixed-asset/transfer/index': () => import('@/views/fixed-asset/transfer/index.vue'),
+  'fixed-asset/disposal/index': () => import('@/views/fixed-asset/disposal/index.vue'),
+  'fixed-asset/inventory/index': () => import('@/views/fixed-asset/inventory/index.vue'),
+  'fixed-asset/report/index': () => import('@/views/fixed-asset/report/index.vue'),
+  'budget/index': () => import('@/views/budget/index.vue'),
+  'budget/template/index': () => import('@/views/budget/template/index.vue'),
+  'budget/annual/index': () => import('@/views/budget/annual/index.vue'),
+  'budget/annual/detail': () => import('@/views/budget/annual/BudgetDetail.vue'),
+  'budget/adjustment/index': () => import('@/views/budget/adjustment/index.vue'),
+  'budget/report/index': () => import('@/views/budget/report/index.vue'),
 }
 
 function getComponent(componentPath: string) {
@@ -294,7 +312,19 @@ function getFallbackRoutes(): RouteRecordRaw[] {
           component: () => import('@/views/supplier/edit.vue'),
           meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
         },
-        // ERP 模块
+        {
+          path: 'system/tenant',
+          name: 'SystemTenant',
+          component: () => import('@/views/system/tenant/index.vue'),
+          meta: { title: '租户管理', icon: 'ApartmentOutlined', keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'system/position',
+          name: 'SystemPosition',
+          component: () => import('@/views/system/position/index.vue'),
+          meta: { title: '岗位管理', icon: 'IdcardOutlined', keepAlive: true, requiresAuth: true }
+        },
+        // ERP 统一模块（含所有业务模块）
         {
           path: 'erp',
           name: 'ErpLayout',
@@ -367,6 +397,68 @@ function getFallbackRoutes(): RouteRecordRaw[] {
               name: 'ErpPricingApproval',
               component: () => import('@/views/erp/pricing/approval/index.vue'),
               meta: { title: '定价审批', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'pricing/tiers',
+              name: 'ErpPricingTiers',
+              component: () => import('@/views/erp/pricing/tiers/index.vue'),
+              meta: { title: '价格层级', icon: 'PullRequestOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'fixed-asset',
+              name: 'ErpFixedAsset',
+              component: () => import('@/views/fixed-asset/index.vue'),
+              meta: { title: '固定资产', icon: 'BankOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'budget',
+              name: 'ErpBudget',
+              component: () => import('@/views/budget/index.vue'),
+              meta: { title: '预算管理', icon: 'FundOutlined', keepAlive: true, requiresAuth: true }
+            },
+            {
+              path: 'finance',
+              name: 'ErpFinance',
+              component: () => import('@/views/finance/index.vue'),
+              meta: { title: '财务管理', icon: 'AccountBookOutlined', keepAlive: true, requiresAuth: true },
+              children: [
+                {
+                  path: 'subject',
+                  name: 'ErpFinanceSubject',
+                  component: () => import('@/views/finance/subject/index.vue'),
+                  meta: { title: '科目管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
+                },
+                {
+                  path: 'voucher',
+                  name: 'ErpFinanceVoucher',
+                  component: () => import('@/views/finance/voucher/index.vue'),
+                  meta: { title: '凭证管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
+                },
+                {
+                  path: 'voucher/:id',
+                  name: 'ErpFinanceVoucherDetail',
+                  component: () => import('@/views/finance/voucher/VoucherDetail.vue'),
+                  meta: { title: '凭证详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+                },
+                {
+                  path: 'receivable',
+                  name: 'ErpFinanceReceivable',
+                  component: () => import('@/views/finance/receivable/index.vue'),
+                  meta: { title: '应收账款', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
+                },
+                {
+                  path: 'payable',
+                  name: 'ErpFinancePayable',
+                  component: () => import('@/views/finance/payable/index.vue'),
+                  meta: { title: '应付账款', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
+                },
+                {
+                  path: 'report',
+                  name: 'ErpFinanceReport',
+                  component: () => import('@/views/finance/report/index.vue'),
+                  meta: { title: '财务报表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true }
+                }
+              ]
             }
           ]
         }

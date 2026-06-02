@@ -97,6 +97,61 @@ const routes: RouteRecordRaw[] = [
     name: 'Notification',
     component: () => import('@/views/notification/index.vue'),
     meta: { title: '通知中心', showTabBar: false }
+  },
+  // 功能页路由（Phase 3 补全）
+  {
+    path: '/scan',
+    name: 'Scan',
+    component: () => import('@/views/scan/index.vue'),
+    meta: { title: '扫码', showTabBar: false }
+  },
+  {
+    path: '/expense',
+    name: 'Expense',
+    component: () => import('@/views/expense/index.vue'),
+    meta: { title: '报销', showTabBar: false }
+  },
+  {
+    path: '/leave',
+    name: 'Leave',
+    component: () => import('@/views/leave/index.vue'),
+    meta: { title: '请假', showTabBar: false }
+  },
+  {
+    path: '/more',
+    name: 'More',
+    component: () => import('@/views/more/index.vue'),
+    meta: { title: '更多功能', showTabBar: false }
+  },
+  {
+    path: '/profile/change-password',
+    name: 'ChangePassword',
+    component: () => import('@/views/profile/change-password.vue'),
+    meta: { title: '修改密码', showTabBar: false }
+  },
+  {
+    path: '/settings/login-history',
+    name: 'LoginHistory',
+    component: () => import('@/views/settings/login-history.vue'),
+    meta: { title: '登录记录', showTabBar: false }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('@/views/about/index.vue'),
+    meta: { title: '关于我们', showTabBar: false }
+  },
+  {
+    path: '/privacy',
+    name: 'Privacy',
+    component: () => import('@/views/about/privacy.vue'),
+    meta: { title: '隐私政策', showTabBar: false }
+  },
+  {
+    path: '/agreement',
+    name: 'Agreement',
+    component: () => import('@/views/about/agreement.vue'),
+    meta: { title: '用户协议', showTabBar: false }
   }
 ]
 

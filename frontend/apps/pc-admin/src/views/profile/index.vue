@@ -101,10 +101,10 @@
                 @change="handlePreferenceChange"
               >
                 <a-radio-button value="light">
-                  <SunOutlined /> 浅色
+                  <BulbOutlined /> 浅色
                 </a-radio-button>
                 <a-radio-button value="dark">
-                  <MoonOutlined /> 深色
+                  <BulbFilled /> 深色
                 </a-radio-button>
               </a-radio-group>
             </a-form-item>
@@ -236,8 +236,8 @@ import type { FormInstance, UploadProps } from 'ant-design-vue'
 import {
   EditOutlined,
   PlusOutlined,
-  SunOutlined,
-  MoonOutlined
+  BulbOutlined,
+  BulbFilled
 } from '@ant-design/icons-vue'
 import { profileApi, type ProfileInfo, type PreferenceSettings } from '@/api/profile'
 

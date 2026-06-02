@@ -16,7 +16,16 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Rule } from 'ant-design-vue'
+
+export interface Rule {
+  required?: boolean
+  message?: string
+  trigger?: string | string[]
+  min?: number
+  max?: number
+  pattern?: RegExp
+  validator?: (value: any, callback: (error?: string) => void) => void
+}
 
 interface Props {
   name?: string

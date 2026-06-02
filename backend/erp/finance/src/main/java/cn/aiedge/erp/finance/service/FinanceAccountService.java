@@ -2,6 +2,7 @@ package cn.aiedge.erp.finance.service;
 
 import cn.aiedge.erp.finance.model.entity.FinanceAccount;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -27,5 +28,5 @@ public interface FinanceAccountService {
     /**
      * 更新账户余额
      */
-    boolean updateAccountBalance(Long accountId, Double amount);
+    boolean updateAccountBalance(Long accountId, BigDecimal amount);
 }

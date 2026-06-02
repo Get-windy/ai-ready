@@ -3,9 +3,9 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/erp_finance_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: erp_finance_dev
-    password: dev_finance_2024
+    url: jdbc:postgresql://localhost:5432/devdb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: devuser
+    password: devuser123
   data:
     redis:
       host: localhost

@@ -323,8 +323,10 @@ import {
 } from '@ant-design/icons-vue'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useSubmitLock } from '@/composables'
+import { useUserStore } from '@/stores/user'
 
 // 搜索表单
+const userStore = useUserStore()
 const searchForm = reactive({
   roleName: '',
   roleCode: '',
@@ -399,7 +401,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await roleApi.getPage({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       ...searchForm,
       current: pagination.current,
       size: pagination.pageSize

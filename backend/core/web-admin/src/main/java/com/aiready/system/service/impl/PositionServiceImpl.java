@@ -8,6 +8,7 @@ import com.aiready.system.service.PositionService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,9 @@ public class PositionServiceImpl extends ServiceImpl<PositionMapper, Position> i
 
     @Autowired
     private DepartmentService departmentService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public Position getByPositionCode(String positionCode) {
@@ -85,8 +89,10 @@ public class PositionServiceImpl extends ServiceImpl<PositionMapper, Position> i
 
     @Override
     public boolean hasEmployees(Long positionId) {
-        // TODO: 需要集成员工模块后实现
-        return false;
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sys_user WHERE position_id = ? AND deleted = 0",
+            Integer.class, positionId);
+        return count != null && count > 0;
     }
 
     @Override

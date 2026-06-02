@@ -5,21 +5,42 @@ export interface LoginResponse {
   token: string
   tokenName: string
   userId: number
+  tenantId: number
 }
 
 // 用户信息
 export interface UserInfo {
   userId: number
   username: string
+  nickname?: string
+  userType?: number
+  avatar?: string
+  email?: string
+  phone?: string
+  gender?: number
+  status?: number
+  deptId?: number
+  deptName?: string
+  tenantId?: number
   roles: string[]
   permissions: string[]
+  createTime?: string
+  updateTime?: string
+}
+
+// 租户信息
+export interface TenantInfo {
+  id: number
+  tenantName: string
+  tenantCode: string
+  status: number
 }
 
 // 登录表单
 export interface LoginForm {
   username: string
   password: string
-  tenantId: number
+  tenantName: string
 }
 
 // 用户查询参数
@@ -36,18 +57,34 @@ export interface UserQuery {
 
 // 用户API - 修复版
 export const userApi = {
-  // 登录
+  // 登录 - 跳过认证刷新，避免登录失败时触发token刷新
   login(data: LoginForm): Promise<ApiResponse<LoginResponse>> {
     return request.post('/auth/login', {
       username: data.username,
       password: data.password,
-      tenantId: data.tenantId || 1
-    })
+      tenantName: data.tenantName
+    }, {
+      _skipAuthRefresh: true
+    } as any)
   },
 
-  // 登出
+  // 获取可用租户列表
+  getTenants(): Promise<ApiResponse<TenantInfo[]>> {
+    return request.get('/tenant/list')
+  },
+
+  // 登出 - 跳过认证刷新，避免无限循环
   logout(): Promise<ApiResponse<void>> {
-    return request.post('/auth/logout')
+    return request.post('/auth/logout', {}, { 
+      _skipAuthRefresh: true 
+    } as any)
+  },
+
+  // 获取验证码 - 公开API，跳过认证刷新
+  getCaptcha(): Promise<ApiResponse<{ img: string; uuid: string }>> {
+    return request.get('/auth/captcha', {
+      _skipAuthRefresh: true
+    } as any)
   },
 
   // 获取当前用户信息 - 新增

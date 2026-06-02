@@ -1,22 +1,27 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
+    :loading="loading"
+    :pagination="pagination"
+    :table-key="'purchase-supplier-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建供应商"
+    @add="handleAdd"
+    @edit="handleEdit"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建供应商
-      </a-button>
+    <template #toolbar-actions>
       <a-button @click="handleExport">
         <template #icon><ExportOutlined /></template>
         导出
@@ -24,40 +29,37 @@
     </template>
 
     <template #batch-actions>
-      <a-button @click="handleBatchEdit">批量编辑</a-button>
-      <a-button danger @click="handleBatchDelete">批量删除</a-button>
+      <a-button size="small" @click="handleBatchEdit">批量编辑</a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'green' : 'default'">
-              {{ record.status === 1 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'level'">
-            <a-tag :color="getLevelColor(record.level)">
-              {{ getLevelText(record.level) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a @click="handleEdit(record)">编辑</a>
-              <a @click="handleDeleteConfirm(record)" class="danger">删除</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <template #status="{ record }">
+      <a-tag :color="record.status === 1 ? 'green' : 'default'">
+        {{ record.status === 1 ? '正常' : '停用' }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="编辑">
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-popconfirm title="确定删除该供应商？" @confirm="handleDelete(record)">
+          <a-tooltip title="删除">
+            <a-button type="link" size="small" danger>
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
+        </a-popconfirm>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 批量编辑弹窗 -->
   <a-modal
@@ -71,12 +73,7 @@
     @ok="handleBatchEditConfirm"
     @cancel="batchEditModalVisible = false"
   >
-    <a-alert
-      :message="`已选择 ${selectedRowKeys.length} 个供应商`"
-      type="info"
-      show-icon
-      style="margin-bottom: 16px;"
-    />
+    <a-alert :message="`已选择 ${selectedRowKeys.length} 个供应商`" type="info" show-icon style="margin-bottom: 16px;" />
     <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
       <a-form-item label="供应商等级">
         <a-select v-model:value="batchEditData.level" placeholder="请选择等级（留空不修改）" allow-clear>
@@ -97,7 +94,7 @@
           :titles="['可选标签', '已选标签']"
           :target-keys="batchEditData.tags"
           :render="(item: any) => item.title"
-          @change="handleTransferChange"
+          @change="(nextTargetKeys: string[]) => { batchEditData.tags = nextTargetKeys }"
         />
       </a-form-item>
       <a-form-item label="备注">
@@ -111,17 +108,61 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import TableList from '@/components/TableList/TableList.vue'
 import { supplierApi } from '@/api/supplier'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const router = useRouter()
-
+const tableRef = ref()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
-const selectedRowKeys = ref<number[]>([])
-const currentView = ref('list')
+const searchFilters = reactive<Record<string, any>>({})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+const selectedRowKeys = computed(() => tableRef.value?.selectedRowKeys || [])
+
+const columns = [
+  { title: '供应商编码', dataIndex: 'supplierCode', key: 'supplierCode', width: 130, sortable: true },
+  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', width: 160 },
+  { title: '联系人', dataIndex: 'contactPerson', key: 'contactPerson', width: 100 },
+  { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
+  { title: '等级', dataIndex: 'supplierLevel', key: 'supplierLevel', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80, type: 'status' as const, slotName: 'status' },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, type: 'action' as const }
+]
+
+const filterFields = [
+  { key: 'supplierCode', label: '供应商编码', type: 'input' as const, placeholder: '输入编码' },
+  { key: 'supplierName', label: '供应商名称', type: 'input' as const, placeholder: '输入名称' },
+  { key: 'keyword', label: '关键词', type: 'input' as const, placeholder: '搜索关键词' },
+  { key: 'supplierLevel', label: '等级', type: 'select' as const, options: [
+    { label: 'A级', value: 'A' }, { label: 'B级', value: 'B' }, { label: 'C级', value: 'C' }
+  ]},
+  { key: 'cooperationStatus', label: '状态', type: 'select' as const, options: [
+    { label: '正常', value: 1 }, { label: '停用', value: 0 }
+  ]}
+]
+
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  return [
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
+
+function getLevelColor(level: string): string {
+  const colors: Record<string, string> = { 'A': 'gold', 'B': 'blue', 'C': 'default' }
+  return colors[level] || 'default'
+}
+function getLevelText(level: string): string {
+  const texts: Record<string, string> = { 'A': 'A级', 'B': 'B级', 'C': 'C级' }
+  return texts[level] || level
+}
 
 // ── 批量编辑状态 ──────────────────────────────────────
 const batchEditModalVisible = ref(false)
@@ -134,140 +175,59 @@ const batchEditData = reactive({
 })
 
 const transferData = ref([
-  { key: '1', title: '优质供应商' },
-  { key: '2', title: '长期合作' },
-  { key: '3', title: '战略伙伴' },
-  { key: '4', title: '紧急备用' },
-  { key: '5', title: '新品开发' },
-  { key: '6', title: '低优先级' }
+  { key: '1', title: '优质供应商' }, { key: '2', title: '长期合作' },
+  { key: '3', title: '战略伙伴' }, { key: '4', title: '紧急备用' },
+  { key: '5', title: '新品开发' }, { key: '6', title: '低优先级' }
 ])
 
-const handleTransferChange = (nextTargetKeys: string[]) => {
-  batchEditData.tags = nextTargetKeys
-}
-
-const breadcrumbItems = computed(() => [
-  { text: '采购管理', path: '/purchase' },
-  { text: '供应商' }
-])
-
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
-
-const columns = [
-  { title: '供应商编码', dataIndex: 'supplierCode', key: 'supplierCode', width: 150 },
-  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 100 },
-  { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
-  { title: '等级', dataIndex: 'level', key: 'level', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 150 }
-]
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => { selectedRowKeys.value = keys }
-}))
-
-const getLevelColor = (level: number) => {
-  const colors: Record<number, string> = { 1: 'gold', 2: 'blue', 3: 'default' }
-  return colors[level] || 'default'
-}
-
-const getLevelText = (level: number) => {
-  const texts: Record<number, string> = { 1: 'A级', 2: 'B级', 3: 'C级' }
-  return texts[level] || '未知'
-}
-
-const fetchData = async () => {
-  loading.value = true
+async function fetchData() {
+  loading.value = true; error.value = null
   try {
-    const res = await supplierApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: 1 })
-    dataSource.value = res.records || []
-    pagination.total = res.total || 0
-  } catch {
-    error.value = '获取数据失败'
-  } finally {
-    loading.value = false
+    const res = await supplierApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
+  } catch { error.value = '获取数据失败' }
+  finally { loading.value = false }
+}
+
+function handleView(record: any) { router.push(`/supplier/detail/${record.id}`) }
+function handleAdd() { router.push('/supplier/create') }
+function handleEdit(record: any) { router.push(`/supplier/edit/${record.id}`) }
+
+async function handleDelete(record: any) {
+  try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
+}
+
+async function handleBatchDelete(ids: number[]) {
+  let successCount = 0; let failCount = 0
+  for (const id of ids) {
+    try { await supplierApi.delete(id); successCount++ } catch { failCount++ }
   }
+  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
+  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  fetchData()
 }
 
-const handleViewChange = (view: string) => { currentView.value = view }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handlePageChange = (page: number) => { pagination.current = page; fetchData() }
-const handlePageSizeChange = (size: number) => { pagination.pageSize = size; pagination.current = 1; fetchData() }
-
-const handleAdd = () => {
-  router.push('/supplier/create')
-}
-
-const handleView = (record: any) => {
-  router.push(`/supplier/detail/${record.id}`)
-}
-
-const handleEdit = (record: any) => {
-  router.push(`/supplier/edit/${record.id}`)
-}
-
-const handleDeleteConfirm = (record: any) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除供应商 "${record.supplierName}" 吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await supplierApi.delete(record.id)
-        message.success('删除成功')
-        fetchData()
-      } catch { message.error('删除失败') }
-    }
-  })
-}
-
-// ── 导出功能 ──────────────────────────────────────────
-const handleExport = () => {
+function handleExport() {
   const hideLoading = message.loading('正在生成导出文件...', 0)
   try {
     const headers = ['供应商编码', '供应商名称', '联系人', '联系电话', '等级', '状态', '创建时间']
-    const rows = dataSource.value.map(row => [
-      row.supplierCode || '',
-      row.supplierName || '',
-      row.contactName || '',
-      row.contactPhone || '',
-      getLevelText(row.level),
-      row.status === 1 ? '正常' : '停用',
-      row.createTime || ''
+    const rows = dataSource.value.map((row: any) => [
+      row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
+      getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
     ])
     const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `供应商_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hideLoading()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hideLoading()
-    message.error('导出失败')
-  }
+    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = `供应商_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
 }
 
-// ── 批量编辑 ──────────────────────────────────────────
-const handleBatchEdit = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要编辑的供应商')
-    return
-  }
-  batchEditData.level = undefined
-  batchEditData.status = undefined
-  batchEditData.tags = []
-  batchEditData.remark = ''
+function handleBatchEdit() {
+  if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
+  batchEditData.level = undefined; batchEditData.status = undefined
+  batchEditData.tags = []; batchEditData.remark = ''
   batchEditModalVisible.value = true
 }
 
@@ -277,74 +237,23 @@ const handleBatchEditConfirm = async () => {
   if (batchEditData.status !== undefined) updateData.cooperationStatus = batchEditData.status
   if (batchEditData.tags.length > 0) updateData.tags = batchEditData.tags
   if (batchEditData.remark) updateData.remark = batchEditData.remark
-
-  if (Object.keys(updateData).length === 0) {
-    message.warning('请至少选择一个要修改的字段')
-    return
-  }
+  if (Object.keys(updateData).length === 0) { message.warning('请至少选择一个要修改的字段'); return }
 
   batchEditSubmitting.value = true
-  let successCount = 0
-  let failCount = 0
+  let successCount = 0; let failCount = 0
   for (const id of selectedRowKeys.value) {
-    try {
-      await supplierApi.update(id, updateData)
-      successCount++
-    } catch {
-      failCount++
-    }
+    try { await supplierApi.update(id, updateData); successCount++ } catch { failCount++ }
   }
   batchEditSubmitting.value = false
-
-  if (failCount === 0) {
-    message.success(`批量编辑完成，成功更新 ${successCount} 个供应商`)
-  } else {
-    message.warning(`批量编辑完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-  }
-  batchEditModalVisible.value = false
-  selectedRowKeys.value = []
-  fetchData()
+  if (failCount === 0) { message.success(`批量编辑完成，成功更新 ${successCount} 个供应商`) }
+  else { message.warning(`批量编辑完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  batchEditModalVisible.value = false; fetchData()
 }
 
-// ── 批量删除 ──────────────────────────────────────────
-const handleBatchDelete = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要删除的供应商')
-    return
-  }
-  const count = selectedRowKeys.value.length
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要批量删除选中的 ${count} 个供应商吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await supplierApi.delete(id)
-          successCount++
-        } catch {
-          failCount++
-        }
-      }
-      if (failCount === 0) {
-        message.success(`批量删除完成，成功 ${successCount} 个供应商`)
-      } else {
-        message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
-      fetchData()
-    }
-  })
-}
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => { fetchData() })
+onMounted(() => fetchData())
 </script>
-
-<style scoped>
-.danger { color: #ff4d4f; }
-</style>

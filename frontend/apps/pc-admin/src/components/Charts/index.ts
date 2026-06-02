@@ -25,6 +25,7 @@ export * from './core'
 export { ThemeColors } from './types'
 
 // 统一图表组件（根据type自动渲染对应图表）
+import { useChartExport as _useChartExport, useChartFilter as _useChartFilter, useChartZoom as _useChartZoom } from './composables'
 import { defineComponent, h, computed } from 'vue'
 import type { ChartType, ChartDataPoint, ChartSeries, ChartConfig } from './types'
 import BarChart from './BarChart.vue'
@@ -96,7 +97,7 @@ export default {
   PieChart,
   RadarChart,
   Chart,
-  useChartExport,
-  useChartFilter,
-  useChartZoom
+  useChartExport: _useChartExport,
+  useChartFilter: _useChartFilter,
+  useChartZoom: _useChartZoom
 }

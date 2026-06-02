@@ -7,9 +7,34 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 class Logger {
   private isDevelopment: boolean
-  
+  private sentryBreadcrumb: ((message: string, data?: Record<string, unknown>) => void) | null = null
+
   constructor() {
     this.isDevelopment = import.meta.env.DEV
+    this.initSentry()
+  }
+
+  /**
+   * 按需初始化 Sentry 错误监控
+   * 仅当配置了 VITE_SENTRY_DSN 环境变量时才启用
+   */
+  private async initSentry(): Promise<void> {
+    const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+    if (!sentryDsn) return
+
+    try {
+      const Sentry = await import('@sentry/vue')
+      // Sentry 初始化在 main.ts 完成，此处仅注册 breadcrumb 辅助方法
+      this.sentryBreadcrumb = (message: string, data?: Record<string, unknown>) => {
+        try {
+          Sentry.addBreadcrumb({ message, data, level: 'error', category: 'logger' })
+        } catch { /* sentry 不可用时静默 */ }
+      }
+      this.debug('Sentry 错误监控已接入')
+    } catch {
+      // @sentry/vue 未安装
+      this.debug('Sentry SDK 未安装，错误监控未启用')
+    }
   }
   
   /**
@@ -43,13 +68,14 @@ class Logger {
    * 错误日志 - 始终输出
    */
   error(...args: unknown[]): void {
-    // 错误日志始终输出，但可接入错误监控系统
+    // 错误日志始终输出
     console.error('[ERROR]', ...args)
-    
-    // TODO: 接入错误监控系统（如 Sentry）
-    // if (import.meta.env.PROD) {
-    //   Sentry.captureException(args[0])
-    // }
+
+    // 启用 Sentry 时发送错误 breadcrumb
+    if (this.sentryBreadcrumb && args.length > 0) {
+      const message = typeof args[0] === 'string' ? args[0] : String(args[0])
+      this.sentryBreadcrumb(message, args.length > 1 ? { detail: args.slice(1) } : undefined)
+    }
   }
   
   /**

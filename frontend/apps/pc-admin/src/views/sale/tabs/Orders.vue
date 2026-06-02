@@ -1,365 +1,258 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
+    :loading="loading"
+    :pagination="pagination"
+    :show-export="true"
+    :table-key="'sale-order-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建订单"
+    @add="handleAdd"
+    @edit="handleEdit"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd">
-        <template #icon><PlusOutlined /></template>
-        新建订单
-      </a-button>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
+    <template #toolbar-actions>
+      <a-button @click="handleImport">
+        <template #icon><ImportOutlined /></template>
+        导入
       </a-button>
     </template>
 
     <template #batch-actions>
-      <a-button @click="handleBatchApprove">批量审批</a-button>
-      <a-button @click="handleBatchPrint">批量打印</a-button>
+      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
+      <a-button size="small" @click="handleBatchPrint">批量打印</a-button>
     </template>
 
-    <template #list-view>
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-    :error="error"
-    :empty="!loading && !error && dataSource.length === 0"
-        :row-selection="rowSelection"
-        row-key="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'totalAmountWithTax'">
-            ¥{{ record.totalAmountWithTax?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 0" @click="handleEdit(record)">编辑</a>
-              <a v-if="record.status === 0" @click="handleSubmit(record)">提交</a>
-              <a v-if="record.status === 1" @click="handleApprove(record)">审批</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+    <!-- 自定义列：状态 -->
+    <template #status="{ record }">
+      <a-tag :color="getStatusColor(record.status)">
+        {{ getStatusText(record.status) }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <!-- 自定义列：操作 -->
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="编辑">
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="提交审核">
+          <a-button type="link" size="small" @click="handleSubmit(record)">
+            <template #icon><CheckCircleOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 1" title="审核">
+          <a-button type="link" size="small" @click="handleApprove(record)">
+            <template #icon><AuditOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="打印">
+          <a-button type="link" size="small" @click="handlePrint(record)">
+            <template #icon><PrinterOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-popconfirm
+          v-if="record.status === 0 || record.status === 5"
+          title="确定删除该订单？"
+          @confirm="handleDelete(record)"
+        >
+          <a-tooltip title="删除">
+            <a-button type="link" size="small" danger>
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
+        </a-popconfirm>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 新建/编辑订单弹窗 -->
-  <a-modal
-    v-model:open="formVisible"
-    :title="isEdit ? '编辑销售订单' : '新建销售订单'"
-    width="800px"
-    :confirm-loading="formSubmitting"
-    @ok="handleFormSubmit"
-    @cancel="handleFormCancel"
-  >
-    <a-form
-      ref="formRef"
-      :model="formState"
-      :rules="formRules"
-      :label-col="{ span: 6 }"
-      :wrapper-col="{ span: 16 }"
-    >
-      <a-form-item label="客户" name="customerName">
-        <a-input v-model:value="formState.customerName" placeholder="请输入客户名称" />
-      </a-form-item>
-      <a-row>
-        <a-col :span="12">
-          <a-form-item label="订单日期" name="orderDate" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }">
-            <a-date-picker v-model:value="formState.orderDate" style="width: 100%" placeholder="选择日期" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="交货日期" name="deliveryDate" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }">
-            <a-date-picker v-model:value="formState.deliveryDate" style="width: 100%" placeholder="选择日期" />
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-form-item label="销售员" name="salesmanName">
-        <a-input v-model:value="formState.salesmanName" placeholder="请输入销售员" />
-      </a-form-item>
-      <a-form-item label="产品明细" required>
-        <div style="margin-bottom: 8px">
-          <a-button type="dashed" size="small" @click="addItem">
-            <template #icon><PlusOutlined /></template>
-            添加产品
-          </a-button>
-        </div>
-        <a-table
-          :data-source="formState.items"
-          :pagination="false"
-          row-key="key"
-          size="small"
-          bordered
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'unitPrice'">
-              <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" prefix="¥" />
-            </template>
-            <template v-else-if="column.key === 'amount'">
-              ¥{{ (record.quantity * record.unitPrice).toFixed(2) }}
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="removeItem(index)" :disabled="formState.items.length <= 1">删除</a-button>
-            </template>
-          </template>
-        </a-table>
-      </a-form-item>
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="formState.remark" :rows="3" placeholder="请输入备注" />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+  <SaleOrderFormModal
+    v-model:visible="formVisible"
+    :is-edit="isEdit"
+    :record="editRecord"
+    @success="handleFormSuccess"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { ModuleLayout } from '@ai-ready/components'
-import type { Dayjs } from 'dayjs'
+import {
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CheckCircleOutlined,
+  AuditOutlined,
+  PrinterOutlined,
+  ImportOutlined
+} from '@ant-design/icons-vue'
+import TableList from '@/components/TableList/TableList.vue'
+import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
+import { saleOrderApi } from '@/api/erp'
+
+interface SaleOrder {
+  id: number
+  orderNo: string
+  customerName: string
+  orderDate: string
+  totalAmount: number
+  totalAmountWithTax: number
+  status: number
+  salesmanName: string
+  createTime: string
+  remark?: string
+}
+
+// 列定义
+const columns = [
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160, sortable: true },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140 },
+  { title: '订单日期', dataIndex: 'orderDate', key: 'orderDate', width: 110, type: 'date' as const, dateFormat: 'YYYY-MM-DD' },
+  { title: '订单金额', dataIndex: 'totalAmountWithTax', key: 'totalAmountWithTax', width: 120, type: 'currency' as const, sortable: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
+  { title: '销售员', dataIndex: 'salesmanName', key: 'salesmanName', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, type: 'action' as const }
+]
+
+// 筛选字段
+const filterFields = [
+  { key: 'orderNo', label: '订单号', type: 'input' as const, placeholder: '输入订单号' },
+  { key: 'customerName', label: '客户名称', type: 'input' as const, placeholder: '输入客户名称' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 },
+    { label: '待审批', value: 1 },
+    { label: '已审批', value: 2 },
+    { label: '部分出库', value: 3 },
+    { label: '已完成', value: 4 },
+    { label: '已取消', value: 5 }
+  ]},
+  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+]
+
+const statusColorMap: Record<number, string> = {
+  0: 'default', 1: 'orange', 2: 'green', 3: 'blue', 4: 'success', 5: 'red'
+}
+
+const statusTextMap: Record<number, string> = {
+  0: '草稿', 1: '待审批', 2: '已审批', 3: '部分出库', 4: '已完成', 5: '已取消'
+}
 
 const router = useRouter()
-
+const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
-const dataSource = ref<any[]>([])
-const selectedRowKeys = ref<number[]>([])
-const currentView = ref('list')
-
-const breadcrumbItems = computed(() => [
-  { text: '销售管理', path: '/sale' },
-  { text: '销售订单' }
-])
+const dataSource = ref<SaleOrder[]>([])
+const formVisible = ref(false)
+const isEdit = ref(false)
+const editRecord = ref<SaleOrder | null>(null)
+const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({
   current: 1,
-  pageSize: 10,
+  pageSize: 20,
   total: 0
 })
 
-const columns = [
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName' },
-  { title: '订单日期', dataIndex: 'orderDate', key: 'orderDate', width: 120 },
-  { title: '订单金额', dataIndex: 'totalAmountWithTax', key: 'totalAmountWithTax', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '销售员', dataIndex: 'salesmanName', key: 'salesmanName' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 150 }
-]
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  const totalAmount = dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0)
+  return [
+    { label: '本页金额合计', value: totalAmount, type: 'currency' as const },
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
 
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => {
-    selectedRowKeys.value = keys
-  }
-}))
+import { computed } from 'vue'
 
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = {
-    0: 'default',
-    1: 'orange',
-    2: 'green',
-    3: 'blue',
-    4: 'success',
-    5: 'red'
-  }
-  return colors[status] || 'default'
+function getStatusColor(status: number): string {
+  return statusColorMap[status] || 'default'
 }
 
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = {
-    0: '草稿',
-    1: '待审批',
-    2: '已审批',
-    3: '部分出库',
-    4: '完成',
-    5: '已取消'
-  }
-  return texts[status] || '未知'
+function getStatusText(status: number): string {
+  return statusTextMap[status] || '未知'
 }
 
-const fetchData = async () => {
+async function fetchData() {
   loading.value = true
   try {
-    dataSource.value = []
-    pagination.total = 0
+    const params = {
+      current: pagination.current,
+      size: pagination.pageSize,
+      ...searchFilters
+    }
+    const res = await saleOrderApi.getPage(params)
+    dataSource.value = res.data?.records || []
+    pagination.total = res.data?.total || 0
   } catch (error) {
-    message.error('获取数据失败')
+    message.error('获取销售订单列表失败')
+    dataSource.value = []
   } finally {
     loading.value = false
   }
 }
 
-const handleViewChange = (view: string) => {
-  currentView.value = view
-}
-
-const handleClearSelection = () => {
-  selectedRowKeys.value = []
-}
-
-const handlePageChange = (page: number) => {
-  pagination.current = page
-  fetchData()
-}
-
-const handlePageSizeChange = (size: number) => {
-  pagination.pageSize = size
-  pagination.current = 1
-  fetchData()
-}
-
-// ========== 订单表单弹窗 ==========
-const formVisible = ref(false)
-const formSubmitting = ref(false)
-const isEdit = ref(false)
-const editRecordId = ref<number | null>(null)
-const formRef = ref()
-
-interface OrderItem {
-  key: number
-  productName: string
-  quantity: number
-  unitPrice: number
-}
-
-interface OrderFormState {
-  customerName: string
-  orderDate: Dayjs | undefined
-  deliveryDate: Dayjs | undefined
-  salesmanName: string
-  items: OrderItem[]
-  remark: string
-}
-
-const defaultItem = (): OrderItem => ({
-  key: Date.now(),
-  productName: '',
-  quantity: 1,
-  unitPrice: 0
-})
-
-const formState = reactive<OrderFormState>({
-  customerName: '',
-  orderDate: undefined,
-  deliveryDate: undefined,
-  salesmanName: '',
-  items: [defaultItem()],
-  remark: ''
-})
-
-const formRules = {
-  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  orderDate: [{ required: true, message: '请选择订单日期', trigger: 'change', type: 'object' as const }],
-  salesmanName: [{ required: true, message: '请输入销售员', trigger: 'blur' }]
-}
-
-const itemColumns = [
-  { title: '产品名称', key: 'productName', dataIndex: 'productName' },
-  { title: '数量', key: 'quantity', dataIndex: 'quantity', width: 100 },
-  { title: '单价', key: 'unitPrice', dataIndex: 'unitPrice', width: 120 },
-  { title: '金额', key: 'amount', width: 120 },
-  { title: '操作', key: 'action', width: 80 }
-]
-
-const addItem = () => {
-  formState.items.push(defaultItem())
-}
-
-const removeItem = (index: number) => {
-  if (formState.items.length > 1) {
-    formState.items.splice(index, 1)
-  }
-}
-
-const resetForm = () => {
-  formState.customerName = ''
-  formState.orderDate = undefined
-  formState.deliveryDate = undefined
-  formState.salesmanName = ''
-  formState.items = [defaultItem()]
-  formState.remark = ''
-  editRecordId.value = null
-  isEdit.value = false
-  formRef.value?.clearValidate()
-}
-
-const handleAdd = () => {
-  resetForm()
-  formVisible.value = true
-}
-
-const handleView = (record: any) => {
+function handleView(record: SaleOrder) {
   router.push(`/sale/order/${record.id}`)
 }
 
-const handleEdit = (record: any) => {
-  resetForm()
-  isEdit.value = true
-  editRecordId.value = record.id
-  formState.customerName = record.customerName || ''
-  formState.salesmanName = record.salesmanName || ''
-  formState.remark = record.remark || ''
-  formState.items = record.items?.length
-    ? record.items.map((item: any, idx: number) => ({
-        key: idx,
-        productName: item.productName || '',
-        quantity: item.quantity || 1,
-        unitPrice: item.unitPrice || 0
-      }))
-    : [defaultItem()]
+function handleAdd() {
+  isEdit.value = false
+  editRecord.value = null
   formVisible.value = true
 }
 
-const handleFormSubmit = async () => {
+function handleEdit(record: SaleOrder) {
+  isEdit.value = true
+  editRecord.value = { ...record }
+  formVisible.value = true
+}
+
+function handleFormSuccess() {
+  formVisible.value = false
+  fetchData()
+}
+
+async function handleDelete(record: SaleOrder) {
   try {
-    await formRef.value?.validate()
-  } catch {
-    return
-  }
-  formSubmitting.value = true
-  try {
-    // await saleOrderApi.save({ ...formState, id: editRecordId.value })
-    message.success(isEdit.value ? '编辑成功' : '创建成功')
-    formVisible.value = false
+    await saleOrderApi.delete(record.id)
+    message.success('删除成功')
     fetchData()
   } catch {
-    message.error(isEdit.value ? '编辑失败' : '创建失败')
-  } finally {
-    formSubmitting.value = false
+    message.error('删除失败')
   }
 }
 
-const handleFormCancel = () => {
-  formVisible.value = false
+async function handleBatchDelete(ids: number[]) {
+  try {
+    await saleOrderApi.batchDelete(ids)
+    message.success(`成功删除 ${ids.length} 条记录`)
+    fetchData()
+  } catch {
+    message.error('批量删除失败')
+  }
 }
 
-const handleSubmit = (record: any) => {
+function handleSubmit(record: SaleOrder) {
   Modal.confirm({
     title: '确认提交',
     content: `确定要提交订单 "${record.orderNo}" 吗？提交后将进入审批流程。`,
@@ -368,7 +261,7 @@ const handleSubmit = (record: any) => {
     centered: true,
     async onOk() {
       try {
-        // await saleOrderApi.submit(record.id)
+        await saleOrderApi.submit(record.id)
         message.success('提交成功')
         fetchData()
       } catch {
@@ -378,7 +271,7 @@ const handleSubmit = (record: any) => {
   })
 }
 
-const handleApprove = (record: any) => {
+function handleApprove(record: SaleOrder) {
   Modal.confirm({
     title: '确认审批',
     content: `确定审批通过订单 "${record.orderNo}" 吗？`,
@@ -387,7 +280,7 @@ const handleApprove = (record: any) => {
     centered: true,
     async onOk() {
       try {
-        // await saleOrderApi.approve(record.id)
+        await saleOrderApi.approve(record.id)
         message.success('审批成功')
         fetchData()
       } catch {
@@ -397,59 +290,93 @@ const handleApprove = (record: any) => {
   })
 }
 
-const handleExport = async () => {
-  const hide = message.loading('正在导出...', 0)
-  try {
-    // await saleOrderApi.export(pagination.current, pagination.pageSize)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    hide()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hide()
-    message.error('导出失败')
-  }
+function handlePrint(record: SaleOrder) {
+  Modal.confirm({
+    title: '打印',
+    content: `打印订单 "${record.orderNo}" ？`,
+    okText: '确认打印',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      try {
+        await saleOrderApi.print(record.id)
+        message.success('打印任务已提交')
+      } catch {
+        message.error('打印失败')
+      }
+    }
+  })
 }
 
-const handleBatchApprove = () => {
-  if (selectedRowKeys.value.length === 0) {
+function handleImport() {
+  message.info('导入功能开发中')
+}
+
+function handleBatchApprove() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) {
     message.warning('请选择要审批的订单')
     return
   }
   Modal.confirm({
     title: '确认批量审批',
-    content: `确定要批量审批选中的 ${selectedRowKeys.value.length} 条记录吗？`,
+    content: `确定要批量审批选中的 ${keys.length} 条记录吗？`,
     okText: '确认审批',
     cancelText: '取消',
     centered: true,
     async onOk() {
       try {
-        // await saleOrderApi.batchApprove(selectedRowKeys.value)
-        message.success(`成功审批 ${selectedRowKeys.value.length} 条记录`)
-        selectedRowKeys.value = []
+        await saleOrderApi.batchApprove(keys)
+        message.success(`成功审批 ${keys.length} 条记录`)
         fetchData()
       } catch { message.error('批量审批失败') }
     }
   })
 }
 
-const handleBatchPrint = () => {
-  if (selectedRowKeys.value.length === 0) {
+function handleBatchPrint() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) {
     message.warning('请选择要打印的订单')
     return
   }
   Modal.confirm({
     title: '确认批量打印',
-    content: `确定要批量打印选中的 ${selectedRowKeys.value.length} 条记录吗？`,
+    content: `确定要批量打印选中的 ${keys.length} 条记录吗？`,
     okText: '确认打印',
     cancelText: '取消',
     centered: true,
     async onOk() {
       try {
-        // await saleOrderApi.batchPrint(selectedRowKeys.value)
-        message.success(`成功打印 ${selectedRowKeys.value.length} 条记录`)
+        await saleOrderApi.batchPrint(keys)
+        message.success(`打印任务已提交 (${keys.length} 条)`)
       } catch { message.error('批量打印失败') }
     }
   })
+}
+
+function handleSearch(keyword: string) {
+  searchFilters.keyword = keyword || undefined
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
+}
+
+function handleSortChange(field: string, order: string) {
+  searchFilters.sortField = field
+  searchFilters.sortOrder = order
+  fetchData()
+}
+
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
+  fetchData()
 }
 
 onMounted(() => {

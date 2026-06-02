@@ -82,11 +82,13 @@
             :pagination="false"
             row-key="id"
           >
-            <template v-if="column.key === 'status'">
-              <a-tag color="red">已拒绝</a-tag>
-            </template>
-            <template v-if="column.key === 'approver'">
-              {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag color="red">已拒绝</a-tag>
+              </template>
+              <template v-else-if="column.key === 'approver'">
+                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+              </template>
             </template>
           </a-table>
         </a-tab-pane>
@@ -98,8 +100,10 @@
             :pagination="false"
             row-key="id"
           >
-            <template v-if="column.key === 'status'">
-              <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+              </template>
             </template>
           </a-table>
         </a-tab-pane>
@@ -243,11 +247,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const submitLoading = ref(false)
 const activeTab = ref('pending')
@@ -257,12 +264,59 @@ const rejectVisible = ref(false)
 const detailVisible = ref(false)
 const applyFormRef = ref<FormInstance>()
 
-const statistics = ref({
-  totalCount: 25,
-  pendingCount: 8,
-  approvedCount: 15,
-  rejectedCount: 2
+// ── 响应式数据 ──────────────────────────────────────────
+
+const statistics = ref<PriceApprovalStatistics>({ totalCount: 0, pendingCount: 0, approvedCount: 0, rejectedCount: 0 })
+
+const pendingList = ref<PriceApproval[]>([])
+const approvedList = ref<PriceApproval[]>([])
+const rejectedList = ref<PriceApproval[]>([])
+const myList = ref<PriceApproval[]>([])
+
+const productList = ref<{ id: number; name: string; code: string; basePrice: number }[]>([])
+const customerList = ref<{ id: number; name: string }[]>([])
+
+const applyForm = reactive({
+  productId: undefined as number | undefined,
+  customerId: undefined as number | undefined,
+  newPrice: undefined as number | undefined,
+  approvalType: undefined as string | undefined,
+  effectiveRange: [] as any[],
+  approvalReason: ''
 })
+
+const applyRules = {
+  productId: [{ required: true, message: '请选择产品' }],
+  newPrice: [{ required: true, message: '请输入新价格' }],
+  approvalType: [{ required: true, message: '请选择审批类型' }],
+  approvalReason: [{ required: true, message: '请输入申请原因' }]
+}
+
+const currentPrice = computed(() => {
+  if (!applyForm.productId) return '0.00'
+  const product = productList.value.find(p => p.id === applyForm.productId)
+  return product ? product.basePrice.toFixed(2) : '0.00'
+})
+
+const priceChangeAmount = computed(() => {
+  if (!applyForm.newPrice) return '0.00'
+  return Math.abs(applyForm.newPrice - parseFloat(currentPrice.value)).toFixed(2)
+})
+
+const priceChangeType = computed(() => {
+  if (!applyForm.newPrice) return ''
+  return applyForm.newPrice >= parseFloat(currentPrice.value) ? 'increase' : 'decrease'
+})
+
+const approveData = ref<PriceApproval>({} as PriceApproval)
+const approveRemark = ref('')
+const rejectData = ref<PriceApproval>({} as PriceApproval)
+const rejectReason = ref('')
+const detailData = ref<PriceApproval>({} as PriceApproval)
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+// ── 列定义 ──────────────────────────────────────────────
 
 const columns = [
   { title: '产品', dataIndex: 'productName', width: 150 },
@@ -272,7 +326,7 @@ const columns = [
   { title: '申请人', dataIndex: 'applicantName', width: 100 },
   { title: '申请时间', dataIndex: 'applyTime', width: 150 },
   { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', fixed: 'right', width: 180 }
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 180 }
 ]
 
 const processedColumns = [
@@ -291,116 +345,63 @@ const myColumns = [
   { title: '申请时间', dataIndex: 'applyTime', width: 150 }
 ]
 
-const pendingList = ref<any[]>([])
-const approvedList = ref<any[]>([])
-const rejectedList = ref<any[]>([])
-const myList = ref<any[]>([])
+// ── 数据加载 ────────────────────────────────────────────
 
-const productList = ref([
-  { id: 1, name: '笔记本电脑', code: 'P001', basePrice: 8999 },
-  { id: 2, name: '办公桌椅', code: 'P002', basePrice: 2500 },
-  { id: 3, name: '打印机', code: 'P003', basePrice: 3500 }
-])
-
-const customerList = ref([
-  { id: 1, name: '北京科技有限公司' },
-  { id: 2, name: '上海贸易公司' },
-  { id: 3, name: '广州制造企业' }
-])
-
-const applyForm = reactive({
-  productId: undefined,
-  customerId: undefined,
-  newPrice: undefined,
-  approvalType: undefined,
-  effectiveRange: [],
-  approvalReason: ''
-})
-
-const applyRules = {
-  productId: [{ required: true, message: '请选择产品' }],
-  newPrice: [{ required: true, message: '请输入新价格' }],
-  approvalType: [{ required: true, message: '请选择审批类型' }],
-  approvalReason: [{ required: true, message: '请输入申请原因' }]
+const loadStatistics = async () => {
+  try {
+    const res = await priceApprovalApi.getStatistics()
+    if (res.data) statistics.value = res.data
+  } catch { /* 统计加载失败不影响列表 */ }
 }
 
-const currentPrice = computed(() => {
-  if (!applyForm.productId) return '0.00'
-  const product = productList.value.find(p => p.id === applyForm.productId)
-  if (!product) return '0.00'
-  return product.basePrice.toFixed(2)
-})
+const loadPendingList = async () => {
+  try {
+    const res = await priceApprovalApi.getPendingList()
+    pendingList.value = res.data || []
+    pagination.total = pendingList.value.length
+  } catch (err: any) {
+    message.error('加载待审批列表失败: ' + (err?.message || ''))
+  }
+}
 
-const priceChangeAmount = computed(() => {
-  if (!applyForm.newPrice) return '0.00'
-  return Math.abs(applyForm.newPrice - parseFloat(currentPrice.value)).toFixed(2)
-})
+const loadApprovedList = async () => {
+  try {
+    const res = await priceApprovalApi.getListByStatus('approved')
+    approvedList.value = res.data || []
+  } catch { approvedList.value = [] }
+}
 
-const priceChangeType = computed(() => {
-  if (!applyForm.newPrice) return ''
-  return applyForm.newPrice >= parseFloat(currentPrice.value) ? 'increase' : 'decrease'
-})
+const loadRejectedList = async () => {
+  try {
+    const res = await priceApprovalApi.getListByStatus('rejected')
+    rejectedList.value = res.data || []
+  } catch { rejectedList.value = [] }
+}
 
-const approveData = ref<any>({})
-const approveRemark = ref('')
-const rejectData = ref<any>({})
-const rejectReason = ref('')
-const detailData = ref<any>({})
+const loadMyList = async () => {
+  const uid = userStore.userInfo?.userId ?? userStore.userInfo?.id ?? 0
+  if (!uid) { myList.value = []; return }
+  try {
+    const res = await priceApprovalApi.getMyApprovals(uid)
+    myList.value = res.data || []
+  } catch { myList.value = [] }
+}
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0
-})
-
-onMounted(() => {
-  loadData()
-})
-
-const loadData = () => {
+const loadData = async () => {
   loading.value = true
-  pendingList.value = [
-    { id: 1, productName: '笔记本电脑', productCode: 'P001', customerName: '北京科技有限公司', oldPrice: 8999, newPrice: 8500, priceChange: 499, priceChangeType: 'decrease', approvalType: 'price_adjustment', approvalTypeLabel: '价格调整', applicantName: '张三', applyTime: '2024-01-15 10:30', status: 'pending' },
-    { id: 2, productName: '办公桌椅', productCode: 'P002', customerName: '上海贸易公司', oldPrice: 2500, newPrice: 2800, priceChange: 300, priceChangeType: 'increase', approvalType: 'contract', approvalTypeLabel: '合同价格', applicantName: '李四', applyTime: '2024-01-15 09:20', status: 'pending' },
-    { id: 3, productName: '打印机', productCode: 'P003', customerName: null, oldPrice: 3500, newPrice: 3200, priceChange: 300, priceChangeType: 'decrease', approvalType: 'promotion', approvalTypeLabel: '促销价格', applicantName: '王五', applyTime: '2024-01-14 16:45', status: 'pending' }
-  ]
-  approvedList.value = [
-    { id: 4, productName: '笔记本电脑', customerName: '广州制造企业', oldPrice: 8999, newPrice: 9200, priceChange: 201, priceChangeType: 'increase', status: 'approved', approverName: '赵六', approveTime: '2024-01-14 15:30' }
-  ]
-  rejectedList.value = [
-    { id: 5, productName: '办公桌椅', customerName: '深圳电子公司', oldPrice: 2500, newPrice: 2200, priceChange: 300, priceChangeType: 'decrease', status: 'rejected', approverName: '钱七', approveTime: '2024-01-13 14:20' }
-  ]
-  myList.value = pendingList.value.slice(0, 2)
-  pagination.total = pendingList.value.length
+  await Promise.allSettled([loadStatistics(), loadPendingList(), loadApprovedList(), loadRejectedList(), loadMyList()])
   loading.value = false
 }
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    pending: 'orange',
-    approved: 'green',
-    rejected: 'red'
-  }
-  return colors[status] || 'default'
-}
+// Tab 切换时按需刷新
+watch(activeTab, (tab) => {
+  if (tab === 'pending') loadPendingList()
+  else if (tab === 'approved') loadApprovedList()
+  else if (tab === 'rejected') loadRejectedList()
+  else if (tab === 'my') loadMyList()
+})
 
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    pending: '待审批',
-    approved: '已通过',
-    rejected: '已拒绝'
-  }
-  return texts[status] || status
-}
-
-const formatDate = (date: string) => {
-  if (!date) return ''
-  return date.split('T')[0]
-}
-
-const filterOption = (input: string, option: any) => {
-  return option.name.toLowerCase().indexOf(input.toLowerCase()) >= 0
-}
+// ── 操作 ────────────────────────────────────────────────
 
 const handleApply = () => {
   Object.assign(applyForm, {
@@ -418,61 +419,95 @@ const handleApplySubmit = async () => {
   try {
     await applyFormRef.value?.validate()
     submitLoading.value = true
+    await priceApprovalApi.apply({
+      productId: applyForm.productId!,
+      customerId: applyForm.customerId,
+      newPrice: applyForm.newPrice!,
+      approvalType: applyForm.approvalType!,
+      approvalReason: applyForm.approvalReason,
+      effectiveStart: applyForm.effectiveRange?.[0]?.toISOString?.(),
+      effectiveEnd: applyForm.effectiveRange?.[1]?.toISOString?.()
+    })
     message.success('价格变更申请已提交')
     applyVisible.value = false
     loadData()
-  } catch (error) {
-    console.error('Validation failed:', error)
+  } catch (err: any) {
+    if (err?.message) message.error(err.message)
   } finally {
     submitLoading.value = false
   }
 }
 
-const handleApprove = (record: any) => {
-  approveData.value = record
+const handleApprove = (record: PriceApproval) => {
+  approveData.value = { ...record }
   approveRemark.value = ''
   approveVisible.value = true
 }
 
-const handleApproveConfirm = () => {
-  message.success('审批已通过')
-  approveVisible.value = false
-  loadData()
+const handleApproveConfirm = async () => {
+  const approverId = userStore.userInfo?.userId ?? userStore.userInfo?.id ?? 0
+  try {
+    await priceApprovalApi.approve(approveData.value.id, approverId, approveRemark.value || undefined)
+    message.success('审批已通过')
+    approveVisible.value = false
+    loadData()
+  } catch (err: any) {
+    message.error('审批失败: ' + (err?.message || ''))
+  }
 }
 
-const handleReject = (record: any) => {
-  rejectData.value = record
+const handleReject = (record: PriceApproval) => {
+  rejectData.value = { ...record }
   rejectReason.value = ''
   rejectVisible.value = true
 }
 
-const handleRejectConfirm = () => {
+const handleRejectConfirm = async () => {
   if (!rejectReason.value.trim()) {
     message.warning('请输入拒绝原因')
     return
   }
-  message.success('审批已拒绝')
-  rejectVisible.value = false
-  loadData()
+  const approverId = userStore.userInfo?.userId ?? userStore.userInfo?.id ?? 0
+  try {
+    await priceApprovalApi.reject(rejectData.value.id, approverId, rejectReason.value)
+    message.success('审批已拒绝')
+    rejectVisible.value = false
+    loadData()
+  } catch (err: any) {
+    message.error('拒绝审批失败: ' + (err?.message || ''))
+  }
 }
 
-const handleView = (record: any) => {
-  detailData.value = {
-    ...record,
-    approvalTypeLabel: record.approvalTypeLabel || getApprovalTypeText(record.approvalType)
+const handleView = async (record: PriceApproval) => {
+  try {
+    const res = await priceApprovalApi.getById(record.id)
+    detailData.value = res.data || record
+  } catch {
+    detailData.value = { ...record, approvalTypeLabel: getApprovalTypeText(record.approvalType) } as PriceApproval
   }
   detailVisible.value = true
 }
 
-const getApprovalTypeText = (type: string) => {
-  const texts: Record<string, string> = {
-    price_adjustment: '价格调整',
-    promotion: '促销价格',
-    contract: '合同价格',
-    discount: '折扣价格'
-  }
-  return texts[type] || type
+// ── 辅助 ────────────────────────────────────────────────
+
+const getStatusColor = (status: string) => {
+  return { pending: 'orange', approved: 'green', rejected: 'red' }[status] || 'default'
 }
+const getStatusText = (status: string) => {
+  return { pending: '待审批', approved: '已通过', rejected: '已拒绝' }[status] || status
+}
+const formatDate = (date: string) => date ? date.split('T')[0] : ''
+const filterOption = (input: string, option: any) =>
+  option?.name?.toLowerCase?.().includes(input.toLowerCase()) ?? false
+
+const getApprovalTypeText = (type: string) => {
+  return {
+    price_adjustment: '价格调整', promotion: '促销价格',
+    contract: '合同价格', discount: '折扣价格'
+  }[type] || type
+}
+
+onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">

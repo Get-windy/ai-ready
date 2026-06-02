@@ -1,47 +1,68 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
+  <TableList
+    ref="tableRef"
+    :columns="columns"
+    :data-source="dataSource"
     :loading="loading"
-    :error="error"
-    :empty="!loading && !error && dataSource.length === 0"
-    empty-text="暂无入库单"
-    @clear-selection="handleClearSelection"
-    @search-submit="handleSearchSubmit"
+    :pagination="pagination"
+    :table-key="'purchase-inbound-list'"
+    :filter-fields="filterFields"
+    :show-summary="true"
+    :summary-data="summaryData"
+    add-text="新建入库"
+    @add="handleAdd"
+    @view="handleView"
+    @delete="handleDelete"
+    @batch-delete="handleBatchDelete"
+    @refresh="fetchData"
+    @search="handleSearch"
     @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
+    @sort-change="handleSortChange"
+    @filter-change="handleFilterChange"
   >
-    <template #actions>
-      <a-button type="primary" @click="handleAdd"><PlusOutlined /> 新建入库</a-button>
-      <a-button @click="handleExport"><ExportOutlined /> 导出</a-button>
+    <template #toolbar-actions>
+      <a-button @click="handleExport">
+        <template #icon><ExportOutlined /></template>
+        导出
+      </a-button>
     </template>
+
     <template #batch-actions>
-      <a-button @click="handleBatchApprove">批量审批</a-button>
-      <a-button danger @click="handleBatchDelete">批量删除</a-button>
+      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
     </template>
-    <template #list-view>
-      <a-table :columns="columns" :data-source="dataSource" :loading="loading" :row-selection="rowSelection" row-key="id" :scroll="{ x: 1200 }">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">¥{{ record.totalAmount?.toFixed(2) || '0.00' }}</template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 0" @click="handleApprove(record)">审批</a>
-              <PrintButton v-if="record.status >= 1" template-type="inbound" :business-id="record.id" business-type="purchase_inbound" button-text="打印" button-size="small" />
-              <a v-if="record.status === 0" @click="handleDeleteConfirm(record)" class="danger">删除</a>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
+
+    <template #status="{ record }">
+      <a-tag :color="getStatusColor(record.status)">
+        {{ getStatusText(record.status) }}
+      </a-tag>
     </template>
-  </ModuleLayout>
+
+    <template #action="{ record }">
+      <a-space :size="4">
+        <a-tooltip title="查看">
+          <a-button type="link" size="small" @click="handleView(record)">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="审批">
+          <a-button type="link" size="small" @click="handleApprove(record)">
+            <template #icon><CheckCircleOutlined /></template>
+          </a-button>
+        </a-tooltip>
+        <a-popconfirm
+          v-if="record.status === 0"
+          title="确定删除该入库单？"
+          @confirm="handleDelete(record)"
+        >
+          <a-tooltip title="删除">
+            <a-button type="link" size="small" danger>
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
+        </a-popconfirm>
+      </a-space>
+    </template>
+  </TableList>
 
   <!-- 新建入库弹窗 -->
   <a-modal
@@ -120,17 +141,57 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ModuleLayout } from '@ai-ready/components'
-import { inboundApi, type PurchaseInbound } from '@/api/erp'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import TableList from '@/components/TableList/TableList.vue'
+import { inboundApi } from '@/api/erp'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
+const tableRef = ref()
 const loading = ref(false)
 const error = ref<string | null>(null)
-const dataSource = ref<PurchaseInbound[]>([])
-const selectedRowKeys = ref<(string | number)[]>([])
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
+const dataSource = ref<any[]>([])
+const searchFilters = reactive<Record<string, any>>({})
+
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+
+const columns = [
+  { title: '入库单号', dataIndex: 'inboundNo', key: 'inboundNo', width: 160, sortable: true },
+  { title: '关联订单', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
+  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140 },
+  { title: '入库日期', dataIndex: 'inboundDate', key: 'inboundDate', width: 110, type: 'date' as const },
+  { title: '金额', dataIndex: 'totalAmount', key: 'totalAmount', width: 120, type: 'currency' as const, sortable: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
+  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, type: 'action' as const }
+]
+
+const filterFields = [
+  { key: 'inboundNo', label: '入库单号', type: 'input' as const, placeholder: '输入入库单号' },
+  { key: 'orderNo', label: '关联订单', type: 'input' as const, placeholder: '输入订单号' },
+  { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '输入供应商' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 }, { label: '待收货', value: 1 }, { label: '已入库', value: 2 }
+  ]},
+  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+]
+
+const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green' }
+const statusTextMap: Record<number, string> = { 0: '草稿', 1: '待收货', 2: '已入库' }
+
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  const totalAmount = dataSource.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
+  return [
+    { label: '本页金额合计', value: totalAmount, type: 'currency' as const },
+    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+  ]
+})
+
+function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
+function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
 
 // ── 表单状态 ──────────────────────────────────────────
 const formModalVisible = ref(false)
@@ -193,59 +254,21 @@ const handleRemoveInboundItem = (index: number) => {
 
 const handleOrderNoBlur = () => {
   if (formData.orderNo) {
-    const matched = dataSource.value.find(d => d.orderNo === formData.orderNo)
-    if (matched) {
-      formData.supplierName = matched.supplierName
-    }
+    const matched = dataSource.value.find((d: any) => d.orderNo === formData.orderNo)
+    if (matched) { formData.supplierName = matched.supplierName }
   }
 }
 
-const breadcrumbItems = computed(() => [{ text: '采购管理', path: '/purchase' }, { text: '入库单' }])
-
-const columns = [
-  { title: '入库单号', dataIndex: 'inboundNo', key: 'inboundNo', width: 180 },
-  { title: '关联订单', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '入库日期', dataIndex: 'inboundDate', key: 'inboundDate', width: 120 },
-  { title: '金额', key: 'totalAmount', width: 120 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 200 }
-]
-
-const rowSelection = computed(() => ({ selectedRowKeys: selectedRowKeys.value, onChange: (keys: (string | number)[]) => { selectedRowKeys.value = keys } }))
-const getStatusColor = (s: number) => ({ 0: 'default', 1: 'orange', 2: 'green' } as any)[s] || 'default'
-const getStatusText = (s: number) => ({ 0: '草稿', 1: '待收货', 2: '已入库' } as any)[s] || '未知'
-
-const fetchData = async () => {
+async function fetchData() {
   loading.value = true; error.value = null
   try {
-    const res = await inboundApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: 1 })
-    dataSource.value = res.records || []; pagination.total = res.total || 0
-  } catch (err: any) { error.value = err?.message || '获取数据失败' }
+    const res = await inboundApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
+  } catch { error.value = '获取数据失败' }
   finally { loading.value = false }
 }
 
-const searchValue = ref('')
-const handleSearchSubmit = (val: string) => { searchValue.value = val; pagination.current = 1; fetchData() }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handlePageChange = (p: number) => { pagination.current = p; fetchData() }
-const handlePageSizeChange = (s: number) => { pagination.pageSize = s; pagination.current = 1; fetchData() }
-
-// ── 新建入库 ──────────────────────────────────────────
-const handleAdd = () => {
-  formData.orderNo = ''
-  formData.supplierName = ''
-  formData.warehouseId = undefined
-  formData.inboundDate = undefined
-  formData.remark = ''
-  formData.items = []
-  formModalVisible.value = true
-}
-
-// ── 查看详情 ──────────────────────────────────────────
-const handleView = (record: PurchaseInbound) => {
+function handleView(record: any) {
   Modal.info({
     title: '入库单详情',
     content: `入库单号: ${record.inboundNo}\n供应商: ${record.supplierName}\n入库日期: ${record.inboundDate}\n状态: ${getStatusText(record.status)}`,
@@ -253,174 +276,90 @@ const handleView = (record: PurchaseInbound) => {
   })
 }
 
-// ── 表单提交 ──────────────────────────────────────────
-const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
+function handleAdd() {
+  formData.orderNo = ''; formData.supplierName = ''; formData.warehouseId = undefined
+  formData.inboundDate = undefined; formData.remark = ''; formData.items = []
+  formModalVisible.value = true
+}
+
+async function handleDelete(record: any) {
+  try { await inboundApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
+}
+
+async function handleBatchDelete(ids: number[]) {
+  let successCount = 0; let failCount = 0
+  for (const id of ids) {
+    try { await inboundApi.delete(id); successCount++ }
+    catch { failCount++ }
   }
+  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
+  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
+  fetchData()
+}
+
+const handleFormSubmit = async () => {
+  try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
     await inboundApi.create({
-      orderNo: formData.orderNo,
-      supplierName: formData.supplierName,
-      warehouseId: formData.warehouseId,
-      inboundDate: formData.inboundDate,
+      orderNo: formData.orderNo, supplierName: formData.supplierName,
+      warehouseId: formData.warehouseId, inboundDate: formData.inboundDate,
       remark: formData.remark,
       items: formData.items.map(item => ({
-        productName: item.productName,
-        expectedQty: item.expectedQty,
-        actualQty: item.actualQty,
-        unitPrice: item.unitPrice
+        productName: item.productName, expectedQty: item.expectedQty,
+        actualQty: item.actualQty, unitPrice: item.unitPrice
       }))
     })
-    message.success('新建入库单成功')
-    formModalVisible.value = false
-    fetchData()
-  } catch {
-    message.error('新建入库单失败')
-  } finally {
-    formSubmitting.value = false
-  }
+    message.success('新建入库单成功'); formModalVisible.value = false; fetchData()
+  } catch { message.error('新建入库单失败') }
+  finally { formSubmitting.value = false }
 }
 
-// ── 审批 ──────────────────────────────────────────────
-const handleApprove = async (r: PurchaseInbound) => {
+function handleApprove(record: any) {
   Modal.confirm({
-    title: '确认审批',
-    content: `确定审批入库单 "${r.inboundNo}" 吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
+    title: '审批入库单', content: `审批入库单 "${record.inboundNo}" ？`, okText: '确认审批', centered: true,
+    async onOk() { try { await inboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+  })
+}
+
+function handleBatchApprove() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) { message.warning('请选择入库单'); return }
+  Modal.confirm({
+    title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      try {
-        await inboundApi.approve(r.id)
-        message.success('审批成功')
-        fetchData()
-      } catch { message.error('审批失败') }
+      let success = 0; let fail = 0
+      for (const id of keys) {
+        try { await inboundApi.approve(id); success++ } catch { fail++ }
+      }
+      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
+      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
+      fetchData()
     }
   })
 }
 
-// ── 删除 ──────────────────────────────────────────────
-const handleDeleteConfirm = (r: PurchaseInbound) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除入库单 "${r.inboundNo}" 吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try { await inboundApi.delete(r.id); message.success('删除成功'); fetchData() } catch { message.error('删除失败') }
-    }
-  })
-}
-
-// ── 导出功能 ──────────────────────────────────────────
-const handleExport = () => {
+function handleExport() {
   const hideLoading = message.loading('正在生成导出文件...', 0)
   try {
     const headers = ['入库单号', '关联订单', '供应商', '入库日期', '金额', '状态', '创建人', '创建时间']
-    const rows = dataSource.value.map(row => [
-      row.inboundNo || '',
-      row.orderNo || '',
-      row.supplierName || '',
-      row.inboundDate || '',
-      row.totalAmount?.toFixed(2) || '0.00',
-      getStatusText(row.status),
-      row.creatorName || '',
-      row.createTime || ''
+    const rows = dataSource.value.map((row: any) => [
+      row.inboundNo || '', row.orderNo || '', row.supplierName || '', row.inboundDate || '',
+      row.totalAmount?.toFixed(2) || '0.00', getStatusText(row.status), row.creatorName || '', row.createTime || ''
     ])
     const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hideLoading()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hideLoading()
-    message.error('导出失败')
-  }
+    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob); const link = document.createElement('a')
+    link.href = url; link.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
+  } catch { hideLoading(); message.error('导出失败') }
 }
 
-// ── 批量审批 ──────────────────────────────────────────
-const handleBatchApprove = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要审批的入库单')
-    return
-  }
-  const count = selectedRowKeys.value.length
-  Modal.confirm({
-    title: '批量审批',
-    content: `确定要批量审批选中的 ${count} 个入库单吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await inboundApi.approve(id as number)
-          successCount++
-        } catch {
-          failCount++
-        }
-      }
-      if (failCount === 0) {
-        message.success(`批量审批完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`审批完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
-      fetchData()
-    }
-  })
-}
-
-// ── 批量删除 ──────────────────────────────────────────
-const handleBatchDelete = () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要删除的入库单')
-    return
-  }
-  const count = selectedRowKeys.value.length
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要批量删除选中的 ${count} 个入库单吗？此操作不可撤销。`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      let successCount = 0
-      let failCount = 0
-      for (const id of selectedRowKeys.value) {
-        try {
-          await inboundApi.delete(id as number)
-          successCount++
-        } catch {
-          failCount++
-        }
-      }
-      if (failCount === 0) {
-        message.success(`批量删除完成，成功 ${successCount} 个`)
-      } else {
-        message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`)
-      }
-      selectedRowKeys.value = []
-      fetchData()
-    }
-  })
-}
+function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
+function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
+function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
 onMounted(() => fetchData())
 </script>
-<style scoped>.danger { color: #ff4d4f; }</style>

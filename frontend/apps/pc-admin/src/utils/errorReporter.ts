@@ -1,5 +1,4 @@
 import axios from 'axios'
-import dayjs from 'dayjs'
 import { captureException, isSentryInitialized } from './sentry'
 
 // 错误类型定义
@@ -181,9 +180,25 @@ export function reportError(report: ErrorReport) {
 /**
  * 批量上报错误
  */
+function getAuthToken(): string | null {
+  try {
+    const store = localStorage.getItem('user')
+    if (!store) return null
+    const parsed = JSON.parse(store)
+    return parsed?.token || null
+  } catch { return null }
+}
+
 async function flushErrors() {
   if (errorQueue.length === 0) return
-  
+
+  // 未登录时跳过上报，避免 401
+  const token = getAuthToken()
+  if (!token) {
+    errorQueue = [] // 清空队列，未登录时不需要上报
+    return
+  }
+
   const errors = [...errorQueue]
   errorQueue = []
   
@@ -201,13 +216,16 @@ async function flushErrors() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       }
     })
-    
-    console.log(`[ErrorReporter] Reported ${errors.length} errors`)
-  } catch (err) {
-    console.error('[ErrorReporter] Report failed', err)
-    
-    // 重试逻辑 - 将失败的错误重新放入队列
-    if (errors.length > 0) {
+    console.debug(`[ErrorReporter] Reported ${errors.length} errors`)
+  } catch (err: any) {
+    // 401 说明用户未登录，降级为静默，不重复入队（避免无限循环）
+    if (err?.response?.status === 401 || err?.status === 401) {
+      console.debug('[ErrorReporter] Skipped (not authenticated)')
+      return
+    }
+
+    // 网络错误等：有限次重试，只在队列未膨胀时放回
+    if (errors.length > 0 && errorQueue.length + errors.length <= defaultConfig.batchSize * 2) {
       errorQueue = [...errors, ...errorQueue]
     }
   }

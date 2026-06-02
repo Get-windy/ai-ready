@@ -176,6 +176,7 @@ import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { stockCheckApi, type StockCheck } from '@/api/erp'
+import { useUserStore } from '@/stores/user'
 
 interface Stocktake {
   id: number
@@ -189,6 +190,7 @@ interface Stocktake {
   operator: string
 }
 
+const userStore = useUserStore()
 const loading = ref(false)
 const dataSource = ref<Stocktake[]>([])
 const detailVisible = ref(false)
@@ -325,7 +327,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await stockCheckApi.page({
-      tenantId: 1,
+      tenantId: userStore.tenantId,
       keyword: queryParams.stocktakeNo || undefined,
       status: queryParams.status,
       pageNum: pagination.current,
