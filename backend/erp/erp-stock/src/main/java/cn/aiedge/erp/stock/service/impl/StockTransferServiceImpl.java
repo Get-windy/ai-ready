@@ -50,6 +50,17 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     }
 
     @Override
+    public List<StockTransfer> exportList(String keyword, Long fromWarehouseId, Long toWarehouseId, Integer status) {
+        LambdaQueryWrapper<StockTransfer> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(keyword != null, StockTransfer::getTransferNo, keyword)
+                .eq(fromWarehouseId != null, StockTransfer::getFromWarehouseId, fromWarehouseId)
+                .eq(toWarehouseId != null, StockTransfer::getToWarehouseId, toWarehouseId)
+                .eq(status != null, StockTransfer::getStatus, status)
+                .orderByDesc(StockTransfer::getCreateTime);
+        return this.baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public List<StockTransfer> listByFromWarehouseId(Long warehouseId) {
         return this.lambdaQuery()
                 .eq(StockTransfer::getFromWarehouseId, warehouseId)

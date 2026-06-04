@@ -14,6 +14,8 @@ public interface PurchaseInboundService extends IService<PurchaseInbound> {
 
     Page<PurchaseInbound> pageList(String keyword, Long supplierId, Long orderId, Long warehouseId, Integer status, int pageNum, int pageSize);
 
+    List<PurchaseInbound> exportList(String keyword, Long supplierId, Long orderId, Long warehouseId, Integer status);
+
     List<PurchaseInbound> listBySupplierId(Long supplierId);
 
     List<PurchaseInbound> listByOrderId(Long orderId);

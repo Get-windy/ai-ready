@@ -14,6 +14,8 @@ public interface StockCheckService extends IService<StockCheck> {
 
     Page<StockCheck> pageList(String keyword, Long warehouseId, Integer status, Integer checkType, int pageNum, int pageSize);
 
+    List<StockCheck> exportList(String keyword, Long warehouseId, Integer status, Integer checkType);
+
     List<StockCheck> listByWarehouseId(Long warehouseId);
 
     String generateCheckNo();

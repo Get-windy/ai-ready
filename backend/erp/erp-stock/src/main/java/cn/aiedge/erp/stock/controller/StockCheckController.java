@@ -123,4 +123,20 @@ public class StockCheckController {
     public StockCheck cancel(@PathVariable Long id, @RequestParam String reason) {
         return checkService.cancel(id, reason);
     }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除盘点单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return checkService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出盘点单列表")
+    public List<StockCheck> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "盘点类型") @RequestParam(required = false) Integer checkType) {
+        return checkService.exportList(keyword, warehouseId, status, checkType);
+    }
 }

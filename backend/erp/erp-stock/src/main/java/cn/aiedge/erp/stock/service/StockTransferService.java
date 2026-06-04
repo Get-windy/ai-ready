@@ -14,6 +14,8 @@ public interface StockTransferService extends IService<StockTransfer> {
 
     Page<StockTransfer> pageList(String keyword, Long fromWarehouseId, Long toWarehouseId, Integer status, int pageNum, int pageSize);
 
+    List<StockTransfer> exportList(String keyword, Long fromWarehouseId, Long toWarehouseId, Integer status);
+
     List<StockTransfer> listByFromWarehouseId(Long warehouseId);
 
     List<StockTransfer> listByToWarehouseId(Long warehouseId);

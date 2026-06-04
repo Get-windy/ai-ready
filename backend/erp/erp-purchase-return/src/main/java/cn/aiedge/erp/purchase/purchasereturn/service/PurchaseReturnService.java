@@ -13,6 +13,8 @@ public interface PurchaseReturnService extends IService<PurchaseReturn> {
 
     Page<PurchaseReturn> pageList(String keyword, Long supplierId, Integer status, int pageNum, int pageSize);
 
+    List<PurchaseReturn> exportList(String keyword, Long supplierId, Integer status);
+
     List<PurchaseReturn> listBySupplierId(Long supplierId);
 
     String generateReturnNo();

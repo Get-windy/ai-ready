@@ -20,7 +20,7 @@ import java.math.BigDecimal;
  */
 @Tag(name = "库存管理", description = "库存查询、盘点、调拨等接口")
 @RestController
-@RequestMapping("/api/stock")
+@RequestMapping("/api/erp/stock")
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class StockController {
 
@@ -52,15 +52,6 @@ public class StockController {
         return stockService.decreaseStock(productId, warehouseId, quantity);
     }
 
-    @Operation(summary = "库存盘点")
-    @PostMapping("/check")
-    public boolean checkStock(
-            @Parameter(description = "产品ID") @RequestParam Long productId,
-            @Parameter(description = "仓库ID") @RequestParam Long warehouseId,
-            @Parameter(description = "实际数量") @RequestParam BigDecimal actualQuantity) {
-        return stockService.checkStock(productId, warehouseId, actualQuantity);
-    }
-
     @Operation(summary = "查询库存列表")
     @GetMapping("/list")
     public Page<Stock> getStockList(
@@ -69,9 +60,29 @@ public class StockController {
         return stockService.page(new Page<>(current, size));
     }
 
+    @Operation(summary = "分页查询库存")
+    @GetMapping("/page")
+    public Page<Stock> page(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int pageSize) {
+        return stockService.page(new Page<>(pageNum, pageSize));
+    }
+
+    @Operation(summary = "查询库存详情(by id)")
+    @GetMapping("/{id}")
+    public Stock getById(@Parameter(description = "库存ID") @PathVariable Long id) {
+        return stockService.getById(id);
+    }
+
     @Operation(summary = "库存预警检查")
     @GetMapping("/alert")
     public java.util.List<Stock> checkStockAlert() {
         return stockService.checkStockAlert();
+    }
+
+    @Operation(summary = "导出库存列表")
+    @GetMapping("/export")
+    public List<Stock> export() {
+        return stockService.list();
     }
 }

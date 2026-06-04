@@ -107,4 +107,20 @@ public class StockTransferController {
     public void removeItem(@PathVariable Long itemId) {
         transferService.removeItem(itemId);
     }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除调拨单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return transferService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出调拨单列表")
+    public List<StockTransfer> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "调出仓库") @RequestParam(required = false) Long fromWarehouseId,
+            @Parameter(description = "调入仓库") @RequestParam(required = false) Long toWarehouseId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return transferService.exportList(keyword, fromWarehouseId, toWarehouseId, status);
+    }
 }

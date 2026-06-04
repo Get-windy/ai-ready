@@ -192,6 +192,23 @@ public class PurchaseInboundController {
         return convertToVO(inbound);
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除入库单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return purchaseInboundService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出入库单列表")
+    public List<PurchaseInbound> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
+            @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return purchaseInboundService.exportList(keyword, supplierId, orderId, warehouseId, status);
+    }
+
     @PostMapping("/{id}/items")
     @Operation(summary = "添加入库明细")
     public PurchaseInboundItem addItem(@PathVariable Long id, @RequestBody PurchaseInboundItemDTO dto) {

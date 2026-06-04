@@ -123,4 +123,19 @@ public class PurchaseReturnController {
     public void delete(@PathVariable Long id) {
         purchaseReturnService.removeById(id);
     }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除退货单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return purchaseReturnService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出退货单列表")
+    public List<PurchaseReturn> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return purchaseReturnService.exportList(keyword, supplierId, status);
+    }
 }

@@ -62,6 +62,31 @@ public class PurchaseInboundServiceImpl extends ServiceImpl<PurchaseInboundMappe
     }
 
     @Override
+    public List<PurchaseInbound> exportList(String keyword, Long supplierId, Long orderId, Long warehouseId, Integer status) {
+        LambdaQueryWrapper<PurchaseInbound> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseInbound::getDeleted, 0);
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(PurchaseInbound::getInboundNo, keyword)
+                    .or().like(PurchaseInbound::getOrderNo, keyword)
+                    .or().like(PurchaseInbound::getSupplierName, keyword));
+        }
+        if (supplierId != null) {
+            wrapper.eq(PurchaseInbound::getSupplierId, supplierId);
+        }
+        if (orderId != null) {
+            wrapper.eq(PurchaseInbound::getOrderId, orderId);
+        }
+        if (warehouseId != null) {
+            wrapper.eq(PurchaseInbound::getWarehouseId, warehouseId);
+        }
+        if (status != null) {
+            wrapper.eq(PurchaseInbound::getStatus, status);
+        }
+        wrapper.orderByDesc(PurchaseInbound::getCreateTime);
+        return baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public List<PurchaseInbound> listBySupplierId(Long supplierId) {
         return baseMapper.selectBySupplierId(supplierId);
     }

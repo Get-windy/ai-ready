@@ -50,6 +50,17 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     }
 
     @Override
+    public List<StockCheck> exportList(String keyword, Long warehouseId, Integer status, Integer checkType) {
+        LambdaQueryWrapper<StockCheck> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(keyword != null, StockCheck::getCheckNo, keyword)
+                .eq(warehouseId != null, StockCheck::getWarehouseId, warehouseId)
+                .eq(status != null, StockCheck::getStatus, status)
+                .eq(checkType != null, StockCheck::getCheckType, checkType)
+                .orderByDesc(StockCheck::getCreateTime);
+        return this.baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public List<StockCheck> listByWarehouseId(Long warehouseId) {
         return this.lambdaQuery()
                 .eq(StockCheck::getWarehouseId, warehouseId)

@@ -43,6 +43,16 @@ public class PurchaseReturnServiceImpl extends ServiceImpl<PurchaseReturnMapper,
     }
 
     @Override
+    public List<PurchaseReturn> exportList(String keyword, Long supplierId, Integer status) {
+        LambdaQueryWrapper<PurchaseReturn> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(keyword != null, PurchaseReturn::getReturnNo, keyword)
+                .eq(supplierId != null, PurchaseReturn::getSupplierId, supplierId)
+                .eq(status != null, PurchaseReturn::getStatus, status)
+                .orderByDesc(PurchaseReturn::getCreateTime);
+        return this.baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public List<PurchaseReturn> listBySupplierId(Long supplierId) {
         return this.lambdaQuery()
                 .eq(PurchaseReturn::getSupplierId, supplierId)
