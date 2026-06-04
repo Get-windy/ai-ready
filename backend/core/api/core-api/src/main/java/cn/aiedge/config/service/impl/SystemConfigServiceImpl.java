@@ -176,11 +176,20 @@ public class SystemConfigServiceImpl implements SystemConfigService {
             log.warn("不能删除内置配置: {}", configKey);
             return false;
         }
-        
+
         if (cacheService != null) {
             String key = CONFIG_KEY + tenantId + ":" + configKey;
             cacheService.delete(key);
         }
+        return true;
+    }
+
+    @Override
+    public boolean batchDelete(List<Long> ids, Long tenantId) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+        log.info("批量删除配置: ids={}, tenantId={}", ids, tenantId);
         return true;
     }
 

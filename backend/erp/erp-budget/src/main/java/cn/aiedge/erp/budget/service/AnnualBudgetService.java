@@ -2,6 +2,7 @@ package cn.aiedge.erp.budget.service;
 
 import cn.aiedge.erp.budget.dto.AnnualBudgetDTO;
 
+import java.util.List;
 import java.util.Map;
 
 public interface AnnualBudgetService {
@@ -23,4 +24,6 @@ public interface AnnualBudgetService {
     AnnualBudgetDTO reject(Long id);
 
     AnnualBudgetDTO close(Long id);
+
+    List<AnnualBudgetDTO> exportList(String keyword, Integer fiscalYear, String departmentId, String status);
 }

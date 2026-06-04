@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/crm/customer")
+@RequestMapping("/api/customer")
 @Tag(name = "CRM客户管理", description = "客户信息管理、查询、维护")
 @RequiredArgsConstructor
 public class CustomerController {
@@ -65,7 +65,24 @@ public class CustomerController {
     public boolean delete(@PathVariable Long id) {
         return customerService.removeById(id);
     }
-    
+
+    @Operation(summary = "批量删除客户")
+    @DeleteMapping("/batch")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return customerService.removeBatchByIds(ids);
+    }
+
+    @Operation(summary = "导出客户列表")
+    @GetMapping("/export")
+    public List<Customer> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "客户类型") @RequestParam(required = false) Integer customerType,
+            @Parameter(description = "客户等级") @RequestParam(required = false) Integer customerLevel,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "销售人员ID") @RequestParam(required = false) Long salesPersonId) {
+        return customerService.exportList(keyword, customerType, customerLevel, status, salesPersonId);
+    }
+
     @Operation(summary = "查询销售人员的客户")
     @GetMapping("/salesPerson/{salesPersonId}")
     public List<Customer> listBySalesPerson(@PathVariable Long salesPersonId) {

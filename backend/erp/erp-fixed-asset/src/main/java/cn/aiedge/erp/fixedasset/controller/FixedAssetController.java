@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -89,10 +90,23 @@ public class FixedAssetController {
         return ApiResponse.success(statistics);
     }
 
-    @Operation(summary = "导出资产数据")
+    @Operation(summary = "批量删除固定资产")
+    @DeleteMapping("/batch")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        fixedAssetService.batchDelete(ids);
+        return ApiResponse.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出固定资产列表")
     @GetMapping("/export")
-    public ApiResponse<Void> export() {
-        // In production, implement file export logic
-        return ApiResponse.success("导出功能待实现", null);
+    public ApiResponse<List<FixedAssetDTO>> export(
+            @Parameter(description = "资产编码") @RequestParam(required = false) String assetCode,
+            @Parameter(description = "资产名称") @RequestParam(required = false) String assetName,
+            @Parameter(description = "分类ID") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            @Parameter(description = "部门ID") @RequestParam(required = false) String departmentId,
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword) {
+        List<FixedAssetDTO> list = fixedAssetService.exportList(assetCode, assetName, categoryId, status, departmentId, keyword);
+        return ApiResponse.success(list);
     }
 }

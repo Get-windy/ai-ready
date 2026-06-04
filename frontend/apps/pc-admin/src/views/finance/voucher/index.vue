@@ -345,15 +345,38 @@ import {
 import dayjs from 'dayjs'
 import { voucherApi } from '@/api/finance'
 
+interface VoucherEntry {
+  tempId?: number
+  id?: number
+  summary: string
+  subjectName: string
+  debitAmount: number
+  creditAmount: number
+}
+
+interface Voucher {
+  id: number
+  voucherNo: string
+  voucherDate: string
+  fiscalYear: number
+  fiscalPeriod: number
+  status: number
+  debitTotal: number
+  creditTotal: number
+  createdBy: string
+  summary?: string
+  entries?: VoucherEntry[]
+}
+
 const loading = ref(false)
-const tableData = ref<any[]>([])
+const tableData = ref<Voucher[]>([])
 const addModalVisible = ref(false)
 const addModalLoading = ref(false)
 const detailVisible = ref(false)
-const currentVoucher = ref<any>(null)
+const currentVoucher = ref<Voucher | null>(null)
 const reverseModalVisible = ref(false)
 const reverseLoading = ref(false)
-const reverseTarget = ref<any>(null)
+const reverseTarget = ref<Voucher | Record<string, any> | null>(null)
 const reverseReason = ref('')
 const addFormRef = ref<FormInstance>()
 
@@ -414,7 +437,11 @@ const entryViewColumns: TableProps['columns'] = [
 ]
 
 let entryTempIdCounter = 0
-const addForm = reactive({
+const addForm: {
+  voucherDate: any
+  fiscalYear: number
+  entries: VoucherEntry[]
+} = reactive({
   voucherDate: undefined as any,
   fiscalYear: dayjs().year(),
   entries: [] as any[]
@@ -422,12 +449,12 @@ const addForm = reactive({
 
 const addFormRules = {
   voucherDate: [{ required: true, message: '请选择凭证日期', trigger: 'change' }]
-}
+} as any
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const params: any = {
+    const params: Record<string, any> = {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     }
@@ -491,11 +518,11 @@ const handleRemoveEntry = (index: number) => {
 }
 
 const getTotalDebit = () => {
-  return addForm.entries.reduce((sum: number, e: any) => sum + (e.debitAmount || 0), 0).toFixed(2)
+  return addForm.entries.reduce((sum: number, e) => sum + (e.debitAmount || 0), 0).toFixed(2)
 }
 
 const getTotalCredit = () => {
-  return addForm.entries.reduce((sum: number, e: any) => sum + (e.creditAmount || 0), 0).toFixed(2)
+  return addForm.entries.reduce((sum: number, e) => sum + (e.creditAmount || 0), 0).toFixed(2)
 }
 
 const handleAddModalOk = async () => {
@@ -513,7 +540,7 @@ const handleAddModalOk = async () => {
     const data = {
       voucherDate: addForm.voucherDate ? dayjs(addForm.voucherDate).format('YYYY-MM-DD') : '',
       fiscalYear: addForm.fiscalYear,
-      entries: addForm.entries.map((e: any) => ({
+      entries: addForm.entries.map((e: VoucherEntry) => ({
         summary: e.summary,
         subjectName: e.subjectName,
         debitAmount: e.debitAmount || 0,
@@ -536,7 +563,7 @@ const handleAddModalCancel = () => {
   addFormRef.value?.resetFields()
 }
 
-const handleAudit = async (record: any) => {
+const handleAudit = async (record: Voucher | Record<string, any>) => {
   Modal.confirm({
     title: '确认审核',
     content: `确定要审核凭证 "${record.voucherNo}" 吗？`,
@@ -553,7 +580,7 @@ const handleAudit = async (record: any) => {
   })
 }
 
-const handlePost = async (record: any) => {
+const handlePost = async (record: Voucher | Record<string, any>) => {
   Modal.confirm({
     title: '确认过账',
     content: `确定要将凭证 "${record.voucherNo}" 过账吗？`,
@@ -570,7 +597,7 @@ const handlePost = async (record: any) => {
   })
 }
 
-const handleReverse = (record: any) => {
+const handleReverse = (record: Voucher | Record<string, any>) => {
   reverseTarget.value = record
   reverseReason.value = ''
   reverseModalVisible.value = true
@@ -595,7 +622,7 @@ const handleReverseConfirm = async () => {
   }
 }
 
-const handleView = async (record: any) => {
+const handleView = async (record: Voucher | Record<string, any>) => {
   try {
     const res = await voucherApi.getById(record.id)
     if (res.data) {

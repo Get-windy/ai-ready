@@ -37,4 +37,14 @@ public interface PayableService {
      * 核销（部分/全额核销）
      */
     PayableDTO writeOff(Long id, BigDecimal amount);
+
+    /**
+     * 批量删除应付账款
+     */
+    void deleteBatch(List<Long> ids);
+
+    /**
+     * 导出应付账款列表
+     */
+    List<PayableDTO> exportList(String supplierId, String status);
 }

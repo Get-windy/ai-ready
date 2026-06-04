@@ -23,6 +23,10 @@ import './styles/components.css'
 import './styles/index.css'
 import './styles/accessibility.css'
 
+// ── 调试：应用启动日志 ────────────────────────────────
+const DEBUG_PREFIX = '[DEBUG:main]'
+console.log(`${DEBUG_PREFIX} 应用启动开始`)
+
 // 初始化 Mock Server — 必须在所有其他初始化之前调用，
 // 因为后续的 store/router 初始化可能会触发 API 请求。
 initMockServer()
@@ -31,6 +35,8 @@ initMockServer()
 initFeatureFlags()
 
 dayjs.locale('zh-cn')
+
+console.log(`${DEBUG_PREFIX} Pinia / Vue 实例创建中...`)
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -83,8 +89,10 @@ async function bootstrap() {
 
   // 注意：Ant Design Vue 已改为按需引入，不需要 app.use(Antd)
 
-  // 挂载应用
+  // ── 调试：应用挂载 ──────────────────────────────────
+  console.log(`${DEBUG_PREFIX} 即将挂载 app.mount('#app')`)
   app.mount('#app')
+  console.log(`${DEBUG_PREFIX} 挂载完成 ✅`)
 
   // 启动 Web Vitals 性能监控
   trackPageLoad()

@@ -159,6 +159,28 @@ public class PayableServiceImpl implements PayableService {
         return toDTO(entity);
     }
 
+    @Override
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        payableMapper.deleteBatchIds(ids);
+        log.info("批量删除应付账款: ids={}", ids);
+    }
+
+    @Override
+    public List<PayableDTO> exportList(String supplierId, String status) {
+        LambdaQueryWrapper<Payable> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(supplierId)) {
+            wrapper.eq(Payable::getSupplierId, supplierId);
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Payable::getStatus, status);
+        }
+        wrapper.orderByDesc(Payable::getCreateTime);
+
+        List<Payable> entities = payableMapper.selectList(wrapper);
+        return entities.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     // ======== DTO <-> Entity 转换 ========
 
     private PayableDTO toDTO(Payable entity) {

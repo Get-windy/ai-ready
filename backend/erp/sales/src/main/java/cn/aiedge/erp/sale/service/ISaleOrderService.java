@@ -83,4 +83,9 @@ public interface ISaleOrderService extends IService<SaleOrder> {
      * 计算订单金额
      */
     void calculateAmount(SaleOrderDTO dto);
+
+    /**
+     * 导出销售订单列表
+     */
+    List<SaleOrder> exportList(String keyword, Long customerId, Integer status);
 }

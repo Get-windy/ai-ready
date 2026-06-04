@@ -112,7 +112,7 @@ export const menuApi = {
 
   // 验证菜单编码
   validateMenuCode(menuCode: string, excludeId?: number): Promise<ApiResponse<boolean>> {
-    return request.get('/menu/validate-code', { params: { menuCode, excludeId } })
+    return request.get('/menu/validate-code', { menuCode, excludeId })
   },
 
   // 获取用户菜单
@@ -122,7 +122,7 @@ export const menuApi = {
 
   // 获取用户客户端菜单
   getUserClientMenus(userId: number, clientType: string, tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get(`/menu/user/client/${clientType}`, { params: { userId, tenantId } })
+    return request.get(`/menu/user/client/${clientType}`, { userId, tenantId })
   },
 
   // 获取角色菜单

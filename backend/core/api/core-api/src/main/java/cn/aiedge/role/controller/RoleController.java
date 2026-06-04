@@ -72,6 +72,12 @@ public class RoleController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "导出角色")
+    @GetMapping("/export")
+    public ApiResponse<List<cn.aiedge.base.entity.Role>> export() {
+        return ApiResponse.ok(roleService.list());
+    }
+
     @Operation(summary = "启用/禁用角色")
     @PutMapping("/{id}/status")
     public ApiResponse<Void> updateStatus(

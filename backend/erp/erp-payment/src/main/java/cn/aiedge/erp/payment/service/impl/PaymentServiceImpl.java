@@ -58,6 +58,28 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     }
 
     @Override
+    public List<Payment> exportList(String keyword, Long supplierId, Long orderId, Integer status) {
+        LambdaQueryWrapper<Payment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Payment::getDeleted, 0);
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Payment::getPaymentNo, keyword)
+                    .or().like(Payment::getOrderNo, keyword)
+                    .or().like(Payment::getSupplierName, keyword));
+        }
+        if (supplierId != null) {
+            wrapper.eq(Payment::getSupplierId, supplierId);
+        }
+        if (orderId != null) {
+            wrapper.eq(Payment::getOrderId, orderId);
+        }
+        if (status != null) {
+            wrapper.eq(Payment::getStatus, status);
+        }
+        wrapper.orderByDesc(Payment::getCreateTime);
+        return baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public List<Payment> listBySupplierId(Long supplierId) {
         return baseMapper.selectBySupplierId(supplierId);
     }

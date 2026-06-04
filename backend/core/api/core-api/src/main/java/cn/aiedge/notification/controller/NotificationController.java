@@ -86,9 +86,22 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> deleteNotification(
             @PathVariable Long notificationId,
             @RequestHeader(value = "X-User-Id", required = false) Long userId) {
-        
+
         boolean success = notificationService.deleteNotification(notificationId);
         return ResponseEntity.ok(Map.of("success", success));
+    }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除通知")
+    public ResponseEntity<Map<String, Object>> batchDelete(@RequestBody List<Long> ids) {
+        boolean success = notificationService.deleteNotifications(ids);
+        return ResponseEntity.ok(Map.of("success", success));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出通知记录")
+    public ResponseEntity<List<NotificationRecord>> export() {
+        return ResponseEntity.ok(notificationService.listAllRecords());
     }
 
     @DeleteMapping("/read")
@@ -96,7 +109,7 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> deleteAllRead(
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         return ResponseEntity.ok(Map.of("success", true, "message", "已删除所有已读通知"));
     }
 

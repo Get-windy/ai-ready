@@ -30,34 +30,50 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Override
     public Page<Customer> pageList(String keyword, Integer customerType, Integer customerLevel,
                                     Integer status, Long salesPersonId, int pageNum, int pageSize) {
+        LambdaQueryWrapper<Customer> wrapper = buildQueryWrapper(keyword, customerType, customerLevel, status, salesPersonId);
+        wrapper.orderByDesc(Customer::getCreatedAt);
+        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<Customer> exportList(String keyword, Integer customerType, Integer customerLevel,
+                                      Integer status, Long salesPersonId) {
+        LambdaQueryWrapper<Customer> wrapper = buildQueryWrapper(keyword, customerType, customerLevel, status, salesPersonId);
+        wrapper.orderByDesc(Customer::getCreatedAt);
+        return baseMapper.selectList(wrapper);
+    }
+
+    /**
+     * 构建公共查询条件
+     */
+    private LambdaQueryWrapper<Customer> buildQueryWrapper(String keyword, Integer customerType,
+                                                            Integer customerLevel, Integer status,
+                                                            Long salesPersonId) {
         LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Customer::getDeleted, 0);
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(Customer::getCustomerName, keyword)
                     .or().like(Customer::getCustomerCode, keyword)
                     .or().like(Customer::getShortName, keyword));
         }
-        
+
         if (customerType != null) {
             wrapper.eq(Customer::getCustomerType, customerType);
         }
-        
+
         if (customerLevel != null) {
             wrapper.eq(Customer::getCustomerLevel, customerLevel);
         }
-        
+
         if (status != null) {
             wrapper.eq(Customer::getStatus, status);
         }
-        
+
         if (salesPersonId != null) {
             wrapper.eq(Customer::getSalesPersonId, salesPersonId);
         }
-        
-        wrapper.orderByDesc(Customer::getCreatedAt);
-        
-        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

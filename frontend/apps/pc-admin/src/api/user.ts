@@ -6,6 +6,8 @@ export interface LoginResponse {
   tokenName: string
   userId: number
   tenantId: number
+  tenantName: string
+  tenants: TenantInfo[]
 }
 
 // 用户信息
@@ -68,9 +70,9 @@ export const userApi = {
     } as any)
   },
 
-  // 获取可用租户列表
+  // 获取当前用户可访问的租户列表（用于租户切换器）
   getTenants(): Promise<ApiResponse<TenantInfo[]>> {
-    return request.get('/tenant/list')
+    return request.get('/auth/tenants')
   },
 
   // 登出 - 跳过认证刷新，避免无限循环
@@ -94,7 +96,7 @@ export const userApi = {
 
   // 分页查询用户
   getPage(params: UserQuery): Promise<ApiResponse<PageResponse<UserInfo>>> {
-    return request.get('/user/page', { params })
+    return request.get('/user/page', params)
   },
 
   // 获取用户详情
@@ -144,7 +146,7 @@ export const userApi = {
 
   // 获取用户列表
   getList(params?: UserQuery): Promise<ApiResponse<UserInfo[]>> {
-    return request.get('/user/list', { params })
+    return request.get('/user/list', params)
   }
 }
 

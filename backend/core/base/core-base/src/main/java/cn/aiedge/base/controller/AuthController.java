@@ -192,14 +192,28 @@ public class AuthController {
             // 将用户名存入Sa-Token Session，供操作日志等切面获取
             StpUtil.getSession().set("username", dto.username());
 
-            // 记录登录日志（成功）
-            loginLogService.recordLogin(tenantId, userId, dto.username(),
-                    1, 0, null, loginIp, userAgent, tokenId);
+            // 记录登录日志（成功）- 出错不影响登录
+            try {
+                loginLogService.recordLogin(tenantId, userId, dto.username(),
+                        1, 0, null, loginIp, userAgent, tokenId);
+            } catch (Exception logException) {
+                log.warn("记录登录日志失败，不影响登录: {}", logException.getMessage());
+            }
 
             result.put("token", token);
             result.put("tokenName", "Authorization");
             result.put("userId", userId);
             result.put("tenantId", tenantId);
+            result.put("tenantName", dto.tenantName());
+
+            // 返回当前用户可访问的租户列表（用于前端租户切换）
+            List<SysTenant> userTenants = userService.getUserTenants(userId);
+            result.put("tenants", userTenants.stream().map(t -> Map.of(
+                "id", t.getId(),
+                "tenantName", t.getTenantName(),
+                "tenantCode", t.getTenantCode(),
+                "status", t.getStatus()
+            )).toList());
 
             log.info("用户登录成功: username={}, tenantName={}, ip={}", dto.username(), dto.tenantName(), loginIp);
             return Result.ok("登录成功", result);
@@ -208,9 +222,13 @@ public class AuthController {
             // 清除临时租户上下文（防止异常时残留）
             securityContext.clearTempTenantId();
 
-            // 记录登录日志（失败）
-            loginLogService.recordLogin(null, null, dto.username(),
-                    1, 1, e.getMessage(), loginIp, userAgent, null);
+            // 记录登录日志（失败）- 出错不影响登录失败提示
+            try {
+                loginLogService.recordLogin(null, null, dto.username(),
+                        1, 1, e.getMessage(), loginIp, userAgent, null);
+            } catch (Exception logException) {
+                log.warn("记录登录失败日志异常: {}", logException.getMessage());
+            }
 
             log.warn("用户登录失败: username={}, reason={}", dto.username(), e.getMessage());
             return Result.fail(401, e.getMessage());
@@ -333,6 +351,26 @@ public class AuthController {
             result.put("valid", false);
         }
         
+        return Result.ok(result);
+    }
+
+    /**
+     * 获取当前用户可访问的租户列表（用于前端租户切换器）
+     */
+    @Operation(summary = "获取当前用户可访问的租户列表")
+    @GetMapping("/tenants")
+    @SaCheckLogin
+    public Result<List<Map<String, Object>>> getUserTenants() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        List<SysTenant> tenants = userService.getUserTenants(userId);
+        List<Map<String, Object>> result = tenants.stream().map(t -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId());
+            m.put("tenantName", t.getTenantName());
+            m.put("tenantCode", t.getTenantCode());
+            m.put("status", t.getStatus());
+            return m;
+        }).toList();
         return Result.ok(result);
     }
 

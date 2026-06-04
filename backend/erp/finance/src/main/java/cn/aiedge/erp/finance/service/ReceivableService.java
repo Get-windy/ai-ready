@@ -42,4 +42,14 @@ public interface ReceivableService {
      * 标记为坏账
      */
     ReceivableDTO markBadDebt(Long id);
+
+    /**
+     * 批量删除应收账款
+     */
+    void deleteBatch(List<Long> ids);
+
+    /**
+     * 导出应收账款列表
+     */
+    List<ReceivableDTO> exportList(String customerId, String status);
 }

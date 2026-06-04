@@ -325,9 +325,9 @@ const selectPrimaryColor = (color: string) => {
 const handlePreferenceChange = () => {
   // 立即应用本地主题（颜色等）
   if (preferenceForm.theme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark')
+    document.documentElement.classList.add('dark')
   } else {
-    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.classList.remove('dark')
   }
 }
 

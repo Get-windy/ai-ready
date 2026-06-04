@@ -19,13 +19,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    :show-export="true"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
 
     <template #batch-actions>
       <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
@@ -125,15 +121,16 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { stockCheckApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -194,16 +191,7 @@ const addItemColumns = [
   { title: '差异', key: 'diff', width: 100 }
 ]
 
-const mockProductData: CheckItem[] = [
-  { id: 1, productCode: 'PROD-001', productName: '螺丝螺母套装', specification: 'M6x20', unit: '套', categoryId: 1, quantity: 500, actualQty: null },
-  { id: 2, productCode: 'PROD-002', productName: '不锈钢板材', specification: '2mm', unit: '张', categoryId: 1, quantity: 200, actualQty: null },
-  { id: 3, productCode: 'PROD-003', productName: '电子元件A型', specification: 'SMD-0805', unit: '个', categoryId: 3, quantity: 10000, actualQty: null },
-  { id: 4, productCode: 'PROD-004', productName: '包装箱(大)', specification: '600x400x300', unit: '个', categoryId: 4, quantity: 300, actualQty: null },
-  { id: 5, productCode: 'PROD-005', productName: '轴承6205', specification: '25x52x15', unit: '个', categoryId: 5, quantity: 150, actualQty: null },
-  { id: 6, productCode: 'PROD-006', productName: '电机组件B', specification: '220V/1.5kW', unit: '台', categoryId: 3, quantity: 45, actualQty: null },
-  { id: 7, productCode: 'PROD-007', productName: '铝合金型材', specification: '40x40', unit: '米', categoryId: 1, quantity: 800, actualQty: null },
-  { id: 8, productCode: 'PROD-008', productName: '密封圈', specification: 'DN50', unit: '个', categoryId: 5, quantity: 2000, actualQty: null }
-]
+let currentDraftCheckId: number | null = null
 
 function getDiffText(index: number) {
   const item = checkItems.value[index]
@@ -220,60 +208,89 @@ function getDiffColor(index: number) {
   if (diff > 0) return 'blue'
   return 'red'
 }
-function handleWarehouseChange() { checkItems.value = [] }
+function handleWarehouseChange() { checkItems.value = []; currentDraftCheckId = null }
 async function handleGenerateCheckList() {
   if (!addForm.warehouseId) { message.warning('请先选择盘点仓库'); return }
   generatingList.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 800))
-    let products = [...mockProductData]
-    if (addForm.categoryId) products = products.filter(p => p.categoryId === addForm.categoryId)
-    checkItems.value = products.map(p => ({ ...p, actualQty: null }))
+    const res = await stockCheckApi.createWithItems(addForm.warehouseId)
+    const check = (res as any).data || res
+    currentDraftCheckId = check.id
+    const itemsRes = await stockCheckApi.getItems(currentDraftCheckId)
+    const items = (itemsRes as any).data || itemsRes || []
+    let mapped = items.map((item: any) => ({
+      id: item.id,
+      productCode: item.productCode,
+      productName: item.productName,
+      specification: item.productSpec || '',
+      unit: item.productUnit || '',
+      quantity: item.bookQuantity || 0,
+      actualQty: item.actualQuantity ?? null
+    }))
+    checkItems.value = mapped
     message.success(`已生成 ${checkItems.value.length} 条盘点记录`)
   } catch (err: any) { message.error(err?.message || '生成盘点清单失败') }
   finally { generatingList.value = false }
 }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await stockCheckApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
+  } catch { /* 获取数据失败 */ }
   finally { loading.value = false }
 }
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() {
+  currentDraftCheckId = null
   addForm.warehouseId = undefined; addForm.checkDate = dayjs(); addForm.categoryId = undefined
   addForm.checkMode = 1; addForm.remark = ''; checkItems.value = []; addVisible.value = true
 }
 
 async function handleDelete(record: any) {
-  try { await stockCheckApi.create({ id: record.id, action: 'delete' } as any); message.success('删除成功'); fetchData() }
+  try { await stockCheckApi.delete(record.id); message.success('删除成功'); fetchData() }
   catch { message.error('删除失败') }
 }
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0
-  for (const id of ids) { try { await stockCheckApi.create({ id, action: 'delete' } as any); successCount++ } catch {} }
-  message.success(`批量删除完成，成功 ${successCount} 个`); fetchData()
+  await executeBatch(ids, stockCheckApi.delete, '批量删除')
+  fetchData()
 }
 
 const handleAddSubmit = async () => {
   try { await addFormRef.value?.validate() } catch { return }
   if (checkItems.value.length === 0) { message.warning('请先生成盘点清单'); return }
+  if (!currentDraftCheckId) { message.error('盘点单已过期，请重新生成'); return }
   addSubmitting.value = true
   try {
-    await stockCheckApi.create({
-      warehouseId: addForm.warehouseId, checkDate: addForm.checkDate.format('YYYY-MM-DD'),
-      checkMode: addForm.checkMode, remark: addForm.remark,
-      items: checkItems.value.map(item => ({ productId: item.id, systemQty: item.quantity, actualQty: item.actualQty ?? 0 }))
-    })
-    message.success('盘点单创建成功'); addVisible.value = false; fetchData()
+    // 1. 开始盘点
+    await stockCheckApi.startCheck(currentDraftCheckId)
+    // 2. 逐项录入实盘数量
+    for (const item of checkItems.value) {
+      if (item.actualQty !== null && item.actualQty !== undefined) {
+        await stockCheckApi.checkItem(currentDraftCheckId, item.id, item.actualQty)
+      }
+    }
+    // 3. 完成盘点
+    await stockCheckApi.completeCheck(currentDraftCheckId)
+    // 4. 提交审批
+    await stockCheckApi.submitForApproval(currentDraftCheckId)
+    message.success('盘点单创建并提交成功')
+    addVisible.value = false
+    currentDraftCheckId = null
+    fetchData()
   } catch (err: any) { message.error(err?.message || '盘点单创建失败') }
   finally { addSubmitting.value = false }
 }
-const handleAddCancel = () => { addVisible.value = false }
+const handleAddCancel = async () => {
+  if (currentDraftCheckId) {
+    try { await stockCheckApi.cancel(currentDraftCheckId, '取消创建') } catch {}
+    currentDraftCheckId = null
+  }
+  addVisible.value = false
+}
 
 function handleApprove(record: any) {
   Modal.confirm({
@@ -291,31 +308,19 @@ function handleBatchApprove() {
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      let success = 0; let fail = 0
-      for (const id of keys) {
-        try { await stockCheckApi.create({ id, action: 'approve' } as any); success++ } catch { fail++ }
-      }
-      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
-      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
+      await executeBatch(keys, (id: number) => stockCheckApi.create({ id, action: 'approve' } as any), '批量审批')
       fetchData()
     }
   })
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['盘点单号', '仓库', '盘点日期', '盘点状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.checkNo || '', row.warehouseName || '', row.checkDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `盘点单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['盘点单号', '仓库', '盘点日期', '盘点状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.checkNo || '', row.warehouseName || '', row.checkDate || '',
+    getStatusText(row.status), row.createTime || ''
+  ])
+  exportCsv(headers, rows, '盘点单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

@@ -300,6 +300,17 @@ public class DictItemServiceImpl implements DictItemService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeBatchByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+        int deleted = dictItemMapper.deleteBatchIds(ids);
+        log.info("批量删除字典项: count={}", deleted);
+        return deleted > 0;
+    }
+
+    @Override
     public List<DictItem> export(Map<String, Object> params) {
         Long tenantId = params.get("tenantId") != null ? Long.parseLong(params.get("tenantId").toString()) : getCurrentTenantId();
         Long dictTypeId = params.get("dictTypeId") != null ? Long.parseLong(params.get("dictTypeId").toString()) : null;

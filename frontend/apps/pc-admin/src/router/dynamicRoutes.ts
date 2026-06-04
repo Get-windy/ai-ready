@@ -176,9 +176,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   const tenantId = userStore.tenantId || 1
 
   try {
-    const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, {
-      params: { userId, tenantId }
-    })
+    const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, { userId, tenantId })
 
     if (response.data && response.data.length > 0) {
       const menuTree = response.data

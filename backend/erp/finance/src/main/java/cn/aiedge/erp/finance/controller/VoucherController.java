@@ -17,6 +17,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 凭证Controller
  */
@@ -111,5 +113,25 @@ public class VoucherController {
     public static class ReverseRequest {
         @NotBlank(message = "冲销原因不能为空")
         private String reason;
+    }
+
+    @Operation(summary = "批量删除凭证")
+    @DeleteMapping("/batch")
+    @PreAuthorize("hasPermission('/api/erp/finance/voucher/delete', 'finance:voucher:delete')")
+    @OperationLog(module = "凭证管理", type = "DELETE", desc = "批量删除凭证")
+    public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
+        voucherService.deleteBatch(ids);
+        return Result.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出凭证列表")
+    @GetMapping("/export")
+    @PreAuthorize("hasPermission('/api/erp/finance/voucher/list', 'finance:voucher:view')")
+    @OperationLog(module = "凭证管理", type = "QUERY", desc = "导出凭证列表")
+    public Result<List<VoucherDTO>> export(
+            @Parameter(description = "会计年度") @RequestParam(required = false) Integer fiscalYear,
+            @Parameter(description = "会计期间") @RequestParam(required = false) Integer fiscalPeriod,
+            @Parameter(description = "状态(draft/audited/posted)") @RequestParam(required = false) String status) {
+        return Result.success(voucherService.exportList(fiscalYear, fiscalPeriod, status));
     }
 }

@@ -251,6 +251,20 @@ public class SaleOutboundController {
         return stats;
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除出库单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return saleOutboundService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出售库单列表")
+    public List<SaleOutbound> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return saleOutboundService.exportList(keyword, status);
+    }
+
     private SaleOutboundVO convertToVO(SaleOutbound outbound) {
         SaleOutboundVO vo = new SaleOutboundVO();
         BeanUtils.copyProperties(outbound, vo);

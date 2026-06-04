@@ -44,15 +44,9 @@
             allow-clear
             style="width: 100px"
           >
-            <a-select-option value="high">
-              高
-            </a-select-option>
-            <a-select-option value="medium">
-              中
-            </a-select-option>
-            <a-select-option value="low">
-              低
-            </a-select-option>
+            <a-select-option value="high">高</a-select-option>
+            <a-select-option value="medium">中</a-select-option>
+            <a-select-option value="low">低</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="创建时间">
@@ -62,18 +56,8 @@
           />
         </a-form-item>
         <a-form-item>
-          <a-button
-            type="primary"
-            @click="handleQuery"
-          >
-            查询
-          </a-button>
-          <a-button
-            style="margin-left: 8px"
-            @click="handleReset"
-          >
-            重置
-          </a-button>
+          <a-button type="primary" @click="handleQuery">查询</a-button>
+          <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
         </a-form-item>
       </a-form>
 
@@ -93,36 +77,16 @@
             </a-tag>
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button
-              type="link"
-              size="small"
-              @click="handleViewDetail(record)"
-            >
-              查看详情
-            </a-button>
-            <a-button
-              v-if="activeTab === 'todo'"
-              type="link"
-              size="small"
-              @click="handleApprove(record)"
-            >
-              审批
-            </a-button>
+            <a-button type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
+            <a-button v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
             <a-dropdown v-if="activeTab === 'todo'">
-              <a-button
-                type="link"
-                size="small"
-              >
+              <a-button type="link" size="small">
                 转办/委托 <DownOutlined />
               </a-button>
               <template #overlay>
                 <a-menu @click="(e) => handleTransfer(e.key as string, record)">
-                  <a-menu-item key="transfer">
-                    转办
-                  </a-menu-item>
-                  <a-menu-item key="delegate">
-                    委托
-                  </a-menu-item>
+                  <a-menu-item key="transfer">转办</a-menu-item>
+                  <a-menu-item key="delegate">委托</a-menu-item>
                 </a-menu>
               </template>
             </a-dropdown>
@@ -132,145 +96,59 @@
     </a-card>
 
     <!-- 详情对话框 -->
-    <a-modal
-      v-model:open="detailVisible"
-      title="任务详情"
-      :width="800"
-      :footer="null"
-    >
-      <a-descriptions
-        bordered
-        :column="2"
-      >
-        <a-descriptions-item label="任务ID">
-          {{ detailData.taskId }}
-        </a-descriptions-item>
-        <a-descriptions-item label="任务名称">
-          {{ detailData.taskName }}
-        </a-descriptions-item>
-        <a-descriptions-item label="流程名称">
-          {{ detailData.processName }}
-        </a-descriptions-item>
+    <a-modal v-model:open="detailVisible" title="任务详情" :width="800" :footer="null">
+      <a-descriptions bordered :column="2">
+        <a-descriptions-item label="任务ID">{{ detailData.taskId }}</a-descriptions-item>
+        <a-descriptions-item label="任务名称">{{ detailData.taskName }}</a-descriptions-item>
+        <a-descriptions-item label="流程名称">{{ detailData.processName }}</a-descriptions-item>
         <a-descriptions-item label="优先级">
-          <a-tag :color="getPriorityColor(detailData.priority)">
-            {{ getPriorityLabel(detailData.priority) }}
-          </a-tag>
+          <a-tag :color="getPriorityColor(detailData.priority)">{{ getPriorityLabel(detailData.priority) }}</a-tag>
         </a-descriptions-item>
-        <a-descriptions-item label="处理人">
-          {{ detailData.assignee }}
-        </a-descriptions-item>
-        <a-descriptions-item label="当前节点">
-          {{ detailData.currentNode }}
-        </a-descriptions-item>
-        <a-descriptions-item label="创建时间">
-          {{ detailData.createTime }}
-        </a-descriptions-item>
-        <a-descriptions-item label="截止时间">
-          {{ detailData.dueTime }}
-        </a-descriptions-item>
-        <a-descriptions-item
-          label="任务描述"
-          :span="2"
-        >
-          {{ detailData.description }}
-        </a-descriptions-item>
-        <a-descriptions-item
-          label="业务数据"
-          :span="2"
-        >
-          <pre>{{ detailData.businessData }}</pre>
+        <a-descriptions-item label="处理人">{{ detailData.assignee }}</a-descriptions-item>
+        <a-descriptions-item label="当前节点">{{ detailData.currentNode }}</a-descriptions-item>
+        <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+        <a-descriptions-item label="截止时间">{{ detailData.dueTime }}</a-descriptions-item>
+        <a-descriptions-item label="任务描述" :span="2">{{ detailData.description }}</a-descriptions-item>
+        <a-descriptions-item label="业务数据" :span="2">
+          <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
         </a-descriptions-item>
       </a-descriptions>
     </a-modal>
 
     <!-- 审批对话框 -->
-    <a-modal
-      v-model:open="approveVisible"
-      title="审批"
-      :width="600"
-      @ok="handleConfirmApprove"
-      @cancel="approveVisible = false"
-    >
-      <a-form
-        :model="approveForm"
-        :label-col="{ span: 4 }"
-        :wrapper-col="{ span: 20 }"
-      >
+    <a-modal v-model:open="approveVisible" title="审批" :width="600" @ok="handleConfirmApprove" @cancel="handleCancelApprove">
+      <a-form :model="approveForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
         <a-form-item label="审批意见">
           <a-radio-group v-model:value="approveForm.approval">
-            <a-radio value="approve">
-              同意
-            </a-radio>
-            <a-radio value="reject">
-              拒绝
-            </a-radio>
-            <a-radio value="return">
-              退回
-            </a-radio>
+            <a-radio value="approve">同意</a-radio>
+            <a-radio value="reject">拒绝</a-radio>
+            <a-radio value="return">退回</a-radio>
           </a-radio-group>
         </a-form-item>
         <a-form-item label="审批备注">
-          <a-textarea
-            v-model:value="approveForm.comment"
-            :rows="4"
-            placeholder="请输入审批备注"
-          />
+          <a-textarea v-model:value="approveForm.comment" :rows="4" placeholder="请输入审批备注" />
         </a-form-item>
-        <a-form-item
-          v-if="approveForm.approval === 'return'"
-          label="退回节点"
-        >
-          <a-select
-            v-model:value="approveForm.returnNode"
-            placeholder="请选择退回节点"
-          >
-            <a-select-option value="start">
-              发起人
-            </a-select-option>
-            <a-select-option value="previous">
-              上一节点
-            </a-select-option>
+        <a-form-item v-if="approveForm.approval === 'return'" label="退回节点">
+          <a-select v-model:value="approveForm.returnNode" placeholder="请选择退回节点">
+            <a-select-option value="start">发起人</a-select-option>
+            <a-select-option value="previous">上一节点</a-select-option>
           </a-select>
         </a-form-item>
       </a-form>
     </a-modal>
 
     <!-- 转办/委托对话框 -->
-    <a-modal
-      v-model:open="transferVisible"
-      :title="transferDialogTitle"
-      :width="500"
-      @ok="handleConfirmTransfer"
-      @cancel="transferVisible = false"
-    >
-      <a-form
-        :model="transferForm"
-        :label-col="{ span: 4 }"
-        :wrapper-col="{ span: 20 }"
-      >
+    <a-modal v-model:open="transferVisible" :title="transferDialogTitle" :width="500" @ok="handleConfirmTransfer" @cancel="handleCancelTransfer">
+      <a-form :model="transferForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
         <a-form-item label="目标用户">
-          <a-select
-            v-model:value="transferForm.targetUser"
-            placeholder="请选择用户"
-            show-search
-          >
-            <a-select-option value="user001">
-              张三
-            </a-select-option>
-            <a-select-option value="user002">
-              李四
-            </a-select-option>
-            <a-select-option value="user003">
-              王五
-            </a-select-option>
+          <a-select v-model:value="transferForm.targetUser" placeholder="请选择用户" show-search>
+            <a-select-option value="user001">张三</a-select-option>
+            <a-select-option value="user002">李四</a-select-option>
+            <a-select-option value="user003">王五</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea
-            v-model:value="transferForm.comment"
-            :rows="4"
-            placeholder="请输入备注"
-          />
+          <a-textarea v-model:value="transferForm.comment" :rows="4" placeholder="请输入备注" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -278,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import type { TableProps } from 'ant-design-vue'
@@ -334,6 +212,7 @@ const approveForm = reactive({
   comment: '',
   returnNode: undefined as string | undefined
 })
+const currentApproveTaskId = ref<string | null>(null)
 
 // 转办/委托对话框
 const transferVisible = ref(false)
@@ -345,9 +224,11 @@ const transferForm = reactive({
   targetUser: undefined as string | undefined,
   comment: ''
 })
+const currentTransferTaskId = ref<string | null>(null)
 
 // 切换标签页
 const handleTabChange = () => {
+  pagination.current = 1
   handleQuery()
 }
 
@@ -355,80 +236,24 @@ const handleTabChange = () => {
 const handleQuery = async () => {
   loading.value = true
   try {
-    // 调用后端API获取数据，失败时加载模拟数据
-    let apiData: any[] = []
-    try {
-      const res = await request.get('/workflow/task/page', {
-        params: {
-          tab: activeTab.value,
-          taskName: queryForm.taskName || undefined,
-          processName: queryForm.processName || undefined,
-          priority: queryForm.priority,
-          startDate: queryForm.dateRange?.[0],
-          endDate: queryForm.dateRange?.[1],
-          pageNum: pagination.current,
-          pageSize: pagination.pageSize
-        }
-      })
-      apiData = res.data?.records || []
-      pagination.total = res.data?.total || apiData.length
-    } catch {
-      // API 不可用时使用模拟数据
-      console.warn('[workflow] 后端API不可用，使用模拟数据')
-    }
-
-    if (apiData.length > 0) {
-      tableData.value = apiData
-      return
-    }
-
-    // 模拟数据（API不可用时的回退）
-    if (activeTab.value === 'todo') {
-      tableData.value = [
-        {
-          taskId: 'TASK-001',
-          taskName: '部门经理审批',
-          processName: '请假审批流程',
-          priority: 'high',
-          assignee: '张三',
-          currentNode: '部门经理审批',
-          createTime: '2024-04-15 09:00:00',
-          dueTime: '2024-04-16 18:00:00',
-          description: '请审批张三的请假申请',
-          businessData: JSON.stringify({ days: 3, reason: '个人事务' })
-        },
-        {
-          taskId: 'TASK-002',
-          taskName: '财务审批',
-          processName: '报销审批流程',
-          priority: 'medium',
-          assignee: '李四',
-          currentNode: '财务审批',
-          createTime: '2024-04-15 10:00:00',
-          dueTime: '2024-04-17 18:00:00',
-          description: '请审批李四的报销申请',
-          businessData: JSON.stringify({ amount: 5000, type: '差旅费' })
-        }
-      ]
-    } else {
-      tableData.value = [
-        {
-          taskId: 'TASK-003',
-          taskName: '发起人审批',
-          processName: '请假审批流程',
-          priority: 'medium',
-          assignee: '王五',
-          currentNode: '已完成',
-          createTime: '2024-04-14 14:00:00',
-          dueTime: '2024-04-14 18:00:00',
-          description: '已审批',
-          businessData: JSON.stringify({ days: 2, reason: '病假' })
-        }
-      ]
-    }
-    pagination.total = 30
-  } catch (error) {
-    message.error('查询失败')
+    const res = await request.get('/workflow/task/page', {
+      params: {
+        tab: activeTab.value,
+        taskName: queryForm.taskName || undefined,
+        processName: queryForm.processName || undefined,
+        priority: queryForm.priority,
+        startDate: queryForm.dateRange?.[0],
+        endDate: queryForm.dateRange?.[1],
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
+      }
+    })
+    tableData.value = res.data?.records || []
+    pagination.total = res.data?.total || 0
+  } catch (error: any) {
+    tableData.value = []
+    pagination.total = 0
+    message.error(error?.response?.data?.message || '获取工作流数据失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -459,8 +284,7 @@ const handleViewDetail = (record: any) => {
 
 // 审批
 const handleApprove = (record: any) => {
-  ;(approveForm as any)._taskId = record.taskId
-  ;(approveForm as any)._record = record
+  currentApproveTaskId.value = record.taskId
   approveForm.approval = 'approve'
   approveForm.comment = ''
   approveForm.returnNode = undefined
@@ -469,6 +293,7 @@ const handleApprove = (record: any) => {
 
 // 确认审批
 const handleConfirmApprove = async () => {
+  if (!currentApproveTaskId.value) return
   const actionLabels: Record<string, string> = {
     approve: '同意',
     reject: '拒绝',
@@ -480,13 +305,14 @@ const handleConfirmApprove = async () => {
     async onOk() {
       try {
         await request.post('/workflow/task/approve', {
-          taskId: (approveForm as any)._taskId,
+          taskId: currentApproveTaskId.value,
           approval: approveForm.approval,
           comment: approveForm.comment,
           returnNode: approveForm.approval === 'return' ? approveForm.returnNode : undefined
         })
         message.success('审批成功')
         approveVisible.value = false
+        currentApproveTaskId.value = null
         handleQuery()
       } catch {
         message.error('审批失败')
@@ -495,9 +321,14 @@ const handleConfirmApprove = async () => {
   })
 }
 
+// 取消审批
+const handleCancelApprove = () => {
+  currentApproveTaskId.value = null
+}
+
 // 转办/委托
 const handleTransfer = (command: string, record: any) => {
-  ;(transferForm as any)._taskId = record.taskId
+  currentTransferTaskId.value = record.taskId
   transferForm.type = command
   transferForm.targetUser = undefined
   transferForm.comment = ''
@@ -518,19 +349,25 @@ const handleConfirmTransfer = async () => {
     async onOk() {
       try {
         await request.post('/workflow/task/transfer', {
-          taskId: (transferForm as any)._taskId,
+          taskId: currentTransferTaskId.value,
           type: transferForm.type,
           targetUser: transferForm.targetUser,
           comment: transferForm.comment
         })
         message.success(`${actionLabel}成功`)
         transferVisible.value = false
+        currentTransferTaskId.value = null
         handleQuery()
       } catch {
         message.error(`${actionLabel}失败`)
       }
     }
   })
+}
+
+// 取消转办/委托
+const handleCancelTransfer = () => {
+  currentTransferTaskId.value = null
 }
 
 // 获取优先级颜色
@@ -554,7 +391,9 @@ const getPriorityLabel = (priority: string) => {
 }
 
 // 初始加载
-handleQuery()
+onMounted(() => {
+  handleQuery()
+})
 </script>
 
 <style scoped>

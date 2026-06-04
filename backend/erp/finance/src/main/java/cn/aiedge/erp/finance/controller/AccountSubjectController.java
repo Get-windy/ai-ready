@@ -97,4 +97,21 @@ public class AccountSubjectController {
         AccountSubjectDTO result = accountSubjectService.enable(id, enabled);
         return Result.success("操作成功", result);
     }
+
+    @Operation(summary = "批量删除会计科目")
+    @DeleteMapping("/batch")
+    @PreAuthorize("hasPermission('/api/erp/finance/subject/delete', 'finance:subject:delete')")
+    @OperationLog(module = "会计科目管理", type = "DELETE", desc = "批量删除会计科目")
+    public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
+        accountSubjectService.deleteBatch(ids);
+        return Result.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出会计科目列表")
+    @GetMapping("/export")
+    @PreAuthorize("hasPermission('/api/erp/finance/subject/list', 'finance:subject:view')")
+    @OperationLog(module = "会计科目管理", type = "QUERY", desc = "导出会计科目列表")
+    public Result<List<AccountSubjectDTO>> export() {
+        return Result.success(accountSubjectService.getAll());
+    }
 }

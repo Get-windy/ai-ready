@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestHeaders, ResponseType } from 'axios'
 import { message } from 'ant-design-vue'
 import { useUserStore } from '@/stores/user'
 import { refreshTokenAndRetry, getToken, isTokenExpired } from './tokenRefresher'
@@ -38,11 +38,29 @@ export interface RetryConfig {
   retryCondition?: (error: any) => boolean
 }
 
-/** 扩展的 Axios 请求配置（支持重试和跳过刷新） */
+/**
+ * 请求选项（调用方可传入的配置）
+ * 同时支持重试配置 + Axios 原生配置
+ */
+export interface RequestOptions extends RetryConfig {
+  /** 跳过 Token 刷新逻辑（登录/登出/验证码等场景） */
+  _skipAuthRefresh?: boolean
+  /** 自定义请求头 */
+  headers?: Record<string, string>
+  /** 响应类型（如 'blob' 用于文件下载） */
+  responseType?: ResponseType
+  /** URL 查询参数（仅用于 post/put/patch/delete 的 URL 参数） */
+  params?: Record<string, any>
+  /** 请求体（用于 delete 方法） */
+  data?: any
+}
+
+/** 扩展的 Axios 请求配置 */
 interface ExtendedAxiosRequestConfig extends Partial<InternalAxiosRequestConfig> {
   retryConfig?: RetryConfig
   _retryCount?: number
   _skipAuthRefresh?: boolean
+  _requestStartTime?: number
 }
 
 // ── 默认重试配置 ────────────────────────────────────────
@@ -51,13 +69,11 @@ export const defaultRetryConfig: Required<Omit<RetryConfig, 'retry'>> = {
   maxRetries: 3,
   retryDelay: 1000,
   shouldRetry: (config: InternalAxiosRequestConfig) => {
-    // 默认只重试 GET 请求，POST/PUT/DELETE 不重试（幂等性考虑）
     const method = config.method?.toUpperCase() || ''
     return method === 'GET'
   },
   retryCondition: (error: any) => {
-    // 仅对 5xx 和网络错误重试
-    if (!error.response) return true // 网络错误
+    if (!error.response) return true
     const status = error.response.status
     return status >= 500 && status < 600
   }
@@ -75,13 +91,19 @@ const service: AxiosInstance = axios.create({
 
 // ── 请求拦截器 ──────────────────────────────────────────
 
+const R = '[DEBUG:req]'
+
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getToken()
+    const url = `${config.baseURL || ''}${config.url || ''}`
+    const skipRefresh = !!(config as ExtendedAxiosRequestConfig)._skipAuthRefresh
+
+    console.log(`${R} ➡️ ${config.method?.toUpperCase() || 'GET'} ${url}`, { hasToken: !!token, skipRefresh })
 
     // 检查 Token 是否即将过期，若是则尝试刷新
-    if (token && isTokenExpired(token) && !(config as ExtendedAxiosRequestConfig)._skipAuthRefresh) {
-      // Token 已过期，尝试主动刷新
+    if (token && isTokenExpired(token) && !skipRefresh) {
+      console.log(`${R} Token已过期, 尝试刷新: ${url}`)
       return refreshTokenAndRetry((newToken) => {
         config.headers.Authorization = `Bearer ${newToken}`
         return config
@@ -117,6 +139,9 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
+    const url = `${response.config.baseURL || ''}${response.config.url || ''}`
+    console.log(`${R} ⬅️ ${response.config.method?.toUpperCase() || 'GET'} ${url} → ${response.status}`)
+
     // 记录 API 调用耗时
     const startTime = (response.config as any)._requestStartTime
     if (startTime) {
@@ -124,15 +149,23 @@ service.interceptors.response.use(
       const url = response.config.url || ''
       const method = response.config.method?.toUpperCase() || 'GET'
       const status = response.status
-
-      // Sentry 性能追踪
       trackApiCall(url, method, duration, status)
-
       if (duration > 2000) {
         console.warn(`[API] 慢请求: ${method} ${url} — ${duration}ms`)
       }
     }
 
+    const resData = response.data
+
+    // ── 处理无 wrapper 的原始响应 ──────────────────────
+    // 后端某些 Controller（如 StockController）直接返回 Page<T> / List<T>
+    // 这些响应没有 {code, message, data} 包装，直接透传
+    if (resData && typeof resData === 'object' && !('code' in resData)) {
+      console.log(`${R} ⚠️ 检测到无 wrapper 响应, 直接透传`)
+      return resData
+    }
+
+    // ── 标准 wrapper 响应处理 ──────────────────────────
     const { code, message: msg, data } = response.data
 
     if (code === 200) {
@@ -142,7 +175,6 @@ service.interceptors.response.use(
     // 业务错误：401 → Token 刷新
     if (code === 401) {
       const config = response.config as ExtendedAxiosRequestConfig
-      // 如果是登录请求失败，直接显示后端返回的错误消息
       if (config.url?.includes('/auth/login')) {
         message.error(msg || '登录失败')
         return Promise.reject(new Error(msg || '登录失败'))
@@ -169,6 +201,8 @@ service.interceptors.response.use(
   },
   async (error) => {
     const config = error.config as ExtendedAxiosRequestConfig
+    const url = `${config?.baseURL || ''}${config?.url || ''}`
+    console.log(`${R} ❌ ${config?.method?.toUpperCase() || '?'} ${url} → status=${error.response?.status || '网络错误'}`, error.message)
 
     // 记录失败的 API 调用耗时
     if (config) {
@@ -178,7 +212,6 @@ service.interceptors.response.use(
         const url = config.url || ''
         const method = config.method?.toUpperCase() || 'GET'
         const status = error.response?.status || 0
-
         trackApiCall(url, method, duration, status)
       }
     }
@@ -186,7 +219,6 @@ service.interceptors.response.use(
     // 网络错误或服务端错误时尝试重试
     if (config && !config._skipAuthRefresh) {
       const userConfig = config.retryConfig || {}
-      // 合并重试配置：取 defaultRetryConfig，用用户配置覆盖
       const maxRetries = userConfig.retry ?? userConfig.maxRetries ?? defaultRetryConfig.maxRetries
       const retryDelay = userConfig.retryDelay ?? defaultRetryConfig.retryDelay
       const shouldRetry = userConfig.shouldRetry ?? defaultRetryConfig.shouldRetry
@@ -198,15 +230,8 @@ service.interceptors.response.use(
 
       if (isRetryAllowed && matchesRetryCondition && retryCount < maxRetries) {
         config._retryCount = retryCount + 1
-
-        // 指数退避 + 随机抖动: delay = retryDelay * (2 ^ retryCount) + random jitter
         const delay = retryDelay * Math.pow(2, retryCount) + Math.random() * 1000
-
-        const method = config.method?.toUpperCase() || 'GET'
-        console.warn(
-          `[API] 重试 ${config._retryCount}/${maxRetries}: ${method} ${config.url} — ${Math.round(delay)}ms 后重试`
-        )
-
+        console.warn(`[API] 重试 ${config._retryCount}/${maxRetries}: ${config.method?.toUpperCase() || 'GET'} ${config.url} — ${Math.round(delay)}ms 后重试`)
         await new Promise((resolve) => setTimeout(resolve, delay))
         return service(config)
       }
@@ -215,10 +240,8 @@ service.interceptors.response.use(
     // 处理 HTTP 错误
     if (error.response) {
       const { status } = error.response
-
       switch (status) {
         case 401:
-          // 401: 尝试刷新 Token
           if (!config?._skipAuthRefresh) {
             try {
               return await refreshTokenAndRetry((newToken) => {
@@ -227,7 +250,6 @@ service.interceptors.response.use(
                 return service(config)
               })
             } catch {
-              // 刷新失败，已在 refreshTokenAndRetry 中处理登出
               return Promise.reject(error)
             }
           }
@@ -258,11 +280,11 @@ service.interceptors.response.use(
 
 // ── 未授权处理 ──────────────────────────────────────────
 
-/** 清除登录状态并跳转登录页。供外部模块（如路由守卫、token 刷新模块）复用。 */
+/** 清除登录状态并跳转登录页 */
 export function handleUnauthorized() {
+  console.log(`${R} 🔴 handleUnauthorized() - 清除登录状态并跳转登录页`)
   try {
     const userStore = useUserStore()
-    // 直接清除状态，不调用logout API（避免无限循环）
     userStore.token = ''
     userStore.userId = 0
     userStore.tenantId = 1
@@ -280,41 +302,100 @@ export function handleUnauthorized() {
   }
 }
 
-// ── 封装请求方法（支持重试配置） ────────────────────────
+// ── 工具：从 RequestOptions 构建 ExtendedAxiosRequestConfig ──
+
+function buildConfig(options?: RequestOptions): ExtendedAxiosRequestConfig {
+  const config: ExtendedAxiosRequestConfig = {}
+  if (!options) return config
+
+  // 提取重试配置
+  if (options.retry !== undefined || options.maxRetries !== undefined ||
+      options.retryDelay !== undefined || options.shouldRetry !== undefined ||
+      options.retryCondition !== undefined) {
+    config.retryConfig = {
+      retry: options.retry,
+      maxRetries: options.maxRetries,
+      retryDelay: options.retryDelay,
+      shouldRetry: options.shouldRetry,
+      retryCondition: options.retryCondition,
+    }
+  }
+
+  // 提取 Axios 原生配置
+  if (options.headers) config.headers = options.headers as AxiosRequestHeaders
+  if (options.responseType) config.responseType = options.responseType
+  if (options.params) config.params = options.params
+  if (options.data !== undefined) config.data = options.data
+  if (options._skipAuthRefresh) config._skipAuthRefresh = true
+
+  return config
+}
+
+// ── 封装请求方法 ────────────────────────────────────────
 
 export const request = {
-  get<T = any>(url: string, params?: object, retryConfig?: RetryConfig): Promise<ApiResponse<T>> {
-    const config: ExtendedAxiosRequestConfig = { params }
-    if (retryConfig) {
-      config.retryConfig = retryConfig
+  /**
+   * GET 请求
+   * 兼容两种调用方式：
+   *   request.get(url, params)              — 仅传查询参数
+   *   request.get(url, params, options)     — 传查询参数 + 选项（含 _skipAuthRefresh, headers 等）
+   *   request.get(url, options)             — 选项作为第二个参数（无查询参数但有选项）
+   */
+  get<T = any>(url: string, paramsOrOptions?: any, options?: RequestOptions): Promise<any> {
+    // 判断 paramsOrOptions 是 params 对象还是 RequestOptions
+    let params: any
+    let opts: RequestOptions | undefined
+
+    if (paramsOrOptions !== undefined) {
+      const po = paramsOrOptions as any
+      if (po._skipAuthRefresh !== undefined || po.headers !== undefined ||
+          po.responseType !== undefined || po.retry !== undefined ||
+          po.maxRetries !== undefined || po.shouldRetry !== undefined) {
+        // 这是 options
+        opts = paramsOrOptions as RequestOptions
+      } else {
+        // 这是 params
+        params = paramsOrOptions
+        opts = options
+      }
+    } else {
+      opts = options
     }
+
+    const config = buildConfig(opts)
+    // 如果传入 params，且 config 中还没有 params（options 里可能也带了 params）
+    if (params && !opts?.params) {
+      config.params = params
+    }
+    if (opts?._skipAuthRefresh) config._skipAuthRefresh = true
+
     return service.get(url, config)
   },
 
-  post<T = any>(url: string, data?: object, retryConfig?: RetryConfig): Promise<ApiResponse<T>> {
-    const config: ExtendedAxiosRequestConfig = {}
-    // POST 默认不重试，除非显式配置
-    if (retryConfig) {
-      config.retryConfig = retryConfig
-    }
+  post<T = any>(url: string, data?: any, options?: RequestOptions): Promise<any> {
+    const config = buildConfig(options)
+    if (options?._skipAuthRefresh) config._skipAuthRefresh = true
     return service.post(url, data, config)
   },
 
-  put<T = any>(url: string, data?: object, retryConfig?: RetryConfig): Promise<ApiResponse<T>> {
-    const config: ExtendedAxiosRequestConfig = {}
-    if (retryConfig) {
-      config.retryConfig = retryConfig
-    }
+  put<T = any>(url: string, data?: any, options?: RequestOptions): Promise<any> {
+    const config = buildConfig(options)
+    if (options?._skipAuthRefresh) config._skipAuthRefresh = true
     return service.put(url, data, config)
   },
 
-  delete<T = any>(url: string, params?: object, retryConfig?: RetryConfig): Promise<ApiResponse<T>> {
-    const config: ExtendedAxiosRequestConfig = { params }
-    if (retryConfig) {
-      config.retryConfig = retryConfig
-    }
+  delete<T = any>(url: string, options?: RequestOptions): Promise<any> {
+    const config = buildConfig(options)
+    if (options?._skipAuthRefresh) config._skipAuthRefresh = true
     return service.delete(url, config)
+  },
+
+  /** PATCH 方法 */
+  patch<T = any>(url: string, data?: any, options?: RequestOptions): Promise<any> {
+    const config = buildConfig(options)
+    if (options?._skipAuthRefresh) config._skipAuthRefresh = true
+    return service.patch(url, data, config)
   }
 }
 
-export default service
+export default request

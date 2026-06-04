@@ -60,13 +60,13 @@ export const budgetTemplateApi = {
     return request.get(`/erp/budget/template/${id}`)
   },
   page(params: PageQuery): Promise<ApiResponse<PageResult<BudgetTemplate>>> {
-    return request.get('/erp/budget/template/page', { params })
+    return request.get('/erp/budget/template/page', params)
   },
   publish(id: number): Promise<ApiResponse<BudgetTemplate>> {
     return request.post(`/erp/budget/template/${id}/publish`)
   },
   listByYear(fiscalYear: number): Promise<ApiResponse<BudgetTemplate[]>> {
-    return request.get('/erp/budget/template/list-by-year', { params: { fiscalYear } })
+    return request.get('/erp/budget/template/list-by-year', { fiscalYear })
   },
 }
 
@@ -121,7 +121,7 @@ export const annualBudgetApi = {
     return request.get(`/erp/budget/annual/${id}`)
   },
   page(params: PageQuery): Promise<ApiResponse<PageResult<AnnualBudget>>> {
-    return request.get('/erp/budget/annual/page', { params })
+    return request.get('/erp/budget/annual/page', params)
   },
   submit(id: number): Promise<ApiResponse<AnnualBudget>> {
     return request.post(`/erp/budget/annual/${id}/submit`)
@@ -187,7 +187,7 @@ export const budgetAdjustmentApi = {
     return request.get(`/erp/budget/adjustment/${id}`)
   },
   page(params: PageQuery): Promise<ApiResponse<PageResult<BudgetAdjustment>>> {
-    return request.get('/erp/budget/adjustment/page', { params })
+    return request.get('/erp/budget/adjustment/page', params)
   },
   submit(id: number): Promise<ApiResponse<BudgetAdjustment>> {
     return request.post(`/erp/budget/adjustment/${id}/submit`)
@@ -217,18 +217,18 @@ export interface BudgetStatistics {
 
 export const budgetReportApi = {
   executionSummary(fiscalYear?: number): Promise<ApiResponse<BudgetStatistics>> {
-    return request.get('/erp/budget/report/execution-summary', { params: { fiscalYear } })
+    return request.get('/erp/budget/report/execution-summary', { fiscalYear })
   },
   departmentSummary(fiscalYear?: number): Promise<ApiResponse<any[]>> {
-    return request.get('/erp/budget/report/department-summary', { params: { fiscalYear } })
+    return request.get('/erp/budget/report/department-summary', { fiscalYear })
   },
   subjectSummary(fiscalYear?: number, budgetId?: number): Promise<ApiResponse<any[]>> {
-    return request.get('/erp/budget/report/subject-summary', { params: { fiscalYear, budgetId } })
+    return request.get('/erp/budget/report/subject-summary', { fiscalYear, budgetId })
   },
   varianceAnalysis(fiscalYear?: number): Promise<ApiResponse<any[]>> {
-    return request.get('/erp/budget/report/variance-analysis', { params: { fiscalYear } })
+    return request.get('/erp/budget/report/variance-analysis', { fiscalYear })
   },
   trend(fiscalYear?: number): Promise<ApiResponse<any[]>> {
-    return request.get('/erp/budget/report/trend', { params: { fiscalYear } })
+    return request.get('/erp/budget/report/trend', { fiscalYear })
   },
 }

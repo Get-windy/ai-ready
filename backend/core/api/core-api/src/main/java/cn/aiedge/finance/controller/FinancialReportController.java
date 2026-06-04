@@ -67,6 +67,22 @@ public class FinancialReportController {
         return ApiResponse.success();
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除财务报表")
+    public ApiResponse<Void> batchDeleteFinancialReport(@RequestBody List<Long> ids) {
+        ids.forEach(id -> financialReportService.deleteFinancialReport(id));
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出财务报表列表")
+    public ApiResponse<List<FinancialReportVO>> export(FinancialReportQueryRequest request) {
+        request.setPageNum(1);
+        request.setPageSize(Integer.MAX_VALUE);
+        Page<FinancialReportVO> pageResult = financialReportService.pageFinancialReports(request);
+        return ApiResponse.success(pageResult.getRecords());
+    }
+
     // 审核相关接口
     @PostMapping("/{id}/audit")
     @Operation(summary = "审核财务报表")

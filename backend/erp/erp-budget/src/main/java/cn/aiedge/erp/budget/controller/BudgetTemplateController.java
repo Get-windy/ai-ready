@@ -77,4 +77,21 @@ public class BudgetTemplateController {
         List<BudgetTemplateDTO> list = budgetTemplateService.listByFiscalYear(fiscalYear);
         return ApiResponse.success(list);
     }
+
+    @Operation(summary = "批量删除预算模板")
+    @DeleteMapping("/batch")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        budgetTemplateService.batchDelete(ids);
+        return ApiResponse.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出预算模板列表")
+    @GetMapping("/export")
+    public ApiResponse<List<BudgetTemplateDTO>> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear,
+            @Parameter(description = "状态") @RequestParam(required = false) String status) {
+        List<BudgetTemplateDTO> list = budgetTemplateService.exportList(keyword, fiscalYear, status);
+        return ApiResponse.success(list);
+    }
 }

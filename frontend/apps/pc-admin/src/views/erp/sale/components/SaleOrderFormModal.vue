@@ -185,6 +185,8 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import { salesOrderApi } from '@/api/order'
+import optionsApi from '@/api/options'
 
 interface SaleOrderItem {
   id: string
@@ -262,14 +264,13 @@ const userList = ref<any[]>([])
 const productList = ref<any[]>([])
 const warehouseList = ref<any[]>([])
 
-const totalQuantity = computed(() => formData.items.reduce((sum, item) => sum + item.quantity, 0))
+const totalQuantity = computed(() => formData.items.reduce((sum, item) => sum + (item.quantity || 0), 0))
 const totalAmount = computed(() => formData.items.reduce((sum, item) => sum + calculateItemAmount(item), 0))
-const discountAmount = computed(() => formData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice * item.discount / 100, 0))
-const taxAmount = computed(() => totalAmount.value * formData.taxRate / 100)
-const totalAmountWithTax = computed(() => totalAmount.value + taxAmount.value)
+const discountAmount = computed(() => formData.items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0) * (item.discount || 0) / 100, 0))
+const totalAmountWithTax = computed(() => totalAmount.value + totalAmount.value * formData.taxRate / 100)
 
 const calculateItemAmount = (item: SaleOrderItem) => {
-  return item.quantity * item.unitPrice * (1 - item.discount / 100)
+  return (item.quantity || 0) * (item.unitPrice || 0) * (1 - (item.discount || 0) / 100)
 }
 
 const filterOption = (input: string, option: any) => {
@@ -288,14 +289,12 @@ const handleCustomerChange = (val: number) => {
 const handleProductChange = (val: number, index: number) => {
   const product = productList.value.find(p => p.id === val)
   if (product) {
-    formData.items[index].productCode = product.code
-    formData.items[index].productName = product.name
+    formData.items[index].productCode = product.code || product.productCode
+    formData.items[index].productName = product.name || product.productName
     formData.items[index].unit = product.unit
-    formData.items[index].unitPrice = product.salePrice || 0
+    formData.items[index].unitPrice = product.salePrice || product.price || 0
   }
 }
-
-const calculateRowAmount = (index: number) => {}
 
 const handleAddItem = () => {
   formData.items.push({ id: Date.now().toString(), productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, discount: 0, unit: '', remark: '' })
@@ -317,11 +316,45 @@ const handleOk = async () => {
       return
     }
     loading.value = true
-    message.success(isEdit.value ? '更新成功' : '创建成功')
+    const submitData: Record<string, any> = {
+      customerId: formData.customerId,
+      customerName: formData.customerName,
+      orderDate: formData.orderDate,
+      deliveryDate: formData.expectedDeliveryDate,
+      salespersonId: formData.salesmanId,
+      salesperson: formData.salesmanName,
+      paymentMethod: formData.paymentMethod,
+      currency: formData.currency,
+      taxRate: formData.taxRate,
+      warehouseId: formData.warehouseId,
+      shippingAddress: formData.shippingAddress,
+      remark: formData.remark,
+      totalAmount: Math.round(totalAmount.value * 100) / 100,
+      discountAmount: Math.round(discountAmount.value * 100) / 100,
+      finalAmount: Math.round(totalAmountWithTax.value * 100) / 100,
+      details: formData.items.map(item => ({
+        productId: item.productId,
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        totalAmount: calculateItemAmount(item),
+        remark: item.remark
+      }))
+    }
+    if (isEdit.value && props.editData?.id) {
+      await salesOrderApi.update(props.editData.id, submitData)
+      message.success('更新成功')
+    } else {
+      await salesOrderApi.create(submitData)
+      message.success('创建成功')
+    }
     emit('success')
     visible.value = false
-  } catch (error) {
-    console.error('表单验证失败:', error)
+  } catch (error: any) {
+    const errMsg = error?.response?.data?.message || error?.message || '操作失败'
+    message.error(errMsg)
   } finally {
     loading.value = false
   }
@@ -330,10 +363,27 @@ const handleOk = async () => {
 const handleCancel = () => { visible.value = false }
 
 const loadOptions = async () => {
-  customerList.value = [{ id: 1, name: '客户A', address: '北京市朝阳区' }, { id: 2, name: '客户B', address: '上海市浦东新区' }]
-  userList.value = [{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
-  productList.value = [{ id: 1, code: 'P001', name: '商品A', unit: '件', salePrice: 150 }, { id: 2, code: 'P002', name: '商品B', unit: '箱', salePrice: 300 }]
-  warehouseList.value = [{ id: 1, name: '北京仓库' }, { id: 2, name: '上海仓库' }]
+  try {
+    const [customers, users, products] = await Promise.all([
+      optionsApi.getCustomers(),
+      optionsApi.getUsers('salesman'),
+      optionsApi.getProducts()
+    ])
+    customerList.value = Array.isArray(customers) ? customers : []
+    userList.value = Array.isArray(users) ? users : []
+    productList.value = Array.isArray(products) ? products : []
+  } catch (error: any) {
+    console.warn('加载下拉选项失败，使用默认数据:', error?.message)
+    customerList.value = [
+      { id: 1, name: '客户A', address: '北京市朝阳区' },
+      { id: 2, name: '客户B', address: '上海市浦东新区' }
+    ]
+    userList.value = [{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
+    productList.value = [
+      { id: 1, code: 'P001', name: '商品A', unit: '件', salePrice: 150 },
+      { id: 2, code: 'P002', name: '商品B', unit: '箱', salePrice: 300 }
+    ]
+  }
 }
 
 watch(visible, (val) => {
@@ -341,6 +391,9 @@ watch(visible, (val) => {
     loadOptions()
     if (props.editData) {
       Object.assign(formData, props.editData)
+      if (!props.editData.orderNo) {
+        formData.orderNo = 'SO' + dayjs().format('YYYYMMDDHHmmss')
+      }
     } else {
       formData.orderNo = 'SO' + dayjs().format('YYYYMMDDHHmmss')
     }

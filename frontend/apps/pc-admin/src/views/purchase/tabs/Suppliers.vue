@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建供应商"
     @add="handleAdd"
     @edit="handleEdit"
@@ -20,13 +21,8 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
 
     <template #batch-actions>
       <a-button size="small" @click="handleBatchEdit">批量编辑</a-button>
@@ -107,17 +103,17 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { supplierApi } from '@/api/supplier'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -155,10 +151,6 @@ const summaryData = computed(() => {
   ]
 })
 
-function getLevelColor(level: string): string {
-  const colors: Record<string, string> = { 'A': 'gold', 'B': 'blue', 'C': 'default' }
-  return colors[level] || 'default'
-}
 function getLevelText(level: string): string {
   const texts: Record<string, string> = { 'A': 'A级', 'B': 'B级', 'C': 'C级' }
   return texts[level] || level
@@ -181,12 +173,15 @@ const transferData = ref([
 ])
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await supplierApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
-  finally { loading.value = false }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
+  } catch {
+    message.error('获取供应商列表失败')
+  } finally { loading.value = false }
 }
 
 function handleView(record: any) { router.push(`/supplier/detail/${record.id}`) }
@@ -199,29 +194,17 @@ async function handleDelete(record: any) {
 }
 
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0; let failCount = 0
-  for (const id of ids) {
-    try { await supplierApi.delete(id); successCount++ } catch { failCount++ }
-  }
-  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
-  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
-  fetchData()
+  const result = await executeBatch(ids, (id) => supplierApi.delete(id), '批量删除')
+  if (result.successCount > 0) fetchData()
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['供应商编码', '供应商名称', '联系人', '联系电话', '等级', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
-      getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `供应商_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['供应商编码', '供应商名称', '联系人', '联系电话', '等级', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
+    getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '供应商')
 }
 
 function handleBatchEdit() {
@@ -240,14 +223,10 @@ const handleBatchEditConfirm = async () => {
   if (Object.keys(updateData).length === 0) { message.warning('请至少选择一个要修改的字段'); return }
 
   batchEditSubmitting.value = true
-  let successCount = 0; let failCount = 0
-  for (const id of selectedRowKeys.value) {
-    try { await supplierApi.update(id, updateData); successCount++ } catch { failCount++ }
-  }
+  const result = await executeBatch(selectedRowKeys.value, (id) => supplierApi.update(id, updateData), '批量编辑')
   batchEditSubmitting.value = false
-  if (failCount === 0) { message.success(`批量编辑完成，成功更新 ${successCount} 个供应商`) }
-  else { message.warning(`批量编辑完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
-  batchEditModalVisible.value = false; fetchData()
+  if (result.successCount > 0) fetchData()
+  batchEditModalVisible.value = false
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

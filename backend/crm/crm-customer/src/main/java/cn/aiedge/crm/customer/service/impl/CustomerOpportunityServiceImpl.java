@@ -34,33 +34,49 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
     @Override
     public Page<CustomerOpportunity> pageList(String keyword, Long customerId, Integer opportunityStage,
                                                 Integer status, Long salesPersonId, int pageNum, int pageSize) {
+        LambdaQueryWrapper<CustomerOpportunity> wrapper = buildQueryWrapper(keyword, customerId, opportunityStage, status, salesPersonId);
+        wrapper.orderByDesc(CustomerOpportunity::getCreatedAt);
+        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<CustomerOpportunity> exportList(String keyword, Long customerId, Integer opportunityStage,
+                                                  Integer status, Long salesPersonId) {
+        LambdaQueryWrapper<CustomerOpportunity> wrapper = buildQueryWrapper(keyword, customerId, opportunityStage, status, salesPersonId);
+        wrapper.orderByDesc(CustomerOpportunity::getCreatedAt);
+        return baseMapper.selectList(wrapper);
+    }
+
+    /**
+     * 构建公共查询条件
+     */
+    private LambdaQueryWrapper<CustomerOpportunity> buildQueryWrapper(String keyword, Long customerId,
+                                                                       Integer opportunityStage, Integer status,
+                                                                       Long salesPersonId) {
         LambdaQueryWrapper<CustomerOpportunity> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CustomerOpportunity::getDeleted, 0);
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(CustomerOpportunity::getOpportunityName, keyword)
                     .or().like(CustomerOpportunity::getCustomerName, keyword));
         }
-        
+
         if (customerId != null) {
             wrapper.eq(CustomerOpportunity::getCustomerId, customerId);
         }
-        
+
         if (opportunityStage != null) {
             wrapper.eq(CustomerOpportunity::getOpportunityStage, opportunityStage);
         }
-        
+
         if (status != null) {
             wrapper.eq(CustomerOpportunity::getStatus, status);
         }
-        
+
         if (salesPersonId != null) {
             wrapper.eq(CustomerOpportunity::getSalesPersonId, salesPersonId);
         }
-        
-        wrapper.orderByDesc(CustomerOpportunity::getCreatedAt);
-        
-        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

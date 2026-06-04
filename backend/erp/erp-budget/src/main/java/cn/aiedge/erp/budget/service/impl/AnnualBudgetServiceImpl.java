@@ -237,4 +237,14 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
         entity = annualBudgetRepository.save(entity);
         return getById(entity.getId());
     }
+
+    @Override
+    public List<AnnualBudgetDTO> exportList(String keyword, Integer fiscalYear, String departmentId, String status) {
+        List<AnnualBudget> allList = annualBudgetRepository.search(keyword, fiscalYear, departmentId, status);
+        return allList.stream().map(entity -> {
+            AnnualBudgetDTO dto = new AnnualBudgetDTO();
+            BeanUtil.copyProperties(entity, dto);
+            return dto;
+        }).collect(Collectors.toList());
+    }
 }

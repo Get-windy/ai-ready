@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 
 export const accountSubjectApi = {
-  getTree: (params?: any) => request.get('/erp/finance/subject/tree', { params }),
-  getList: (params?: any) => request.get('/erp/finance/subject/list', { params }),
+  getTree: (params?: any) => request.get('/erp/finance/subject/tree', params),
+  getList: (params?: any) => request.get('/erp/finance/subject/list', params),
   getById: (id: number) => request.get(`/erp/finance/subject/${id}`),
   getByType: (type: number) => request.get(`/erp/finance/subject/type/${type}`),
   create: (data: any) => request.post('/erp/finance/subject', data),
@@ -12,7 +12,7 @@ export const accountSubjectApi = {
 }
 
 export const voucherApi = {
-  getPage: (params: any) => request.get('/erp/finance/voucher/list', { params }),
+  getPage: (params: any) => request.get('/erp/finance/voucher/list', params),
   getById: (id: number) => request.get(`/erp/finance/voucher/${id}`),
   getByVoucherNo: (no: string) => request.get(`/erp/finance/voucher/no/${no}`),
   create: (data: any) => request.post('/erp/finance/voucher', data),
@@ -22,7 +22,7 @@ export const voucherApi = {
 }
 
 export const receivableApi = {
-  getPage: (params: any) => request.get('/erp/finance/receivable/list', { params }),
+  getPage: (params: any) => request.get('/erp/finance/receivable/list', params),
   getById: (id: number) => request.get(`/erp/finance/receivable/${id}`),
   getAging: () => request.get('/erp/finance/receivable/aging'),
   writeOff: (id: number, amount: number) => request.put(`/erp/finance/receivable/${id}/write-off`, { amount }),
@@ -30,15 +30,15 @@ export const receivableApi = {
 }
 
 export const payableApi = {
-  getPage: (params: any) => request.get('/erp/finance/payable/list', { params }),
+  getPage: (params: any) => request.get('/erp/finance/payable/list', params),
   getById: (id: number) => request.get(`/erp/finance/payable/${id}`),
   getAging: () => request.get('/erp/finance/payable/aging'),
   writeOff: (id: number, amount: number) => request.put(`/erp/finance/payable/${id}/write-off`, { amount })
 }
 
 export const reportApi = {
-  getTrialBalance: (params: any) => request.get('/erp/finance/report/v2/trial-balance', { params }),
-  getBalanceSheet: (params: any) => request.get('/erp/finance/report/v2/balance-sheet', { params }),
-  getIncomeStatement: (params: any) => request.get('/erp/finance/report/v2/income-statement', { params }),
+  getTrialBalance: (params: any) => request.get('/erp/finance/report/v2/trial-balance', params),
+  getBalanceSheet: (params: any) => request.get('/erp/finance/report/v2/balance-sheet', params),
+  getIncomeStatement: (params: any) => request.get('/erp/finance/report/v2/income-statement', params),
   getDashboard: () => request.get('/erp/finance/report/v2/dashboard')
 }

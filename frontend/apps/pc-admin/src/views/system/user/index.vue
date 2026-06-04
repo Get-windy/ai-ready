@@ -399,7 +399,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 import {
@@ -721,12 +721,38 @@ const handleBatchDelete = () => {
 
 // 重置密码
 const handleResetPassword = (record: UserInfo) => {
+  const genPwd = (len = 12) => {
+    const uppers = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const lowers = 'abcdefghijklmnopqrstuvwxyz'
+    const digits = '0123456789'
+    const specials = '!@#$%'
+    const all = uppers + lowers + digits + specials
+    let pwd = ''
+    pwd += uppers[Math.floor(Math.random() * uppers.length)]
+    pwd += lowers[Math.floor(Math.random() * lowers.length)]
+    pwd += digits[Math.floor(Math.random() * digits.length)]
+    pwd += specials[Math.floor(Math.random() * specials.length)]
+    for (let i = pwd.length; i < len; i++) {
+      pwd += all[Math.floor(Math.random() * all.length)]
+    }
+    return pwd.split('').sort(() => Math.random() - 0.5).join('')
+  }
+  const newPassword = genPwd()
   Modal.confirm({
     title: '重置密码',
-    content: `确定要重置用户 "${record.username}" 的密码吗？`,
+    content: h('div', [
+      h('p', { style: { marginBottom: '12px' } }, `确定要重置用户 "${record.username}" 的密码吗？`),
+      h('div', { style: { padding: '12px', background: '#f5f5f5', borderRadius: '4px', fontSize: '13px' } }, [
+        h('div', { style: { marginBottom: '4px', color: '#999' } }, '新密码（请立即告知用户）：'),
+        h('div', { style: { fontFamily: 'monospace', fontSize: '16px', fontWeight: 'bold', color: '#1890ff', letterSpacing: '2px' } }, newPassword),
+        h('div', { style: { marginTop: '8px', color: '#f5222d', fontSize: '12px' } }, '此密码仅在此处显示一次，关闭后将无法再次查看')
+      ])
+    ]),
+    okText: '确认重置',
+    cancelText: '取消',
     async onOk() {
-      await userApi.resetPassword(record.id, '123456')
-      message.success('密码已重置为 123456')
+      await userApi.resetPassword(record.id, newPassword)
+      message.success('密码已重置')
     }
   })
 }
@@ -764,8 +790,12 @@ const handleAssignRole = async (record: UserInfo) => {
       title: r.roleName
     }))
   }
-  try { const userRes = await userApi.getById(record.id); if (userRes.data?.roleIds) { targetRoleKeys.value = userRes.data.roleIds.map(String); } } catch { targetRoleKeys.value = []; }
-  targetRoleKeys.value = []
+  try {
+    const userRes = await userApi.getById(record.id)
+    targetRoleKeys.value = userRes.data?.roleIds ? userRes.data.roleIds.map(String) : []
+  } catch {
+    targetRoleKeys.value = []
+  }
   roleModalVisible.value = true
 }
 

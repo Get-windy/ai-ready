@@ -403,6 +403,214 @@ export const handlers: MockHandlerDefinition[] = [
       await delay()
       return [...stockAlerts]
     }
+  },
+
+  // ====================================================================
+  // 菜单
+  // ====================================================================
+
+  // GET /api/menu/user/client/:clientType — 获取用户客户端菜单
+  {
+    method: 'GET',
+    path: '/api/menu/user/client/:clientType',
+    handler: async (ctx) => {
+      await delay()
+      const { clientType } = ctx.params
+      return [
+        {
+          id: 1,
+          parentId: 0,
+          menuName: '工作台',
+          menuCode: 'Dashboard',
+          menuType: 1,
+          path: '/dashboard',
+          component: 'views/dashboard/index.vue',
+          routeName: 'Dashboard',
+          icon: 'DashboardOutlined',
+          sort: 1,
+          isExternal: 0,
+          isCache: 1,
+          visible: 1,
+          status: 1,
+          clientType,
+          children: []
+        },
+        {
+          id: 2,
+          parentId: 0,
+          menuName: '采购管理',
+          menuCode: 'Purchase',
+          menuType: 1,
+          path: '/purchase',
+          component: 'views/purchase/index.vue',
+          routeName: 'Purchase',
+          icon: 'ShoppingCartOutlined',
+          sort: 2,
+          isExternal: 0,
+          isCache: 1,
+          visible: 1,
+          status: 1,
+          clientType,
+          children: []
+        },
+        {
+          id: 3,
+          parentId: 0,
+          menuName: '销售管理',
+          menuCode: 'Sale',
+          menuType: 1,
+          path: '/sale',
+          component: 'views/sale/index.vue',
+          routeName: 'Sale',
+          icon: 'ShoppingOutlined',
+          sort: 3,
+          isExternal: 0,
+          isCache: 1,
+          visible: 1,
+          status: 1,
+          clientType,
+          children: []
+        },
+        {
+          id: 5,
+          parentId: 0,
+          menuName: '客户管理',
+          menuCode: 'CrmCustomer',
+          menuType: 1,
+          path: '/crm/customer',
+          component: 'views/crm/customer/index.vue',
+          routeName: 'CrmCustomer',
+          icon: 'TeamOutlined',
+          sort: 5,
+          isExternal: 0,
+          isCache: 1,
+          visible: 1,
+          status: 1,
+          clientType,
+          children: []
+        },
+        {
+          id: 6,
+          parentId: 0,
+          menuName: '系统管理',
+          menuCode: 'System',
+          menuType: 0,
+          path: '/system',
+          component: '',
+          routeName: 'System',
+          icon: 'SettingOutlined',
+          sort: 99,
+          isExternal: 0,
+          isCache: 0,
+          visible: 1,
+          status: 1,
+          clientType,
+          children: [
+            {
+              id: 61,
+              parentId: 6,
+              menuName: '用户管理',
+              menuCode: 'SystemUser',
+              menuType: 1,
+              path: '/system/user',
+              component: 'views/system/user/index.vue',
+              routeName: 'SystemUser',
+              icon: 'UserOutlined',
+              sort: 1,
+              isExternal: 0,
+              isCache: 1,
+              visible: 1,
+              status: 1,
+              clientType,
+              children: []
+            },
+            {
+              id: 62,
+              parentId: 6,
+              menuName: '角色管理',
+              menuCode: 'SystemRole',
+              menuType: 1,
+              path: '/system/role',
+              component: 'views/system/role/index.vue',
+              routeName: 'SystemRole',
+              icon: 'TeamOutlined',
+              sort: 2,
+              isExternal: 0,
+              isCache: 1,
+              visible: 1,
+              status: 1,
+              clientType,
+              children: []
+            },
+            {
+              id: 63,
+              parentId: 6,
+              menuName: '菜单管理',
+              menuCode: 'SystemMenu',
+              menuType: 1,
+              path: '/system/menu',
+              component: 'views/system/menu/index.vue',
+              routeName: 'SystemMenu',
+              icon: 'MenuOutlined',
+              sort: 3,
+              isExternal: 0,
+              isCache: 1,
+              visible: 1,
+              status: 1,
+              clientType,
+              children: []
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  // POST /api/menu/tree — 菜单树
+  {
+    method: 'POST',
+    path: '/api/menu/tree',
+    handler: async () => {
+      await delay()
+      return [
+        { id: 1, parentId: 0, menuName: '工作台', menuCode: 'Dashboard', menuType: 1, path: '/dashboard', icon: 'DashboardOutlined', sort: 1, status: 1, visible: 1, children: [] },
+        { id: 2, parentId: 0, menuName: '采购管理', menuCode: 'Purchase', menuType: 1, path: '/purchase', icon: 'ShoppingCartOutlined', sort: 2, status: 1, visible: 1, children: [] },
+        { id: 3, parentId: 0, menuName: '销售管理', menuCode: 'Sale', menuType: 1, path: '/sale', icon: 'ShoppingOutlined', sort: 3, status: 1, visible: 1, children: [] },
+        { id: 5, parentId: 0, menuName: '客户管理', menuCode: 'CrmCustomer', menuType: 1, path: '/crm/customer', icon: 'TeamOutlined', sort: 5, status: 1, visible: 1, children: [] },
+        { id: 6, parentId: 0, menuName: '系统管理', menuCode: 'System', menuType: 0, path: '/system', icon: 'SettingOutlined', sort: 99, status: 1, visible: 1,
+          children: [
+            { id: 61, parentId: 6, menuName: '用户管理', menuCode: 'SystemUser', menuType: 1, path: '/system/user', icon: 'UserOutlined', sort: 1, status: 1, visible: 1, children: [] },
+            { id: 62, parentId: 6, menuName: '角色管理', menuCode: 'SystemRole', menuType: 1, path: '/system/role', icon: 'TeamOutlined', sort: 2, status: 1, visible: 1, children: [] },
+            { id: 63, parentId: 6, menuName: '菜单管理', menuCode: 'SystemMenu', menuType: 1, path: '/system/menu', icon: 'MenuOutlined', sort: 3, status: 1, visible: 1, children: [] }
+          ]
+        }
+      ]
+    }
+  },
+
+  // GET /api/menu/user/:userId — 获取用户菜单
+  {
+    method: 'GET',
+    path: '/api/menu/user/:userId',
+    handler: async (ctx) => {
+      await delay()
+      const { userId } = ctx.params
+      return [
+        { id: 1, parentId: 0, menuName: '工作台', menuCode: 'Dashboard', menuType: 1, path: '/dashboard', icon: 'DashboardOutlined', sort: 1, status: 1, visible: 1, children: [], userId: Number(userId) }
+      ]
+    }
+  },
+
+  // GET /api/menu/all — 获取所有菜单
+  {
+    method: 'GET',
+    path: '/api/menu/all',
+    handler: async () => {
+      await delay()
+      return [
+        { id: 1, parentId: 0, menuName: '工作台', menuCode: 'Dashboard', menuType: 1, path: '/dashboard', icon: 'DashboardOutlined', sort: 1, status: 1, visible: 1, children: [] }
+      ]
+    }
   }
 ]
 

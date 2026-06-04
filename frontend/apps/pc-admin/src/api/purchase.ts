@@ -38,12 +38,17 @@ export const purchaseOrderApi = {
   page(params: PurchaseOrderQuery): Promise<ApiResponse<PageResponse<PurchaseOrder>>> {
     console.log('[purchaseApi] page请求参数:', JSON.stringify(params))
     console.log('[purchaseApi] tenantId:', params.tenantId, 'current:', params.current, 'size:', params.size)
-    return request.get('/erp/purchase/order/page', { params } as any)
+    return request.get('/erp/purchase/order/page', params)
   },
 
   // 获取详情
   get(id: number): Promise<ApiResponse<PurchaseOrder>> {
     return request.get(`/erp/purchase/order/${id}`)
+  },
+
+  // 获取订单明细
+  getItems(id: number): Promise<ApiResponse<any[]>> {
+    return request.get(`/erp/purchase/order/${id}/items`)
   },
 
   // 创建
@@ -79,5 +84,10 @@ export const purchaseOrderApi = {
   // 取消订单
   cancel(id: number, reason: string): Promise<ApiResponse<void>> {
     return request.post(`/erp/purchase/order/${id}/cancel`, null, { params: { reason } })
+  },
+
+  // 导出Excel
+  exportData(params: Record<string, any>): Promise<Blob> {
+    return request.get('/erp/purchase/order/export', params, { responseType: 'blob' })
   }
 }

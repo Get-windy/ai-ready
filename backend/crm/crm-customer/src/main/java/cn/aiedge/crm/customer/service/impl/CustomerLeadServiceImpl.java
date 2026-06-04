@@ -38,30 +38,45 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
     @Override
     public Page<CustomerLead> pageList(String keyword, Integer leadStatus, Integer leadLevel,
                                         Long salesPersonId, int pageNum, int pageSize) {
+        LambdaQueryWrapper<CustomerLead> wrapper = buildQueryWrapper(keyword, leadStatus, leadLevel, salesPersonId);
+        wrapper.orderByDesc(CustomerLead::getCreatedAt);
+        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<CustomerLead> exportList(String keyword, Integer leadStatus, Integer leadLevel,
+                                          Long salesPersonId) {
+        LambdaQueryWrapper<CustomerLead> wrapper = buildQueryWrapper(keyword, leadStatus, leadLevel, salesPersonId);
+        wrapper.orderByDesc(CustomerLead::getCreatedAt);
+        return baseMapper.selectList(wrapper);
+    }
+
+    /**
+     * 构建公共查询条件
+     */
+    private LambdaQueryWrapper<CustomerLead> buildQueryWrapper(String keyword, Integer leadStatus,
+                                                                Integer leadLevel, Long salesPersonId) {
         LambdaQueryWrapper<CustomerLead> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CustomerLead::getDeleted, 0);
-        
+
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(CustomerLead::getLeadName, keyword)
                     .or().like(CustomerLead::getCompanyName, keyword)
                     .or().like(CustomerLead::getContactName, keyword));
         }
-        
+
         if (leadStatus != null) {
             wrapper.eq(CustomerLead::getLeadStatus, leadStatus);
         }
-        
+
         if (leadLevel != null) {
             wrapper.eq(CustomerLead::getLeadLevel, leadLevel);
         }
-        
+
         if (salesPersonId != null) {
             wrapper.eq(CustomerLead::getSalesPersonId, salesPersonId);
         }
-        
-        wrapper.orderByDesc(CustomerLead::getCreatedAt);
-        
-        return baseMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

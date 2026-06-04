@@ -10,7 +10,9 @@ import cn.aiedge.erp.fixedasset.service.depreciation.DepreciationContext;
 import cn.hutool.core.util.IdUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -123,6 +126,22 @@ public class FixedAssetServiceImpl implements FixedAssetService {
         asset = fixedAssetRepository.save(asset);
 
         return toDTO(asset);
+    }
+
+    @Override
+    @Transactional
+    public void batchDelete(List<Long> ids) {
+        for (Long id : ids) {
+            delete(id);
+        }
+    }
+
+    @Override
+    public List<FixedAssetDTO> exportList(String assetCode, String assetName, Long categoryId, String status,
+                                           String departmentId, String keyword) {
+        Page<FixedAssetDTO> page = getPage(assetCode, assetName, categoryId, status, departmentId, keyword,
+                PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return page.getContent();
     }
 
     @Override

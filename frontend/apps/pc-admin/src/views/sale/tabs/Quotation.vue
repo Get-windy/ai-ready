@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建报价"
     @add="handleAdd"
     @edit="handleEdit"
@@ -20,12 +21,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
     </template>
 
     <template #status="{ record }">
@@ -103,17 +101,18 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { quotationApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 import type { Dayjs } from 'dayjs'
 
 const router = useRouter()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -178,11 +177,12 @@ const resetForm = () => {
 }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await quotationApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
+  } catch { message.error('获取报价单列表失败') }
   finally { loading.value = false }
 }
 
@@ -202,11 +202,8 @@ async function handleDelete(record: any) {
   catch { message.error('删除失败') }
 }
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0; let failCount = 0
-  for (const id of ids) { try { await quotationApi.delete(id); successCount++ } catch { failCount++ } }
-  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
-  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
-  fetchData()
+  const result = await executeBatch(ids, (id) => quotationApi.delete(id), '批量删除')
+  if (result.successCount > 0) fetchData()
 }
 
 const handleFormSubmit = async () => {
@@ -243,19 +240,12 @@ function handleConvert(record: any) {
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['报价单号', '客户', '报价日期', '有效期', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.quotationNo || '', row.customerName || '', row.quotationDate || '', row.validDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `报价单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['报价单号', '客户', '报价日期', '有效期', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.quotationNo || '', row.customerName || '', row.quotationDate || '', row.validDate || '',
+    getStatusText(row.status), row.createTime || ''
+  ])
+  exportCsv(headers, rows, '报价单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

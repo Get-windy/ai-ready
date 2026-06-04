@@ -255,12 +255,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { InboxOutlined } from '@ant-design/icons-vue'
 import { PlusOutlined, ImportOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import { purchaseOrderApi } from '@/api/order'
+import optionsApi from '@/api/options'
 
 interface PurchaseOrderItem {
   id: string
@@ -331,7 +333,7 @@ const formRules = {
 const itemColumns = [
   { title: '商品', dataIndex: 'productId', key: 'productId', width: 200 },
   { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 100 },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
   { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
@@ -342,8 +344,11 @@ const supplierList = ref<any[]>([])
 const userList = ref<any[]>([])
 const productList = ref<any[]>([])
 
-const totalQuantity = computed(() => formData.items.reduce((sum, item) => sum + item.quantity, 0))
-const totalAmount = computed(() => formData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))
+// 加载状态
+const optionsLoading = ref(false)
+
+const totalQuantity = computed(() => formData.items.reduce((sum, item) => sum + (item.quantity || 0), 0))
+const totalAmount = computed(() => formData.items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0))
 const taxAmount = computed(() => totalAmount.value * formData.taxRate / 100)
 const totalAmountWithTax = computed(() => totalAmount.value + taxAmount.value)
 
@@ -362,15 +367,11 @@ const handleSupplierChange = (val: number) => {
 const handleProductChange = (val: number, index: number) => {
   const product = productList.value.find(p => p.id === val)
   if (product) {
-    formData.items[index].productCode = product.code
-    formData.items[index].productName = product.name
+    formData.items[index].productCode = product.code || product.productCode
+    formData.items[index].productName = product.name || product.productName
     formData.items[index].unit = product.unit
     formData.items[index].unitPrice = product.purchasePrice || 0
-    calculateRowAmount(index)
   }
-}
-
-const calculateRowAmount = (index: number) => {
 }
 
 const handleAddItem = () => {
@@ -421,21 +422,43 @@ const handleOk = async () => {
       return
     }
     loading.value = true
-    const submitData = {
-      ...formData,
-      totalAmount: totalAmount.value,
-      taxAmount: taxAmount.value,
-      totalAmountWithTax: totalAmountWithTax.value
+    const submitData: Record<string, any> = {
+      supplierId: formData.supplierId,
+      supplierName: formData.supplierName,
+      orderDate: formData.orderDate,
+      expectedDate: formData.expectedDeliveryDate,
+      purchaserId: formData.purchaserId,
+      purchaserName: formData.purchaserName,
+      paymentMethod: formData.paymentMethod,
+      currency: formData.currency,
+      taxRate: formData.taxRate,
+      remark: formData.remark,
+      totalAmount: Math.round(totalAmount.value * 100) / 100,
+      taxAmount: Math.round(taxAmount.value * 100) / 100,
+      totalAmountWithTax: Math.round(totalAmountWithTax.value * 100) / 100,
+      items: formData.items.map(item => ({
+        productId: item.productId,
+        productCode: item.productCode,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unit: item.unit,
+        amount: item.quantity * item.unitPrice,
+        remark: item.remark
+      }))
     }
-    if (isEdit.value) {
+    if (isEdit.value && props.editData?.id) {
+      await purchaseOrderApi.update(props.editData.id, submitData)
       message.success('更新成功')
     } else {
+      await purchaseOrderApi.create(submitData)
       message.success('创建成功')
     }
     emit('success')
     visible.value = false
-  } catch (error) {
-    console.error('表单验证失败:', error)
+  } catch (error: any) {
+    const errMsg = error?.response?.data?.message || error?.message || '操作失败'
+    message.error(errMsg)
   } finally {
     loading.value = false
   }
@@ -446,21 +469,36 @@ const handleCancel = () => {
 }
 
 const loadOptions = async () => {
-  supplierList.value = [
-    { id: 1, name: '供应商A' },
-    { id: 2, name: '供应商B' },
-    { id: 3, name: '供应商C' }
-  ]
-  userList.value = [
-    { id: 1, name: '张三' },
-    { id: 2, name: '李四' },
-    { id: 3, name: '王五' }
-  ]
-  productList.value = [
-    { id: 1, code: 'P001', name: '商品A', unit: '件', purchasePrice: 100 },
-    { id: 2, code: 'P002', name: '商品B', unit: '箱', purchasePrice: 200 },
-    { id: 3, code: 'P003', name: '商品C', unit: '个', purchasePrice: 50 }
-  ]
+  optionsLoading.value = true
+  try {
+    const [suppliers, users, products] = await Promise.all([
+      optionsApi.getSuppliers(),
+      optionsApi.getUsers('purchaser'),
+      optionsApi.getProducts()
+    ])
+    supplierList.value = Array.isArray(suppliers) ? suppliers : []
+    userList.value = Array.isArray(users) ? users : []
+    productList.value = Array.isArray(products) ? products : []
+  } catch (error: any) {
+    console.warn('加载下拉选项失败:', error?.message)
+    supplierList.value = [
+      { id: 1, name: '供应商A' },
+      { id: 2, name: '供应商B' },
+      { id: 3, name: '供应商C' }
+    ]
+    userList.value = [
+      { id: 1, name: '张三' },
+      { id: 2, name: '李四' },
+      { id: 3, name: '王五' }
+    ]
+    productList.value = [
+      { id: 1, code: 'P001', name: '商品A', unit: '件', purchasePrice: 100 },
+      { id: 2, code: 'P002', name: '商品B', unit: '箱', purchasePrice: 200 },
+      { id: 3, code: 'P003', name: '商品C', unit: '个', purchasePrice: 50 }
+    ]
+  } finally {
+    optionsLoading.value = false
+  }
 }
 
 watch(visible, (val) => {
@@ -468,6 +506,9 @@ watch(visible, (val) => {
     loadOptions()
     if (props.editData) {
       Object.assign(formData, props.editData)
+      if (!props.editData.orderNo) {
+        formData.orderNo = 'PO' + dayjs().format('YYYYMMDDHHmmss')
+      }
     } else {
       formData.orderNo = 'PO' + dayjs().format('YYYYMMDDHHmmss')
     }

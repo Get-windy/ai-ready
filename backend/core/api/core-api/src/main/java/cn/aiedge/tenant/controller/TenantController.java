@@ -19,7 +19,7 @@ import java.util.Map;
  * 提供租户的 CRUD、分页查询、状态管理等功能
  */
 @RestController
-@RequestMapping("/tenant")
+@RequestMapping("/api/tenant")
 @SaCheckLogin
 @RequiredArgsConstructor
 @Tag(name = "租户管理", description = "租户CRUD、分页查询、状态管理")

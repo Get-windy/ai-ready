@@ -94,6 +94,12 @@ public class UserController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "导出用户")
+    @GetMapping("/export")
+    public ApiResponse<List<cn.aiedge.base.entity.User>> export() {
+        return ApiResponse.ok(userService.list());
+    }
+
     @Operation(summary = "分配角色")
     @PostMapping("/{id}/roles")
     public ApiResponse<Void> assignRoles(

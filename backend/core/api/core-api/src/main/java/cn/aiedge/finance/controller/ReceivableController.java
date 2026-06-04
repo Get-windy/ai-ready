@@ -82,4 +82,19 @@ public class ReceivableController {
     public ApiResponse<List<ReceivableVO>> getByCustomer(@PathVariable Long customerId) {
         return ApiResponse.ok(receivableService.getByCustomer(customerId));
     }
+
+    @Operation(summary = "批量删除应收账款")
+    @DeleteMapping("/batch")
+    @RequiresPermission("finance:receivable:delete")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        receivableService.batchDelete(ids);
+        return ApiResponse.success();
+    }
+
+    @Operation(summary = "导出应收账款")
+    @GetMapping("/export")
+    @RequiresPermission("finance:receivable:export")
+    public ApiResponse<List<ReceivableVO>> export(ReceivableQueryRequest request) {
+        return ApiResponse.ok(receivableService.exportList(request));
+    }
 }

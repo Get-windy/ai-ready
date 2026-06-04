@@ -18,7 +18,10 @@ public interface CustomerOpportunityService extends IService<CustomerOpportunity
     List<CustomerOpportunity> listByCustomerId(Long customerId);
     
     List<CustomerOpportunity> listBySalesPersonId(Long salesPersonId);
-    
+
+    List<CustomerOpportunity> exportList(String keyword, Long customerId, Integer opportunityStage,
+                                          Integer status, Long salesPersonId);
+
     CustomerOpportunity advanceStage(Long opportunityId);
     
     CustomerOpportunity winOpportunity(Long opportunityId, BigDecimal actualAmount);

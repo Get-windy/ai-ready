@@ -163,6 +163,8 @@ export async function refreshTokenAndRetry(
 
 // ── Token 过期检查 ──────────────────────────────────────
 
+const T = '[DEBUG:token]'
+
 /**
  * 检查 Token 是否已过期（仅检查 exp 字段，不做签名验证）
  * 对于非 JWT 格式的 token（如 mock），假定未过期
@@ -172,9 +174,12 @@ export function isTokenExpired(token: string): boolean {
     // JWT token 格式: header.payload.signature
     const payload = JSON.parse(atob(token.split('.')[1]))
     const exp = payload.exp * 1000 // 转换为毫秒
-    return Date.now() >= exp - 60000 // 提前1分钟判定过期
+    const expired = Date.now() >= exp - 60000 // 提前1分钟判定过期
+    console.log(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
+    return expired
   } catch {
     // 非 JWT 格式的 Token（如 mock token），假定未过期
+    console.log(`${T} isTokenExpired: 非JWT格式, 假定未过期`)
     return false
   }
 }

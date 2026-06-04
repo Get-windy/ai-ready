@@ -65,6 +65,22 @@ public class CustomerLeadController {
     public boolean delete(@PathVariable Long id) {
         return customerLeadService.removeById(id);
     }
+
+    @Operation(summary = "批量删除线索")
+    @DeleteMapping("/batch")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return customerLeadService.removeBatchByIds(ids);
+    }
+
+    @Operation(summary = "导出线索列表")
+    @GetMapping("/export")
+    public List<CustomerLead> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "线索状态") @RequestParam(required = false) Integer leadStatus,
+            @Parameter(description = "线索等级") @RequestParam(required = false) Integer leadLevel,
+            @Parameter(description = "销售人员ID") @RequestParam(required = false) Long salesPersonId) {
+        return customerLeadService.exportList(keyword, leadStatus, leadLevel, salesPersonId);
+    }
     
     @Operation(summary = "转化线索为客户")
     @PostMapping("/{id}/convert")

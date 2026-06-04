@@ -32,7 +32,7 @@ export interface UnreadCount {
 export const notificationApi = {
   // 分页查询通知
   getPage(params: NotificationQuery): Promise<ApiResponse<PageResponse<NotificationInfo>>> {
-    return request.get('/notification/page', { params })
+    return request.get('/notification/page', params)
   },
 
   // 获取通知详情
@@ -67,7 +67,7 @@ export const notificationApi = {
 
   // 获取通知列表
   getList(params?: NotificationQuery): Promise<ApiResponse<NotificationInfo[]>> {
-    return request.get('/notification/list', { params })
+    return request.get('/notification/list', params)
   }
 }
 

@@ -81,35 +81,35 @@ export const accountsReceivableApi = {
    * 分页查询应收账款
    */
   getPage(params: FinanceQuery): Promise<ApiResponse<PageResponse<AccountsReceivable>>> {
-    return request.get('/api/finance/accounts-receivable/page', { params })
+    return request.get('/erp/finance/accounts-receivable/page', params)
   },
 
   /**
    * 创建应收账款
    */
   create(data: Partial<AccountsReceivable>): Promise<ApiResponse<boolean>> {
-    return request.post('/api/finance/accounts-receivable', data)
+    return request.post('/erp/finance/accounts-receivable', data)
   },
 
   /**
    * 更新应收账款
    */
   update(id: number, data: Partial<AccountsReceivable>): Promise<ApiResponse<boolean>> {
-    return request.put(`/api/finance/accounts-receivable/${id}`, data)
+    return request.put(`/erp/finance/accounts-receivable/${id}`, data)
   },
 
   /**
    * 删除应收账款
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/api/finance/accounts-receivable/${id}`)
+    return request.delete(`/erp/finance/accounts-receivable/${id}`)
   },
 
   /**
    * 收款
    */
   payment(id: number, amount: number, method: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/finance/accounts-receivable/${id}/payment`, null, { params: { amount, method } })
+    return request.post(`/erp/finance/accounts-receivable/${id}/payment`, null, { params: { amount, method } })
   }
 }
 
@@ -121,42 +121,42 @@ export const accountsPayableApi = {
    * 分页查询应付账款
    */
   getPage(params: FinanceQuery): Promise<ApiResponse<PageResponse<AccountsPayable>>> {
-    return request.get('/api/finance/accounts-payable/page', { params })
+    return request.get('/erp/finance/accounts-payable/page', params)
   },
 
   /**
    * 创建应付账款
    */
   create(data: Partial<AccountsPayable>): Promise<ApiResponse<boolean>> {
-    return request.post('/api/finance/accounts-payable', data)
+    return request.post('/erp/finance/accounts-payable', data)
   },
 
   /**
    * 更新应付账款
    */
   update(id: number, data: Partial<AccountsPayable>): Promise<ApiResponse<boolean>> {
-    return request.put(`/api/finance/accounts-payable/${id}`, data)
+    return request.put(`/erp/finance/accounts-payable/${id}`, data)
   },
 
   /**
    * 删除应付账款
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/api/finance/accounts-payable/${id}`)
+    return request.delete(`/erp/finance/accounts-payable/${id}`)
   },
 
   /**
    * 付款
    */
   payment(id: number, amount: number, method: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/finance/accounts-payable/${id}/payment`, null, { params: { amount, method } })
+    return request.post(`/erp/finance/accounts-payable/${id}/payment`, null, { params: { amount, method } })
   },
 
   /**
    * 付款审批
    */
   approve(id: number, approved: boolean, comment?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/finance/accounts-payable/${id}/approve`, null, { params: { approved, comment } })
+    return request.post(`/erp/finance/accounts-payable/${id}/approve`, null, { params: { approved, comment } })
   }
 }
 
@@ -168,21 +168,21 @@ export const reconciliationApi = {
    * 银行对账
    */
   bankReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/api/finance/reconciliation/bank', params)
+    return request.post('/erp/finance/reconciliation/bank', params)
   },
 
   /**
    * 客户对账
    */
   customerReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/api/finance/reconciliation/customer', params)
+    return request.post('/erp/finance/reconciliation/customer', params)
   },
 
   /**
    * 供应商对账
    */
   supplierReconciliation(params: any): Promise<ApiResponse<any>> {
-    return request.post('/api/finance/reconciliation/supplier', params)
+    return request.post('/erp/finance/reconciliation/supplier', params)
   }
 }
 
@@ -194,21 +194,21 @@ export const financialReportsApi = {
    * 资产负债表
    */
   getBalanceSheet(month: string): Promise<ApiResponse<any>> {
-    return request.get('/api/finance/reports/balance-sheet', { params: { month } })
+    return request.get('/erp/finance/reports/balance-sheet', { month })
   },
 
   /**
    * 利润表
    */
   getProfitStatement(month: string): Promise<ApiResponse<any>> {
-    return request.get('/api/finance/reports/profit-statement', { params: { month } })
+    return request.get('/erp/finance/reports/profit-statement', { month })
   },
 
   /**
    * 现金流量表
    */
   getCashFlowStatement(month: string): Promise<ApiResponse<any>> {
-    return request.get('/api/finance/reports/cash-flow', { params: { month } })
+    return request.get('/erp/finance/reports/cash-flow', { month })
   }
 }
 

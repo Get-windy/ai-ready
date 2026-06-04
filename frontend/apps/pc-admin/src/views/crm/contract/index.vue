@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建合同"
     @add="handleAdd"
     @refresh="fetchData"
@@ -16,9 +17,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
     </template>
 
     <template #contractNo="{ record }">
@@ -33,10 +34,10 @@
     <template #action="{ record }">
       <a-space :size="4">
         <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'pending'" title="审批"><a-button type="link" size="small" @click="handleApprove(record)"><template #icon><CheckCircleOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'approved'" title="签订"><a-button type="link" size="small" @click="handleSign(record)"><template #icon><FileDoneOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'draft'" title="删除"><a-button type="link" danger size="small" @click="handleDeleteConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
+        <a-tooltip v-if="record.status === 1" title="审批"><a-button type="link" size="small" @click="handleApprove(record)"><template #icon><CheckCircleOutlined /></template></a-button></a-tooltip>
+        <a-tooltip v-if="record.status === 2" title="签订"><a-button type="link" size="small" @click="handleSign(record)"><template #icon><FileDoneOutlined /></template></a-button></a-tooltip>
+        <a-tooltip v-if="record.status === 0" title="删除"><a-button type="link" danger size="small" @click="handleDeleteConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
       </a-space>
     </template>
   </TableList>
@@ -116,9 +117,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, FileDoneOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, FileDoneOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import type { FormInstance } from 'ant-design-vue'
+import { contractApi } from '@/api/crm'
+import { exportCsv } from '@/utils/exportCsv'
 
 const tableRef = ref()
 const loading = ref(false)
@@ -154,14 +157,27 @@ const filterFields = [
     { label: '服务合同', value: 'service' }, { label: '租赁合同', value: 'lease' }
   ]},
   { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '草稿', value: 'draft' }, { label: '待审批', value: 'pending' }, { label: '已审批', value: 'approved' },
-    { label: '执行中', value: 'executing' }, { label: '已完成', value: 'completed' }, { label: '已终止', value: 'terminated' }
+    { label: '草稿', value: 0 }, { label: '待审批', value: 1 }, { label: '已审批', value: 2 },
+    { label: '待签署', value: 3 }, { label: '已签署', value: 4 }, { label: '生效中', value: 5 },
+    { label: '执行中', value: 6 }, { label: '已完成', value: 7 }, { label: '已终止', value: 8 },
+    { label: '已过期', value: 9 }, { label: '已取消', value: 10 }
   ]},
   { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
 ]
 
-const statusColorMap: Record<string, string> = { draft: 'default', pending: 'orange', approved: 'blue', executing: 'green', completed: 'green', terminated: 'red' }
-const statusTextMap: Record<string, string> = { draft: '草稿', pending: '待审批', approved: '已审批', executing: '执行中', completed: '已完成', terminated: '已终止' }
+const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'blue', 3: 'geekblue', 4: 'purple', 5: 'green', 6: 'green', 7: 'green', 8: 'red', 9: 'red', 10: 'red' }
+const statusTextMap: Record<number, string> = { 0: '草稿', 1: '待审批', 2: '已审批', 3: '待签署', 4: '已签署', 5: '生效中', 6: '执行中', 7: '已完成', 8: '已终止', 9: '已过期', 10: '已取消' }
+
+// 将前端字符串状态映射为后端数字状态
+function mapStatusToBackend(status: string): number | undefined {
+  const map: Record<string, number> = { draft: 0, pending: 1, approved: 2, signing: 3, signed: 4, effective: 5, executing: 6, completed: 7, terminated: 8, expired: 9, cancelled: 10 }
+  return map[status]
+}
+// 将后端数字状态映射为前端字符串状态（用于筛选条件）
+function mapStatusToFrontend(status: number): string {
+  const map: Record<number, string> = { 0: 'draft', 1: 'pending', 2: 'approved', 3: 'signing', 4: 'signed', 5: 'effective', 6: 'executing', 7: 'completed', 8: 'terminated', 9: 'expired', 10: 'cancelled' }
+  return map[status] || 'draft'
+}
 
 const summaryData = computed(() => {
   if (tableData.value.length === 0) return undefined
@@ -195,16 +211,18 @@ function generateContractNo() {
 async function fetchData() {
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 300))
-    tableData.value = [
-      { id: 1, contractNo: 'CT20240115001', contractName: '办公用品采购合同', customerName: '北京科技有限公司', contractType: 'purchase', contractTypeLabel: '采购合同', contractAmount: 58000, startDate: '2024-01-15', endDate: '2024-12-31', status: 'executing', createTime: '2024-01-15 10:30' },
-      { id: 2, contractNo: 'CT20240115002', contractName: 'IT服务合同', customerName: '上海贸易公司', contractType: 'service', contractTypeLabel: '服务合同', contractAmount: 128000, startDate: '2024-01-01', endDate: '2024-06-30', status: 'approved', createTime: '2024-01-15 09:20' },
-      { id: 3, contractNo: 'CT20240114003', contractName: '销售合同', customerName: '广州制造企业', contractType: 'sales', contractTypeLabel: '销售合同', contractAmount: 256000, startDate: '2024-02-01', endDate: '2024-12-31', status: 'pending', createTime: '2024-01-14 16:45' },
-      { id: 4, contractNo: 'CT20240120004', contractName: '设备租赁合同', customerName: '深圳科技公司', contractType: 'lease', contractTypeLabel: '租赁合同', contractAmount: 36000, startDate: '2024-02-01', endDate: '2025-01-31', status: 'draft', createTime: '2024-01-20 11:00' },
-      { id: 5, contractNo: 'CT20240122005', contractName: '年度服务协议', customerName: '杭州互联网公司', contractType: 'service', contractTypeLabel: '服务合同', contractAmount: 96000, startDate: '2024-03-01', endDate: '2025-02-28', status: 'terminated', createTime: '2024-01-22 14:30' }
-    ]
-    pagination.total = 5
-  } catch { message.error('获取数据失败') }
+    const params: any = { pageNum: pagination.current, pageSize: pagination.pageSize }
+    if (searchFilters.keyword) params.keyword = searchFilters.keyword
+    if (searchFilters.status !== undefined && searchFilters.status !== null) params.status = Number(searchFilters.status)
+    const res = await contractApi.page(params)
+    const result = res as any
+    const records = result.records || result.data?.records || []
+    tableData.value = records.map((r: any) => ({
+      ...r,
+      contractTypeLabel: r.contractTypeLabel || r.contractType || ''
+    }))
+    pagination.total = result.total ?? result.data?.total ?? 0
+  } catch { message.error('获取合同数据失败') }
   finally { loading.value = false }
 }
 
@@ -216,36 +234,45 @@ function handleEdit(record: any) { modalTitle.value = '编辑合同'; Object.ass
 function handleAdd() { modalTitle.value = '新建合同'; generateContractNo(); modalVisible.value = true }
 
 function handleApprove(record: any) {
-  Modal.confirm({ title: '确认审批', content: `确定要审批合同 "${record.contractName}" 吗？`, okText: '确认审批', cancelText: '取消', centered: true, async onOk() { message.success('审批成功'); fetchData() } })
+  Modal.confirm({ title: '确认审批', content: `确定要审批合同 "${record.contractName}" 吗？`, okText: '确认审批', cancelText: '取消', centered: true, async onOk() {
+    try { await contractApi.approve(record.id); message.success('审批成功'); fetchData() }
+    catch { message.error('审批失败') }
+  }})
 }
 function handleSign(record: any) { signForm.contractId = record.id; signForm.contractName = record.contractName; signForm.signDate = undefined; signForm.signPerson = record.signPerson || ''; signModalVisible.value = true }
-function handleSignSubmit() {
+async function handleSignSubmit() {
   if (!signForm.signDate) { message.warning('请选择签订日期'); return }
   if (!signForm.signPerson.trim()) { message.warning('请输入签订人'); return }
-  message.success(`合同"${signForm.contractName}"签订成功，已进入执行阶段`); signModalVisible.value = false; fetchData()
+  try { await contractApi.sign(signForm.contractId!, 'manual'); message.success(`合同"${signForm.contractName}"签订成功`); signModalVisible.value = false; fetchData() }
+  catch { message.error('签订失败') }
 }
 function handleDeleteConfirm(record: any) {
-  Modal.confirm({ title: '确认删除', content: `确定要删除合同 "${record.contractName}" 吗？`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true, async onOk() { message.success('删除成功'); fetchData() } })
+  Modal.confirm({ title: '确认删除', content: `确定要删除合同 "${record.contractName}" 吗？`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true, async onOk() {
+    try { await contractApi.terminate(record.id, '删除'); message.success('删除成功'); fetchData() }
+    catch { message.error('删除失败') }
+  }})
 }
 
 async function handleSubmit() {
   try { await formRef.value?.validate() } catch { return }
   submitLoading.value = true
-  try { message.success('保存成功'); modalVisible.value = false; fetchData() }
+  try {
+    const data = { ...formData }
+    if (data.id) {
+      await contractApi.update(data.id, data)
+    } else {
+      await contractApi.create(data)
+    }
+    message.success('保存成功'); modalVisible.value = false; fetchData()
+  } catch { message.error('保存失败') }
   finally { submitLoading.value = false }
 }
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['合同编号', '合同名称', '客户名称', '合同类型', '合同金额', '开始日期', '结束日期', '状态', '创建时间']
-    const rows = tableData.value.map((row: any) => [row.contractNo, row.contractName, row.customerName, row.contractTypeLabel, row.contractAmount, row.startDate, row.endDate, getStatusText(row.status), row.createTime])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `合同_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(link); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['合同编号', '合同名称', '客户名称', '合同类型', '合同金额', '开始日期', '结束日期', '状态', '创建时间']
+  const rows = tableData.value.map((row: any) => [row.contractNo, row.contractName, row.customerName, row.contractTypeLabel, row.contractAmount, row.startDate, row.endDate, getStatusText(row.status), row.createTime])
+  exportCsv(headers, rows, '合同')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

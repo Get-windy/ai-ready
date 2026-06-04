@@ -21,4 +21,8 @@ public interface BudgetTemplateService {
     BudgetTemplateDTO publish(Long id);
 
     List<BudgetTemplateDTO> listByFiscalYear(Integer fiscalYear);
+
+    void batchDelete(List<Long> ids);
+
+    List<BudgetTemplateDTO> exportList(String keyword, Integer fiscalYear, String status);
 }

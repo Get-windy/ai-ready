@@ -28,7 +28,7 @@ export interface PurchaseInquiry {
 }
 export const inquiryApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseInquiry>> {
-    return request.get('/erp/purchase/inquiry/page', { params })
+    return request.get('/erp/purchase/inquiry/page', params)
   },
   getById(id: number) { return request.get(`/erp/purchase/inquiry/${id}`) },
   create(data: any) { return request.post('/erp/purchase/inquiry', data) },
@@ -44,7 +44,7 @@ export interface PurchaseInbound {
 }
 export const inboundApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseInbound>> {
-    return request.get('/erp/purchase/inbound/page', { params })
+    return request.get('/erp/purchase/inbound/page', params)
   },
   getById(id: number) { return request.get(`/erp/purchase/inbound/${id}`) },
   create(data: any) { return request.post('/erp/purchase/inbound', data) },
@@ -59,7 +59,7 @@ export interface PurchaseReturn {
 }
 export const purchaseReturnApi = {
   page(params: PageQuery): Promise<PageResult<PurchaseReturn>> {
-    return request.get('/erp/purchase/return/page', { params })
+    return request.get('/erp/purchase/return/page', params)
   },
   getById(id: number) { return request.get(`/erp/purchase/return/${id}`) },
   create(data: any) { return request.post('/erp/purchase/return', data) },
@@ -74,7 +74,7 @@ export interface Payment {
 }
 export const paymentApi = {
   page(params: PageQuery): Promise<PageResult<Payment>> {
-    return request.get('/erp/payment/page', { params })
+    return request.get('/erp/payment/page', params)
   },
   getById(id: number) { return request.get(`/erp/payment/${id}`) },
   create(data: any) { return request.post('/erp/payment', data) },
@@ -89,7 +89,7 @@ export interface SaleOutbound {
 }
 export const outboundApi = {
   page(params: PageQuery): Promise<PageResult<SaleOutbound>> {
-    return request.get('/erp/sale/outbound/page', { params })
+    return request.get('/erp/sale/outbound/page', params)
   },
   getById(id: number) { return request.get(`/erp/sale/outbound/${id}`) },
   create(data: any) { return request.post('/erp/sale/outbound', data) },
@@ -103,7 +103,7 @@ export interface SaleReturn {
 }
 export const saleReturnApi = {
   page(params: PageQuery): Promise<PageResult<SaleReturn>> {
-    return request.get('/erp/sale/return/page', { params })
+    return request.get('/erp/sale/return/page', params)
   },
   getById(id: number) { return request.get(`/erp/sale/return/${id}`) },
   create(data: any) { return request.post('/erp/sale/return', data) },
@@ -119,7 +119,7 @@ export interface SaleReceipt {
 }
 export const receiptApi = {
   page(params: PageQuery): Promise<PageResult<SaleReceipt>> {
-    return request.get('/erp/sale/receipt/page', { params })
+    return request.get('/erp/sale/receipt/page', params)
   },
   getById(id: number) { return request.get(`/erp/sale/receipt/${id}`) },
   create(data: any) { return request.post('/erp/sale/receipt', data) },
@@ -135,14 +135,14 @@ export interface SaleQuotation {
 }
 export const quotationApi = {
   page(params: PageQuery): Promise<PageResult<SaleQuotation>> {
-    return request.get('/erp/sale/quotation/page', { params })
+    return request.get('/crm/quotation/page', params)
   },
-  getById(id: number) { return request.get(`/erp/sale/quotation/${id}`) },
-  create(data: any) { return request.post('/erp/sale/quotation', data) },
-  update(id: number, data: any) { return request.put(`/erp/sale/quotation/${id}`, data) },
-  delete(id: number) { return request.delete(`/erp/sale/quotation/${id}`) },
-  send(id: number) { return request.post(`/erp/sale/quotation/${id}/send`) },
-  convertToOrder(id: number) { return request.post(`/erp/sale/quotation/${id}/convert-to-order`) },
+  getById(id: number) { return request.get(`/crm/quotation/${id}`) },
+  create(data: any) { return request.post('/crm/quotation', data) },
+  update(id: number, data: any) { return request.put(`/crm/quotation/${id}`, data) },
+  delete(id: number) { return request.delete(`/crm/quotation/${id}`) },
+  send(id: number) { return request.post(`/crm/quotation/${id}/send`) },
+  convertToOrder(id: number) { return request.post(`/crm/quotation/${id}/convert-to-order`) },
 }
 
 // ── 库存管理 ──────────────────────────────────────────
@@ -154,7 +154,7 @@ export interface StockItem {
 }
 export const stockApi = {
   page(params: PageQuery): Promise<PageResult<StockItem>> {
-    return request.get('/erp/stock/page', { params })
+    return request.get('/erp/stock/page', params)
   },
   getById(id: number) { return request.get(`/erp/stock/${id}`) },
 }
@@ -166,10 +166,47 @@ export interface StockCheck {
 }
 export const stockCheckApi = {
   page(params: PageQuery): Promise<PageResult<StockCheck>> {
-    return request.get('/erp/stock/check/page', { params })
+    return request.get('/erp/stock/check/page', params)
   },
   getById(id: number) { return request.get(`/erp/stock/check/${id}`) },
   create(data: any) { return request.post('/erp/stock/check', data) },
+  getItems(checkId: number): Promise<ApiResponse<StockCheckItem[]>> {
+    return request.get(`/erp/stock/check/${checkId}/items`)
+  },
+  createWithItems(warehouseId: number): Promise<ApiResponse<StockCheck>> {
+    return request.post(`/erp/stock/check/create-with-items/${warehouseId}`)
+  },
+  startCheck(id: number): Promise<ApiResponse<StockCheck>> {
+    return request.post(`/erp/stock/check/${id}/start`)
+  },
+  checkItem(id: number, itemId: number, actualQuantity: number, note?: string): Promise<ApiResponse<StockCheckItem>> {
+    return request.post(`/erp/stock/check/${id}/items/${itemId}/check`, null, { params: { actualQuantity, note } })
+  },
+  completeCheck(id: number): Promise<ApiResponse<StockCheck>> {
+    return request.post(`/erp/stock/check/${id}/complete`)
+  },
+  submitForApproval(id: number): Promise<ApiResponse<StockCheck>> {
+    return request.post(`/erp/stock/check/${id}/submit`)
+  },
+  cancel(id: number, reason: string): Promise<ApiResponse<StockCheck>> {
+    return request.post(`/erp/stock/check/${id}/cancel`, null, { params: { reason } })
+  },
+  delete(id: number): Promise<ApiResponse<void>> {
+    return request.delete(`/erp/stock/check/${id}`)
+  },
+}
+
+export interface StockCheckItem {
+  id: number
+  productId: number
+  productCode: string
+  productName: string
+  productSpec?: string
+  productUnit?: string
+  bookQuantity: number
+  actualQuantity: number | null
+  diffQuantity: number
+  checkStatus?: number
 }
 
 // ── 库存调拨 ──────────────────────────────────────────
@@ -179,7 +216,7 @@ export interface StockTransfer {
 }
 export const stockTransferApi = {
   page(params: PageQuery): Promise<PageResult<StockTransfer>> {
-    return request.get('/erp/stock/transfer/page', { params })
+    return request.get('/erp/stock/transfer/page', params)
   },
   getById(id: number) { return request.get(`/erp/stock/transfer/${id}`) },
   create(data: any) { return request.post('/erp/stock/transfer', data) },
@@ -194,7 +231,7 @@ export interface BatchItem {
 }
 export const batchApi = {
   page(params: PageQuery): Promise<PageResult<BatchItem>> {
-    return request.get('/erp/batch-sn/batch/page', { params })
+    return request.get('/erp/batch-sn/batch/page', params)
   },
   getById(id: number) { return request.get(`/erp/batch-sn/batch/${id}`) },
 }
@@ -209,7 +246,7 @@ export interface ReplenishmentSuggestion {
 }
 export const replenishmentApi = {
   list(params: Record<string, any>): Promise<PageResult<ReplenishmentSuggestion>> {
-    return request.get('/erp/stock/replenishment/list', { params })
+    return request.get('/erp/stock/replenishment/list', params)
   },
   generate(): Promise<ApiResponse<void>> {
     return request.post('/erp/stock/replenishment/generate')
@@ -230,7 +267,7 @@ export interface SaleOrder {
 }
 export const saleOrderApi = {
   getPage(params: any): Promise<PageResult<SaleOrder>> {
-    return request.get('/erp/sale/order/page', { params })
+    return request.get('/erp/sale/order/page', params)
   },
   getById(id: number) { return request.get(`/erp/sale/order/${id}`) },
   create(data: any) { return request.post('/erp/sale/order', data) },
@@ -242,7 +279,7 @@ export const saleOrderApi = {
   batchApprove(ids: number[]) { return request.post('/erp/sale/order/batch-approve', ids) },
   print(id: number) { return request.get(`/erp/sale/order/${id}/print`) },
   batchPrint(ids: number[]) { return request.post('/erp/sale/order/batch-print', ids) },
-  export(params: any) { return request.get('/erp/sale/order/export', { params, responseType: 'blob' }) },
+  export(params: any) { return request.get('/erp/sale/order/export', params, { responseType: 'blob' }) },
 }
 
 // ── 采购订单 ──────────────────────────────────────────
@@ -253,7 +290,7 @@ export interface PurchaseOrder {
 }
 export const purchaseOrderApi = {
   getPage(params: any): Promise<PageResult<PurchaseOrder>> {
-    return request.get('/erp/purchase/order/page', { params })
+    return request.get('/erp/purchase/order/page', params)
   },
   getById(id: number) { return request.get(`/erp/purchase/order/${id}`) },
   create(data: any) { return request.post('/erp/purchase/order', data) },
@@ -265,5 +302,5 @@ export const purchaseOrderApi = {
   batchApprove(ids: number[]) { return request.post('/erp/purchase/order/batch-approve', ids) },
   close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
   print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
-  export(params: any) { return request.get('/erp/purchase/order/export', { params, responseType: 'blob' }) },
+  export(params: any) { return request.get('/erp/purchase/order/export', params, { responseType: 'blob' }) },
 }

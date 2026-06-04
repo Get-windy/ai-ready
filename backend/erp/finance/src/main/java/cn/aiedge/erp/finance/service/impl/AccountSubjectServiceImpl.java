@@ -175,6 +175,23 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
         return toDTO(entity);
     }
 
+    @Override
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        for (Long id : ids) {
+            AccountSubject entity = accountSubjectMapper.selectById(id);
+            if (entity == null) {
+                throw new RuntimeException("会计科目不存在: " + id);
+            }
+            List<AccountSubject> children = accountSubjectMapper.findByParentId(id);
+            if (!children.isEmpty()) {
+                throw new RuntimeException("科目包含子科目，无法删除: " + entity.getSubjectCode());
+            }
+        }
+        accountSubjectMapper.deleteBatchIds(ids);
+        log.info("批量删除会计科目: ids={}", ids);
+    }
+
     // ======== DTO <-> Entity 转换 ========
 
     private AccountSubjectDTO toDTO(AccountSubject entity) {

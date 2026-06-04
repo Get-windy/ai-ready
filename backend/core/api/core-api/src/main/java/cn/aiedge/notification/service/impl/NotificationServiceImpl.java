@@ -240,6 +240,22 @@ public class NotificationServiceImpl implements NotificationService {
         return false;
     }
 
+    @Override
+    public boolean deleteNotifications(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+        for (Long id : ids) {
+            deleteNotification(id);
+        }
+        return true;
+    }
+
+    @Override
+    public List<NotificationRecord> listAllRecords() {
+        return new ArrayList<>(records.values());
+    }
+
     // ==================== 重试与队列处理 ====================
 
     @Override

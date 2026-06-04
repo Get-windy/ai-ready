@@ -8,9 +8,13 @@ import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 付款记录控制器
@@ -57,5 +61,32 @@ public class PaymentController {
         result.setPageNum(pageResult.getCurrent());
         result.setPageSize(pageResult.getSize());
         return ApiResponse.success(result);
+    }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除付款记录")
+    public ApiResponse<Void> deleteBatch(@RequestBody List<Long> ids) {
+        paymentService.removeBatchByIds(ids);
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出付款记录列表")
+    public ApiResponse<List<PaymentVO>> export(
+            @Parameter(description = "应付账款ID") @RequestParam(required = false) Long payableId,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "付款日期起") @RequestParam(required = false) LocalDate paymentDateStart,
+            @Parameter(description = "付款日期止") @RequestParam(required = false) LocalDate paymentDateEnd) {
+        PaymentQueryRequest request = new PaymentQueryRequest();
+        request.setPayableId(payableId);
+        request.setSupplierId(supplierId);
+        request.setStatus(status);
+        request.setPaymentDateStart(paymentDateStart);
+        request.setPaymentDateEnd(paymentDateEnd);
+        request.setPageNum(1);
+        request.setPageSize(Integer.MAX_VALUE);
+        Page<PaymentVO> pageResult = paymentService.pagePayments(request);
+        return ApiResponse.success(pageResult.getRecords());
     }
 }

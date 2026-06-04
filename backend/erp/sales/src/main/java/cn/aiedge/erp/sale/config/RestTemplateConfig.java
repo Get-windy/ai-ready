@@ -7,7 +7,7 @@ import org.springframework.web.client.RestTemplate;
 /**
  * RestTemplate配置
  */
-@Configuration
+@Configuration("saleRestTemplateConfig")
 public class RestTemplateConfig {
 
     @Bean

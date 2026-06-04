@@ -126,4 +126,13 @@ public class RoleController {
     public Role getByRoleCode(@PathVariable String roleCode) {
         return roleService.getByRoleCode(roleCode);
     }
+
+    /**
+     * 导出角色
+     */
+    @GetMapping("/export")
+    @RequirePermission("role:export")
+    public List<Role> export() {
+        return roleService.list();
+    }
 }

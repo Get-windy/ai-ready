@@ -165,6 +165,17 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
     }
 
     @Override
+    public List<PurchaseOrder> exportOrders(Long tenantId, String orderNo, Long supplierId, Integer status) {
+        LambdaQueryWrapper<PurchaseOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PurchaseOrder::getTenantId, tenantId)
+                .like(orderNo != null, PurchaseOrder::getOrderNo, orderNo)
+                .eq(supplierId != null, PurchaseOrder::getSupplierId, supplierId)
+                .eq(status != null, PurchaseOrder::getStatus, status)
+                .orderByDesc(PurchaseOrder::getCreateTime);
+        return list(wrapper);
+    }
+
+    @Override
     public PurchaseOrder getOrderDetail(Long orderId) {
         PurchaseOrder order = getById(orderId);
         if (order == null) {

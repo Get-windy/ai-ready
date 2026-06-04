@@ -1,5 +1,6 @@
 package cn.aiedge.base.service;
 
+import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.entity.SysUser;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -70,6 +71,16 @@ public interface SysUserService extends IService<SysUser> {
      * 获取用户详情
      */
     SysUser getUserDetail(Long userId);
+
+    /**
+     * 获取用户可访问的租户列表
+     */
+    List<SysTenant> getUserTenants(Long userId);
+
+    /**
+     * 用户是否属于指定租户
+     */
+    boolean isUserInTenant(Long userId, Long tenantId);
 
     /**
      * 获取用户角色编码列表

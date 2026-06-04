@@ -14,13 +14,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    :show-export="true"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
 
     <template #availableQuantity="{ record }">
       <a-tag :color="record.availableQuantity > 0 ? 'green' : 'red'">
@@ -106,16 +102,16 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { ExportOutlined, EyeOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { stockApi, stockCheckApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -148,11 +144,12 @@ const summaryData = computed(() => {
 })
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await stockApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
+  } catch { /* 获取数据失败 */ }
   finally { loading.value = false }
 }
 
@@ -227,19 +224,12 @@ function handleCheckCancel() { checkVisible.value = false }
 
 // ── 导出 ──
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['产品编码', '产品名称', '规格型号', '仓库', '库存数量', '可用数量', '冻结数量']
-    const rows = dataSource.value.map((row: any) => [
-      row.productCode || '', row.productName || '', row.specification || '', row.warehouseName || '',
-      row.quantity || 0, row.availableQuantity || 0, row.frozenQuantity || 0
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `库存报表_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['产品编码', '产品名称', '规格型号', '仓库', '库存数量', '可用数量', '冻结数量']
+  const rows = dataSource.value.map((row: any) => [
+    row.productCode || '', row.productName || '', row.specification || '', row.warehouseName || '',
+    row.quantity || 0, row.availableQuantity || 0, row.frozenQuantity || 0
+  ])
+  exportCsv(headers, rows, '库存报表')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

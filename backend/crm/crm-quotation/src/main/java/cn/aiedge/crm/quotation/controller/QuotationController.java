@@ -228,6 +228,23 @@ public class QuotationController {
         return convertToVO(quotation);
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除报价单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return quotationService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出报价单列表")
+    public List<Quotation> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "商机ID") @RequestParam(required = false) Long opportunityId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "销售员ID") @RequestParam(required = false) Long salesPersonId) {
+        return quotationService.exportList(keyword, customerId, opportunityId, status, salesPersonId);
+    }
+
     @PostMapping("/{id}/items")
     @Operation(summary = "添加报价明细")
     public QuotationItem addItem(@PathVariable Long id, @RequestBody QuotationItemDTO dto) {

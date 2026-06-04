@@ -21,6 +21,7 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
       <a-button @click="handleImport">
@@ -90,7 +91,7 @@
 
   <!-- 新建/编辑订单弹窗 -->
   <PurchaseOrderFormModal
-    v-model:visible="formVisible"
+    v-model:open="formVisible"
     :is-edit="isEdit"
     :record="editRecord"
     @success="handleFormSuccess"
@@ -108,11 +109,13 @@ import {
 import TableList from '@/components/TableList/TableList.vue'
 import PurchaseOrderFormModal from '../components/PurchaseOrderFormModal.vue'
 import { purchaseOrderApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch, validateSelection } from '@/utils/batchOperations'
 
 interface PurchaseOrder {
   id: number; orderNo: string; supplierName: string; orderDate: string
   totalAmount: number; totalAmountWithTax: number; status: number
-  buyerName: string; createTime: string; remark?: string
+  purchaserName?: string; buyerName?: string; createTime: string; remark?: string
 }
 
 const columns = [
@@ -121,7 +124,7 @@ const columns = [
   { title: '订单日期', dataIndex: 'orderDate', key: 'orderDate', width: 110, type: 'date' as const },
   { title: '订单金额', dataIndex: 'totalAmountWithTax', key: 'totalAmountWithTax', width: 120, type: 'currency' as const, sortable: true },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '采购员', dataIndex: 'buyerName', key: 'buyerName', width: 100 },
+  { title: '采购员', dataIndex: 'purchaserName', key: 'purchaserName', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
   { title: '操作', key: 'action', width: 220, fixed: 'right' as const, type: 'action' as const }
 ]
@@ -171,8 +174,10 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await purchaseOrderApi.getPage({ current: pagination.current, size: pagination.pageSize, ...searchFilters })
-    dataSource.value = res.data?.records || []
-    pagination.total = res.data?.total || 0
+    // 兼容标准包装响应和无包装响应
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
   } catch {
     message.error('获取采购订单列表失败')
     dataSource.value = []
@@ -218,30 +223,51 @@ function handlePrint(record: PurchaseOrder) {
   })
 }
 
-function handleImport() { message.info('导入功能开发中') }
+function handleImport() {
+  Modal.confirm({
+    title: '导入采购订单',
+    content: '导入功能尚在开发中，敬请期待。',
+    okText: '知道了', cancelText: null, centered: true
+  })
+}
 
 function handleBatchApprove() {
   const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) { message.warning('请选择订单'); return }
+  if (!validateSelection(keys, '审批')) return
   Modal.confirm({ title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
-    async onOk() { try { await purchaseOrderApi.batchApprove(keys); message.success(`成功审批 ${keys.length} 条`); fetchData() } catch { message.error('失败') } }
+    async onOk() { try { await purchaseOrderApi.batchApprove(keys); message.success(`成功审批 ${keys.length} 条`); fetchData() } catch { message.error('批量审批失败') } }
   })
 }
 
-function handleBatchClose() {
+async function handleBatchClose() {
   const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) { message.warning('请选择订单'); return }
+  if (!validateSelection(keys, '关闭')) return
   Modal.confirm({ title: '批量关闭', content: `关闭选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
-    async onOk() { try { /* TODO: batch close API */ message.success(`已关闭 ${keys.length} 条`) } catch { message.error('失败') } }
+    async onOk() {
+      const result = await executeBatch(keys, (id) => purchaseOrderApi.close(id), '批量关闭')
+      if (result.successCount > 0) fetchData()
+    }
   })
 }
 
-function handleBatchPrint() {
+async function handleBatchPrint() {
   const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) { message.warning('请选择订单'); return }
+  if (!validateSelection(keys, '打印')) return
   Modal.confirm({ title: '批量打印', content: `打印选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
-    async onOk() { try { await purchaseOrderApi.print(keys[0]); message.success('打印任务已提交') } catch { message.error('失败') } }
+    async onOk() {
+      const result = await executeBatch(keys, (id) => purchaseOrderApi.print(id), '批量打印')
+    }
   })
+}
+
+function handleExport() {
+  const headers = ['订单号', '供应商', '订单日期', '订单金额', '状态', '采购员', '创建时间']
+  const rows = dataSource.value.map(r => [
+    r.orderNo || '', r.supplierName || '', r.orderDate || '',
+    (r.totalAmountWithTax || 0).toFixed(2), getStatusText(r.status),
+    r.purchaserName || r.buyerName || '', r.createTime || ''
+  ])
+  exportCsv(headers, rows, '采购订单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

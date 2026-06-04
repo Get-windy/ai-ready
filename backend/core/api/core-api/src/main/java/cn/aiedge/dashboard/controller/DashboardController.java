@@ -15,7 +15,7 @@ import java.util.*;
  * 提供工作台首页的 KPI 统计、趋势图、待办事项和库存预警数据
  */
 @RestController
-@RequestMapping("/dashboard")
+@RequestMapping("/api/dashboard")
 @SaCheckLogin
 @Tag(name = "仪表盘", description = "工作台首页数据接口")
 public class DashboardController {

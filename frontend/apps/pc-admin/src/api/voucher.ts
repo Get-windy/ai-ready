@@ -55,7 +55,7 @@ export interface VoucherUpdateRequest extends VoucherSaveRequest {
 export const voucherApi = {
   // 分页查询凭证
   getPage(params: VoucherQuery): Promise<ApiResponse<PageResponse<VoucherInfo>>> {
-    return request.get('/voucher/page', { params })
+    return request.get('/voucher/page', params)
   },
 
   // 获取凭证详情

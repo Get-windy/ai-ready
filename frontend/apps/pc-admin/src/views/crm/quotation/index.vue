@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建报价"
     @add="handleAdd"
     @refresh="fetchData"
@@ -16,9 +17,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
     </template>
 
     <template #quotationNo="{ record }">
@@ -124,9 +125,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CopyOutlined, FileProtectOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CopyOutlined, FileProtectOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { quotationApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
@@ -268,15 +270,9 @@ async function handleSubmit() {
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['报价单号', '报价名称', '客户名称', '报价日期', '有效期', '报价总额', '状态', '创建时间']
-    const rows = tableData.value.map((row: any) => [row.quotationNo, row.quotationName, row.customerName, row.quotationDate, row.validDays, row.totalAmount, getStatusText(row.status), row.createTime])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `报价_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(link); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['报价单号', '报价名称', '客户名称', '报价日期', '有效期', '报价总额', '状态', '创建时间']
+  const rows = tableData.value.map((row: any) => [row.quotationNo, row.quotationName, row.customerName, row.quotationDate, row.validDays, row.totalAmount, getStatusText(row.status), row.createTime])
+  exportCsv(headers, rows, '报价')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

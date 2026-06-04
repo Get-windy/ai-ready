@@ -71,7 +71,7 @@ export interface DictItemUpdateRequest extends DictItemSaveRequest {
 export const dictTypeApi = {
   // 分页查询字典类型
   getPage(params: DictTypeQuery): Promise<ApiResponse<PageResponse<DictType>>> {
-    return request.get('/dict/type/page', { params })
+    return request.get('/dict/type/page', params)
   },
 
   // 获取字典类型详情
@@ -104,7 +104,7 @@ export const dictTypeApi = {
 export const dictItemApi = {
   // 按字典类型获取字典项列表
   getByDictTypeId(dictTypeId: number, params?: DictItemQuery): Promise<ApiResponse<DictItem[]>> {
-    return request.get(`/dict/item/list/${dictTypeId}`, { params })
+    return request.get(`/dict/item/list/${dictTypeId}`, params)
   },
 
   // 获取字典项详情

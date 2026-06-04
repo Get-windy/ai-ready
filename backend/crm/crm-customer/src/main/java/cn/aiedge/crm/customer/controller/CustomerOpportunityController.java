@@ -67,7 +67,24 @@ public class CustomerOpportunityController {
     public boolean delete(@PathVariable Long id) {
         return customerOpportunityService.removeById(id);
     }
-    
+
+    @Operation(summary = "批量删除商机")
+    @DeleteMapping("/batch")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return customerOpportunityService.removeBatchByIds(ids);
+    }
+
+    @Operation(summary = "导出商机列表")
+    @GetMapping("/export")
+    public List<CustomerOpportunity> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "商机阶段") @RequestParam(required = false) Integer opportunityStage,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "销售人员ID") @RequestParam(required = false) Long salesPersonId) {
+        return customerOpportunityService.exportList(keyword, customerId, opportunityStage, status, salesPersonId);
+    }
+
     @Operation(summary = "推进商机阶段")
     @PostMapping("/{id}/advance")
     public CustomerOpportunity advanceStage(@PathVariable Long id) {

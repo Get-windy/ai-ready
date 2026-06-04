@@ -42,28 +42,12 @@
             <artifactId>erp-finance</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
-        <!-- ERP 业务模块 (暂时禁用，需要修复 Lombok 注解问题)
+        <!-- CRM 客户管理模块 -->
         <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-party</artifactId>
+            <groupId>cn.aiedge.crm</groupId>
+            <artifactId>crm-customer</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-purchase</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-stock</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-        -->
         
         <!-- Lombok -->
         <dependency>

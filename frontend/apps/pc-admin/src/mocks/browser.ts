@@ -7,11 +7,15 @@
  */
 import { handlers, type HandlerContext, type MockHandlerDefinition } from './handlers'
 import { resetUserStore } from './handlers'
+import axios from 'axios'
+import apiService from '@/utils/request'
 
 // ── 内部状态 ────────────────────────────────────────────
 
 let originalFetch: typeof window.fetch | null = null
 let isActive = false
+// 保存 Axios 拦截器 ID，以便在 stopMockServer 中移除
+let axiosInterceptorId: number | null = null
 
 // ── URL 匹配 ────────────────────────────────────────────
 
@@ -169,6 +173,8 @@ function createMockFetch(original: typeof window.fetch): typeof window.fetch {
  * 初始化 Mock Server。
  * 在应用启动时调用（通常在 main.ts 中，路由初始化之前）。
  *
+ * 同时拦截 window.fetch（直接 fetch 调用）和 Axios 请求（项目实际使用的 HTTP 客户端）。
+ *
  * 通过以下环境变量控制是否启用（优先级从高到低）：
  *   VITE_USE_MOCKS    — 如果为 'true' 则启用
  *   VITE_FEATURE_MOCK_API — 备选开关
@@ -204,10 +210,95 @@ export function initMockServer(): void {
   console.log(
     `[MockServer] 已激活 — ${handlers.length} 个处理程序已注册 (${handlers.map((h) => `${h.method} ${h.path}`).join(', ')})`
   )
+
+  // ── 设置 Axios 拦截器 ──────────────────────────────────
+  // 项目实际使用 Axios（基于 XMLHttpRequest），需要单独拦截。
+  // 通过 request interceptor 注入自定义 adapter 来短路匹配的请求。
+  setupAxiosMock()
 }
 
 /**
- * 停止 Mock Server 并恢复原始 fetch。
+ * 为 Axios 添加 Mock 拦截器。
+ */
+function setupAxiosMock() {
+  try {
+    // 使用 Axios 实例（@/utils/request 默认导出）
+    const service = apiService as import('axios').AxiosInstance
+
+    // 保存原始 adapter
+    const originalAdapter = service.defaults.adapter
+
+    // 添加请求拦截器：当请求匹配 mock handler 时，注入自定义 adapter
+    axiosInterceptorId = service.interceptors.request.use(async (config) => {
+      const url = config.url || ''
+      const method = (config.method || 'get').toUpperCase()
+      const fullUrl = (config.baseURL || '') + url
+
+      // 尝试匹配 mock handler
+      for (const handlerDef of handlers) {
+        const params = matchUrl(fullUrl, handlerDef.path)
+        if (!params) continue
+        if (handlerDef.method !== method) continue
+
+        // 匹配成功，注入自定义 adapter 返回 mock 数据
+        const query = config.params || {}
+        const body = config.data
+        let parsedBody = body
+        if (typeof body === 'string') {
+          try { parsedBody = JSON.parse(body) } catch { /* keep original */ }
+        }
+        const ctx: HandlerContext = { params, body: parsedBody, query }
+
+        config.adapter = async (adapterConfig) => {
+          try {
+            const data = await handlerDef.handler(ctx)
+            return {
+              data: {
+                code: 200,
+                message: 'success',
+                data,
+                timestamp: Date.now()
+              },
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': 'application/json', 'X-Mock-Response': 'true' },
+              config: adapterConfig,
+              request: {}
+            }
+          } catch (error: any) {
+            const mockCode = error?.mockCode || 500
+            const mockMsg = error?.mockMessage || error?.message || '服务器错误'
+            throw {
+              response: {
+                data: {
+                  code: mockCode,
+                  message: mockMsg,
+                  data: null,
+                  timestamp: Date.now()
+                },
+                status: mockCode >= 100 && mockCode < 600 ? mockCode : 500,
+                statusText: 'Mock Error',
+                headers: { 'Content-Type': 'application/json', 'X-Mock-Response': 'true' },
+                config: adapterConfig,
+                request: {}
+              }
+            }
+          }
+        }
+        break
+      }
+
+      return config
+    })
+
+    console.log(`[MockServer] Axios 拦截器已安装 (id=${axiosInterceptorId})`)
+  } catch (e) {
+    console.warn('[MockServer] 无法安装 Axios 拦截器，仅支持 fetch:', e)
+  }
+}
+
+/**
+ * 停止 Mock Server 并恢复原始 fetch，移除 Axios 拦截器。
  * 用于测试或开发环境中的热重载清理。
  */
 export function stopMockServer(): void {
@@ -215,7 +306,17 @@ export function stopMockServer(): void {
   window.fetch = originalFetch
   originalFetch = null
   isActive = false
-  console.log('[MockServer] 已停止，已恢复原始 fetch')
+
+  // 移除 Axios 拦截器
+  if (axiosInterceptorId !== null) {
+    try {
+      const service = apiService as import('axios').AxiosInstance
+      service.interceptors.request.eject(axiosInterceptorId)
+    } catch { /* ignore */ }
+    axiosInterceptorId = null
+  }
+
+  console.log('[MockServer] 已停止，已恢复原始 fetch 和 Axios 拦截器')
 }
 
 /**

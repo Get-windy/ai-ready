@@ -124,6 +124,25 @@ public class SystemConfigController {
         return ResponseEntity.ok(Map.of("success", true, "message", "缓存刷新成功"));
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除配置")
+    public ResponseEntity<Map<String, Object>> batchDelete(
+            @RequestBody List<Long> ids,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+        boolean success = configService.batchDelete(ids, tenantId);
+        return ResponseEntity.ok(Map.of("success", success));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出配置")
+    public ResponseEntity<List<SystemConfig>> export(
+            @RequestParam(required = false) String configType,
+            @RequestParam(required = false) String configGroup,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+        List<SystemConfig> configs = configService.getConfigList(configType, configGroup, tenantId);
+        return ResponseEntity.ok(configs);
+    }
+
     @GetMapping("/types")
     @Operation(summary = "获取配置类型")
     public ResponseEntity<List<Map<String, String>>> getConfigTypes() {

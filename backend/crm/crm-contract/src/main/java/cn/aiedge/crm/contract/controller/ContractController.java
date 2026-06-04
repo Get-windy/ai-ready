@@ -182,6 +182,24 @@ public class ContractController {
         return convertToVO(contract);
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除合同")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return contractService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出合同列表")
+    public List<Contract> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "商机ID") @RequestParam(required = false) Long opportunityId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "合同类型") @RequestParam(required = false) Integer contractType,
+            @Parameter(description = "销售员ID") @RequestParam(required = false) Long salesPersonId) {
+        return contractService.exportList(keyword, customerId, opportunityId, status, contractType, salesPersonId);
+    }
+
     @PostMapping("/{id}/renew")
     @Operation(summary = "续签合同")
     public ContractVO renew(@PathVariable Long id, @RequestParam LocalDate newEndDate) {

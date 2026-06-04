@@ -166,6 +166,8 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { ModuleLayout } from '@ai-ready/components'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 import type { FilterItem } from '@ai-ready/components'
 import { supplierApi, type Supplier } from '@/api/supplier'
 
@@ -370,30 +372,14 @@ const handleImportConfirm = async () => {
   }
 }
 const handleExport = () => {
-  const hide = message.loading('正在导出...', 0)
-  try {
-    const headers = ['供应商编码', '供应商名称', '等级', '综合评分', '积分', '合作状态', '门户状态', '联系人', '联系电话']
-    const rows = dataSource.value.map(row => [
-      row.supplierCode || '', row.supplierName || '', row.supplierLevel || '',
-      row.comprehensiveScore?.toFixed(1) || '0.0', row.totalPoints || 0,
-      getStatusLabel(row.cooperationStatus), getPortalStatusLabel(row.portalStatus),
-      row.contactPerson || '', row.contactPhone || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v || ''}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `供应商数据_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    hide()
-    message.success('导出成功，文件下载中')
-  } catch {
-    hide()
-    message.error('导出失败')
-  }
+  const headers = ['供应商编码', '供应商名称', '等级', '综合评分', '积分', '合作状态', '门户状态', '联系人', '联系电话']
+  const rows = dataSource.value.map(row => [
+    row.supplierCode || '', row.supplierName || '', row.supplierLevel || '',
+    row.comprehensiveScore?.toFixed(1) || '0.0', row.totalPoints || 0,
+    getStatusLabel(row.cooperationStatus), getPortalStatusLabel(row.portalStatus),
+    row.contactPerson || '', row.contactPhone || ''
+  ])
+  exportCsv(headers, rows, '供应商数据')
 }
 const handleBatchActivate = () => {
   if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
@@ -413,18 +399,17 @@ const handleBatchActivate = () => {
 }
 const handleBatchDelete = () => {
   if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
-  const count = selectedRowKeys.value.length
   Modal.confirm({
     title: '批量删除',
-    content: `确定要批量删除选中的 ${count} 个供应商吗？此操作不可撤销。`,
+    content: `确定要批量删除选中的 ${selectedRowKeys.value.length} 个供应商吗？`,
     okText: '确认删除',
     okType: 'danger',
     cancelText: '取消',
     centered: true,
     async onOk() {
-      message.success(`成功删除 ${count} 个供应商`)
+      const success = await executeBatch(selectedRowKeys.value, supplierApi.delete, '批量删除')
       selectedRowKeys.value = []
-      fetchData()
+      if (success) fetchData()
     }
   })
 }

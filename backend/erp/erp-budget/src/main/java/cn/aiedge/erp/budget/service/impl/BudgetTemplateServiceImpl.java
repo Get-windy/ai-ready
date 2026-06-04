@@ -142,4 +142,22 @@ public class BudgetTemplateServiceImpl implements BudgetTemplateService {
             return dto;
         }).collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void batchDelete(List<Long> ids) {
+        for (Long id : ids) {
+            delete(id);
+        }
+    }
+
+    @Override
+    public List<BudgetTemplateDTO> exportList(String keyword, Integer fiscalYear, String status) {
+        List<BudgetTemplate> allList = budgetTemplateRepository.search(keyword, fiscalYear, status);
+        return allList.stream().map(entity -> {
+            BudgetTemplateDTO dto = new BudgetTemplateDTO();
+            BeanUtil.copyProperties(entity, dto);
+            return dto;
+        }).collect(Collectors.toList());
+    }
 }

@@ -118,6 +118,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import { optionsApi } from '@/api/options'
 
 interface StockItem {
   id: string
@@ -247,9 +248,17 @@ const handleCancel = () => { visible.value = false }
 
 const loadOptions = async () => {
   warehouseList.value = [{ id: 1, name: '北京仓库' }, { id: 2, name: '上海仓库' }]
-  userList.value = [{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
-  productList.value = [{ id: 1, code: 'P001', name: '商品A', unit: '件', costPrice: 100 }, { id: 2, code: 'P002', name: '商品B', unit: '箱', costPrice: 200 }]
   partyList.value = [{ id: 1, name: '供应商A' }, { id: 2, name: '客户B' }]
+  try {
+    const [users, products] = await Promise.all([
+      optionsApi.getUsers(),
+      optionsApi.getProducts()
+    ])
+    userList.value = Array.isArray(users) ? users : []
+    productList.value = Array.isArray(products) ? products : []
+  } catch {
+    // 默认空列表
+  }
 }
 
 watch(visible, (val) => {

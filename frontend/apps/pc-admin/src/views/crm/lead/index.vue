@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     :row-selection="rowSelection"
     add-text="新建线索"
     @add="handleAdd"
@@ -20,11 +21,11 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
       <a-button @click="handleBatchAssign"><template #icon><TeamOutlined /></template>批量分配</a-button>
       <a-button @click="handleImport"><template #icon><ImportOutlined /></template>导入线索</a-button>
-      <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
     </template>
     <template #batch-actions>
       <a-button size="small" @click="handleBatchAssign">批量分配</a-button>
@@ -65,8 +66,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, TeamOutlined, ImportOutlined, SwapRightOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, TeamOutlined, ImportOutlined, SwapRightOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
+import { leadApi } from '@/api/crm'
+import { exportCsv } from '@/utils/exportCsv'
 
 interface Lead { id: number; name: string; companyName: string; contactName: string; phone: string; mobile?: string; email?: string; source: string; status: number; score: number; createdAt: string }
 
@@ -126,43 +129,39 @@ onMounted(() => fetchData())
 async function fetchData() {
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 300))
-    dataSource.value = Array.from({ length: 25 }).map((_, i) => ({
-      id: i + 1,
-      name: `线索${i + 1}`,
-      companyName: `公司${i + 1}`,
-      contactName: `联系人${i + 1}`,
-      phone: `13${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
-      email: `lead${i + 1}@example.com`,
-      source: ['website', 'weixin', 'email', 'phone'][Math.floor(Math.random() * 4)],
-      status: [0, 1, 2][Math.floor(Math.random() * 3)] as number,
-      score: Math.floor(Math.random() * 100),
-      createdAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 3600000).toISOString().slice(0, 10)
-    }))
-    pagination.total = 25
-  } catch { message.error('获取数据失败') }
+    const res = await leadApi.page({
+      keyword: searchFilters.keyword,
+      leadStatus: searchFilters.status,
+      leadLevel: searchFilters.leadLevel,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    })
+    const result = res as any
+    dataSource.value = (result.records || result.data?.records || []) as Lead[]
+    pagination.total = result.total ?? result.data?.total ?? 0
+  } catch { message.error('获取线索数据失败') }
   finally { loading.value = false }
 }
 
 function handleView(record: Lead) { message.info(`查看线索: ${record.name}`) }
 function handleEdit(record: Lead) { message.info(`编辑线索: ${record.name}`) }
 function handleAdd() { message.info('新建线索') }
-function handleDelete(record: Lead) { message.info(`删除线索: ${record.name}`) }
-function handleAssign(record: Lead) { message.info(`分配线索: ${record.name}`) }
-function handleConvert(record: Lead) { message.info(`转化线索: ${record.name}`) }
+async function handleDelete(record: Lead) {
+  try { await leadApi.delete(record.id); message.success('删除成功'); fetchData() }
+  catch { message.error('删除失败') }
+}
+async function handleAssign(record: Lead) { message.info(`分配线索: ${record.name}`) }
+async function handleConvert(record: Lead) {
+  try { await leadApi.convertToCustomer(record.id); message.success('转化成功'); fetchData() }
+  catch { message.error('转化失败') }
+}
 function handleBatchAssign() { message.info('批量分配线索') }
 function handleImport() { message.info('导入线索') }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['线索名称', '公司', '联系人', '电话', '邮箱', '来源', '评分', '状态', '添加时间']
-    const rows = dataSource.value.map((row: any) => [row.name, row.companyName, row.contactName, row.phone, row.email, sourceTextMap[row.source] || row.source, row.score, getStatusText(row.status), row.createdAt])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `线索_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(link); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['线索名称', '公司', '联系人', '电话', '邮箱', '来源', '评分', '状态', '添加时间']
+  const rows = dataSource.value.map((row: any) => [row.name, row.companyName, row.contactName, row.phone, row.email, sourceTextMap[row.source] || row.source, row.score, getStatusText(row.status), row.createdAt])
+  exportCsv(headers, rows, '线索')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

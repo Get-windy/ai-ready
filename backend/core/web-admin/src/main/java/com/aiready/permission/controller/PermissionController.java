@@ -97,6 +97,15 @@ public class PermissionController {
     }
 
     /**
+     * 导出权限
+     */
+    @GetMapping("/export")
+    @RequirePermission("permission:export")
+    public List<Permission> export() {
+        return permissionService.list();
+    }
+
+    /**
      * 分配角色权限
      */
     @PostMapping("/assign/{roleId}")

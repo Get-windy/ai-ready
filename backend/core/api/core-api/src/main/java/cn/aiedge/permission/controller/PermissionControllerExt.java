@@ -78,6 +78,12 @@ public class PermissionControllerExt {
         return ApiResponse.ok("批量删除成功");
     }
 
+    @Operation(summary = "导出权限")
+    @GetMapping("/export")
+    public ApiResponse<List<cn.aiedge.base.entity.Permission>> export() {
+        return ApiResponse.ok(permissionService.list());
+    }
+
     @Operation(summary = "启用/禁用权限")
     @PutMapping("/{id}/status")
     public ApiResponse<Void> updateStatus(

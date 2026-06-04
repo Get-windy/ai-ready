@@ -97,4 +97,23 @@ public class ReceivableController {
         @NotNull(message = "核销金额不能为空")
         private BigDecimal amount;
     }
+
+    @Operation(summary = "批量删除应收账款")
+    @DeleteMapping("/batch")
+    @PreAuthorize("hasPermission('/api/erp/finance/receivable/delete', 'finance:receivable:delete')")
+    @OperationLog(module = "应收管理", type = "DELETE", desc = "批量删除应收账款")
+    public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
+        receivableService.deleteBatch(ids);
+        return Result.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出应收账款列表")
+    @GetMapping("/export")
+    @PreAuthorize("hasPermission('/api/erp/finance/receivable/list', 'finance:receivable:view')")
+    @OperationLog(module = "应收管理", type = "QUERY", desc = "导出应收账款列表")
+    public Result<List<ReceivableDTO>> export(
+            @Parameter(description = "客户ID") @RequestParam(required = false) String customerId,
+            @Parameter(description = "状态(normal/overdue/written_off/bad_debt)") @RequestParam(required = false) String status) {
+        return Result.success(receivableService.exportList(customerId, status));
+    }
 }

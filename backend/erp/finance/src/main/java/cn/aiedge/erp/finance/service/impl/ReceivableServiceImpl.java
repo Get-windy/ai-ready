@@ -180,6 +180,28 @@ public class ReceivableServiceImpl implements ReceivableService {
         return toDTO(entity);
     }
 
+    @Override
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        receivableMapper.deleteBatchIds(ids);
+        log.info("批量删除应收账款: ids={}", ids);
+    }
+
+    @Override
+    public List<ReceivableDTO> exportList(String customerId, String status) {
+        LambdaQueryWrapper<Receivable> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(customerId)) {
+            wrapper.eq(Receivable::getCustomerId, customerId);
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Receivable::getStatus, status);
+        }
+        wrapper.orderByDesc(Receivable::getCreateTime);
+
+        List<Receivable> entities = receivableMapper.selectList(wrapper);
+        return entities.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     // ======== DTO <-> Entity 转换 ========
 
     private ReceivableDTO toDTO(Receivable entity) {

@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建换货"
     @add="handleAdd"
     @edit="handleEdit"
@@ -20,12 +21,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
     </template>
 
     <template #batch-actions>
@@ -114,12 +112,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -168,11 +167,11 @@ const formRules = {
 }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     // TODO: 接入销售换货API
     dataSource.value = []; pagination.total = 0
-  } catch { error.value = '获取数据失败' }
+  } catch { message.error('获取换货单列表失败') }
   finally { loading.value = false }
 }
 
@@ -190,8 +189,15 @@ function handleEdit(record: any) {
   formModalVisible.value = true
 }
 
-async function handleDelete(record: any) { message.success('删除成功'); fetchData() }
-async function handleBatchDelete(ids: number[]) { message.success('批量删除完成'); fetchData() }
+async function handleDelete(record: any) {
+  // TODO: 接入删除API
+  message.success('删除成功'); fetchData()
+}
+async function handleBatchDelete(ids: number[]) {
+  // TODO: 接入批量删除API后替换
+  const result = await executeBatch(ids, async (id) => { /* await api.delete(id) */ }, '批量删除')
+  if (result.successCount > 0) fetchData()
+}
 
 const handleFormSubmit = async () => {
   try { await formRef.value?.validate() } catch { return }
@@ -220,24 +226,20 @@ function handleBatchApprove() {
   if (keys.length === 0) { message.warning('请选择换货单'); return }
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
-    async onOk() { message.success(`成功审批 ${keys.length} 条`); fetchData() }
+    async onOk() {
+      // TODO: 接入审批API后使用: executeBatch(keys, (id) => api.approve(id), '批量审批')
+      message.success(`成功审批 ${keys.length} 条`); fetchData()
+    }
   })
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['换货单号', '关联订单', '客户', '换货日期', '状态', '创建人', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.exchangeNo || '', row.orderNo || '', row.customerName || '', row.exchangeDate || '',
-      getStatusText(row.status), row.creatorName || '', row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `换货单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['换货单号', '关联订单', '客户', '换货日期', '状态', '创建人', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.exchangeNo || '', row.orderNo || '', row.customerName || '', row.exchangeDate || '',
+    getStatusText(row.status), row.creatorName || '', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '换货单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

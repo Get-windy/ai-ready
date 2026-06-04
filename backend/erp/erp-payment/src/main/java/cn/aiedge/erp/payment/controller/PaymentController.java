@@ -8,6 +8,7 @@ import cn.aiedge.erp.payment.entity.PaymentItem;
 import cn.aiedge.erp.payment.enums.ReceiptStatus;
 import cn.aiedge.erp.payment.service.PaymentService;
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -197,6 +198,22 @@ public class PaymentController {
     @Operation(summary = "删除付款明细")
     public void removeItem(@PathVariable Long itemId) {
         paymentService.removeItem(itemId);
+    }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除付款单")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return paymentService.removeBatchByIds(ids);
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出付款单列表")
+    public List<Payment> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return paymentService.exportList(keyword, supplierId, orderId, status);
     }
 
     @GetMapping("/statistics")

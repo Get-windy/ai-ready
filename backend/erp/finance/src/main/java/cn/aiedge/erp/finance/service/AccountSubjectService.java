@@ -48,4 +48,9 @@ public interface AccountSubjectService {
      * 启用/禁用科目
      */
     AccountSubjectDTO enable(Long id, boolean enabled);
+
+    /**
+     * 批量删除会计科目
+     */
+    void deleteBatch(List<Long> ids);
 }

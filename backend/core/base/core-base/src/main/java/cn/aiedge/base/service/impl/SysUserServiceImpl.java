@@ -1,9 +1,12 @@
 package cn.aiedge.base.service.impl;
 
+import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.entity.SysUserRole;
+import cn.aiedge.base.entity.SysUserTenant;
 import cn.aiedge.base.mapper.SysUserMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
+import cn.aiedge.base.mapper.SysUserTenantMapper;
 import cn.aiedge.base.service.SysUserService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.crypto.digest.BCrypt;
@@ -31,37 +34,54 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         implements SysUserService {
 
     private final SysUserRoleMapper userRoleMapper;
+    private final SysUserTenantMapper userTenantMapper;
 
     @Override
     public String login(String username, String password, Long tenantId, String loginIp) {
-        // 查询用户
-        SysUser user = baseMapper.selectByUsername(username, tenantId);
+        // 1. 查询用户（用户名全局唯一）
+        SysUser user = baseMapper.selectByUsername(username, null);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        // 检查状态 (status=1启用, status=0停用)
+        // 2. 验证用户是否属于指定租户（通过 sys_user_tenant 关联表）
+        if (!isUserInTenant(user.getId(), tenantId)) {
+            throw new RuntimeException("该用户不属于此租户，请检查租户名称");
+        }
+
+        // 3. 检查用户状态
         if (user.getStatus() != 1) {
             throw new RuntimeException("用户已禁用或锁定");
         }
 
-        // 验证密码
+        // 4. 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new RuntimeException("密码错误");
         }
 
-        // 登录成功，生成Token
+        // 5. 登录成功，生成Token
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
 
-        // 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
+        // 6. 将租户ID存入Sa-Token Session，避免多租户拦截器递归查询
         StpUtil.getSession().set("tenantId", tenantId);
 
-        // 更新登录信息
+        // 7. 更新登录信息
         baseMapper.updateLoginInfo(user.getId(), loginIp);
 
-        log.info("用户登录成功: userId={}, username={}", user.getId(), username);
+        log.info("用户登录成功: userId={}, username={}, tenantId={}", user.getId(), username, tenantId);
         return token;
+    }
+
+    @Override
+    public List<SysTenant> getUserTenants(Long userId) {
+        return userTenantMapper.selectTenantsByUserId(userId);
+    }
+
+    @Override
+    public boolean isUserInTenant(Long userId, Long tenantId) {
+        SysUserTenant ut = userTenantMapper.selectByUserAndTenant(userId, tenantId);
+        return ut != null;
     }
 
     @Override

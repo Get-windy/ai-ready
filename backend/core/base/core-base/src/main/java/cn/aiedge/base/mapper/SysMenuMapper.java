@@ -1,6 +1,7 @@
 package cn.aiedge.base.mapper;
 
 import cn.aiedge.base.entity.SysMenu;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -52,8 +53,9 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
     List<Long> selectRoleIdsByUserId(@Param("userId") Long userId);
 
     /**
-     * 根据角色ID列表查询菜单ID列表
+     * 根据角色ID列表查询菜单ID列表（忽略租户过滤，角色菜单关联为系统级配置）
      */
+    @InterceptorIgnore(tenantLine = "true")
     @Select("<script>" +
             "SELECT DISTINCT menu_id FROM sys_role_menu " +
             "WHERE role_id IN " +
@@ -64,8 +66,9 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
     List<Long> selectMenuIdsByRoleIds(@Param("roleIds") List<Long> roleIds);
 
     /**
-     * 根据菜单ID列表查询菜单
+     * 根据菜单ID列表查询菜单（忽略租户过滤，系统级菜单对所有租户可见）
      */
+    @InterceptorIgnore(tenantLine = "true")
     @Select("<script>" +
             "SELECT * FROM sys_menu WHERE id IN " +
             "<foreach collection='menuIds' item='menuId' open='(' separator=',' close=')'>" +

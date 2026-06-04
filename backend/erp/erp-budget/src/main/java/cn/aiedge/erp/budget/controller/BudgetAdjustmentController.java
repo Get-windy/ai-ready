@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -78,5 +79,15 @@ public class BudgetAdjustmentController {
             @RequestParam String comment) {
         BudgetAdjustmentDTO result = budgetAdjustmentService.reject(id, comment);
         return ApiResponse.success("已拒绝", result);
+    }
+
+    @Operation(summary = "导出预算调整列表")
+    @GetMapping("/export")
+    public ApiResponse<List<BudgetAdjustmentDTO>> export(
+            @Parameter(description = "预算ID") @RequestParam(required = false) Long budgetId,
+            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            @Parameter(description = "调整类型") @RequestParam(required = false) String adjustmentType) {
+        List<BudgetAdjustmentDTO> list = budgetAdjustmentService.exportList(budgetId, status, adjustmentType);
+        return ApiResponse.success(list);
     }
 }

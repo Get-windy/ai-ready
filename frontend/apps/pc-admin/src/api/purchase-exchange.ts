@@ -112,7 +112,7 @@ export interface ApproveExchangeRequest {
 export const purchaseExchangeApi = {
   // 分页查询换货单
   page(params: PurchaseExchangeQuery): Promise<ApiResponse<PageResponse<PurchaseExchange>>> {
-    return request.get('/erp/purchase/exchange/page', { params } as any)
+    return request.get('/erp/purchase/exchange/page', params)
   },
 
   // 获取换货单详情
@@ -187,7 +187,7 @@ export const purchaseExchangeApi = {
 
   // 导出换货单
   async export(params: Omit<PurchaseExchangeQuery, 'current' | 'size'>): Promise<Blob> {
-    const res = await request.get('/erp/purchase/exchange/export', { params, responseType: 'blob' } as any)
+    const res = await request.get('/erp/purchase/exchange/export', params, { responseType: 'blob' })
     return (res as any).data as Blob
   }
 }

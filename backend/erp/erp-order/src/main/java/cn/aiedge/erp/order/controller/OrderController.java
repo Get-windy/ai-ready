@@ -205,4 +205,14 @@ public class OrderController {
         purchaseOrderService.updatePurchaseOrderStatus(id, status);
         return ApiResponse.ok("采购订单状态更新成功", null);
     }
+
+    @Operation(summary = "批量删除采购订单")
+    @DeleteMapping("/batch")
+    @SaCheckPermission("purchase_order:delete")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        for (Long id : ids) {
+            purchaseOrderService.deletePurchaseOrder(id);
+        }
+        return ApiResponse.ok("批量删除成功");
+    }
 }

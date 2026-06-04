@@ -14,13 +14,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    :show-export="true"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
 
     <template #status="{ record }">
       <a-tag :color="getBatchStatusColor(record.status)">{{ getBatchStatusText(record.status) }}</a-tag>
@@ -61,13 +57,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ExportOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { batchApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
 
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -119,30 +115,24 @@ const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await batchApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
+  } catch { /* 获取数据失败 */ }
   finally { loading.value = false }
 }
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['批次号', '产品编码', '产品名称', '生产日期', '有效期', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.batchNo || '', row.productCode || '', row.productName || '', row.productionDate || '',
-      row.expiryDate || '', getBatchStatusText(row.status), row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `批次_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['批次号', '产品编码', '产品名称', '生产日期', '有效期', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.batchNo || '', row.productCode || '', row.productName || '', row.productionDate || '',
+    row.expiryDate || '', getBatchStatusText(row.status), row.createTime || ''
+  ])
+  exportCsv(headers, rows, '批次')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

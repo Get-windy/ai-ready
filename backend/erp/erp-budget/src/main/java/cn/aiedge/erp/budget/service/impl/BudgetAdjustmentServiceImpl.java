@@ -184,4 +184,14 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
         BeanUtil.copyProperties(entity, dto);
         return dto;
     }
+
+    @Override
+    public List<BudgetAdjustmentDTO> exportList(Long budgetId, String status, String adjustmentType) {
+        List<BudgetAdjustment> allList = budgetAdjustmentRepository.search(budgetId, status, adjustmentType);
+        return allList.stream().map(entity -> {
+            BudgetAdjustmentDTO dto = new BudgetAdjustmentDTO();
+            BeanUtil.copyProperties(entity, dto);
+            return dto;
+        }).collect(Collectors.toList());
+    }
 }

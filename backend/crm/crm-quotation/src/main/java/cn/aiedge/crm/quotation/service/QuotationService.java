@@ -12,6 +12,8 @@ public interface QuotationService extends IService<Quotation> {
 
     Quotation getByQuotationNo(String quotationNo);
 
+    List<Quotation> exportList(String keyword, Long customerId, Long opportunityId, Integer status, Long salesPersonId);
+
     Page<Quotation> pageList(String keyword, Long customerId, Long opportunityId, Integer status, Long salesPersonId, int pageNum, int pageSize);
 
     List<Quotation> listByCustomerId(Long customerId);

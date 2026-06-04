@@ -70,7 +70,7 @@ export const customerApi = {
    * 分页查询客户
    */
   getPage(params: CustomerQuery): Promise<ApiResponse<PageResponse<CustomerInfo>>> {
-    return request.get('/customer/page', { params })
+    return request.get('/customer/page', params)
   },
 
   /**
@@ -119,7 +119,7 @@ export const customerApi = {
    * 导出客户
    */
   export(params: CustomerQuery): Promise<Blob> {
-    return request.get('/customer/export', { params, responseType: 'blob' })
+    return request.get('/customer/export', params, { responseType: 'blob' })
   },
 
   // ===== 跟进记录相关 =====
@@ -128,7 +128,7 @@ export const customerApi = {
    * 获取客户跟进记录列表
    */
   getFollowRecords(customerId: number, params: FollowQuery): Promise<ApiResponse<PageResponse<FollowRecord>>> {
-    return request.get(`/customer/${customerId}/follows`, { params })
+    return request.get(`/customer/${customerId}/follows`, params)
   },
 
   /**
@@ -143,6 +143,18 @@ export const customerApi = {
    */
   getOrderRecords(customerId: number): Promise<ApiResponse<any[]>> {
     return request.get(`/customer/${customerId}/orders`)
+  },
+
+  /**
+   * 导入客户（CSV文件上传）
+   */
+  importCustomers(data: { file: File; mapping: Record<string, string> }): Promise<ApiResponse<any>> {
+    const formData = new FormData()
+    formData.append('file', data.file)
+    formData.append('mapping', JSON.stringify(data.mapping))
+    return request.post('/customer/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
   }
 }
 

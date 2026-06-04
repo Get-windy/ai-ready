@@ -70,4 +70,9 @@ public class NotificationController {
     public void deleteNotificationBatch(@RequestBody List<Long> notificationIds) {
         notificationService.deleteNotificationBatch(notificationIds);
     }
+
+    @GetMapping("/export")
+    public List<com.aiready.notification.entity.Notification> export() {
+        return notificationService.list();
+    }
 }

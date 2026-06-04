@@ -112,4 +112,13 @@ public class DataPermissionController {
     public java.util.Set<Long> getPermissionDeptIds(@PathVariable Long userId) {
         return dataPermissionService.getPermissionDeptIds(userId);
     }
+
+    /**
+     * 导出数据权限规则
+     */
+    @GetMapping("/export")
+    @RequirePermission("data-permission:export")
+    public List<DataPermissionRule> export() {
+        return dataPermissionService.list();
+    }
 }

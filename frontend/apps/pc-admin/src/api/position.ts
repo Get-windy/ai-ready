@@ -68,14 +68,14 @@ export const positionApi = {
    * 分页查询岗位
    */
   getPage(params: PositionQuery): Promise<ApiResponse<PageResponse<PositionInfo>>> {
-    return request.get('/position/page', { params })
+    return request.get('/position/page', params)
   },
 
   /**
    * 获取所有岗位（不分页）
    */
   getList(params?: Partial<PositionQuery>): Promise<ApiResponse<PositionInfo[]>> {
-    return request.get('/position/list', { params })
+    return request.get('/position/list', params)
   },
 
   /**
@@ -124,7 +124,7 @@ export const positionApi = {
    * 导出岗位
    */
   export(params: PositionQuery): Promise<Blob> {
-    return request.get('/position/export', { params, responseType: 'blob' })
+    return request.get('/position/export', params, { responseType: 'blob' })
   },
 
   // ===== 岗位分类相关 =====
@@ -133,14 +133,14 @@ export const positionApi = {
    * 分页查询岗位分类
    */
   getCategoryPage(params: CategoryQuery): Promise<ApiResponse<PageResponse<PositionCategory>>> {
-    return request.get('/position/category/page', { params })
+    return request.get('/position/category/page', params)
   },
 
   /**
    * 获取所有岗位分类
    */
   getCategoryList(params?: Partial<CategoryQuery>): Promise<ApiResponse<PositionCategory[]>> {
-    return request.get('/position/category/list', { params })
+    return request.get('/position/category/list', params)
   },
 
   /**

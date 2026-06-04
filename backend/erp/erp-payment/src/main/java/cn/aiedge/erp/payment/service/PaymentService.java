@@ -14,6 +14,8 @@ public interface PaymentService extends IService<Payment> {
 
     Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, int pageNum, int pageSize);
 
+    List<Payment> exportList(String keyword, Long supplierId, Long orderId, Integer status);
+
     List<Payment> listBySupplierId(Long supplierId);
 
     List<Payment> listByOrderId(Long orderId);

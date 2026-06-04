@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建客户"
     @add="handleAdd"
     @edit="handleEdit"
@@ -20,12 +21,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
     </template>
 
     <template #status="{ record }">
@@ -150,16 +148,16 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { customerApi } from '@/api/customer'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
 
 const router = useRouter()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -228,7 +226,7 @@ const formRules = {
 }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const params: Record<string, any> = {
       pageNum: pagination.current,
@@ -242,10 +240,10 @@ async function fetchData() {
     if (params.contactPerson === undefined && searchFilters.contactPerson) params.contactPerson = searchFilters.contactPerson
 
     const res = await customerApi.getPage(params)
-    const pageData = (res as any).data
+    const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []
     pagination.total = pageData?.total || 0
-  } catch { error.value = '获取数据失败' }
+  } catch { message.error('获取客户列表失败') }
   finally { loading.value = false }
 }
 
@@ -338,19 +336,12 @@ const handleFormSubmit = async () => {
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['客户编码', '客户名称', '联系人', '联系电话', '等级', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
-      getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `客户列表_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['客户编码', '客户名称', '联系人', '联系电话', '等级', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
+    getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '客户列表')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

@@ -179,8 +179,13 @@ public interface PurchaseOrderService extends IService<PurchaseOrder> {
     List<PurchaseOrder> getPendingApprovalOrders();
 
     /**
+     * 导出采购订单
+     */
+    List<PurchaseOrder> exportOrders(Long tenantId, String orderNo, Long supplierId, Integer status);
+
+    /**
      * 获取采购统计信息
-     * 
+     *
      * @param tenantId 租户ID
      * @param startDate 开始日期
      * @param endDate 结束日期

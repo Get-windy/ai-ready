@@ -434,7 +434,7 @@ const handleSubmit = async (record: SalesOrder) => {
     message.success(`提交订单: ${record.orderNo}`)
     fetchData()
   } catch (error) {
-    message.error('提交失败')
+    message.error(error?.response?.data?.message || '提交失败')
   }
 }
 
@@ -449,7 +449,7 @@ const handleApprove = async (record: SalesOrder) => {
         message.success('审批成功')
         fetchData()
       } catch (error) {
-        message.error('审批失败')
+        message.error(error?.response?.data?.message || '审批失败')
       }
     }
   })
@@ -462,7 +462,7 @@ const handleDelete = async (record: SalesOrder) => {
     message.success(`删除订单: ${record.orderNo}`)
     fetchData()
   } catch (error) {
-    message.error('删除失败')
+    message.error(error?.response?.data?.message || '删除失败')
   }
 }
 
@@ -481,8 +481,8 @@ const handleExport = async () => {
     a.click()
     window.URL.revokeObjectURL(url)
     message.success('导出成功')
-  } catch {
-    message.error('导出失败')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '导出失败')
   } finally {
     hide()
   }
@@ -510,7 +510,7 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
-    message.error('获取数据失败')
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
   }
@@ -554,8 +554,8 @@ const handleSaleFormSubmit = async () => {
     }
     saleFormVisible.value = false
     fetchData()
-  } catch {
-    message.error('操作失败')
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || '操作失败')
   } finally {
     saleFormLoading.value = false
   }

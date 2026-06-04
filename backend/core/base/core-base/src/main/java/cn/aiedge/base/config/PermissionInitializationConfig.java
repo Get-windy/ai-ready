@@ -1,7 +1,10 @@
 package cn.aiedge.base.config;
 
 import cn.aiedge.base.entity.*;
+import cn.aiedge.base.mapper.SysRolePermissionMapper;
+import cn.aiedge.base.security.SecurityContext;
 import cn.aiedge.base.service.*;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 权限初始化配置
@@ -28,21 +32,72 @@ public class PermissionInitializationConfig implements ApplicationRunner {
     private final SysPermissionService permissionService;
     private final PermissionTemplateService templateService;
     private final SysUserService userService;
+    private final SysRolePermissionMapper rolePermissionMapper;
+    private final SecurityContext securityContext;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         log.info("开始初始化权限配置...");
-        
-        // 初始化系统角色
-        initSystemRoles();
-        
-        // 初始化系统权限
-        initSystemPermissions();
-        
-        // 初始化权限模板
-        initPermissionTemplates();
-        
+
+        // 设置临时租户ID=1，确保初始化期间所有查询都能正确匹配系统租户的数据
+        securityContext.setTempTenantId(1L);
+        try {
+            // 初始化系统角色
+            initSystemRoles();
+
+            // 初始化系统权限
+            initSystemPermissions();
+
+            // 初始化权限模板
+            initPermissionTemplates();
+
+            // 为超级管理员分配所有权限
+            assignAllPermissionsToSuperAdmin();
+        } finally {
+            securityContext.clearTempTenantId();
+        }
+
         log.info("权限配置初始化完成");
+    }
+
+    /**
+     * 为超级管理员角色分配所有现有权限
+     */
+    private void assignAllPermissionsToSuperAdmin() {
+        try {
+            // 查找超级管理员角色
+            SysRole superAdminRole = roleService.getOne(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleCode, "SUPER_ADMIN"));
+            if (superAdminRole == null) {
+                log.warn("未找到超级管理员角色，跳过权限分配");
+                return;
+            }
+
+            // 获取所有权限
+            List<SysPermission> allPermissions = permissionService.list();
+            if (allPermissions == null || allPermissions.isEmpty()) {
+                log.warn("权限列表为空，跳过权限分配");
+                return;
+            }
+
+            // 删除旧的关联
+            rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
+                    .eq(SysRolePermission::getRoleId, superAdminRole.getId()));
+
+            // 批量插入新的角色-权限关联
+            List<SysRolePermission> rolePermissions = allPermissions.stream()
+                    .map(p -> new SysRolePermission()
+                            .setRoleId(superAdminRole.getId())
+                            .setPermissionId(p.getId())
+                            .setTenantId(1L))
+                    .collect(Collectors.toList());
+
+            rolePermissions.forEach(rp -> rolePermissionMapper.insert(rp));
+            log.info("为超级管理员角色分配了 {} 个权限", rolePermissions.size());
+        } catch (Exception e) {
+            log.error("分配超级管理员权限失败: {}", e.getMessage());
+        }
     }
 
     /**
@@ -162,23 +217,58 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         );
 
         // 保存权限
-        for (SysPermission permission : systemPermissions) {
+        savePermissions(systemPermissions);
+
+        // 创建ERP业务权限
+        List<SysPermission> erpPermissions = Arrays.asList(
+            createPermission("采购管理", "purchase:manage", 1, "/erp/purchase", null, null, 16),
+            createPermission("采购订单查询", "purchase:order:list", 3, null, "/api/erp/purchase/order/page", "GET", 17),
+            createPermission("采购订单创建", "purchase:order:create", 3, null, "/api/erp/purchase/order", "POST", 18),
+            createPermission("采购订单更新", "purchase:order:update", 3, null, "/api/erp/purchase/order/*", "PUT", 19),
+            createPermission("采购订单删除", "purchase:order:delete", 3, null, "/api/erp/purchase/order/*", "DELETE", 20),
+            createPermission("采购订单详情", "purchase:order:detail", 3, null, "/api/erp/purchase/order/*", "GET", 21),
+            createPermission("采购订单提交", "purchase:order:submit", 3, null, "/api/erp/purchase/order/*/submit", "POST", 22),
+            createPermission("采购订单审批", "purchase:order:approve", 3, null, "/api/erp/purchase/order/*/approve", "POST", 23),
+            createPermission("采购订单取消", "purchase:order:cancel", 3, null, "/api/erp/purchase/order/*/cancel", "POST", 24),
+            createPermission("销售管理", "sale:manage", 1, "/erp/sale", null, null, 25),
+            createPermission("销售订单创建", "sale:order:create", 3, null, "/api/erp/sale/order", "POST", 26),
+            createPermission("销售订单更新", "sale:order:update", 3, null, "/api/erp/sale/order/*", "PUT", 27),
+            createPermission("销售订单删除", "sale:order:delete", 3, null, "/api/erp/sale/order/*", "DELETE", 28),
+            createPermission("销售订单提交", "sale:order:submit", 3, null, "/api/erp/sale/order/*/submit", "POST", 29),
+            createPermission("销售订单审批", "sale:order:approve", 3, null, "/api/erp/sale/order/*/approve", "POST", 30),
+            createPermission("销售订单出库", "sale:order:ship", 3, null, "/api/erp/sale/order/*/ship", "POST", 31),
+            createPermission("销售订单收款", "sale:order:payment", 3, null, "/api/erp/sale/order/*/payment", "POST", 32),
+            createPermission("销售订单取消", "sale:order:cancel", 3, null, "/api/erp/sale/order/*/cancel", "POST", 33),
+            createPermission("库存管理", "stock:manage", 1, "/erp/stock", null, null, 34),
+            createPermission("库存查看", "stock:list", 3, null, "/api/erp/stock/page", "GET", 35),
+            createPermission("CRM客户管理", "crm:manage", 1, "/crm", null, null, 36),
+            createPermission("客户查询", "crm:customer:list", 3, null, "/api/customer/page", "GET", 37),
+            createPermission("客户创建", "crm:customer:create", 3, null, "/api/customer", "POST", 38),
+            createPermission("客户更新", "crm:customer:update", 3, null, "/api/customer/*", "PUT", 39),
+            createPermission("客户删除", "crm:customer:delete", 3, null, "/api/customer/*", "DELETE", 40)
+        );
+        savePermissions(erpPermissions);
+
+        log.info("系统权限初始化完成，共{}项", systemPermissions.size() + erpPermissions.size());
+    }
+
+    /**
+     * 保存权限列表（查询存在则更新，否则插入）
+     */
+    private void savePermissions(List<SysPermission> permissions) {
+        for (SysPermission permission : permissions) {
             try {
-                // 先查询是否存在
-                SysPermission existingPermission = permissionService.getOne(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysPermission>()
+                SysPermission existing = permissionService.getOne(
+                    new LambdaQueryWrapper<SysPermission>()
                         .eq(SysPermission::getPermissionCode, permission.getPermissionCode()));
-                if (existingPermission != null) {
-                    // 存在则更新
-                    permission.setId(existingPermission.getId());
+                if (existing != null) {
+                    permission.setId(existing.getId());
                 }
                 permissionService.saveOrUpdate(permission);
             } catch (Exception e) {
                 log.warn("创建权限失败: code={}, error={}", permission.getPermissionCode(), e.getMessage());
             }
         }
-
-        log.info("系统权限初始化完成，共{}项", systemPermissions.size());
     }
 
     /**

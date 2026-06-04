@@ -62,6 +62,22 @@ public class SaleOutboundServiceImpl extends ServiceImpl<SaleOutboundMapper, Sal
     }
 
     @Override
+    public List<SaleOutbound> exportList(String keyword, Integer status) {
+        LambdaQueryWrapper<SaleOutbound> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SaleOutbound::getDeleted, 0);
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(SaleOutbound::getOutboundNo, keyword)
+                    .or().like(SaleOutbound::getOrderNo, keyword)
+                    .or().like(SaleOutbound::getCustomerName, keyword));
+        }
+        if (status != null) {
+            wrapper.eq(SaleOutbound::getStatus, status);
+        }
+        wrapper.orderByDesc(SaleOutbound::getCreateTime);
+        return list(wrapper);
+    }
+
+    @Override
     public List<SaleOutbound> listByCustomerId(Long customerId) {
         return baseMapper.selectByCustomerId(customerId);
     }

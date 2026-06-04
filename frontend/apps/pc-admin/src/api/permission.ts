@@ -32,12 +32,12 @@ export interface PermissionQuery {
 export const permissionApi = {
   // 分页查询权限
   getPage(params: PermissionQuery): Promise<ApiResponse<PageResponse<PermissionInfo>>> {
-    return request.get('/permission/page', { params })
+    return request.get('/permission/page', params)
   },
 
   // 获取权限树
   getTree(tenantId: number): Promise<ApiResponse<PermissionInfo[]>> {
-    return request.get('/permission/tree', { params: { tenantId } })
+    return request.get('/permission/tree', { tenantId })
   },
 
   // 获取权限详情
@@ -72,7 +72,7 @@ export const permissionApi = {
 
   // 检查权限编码
   checkCode(code: string, tenantId: number, excludeId?: number): Promise<ApiResponse<boolean>> {
-    return request.get('/permission/check-code', { params: { code, tenantId, excludeId } })
+    return request.get('/permission/check-code', { code, tenantId, excludeId })
   }
 }
 

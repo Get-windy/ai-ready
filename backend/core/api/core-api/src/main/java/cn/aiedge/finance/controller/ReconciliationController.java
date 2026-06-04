@@ -9,9 +9,13 @@ import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 对账记录控制器
@@ -79,5 +83,38 @@ public class ReconciliationController {
     public ApiResponse<Void> handleDifference(@PathVariable Long id, @RequestParam String differenceReason) {
         reconciliationService.handleDifference(id, differenceReason);
         return ApiResponse.success();
+    }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除对账记录")
+    public ApiResponse<Void> deleteBatch(@RequestBody List<Long> ids) {
+        reconciliationService.removeBatchByIds(ids);
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出对账记录列表")
+    public ApiResponse<List<ReconciliationVO>> export(
+            @Parameter(description = "对账类型") @RequestParam(required = false) String reconciliationType,
+            @Parameter(description = "目标ID") @RequestParam(required = false) Long targetId,
+            @Parameter(description = "目标名称") @RequestParam(required = false) String targetName,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "开始日期起") @RequestParam(required = false) LocalDate startDateStart,
+            @Parameter(description = "开始日期止") @RequestParam(required = false) LocalDate startDateEnd,
+            @Parameter(description = "结束日期起") @RequestParam(required = false) LocalDate endDateStart,
+            @Parameter(description = "结束日期止") @RequestParam(required = false) LocalDate endDateEnd) {
+        ReconciliationQueryRequest request = new ReconciliationQueryRequest();
+        request.setReconciliationType(reconciliationType);
+        request.setTargetId(targetId);
+        request.setTargetName(targetName);
+        request.setStatus(status);
+        request.setStartDateStart(startDateStart);
+        request.setStartDateEnd(startDateEnd);
+        request.setEndDateStart(endDateStart);
+        request.setEndDateEnd(endDateEnd);
+        request.setPageNum(1);
+        request.setPageSize(Integer.MAX_VALUE);
+        Page<ReconciliationVO> pageResult = reconciliationService.pageReconciliations(request);
+        return ApiResponse.success(pageResult.getRecords());
     }
 }

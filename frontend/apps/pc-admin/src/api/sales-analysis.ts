@@ -32,22 +32,22 @@ export interface SalesAnalysisQuery {
 
 export const salesAnalysisApi = {
   getOverview(params?: SalesAnalysisQuery): Promise<ApiResponse<SalesOverview>> {
-    return request.get('/erp/metrics/dashboard', { params })
+    return request.get('/erp/metrics/dashboard', params)
   },
   getTrend(params?: SalesAnalysisQuery): Promise<ApiResponse<TrendDataPoint[]>> {
-    return request.get('/erp/metrics/type/sales', { params })
+    return request.get('/erp/metrics/type/sales', params)
   },
   getChannelDistribution(params?: SalesAnalysisQuery): Promise<ApiResponse<ChannelDistribution[]>> {
-    return request.get('/erp/monitor/sales', { params })
+    return request.get('/erp/monitor/sales', params)
   },
   getCustomerRanking(params?: SalesAnalysisQuery): Promise<ApiResponse<CustomerRankItem[]>> {
-    return request.get('/erp/metrics/history', { params: { ...params, type: 'customer_ranking' } })
+    return request.get('/erp/metrics/history', { ...params, type: 'customer_ranking' })
   },
   getProductRanking(params?: SalesAnalysisQuery): Promise<ApiResponse<ProductRankItem[]>> {
-    return request.get('/erp/metrics/history', { params: { ...params, type: 'product_ranking' } })
+    return request.get('/erp/metrics/history', { ...params, type: 'product_ranking' })
   },
   getSalespersonRanking(params?: SalesAnalysisQuery): Promise<ApiResponse<any[]>> {
-    return request.get('/erp/metrics/history', { params: { ...params, type: 'salesperson_ranking' } })
+    return request.get('/erp/metrics/history', { ...params, type: 'salesperson_ranking' })
   },
   getWarehouses(): Promise<ApiResponse<{ id: number; name: string }[]>> {
     return request.get('/erp/stock/warehouses')

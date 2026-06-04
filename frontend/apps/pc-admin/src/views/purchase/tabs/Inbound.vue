@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建入库"
     @add="handleAdd"
     @view="handleView"
@@ -19,12 +20,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
     </template>
 
     <template #batch-actions>
@@ -141,16 +139,18 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { inboundApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch, validateSelection } from '@/utils/batchOperations'
+import optionsApi from '@/api/options'
 
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -197,6 +197,7 @@ function getStatusText(status: number): string { return statusTextMap[status] ||
 const formModalVisible = ref(false)
 const formSubmitting = ref(false)
 const formRef = ref<FormInstance>()
+const warehouseList = ref<any[]>([])
 
 let itemCounter = 0
 const genTempKey = () => `inbound_item_${++itemCounter}_${Date.now()}`
@@ -224,12 +225,6 @@ const formRules = {
   inboundDate: [{ required: true, message: '请选择入库日期', trigger: 'change' }]
 }
 
-const warehouseList = ref([
-  { id: 1, name: '主仓库' },
-  { id: 2, name: '备品仓库' },
-  { id: 3, name: '原料仓库' }
-])
-
 const inboundItemColumns = [
   { title: '物料名称', key: 'productName', width: 150 },
   { title: '应入库数量', key: 'expectedQty', width: 100 },
@@ -237,6 +232,20 @@ const inboundItemColumns = [
   { title: '单价', key: 'unitPrice', width: 100 },
   { title: '操作', key: 'action', width: 80 }
 ]
+
+// ── 动态加载仓库列表 ──────────────────────────────────
+async function loadWarehouses() {
+  try {
+    const res = await optionsApi.getWarehouses()
+    warehouseList.value = Array.isArray(res) ? res : []
+  } catch {
+    warehouseList.value = [
+      { id: 1, name: '主仓库' },
+      { id: 2, name: '备品仓库' },
+      { id: 3, name: '原料仓库' }
+    ]
+  }
+}
 
 const handleAddInboundItem = () => {
   formData.items.push({
@@ -260,25 +269,26 @@ const handleOrderNoBlur = () => {
 }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await inboundApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
-  finally { loading.value = false }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
+  } catch {
+    message.error('获取入库单列表失败')
+  } finally { loading.value = false }
 }
 
 function handleView(record: any) {
-  Modal.info({
-    title: '入库单详情',
-    content: `入库单号: ${record.inboundNo}\n供应商: ${record.supplierName}\n入库日期: ${record.inboundDate}\n状态: ${getStatusText(record.status)}`,
-    centered: true
-  })
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 function handleAdd() {
   formData.orderNo = ''; formData.supplierName = ''; formData.warehouseId = undefined
   formData.inboundDate = undefined; formData.remark = ''; formData.items = []
+  loadWarehouses()
   formModalVisible.value = true
 }
 
@@ -288,14 +298,8 @@ async function handleDelete(record: any) {
 }
 
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0; let failCount = 0
-  for (const id of ids) {
-    try { await inboundApi.delete(id); successCount++ }
-    catch { failCount++ }
-  }
-  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
-  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
-  fetchData()
+  const result = await executeBatch(ids, (id) => inboundApi.delete(id), '批量删除')
+  if (result.successCount > 0) fetchData()
 }
 
 const handleFormSubmit = async () => {
@@ -325,35 +329,23 @@ function handleApprove(record: any) {
 
 function handleBatchApprove() {
   const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) { message.warning('请选择入库单'); return }
+  if (!validateSelection(keys, '审批')) return
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      let success = 0; let fail = 0
-      for (const id of keys) {
-        try { await inboundApi.approve(id); success++ } catch { fail++ }
-      }
-      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
-      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
-      fetchData()
+      const result = await executeBatch(keys, (id) => inboundApi.approve(id), '批量审批')
+      if (result.successCount > 0) fetchData()
     }
   })
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['入库单号', '关联订单', '供应商', '入库日期', '金额', '状态', '创建人', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.inboundNo || '', row.orderNo || '', row.supplierName || '', row.inboundDate || '',
-      row.totalAmount?.toFixed(2) || '0.00', getStatusText(row.status), row.creatorName || '', row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['入库单号', '关联订单', '供应商', '入库日期', '金额', '状态', '创建人', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.inboundNo || '', row.orderNo || '', row.supplierName || '', row.inboundDate || '',
+    (row.totalAmount || 0).toFixed(2), getStatusText(row.status), row.creatorName || '', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '入库单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
@@ -361,5 +353,5 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => fetchData())
+onMounted(() => { fetchData(); loadWarehouses() })
 </script>

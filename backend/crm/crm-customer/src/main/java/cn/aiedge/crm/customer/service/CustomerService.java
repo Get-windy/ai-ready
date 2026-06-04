@@ -14,8 +14,11 @@ public interface CustomerService extends IService<Customer> {
                              Integer status, Long salesPersonId, int pageNum, int pageSize);
     
     List<Customer> listBySalesPersonId(Long salesPersonId);
-    
+
     List<Customer> listByCustomerLevel(Integer customerLevel);
-    
+
+    List<Customer> exportList(String keyword, Integer customerType, Integer customerLevel,
+                               Integer status, Long salesPersonId);
+
     String generateCustomerCode();
 }

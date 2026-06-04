@@ -32,7 +32,7 @@ export interface LogQuery {
 export const logApi = {
   // 分页查询
   getPage(params: LogQuery): Promise<ApiResponse<PageResponse<OperationLog>>> {
-    return request.get('/log/page', { params })
+    return request.get('/log/page', params)
   },
 
   // 获取详情
@@ -57,7 +57,7 @@ export const logApi = {
 
   // 导出日志
   exportLogs(params: LogQuery): Promise<ApiResponse<Blob>> {
-    return request.get('/log/export', { params, responseType: 'blob' })
+    return request.get('/log/export', params, { responseType: 'blob' })
   }
 }
 

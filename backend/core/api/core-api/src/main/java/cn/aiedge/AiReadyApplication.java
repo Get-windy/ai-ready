@@ -19,18 +19,20 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.common",
     "cn.aiedge.config",
     "cn.aiedge.user",
-    "cn.aiedge.auth",
     "cn.aiedge.dashboard",
     "cn.aiedge.tenant",
     "cn.aiedge.erp.purchase",
-    "cn.aiedge.erp.finance"
+    "cn.aiedge.erp.finance",
+    "cn.aiedge.erp.sale",
+    "cn.aiedge.erp.stock",
+    "cn.aiedge.crm",
+    "com.aiready"
 }, exclude = {
     JpaRepositoriesAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
     GatewayAutoConfiguration.class,
     GatewayClassPathWarningAutoConfiguration.class
 })
-@EnableTransactionManagement
 @MapperScan("cn.aiedge.**.mapper")
 @OpenAPIDefinition(
     info = @Info(

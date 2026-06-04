@@ -20,6 +20,7 @@
         :filter-fields="filterFields"
         :show-summary="true"
         :summary-data="summaryData"
+        :show-export="true"
         add-text="新增客户"
         @add="handleAdd"
         @edit="handleEdit"
@@ -31,10 +32,10 @@
         @page-change="handlePageChange"
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
+        @export="handleExport"
       >
         <template #toolbar-actions>
           <a-button @click="handleImport"><template #icon><ImportOutlined /></template>导入</a-button>
-          <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
         </template>
 
         <template #batch-actions>
@@ -199,24 +200,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ImportOutlined, MoreOutlined, MessageOutlined, UnorderedListOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ImportOutlined, MoreOutlined, MessageOutlined, UnorderedListOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { customerApi, type CustomerInfo } from '@/api/customer'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
 
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const currentView = ref('list')
+const kanbanData = ref<any[]>([])
+let kanbanLoading = false
+
+// 切到看板视图时加载全部客户数据用于看板展示
+const fetchKanbanData = async () => {
+  if (kanbanData.value.length > 0 || kanbanLoading) return
+  kanbanLoading = true
+  try {
+    const res = await customerApi.getPage({ tenantId: userStore.tenantId, pageNum: 1, pageSize: 9999 })
+    const pageData = (res as any).data
+    kanbanData.value = pageData?.records || []
+  } catch {
+    kanbanData.value = dataSource.value.slice()
+  } finally {
+    kanbanLoading = false
+  }
+}
 
 const columns = [
   { title: '客户信息', key: 'name', width: 200, slotName: 'name' },
@@ -251,7 +269,7 @@ const levelGroups = [
   { value: 1, label: 'VIP客户' }, { value: 2, label: '重要客户' },
   { value: 3, label: '普通客户' }, { value: 4, label: '潜在客户' }
 ]
-const getCustomersByLevel = (level: number) => dataSource.value.filter(c => c.level === level)
+const getCustomersByLevel = (level: number) => kanbanData.value.filter(c => c.level === level)
 
 // ── 辅助方法 ──
 const levelColorMap: Record<number, string> = { 1: '#ff4d4f', 2: '#faad14', 3: '#1890ff', 4: '#52c41a' }
@@ -261,12 +279,12 @@ function getLevelName(level: number): string { return levelTextMap[level] || '�
 
 // ── 数据加载 ──
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await customerApi.getPage({ tenantId: userStore.tenantId, ...searchFilters, pageNum: pagination.current, pageSize: pagination.pageSize })
-    const pageData = (res as any).data
+    const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
-  } catch (err: any) { error.value = err?.message || '加载数据失败' }
+  } catch { message.error('加载客户列表失败') }
   finally { loading.value = false }
 }
 
@@ -367,17 +385,17 @@ async function handleImportConfirm() {
 
 // ── 导出 ──
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['客户名称', '客户编码', '联系人', '联系电话', '邮箱', '行业', '等级', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [row.name, row.code, row.contactPerson, row.phone, row.email, row.industry, getLevelName(row.level), row.status === 0 ? '正常' : '停用', row.createTime])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v || ''}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `客户数据_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['客户名称', '客户编码', '联系人', '联系电话', '邮箱', '行业', '等级', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [row.name, row.code, row.contactPerson, row.phone, row.email, row.industry, getLevelName(row.level), row.status === 0 ? '正常' : '停用', row.createTime])
+  exportCsv(headers, rows, '客户数据')
 }
+
+// 监听视图切换：切到看板时主动加载全量数据
+watch(currentView, (val) => {
+  if (val === 'kanban') {
+    fetchKanbanData()
+  }
+})
 
 onMounted(() => fetchData())
 </script>

@@ -76,6 +76,28 @@ public class NotificationTemplateController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除通知模板")
+    public ResponseEntity<Map<String, Object>> batchDelete(@RequestBody List<Long> ids) {
+        for (Long id : ids) {
+            notificationService.deleteTemplate(id);
+        }
+        return ResponseEntity.ok(Map.of("success", true, "count", ids.size()));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出通知模板")
+    public ResponseEntity<List<NotificationTemplate>> export(
+            @RequestParam(required = false) String notifyType) {
+        List<NotificationTemplate> templates;
+        if (notifyType != null && !notifyType.isEmpty()) {
+            templates = notificationService.getTemplatesByType(notifyType);
+        } else {
+            templates = notificationService.getAllTemplates();
+        }
+        return ResponseEntity.ok(templates);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "获取模板详情")
     public ResponseEntity<NotificationTemplate> getTemplate(@PathVariable Long id) {

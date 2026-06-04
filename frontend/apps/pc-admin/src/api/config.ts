@@ -36,7 +36,7 @@ export interface ConfigUpdateRequest extends ConfigSaveRequest {
 export const configApi = {
   // 分页查询配置
   getPage(params: ConfigQuery): Promise<ApiResponse<PageResponse<ConfigInfo>>> {
-    return request.get('/config/page', { params })
+    return request.get('/config/page', params)
   },
 
   // 获取配置详情

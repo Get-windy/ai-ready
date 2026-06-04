@@ -197,7 +197,7 @@ const fetchData = async () => {
     dataSource.value = res.data?.records || []
     pagination.total = res.data?.total || 0
   } catch (error) {
-    message.error('获取数据失败')
+    message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
   }
@@ -242,7 +242,7 @@ const handleSubmit = async (record: PurchaseOrder) => {
     message.success('提交成功')
     fetchData()
   } catch (error) {
-    message.error('提交失败')
+    message.error(error?.response?.data?.message || '提交失败')
   }
 }
 
@@ -252,7 +252,7 @@ const handleApprove = async (record: PurchaseOrder) => {
     message.success('审批成功')
     fetchData()
   } catch (error) {
-    message.error('审批失败')
+    message.error(error?.response?.data?.message || '审批失败')
   }
 }
 
@@ -262,13 +262,29 @@ const handleDelete = async (record: PurchaseOrder) => {
     message.success('删除成功')
     fetchData()
   } catch (error) {
-    message.error('删除失败')
+    message.error(error?.response?.data?.message || '删除失败')
   }
 }
 
-const handleExport = () => {
+const handleExport = async () => {
   const hide = message.loading('正在导出...', 0)
-  setTimeout(() => { hide(); message.success('导出成功，文件下载中') }, 800)
+  try {
+    const blob = await purchaseOrderApi.exportData({
+      tenantId: userStore.tenantId,
+      ...queryParams
+    })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '' + new Date().toISOString().slice(0, 10) + '.xlsx'
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error) {
+    message.error(error?.response?.data?.message || '导出失败')
+  } finally {
+    hide()
+  }
 }
 
 const handleFormSuccess = () => {

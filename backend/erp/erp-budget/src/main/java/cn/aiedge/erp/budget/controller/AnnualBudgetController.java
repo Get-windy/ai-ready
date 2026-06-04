@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -89,5 +90,16 @@ public class AnnualBudgetController {
     public ApiResponse<AnnualBudgetDTO> close(@Parameter(description = "预算ID") @PathVariable Long id) {
         AnnualBudgetDTO result = annualBudgetService.close(id);
         return ApiResponse.success("已关闭", result);
+    }
+
+    @Operation(summary = "导出年度预算列表")
+    @GetMapping("/export")
+    public ApiResponse<List<AnnualBudgetDTO>> export(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "财政年度") @RequestParam(required = false) Integer fiscalYear,
+            @Parameter(description = "部门ID") @RequestParam(required = false) String departmentId,
+            @Parameter(description = "状态") @RequestParam(required = false) String status) {
+        List<AnnualBudgetDTO> list = annualBudgetService.exportList(keyword, fiscalYear, departmentId, status);
+        return ApiResponse.success(list);
     }
 }

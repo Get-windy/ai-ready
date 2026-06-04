@@ -205,7 +205,7 @@
               @change="handleTenantSwitch"
             >
               <a-select-option
-                v-for="t in tenantList"
+                v-for="t in userStore.userTenants"
                 :key="t.id"
                 :value="t.id"
               >
@@ -376,14 +376,13 @@ const handleSiderCollapsedChange = (value: boolean) => {
   }
 }
 
-// 租户切换
-const tenantList = ref<TenantInfo[]>([])
+// 租户切换（使用 store 中的用户可访问租户列表）
 const tenantSwitching = ref(false)
 const currentTenantName = computed(() => {
-  const found = tenantList.value.find(t => t.id === userStore.tenantId)
-  return found?.tenantName || '默认租户'
+  const found = userStore.userTenants.find(t => t.id === userStore.tenantId)
+  return found?.tenantName || userStore.tenantName || '默认租户'
 })
-const showTenantSwitcher = computed(() => tenantList.value.length > 1)
+const showTenantSwitcher = computed(() => userStore.userTenants.length > 1)
 
 const iconMap: Record<string, any> = {
   'DashboardOutlined': DashboardOutlined,
@@ -484,13 +483,40 @@ watch(() => route.path, (path) => {
       type: 'page'
     })
   }
-})
+  // 同步菜单展开/选中状态（防止菜单折叠）
+  syncMenuKeys(path)
+}, { immediate: true })
 
-// 加载租户列表
+// 根据当前路由同步菜单选中项和展开项
+function syncMenuKeys(path: string) {
+  const findMenuKeys = (menus: any[], targetPath: string, parentCodes: string[]): { selected: string; open: string[] } | null => {
+    for (const menu of menus) {
+      if (menu.menuType === 0) {
+        // 子菜单：在 children 中递归查找
+        const found = findMenuKeys(menu.children || [], targetPath, [...parentCodes, menu.menuCode])
+        if (found) return found
+      } else if (menu.menuType === 1 && menu.path === targetPath) {
+        return { selected: menu.menuCode, open: parentCodes }
+      }
+    }
+    return null
+  }
+
+  const result = findMenuKeys(userStore.menus, path, [])
+  if (result) {
+    selectedKeys.value = [result.selected]
+    openKeys.value = result.open
+  }
+}
+
+// 加载租户列表（从 store 或 API 刷新）
 const fetchTenants = async () => {
   try {
     const res = await userApi.getTenants()
-    if (res.data) tenantList.value = res.data
+    if (res.data) {
+      userStore.userTenants = res.data
+      localStorage.setItem('userTenants', JSON.stringify(res.data))
+    }
   } catch (error) {
     console.error('获取租户列表失败:', error)
   }
@@ -506,15 +532,18 @@ const fetchUnreadCount = async () => {
 
 // 切换租户
 const handleTenantSwitch = async (tenantId: number) => {
-  const target = tenantList.value.find(t => t.id === tenantId)
+  const target = userStore.userTenants.find(t => t.id === tenantId)
   if (!target) return
   tenantSwitching.value = true
   try {
     await userApi.getTenants()
     userStore.tenantId = tenantId
     localStorage.setItem('tenantId', String(tenantId))
+    localStorage.setItem('tenantName', target.tenantName)
+    userStore.tenantName = target.tenantName
+	      await userStore.getUserInfo()
     message.success('已切换到: ' + target.tenantName)
-    window.location.reload()
+    router.push('/dashboard')
   } catch (error) {
     console.error('切换租户失败:', error)
     message.error('切换租户失败，请重试')

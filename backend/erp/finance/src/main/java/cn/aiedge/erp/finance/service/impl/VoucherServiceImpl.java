@@ -248,6 +248,40 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional
+    public void deleteBatch(List<Long> ids) {
+        for (Long id : ids) {
+            Voucher voucher = voucherMapper.selectById(id);
+            if (voucher == null) {
+                throw new RuntimeException("凭证不存在: " + id);
+            }
+            if (!"draft".equals(voucher.getStatus())) {
+                throw new RuntimeException("只有草稿状态的凭证才能删除，当前状态: " + voucher.getStatus() + ", voucherNo: " + voucher.getVoucherNo());
+            }
+        }
+        voucherMapper.deleteBatchIds(ids);
+        log.info("批量删除凭证: ids={}", ids);
+    }
+
+    @Override
+    public List<VoucherDTO> exportList(Integer fiscalYear, Integer fiscalPeriod, String status) {
+        LambdaQueryWrapper<Voucher> wrapper = new LambdaQueryWrapper<>();
+        if (fiscalYear != null) {
+            wrapper.eq(Voucher::getFiscalYear, fiscalYear);
+        }
+        if (fiscalPeriod != null) {
+            wrapper.eq(Voucher::getFiscalPeriod, fiscalPeriod);
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Voucher::getStatus, status);
+        }
+        wrapper.orderByDesc(Voucher::getCreateTime);
+
+        List<Voucher> entities = voucherMapper.selectList(wrapper);
+        return entities.stream().map(this::toDTOWithItems).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
     public String generateVoucherNo(Integer fiscalYear, Integer fiscalPeriod) {
         long count = voucherMapper.countByFiscalYearAndFiscalPeriod(fiscalYear, fiscalPeriod);
         String periodStr = String.format("%04d%02d", fiscalYear, fiscalPeriod);

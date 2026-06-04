@@ -47,6 +47,23 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
 
     @Override
     public Page<Contract> pageList(String keyword, Long customerId, Long opportunityId, Integer status, Integer contractType, Long salesPersonId, int pageNum, int pageSize) {
+        LambdaQueryWrapper<Contract> wrapper = buildQueryWrapper(keyword, customerId, opportunityId, status, contractType, salesPersonId);
+        wrapper.orderByDesc(Contract::getCreateTime);
+        return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<Contract> exportList(String keyword, Long customerId, Long opportunityId, Integer status, Integer contractType, Long salesPersonId) {
+        LambdaQueryWrapper<Contract> wrapper = buildQueryWrapper(keyword, customerId, opportunityId, status, contractType, salesPersonId);
+        wrapper.orderByDesc(Contract::getCreateTime);
+        return baseMapper.selectList(wrapper);
+    }
+
+    /**
+     * 构建公共查询条件
+     */
+    private LambdaQueryWrapper<Contract> buildQueryWrapper(String keyword, Long customerId, Long opportunityId,
+                                                            Integer status, Integer contractType, Long salesPersonId) {
         LambdaQueryWrapper<Contract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Contract::getDeleted, 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -69,8 +86,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
         if (salesPersonId != null) {
             wrapper.eq(Contract::getSalesPersonId, salesPersonId);
         }
-        wrapper.orderByDesc(Contract::getCreateTime);
-        return page(new Page<>(pageNum, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

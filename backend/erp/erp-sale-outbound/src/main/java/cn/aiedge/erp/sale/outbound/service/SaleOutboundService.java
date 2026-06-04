@@ -61,4 +61,9 @@ public interface SaleOutboundService extends IService<SaleOutbound> {
     void removeItem(Long itemId);
 
     void updateStock(Long outboundId);
+
+    /**
+     * 导出出库单列表
+     */
+    List<SaleOutbound> exportList(String keyword, Integer status);
 }

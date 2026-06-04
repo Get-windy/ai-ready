@@ -28,6 +28,8 @@ public interface ContractService extends IService<Contract> {
 
     String generateContractNo();
 
+    List<Contract> exportList(String keyword, Long customerId, Long opportunityId, Integer status, Integer contractType, Long salesPersonId);
+
     Contract createContract(Contract contract);
 
     Contract createFromQuotation(Long quotationId);

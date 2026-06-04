@@ -2,14 +2,14 @@ import request from '@/utils/request'
 
 export const fixedAssetApi = {
   // 资产
-  getPage: (params: any) => request.get('/erp/fixed-asset/asset/page', { params }),
+  getPage: (params: any) => request.get('/erp/fixed-asset/asset/page', params),
   getById: (id: number) => request.get(`/erp/fixed-asset/asset/${id}`),
   create: (data: any) => request.post('/erp/fixed-asset/asset', data),
   update: (id: number, data: any) => request.put(`/erp/fixed-asset/asset/${id}`, data),
   delete: (id: number) => request.delete(`/erp/fixed-asset/asset/${id}`),
   getStatistics: () => request.get('/erp/fixed-asset/asset/statistics'),
   depreciate: (id: number) => request.post(`/erp/fixed-asset/asset/${id}/depreciate`),
-  exportData: (params: any) => request.get('/erp/fixed-asset/asset/export', { params, responseType: 'blob' })
+  exportData: (params: any) => request.get('/erp/fixed-asset/asset/export', params, { responseType: 'blob' })
 }
 
 export const fixedAssetCategoryApi = {
@@ -22,13 +22,13 @@ export const fixedAssetCategoryApi = {
 }
 
 export const depreciationApi = {
-  getPage: (params: any) => request.get('/erp/fixed-asset/depreciation/page', { params }),
+  getPage: (params: any) => request.get('/erp/fixed-asset/depreciation/page', params),
   getById: (id: number) => request.get(`/erp/fixed-asset/depreciation/${id}`),
   batchCalculate: (data: any) => request.post('/erp/fixed-asset/depreciation/batch-calculate', data)
 }
 
 export const transferApi = {
-  getPage: (params: any) => request.get('/erp/fixed-asset/transfer/page', { params }),
+  getPage: (params: any) => request.get('/erp/fixed-asset/transfer/page', params),
   getById: (id: number) => request.get(`/erp/fixed-asset/transfer/${id}`),
   create: (data: any) => request.post('/erp/fixed-asset/transfer', data),
   update: (id: number, data: any) => request.put(`/erp/fixed-asset/transfer/${id}`, data),
@@ -38,7 +38,7 @@ export const transferApi = {
 }
 
 export const disposalApi = {
-  getPage: (params: any) => request.get('/erp/fixed-asset/disposal/page', { params }),
+  getPage: (params: any) => request.get('/erp/fixed-asset/disposal/page', params),
   getById: (id: number) => request.get(`/erp/fixed-asset/disposal/${id}`),
   create: (data: any) => request.post('/erp/fixed-asset/disposal', data),
   update: (id: number, data: any) => request.put(`/erp/fixed-asset/disposal/${id}`, data),
@@ -48,15 +48,15 @@ export const disposalApi = {
 }
 
 export const inventoryApi = {
-  getPage: (params: any) => request.get('/erp/fixed-asset/inventory/page', { params }),
+  getPage: (params: any) => request.get('/erp/fixed-asset/inventory/page', params),
   getById: (id: number) => request.get(`/erp/fixed-asset/inventory/${id}`),
   create: (data: any) => request.post('/erp/fixed-asset/inventory', data),
   update: (id: number, data: any) => request.put(`/erp/fixed-asset/inventory/${id}`, data)
 }
 
 export const reportApi = {
-  getDepreciationSummary: (params?: any) => request.get('/erp/fixed-asset/report/depreciation-summary', { params }),
-  getAssetLedger: (params?: any) => request.get('/erp/fixed-asset/report/asset-ledger', { params }),
+  getDepreciationSummary: (params?: any) => request.get('/erp/fixed-asset/report/depreciation-summary', params),
+  getAssetLedger: (params?: any) => request.get('/erp/fixed-asset/report/asset-ledger', params),
   getAgeAnalysis: () => request.get('/erp/fixed-asset/report/age-analysis'),
   getCategorySummary: () => request.get('/erp/fixed-asset/report/category-summary')
 }

@@ -98,105 +98,105 @@ export const salesOrderApi = {
    * 分页查询销售订单
    */
   getPage(params: OrderQuery): Promise<ApiResponse<PageResponse<SalesOrder>>> {
-    return request.get('/api/sale/order/page', { params })
+    return request.get('/erp/sale/order/page', params)
   },
 
   /**
    * 获取销售订单详情
    */
   getById(id: number): Promise<ApiResponse<SalesOrder>> {
-    return request.get(`/api/sale/order/${id}`)
+    return request.get(`/erp/sale/order/${id}`)
   },
 
   /**
    * 创建销售订单
    */
   create(data: Partial<SalesOrder>): Promise<ApiResponse<boolean>> {
-    return request.post('/api/sale/order', data)
+    return request.post('/erp/sale/order', data)
   },
 
   /**
    * 更新销售订单
    */
   update(id: number, data: Partial<SalesOrder>): Promise<ApiResponse<boolean>> {
-    return request.put(`/api/sale/order/${id}`, data)
+    return request.put(`/erp/sale/order/${id}`, data)
   },
 
   /**
    * 删除销售订单
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/api/sale/order/${id}`)
+    return request.delete(`/erp/sale/order/${id}`)
   },
 
   /**
    * 批量删除销售订单
    */
   batchDelete(ids: number[]): Promise<ApiResponse<boolean>> {
-    return request.delete('/api/sale/order/batch', { data: ids })
+    return request.delete('/erp/sale/order/batch', { data: ids })
   },
 
   /**
    * 提交订单审批
    */
   submit(id: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/submit`)
+    return request.post(`/erp/sale/order/${id}/submit`)
   },
 
   /**
    * 审批订单
    */
   approve(id: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/approve`)
+    return request.post(`/erp/sale/order/${id}/approve`)
   },
 
   /**
    * 审批拒绝
    */
   reject(id: number, reason: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/reject`, null, { params: { reason } })
+    return request.post(`/erp/sale/order/${id}/reject`, null, { params: { reason } })
   },
 
   /**
    * 取消订单
    */
   cancel(id: number, reason?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/cancel`, null, { params: { reason } })
+    return request.post(`/erp/sale/order/${id}/cancel`, null, { params: { reason } })
   },
 
   /**
    * 确认出库
    */
   confirmShipment(id: number, warehouseId: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/ship`, null, { params: { warehouseId } })
+    return request.post(`/erp/sale/order/${id}/ship`, null, { params: { warehouseId } })
   },
 
   /**
    * 记录收款
    */
   recordPayment(id: number, amount: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/sale/order/${id}/payment`, null, { params: { amount } })
+    return request.post(`/erp/sale/order/${id}/payment`, null, { params: { amount } })
   },
 
   /**
    * 获取待审批订单列表
    */
   getPending(tenantId: number): Promise<ApiResponse<SalesOrder[]>> {
-    return request.get('/api/sale/order/pending', { params: { tenantId } })
+    return request.get('/erp/sale/order/pending', { tenantId })
   },
 
   /**
    * 导出销售订单
    */
   export(params: OrderQuery): Promise<Blob> {
-    return request.get('/api/sale/order/export', { params, responseType: 'blob' })
+    return request.get('/erp/sale/order/export', params, { responseType: 'blob' })
   },
 
   /**
    * 获取订单统计
    */
   getStatistics(params: { startDate?: string; endDate?: string }): Promise<ApiResponse<any>> {
-    return request.get('/api/sale/order/statistics', { params })
+    return request.get('/erp/sale/order/statistics', params)
   }
 }
 
@@ -208,56 +208,56 @@ export const purchaseOrderApi = {
    * 分页查询采购订单
    */
   getPage(params: OrderQuery): Promise<ApiResponse<PageResponse<PurchaseOrder>>> {
-    return request.get('/api/purchase-order/page', { params })
+    return request.get('/erp/purchase/order/page', params)
   },
 
   /**
    * 获取采购订单详情
    */
   getById(id: number): Promise<ApiResponse<PurchaseOrder>> {
-    return request.get(`/api/purchase-order/${id}`)
+    return request.get(`/erp/purchase/order/${id}`)
   },
 
   /**
    * 创建采购订单
    */
   create(data: Partial<PurchaseOrder>): Promise<ApiResponse<boolean>> {
-    return request.post('/api/purchase-order', data)
+    return request.post('/erp/purchase/order', data)
   },
 
   /**
    * 更新采购订单
    */
   update(id: number, data: Partial<PurchaseOrder>): Promise<ApiResponse<boolean>> {
-    return request.put(`/api/purchase-order/${id}`, data)
+    return request.put(`/erp/purchase/order/${id}`, data)
   },
 
   /**
    * 删除采购订单
    */
   delete(id: number): Promise<ApiResponse<boolean>> {
-    return request.delete(`/api/purchase-order/${id}`)
+    return request.delete(`/erp/purchase/order/${id}`)
   },
 
   /**
    * 批量删除采购订单
    */
   batchDelete(ids: number[]): Promise<ApiResponse<boolean>> {
-    return request.delete('/api/purchase-order/batch', { data: ids })
+    return request.delete('/erp/purchase/order/batch', { data: ids })
   },
 
   /**
    * 提交订单审批
    */
   submit(id: number): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/purchase-order/${id}/submit`)
+    return request.post(`/erp/purchase/order/${id}/submit`)
   },
 
   /**
    * 审批订单
    */
   approve(id: number, approved: boolean, comment?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/purchase-order/${id}/approve`, null, {
+    return request.post(`/erp/purchase/order/${id}/approve`, null, {
       params: { approved, comment }
     })
   },
@@ -266,14 +266,14 @@ export const purchaseOrderApi = {
    * 取消订单
    */
   cancel(id: number, reason?: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/purchase-order/${id}/cancel`, null, { params: { reason } })
+    return request.post(`/erp/purchase/order/${id}/cancel`, null, { params: { reason } })
   },
 
   /**
    * 导出采购订单
    */
   export(params: OrderQuery): Promise<Blob> {
-    return request.get('/api/purchase-order/export', { params, responseType: 'blob' })
+    return request.get('/erp/purchase/order/export', params, { responseType: 'blob' })
   }
 }
 

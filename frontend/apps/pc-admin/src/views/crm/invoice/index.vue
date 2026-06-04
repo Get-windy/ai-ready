@@ -16,6 +16,7 @@
       :filter-fields="filterFields"
       :show-summary="true"
       :summary-data="summaryData"
+      :show-export="true"
       add-text="新建发票"
       @add="handleAdd"
       @refresh="fetchData"
@@ -23,9 +24,9 @@
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
+      @export="handleExport"
     >
       <template #toolbar-actions>
-        <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
       </template>
 
       <template #invoiceNo="{ record }">
@@ -114,10 +115,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import type { FormInstance } from 'ant-design-vue'
+import { invoiceApi } from '@/api/crm'
+import { exportCsv } from '@/utils/exportCsv'
 
 const tableRef = ref()
 const loading = ref(false)
@@ -190,46 +193,52 @@ onMounted(() => fetchData())
 async function fetchData() {
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 300))
-    tableData.value = [
-      { id: 1, invoiceNo: 'INV20240115001', invoiceType: 'special', invoiceTypeLabel: '增值税专用发票', customerName: '北京科技有限公司', invoiceDate: '2024-01-15', amount: 58000, taxAmount: 7540, totalAmount: 65540, status: 'issued', issuer: '张三' },
-      { id: 2, invoiceNo: 'INV20240115002', invoiceType: 'normal', invoiceTypeLabel: '增值税普通发票', customerName: '上海贸易公司', invoiceDate: '2024-01-15', amount: 32500, taxAmount: 4225, totalAmount: 36725, status: 'sent', issuer: '李四' },
-      { id: 3, invoiceNo: 'INV20240114003', invoiceType: 'electronic', invoiceTypeLabel: '电子发票', customerName: '广州制造企业', invoiceDate: '2024-01-14', amount: 128000, taxAmount: 16640, totalAmount: 144640, status: 'draft', issuer: '王五' },
-      { id: 4, invoiceNo: 'INV20240120004', invoiceType: 'special', invoiceTypeLabel: '增值税专用发票', customerName: '深圳科技公司', invoiceDate: '2024-01-20', amount: 85000, taxAmount: 11050, totalAmount: 96050, status: 'received', issuer: '张三' },
-      { id: 5, invoiceNo: 'INV20240122005', invoiceType: 'electronic', invoiceTypeLabel: '电子发票', customerName: '杭州互联网公司', invoiceDate: '2024-01-22', amount: 45000, taxAmount: 2700, totalAmount: 47700, status: 'cancelled', issuer: '李四' }
-    ]
-    pagination.total = 5
-  } catch { message.error('获取数据失败') }
+    const params: any = { pageNum: pagination.current, pageSize: pagination.pageSize }
+    if (searchFilters.keyword) params.keyword = searchFilters.keyword
+    if (searchFilters.status) params.status = searchFilters.status
+    const res = await invoiceApi.page(params)
+    const result = res as any
+    tableData.value = (result.content || result.records || result.data?.records || []) as any[]
+    pagination.total = result.totalElements ?? result.total ?? result.data?.total ?? 0
+  } catch { message.error('获取发票数据失败') }
   finally { loading.value = false }
 }
 
 function handleView(record: any) { invoiceDetail.value = { ...record, relatedOrders: ['SO20240115001', 'SO20240115002'], remark: record.remark || '' }; detailVisible.value = true }
 function handleEdit(record: any) { modalTitle.value = '编辑发票'; Object.assign(formData, record); modalVisible.value = true }
 function handleAdd() { modalTitle.value = '新建发票'; modalVisible.value = true }
-function handleIssue(record: any) { message.success('发票已开具'); fetchData() }
-function handleSend(record: any) { message.success('发票已发送'); fetchData() }
+async function handleIssue(record: any) {
+  try { await invoiceApi.updateStatus(record.id, 'ISSUED'); message.success('发票已开具'); fetchData() }
+  catch { message.error('开票失败') }
+}
+async function handleSend(record: any) {
+  try { await invoiceApi.sendInvoice(record.id, 'EMAIL'); message.success('发票已发送'); fetchData() }
+  catch { message.error('发送失败') }
+}
 function handlePrintSuccess(record: any) { message.success(`发票 ${record.invoiceNo} 打印成功`) }
 function handlePrintError(error: any) { message.error(`打印失败: ${error.message || '未知错误'}`) }
-function handleCancelConfirm(record: any) { Modal.confirm({ title: '确认作废', content: `确定要作废发票 "${record.invoiceNo}" 吗？`, okText: '确认作废', okType: 'danger', cancelText: '取消', centered: true, async onOk() { message.success('发票已作废'); fetchData() } }) }
+function handleCancelConfirm(record: any) {
+  Modal.confirm({ title: '确认作废', content: `确定要作废发票 "${record.invoiceNo}" 吗？`, okText: '确认作废', okType: 'danger', cancelText: '取消', centered: true, async onOk() {
+    try { await invoiceApi.voidInvoice(record.id, '作废'); message.success('发票已作废'); fetchData() }
+    catch { message.error('作废失败') }
+  }})
+}
 
 async function handleSubmit() {
   try { await formRef.value?.validate() } catch { return }
   submitLoading.value = true
-  try { message.success('保存成功'); modalVisible.value = false; fetchData() }
+  try {
+    await invoiceApi.create(formData)
+    message.success('保存成功'); modalVisible.value = false; fetchData()
+  } catch { message.error('保存失败') }
   finally { submitLoading.value = false }
 }
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['发票号码', '发票类型', '客户名称', '开票日期', '发票金额', '税额', '价税合计', '状态', '开票人']
-    const rows = tableData.value.map((row: any) => [row.invoiceNo, row.invoiceTypeLabel, row.customerName, row.invoiceDate, row.amount, row.taxAmount, row.totalAmount, getStatusText(row.status), row.issuer])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `发票_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(link); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['发票号码', '发票类型', '客户名称', '开票日期', '发票金额', '税额', '价税合计', '状态', '开票人']
+  const rows = tableData.value.map((row: any) => [row.invoiceNo, row.invoiceTypeLabel, row.customerName, row.invoiceDate, row.amount, row.taxAmount, row.totalAmount, getStatusText(row.status), row.issuer])
+  exportCsv(headers, rows, '发票')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

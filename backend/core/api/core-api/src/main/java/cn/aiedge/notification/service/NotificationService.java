@@ -107,7 +107,17 @@ public interface NotificationService {
      * 删除通知
      */
     boolean deleteNotification(Long recordId);
-    
+
+    /**
+     * 批量删除通知
+     */
+    boolean deleteNotifications(List<Long> ids);
+
+    /**
+     * 获取所有通知记录（用于导出）
+     */
+    List<NotificationRecord> listAllRecords();
+
     // ==================== 重试与队列处理 ====================
     
     /**

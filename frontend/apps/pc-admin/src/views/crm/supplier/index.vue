@@ -16,6 +16,7 @@
       :filter-fields="filterFields"
       :show-summary="true"
       :summary-data="summaryData"
+      :show-export="true"
       add-text="新建供应商"
       @add="handleAdd"
       @refresh="fetchData"
@@ -23,9 +24,9 @@
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
+      @export="handleExport"
     >
       <template #toolbar-actions>
-        <a-button @click="handleExport"><template #icon><ExportOutlined /></template>导出</a-button>
       </template>
 
       <template #supplierName="{ record }">
@@ -195,11 +196,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { supplierApi } from '@/api/supplier'
 import type { FormInstance } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
+import { exportCsv } from '@/utils/exportCsv'
 
 const tableRef = ref()
 const router = useRouter()
@@ -376,15 +378,9 @@ async function handleSubmit() {
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['供应商名称', '编码', '类型', '等级', '联系人', '电话', '状态']
-    const rows = tableData.value.map((row: any) => [row.supplierName, row.supplierCode, row.supplierTypeLabel, row.supplierLevel, row.contactPerson, row.contactPhone, getStatusText(row.cooperationStatus)])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `供应商_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(link); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['供应商名称', '编码', '类型', '等级', '联系人', '电话', '状态']
+  const rows = tableData.value.map((row: any) => [row.supplierName, row.supplierCode, row.supplierTypeLabel, row.supplierLevel, row.contactPerson, row.contactPhone, getStatusText(row.cooperationStatus)])
+  exportCsv(headers, rows, '供应商')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

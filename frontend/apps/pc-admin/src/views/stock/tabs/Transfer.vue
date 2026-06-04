@@ -19,13 +19,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    :show-export="true"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
 
     <template #batch-actions>
       <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
@@ -127,15 +123,16 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { stockTransferApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch } from '@/utils/batchOperations'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
 const tableRef = ref()
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -223,11 +220,12 @@ function addTransferItem() { addForm.items.push({ key: itemKeyCounter++, product
 function removeTransferItem(index: number) { addForm.items.splice(index, 1) }
 
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await stockTransferApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
-  } catch { error.value = '获取数据失败' }
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
+  } catch { /* 获取数据失败 */ }
   finally { loading.value = false }
 }
 
@@ -242,9 +240,8 @@ async function handleDelete(record: any) {
   catch { message.error('删除失败') }
 }
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0
-  for (const id of ids) { try { await stockTransferApi.create({ id, action: 'delete' } as any); successCount++ } catch {} }
-  message.success(`批量删除完成，成功 ${successCount} 个`); fetchData()
+  await executeBatch(ids, (id: number) => stockTransferApi.create({ id, action: 'delete' } as any), '批量删除')
+  fetchData()
 }
 
 const handleAddSubmit = async () => {
@@ -278,30 +275,17 @@ function handleBatchApprove() {
   if (keys.length === 0) { message.warning('请选择调拨单'); return }
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
-    async onOk() {
-      let success = 0; let fail = 0
-      for (const id of keys) { try { await stockTransferApi.approve(id); success++ } catch { fail++ } }
-      if (fail === 0) { message.success(`批量审批完成，成功 ${success} 个`) }
-      else { message.warning(`审批完成: 成功 ${success} 个, 失败 ${fail} 个`) }
-      fetchData()
-    }
+    async onOk() { await executeBatch(keys, stockTransferApi.approve, '批量审批'); fetchData() }
   })
 }
 
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['调拨单号', '调出仓库', '调入仓库', '调拨日期', '状态', '创建时间']
-    const rows = dataSource.value.map((row: any) => [
-      row.transferNo || '', row.fromWarehouse || '', row.toWarehouse || '', row.transferDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'; const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `调拨单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url); hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['调拨单号', '调出仓库', '调入仓库', '调拨日期', '状态', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.transferNo || '', row.fromWarehouse || '', row.toWarehouse || '', row.transferDate || '',
+    getStatusText(row.status), row.createTime || ''
+  ])
+  exportCsv(headers, rows, '调拨单')
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }

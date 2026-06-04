@@ -9,6 +9,7 @@
     :filter-fields="filterFields"
     :show-summary="true"
     :summary-data="summaryData"
+    :show-export="true"
     add-text="新建询价"
     @add="handleAdd"
     @edit="handleEdit"
@@ -20,15 +21,9 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
-    <template #toolbar-actions>
-      <a-button @click="handleExport">
-        <template #icon><ExportOutlined /></template>
-        导出
-      </a-button>
-    </template>
-
-    <template #batch-actions>
+<template #batch-actions>
       <a-button size="small" @click="handleBatchSend">批量发送</a-button>
     </template>
 
@@ -172,17 +167,19 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { inquiryApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+import { exportCsv } from '@/utils/exportCsv'
+import { executeBatch, validateSelection } from '@/utils/batchOperations'
+import optionsApi from '@/api/options'
 
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
-const error = ref<string | null>(null)
 const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -231,6 +228,7 @@ const formMode = ref<'add' | 'edit'>('add')
 const formSubmitting = ref(false)
 const formRef = ref<FormInstance>()
 const editingId = ref<number | null>(null)
+const supplierList = ref<any[]>([])
 
 interface InquiryItem {
   tempKey: string
@@ -251,12 +249,6 @@ const formRules = {
   supplierId: [{ required: true, message: '请选择供应商', trigger: 'change' }],
   inquiryDate: [{ required: true, message: '请选择询价日期', trigger: 'change' }]
 }
-
-const supplierList = ref([
-  { id: 1, name: '供应商A' },
-  { id: 2, name: '供应商B' },
-  { id: 3, name: '供应商C' }
-])
 
 const itemColumns = [
   { title: '物料名称', key: 'productName', width: 150 },
@@ -295,14 +287,30 @@ const resetForm = () => {
   editingId.value = null
 }
 
+// ── 动态加载供应商列表 ──────────────────────────────────
+async function loadSuppliers() {
+  try {
+    const res = await optionsApi.getSuppliers()
+    supplierList.value = Array.isArray(res) ? res : []
+  } catch {
+    supplierList.value = [
+      { id: 1, name: '供应商A' },
+      { id: 2, name: '供应商B' },
+      { id: 3, name: '供应商C' }
+    ]
+  }
+}
+
 // ── 数据请求 ────────────────────────────────────────────
 async function fetchData() {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
     const res = await inquiryApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
-    dataSource.value = (res as any).records || []; pagination.total = (res as any).total || 0
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
   } catch {
-    error.value = '获取数据失败'
+    message.error('获取询价单列表失败')
   } finally { loading.value = false }
 }
 
@@ -311,6 +319,7 @@ function handleView(record: any) { currentRecord.value = record; detailVisible.v
 function handleAdd() {
   formMode.value = 'add'
   resetForm()
+  loadSuppliers()
   formModalVisible.value = true
 }
 
@@ -327,6 +336,7 @@ function handleEdit(record: any) {
     quantity: item.quantity || 1,
     unit: item.unit || '个'
   }))
+  loadSuppliers()
   formModalVisible.value = true
 }
 
@@ -336,14 +346,8 @@ async function handleDelete(record: any) {
 }
 
 async function handleBatchDelete(ids: number[]) {
-  let successCount = 0; let failCount = 0
-  for (const id of ids) {
-    try { await inquiryApi.delete(id); successCount++ }
-    catch { failCount++ }
-  }
-  if (failCount === 0) { message.success(`批量删除完成，成功 ${successCount} 个`) }
-  else { message.warning(`删除完成: 成功 ${successCount} 个, 失败 ${failCount} 个`) }
-  fetchData()
+  const result = await executeBatch(ids, (id) => inquiryApi.delete(id), '批量删除')
+  if (result.successCount > 0) fetchData()
 }
 
 // ── 表单提交 ──────────────────────────────────────────
@@ -393,38 +397,23 @@ function handleSend(record: any) {
 
 // ── 导出 ──────────────────────────────────────────────
 function handleExport() {
-  const hideLoading = message.loading('正在生成导出文件...', 0)
-  try {
-    const headers = ['询价单号', '供应商', '询价日期', '状态', '创建时间']
-    const rows = dataSource.value.map(row => [
-      row.inquiryNo || '', row.supplierName || '', row.inquiryDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ])
-    const csvContent = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const BOM = '﻿'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url; link.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click(); URL.revokeObjectURL(url)
-    hideLoading(); message.success('导出成功')
-  } catch { hideLoading(); message.error('导出失败') }
+  const headers = ['询价单号', '供应商', '询价日期', '状态', '创建时间']
+  const rows = dataSource.value.map(row => [
+    row.inquiryNo || '', row.supplierName || '', row.inquiryDate || '',
+    getStatusText(row.status), row.createTime || ''
+  ])
+  exportCsv(headers, rows, '询价单')
 }
 
 // ── 批量发送 ──────────────────────────────────────────
 function handleBatchSend() {
   const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) { message.warning('请选择询价单'); return }
+  if (!validateSelection(keys, '发送')) return
   Modal.confirm({
     title: '批量发送', content: `发送选中的 ${keys.length} 个询价单？`, okText: '确认', centered: true,
     async onOk() {
-      let success = 0; let fail = 0
-      for (const id of keys) {
-        try { await inquiryApi.send(id); success++ } catch { fail++ }
-      }
-      if (fail === 0) { message.success(`批量发送完成，成功 ${success} 个`) }
-      else { message.warning(`发送完成: 成功 ${success} 个, 失败 ${fail} 个`) }
-      fetchData()
+      const result = await executeBatch(keys, (id) => inquiryApi.send(id), '批量发送')
+      if (result.successCount > 0) fetchData()
     }
   })
 }
@@ -434,5 +423,5 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => fetchData())
+onMounted(() => { fetchData(); loadSuppliers() })
 </script>

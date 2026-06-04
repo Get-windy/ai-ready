@@ -43,4 +43,11 @@ public class BudgetItemController {
         BudgetItemDTO result = budgetItemService.getById(id);
         return ApiResponse.success(result);
     }
+
+    @Operation(summary = "导出预算科目列表")
+    @GetMapping("/export/{budgetId}")
+    public ApiResponse<List<BudgetItemDTO>> export(@Parameter(description = "预算ID") @PathVariable Long budgetId) {
+        List<BudgetItemDTO> list = budgetItemService.listByBudgetId(budgetId);
+        return ApiResponse.success(list);
+    }
 }

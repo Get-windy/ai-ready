@@ -70,7 +70,7 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #f0f2f5;
+  background-color: var(--color-bg-layout, #f0f2f5);
 }
 
 .sale-module-header {
@@ -78,8 +78,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background-color: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  background-color: var(--color-bg-container, #fff);
+  border-bottom: 1px solid var(--color-border-secondary, #e8e8e8);
 }
 
 .sale-module-header-left {
@@ -91,7 +91,7 @@ onMounted(() => {
 .sale-module-title {
   font-size: 20px;
   font-weight: 500;
-  color: #303133;
+  color: var(--color-text-primary, #303133);
   margin: 0;
 }
 
@@ -99,16 +99,16 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
+  background-color: var(--color-bg-container, #fff);
   margin: 16px;
-  border-radius: 4px;
+  border-radius: var(--border-radius-lg, 4px);
 }
 
 :deep(.sale-module-tabs .ant-tabs-nav) {
   margin-bottom: 0;
   padding: 0 24px;
-  background-color: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background-color: var(--color-bg-container, #fff);
+  border-bottom: 1px solid var(--color-border, #f0f0f0);
 }
 
 :deep(.sale-module-tabs .ant-tabs-content) {

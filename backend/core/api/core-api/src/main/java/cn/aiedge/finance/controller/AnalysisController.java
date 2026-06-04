@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 数据分析控制器
  */
@@ -58,6 +60,13 @@ public class AnalysisController {
         return ApiResponse.success();
     }
 
+    @DeleteMapping("/data-analysis/batch")
+    @Operation(summary = "批量删除数据分析")
+    public ApiResponse<Void> batchDeleteDataAnalysis(@RequestBody List<Long> ids) {
+        ids.forEach(id -> analysisService.deleteDataAnalysis(id));
+        return ApiResponse.success();
+    }
+
     @PostMapping("/data-analysis/execute/{id}")
     @Operation(summary = "执行数据分析")
     public ApiResponse<Void> executeDataAnalysis(@PathVariable Long id) {
@@ -103,6 +112,13 @@ public class AnalysisController {
     @Operation(summary = "删除分析报告")
     public ApiResponse<Void> deleteAnalysisReport(@PathVariable Long id) {
         analysisService.deleteAnalysisReport(id);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/report/batch")
+    @Operation(summary = "批量删除分析报告")
+    public ApiResponse<Void> batchDeleteAnalysisReport(@RequestBody List<Long> ids) {
+        ids.forEach(id -> analysisService.deleteAnalysisReport(id));
         return ApiResponse.success();
     }
 

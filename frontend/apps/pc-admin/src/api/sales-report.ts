@@ -9,15 +9,15 @@ export interface TrendData { date: string; sales: number; orders: number }
 
 export const salesReportApi = {
   getStatistics(params?: Record<string, any>): Promise<ApiResponse<SalesStats>> {
-    return request.get('/erp/metrics/dashboard', { params })
+    return request.get('/erp/metrics/dashboard', params)
   },
   getCustomerRanking(params?: Record<string, any>): Promise<ApiResponse<CustomerRankItem[]>> {
-    return request.get('/erp/metrics/history', { params: { ...params, type: 'customer_ranking' } })
+    return request.get('/erp/metrics/history', { ...params, type: 'customer_ranking' })
   },
   getProductRanking(params?: Record<string, any>): Promise<ApiResponse<ProductRankItem[]>> {
-    return request.get('/erp/metrics/history', { params: { ...params, type: 'product_ranking' } })
+    return request.get('/erp/metrics/history', { ...params, type: 'product_ranking' })
   },
   getSalesTrend(params?: Record<string, any>): Promise<ApiResponse<TrendData[]>> {
-    return request.get('/erp/metrics/type/sales', { params })
+    return request.get('/erp/metrics/type/sales', params)
   }
 }

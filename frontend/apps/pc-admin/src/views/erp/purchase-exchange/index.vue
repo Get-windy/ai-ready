@@ -96,6 +96,7 @@ import ExchangeFormModal from './components/ExchangeFormModal.vue'
 import ExchangeApproveModal from './components/ExchangeApproveModal.vue'
 import ExchangeDetailModal from './components/ExchangeDetailModal.vue'
 import ExchangeTrackModal from './components/ExchangeTrackModal.vue'
+import { exportCsv } from '@/utils/exportCsv'
 
 const loading = ref(false)
 const dataSource = ref<PurchaseExchange[]>([])
@@ -266,8 +267,13 @@ const handleDelete = async (record: PurchaseExchange) => {
 }
 
 const handleExport = () => {
-  const hide = message.loading('正在导出...', 0)
-  setTimeout(() => { hide(); message.success('导出成功，文件下载中') }, 800)
+  const headers = ['换货单号', '原采购订单', '供应商', '换货日期', '换货类型', '换货金额', '状态', '创建人', '创建时间']
+  const rows = dataSource.value.map((row: PurchaseExchange) => [
+    row.exchangeNo || '', row.originalOrderNo || '', row.supplierName || '', row.exchangeDate || '',
+    getExchangeTypeText(row.exchangeType), row.totalAmount?.toFixed(2) || '',
+    getStatusText(row.status), row.createdByName || '', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '采购换货单')
 }
 
 const handleFormSuccess = () => {

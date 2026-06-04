@@ -38,6 +38,23 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
 
     @Override
     public Page<Quotation> pageList(String keyword, Long customerId, Long opportunityId, Integer status, Long salesPersonId, int pageNum, int pageSize) {
+        LambdaQueryWrapper<Quotation> wrapper = buildQueryWrapper(keyword, customerId, opportunityId, status, salesPersonId);
+        wrapper.orderByDesc(Quotation::getCreateTime);
+        return page(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<Quotation> exportList(String keyword, Long customerId, Long opportunityId, Integer status, Long salesPersonId) {
+        LambdaQueryWrapper<Quotation> wrapper = buildQueryWrapper(keyword, customerId, opportunityId, status, salesPersonId);
+        wrapper.orderByDesc(Quotation::getCreateTime);
+        return baseMapper.selectList(wrapper);
+    }
+
+    /**
+     * 构建公共查询条件
+     */
+    private LambdaQueryWrapper<Quotation> buildQueryWrapper(String keyword, Long customerId, Long opportunityId,
+                                                             Integer status, Long salesPersonId) {
         LambdaQueryWrapper<Quotation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Quotation::getDeleted, 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -57,8 +74,7 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
         if (salesPersonId != null) {
             wrapper.eq(Quotation::getSalesPersonId, salesPersonId);
         }
-        wrapper.orderByDesc(Quotation::getCreateTime);
-        return page(new Page<>(pageNum, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

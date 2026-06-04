@@ -52,6 +52,16 @@ public class NotificationTemplateController {
         templateService.deleteTemplate(id);
     }
 
+    @DeleteMapping("/batch")
+    public boolean batchDelete(@RequestBody List<Long> ids) {
+        return templateService.removeByIds(ids);
+    }
+
+    @GetMapping("/export")
+    public List<com.aiready.notification.entity.NotificationTemplate> export() {
+        return templateService.list();
+    }
+
     @PostMapping("/{id}/toggle")
     public void toggleStatus(@PathVariable Long id, @RequestParam Integer status) {
         templateService.toggleStatus(id, status);

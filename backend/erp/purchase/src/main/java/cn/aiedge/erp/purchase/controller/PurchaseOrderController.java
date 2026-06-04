@@ -3,11 +3,14 @@ package cn.aiedge.erp.purchase.controller;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
 import cn.aiedge.erp.purchase.entity.PurchaseOrder;
+import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
+import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;
+    private final PurchaseOrderItemMapper purchaseOrderItemMapper;
 
     /**
      * 创建采购订单
@@ -132,5 +136,42 @@ public class PurchaseOrderController {
     public ApiResponse<PurchaseOrder> getOrderDetail(@PathVariable Long id) {
         PurchaseOrder order = purchaseOrderService.getOrderDetail(id);
         return ApiResponse.ok(order);
+    }
+
+    /**
+     * 获取订单明细列表
+     */
+    @Operation(summary = "获取采购订单明细")
+    @GetMapping("/{id}/items")
+    @SaCheckPermission("purchase:order:detail")
+    public ApiResponse<List<PurchaseOrderItem>> getOrderItems(@PathVariable Long id) {
+        List<PurchaseOrderItem> items = purchaseOrderItemMapper.findByOrderId(id);
+        return ApiResponse.ok(items);
+    }
+
+    /**
+     * 批量删除采购订单
+     */
+    @Operation(summary = "批量删除采购订单")
+    @DeleteMapping("/batch")
+    @SaCheckPermission("purchase:order:delete")
+    public ApiResponse<Void> batchDeleteOrder(@RequestBody List<Long> ids) {
+        purchaseOrderService.removeBatchByIds(ids);
+        return ApiResponse.ok("批量删除成功");
+    }
+
+    /**
+     * 导出采购订单
+     */
+    @Operation(summary = "导出采购订单")
+    @GetMapping("/export")
+    @SaCheckPermission("purchase:order:list")
+    public ApiResponse<List<PurchaseOrder>> exportOrders(
+            @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
+            @Parameter(description = "订单号") @RequestParam(required = false) String orderNo,
+            @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        List<PurchaseOrder> list = purchaseOrderService.exportOrders(tenantId, orderNo, supplierId, status);
+        return ApiResponse.ok(list);
     }
 }

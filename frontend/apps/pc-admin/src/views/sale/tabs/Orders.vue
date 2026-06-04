@@ -21,6 +21,7 @@
     @page-change="handlePageChange"
     @sort-change="handleSortChange"
     @filter-change="handleFilterChange"
+    @export="handleExport"
   >
     <template #toolbar-actions>
       <a-button @click="handleImport">
@@ -86,7 +87,7 @@
 
   <!-- 新建/编辑订单弹窗 -->
   <SaleOrderFormModal
-    v-model:visible="formVisible"
+    v-model:open="formVisible"
     :is-edit="isEdit"
     :record="editRecord"
     @success="handleFormSuccess"
@@ -94,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -109,6 +110,7 @@ import {
 import TableList from '@/components/TableList/TableList.vue'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import { saleOrderApi } from '@/api/erp'
+import { exportCsv } from '@/utils/exportCsv'
 
 interface SaleOrder {
   id: number
@@ -182,7 +184,6 @@ const summaryData = computed(() => {
   ]
 })
 
-import { computed } from 'vue'
 
 function getStatusColor(status: number): string {
   return statusColorMap[status] || 'default'
@@ -309,7 +310,22 @@ function handlePrint(record: SaleOrder) {
 }
 
 function handleImport() {
-  message.info('导入功能开发中')
+  Modal.confirm({
+    title: '导入销售订单',
+    content: '导入功能可通过 Excel/CSV 文件批量创建销售订单。功能尚在完善中，请关注后续版本更新。',
+    okText: '知道了',
+    centered: true
+  })
+}
+
+function handleExport() {
+  const headers = ['订单号', '客户', '订单日期', '订单金额', '状态', '销售员', '创建时间']
+  const rows = dataSource.value.map((row: SaleOrder) => [
+    row.orderNo || '', row.customerName || '', row.orderDate || '',
+    (row.totalAmountWithTax || 0).toFixed(2), getStatusText(row.status),
+    row.salesmanName || '', row.createTime || ''
+  ])
+  exportCsv(headers, rows, '销售订单')
 }
 
 function handleBatchApprove() {

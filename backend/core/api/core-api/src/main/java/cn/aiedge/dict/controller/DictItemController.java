@@ -147,6 +147,13 @@ public class DictItemController {
         return dictItemService.export(params);
     }
 
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除字典项")
+    public Map<String, Object> batchDelete(@RequestBody List<Long> ids) {
+        boolean result = dictItemService.removeBatchByIds(ids);
+        return Map.of("success", result);
+    }
+
     @PutMapping("/cache/refresh/{dictCode}")
     @Operation(summary = "刷新字典项缓存")
     public Map<String, Object> refreshCache(

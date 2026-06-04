@@ -15,8 +15,11 @@ public interface CustomerLeadService extends IService<CustomerLead> {
                                  Long salesPersonId, int pageNum, int pageSize);
     
     List<CustomerLead> listBySalesPersonId(Long salesPersonId);
-    
+
+    List<CustomerLead> exportList(String keyword, Integer leadStatus, Integer leadLevel,
+                                   Long salesPersonId);
+
     Customer convertToCustomer(Long leadId);
-    
+
     String generateLeadCode();
 }

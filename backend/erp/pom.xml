@@ -41,6 +41,7 @@
         <module>erp-b2b-mall</module>
         <module>erp-fixed-asset</module>
         <module>erp-budget</module>
+        <module>erp-purchase-exchange</module>
     </modules>
     
     <properties>

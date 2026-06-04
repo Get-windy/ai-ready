@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: ai-ready-gateway
+  main:
+    allow-bean-definition-overriding: true
   profiles:
     active: dev
   data:

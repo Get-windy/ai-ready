@@ -28,6 +28,7 @@ public interface SystemConfigService {
     // 删除配置
     boolean deleteConfig(Long id, Long tenantId);
     boolean deleteConfigByKey(String configKey, Long tenantId);
+    boolean batchDelete(List<Long> ids, Long tenantId);
     
     // 配置变更日志
     List<ConfigChangeLog> getConfigChangeLogs(String configKey, Long tenantId);

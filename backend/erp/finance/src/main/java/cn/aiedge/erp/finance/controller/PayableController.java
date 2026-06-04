@@ -87,4 +87,23 @@ public class PayableController {
         @NotNull(message = "核销金额不能为空")
         private BigDecimal amount;
     }
+
+    @Operation(summary = "批量删除应付账款")
+    @DeleteMapping("/batch")
+    @PreAuthorize("hasPermission('/api/erp/finance/payable/delete', 'finance:payable:delete')")
+    @OperationLog(module = "应付管理", type = "DELETE", desc = "批量删除应付账款")
+    public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
+        payableService.deleteBatch(ids);
+        return Result.success("批量删除成功", null);
+    }
+
+    @Operation(summary = "导出应付账款列表")
+    @GetMapping("/export")
+    @PreAuthorize("hasPermission('/api/erp/finance/payable/list', 'finance:payable:view')")
+    @OperationLog(module = "应付管理", type = "QUERY", desc = "导出应付账款列表")
+    public Result<List<PayableDTO>> export(
+            @Parameter(description = "供应商ID") @RequestParam(required = false) String supplierId,
+            @Parameter(description = "状态(normal/overdue/written_off)") @RequestParam(required = false) String status) {
+        return Result.success(payableService.exportList(supplierId, status));
+    }
 }

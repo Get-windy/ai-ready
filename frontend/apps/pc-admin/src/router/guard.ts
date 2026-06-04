@@ -30,29 +30,39 @@ export interface RouterGuardOptions {
 /**
  * 设置路由权限守卫
  */
+const G = '[DEBUG:guard]'
+
 export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
   router.beforeEach(async (to, from, next) => {
+    console.log(`${G} beforeEach: from="${from.path}" → to="${to.path}", isLoggedIn=${useUserStore().isLoggedIn}, matched=${to.matched.length}`)
     try {
       const userStore = useUserStore()
 
       // 登录/注册页直接放行
       if (to.path === '/login' || to.path === '/register') {
+        console.log(`${G} 放行登录/注册页: path=${to.path}`)
         next()
         return
       }
 
       // 检查登录状态
       if (!userStore.isLoggedIn) {
+        console.log(`${G} 未登录 -> 跳转登录页`)
         message.warning('请先登录')
         next({ path: '/login', query: { redirect: to.fullPath } })
         return
       }
 
+      console.log(`${G} 已登录, userInfo=${!!userStore.userInfo}, dynamicRoutesLoaded=${dynamicRoutesLoaded}`)
+
       // 加载用户信息
       if (!userStore.userInfo) {
+        console.log(`${G} 开始加载用户信息 getUserInfo()`)
         try {
           await userStore.getUserInfo()
-        } catch {
+          console.log(`${G} getUserInfo() 完成 ✅`)
+        } catch (err) {
+          console.log(`${G} getUserInfo() 失败 ❌:`, err)
           userStore.logout()
           next({ path: '/login', replace: true })
           return
@@ -61,8 +71,10 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 加载动态路由
       if (!dynamicRoutesLoaded) {
+        console.log(`${G} 开始加载动态路由 loadDynamicRoutes()`)
         try {
           const dynamicRoutes = await loadDynamicRoutes()
+          console.log(`${G} 动态路由加载完成 ✅, 数量=${dynamicRoutes.length}`)
           for (const route of dynamicRoutes) {
             if (route.children && route.children.length > 0) {
               const { children: _, ...parentRoute } = route
@@ -75,9 +87,10 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
             }
           }
           dynamicRoutesLoaded = true
-          next({ path: to.path, replace: true })
+          next()
           return
         } catch (error: any) {
+          console.log(`${G} 动态路由加载失败 ❌:`, error?.message)
           if (error?.response?.status === 401 || error?.status === 401) {
             message.warning('登录已过期，请重新登录')
             userStore.logout()
@@ -92,6 +105,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 404 检查
       if (to.matched.length === 0) {
+        console.log(`${G} 404 -> 跳转 /dashboard`)
         next({ path: '/dashboard', replace: true })
         return
       }

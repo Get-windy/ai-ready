@@ -105,42 +105,42 @@ export interface TrialBalanceQuery {
 export const accountingApi = {
   // ===== 科目管理 =====
   getSubjectTree(): Promise<ApiResponse<AccountSubject[]>> {
-    return request.get('/api/erp/finance/subject/tree')
+    return request.get('/erp/finance/subject/tree')
   },
   querySubjects(params: AccountSubjectQuery): Promise<ApiResponse<PageResponse<AccountSubject>>> {
-    return request.get('/api/erp/finance/subject/page', { params })
+    return request.get('/erp/finance/subject/page', params)
   },
   getSubjectById(id: number): Promise<ApiResponse<AccountSubject>> {
-    return request.get(`/api/erp/finance/subject/${id}`)
+    return request.get(`/erp/finance/subject/${id}`)
   },
   getSubjectByCode(code: string): Promise<ApiResponse<AccountSubject>> {
-    return request.get(`/api/erp/finance/subject/code/${code}`)
+    return request.get(`/erp/finance/subject/code/${code}`)
   },
   createSubject(data: AccountSubjectSave): Promise<ApiResponse<AccountSubject>> {
-    return request.post('/api/erp/finance/subject', data)
+    return request.post('/erp/finance/subject', data)
   },
   updateSubject(id: number, data: AccountSubjectSave): Promise<ApiResponse<AccountSubject>> {
-    return request.put(`/api/erp/finance/subject/${id}`, data)
+    return request.put(`/erp/finance/subject/${id}`, data)
   },
   deleteSubject(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/api/erp/finance/subject/${id}`)
+    return request.delete(`/erp/finance/subject/${id}`)
   },
   batchDeleteSubjects(ids: number[]): Promise<ApiResponse<void>> {
-    return request.delete('/api/erp/finance/subject/batch', { data: ids })
+    return request.delete('/erp/finance/subject/batch', { data: ids })
   },
   getDetailSubjects(): Promise<ApiResponse<AccountSubject[]>> {
-    return request.get('/api/erp/finance/subject/detail-list')
+    return request.get('/erp/finance/subject/detail-list')
   },
 
   // ===== 总账/明细账 =====
   queryDetailLedger(params: LedgerQuery): Promise<ApiResponse<PageResponse<LedgerRecord>>> {
-    return request.get('/api/erp/finance/ledger/detail', { params })
+    return request.get('/erp/finance/ledger/detail', params)
   },
   queryGeneralLedger(params: LedgerQuery): Promise<ApiResponse<PageResponse<LedgerRecord>>> {
-    return request.get('/api/erp/finance/ledger/general', { params })
+    return request.get('/erp/finance/ledger/general', params)
   },
   getSubjectBalance(subjectId: number, accountingPeriod?: string): Promise<ApiResponse<number>> {
-    return request.get('/api/erp/finance/ledger/balance', { params: { subjectId, accountingPeriod } })
+    return request.get('/erp/finance/ledger/balance', { subjectId, accountingPeriod })
   },
 
   // ===== 试算平衡 =====
@@ -153,17 +153,17 @@ export const accountingApi = {
     totalClosingDebit: number
     totalClosingCredit: number
   }>> {
-    return request.get('/api/erp/finance/reports/trial-balance', { params })
+    return request.get('/erp/finance/reports/trial-balance', params)
   },
 
   // ===== 财务报表 =====
   getBalanceSheet(accountingPeriod: string): Promise<ApiResponse<any>> {
-    return request.get('/api/erp/finance/reports/balance-sheet', { params: { accountingPeriod } })
+    return request.get('/erp/finance/reports/balance-sheet', { accountingPeriod })
   },
   getIncomeStatement(startPeriod: string, endPeriod: string): Promise<ApiResponse<any>> {
-    return request.get('/api/erp/finance/reports/income-statement', { params: { startPeriod, endPeriod } })
+    return request.get('/erp/finance/reports/income-statement', { startPeriod, endPeriod })
   },
   getCashFlowStatement(startPeriod: string, endPeriod: string): Promise<ApiResponse<any>> {
-    return request.get('/api/erp/finance/reports/cash-flow', { params: { startPeriod, endPeriod } })
+    return request.get('/erp/finance/reports/cash-flow', { startPeriod, endPeriod })
   }
 }

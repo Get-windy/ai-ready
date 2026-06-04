@@ -2,6 +2,7 @@ package cn.aiedge.erp.budget.service;
 
 import cn.aiedge.erp.budget.dto.BudgetAdjustmentDTO;
 
+import java.util.List;
 import java.util.Map;
 
 public interface BudgetAdjustmentService {
@@ -19,4 +20,6 @@ public interface BudgetAdjustmentService {
     BudgetAdjustmentDTO approve(Long id, String comment);
 
     BudgetAdjustmentDTO reject(Long id, String comment);
+
+    List<BudgetAdjustmentDTO> exportList(Long budgetId, String status, String adjustmentType);
 }

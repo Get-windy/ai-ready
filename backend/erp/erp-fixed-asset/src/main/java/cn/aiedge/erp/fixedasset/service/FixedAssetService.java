@@ -4,6 +4,7 @@ import cn.aiedge.erp.fixedasset.dto.FixedAssetDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,4 +26,9 @@ public interface FixedAssetService {
     FixedAssetDTO depreciate(Long id);
 
     Map<String, Object> getStatistics();
+
+    void batchDelete(List<Long> ids);
+
+    List<FixedAssetDTO> exportList(String assetCode, String assetName, Long categoryId, String status,
+                                    String departmentId, String keyword);
 }

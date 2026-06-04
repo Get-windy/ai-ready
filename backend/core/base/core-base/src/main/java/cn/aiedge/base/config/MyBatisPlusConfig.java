@@ -29,8 +29,13 @@ public class MyBatisPlusConfig {
 
     /** 不需要租户隔离的表名（系统级表） */
     private static final Set<String> IGNORE_TENANT_TABLES = new HashSet<>(Arrays.asList(
-        "sys_tenant",        // 租户表本身
-        "sys_project_config" // 项目配置可能跨租户
+        "sys_tenant",             // 租户表本身
+        "sys_project_config",     // 项目配置可能跨租户
+        "sys_menu",               // 菜单定义系统级共享
+        "sys_role_menu",          // 角色菜单分配系统级
+        "sys_permission",         // 权限定义系统级
+        "sys_role_permission",    // 角色权限分配系统级
+        "sys_permission_template" // 权限模板系统级
     ));
 
     @Autowired(required = false)

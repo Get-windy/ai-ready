@@ -68,4 +68,17 @@ public class PayableController {
         result.setPageSize(pageResult.getSize());
         return ApiResponse.success(result);
     }
+
+    @DeleteMapping("/batch")
+    @Operation(summary = "批量删除应付账款")
+    public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
+        payableService.batchDelete(ids);
+        return ApiResponse.success();
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "导出应付账款")
+    public ApiResponse<List<PayableVO>> export(PayableQueryRequest request) {
+        return ApiResponse.success(payableService.exportList(request));
+    }
 }

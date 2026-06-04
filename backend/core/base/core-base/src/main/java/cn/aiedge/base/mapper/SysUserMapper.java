@@ -3,6 +3,7 @@ package cn.aiedge.base.mapper;
 import cn.aiedge.base.entity.SysUser;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -18,8 +19,9 @@ import java.util.List;
 public interface SysUserMapper extends BaseMapper<SysUser> {
 
     /**
-     * 根据用户名查询用户
+     * 根据用户名查询用户（忽略租户拦截器，因为用户名全局唯一）
      */
+    @InterceptorIgnore(tenantLine = "true")
     SysUser selectByUsername(@Param("username") String username, @Param("tenantId") Long tenantId);
 
     /**

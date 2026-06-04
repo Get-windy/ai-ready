@@ -29,7 +29,7 @@ export interface RoleQuery {
 export const roleApi = {
   // 分页查询角色
   getPage(params: RoleQuery): Promise<ApiResponse<PageResponse<RoleInfo>>> {
-    return request.get('/role/page', { params })
+    return request.get('/role/page', params)
   },
 
   // 获取角色详情
@@ -79,7 +79,7 @@ export const roleApi = {
 
   // 获取所有角色列表
   listAll(tenantId?: number): Promise<ApiResponse<RoleInfo[]>> {
-    return request.get('/role/list', { params: { tenantId: tenantId || 1 } })
+    return request.get('/role/list', { tenantId: tenantId || 1 })
   }
 }
 

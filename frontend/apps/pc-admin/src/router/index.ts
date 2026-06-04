@@ -42,7 +42,7 @@ export const constantRoutes: RouteRecordRaw[] = [
     beforeEnter: (to, from, next) => {
       const token = localStorage.getItem('token')
       if (token) {
-        next({ path: '/' })
+        next({ path: '/dashboard' })
       } else {
         next()
       }

@@ -115,6 +115,14 @@ public interface DictItemService {
     int countByDictType(Long dictTypeId);
 
     /**
+     * 批量删除字典项
+     *
+     * @param ids 字典项ID列表
+     * @return 是否成功
+     */
+    boolean removeBatchByIds(List<Long> ids);
+
+    /**
      * 导出字典项
      *
      * @param params 查询参数

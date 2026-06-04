@@ -256,27 +256,23 @@ const handleOrderChange = async (orderId: number) => {
 
     // 加载订单明细
     try {
-      const res = await purchaseOrderApi.get(orderId)
-      if (res.data) {
-        // 这里应该获取订单明细，暂时模拟数据
-        formData.items = [
-          {
-            originalItemId: 1,
-            productId: 1,
-            productName: '商品A',
-            productCode: 'P001',
-            originalQuantity: 100,
-            exchangeQuantity: 10,
-            originalPrice: 50,
-            exchangePrice: 50,
-            unit: '件',
-            warehouseId: 1,
-            warehouseName: '主仓库'
-          }
-        ]
-      }
+      const itemsRes = await purchaseOrderApi.getItems(orderId)
+      const items = (itemsRes as any).data || itemsRes || []
+      formData.items = items.map((item: any) => ({
+        originalItemId: item.id,
+        productId: item.productId || 0,
+        productName: item.materialName || '',
+        productCode: item.productCode || '',
+        originalQuantity: item.quantity || 0,
+        exchangeQuantity: Math.min(1, item.quantity || 1),
+        originalPrice: item.unitPrice ? Number(item.unitPrice) : 0,
+        exchangePrice: item.unitPrice ? Number(item.unitPrice) : 0,
+        unit: item.unit || '',
+        warehouseId: 0,
+        warehouseName: ''
+      }))
     } catch (error) {
-      message.error('获取订单详情失败')
+      message.error('获取订单明细失败')
     }
   }
 }

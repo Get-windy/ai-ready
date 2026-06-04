@@ -4,6 +4,8 @@ import cn.aiedge.erp.finance.dto.VoucherDTO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
+import java.util.List;
+
 /**
  * 记账凭证Service接口
  */
@@ -48,4 +50,14 @@ public interface VoucherService {
      * 生成凭证编号（格式：YYYYMM-XXXX）
      */
     String generateVoucherNo(Integer fiscalYear, Integer fiscalPeriod);
+
+    /**
+     * 批量删除凭证
+     */
+    void deleteBatch(List<Long> ids);
+
+    /**
+     * 导出凭证列表
+     */
+    List<VoucherDTO> exportList(Integer fiscalYear, Integer fiscalPeriod, String status);
 }

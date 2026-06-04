@@ -60,6 +60,16 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     }
 
     @Override
+    public List<SaleOrder> exportList(String keyword, Long customerId, Integer status) {
+        LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(keyword != null && !keyword.isEmpty(), SaleOrder::getOrderNo, keyword)
+               .eq(customerId != null, SaleOrder::getCustomerId, customerId)
+               .eq(status != null, SaleOrder::getStatus, status)
+               .orderByDesc(SaleOrder::getCreateTime);
+        return list(wrapper);
+    }
+
+    @Override
     public SaleOrderDTO getOrderDetail(Long id) {
         SaleOrder order = getById(id);
         if (order == null) return null;

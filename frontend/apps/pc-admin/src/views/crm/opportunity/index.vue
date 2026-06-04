@@ -208,6 +208,7 @@ import { PlusOutlined, EyeOutlined, EditOutlined, SwapRightOutlined, FileProtect
 import TableList from '@/components/TableList/TableList.vue'
 import type { FormInstance } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import { opportunityApi } from '@/api/crm'
 
 const tableRef = ref()
 const loading = ref(false)
@@ -288,16 +289,17 @@ onUnmounted(() => { stageChart?.dispose(); trendChart?.dispose() })
 async function fetchData() {
   loading.value = true
   try {
-    await new Promise(r => setTimeout(r, 300))
-    tableData.value = [
-      { id: 1, name: '办公用品采购商机', customerName: '北京科技有限公司', stage: 'negotiation', stageLabel: '商务谈判', expectedAmount: 58000, winProbability: 75, priority: 'high', priorityLabel: '高', ownerName: '张三', expectedCloseDate: '2024-02-15', createTime: '2024-01-10' },
-      { id: 2, name: 'IT设备升级商机', customerName: '上海贸易公司', stage: 'proposal', stageLabel: '方案报价', expectedAmount: 128000, winProbability: 60, priority: 'medium', priorityLabel: '中', ownerName: '李四', expectedCloseDate: '2024-03-01', createTime: '2024-01-12' },
-      { id: 3, name: '办公家具采购商机', customerName: '广州制造企业', stage: 'qualification', stageLabel: '资格确认', expectedAmount: 256000, winProbability: 40, priority: 'high', priorityLabel: '高', ownerName: '王五', expectedCloseDate: '2024-04-15', createTime: '2024-01-15' },
-      { id: 4, name: '软件定制开发商机', customerName: '深圳电子公司', stage: 'lead', stageLabel: '线索', expectedAmount: 85000, winProbability: 20, priority: 'low', priorityLabel: '低', ownerName: '张三', expectedCloseDate: '2024-05-30', createTime: '2024-01-18' },
-      { id: 5, name: '年度服务合同商机', customerName: '杭州互联网公司', stage: 'closing', stageLabel: '成交阶段', expectedAmount: 180000, winProbability: 90, priority: 'high', priorityLabel: '高', ownerName: '李四', expectedCloseDate: '2024-01-25', createTime: '2024-01-08' }
-    ]
-    pagination.total = 5
-  } catch { message.error('获取数据失败') }
+    const params: any = {
+      keyword: searchForm.name || undefined,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    }
+    if (searchForm.stage) params.opportunityStage = pipelineStages.findIndex((s: any) => s.key === searchForm.stage)
+    const res = await opportunityApi.page(params)
+    const result = res as any
+    tableData.value = result.records || result.data?.records || []
+    pagination.total = result.total ?? result.data?.total ?? 0
+  } catch { message.error('获取商机数据失败') }
   finally { loading.value = false }
 }
 

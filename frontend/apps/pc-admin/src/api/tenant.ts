@@ -41,7 +41,7 @@ export interface TenantConfigInfo {
 export const tenantApi = {
   /** 分页查询租户 */
   getPage(params: TenantQuery): Promise<ApiResponse<PageResponse<TenantInfo>>> {
-    return request.get('/tenant/page', { params })
+    return request.get('/tenant/page', params)
   },
 
   /** 获取租户详情 */

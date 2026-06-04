@@ -54,21 +54,21 @@ export const departmentApi = {
    * 分页查询部门
    */
   getPage(params: DepartmentQuery): Promise<ApiResponse<PageResponse<DepartmentInfo>>> {
-    return request.get('/department/page', { params })
+    return request.get('/department/page', params)
   },
 
   /**
    * 获取所有部门（不分页）
    */
   getList(params?: Partial<DepartmentQuery>): Promise<ApiResponse<DepartmentInfo[]>> {
-    return request.get('/department/list', { params })
+    return request.get('/department/list', params)
   },
 
   /**
    * 获取部门树
    */
   getTree(params?: Partial<DepartmentQuery>): Promise<ApiResponse<DepartmentInfo[]>> {
-    return request.get('/department/tree', { params })
+    return request.get('/department/tree', params)
   },
 
   /**
@@ -124,7 +124,7 @@ export const departmentApi = {
    * 导出部门
    */
   export(params: DepartmentQuery): Promise<Blob> {
-    return request.get('/department/export', { params, responseType: 'blob' })
+    return request.get('/department/export', params, { responseType: 'blob' })
   }
 }
 
