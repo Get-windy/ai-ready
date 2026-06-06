@@ -76,3 +76,4 @@ nul
 # Build artifacts
 backend/BOOT-INF/
 backend/*.jar
+backend/cn/
