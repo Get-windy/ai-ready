@@ -35,7 +35,7 @@ const alias = {
   '@ai-ready/themes': resolve(__dirname, 'packages/themes/src')
 }
 
-// API代理配置
+  // API代理配置
 const proxyConfig = {
   '/api/v1': {
     target: process.env.VITE_PROXY_TARGET || 'http://localhost:8080',
@@ -57,6 +57,26 @@ const proxyConfig = {
     changeOrigin: true
   }
 }
+
+// 给所有代理响应添加防缓存头
+function addNoCacheToProxy(proxyConfig: Record<string, any>) {
+  for (const key of Object.keys(proxyConfig)) {
+    const existing = proxyConfig[key]
+    const origConfigure = existing.configure
+    proxyConfig[key] = {
+      ...existing,
+      configure: (proxy: any, options: any) => {
+        if (origConfigure) origConfigure(proxy, options)
+        proxy.on('proxyRes', (proxyRes: any) => {
+          proxyRes.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+          proxyRes.headers['Pragma'] = 'no-cache';
+          proxyRes.headers['Expires'] = '0';
+        });
+      }
+    }
+  }
+}
+addNoCacheToProxy(proxyConfig)
 
 export default defineConfig({
   // 基础路径
@@ -103,7 +123,15 @@ export default defineConfig({
     https: process.env.VITE_DEV_SERVER_HTTPS === 'true',
     open: true,
     cors: true,
-    proxy: proxyConfig
+    proxy: proxyConfig,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
+    hmr: {
+      overlay: true
+    }
   },
   
   // 构建配置

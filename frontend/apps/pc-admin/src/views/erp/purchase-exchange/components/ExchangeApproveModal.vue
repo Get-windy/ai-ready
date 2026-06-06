@@ -1,6 +1,6 @@
 <template>
   <a-modal
-    v-model:visible="visible"
+    v-model:open="open"
     title="换货单审批"
     width="600px"
     :confirm-loading="submitting"
@@ -56,22 +56,22 @@ import {
 } from '@/api/purchase-exchange'
 
 interface Props {
-  visible: boolean
+  open: boolean
   record: PurchaseExchange | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
+  (e: 'update:open', value: boolean): void
   (e: 'success'): void
 }>()
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
-const visible = computed({
-  get: () => props.visible,
-  set: (val) => emit('update:visible', val)
+const open = computed({
+  get: () => props.open,
+  set: (val) => emit('update:open', val)
 })
 
 const formData = reactive({
@@ -124,7 +124,7 @@ const handleSubmit = async () => {
 
 const handleCancel = () => {
   resetForm()
-  visible.value = false
+  open.value = false
 }
 
 const resetForm = () => {

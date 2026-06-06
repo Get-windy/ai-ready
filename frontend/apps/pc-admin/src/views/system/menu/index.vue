@@ -1,107 +1,69 @@
 <template>
   <div class="menu-management">
-    <a-card class="menu-card">
-      <template #title>
-        <div class="card-header">
-          <span class="title">菜单管理</span>
-          <a-button type="primary" :loading="submitLoading" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新增菜单
-          </a-button>
-        </div>
+    <TableList
+      ref="tableRef"
+      :columns="tableColumns"
+      :data-source="menuTree"
+      :loading="loading"
+      :pagination="null as any"
+      :table-key="'system-menu-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-add="false"
+      :show-edit="false"
+      :show-delete="false"
+      :show-batch-delete="false"
+      :bordered="true"
+      @refresh="loadMenuTree"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <a-button type="primary" :loading="submitLoading" @click="handleAdd">
+          <template #icon><PlusOutlined /></template>
+          新增菜单
+        </a-button>
       </template>
 
-      <!-- 搜索栏 -->
-      <a-form :model="queryForm" layout="inline" class="search-form">
-        <a-form-item label="菜单名称">
-          <a-input
-            v-model:value="queryForm.menuName"
-            placeholder="请输入菜单名称"
-            allow-clear
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'menuName'">
+          <component
+            v-if="record.icon"
+            :is="iconComponent(record.icon)"
+            class="menu-icon"
           />
-        </a-form-item>
-        <a-form-item label="菜单类型">
-          <a-select
-            v-model:value="queryForm.menuType"
-            placeholder="请选择类型"
-            allow-clear
-          >
-            <a-select-option :value="0">目录</a-select-option>
-            <a-select-option :value="1">菜单</a-select-option>
-            <a-select-option :value="2">按钮</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="状态">
-          <a-select
-            v-model:value="queryForm.status"
-            placeholder="请选择状态"
-            allow-clear
-          >
-            <a-select-option :value="1">启用</a-select-option>
-            <a-select-option :value="0">禁用</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-button type="primary" @click="handleSearch">
-            <template #icon><SearchOutlined /></template>搜索
-          </a-button>
-          <a-button @click="handleReset" style="margin-left: 8px">
-            <template #icon><ReloadOutlined /></template>重置
-          </a-button>
-        </a-form-item>
-      </a-form>
-
-      <!-- 菜单表格 -->
-      <a-table
-        :columns="tableColumns"
-        :data-source="menuTree"
-        :loading="loading"
-        row-key="id"
-        :pagination="false"
-        bordered
-        :default-expand-all-rows="true"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'menuName'">
-            <component
-              v-if="record.icon"
-              :is="iconComponent(record.icon)"
-              class="menu-icon"
-            />
-            <span>{{ record.menuName }}</span>
-          </template>
-          <template v-else-if="column.key === 'menuType'">
-            <a-tag v-if="record.menuType === 0">目录</a-tag>
-            <a-tag v-else-if="record.menuType === 1" color="green">菜单</a-tag>
-            <a-tag v-else-if="record.menuType === 2" color="orange">按钮</a-tag>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-switch
-              :checked="record.status === 1"
-              @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
-            />
-          </template>
-          <template v-else-if="column.key === 'visible'">
-            <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
-            <a-tag v-else>隐藏</a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="handleAddChild(record)">
-              <template #icon><PlusOutlined /></template>新增
-            </a-button>
-            <a-button type="link" size="small" @click="handleEdit(record)">
-              <template #icon><EditOutlined /></template>编辑
-            </a-button>
-            <a-button type="link" size="small" @click="handleAssignRole(record)">
-              <template #icon><UserOutlined /></template>分配角色
-            </a-button>
-            <a-button type="link" size="small" danger @click="handleDelete(record)">
-              <template #icon><DeleteOutlined /></template>删除
-            </a-button>
-          </template>
+          <span>{{ record.menuName }}</span>
         </template>
-      </a-table>
-    </a-card>
+        <template v-else-if="column.key === 'menuType'">
+          <a-tag v-if="record.menuType === 0">目录</a-tag>
+          <a-tag v-else-if="record.menuType === 1" color="green">菜单</a-tag>
+          <a-tag v-else-if="record.menuType === 2" color="orange">按钮</a-tag>
+        </template>
+        <template v-else-if="column.key === 'status'">
+          <a-switch
+            :checked="record.status === 1"
+            @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
+          />
+        </template>
+        <template v-else-if="column.key === 'visible'">
+          <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
+          <a-tag v-else>隐藏</a-tag>
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-button type="link" size="small" @click="handleAddChild(record)">
+            <template #icon><PlusOutlined /></template>新增
+          </a-button>
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            <template #icon><EditOutlined /></template>编辑
+          </a-button>
+          <a-button type="link" size="small" @click="handleAssignRole(record)">
+            <template #icon><UserOutlined /></template>分配角色
+          </a-button>
+          <a-button type="link" size="small" danger @click="handleDelete(record)">
+            <template #icon><DeleteOutlined /></template>删除
+          </a-button>
+        </template>
+      </template>
+    </TableList>
 
     <!-- 菜单编辑弹窗 -->
     <a-modal
@@ -243,12 +205,11 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, Rule } from 'ant-design-vue'
 import {
   PlusOutlined,
-  SearchOutlined,
-  ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
   UserOutlined
 } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
 import { useSubmitLock } from '@/composables'
@@ -271,7 +232,7 @@ const { isSubmitting: submitLoading, withSubmitLock } = useSubmitLock()
 const formRef = ref<FormInstance>()
 
 // 表格列配置
-const tableColumns = [
+const tableColumns: any[] = [
   { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 200, ellipsis: true },
   { title: '权限标识', dataIndex: 'menuCode', key: 'menuCode', width: 180, ellipsis: true },
   { title: '路由路径', dataIndex: 'path', key: 'path', width: 180, ellipsis: true },
@@ -282,9 +243,17 @@ const tableColumns = [
   { title: '操作', key: 'action', width: 280, fixed: 'right' as const }
 ]
 
+// 筛选字段
+const filterFields: FilterField[] = [
+  { key: 'menuName', label: '菜单名称', type: 'input', placeholder: '请输入菜单名称' },
+  { key: 'menuType', label: '菜单类型', type: 'select', options: [
+    { label: '目录', value: 0 }, { label: '菜单', value: 1 }, { label: '按钮', value: 2 }
+  ]},
+  { key: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 1 }, { label: '禁用', value: 0 }] },
+]
+
 // 将图标字符串转为组件
 const iconComponent = (iconName: string) => {
-  // 简单处理：如果图标名字符串以 Outlined/Filled/TwoTone 结尾，尝试动态渲染
   return h('span', { class: 'menu-icon-placeholder' }, iconName.charAt(0).toUpperCase())
 }
 
@@ -325,6 +294,16 @@ const roleList = ref<any[]>([])
 
 // 当前操作员ID
 const operatorId = 1
+
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(queryForm, { menuName: '', menuType: undefined, status: undefined })
+  } else {
+    Object.assign(queryForm, filters)
+  }
+  loadMenuTree()
+}
 
 // 加载菜单树
 const loadMenuTree = async () => {
@@ -553,32 +532,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .menu-management {
-  padding: 16px;
-}
-
-.menu-card {
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--ar-text-color-primary, #303133);
-    }
-  }
-}
-
-.search-form {
-  margin-bottom: 16px;
-  padding: 16px;
-  background-color: var(--ar-fill-color-lighter, #fafafa);
-  border-radius: 4px;
-
-  :deep(.ant-form-item) {
-    margin-bottom: 8px;
-  }
+  padding: 0;
 }
 
 .menu-icon {

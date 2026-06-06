@@ -33,6 +33,9 @@ const defaultConfig: ErrorReporterConfig = {
   flushInterval: 5000
 }
 
+// 当前运行时配置（由 initErrorReporter 设置，供 flushErrors 使用）
+let activeConfig: ErrorReporterConfig = { ...defaultConfig }
+
 // 错误队列
 let errorQueue: ErrorReport[] = []
 let flushTimer: ReturnType<typeof setInterval> | null = null
@@ -47,12 +50,13 @@ export function initErrorReporter(app: {
   }
 }, config?: Partial<ErrorReporterConfig>) {
   const finalConfig = { ...defaultConfig, ...config }
-  
+  activeConfig = { ...finalConfig }
+
   if (!finalConfig.enabled) {
     console.log('[ErrorReporter] Disabled')
     return
   }
-  
+
   // 设置全局错误处理器
   app.config.errorHandler = (err: unknown, instance: unknown, info: string) => {
     const error = err as Error
@@ -79,7 +83,7 @@ export function initErrorReporter(app: {
       stack: error.stack
     })
   }
-  
+
   // 捕获未处理的 Promise 错误
   window.addEventListener('unhandledrejection', (event) => {
     console.error('[Unhandled Promise]', event.reason)
@@ -104,7 +108,7 @@ export function initErrorReporter(app: {
       stack: event.reason instanceof Error ? event.reason.stack : undefined
     })
   })
-  
+
   // 捕获资源加载错误
   window.addEventListener('error', (event) => {
     if (event.target !== window) {
@@ -138,10 +142,10 @@ export function initErrorReporter(app: {
       })
     }
   }, true)
-  
+
   // 启动定时上报
   startFlushTimer(finalConfig)
-  
+
   console.log('[ErrorReporter] Initialized')
 }
 
@@ -201,9 +205,9 @@ async function flushErrors() {
 
   const errors = [...errorQueue]
   errorQueue = []
-  
+
   try {
-    await axios.post(defaultConfig.endpoint, {
+    await axios.post(activeConfig.endpoint, {
       errors,
       reportedAt: new Date().toISOString(),
       environment: {
@@ -225,7 +229,7 @@ async function flushErrors() {
     }
 
     // 网络错误等：有限次重试，只在队列未膨胀时放回
-    if (errors.length > 0 && errorQueue.length + errors.length <= defaultConfig.batchSize * 2) {
+    if (errors.length > 0 && errorQueue.length + errors.length <= activeConfig.batchSize * 2) {
       errorQueue = [...errors, ...errorQueue]
     }
   }
@@ -238,7 +242,7 @@ function startFlushTimer(config: ErrorReporterConfig) {
   if (flushTimer) {
     clearInterval(flushTimer)
   }
-  
+
   flushTimer = setInterval(() => {
     flushErrors()
   }, config.flushInterval)
@@ -249,15 +253,15 @@ function startFlushTimer(config: ErrorReporterConfig) {
  */
 export function flushErrorsSync() {
   if (errorQueue.length === 0) return
-  
+
   // 使用 sendBeacon 确保页面关闭时也能上报
   const data = JSON.stringify({
     errors: errorQueue,
     reportedAt: new Date().toISOString()
   })
-  
+
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(defaultConfig.endpoint, data)
+    navigator.sendBeacon(activeConfig.endpoint, data)
     errorQueue = []
   }
 }

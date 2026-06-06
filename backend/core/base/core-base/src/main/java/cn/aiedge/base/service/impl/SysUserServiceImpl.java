@@ -67,7 +67,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         StpUtil.getSession().set("tenantId", tenantId);
 
         // 7. 更新登录信息
-        baseMapper.updateLoginInfo(user.getId(), loginIp);
+        String safeLoginIp = (loginIp != null && !loginIp.isEmpty()) ? loginIp : "0.0.0.0";
+        baseMapper.updateLoginInfo(user.getId(), safeLoginIp);
 
         log.info("用户登录成功: userId={}, username={}, tenantId={}", user.getId(), username, tenantId);
         return token;

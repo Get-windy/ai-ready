@@ -42,7 +42,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchaseInquiryDetail' })
+
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
@@ -79,7 +81,11 @@ const fetchDetail = async () => {
 
 const handleBreadcrumbClick = (item: any) => { if (item.path) router.push(item.path) }
 const handleTabChange = (k: string) => { activeTab.value = k }
-const handleRelatedClick = () => {}
+const handleRelatedClick = (doc: any) => {
+  if (doc?.type === '采购订单') {
+    router.push(`/purchase/order/${doc.id}`)
+  }
+}
 const handleEdit = () => {
   isEditing.value = true
   editForm.value = {
@@ -103,5 +109,11 @@ const handleSend = async () => {
   try { await inquiryApi.send(inquiry.value!.id); message.success('发送成功'); fetchDetail() }
   catch { message.error('发送失败') }
 }
-onMounted(() => fetchDetail())
+onMounted(() => {
+  fetchDetail()
+  window.addEventListener('purchase:refresh', fetchDetail)
+})
+onUnmounted(() => {
+  window.removeEventListener('purchase:refresh', fetchDetail)
+})
 </script>

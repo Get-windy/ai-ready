@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.base.mapper.SysMessageMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.aiedge.base.entity.SysMessage">
+        <id column="id" property="id"/>
+        <result column="msg_type" property="msgType"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="receiver_id" property="receiverId"/>
+        <result column="receiver_name" property="receiverName"/>
+        <result column="receiver_contact" property="receiverContact"/>
+        <result column="template_code" property="templateCode"/>
+        <result column="template_params" property="templateParams"/>
+        <result column="send_status" property="sendStatus"/>
+        <result column="send_time" property="sendTime"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="fail_reason" property="failReason"/>
+        <result column="business_type" property="businessType"/>
+        <result column="business_id" property="businessId"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <!-- 查询用户的未读消息 -->
+    <select id="selectUnreadByUserId" resultMap="BaseResultMap">
+        SELECT * FROM sys_message
+        WHERE receiver_id = #{userId}
+          AND tenant_id = #{tenantId}
+          AND send_status = 2
+          AND deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 标记消息为已读 -->
+    <update id="markAsRead">
+        UPDATE sys_message SET is_read = 1
+        WHERE id = #{messageId} AND deleted = 0
+    </update>
+
+    <!-- 批量标记消息为已读 -->
+    <update id="batchMarkAsRead">
+        UPDATE sys_message SET is_read = 1
+        WHERE id IN
+        <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+        AND deleted = 0
+    </update>
+
+    <!-- 查询待发送的消息 -->
+    <select id="selectPendingMessages" resultMap="BaseResultMap">
+        SELECT * FROM sys_message
+        WHERE send_status = 0
+          AND deleted = 0
+          AND retry_count &lt; 3
+        ORDER BY create_time ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

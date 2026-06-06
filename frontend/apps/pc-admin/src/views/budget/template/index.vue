@@ -1,67 +1,78 @@
 <template>
   <div class="budget-template-page">
-    <a-card title="预算模板管理">
-      <div class="search-area">
-        <a-form layout="inline" :model="queryParams">
-          <a-form-item label="模板名称">
-            <a-input v-model:value="queryParams.keyword" placeholder="请输入模板名称" allow-clear style="width: 180px" />
-          </a-form-item>
-          <a-form-item label="年度">
-            <a-input-number v-model:value="queryParams.fiscalYear" :min="2020" :max="2099" placeholder="年度" style="width: 120px" />
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select v-model:value="queryParams.status" placeholder="请选择" allow-clear style="width: 120px">
-              <a-select-option value="draft">草稿</a-select-option>
-              <a-select-option value="published">已发布</a-select-option>
-              <a-select-option value="archived">已归档</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button type="primary" @click="handleSearch">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'budget-template-list'"
+      :filter-fields="filterFields"
+      add-text="新建模板"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDelete"
+      @refresh="loadData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+      </template>
 
-      <div class="action-area">
-        <a-space>
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新建模板
-          </a-button>
-        </a-space>
-      </div>
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配模板">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无预算模板">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button type="primary" @click="handleAdd">新建模板</a-button>
+        </a-empty>
+      </template>
 
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">
-            ¥{{ record.totalAmount?.toFixed(2) ?? '0.00' }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 'draft'" @click="handleEdit(record)">编辑</a>
-              <a v-if="record.status === 'draft'" @click="handlePublish(record)">发布</a>
-              <a-popconfirm v-if="record.status === 'draft'" title="确定删除此模板？" @confirm="handleDelete(record)">
-                <a class="danger">删除</a>
-              </a-popconfirm>
-            </a-space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
         </template>
-      </a-table>
-    </a-card>
+        <template v-else-if="column.key === 'totalAmount'">
+          ¥{{ record.totalAmount?.toFixed(2) ?? '0.00' }}
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip title="查看">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.status === 'draft'" key="publish">
+                    <SendOutlined /> 发布
+                  </a-menu-item>
+                  <a-menu-divider v-if="record.status === 'draft'" />
+                  <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal
@@ -130,22 +141,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { budgetTemplateApi, type BudgetTemplate, type BudgetTemplateItem } from '@/api/budget'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, EllipsisOutlined, DeleteOutlined, SendOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
 
-const queryParams = reactive({
-  keyword: '',
-  fiscalYear: undefined as number | undefined,
-  status: undefined as string | undefined,
-  pageNum: 0,
-  pageSize: 20,
-})
+const searchFilters = reactive<Record<string, any>>({})
 
 const dataSource = ref<BudgetTemplate[]>([])
 const loading = ref(false)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` })
+const tableRef = ref()
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '模板编码', dataIndex: 'templateCode', key: 'templateCode' },
@@ -155,6 +168,16 @@ const columns = [
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'action', width: 200 },
+]
+
+const filterFields = [
+  { key: 'keyword', label: '模板名称', type: 'input' as const, placeholder: '请输入模板名称' },
+  { key: 'fiscalYear', label: '年度', type: 'input' as const, placeholder: '年度' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 'draft' },
+    { label: '已发布', value: 'published' },
+    { label: '已归档', value: 'archived' },
+  ]},
 ]
 
 const itemColumns = [
@@ -223,9 +246,9 @@ const loadData = async () => {
   loading.value = true
   try {
     const res = await budgetTemplateApi.page({
-      keyword: queryParams.keyword || undefined,
-      fiscalYear: queryParams.fiscalYear || undefined,
-      status: queryParams.status || undefined,
+      keyword: searchFilters.keyword || undefined,
+      fiscalYear: searchFilters.fiscalYear || undefined,
+      status: searchFilters.status || undefined,
       pageNum: pagination.current - 1,
       pageSize: pagination.pageSize,
     })
@@ -233,6 +256,7 @@ const loadData = async () => {
       dataSource.value = res.data.records || []
       pagination.total = res.data.total || 0
     }
+    lastUpdated.value = new Date().toISOString()
   } finally {
     loading.value = false
   }
@@ -243,16 +267,15 @@ const handleSearch = () => {
   loadData()
 }
 
-const handleReset = () => {
-  queryParams.keyword = ''
-  queryParams.fiscalYear = undefined
-  queryParams.status = undefined
-  handleSearch()
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
+  loadData()
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   loadData()
 }
 
@@ -335,23 +358,60 @@ const handlePublish = async (record: BudgetTemplate) => {
 }
 
 const handleDelete = async (record: BudgetTemplate) => {
-  try {
-    await budgetTemplateApi.delete(record.id)
-    message.success('删除成功')
-    loadData()
-  } catch (e: any) {
-    message.error(e?.response?.data?.message || '删除失败')
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除模板"${record.templateName}"吗？删除后数据不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      try {
+        await budgetTemplateApi.delete(record.id)
+        message.success('删除成功')
+        loadData()
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || '删除失败')
+      }
+    }
+  })
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1
+  loadData()
+}
+
+function handleActionMenuClick(key: string, record: BudgetTemplate) {
+  switch (key) {
+    case 'publish': handlePublish(record); break
+    case 'delete': handleDelete(record); break
   }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
 onMounted(() => {
   loadData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <style scoped>
 .budget-template-page { padding: 16px; }
-.search-area { margin-bottom: 16px; }
-.action-area { margin-bottom: 16px; }
 .danger { color: #ff4d4f; }
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+.action-cell-inner { flex-wrap: nowrap; }
 </style>

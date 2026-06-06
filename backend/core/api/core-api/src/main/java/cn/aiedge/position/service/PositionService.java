@@ -4,7 +4,9 @@ import cn.aiedge.position.dto.*;
 import cn.aiedge.position.entity.Position;
 import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.extension.service.IService;
+import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -54,6 +56,11 @@ public interface PositionService extends IService<Position> {
      * 启用/禁用岗位
      */
     void updateStatus(Long id, Integer status);
+
+    /**
+     * 导出岗位数据
+     */
+    void export(PositionQueryRequest request, HttpServletResponse response) throws IOException;
 
     /**
      * 根据部门ID获取岗位列表

@@ -23,6 +23,20 @@
     @export="handleExport"
   >
     <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配付款单">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无付款单">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建付款单</a-button>
+      </a-empty>
     </template>
 
     <template #batch-actions>
@@ -37,7 +51,7 @@
     </template>
 
     <template #action="{ record }">
-      <a-space :size="4">
+      <a-space :size="0" class="action-cell-inner">
         <a-tooltip title="查看">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
@@ -48,6 +62,18 @@
             <template #icon><CheckCircleOutlined /></template>
           </a-button>
         </a-tooltip>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
+          </a-button>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -74,7 +100,7 @@
       <a-descriptions-item label="收款账户">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div style="text-align: right; margin-top: 16px">
+    <div class="detail-modal-footer">
       <a-button @click="detailVisible = false">关闭</a-button>
     </div>
   </a-modal>
@@ -133,7 +159,7 @@
       暂无选中付款单
     </div>
     <template v-else>
-      <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+      <div class="print-header">
         <a-checkbox
           :checked="printItems.every((item: any) => item.checked)"
           :indeterminate="printItems.some((item: any) => item.checked) && !printItems.every((item: any) => item.checked)"
@@ -165,16 +191,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchasePaymentTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, PrinterOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, PrinterOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { paymentApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
-import { exportCsv } from '@/utils/exportCsv'
+import { useExport } from '@/composables/useExport'
 import { executeBatch, validateSelection } from '@/utils/batchOperations'
 
+const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
@@ -182,6 +212,11 @@ const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '付款单号', dataIndex: 'paymentNo', key: 'paymentNo', width: 160, sortable: true },
@@ -264,6 +299,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch {
     message.error('获取付款单列表失败')
   } finally { loading.value = false }
@@ -278,8 +314,24 @@ function handleAdd() {
 }
 
 async function handleDelete(record: any) {
-  try { await paymentApi.delete(record.id); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
+  Modal.confirm({
+    title: '删除付款单', content: `确认删除付款单 "${record.paymentNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
+    async onOk() {
+      try { await paymentApi.delete(record.id); message.success('删除成功'); fetchData() }
+      catch { message.error('删除失败') }
+    }
+  })
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
+}
+
+function handleActionMenuClick(key: string, record: any) {
+  switch (key) {
+    case 'delete': handleDelete(record); break
+  }
 }
 
 async function handleBatchDelete(ids: number[]) {
@@ -320,13 +372,22 @@ function handleBatchApprove() {
 }
 
 function handleExport() {
-  const headers = ['付款单号', '采购订单', '供应商', '付款日期', '付款金额', '付款方式', '状态', '创建时间']
-  const rows = dataSource.value.map((row: any) => [
-    row.paymentNo || '', row.orderNo || '', row.supplierName || '', row.paymentDate || '',
-    (row.paymentAmount || 0).toFixed(2), getPaymentMethodText(row.paymentMethod),
-    getStatusText(row.status), row.createTime || ''
-  ])
-  exportCsv(headers, rows, '付款单')
+  executeExport({
+    fileName: '付款单',
+    headers: ['付款单号', '采购订单', '供应商', '付款日期', '付款金额', '付款方式', '状态', '创建时间'],
+    fetchAll: () => paymentApi.page({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.paymentNo || '', row.orderNo || '', row.supplierName || '', row.paymentDate || '',
+      (row.paymentAmount || 0).toFixed(2), getPaymentMethodText(row.paymentMethod),
+      getStatusText(row.status), row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: any) => [
+      row.paymentNo || '', row.orderNo || '', row.supplierName || '', row.paymentDate || '',
+      (row.paymentAmount || 0).toFixed(2), getPaymentMethodText(row.paymentMethod),
+      getStatusText(row.status), row.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 const handlePrintCheckAll = (e: any) => {
@@ -351,7 +412,37 @@ const handleBatchPrint = () => {
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => fetchData())
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:refresh', fetchData)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:refresh', fetchData)
+})
 </script>
+
+<style scoped>
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.detail-modal-footer { text-align: right; margin-top: 16px; }
+.print-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

@@ -11,6 +11,7 @@
     :summary-data="summaryData"
     :show-export="true"
     add-text="新建报价"
+    add-permission="'sale:quotation:create'"
     @add="handleAdd"
     @edit="handleEdit"
     @view="handleView"
@@ -24,6 +25,20 @@
     @export="handleExport"
   >
     <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配报价单">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无报价单">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建报价单</a-button>
+      </a-empty>
     </template>
 
     <template #status="{ record }">
@@ -33,27 +48,36 @@
     </template>
 
     <template #action="{ record }">
-      <a-space :size="4">
-        <a-tooltip title="查看">
+      <a-space :size="0" class="action-cell-inner">
+        <a-tooltip title="查看详情">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
         <a-tooltip v-if="record.status === 0" title="编辑">
-          <a-button type="link" size="small" @click="handleEdit(record)">
+          <a-button v-permission.disabled="'sale:quotation:update'" type="link" size="small" @click="handleEdit(record)">
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="发送">
-          <a-button type="link" size="small" @click="handleSend(record)">
-            <template #icon><SendOutlined /></template>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
           </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 1" title="转订单">
-          <a-button type="link" size="small" @click="handleConvert(record)">
-            <template #icon><SwapOutlined /></template>
-          </a-button>
-        </a-tooltip>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item v-if="record.status === 0" key="send">
+                <SendOutlined /> 发送报价
+              </a-menu-item>
+              <a-menu-item v-if="record.status === 1" key="convert">
+                <SwapOutlined /> 转销售订单
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -69,7 +93,7 @@
       <a-descriptions-item label="更新时间">{{ currentRecord.updateTime || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div style="text-align: right; margin-top: 16px"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
   </a-modal>
 
   <a-modal v-model:open="formVisible" :title="isEdit ? '编辑报价单' : '新建报价单'" width="800px" :confirm-loading="formSubmitting" @ok="handleFormSubmit" @cancel="formVisible = false">
@@ -80,7 +104,7 @@
         <a-col :span="12"><a-form-item label="有效期至" name="validUntil" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }"><a-date-picker v-model:value="formState.validUntil" style="width: 100%" /></a-form-item></a-col>
       </a-row>
       <a-form-item label="产品明细" required>
-        <div style="margin-bottom: 8px"><a-button type="dashed" size="small" @click="addItem"><template #icon><PlusOutlined /></template>添加产品</a-button></div>
+        <div class="form-items-toolbar"><a-button type="dashed" size="small" @click="addItem"><template #icon><PlusOutlined /></template>添加产品</a-button></div>
         <a-table :data-source="formState.items" :pagination="false" row-key="key" size="small" bordered :columns="itemColumns">
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'productName'"><a-input v-model:value="record.productName" placeholder="产品名称" size="small" /></template>
@@ -98,17 +122,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'SaleQuotationTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { quotationApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
-import { exportCsv } from '@/utils/exportCsv'
 import { executeBatch } from '@/utils/batchOperations'
+import { useExport } from '@/composables/useExport'
 import type { Dayjs } from 'dayjs'
 
+const { execute: executeExport } = useExport()
 const router = useRouter()
 const userStore = useUserStore()
 const tableRef = ref()
@@ -116,6 +143,11 @@ const loading = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '报价单号', dataIndex: 'quotationNo', key: 'quotationNo', width: 160, sortable: true },
@@ -124,7 +156,7 @@ const columns = [
   { title: '有效期', dataIndex: 'validDate', key: 'validDate', width: 110, type: 'date' as const },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, type: 'action' as const }
+  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
 ]
 const filterFields = [
   { key: 'quotationNo', label: '报价单号', type: 'input' as const, placeholder: '输入报价单号' },
@@ -182,6 +214,7 @@ async function fetchData() {
     const res = await quotationApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch { message.error('获取报价单列表失败') }
   finally { loading.value = false }
 }
@@ -197,9 +230,30 @@ function handleEdit(record: any) {
   formVisible.value = true
 }
 
-async function handleDelete(record: any) {
-  try { await quotationApi.delete(record.id); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
+function handleActionMenuClick(key: string, record: any) {
+  switch (key) {
+    case 'send': handleSend(record); break
+    case 'convert': handleConvert(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+
+function handleDelete(record: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除报价单「${record.quotationNo}」吗？删除后数据不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      try {
+        await quotationApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch { message.error('删除失败') }
+    }
+  })
 }
 async function handleBatchDelete(ids: number[]) {
   const result = await executeBatch(ids, (id) => quotationApi.delete(id), '批量删除')
@@ -217,7 +271,9 @@ const handleFormSubmit = async () => {
       await quotationApi.create({ ...formState })
       message.success('创建成功')
     }
-    formVisible.value = false; fetchData()
+    formVisible.value = false
+    pagination.current = 1
+    fetchData()
   } catch { message.error(isEdit.value ? '编辑失败' : '创建失败') }
   finally { formSubmitting.value = false }
 }
@@ -240,18 +296,81 @@ function handleConvert(record: any) {
 }
 
 function handleExport() {
-  const headers = ['报价单号', '客户', '报价日期', '有效期', '状态', '创建时间']
-  const rows = dataSource.value.map((row: any) => [
-    row.quotationNo || '', row.customerName || '', row.quotationDate || '', row.validDate || '',
-    getStatusText(row.status), row.createTime || ''
-  ])
-  exportCsv(headers, rows, '报价单')
+  executeExport({
+    fileName: '报价单',
+    headers: ['报价单号', '客户', '报价日期', '有效期', '状态', '创建时间'],
+    fetchAll: () => quotationApi.page({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.quotationNo || '', row.customerName || '', row.quotationDate || '', row.validDate || '',
+      getStatusText(row.status), row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: any) => [
+      row.quotationNo || '', row.customerName || '', row.quotationDate || '', row.validDate || '',
+      getStatusText(row.status), row.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1
+  fetchData()
+}
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
 
-onMounted(() => fetchData())
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('sale:refresh', handleRefreshEvent)
+})
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('sale:refresh', handleRefreshEvent)
+})
+
+let refreshTimer = 0
+function handleRefreshEvent() {
+  fetchData()
+  // 数据刷新完成后通过 lastUpdated 的更新间接提示用户
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
 </script>
+
+<style scoped>
+.action-more-btn {
+  padding: 0 4px;
+  font-size: 16px;
+  vertical-align: middle;
+}
+
+.detail-modal-footer {
+  text-align: right;
+  margin-top: 16px;
+}
+
+.form-items-toolbar {
+  margin-bottom: 8px;
+}
+
+.list-update-timestamp {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap;
+  cursor: help;
+  margin-left: 8px;
+  line-height: 32px;
+  vertical-align: middle;
+}
+</style>

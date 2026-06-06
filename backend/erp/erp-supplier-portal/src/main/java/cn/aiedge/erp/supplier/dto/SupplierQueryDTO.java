@@ -2,6 +2,7 @@ package cn.aiedge.erp.supplier.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -82,15 +83,18 @@ public class SupplierQueryDTO {
     @Schema(description = "创建时间范围结束")
     private LocalDateTime createTimeEnd;
     
+    @ToString.Exclude
     @Schema(description = "更新时间范围开始")
     private LocalDateTime updateTimeStart;
-    
+
+    @ToString.Exclude
     @Schema(description = "更新时间范围结束")
     private LocalDateTime updateTimeEnd;
     
     @Schema(description = "创建人")
     private String createBy;
     
+    @ToString.Exclude
     @Schema(description = "更新人")
     private String updateBy;
     
@@ -109,6 +113,7 @@ public class SupplierQueryDTO {
     @Schema(description = "每页大小", example = "20")
     private Integer pageSize = 20;
     
+    @ToString.Exclude
     @Schema(description = "是否包含已删除数据", example = "false")
     private Boolean includeDeleted = false;
     

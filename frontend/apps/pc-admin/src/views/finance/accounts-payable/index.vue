@@ -1,167 +1,107 @@
 <template>
   <div class="accounts-payable-page">
-    <a-card title="应付账款管理">
-      <!-- 搜索区域 -->
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="queryParams"
-        >
-          <a-form-item label="供应商名称">
-            <a-input
-              v-model:value="queryParams.supplierName"
-              placeholder="请输入供应商名称"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="订单号">
-            <a-input
-              v-model:value="queryParams.orderNo"
-              placeholder="请输入订单号"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select
-              v-model:value="queryParams.status"
-              placeholder="请选择状态"
-              allow-clear
-              style="width: 120px"
-            >
-              <a-select-option :value="0">
-                未付款
-              </a-select-option>
-              <a-select-option :value="1">
-                部分付款
-              </a-select-option>
-              <a-select-option :value="2">
-                已付款
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" class="stats-area">
+      <a-col :span="6">
+        <a-statistic
+          title="应付总额"
+          :value="stats.totalAmount"
+          :precision="2"
+          prefix="¥"
+        />
+      </a-col>
+      <a-col :span="6">
+        <a-statistic
+          title="已付金额"
+          :value="stats.paidAmount"
+          :precision="2"
+          prefix="¥"
+        />
+      </a-col>
+      <a-col :span="6">
+        <a-statistic
+          title="未付金额"
+          :value="stats.unpaidAmount"
+          :precision="2"
+          prefix="¥"
+          :value-style="{ color: '#fa8c16' }"
+        />
+      </a-col>
+      <a-col :span="6">
+        <a-statistic
+          title="应付笔数"
+          :value="totalCount"
+          suffix="笔"
+        />
+      </a-col>
+    </a-row>
 
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button
-            type="primary"
-            @click="handleAdd"
-          >
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            新增应付
-          </a-button>
-          <a-button @click="handleExport">
-            <template #icon>
-              <ExportOutlined />
-            </template>
-            导出
-          </a-button>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'finance-accounts-payable-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-export="true"
+      :selectable="false"
+      add-text="新增应付"
+      @add="handleAdd"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+    >
+      <template #toolbar-actions>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+      </template>
+
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配应付记录">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无应付账款">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button type="primary" @click="handleAdd">新增应付</a-button>
+        </a-empty>
+      </template>
+
+      <template #status="{ record }">
+        <a-tag :color="getStatusColor(record.status)">
+          {{ getStatusText(record.status) }}
+        </a-tag>
+      </template>
+      <template #amount="{ record }">
+        ¥{{ record.amount?.toFixed(2) }}
+      </template>
+      <template #paidAmount="{ record }">
+        ¥{{ record.paidAmount?.toFixed(2) }}
+      </template>
+      <template #unpaidAmount="{ record }">
+        ¥{{ record.unpaidAmount?.toFixed(2) }}
+      </template>
+      <template #action="{ record }">
+        <a-space :size="0" class="action-cell-inner">
+          <a-tooltip title="查看">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status !== 2" title="付款">
+            <a-button type="link" size="small" @click="handlePayment(record)">
+              <template #icon><DollarOutlined /></template>
+            </a-button>
+          </a-tooltip>
         </a-space>
-      </div>
+      </template>
+    </TableList>
 
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        class="stats-area"
-      >
-        <a-col :span="6">
-          <a-statistic
-            title="应付总额"
-            :value="stats.totalAmount"
-            :precision="2"
-            prefix="¥"
-          />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic
-            title="已付金额"
-            :value="stats.paidAmount"
-            :precision="2"
-            prefix="¥"
-          />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic
-            title="未付金额"
-            :value="stats.unpaidAmount"
-            :precision="2"
-            prefix="¥"
-            :value-style="{ color: '#fa8c16' }"
-          />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic
-            title="应付笔数"
-            :value="totalCount"
-            suffix="笔"
-          />
-        </a-col>
-      </a-row>
-
-      <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'paidAmount'">
-            ¥{{ record.paidAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'unpaidAmount'">
-            ¥{{ record.unpaidAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                查看
-              </a-button>
-              <a-button
-                v-if="record.status !== 2"
-                type="link"
-                size="small"
-                @click="handlePayment(record)"
-              >
-                付款
-              </a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
-
+    <!-- 详情弹窗 -->
     <a-modal
       v-model:open="detailVisible"
       title="应付账款详情"
@@ -180,7 +120,7 @@
         <a-descriptions-item label="到期日期">{{ currentRecord.dueDate }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-      <div style="text-align: right; margin-top: 16px">
+      <div class="detail-modal-footer">
         <a-button @click="detailVisible = false">关闭</a-button>
       </div>
     </a-modal>
@@ -188,9 +128,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, DollarOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import TableList from '@/components/TableList/TableList.vue'
+import dayjs from 'dayjs'
 import request from '@/utils/request'
 
 interface AccountsPayable {
@@ -205,6 +147,7 @@ interface AccountsPayable {
   remark: string
 }
 
+const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<AccountsPayable[]>([])
 const detailVisible = ref(false)
@@ -232,6 +175,21 @@ const pagination = reactive({
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(queryParams).some(v => v !== undefined && v !== null && v !== '')
+})
+
+const filterFields = [
+  { key: 'supplierName', label: '供应商名称', type: 'input' as const, placeholder: '请输入供应商名称' },
+  { key: 'orderNo', label: '订单号', type: 'input' as const, placeholder: '请输入订单号' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '未付款', value: 0 },
+    { label: '部分付款', value: 1 },
+    { label: '已付款', value: 2 }
+  ]}
+]
 
 const columns = [
   {
@@ -249,22 +207,26 @@ const columns = [
   {
     title: '应付金额',
     key: 'amount',
-    width: 120
+    width: 120,
+    slotName: 'amount'
   },
   {
     title: '已付金额',
     key: 'paidAmount',
-    width: 120
+    width: 120,
+    slotName: 'paidAmount'
   },
   {
     title: '未付金额',
     key: 'unpaidAmount',
-    width: 120
+    width: 120,
+    slotName: 'unpaidAmount'
   },
   {
     title: '状态',
     key: 'status',
-    width: 100
+    width: 100,
+    slotName: 'status'
   },
   {
     title: '到期日期',
@@ -282,7 +244,8 @@ const columns = [
     title: '操作',
     key: 'action',
     width: 150,
-    fixed: 'right'
+    fixed: 'right' as const,
+    slotName: 'action'
   }
 ]
 
@@ -333,25 +296,33 @@ const handleExport = () => {
   message.info('导出应付账款')
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+const handleFilterChange = (filters: Record<string, any>) => {
+  queryParams.supplierName = filters.supplierName || ''
+  queryParams.orderNo = filters.orderNo || ''
+  queryParams.status = filters.status !== undefined ? filters.status : undefined
+  pagination.current = 1
   fetchData()
 }
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await request.get('/api/finance/accounts-payable/page', {
-      params: {
-        ...queryParams,
-        pageNum: pagination.current,
-        pageSize: pagination.pageSize
-      }
+    const res = await request.post('/finance/payable/list', {
+      supplierName: queryParams.supplierName,
+      status: queryParams.status,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
     })
     if (res.data?.records) {
       dataSource.value = res.data.records
       pagination.total = res.data.total || 0
+      lastUpdated.value = new Date().toISOString()
       stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
       stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
       stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
@@ -369,7 +340,23 @@ const fetchData = async () => {
   }
 }
 
-fetchData()
+function handleResetFilters() {
+  Object.keys(queryParams).forEach(k => { (queryParams as any)[k] = undefined })
+  pagination.current = 1; fetchData()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
@@ -377,18 +364,16 @@ fetchData()
   padding: 24px;
 }
 
-.search-area {
-  margin-bottom: 16px;
-}
-
-.action-area {
-  margin-bottom: 16px;
-}
-
 .stats-area {
   margin-bottom: 16px;
   padding: 16px;
   background: #fafafa;
   border-radius: 4px;
+}
+.detail-modal-footer { text-align: right; margin-top: 16px; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
 }
 </style>

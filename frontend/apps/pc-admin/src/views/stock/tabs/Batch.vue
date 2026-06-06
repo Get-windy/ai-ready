@@ -17,6 +17,21 @@
     :show-export="true"
     @export="handleExport"
   >
+    <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配批次记录">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无批次记录">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+      </a-empty>
+    </template>
 
     <template #status="{ record }">
       <a-tag :color="getBatchStatusColor(record.status)">{{ getBatchStatusText(record.status) }}</a-tag>
@@ -50,23 +65,29 @@
       <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div style="text-align: right; margin-top: 16px"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
   </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { EyeOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { batchApi } from '@/api/erp'
 import { exportCsv } from '@/utils/exportCsv'
+import dayjs from 'dayjs'
 
 const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '批次号', dataIndex: 'batchNo', key: 'batchNo', width: 180, sortable: true },
@@ -119,7 +140,7 @@ async function fetchData() {
   try {
     const res = await batchApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.totalElements ?? pageData?.total ?? 0; lastUpdated.value = new Date().toISOString()
   } catch { /* 获取数据失败 */ }
   finally { loading.value = false }
 }
@@ -140,5 +161,30 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => fetchData())
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleView(dataSource.value[0]) }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
+
+<style scoped>
+.detail-modal-footer { text-align: right; margin-top: 16px; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

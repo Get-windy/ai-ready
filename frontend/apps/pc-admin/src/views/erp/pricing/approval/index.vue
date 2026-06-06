@@ -1,13 +1,12 @@
 <template>
-  <div class="price-approval-page">
+  <PageContainer title="价格审批管理">
     <a-card :bordered="false">
-      <div class="page-header">
-        <h2>价格审批管理</h2>
+      <template #extra>
         <a-button type="primary" @click="handleApply">
           <template #icon><PlusOutlined /></template>
           申请价格变更
         </a-button>
-      </div>
+      </template>
 
       <a-row :gutter="16" class="summary-row">
         <a-col :span="6">
@@ -43,10 +42,10 @@
                   </span>
                 </div>
               </template>
-              <template v-if="column.key === 'status'">
-                <a-tag color="orange">待审批</a-tag>
+              <template v-else-if="column.key === 'status'">
+                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
-              <template v-if="column.key === 'action'">
+              <template v-else-if="column.key === 'action'">
                 <a-space>
                   <a-button size="small" type="primary" @click="handleApprove(record)">通过</a-button>
                   <a-button size="small" danger @click="handleReject(record)">拒绝</a-button>
@@ -66,9 +65,9 @@
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'status'">
-                <a-tag color="green">已通过</a-tag>
+                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
-              <template v-if="column.key === 'approver'">
+              <template v-else-if="column.key === 'approver'">
                 {{ record.approverName }} / {{ formatDate(record.approveTime) }}
               </template>
             </template>
@@ -84,7 +83,7 @@
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'status'">
-                <a-tag color="red">已拒绝</a-tag>
+                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
               <template v-else-if="column.key === 'approver'">
                 {{ record.approverName }} / {{ formatDate(record.approveTime) }}
@@ -102,7 +101,7 @@
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'status'">
-                <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
             </template>
           </a-table>
@@ -233,7 +232,7 @@
           <span :class="detailData.priceChangeType">{{ detailData.priceChangeType === 'increase' ? '+' : '-' }}¥{{ detailData.priceChange }}</span>
         </a-descriptions-item>
         <a-descriptions-item label="审批状态">
-          <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+          <StatusTag :status="detailData.status" :map="PRICE_APPROVAL_STATUS" />
         </a-descriptions-item>
         <a-descriptions-item label="申请人">{{ detailData.applicantName }}</a-descriptions-item>
         <a-descriptions-item label="申请时间">{{ formatDate(detailData.applyTime) }}</a-descriptions-item>
@@ -243,7 +242,7 @@
         <a-descriptions-item label="审批备注" :span="2">{{ detailData.approveRemark || '-' }}</a-descriptions-item>
       </a-descriptions>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -253,6 +252,9 @@ import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
 import { useUserStore } from '@/stores/user'
+import StatusTag from '@/components/StatusTag/StatusTag.vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import { PRICE_APPROVAL_STATUS } from '@/utils/statusConfig'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -490,12 +492,6 @@ const handleView = async (record: PriceApproval) => {
 
 // ── 辅助 ────────────────────────────────────────────────
 
-const getStatusColor = (status: string) => {
-  return { pending: 'orange', approved: 'green', rejected: 'red' }[status] || 'default'
-}
-const getStatusText = (status: string) => {
-  return { pending: '待审批', approved: '已通过', rejected: '已拒绝' }[status] || status
-}
 const formatDate = (date: string) => date ? date.split('T')[0] : ''
 const filterOption = (input: string, option: any) =>
   option?.name?.toLowerCase?.().includes(input.toLowerCase()) ?? false
@@ -511,21 +507,6 @@ onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">
-.price-approval-page {
-  padding: 24px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-
-  h2 {
-    margin: 0;
-  }
-}
-
 .summary-row {
   margin-bottom: 16px;
 }

@@ -201,7 +201,7 @@ const loadData = async () => {
         ]}],
       })
     }
-  } catch (_) { /* ignore */ }
+  } catch { message.error('获取预算汇总数据失败') }
 
   try {
     const trendRes = await budgetReportApi.trend()
@@ -210,7 +210,7 @@ const loadData = async () => {
       const amounts = trendRes.data.map((d: any) => d.amount)
       trendChart?.setOption({ xAxis: { data: months }, series: [{ data: amounts }] })
     }
-  } catch (_) { /* ignore */ }
+  } catch { message.error('获取预算趋势数据失败') }
 
   adjustmentLoading.value = true
   try {
@@ -218,7 +218,7 @@ const loadData = async () => {
     if (adjRes.success) {
       recentAdjustments.value = adjRes.data.records || []
     }
-  } catch (_) { /* ignore */ }
+  } catch { message.error('获取预算调整记录失败') }
   adjustmentLoading.value = false
 }
 

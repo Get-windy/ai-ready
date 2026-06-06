@@ -129,7 +129,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchaseOrderDetail' })
+
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
@@ -408,5 +410,10 @@ const handlePrintError = (error: any) => {
 
 onMounted(() => {
   fetchOrderDetail()
+  window.addEventListener('purchase:refresh', fetchOrderDetail)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('purchase:refresh', fetchOrderDetail)
 })
 </script>

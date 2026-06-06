@@ -252,6 +252,7 @@ const fetchCustomerDetail = async () => {
   loading.value = true; error.value = null
   try {
     const customerId = Number(route.params.id)
+    if (isNaN(customerId)) { error.value = '无效的客户ID'; return }
     const res = await customerApi.getById(customerId)
     customer.value = res.data
   } catch (err: any) {
@@ -265,15 +266,19 @@ const handleBreadcrumbClick = (item: any) => {
   if (item.path) router.push(item.path)
 }
 const handlePrev = () => {
+  const id = Number(route.params.id)
+  if (isNaN(id)) return
   if (customer.value && currentIndex.value > 1) {
-    router.push(`/crm/customer/${Number(route.params.id) - 1}`)
+    router.push(`/crm/customer/${id - 1}`)
   } else {
     message.warning('已经是第一条记录')
   }
 }
 const handleNext = () => {
+  const id = Number(route.params.id)
+  if (isNaN(id)) return
   if (customer.value && currentIndex.value < totalCount.value) {
-    router.push(`/crm/customer/${Number(route.params.id) + 1}`)
+    router.push(`/crm/customer/${id + 1}`)
   } else {
     message.warning('已经是最后一条记录')
   }

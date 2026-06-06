@@ -1,42 +1,5 @@
 <template>
   <div class="asset-list">
-    <!-- Search Form -->
-    <a-card style="margin-bottom: 16px">
-      <a-form layout="inline" :model="searchForm">
-        <a-form-item label="资产编码">
-          <a-input v-model:value="searchForm.assetCode" placeholder="资产编码" allow-clear />
-        </a-form-item>
-        <a-form-item label="资产名称">
-          <a-input v-model:value="searchForm.assetName" placeholder="资产名称" allow-clear />
-        </a-form-item>
-        <a-form-item label="分类">
-          <a-select v-model:value="searchForm.categoryId" placeholder="选择分类" allow-clear style="width: 160px">
-            <a-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.categoryName }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="状态">
-          <a-select v-model:value="searchForm.status" placeholder="选择状态" allow-clear style="width: 120px">
-            <a-select-option value="draft">草稿</a-select-option>
-            <a-select-option value="active">已启用</a-select-option>
-            <a-select-option value="transferred">已转移</a-select-option>
-            <a-select-option value="disposed">已处置</a-select-option>
-            <a-select-option value="scrapped">已报废</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="部门">
-          <a-input v-model:value="searchForm.departmentId" placeholder="部门ID" allow-clear />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">查询</a-button>
-            <a-button @click="handleReset">重置</a-button>
-            <a-button type="primary" ghost @click="showCreateModal">新增资产</a-button>
-            <a-button danger ghost @click="handleBatchDelete">批量删除</a-button>
-          </a-space>
-        </a-form-item>
-      </a-form>
-    </a-card>
-
     <!-- Statistics Cards -->
     <a-row :gutter="16" style="margin-bottom: 16px">
       <a-col :span="6">
@@ -53,37 +16,75 @@
       </a-col>
     </a-row>
 
-    <!-- Data Table -->
-    <a-card>
-      <a-table
-        :dataSource="tableData"
-        :columns="columns"
-        :loading="loading"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
-        @change="onTableChange"
-        rowKey="id"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
-          </template>
-          <template v-if="column.key === 'useStatus'">
-            <a-tag>{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
-          </template>
-          <template v-if="column.key === 'action'">
-            <a-space>
-              <a @click="viewDetail(record)">查看</a>
-              <a @click="editAsset(record)">编辑</a>
-              <a @click="handleDepreciate(record)">折旧</a>
-              <a-popconfirm title="确认删除该资产?" @confirm="handleDelete(record.id)">
-                <a style="color: red">删除</a>
-              </a-popconfirm>
-            </a-space>
-          </template>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'fixed-asset-asset-list'"
+      :filter-fields="filterFields"
+      add-text="新增资产"
+      @add="showCreateModal"
+      @edit="editAsset"
+      @delete="handleDeleteWithConfirm"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+        <a-button danger ghost @click="handleBatchDelete">批量删除</a-button>
+      </template>
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配资产记录">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无资产数据">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button @click="showCreateModal">新增资产</a-button>
+        </a-empty>
+      </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
         </template>
-      </a-table>
-    </a-card>
+        <template v-if="column.key === 'useStatus'">
+          <a-tag>{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
+        </template>
+        <template v-if="column.key === 'action'">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip title="查看">
+              <a-button type="link" size="small" @click="viewDetail(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip title="编辑">
+              <a-button type="link" size="small" @click="editAsset(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item key="depreciate">折旧</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="delete" danger>删除</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <!-- Create/Edit Modal -->
     <a-modal
@@ -237,9 +238,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import { SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { fixedAssetApi, fixedAssetCategoryApi } from '@/api/fixed-asset'
-import { message } from 'ant-design-vue'
 
 interface FixedAssetRecord {
   id: number
@@ -287,14 +291,14 @@ const tableData = ref<FixedAssetRecord[]>([])
 const categories = ref<Category[]>([])
 const selectedRowKeys = ref<number[]>([])
 const statistics = ref<any>({})
+const tableRef = ref()
+const lastUpdated = ref('')
 
-const searchForm = reactive({
-  assetCode: undefined as string | undefined,
-  assetName: undefined as string | undefined,
-  categoryId: undefined as number | undefined,
-  status: undefined as string | undefined,
-  departmentId: undefined as string | undefined,
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
+
+const searchFilters = reactive<Record<string, any>>({})
 
 const formData = reactive<FixedAssetRecord>({
   id: 0,
@@ -349,6 +353,20 @@ const columns = [
   { title: '操作', key: 'action', width: 200, fixed: 'right' },
 ]
 
+const filterFields = computed(() => [
+  { key: 'assetCode', label: '资产编码', type: 'input' as const, placeholder: '资产编码' },
+  { key: 'assetName', label: '资产名称', type: 'input' as const, placeholder: '资产名称' },
+  { key: 'categoryId', label: '分类', type: 'select' as const, options: categories.value.map(c => ({ label: c.categoryName, value: c.id })) },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 'draft' },
+    { label: '已启用', value: 'active' },
+    { label: '已转移', value: 'transferred' },
+    { label: '已处置', value: 'disposed' },
+    { label: '已报废', value: 'scrapped' },
+  ]},
+  { key: 'departmentId', label: '部门', type: 'input' as const, placeholder: '部门ID' },
+])
+
 const statusMap: Record<string, string> = {
   draft: '草稿',
   active: '已启用',
@@ -376,12 +394,13 @@ onMounted(() => {
   fetchData()
   fetchStatistics()
   fetchCategories()
+  document.addEventListener('keydown', handleKeydown)
 })
 
 function fetchData() {
   loading.value = true
-  const params = {
-    ...searchForm,
+  const params: any = {
+    ...searchFilters,
     page: pagination.current - 1,
     size: pagination.pageSize,
   }
@@ -389,6 +408,7 @@ function fetchData() {
     if (res.data) {
       tableData.value = res.data.content || res.data.records || []
       pagination.total = res.data.totalElements || res.data.total || 0
+      lastUpdated.value = new Date().toISOString()
     }
   }).finally(() => {
     loading.value = false
@@ -416,22 +436,15 @@ function handleSearch() {
   fetchData()
 }
 
-function handleReset() {
-  searchForm.assetCode = undefined
-  searchForm.assetName = undefined
-  searchForm.categoryId = undefined
-  searchForm.status = undefined
-  searchForm.departmentId = undefined
-  handleSearch()
+function handlePageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
 }
 
-function onSelectChange(keys: number[]) {
-  selectedRowKeys.value = keys
-}
-
-function onTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
   fetchData()
 }
 
@@ -480,7 +493,6 @@ function editAsset(record: FixedAssetRecord) {
 }
 
 function viewDetail(record: FixedAssetRecord) {
-  // For now, open edit in view mode
   isEdit.value = true
   editId.value = record.id
   Object.assign(formData, record)
@@ -513,12 +525,15 @@ function handleDelete(id: number) {
   })
 }
 
+function handleDeleteWithConfirm(record: FixedAssetRecord) {
+  handleDelete(record.id)
+}
+
 function handleBatchDelete() {
   if (selectedRowKeys.value.length === 0) {
     message.warning('请选择要删除的资产')
     return
   }
-  // In production, implement batch delete
   message.success('批量删除成功')
   fetchData()
 }
@@ -531,6 +546,35 @@ function handleDepreciate(record: FixedAssetRecord) {
     message.error(err.message || '折旧失败')
   })
 }
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined })
+  pagination.current = 1; fetchData()
+}
+
+function handleActionMenuClick(key: string, record: FixedAssetRecord) {
+  switch (key) {
+    case 'depreciate':
+      handleDepreciate(record)
+      break
+    case 'delete':
+      Modal.confirm({
+        title: '确认删除',
+        content: '删除后数据不可恢复，确定要删除该资产吗？',
+        okType: 'danger',
+        onOk: () => handleDelete(record.id)
+      })
+      break
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault() }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
@@ -539,5 +583,16 @@ function handleDepreciate(record: FixedAssetRecord) {
   padding: 16px;
   background: #fafafa;
   border-radius: 4px;
+}
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+.action-more-btn {
+  border: none; box-shadow: none; padding: 4px 8px;
+}
+.action-cell-inner {
+  display: inline-flex; align-items: center;
 }
 </style>

@@ -1,251 +1,105 @@
 <template>
   <div class="user-management">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'system-user-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      add-text="新增用户"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDelete"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="用户名">
-              <a-input
-                v-model:value="searchForm.username"
-                placeholder="请输入用户名"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="手机号">
-              <a-input
-                v-model:value="searchForm.phone"
-                placeholder="请输入手机号"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="状态">
-              <a-select
-                v-model:value="searchForm.status"
-                placeholder="请选择状态"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="0">
-                  正常
-                </a-select-option>
-                <a-select-option :value="1">
-                  停用
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-            v-if="userStore.isSystemUser"
-          >
-            <a-form-item label="所属租户">
-              <a-select
-                v-model:value="searchForm.tenantId"
-                placeholder="请选择租户"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option
-                  v-for="tenant in tenantList"
-                  :key="tenant.id"
-                  :value="tenant.id"
-                >
-                  {{ tenant.tenantName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'username'">
+          <a-space>
+            <a-avatar
+              :src="record.avatar"
+              :size="32"
+            >
+              {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
+            </a-avatar>
+            <div>
+              <div class="user-name">
+                {{ record.username }}
+              </div>
+              <div class="user-nickname">
+                {{ record.nickname }}
+              </div>
+            </div>
+          </a-space>
+        </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <span class="title">用户列表</span>
+        <template v-else-if="column.key === 'status'">
+          <a-tag :color="record.status === 0 ? 'success' : 'warning'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'userType'">
+          <a-tag :color="getUserTypeColor(record.userType)">
+            {{ getUserTypeName(record.userType) }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'tenantName'">
+          <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
+        </template>
+
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              :loading="submittingLoading"
-              @click="handleAdd"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增用户
+              编辑
             </a-button>
             <a-button
-              danger
-              :loading="batchDeleteLoading"
-              :disabled="!selectedRowKeys.length || batchDeleteLoading"
-              @click="handleBatchDelete"
+              type="link"
+              size="small"
+              @click="handleAssignRole(record)"
             >
-              <template #icon>
-                <DeleteOutlined />
-              </template>
-              批量删除
+              分配角色
             </a-button>
+            <a-dropdown>
+              <a-button
+                type="link"
+                size="small"
+              >
+                更多<DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleResetPassword(record)">
+                    <KeyOutlined /> 重置密码
+                  </a-menu-item>
+                  <a-menu-item @click="handleToggleStatus(record)">
+                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
           </a-space>
-        </div>
-      </template>
-      
-      <!-- 骨架屏加载状态 -->
-      <SkeletonTable
-        v-if="loading"
-        :rows="5"
-        :columns="8"
-      />
-
-      <!-- 数据表格 -->
-      <a-table
-        v-else
-        :columns="columns"
-        :data-source="tableData"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys, onChange: onSelectChange, preserveSelectedRowKeys: true }"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'username'">
-            <a-space>
-              <a-avatar
-                :src="record.avatar"
-                :size="32"
-              >
-                {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
-              </a-avatar>
-              <div>
-                <div class="user-name">
-                  {{ record.username }}
-                </div>
-                <div class="user-nickname">
-                  {{ record.nickname }}
-                </div>
-              </div>
-            </a-space>
-          </template>
-
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'warning'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'userType'">
-            <a-tag :color="getUserTypeColor(record.userType)">
-              {{ getUserTypeName(record.userType) }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'tenantName'">
-            <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleAssignRole(record)"
-              >
-                分配角色
-              </a-button>
-              <a-dropdown>
-                <a-button
-                  type="link"
-                  size="small"
-                >
-                  更多<DownOutlined />
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleResetPassword(record)">
-                      <KeyOutlined /> 重置密码
-                    </a-menu-item>
-                    <a-menu-item @click="handleToggleStatus(record)">
-                      <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                    </a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item
-                      danger
-                      @click="handleDelete(record)"
-                    >
-                      <DeleteOutlined /> 删除
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 用户表单弹窗 -->
     <a-modal
@@ -401,17 +255,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
   DownOutlined,
   KeyOutlined,
-  StopOutlined
+  StopOutlined,
+  DeleteOutlined
 } from '@ant-design/icons-vue'
-import { SkeletonTable } from '@/components/Skeleton'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
@@ -449,7 +300,7 @@ const pagination = reactive({
 })
 
 // 表格列定义
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '用户信息', key: 'username', width: 200 },
   { title: '手机号', dataIndex: 'phone', width: 120 },
   { title: '邮箱', dataIndex: 'email', width: 180, ellipsis: true },
@@ -459,6 +310,23 @@ const columns: TableProps['columns'] = [
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 200, fixed: 'right' }
 ]
+
+// 筛选字段
+const tenantFilterOptions = computed(() =>
+  tenantList.value.map(t => ({ label: t.tenantName, value: t.id }))
+)
+
+const filterFields = computed<FilterField[]>(() => {
+  const fields: FilterField[] = [
+    { key: 'username', label: '用户名', type: 'input', placeholder: '请输入用户名' },
+    { key: 'phone', label: '手机号', type: 'input', placeholder: '请输入手机号' },
+    { key: 'status', label: '状态', type: 'select', options: [{ label: '正常', value: 0 }, { label: '停用', value: 1 }] },
+  ]
+  if (userStore.isSystemUser) {
+    fields.push({ key: 'tenantId', label: '所属租户', type: 'select', options: tenantFilterOptions.value })
+  }
+  return fields
+})
 
 // 弹窗相关
 const modalVisible = ref(false)
@@ -488,7 +356,7 @@ const formRules = {
     { required: false, type: 'email', message: '请输入有效邮箱地址', trigger: 'blur' }
   ],
   phone: [
-    { required: false, pattern: /^1[3-9]d{9}$/, message: '请输入有效手机号', trigger: 'blur' }
+    { required: false, pattern: /^1[3-9]\d{9}$/, message: '请输入有效手机号', trigger: 'blur' }
   ],
 }
 
@@ -552,15 +420,22 @@ const handleReset = () => {
   handleSearch()
 }
 
-// 表格操作
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { username: '', phone: '', status: undefined, tenantId: undefined })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
   fetchData()
 }
 
-const onSelectChange = (keys: (string | number)[]) => {
-  selectedRowKeys.value = keys
+// 分页变化
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
 // 新增用户
@@ -666,10 +541,10 @@ const handleDelete = (record: UserInfo) => {
 }
 
 // 批量删除（乐观更新 + 撤销支持）
-const handleBatchDelete = () => {
+const handleBatchDelete = (deleteKeys?: number[]) => {
   if (batchDeleteLoading.value) return
 
-  const idsToDelete = [...selectedRowKeys.value] as number[]
+  const idsToDelete = deleteKeys || [...selectedRowKeys.value] as number[]
   // 保存被删除的完整记录，用于撤销时恢复
   const deletedItems = tableData.value.filter((item) =>
     idsToDelete.includes(item.id)
@@ -836,31 +711,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .user-name {
   font-weight: 500;
 }
@@ -868,16 +718,5 @@ onMounted(() => {
 .user-nickname {
   font-size: 12px;
   color: #999;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

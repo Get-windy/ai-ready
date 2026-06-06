@@ -281,6 +281,7 @@ const loadSupplierDetail = async () => {
   loading.value = true; error.value = null
   try {
     const id = Number(route.params.id)
+    if (isNaN(id)) { error.value = '无效的供应商ID'; return }
     supplier.value = await supplierApi.getById(id)
   } catch (err: any) {
     error.value = err?.message || '获取供应商详情失败'
@@ -292,6 +293,7 @@ const loadSupplierDetail = async () => {
 const loadPerformances = async () => {
   try {
     const id = Number(route.params.id)
+    if (isNaN(id)) return
     performances.value = (await supplierApi.getPerformanceHistory(id)) || []
   } catch { performances.value = [] }
 }
@@ -299,6 +301,7 @@ const loadPerformances = async () => {
 const loadInquiries = async () => {
   try {
     const id = Number(route.params.id)
+    if (isNaN(id)) return
     inquiries.value = (await supplierApi.getInquiries(id)) || []
   } catch { inquiries.value = [] }
 }
@@ -306,6 +309,7 @@ const loadInquiries = async () => {
 const loadPointsRecords = async () => {
   try {
     const id = Number(route.params.id)
+    if (isNaN(id)) return
     pointsRecords.value = (await supplierApi.getPointsRecords(id)) || []
   } catch { pointsRecords.value = [] }
 }

@@ -5,7 +5,7 @@ import cn.aiedge.erp.order.dto.PurchaseOrderCreateDTO;
 import cn.aiedge.erp.order.dto.PurchaseOrderStatisticsDTO;
 import cn.aiedge.erp.order.entity.PurchaseOrder;
 import cn.aiedge.erp.order.entity.PurchaseOrder.Status;
-import cn.aiedge.erp.order.mapper.PurchaseOrderMapper;
+import cn.aiedge.erp.order.mapper.OrderCenterPurchaseOrderMapper;
 import cn.aiedge.erp.order.service.IPurchaseOrderService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -23,11 +23,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Service
+@Service("orderPurchaseOrderServiceImpl")
 @RequiredArgsConstructor
-public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, PurchaseOrder> implements IPurchaseOrderService {
+public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrderMapper, PurchaseOrder> implements IPurchaseOrderService {
 
-    private final PurchaseOrderMapper purchaseOrderMapper;
+    private final OrderCenterPurchaseOrderMapper purchaseOrderMapper;
 
     @Override
     public Page<PurchaseOrder> pagePurchaseOrders(Page<PurchaseOrder> page, Long tenantId, String orderNo, String supplierName,

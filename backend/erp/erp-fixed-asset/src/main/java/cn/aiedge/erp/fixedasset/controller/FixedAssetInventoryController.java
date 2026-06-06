@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * 固定资产盘点控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/inventory")
+@RequestMapping("/api/erp/fixed-asset/inventory")
 @Tag(name = "固定资产盘点管理", description = "资产盘点、结果录入等管理功能")
 @RequiredArgsConstructor
 public class FixedAssetInventoryController {

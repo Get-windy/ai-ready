@@ -17,7 +17,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/erp/purchase/exchange")
+@RequestMapping("/api/erp/purchase/exchange")
 @RequiredArgsConstructor
 @Tag(name = "采购换货管理", description = "采购换货单的创建、审批、执行等操作")
 public class PurchaseExchangeController {

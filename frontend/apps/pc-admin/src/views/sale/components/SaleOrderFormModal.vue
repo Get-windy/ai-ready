@@ -4,8 +4,10 @@
     :title="editData ? '编辑销售订单' : '新建销售订单'"
     :width="900"
     :confirm-loading="loading"
+    :destroy-on-close="true"
     @ok="handleOk"
     @cancel="handleCancel"
+    @close="handleClose"
   >
     <a-form
       ref="formRef"
@@ -184,7 +186,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -218,6 +220,26 @@ const loading = ref(false)
 const loadingOptions = ref(false)
 const formRef = ref<FormInstance>()
 
+// 离开确认
+function handleClose() {
+  const hasData = formData.items.some(i => i.productId || i.productName) ||
+    formData.customerId || formData.remark
+  if (hasData) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定要关闭吗？',
+      okText: '确认关闭',
+      cancelText: '继续编辑',
+      centered: true,
+      onOk() {
+        updateOpen(false)
+      }
+    })
+    return
+  }
+  updateOpen(false)
+}
+
 const formData = reactive({
   orderNo: '',
   customerId: undefined as number | undefined,
@@ -237,6 +259,18 @@ const formData = reactive({
 const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
   orderDate: [{ required: true, message: '请选择订单日期', trigger: 'change' }],
+  deliveryDate: [
+    {
+      validator: (_rule: any, value: string) => {
+        if (!value || !formData.orderDate) return Promise.resolve()
+        if (dayjs(value).isBefore(dayjs(formData.orderDate), 'day')) {
+          return Promise.reject(new Error('预计发货日期不能早于订单日期'))
+        }
+        return Promise.resolve()
+      },
+      trigger: 'change'
+    }
+  ],
   salespersonId: [{ required: true, message: '请选择销售员', trigger: 'change' }]
 }
 
@@ -367,7 +401,7 @@ async function handleOk() {
   }
 }
 
-function handleCancel() { updateOpen(false) }
+function handleCancel() { handleClose() }
 
 function updateOpen(val: boolean) {
   emit('update:open', val)
@@ -380,38 +414,39 @@ function extractArray(res: any): any[] {
   return []
 }
 
+const optionsCache = new Map<string, { data: any[]; timestamp: number }>()
+const CACHE_TTL = 60000 // 1 minute
+
 async function loadOptions() {
   loadingOptions.value = true
   try {
+    const now = Date.now()
+    const fetchIfNeeded = async (key: string, fetcher: () => Promise<any>) => {
+      const cached = optionsCache.get(key)
+      if (cached && now - cached.timestamp < CACHE_TTL) {
+        return cached.data
+      }
+      const res = await fetcher()
+      const data = extractArray(res)
+      optionsCache.set(key, { data, timestamp: now })
+      return data
+    }
     const [customers, users, products, warehouses] = await Promise.all([
-      optionsApi.getCustomers(),
-      optionsApi.getUsers('salesman'),
-      optionsApi.getProducts(),
-      optionsApi.getWarehouses()
+      fetchIfNeeded('customers', () => optionsApi.getCustomers()),
+      fetchIfNeeded('users', () => optionsApi.getUsers('salesman')),
+      fetchIfNeeded('products', () => optionsApi.getProducts()),
+      fetchIfNeeded('warehouses', () => optionsApi.getWarehouses())
     ])
     customerOptions.value = extractArray(customers)
     userOptions.value = extractArray(users)
     productOptions.value = extractArray(products)
     warehouseOptions.value = extractArray(warehouses)
     if (customerOptions.value.length === 0 || userOptions.value.length === 0 || productOptions.value.length === 0) {
-      console.warn('部分下拉数据为空，使用默认数据填充')
-      throw new Error('空数据')
+      console.warn('基础选项数据存在空数据，请检查后端配置')
     }
   } catch (error: any) {
-    console.warn('加载下拉选项失败，使用默认数据:', error?.message)
-    customerOptions.value = [
-      { id: 1, name: '客户A', address: '北京市朝阳区' },
-      { id: 2, name: '客户B', address: '上海市浦东新区' }
-    ]
-    userOptions.value = [{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
-    productOptions.value = [
-      { id: 1, code: 'P001', name: '商品A', unit: '件', salePrice: 150 },
-      { id: 2, code: 'P002', name: '商品B', unit: '箱', salePrice: 300 }
-    ]
-    warehouseOptions.value = [
-      { id: 1, name: '主仓库' },
-      { id: 2, name: '分仓库' }
-    ]
+    console.error('加载下拉选项失败:', error?.message)
+    message.error('加载基础数据失败，请检查网络或联系管理员')
   } finally {
     loadingOptions.value = false
   }
@@ -422,7 +457,7 @@ watch(() => props.open, (val) => {
     loadOptions()
     const data = props.editData || props.record
     if (data?.id) {
-      formData.orderNo = data.orderNo || 'SO' + dayjs().format('YYYYMMDDHHmmss')
+      formData.orderNo = data.orderNo || 'SO' + dayjs().format('YYYYMMDDHHmmss') + Math.random().toString(36).substring(2, 6).toUpperCase()
       formData.customerId = data.customerId
       formData.customerName = data.customerName || ''
       formData.orderDate = data.orderDate || dayjs().format('YYYY-MM-DD')
@@ -447,7 +482,7 @@ watch(() => props.open, (val) => {
         formData.items = [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, discount: 0, unit: '', remark: '' }]
       }
     } else {
-      formData.orderNo = 'SO' + dayjs().format('YYYYMMDDHHmmss')
+      formData.orderNo = 'SO' + dayjs().format('YYYYMMDDHHmmss') + Math.random().toString(36).substring(2, 6).toUpperCase()
       formData.orderDate = dayjs().format('YYYY-MM-DD')
       formData.customerId = undefined
       formData.deliveryDate = ''

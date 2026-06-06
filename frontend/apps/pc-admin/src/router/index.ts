@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import { setupRouterGuard } from './guard'
-import { loadDynamicRoutes, asyncRoutes } from './dynamicRoutes'
+import { loadDynamicRoutes } from './dynamicRoutes'
 
 // 配置NProgress
 NProgress.configure({ showSpinner: false })
@@ -65,12 +65,6 @@ export const constantRoutes: RouteRecordRaw[] = [
     name: 'ServerError',
     component: () => import('@/views/error/500.vue'),
     meta: { title: '服务器错误', requiresAuth: false }
-  },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('@/views/error/404.vue'),
-    meta: { title: '页面不存在', requiresAuth: false }
   }
 ]
 

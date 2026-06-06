@@ -6,6 +6,7 @@ import cn.aiedge.erp.sale.outbound.dto.SaleOutboundVO;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutbound;
 import cn.aiedge.erp.sale.outbound.entity.SaleOutboundItem;
 import cn.aiedge.erp.sale.outbound.enums.OutboundStatus;
+import cn.aiedge.erp.sale.outbound.mapper.SaleOutboundMapper;
 import cn.aiedge.erp.sale.outbound.service.SaleOutboundService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 public class SaleOutboundController {
 
     private final SaleOutboundService saleOutboundService;
+    private final SaleOutboundMapper saleOutboundMapper;
 
     @GetMapping("/page")
     @Operation(summary = "分页查询出库单")
@@ -247,7 +249,7 @@ public class SaleOutboundController {
                     .eq(SaleOutbound::getDeleted, 0)
                     .count());
         }
-        stats.put("totalOutboundAmount", saleOutboundService.baseMapper.sumOutboundAmount(1L));
+        stats.put("totalOutboundAmount", saleOutboundMapper.sumOutboundAmount(1L));
         return stats;
     }
 

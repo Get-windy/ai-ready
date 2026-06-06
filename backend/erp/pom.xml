@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
@@ -42,10 +42,14 @@
         <module>erp-fixed-asset</module>
         <module>erp-budget</module>
         <module>erp-purchase-exchange</module>
+        <module>erp-purchase-inbound</module>
+        <module>erp-monitor</module>
+        <module>erp-sale-outbound</module>
+        <module>customer</module>
     </modules>
     
     <properties>
-        <erp-common.version>1.0.0-SNAPSHOT</erp-common.version>
+        <erp-common.version>0.1.0</erp-common.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     

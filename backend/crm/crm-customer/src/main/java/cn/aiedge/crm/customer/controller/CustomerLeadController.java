@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/crm/lead")
+@RequestMapping("/api/crm/lead")
 @Tag(name = "CRM销售线索", description = "销售线索管理、转化")
 @RequiredArgsConstructor
 public class CustomerLeadController {

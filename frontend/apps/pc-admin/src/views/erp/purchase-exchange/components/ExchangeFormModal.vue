@@ -1,6 +1,6 @@
 <template>
   <a-modal
-    v-model:visible="visible"
+    v-model:open="open"
     :title="isEdit ? '编辑换货单' : '新建换货单'"
     width="900px"
     :confirm-loading="submitting"
@@ -162,14 +162,14 @@ interface FormItem {
 }
 
 interface Props {
-  visible: boolean
+  open: boolean
   record: PurchaseExchange | null
 }
 
 const userStore = useUserStore()
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
+  (e: 'update:open', value: boolean): void
   (e: 'success'): void
 }>()
 
@@ -181,9 +181,9 @@ const selectedOrder = reactive({
   supplierName: ''
 })
 
-const visible = computed({
-  get: () => props.visible,
-  set: (val) => emit('update:visible', val)
+const open = computed({
+  get: () => props.open,
+  set: (val) => emit('update:open', val)
 })
 
 const isEdit = computed(() => !!props.record)
@@ -337,7 +337,7 @@ const handleSubmit = async () => {
 // 取消
 const handleCancel = () => {
   resetForm()
-  visible.value = false
+  open.value = false
 }
 
 // 重置表单

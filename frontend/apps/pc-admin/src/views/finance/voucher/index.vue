@@ -1,129 +1,89 @@
 <template>
   <div class="finance-voucher-page">
-    <!-- 搜索区域 -->
-    <a-card :bordered="false" class="search-card">
-      <a-form layout="inline" :model="searchForm" class="search-form">
-        <a-row :gutter="16" style="width: 100%">
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="年度">
-              <a-input-number
-                v-model:value="searchForm.fiscalYear"
-                :min="2020"
-                :max="2099"
-                placeholder="年度"
-                style="width: 100%"
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="期间">
-              <a-select v-model:value="searchForm.fiscalPeriod" placeholder="期间" allow-clear style="width: 100%">
-                <a-select-option v-for="p in 12" :key="p" :value="p">{{ p }}月</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="状态">
-              <a-select v-model:value="searchForm.status" placeholder="状态" allow-clear style="width: 100%">
-                <a-select-option :value="0">草稿</a-select-option>
-                <a-select-option :value="1">已审核</a-select-option>
-                <a-select-option :value="2">已过账</a-select-option>
-                <a-select-option :value="3">已冲销</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="凭证号">
-              <a-input v-model:value="searchForm.voucherNo" placeholder="凭证号" allow-clear />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item>
-              <a-space>
-                <a-button type="primary" @click="handleSearch">
-                  <template #icon><SearchOutlined /></template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon><ReloadOutlined /></template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
-
-    <!-- 操作栏 -->
-    <a-card :bordered="false" class="table-card">
-      <template #title>
-        <div class="table-header">
-          <span class="title">会计凭证</span>
-          <a-space>
-            <a-button type="primary" @click="handleAdd">
-              <template #icon><PlusOutlined /></template>
-              新增凭证
-            </a-button>
-          </a-space>
-        </div>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'finance-voucher-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-export="false"
+      :show-add="true"
+      :selectable="false"
+      add-text="新增凭证"
+      :show-edit="false"
+      :show-delete="false"
+      :scroll="{ x: 1200 }"
+      @add="handleAdd"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #status="{ record }">
+        <a-tag :color="statusColorMap[record.status] || 'default'">
+          {{ statusLabelMap[record.status] || '未知' }}
+        </a-tag>
+      </template>
+      <template #debitTotal="{ record }">
+        {{ formatAmount(record.debitTotal) }}
+      </template>
+      <template #creditTotal="{ record }">
+        {{ formatAmount(record.creditTotal) }}
+      </template>
+      <template #toolbar-actions>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
       </template>
 
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :scroll="{ x: 1200 }"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="statusColorMap[record.status] || 'default'">
-              {{ statusLabelMap[record.status] || '未知' }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'debitTotal'">
-            {{ formatAmount(record.debitTotal) }}
-          </template>
-          <template v-else-if="column.key === 'creditTotal'">
-            {{ formatAmount(record.creditTotal) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                :disabled="record.status !== 0"
-                @click="handleAudit(record)"
-              >
-                审核
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                :disabled="record.status !== 1"
-                @click="handlePost(record)"
-              >
-                过账
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                :disabled="record.status !== 2"
-                @click="handleReverse(record)"
-              >
-                冲销
-              </a-button>
-              <a-button type="link" size="small" @click="handleView(record)">
-                查看
-              </a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
-    </a-card>
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配凭证">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无凭证">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button type="primary" @click="handleAdd">新增凭证</a-button>
+        </a-empty>
+      </template>
+
+      <template #toolbar-left>
+        <span style="font-size:16px;font-weight:500;margin-right:12px">会计凭证</span>
+      </template>
+      <template #action="{ record }">
+        <a-space :size="0" class="action-cell-inner">
+          <a-tooltip :title="record.status !== 0 ? '' : '审核'">
+            <a-button type="link" size="small" :disabled="record.status !== 0" @click="handleAudit(record)">
+              <template #icon><CheckCircleOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip :title="record.status !== 1 ? '' : '过账'">
+            <a-button type="link" size="small" :disabled="record.status !== 1" @click="handlePost(record)">
+              <template #icon><SendOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip title="查看">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item key="reverse" :disabled="record.status !== 2">
+                  <RollbackOutlined /> 冲销
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </TableList>
 
     <!-- 新增凭证弹窗 -->
     <a-modal
@@ -333,16 +293,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { TableProps, FormInstance } from 'ant-design-vue'
 import {
   SearchOutlined,
-  ReloadOutlined,
   PlusOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  EyeOutlined,
+  CheckCircleOutlined,
+  SendOutlined,
+  RollbackOutlined,
+  EllipsisOutlined,
+  InboxOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { voucherApi } from '@/api/finance'
 
 interface VoucherEntry {
@@ -368,6 +334,7 @@ interface Voucher {
   entries?: VoucherEntry[]
 }
 
+const tableRef = ref()
 const loading = ref(false)
 const tableData = ref<Voucher[]>([])
 const addModalVisible = ref(false)
@@ -395,6 +362,23 @@ const pagination = reactive({
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchForm).some(v => v !== undefined && v !== null && v !== '')
+})
+
+const filterFields = [
+  { key: 'fiscalYear', label: '年度', type: 'input' as const, placeholder: '年度', defaultValue: dayjs().year() },
+  { key: 'fiscalPeriod', label: '期间', type: 'select' as const, options: Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 })), placeholder: '期间' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 0 },
+    { label: '已审核', value: 1 },
+    { label: '已过账', value: 2 },
+    { label: '已冲销', value: 3 }
+  ]},
+  { key: 'voucherNo', label: '凭证号', type: 'input' as const, placeholder: '凭证号' }
+]
 
 const statusColorMap: Record<number, string> = {
   0: 'default',
@@ -414,11 +398,11 @@ const columns: TableProps['columns'] = [
   { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', width: 140 },
   { title: '日期', dataIndex: 'voucherDate', key: 'voucherDate', width: 110 },
   { title: '摘要', key: 'summary', dataIndex: 'summary', ellipsis: true, width: 200 },
-  { title: '借方总额', key: 'debitTotal', dataIndex: 'debitTotal', width: 120, align: 'right' },
-  { title: '贷方总额', key: 'creditTotal', dataIndex: 'creditTotal', width: 120, align: 'right' },
-  { title: '状态', key: 'status', dataIndex: 'status', width: 100 },
+  { title: '借方总额', key: 'debitTotal', dataIndex: 'debitTotal', width: 120, align: 'right', slotName: 'debitTotal' },
+  { title: '贷方总额', key: 'creditTotal', dataIndex: 'creditTotal', width: 120, align: 'right', slotName: 'creditTotal' },
+  { title: '状态', key: 'status', dataIndex: 'status', width: 100, slotName: 'status' },
   { title: '制单人', dataIndex: 'createdBy', key: 'createdBy', width: 100 },
-  { title: '操作', key: 'action', width: 240, fixed: 'right' }
+  { title: '操作', key: 'action', width: 240, fixed: 'right' as const, slotName: 'action' }
 ]
 
 const entryColumns: TableProps['columns'] = [
@@ -467,6 +451,7 @@ const fetchData = async () => {
     if (res.data) {
       tableData.value = res.data.records || res.data.list || []
       pagination.total = res.data.total || 0
+      lastUpdated.value = new Date().toISOString()
     }
   } catch {
     message.error('加载凭证数据失败')
@@ -488,9 +473,18 @@ const handleReset = () => {
   handleSearch()
 }
 
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
+const handleFilterChange = (filters: Record<string, any>) => {
+  searchForm.fiscalYear = filters.fiscalYear ?? dayjs().year()
+  searchForm.fiscalPeriod = filters.fiscalPeriod
+  searchForm.status = filters.status
+  searchForm.voucherNo = filters.voucherNo || ''
+  pagination.current = 1
   fetchData()
 }
 
@@ -639,8 +633,31 @@ const formatAmount = (val: number) => {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function handleResetFilters() {
+  searchForm.fiscalYear = dayjs().year()
+  searchForm.fiscalPeriod = undefined
+  searchForm.status = undefined
+  searchForm.voucherNo = ''
+  pagination.current = 1; fetchData()
+}
+
+function handleActionMenuClick(key: string, record: any) {
+  switch (key) {
+    case 'reverse': handleReverse(record); break
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
 onMounted(() => {
   fetchData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -649,33 +666,13 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .entry-section {
   margin: 0 -24px;
   padding: 0 24px;
+}
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
 }
 </style>

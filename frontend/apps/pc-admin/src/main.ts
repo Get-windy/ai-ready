@@ -22,6 +22,7 @@ import './styles/variables.css'
 import './styles/components.css'
 import './styles/index.css'
 import './styles/accessibility.css'
+import './styles/table-grid-overrides.css'
 
 // ── 调试：应用启动日志 ────────────────────────────────
 const DEBUG_PREFIX = '[DEBUG:main]'

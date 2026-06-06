@@ -1,201 +1,86 @@
 <template>
   <div class="position-management">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'system-position-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      add-text="新增岗位"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDelete"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="岗位名称">
-              <a-input
-                v-model:value="searchForm.positionName"
-                placeholder="请输入岗位名称"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="岗位编码">
-              <a-input
-                v-model:value="searchForm.positionCode"
-                placeholder="请输入岗位编码"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="岗位分类">
-              <a-select
-                v-model:value="searchForm.categoryId"
-                placeholder="请选择岗位分类"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option
-                  v-for="cat in categoryList"
-                  :key="cat.id"
-                  :value="cat.id"
-                >
-                  {{ cat.categoryName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #toolbar-actions>
+        <a-button @click="handleCategoryManage">
+          <template #icon><AppstoreOutlined /></template>
+          分类管理
+        </a-button>
+      </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <span class="title">岗位列表</span>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'level'">
+          <a-tag :color="getLevelColor(record.level)">
+            {{ getLevelName(record.level) }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'status'">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              :loading="submittingLoading"
-              @click="handleAdd"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增岗位
-            </a-button>
-            <a-button @click="handleCategoryManage">
-              <template #icon>
-                <AppstoreOutlined />
-              </template>
-              分类管理
+              编辑
             </a-button>
             <a-button
-              danger
-              :loading="batchDeleteLoading"
-              :disabled="!selectedRowKeys.length || batchDeleteLoading"
-              @click="handleBatchDelete"
+              type="link"
+              size="small"
+              @click="handleAssignDepartment(record)"
             >
-              <template #icon>
-                <DeleteOutlined />
-              </template>
-              批量删除
+              部门关联
             </a-button>
+            <a-dropdown>
+              <a-button
+                type="link"
+                size="small"
+              >
+                更多<DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleToggleStatus(record)">
+                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
           </a-space>
-        </div>
-      </template>
-      
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'level'">
-            <a-tag :color="getLevelColor(record.level)">
-              {{ getLevelName(record.level) }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleAssignDepartment(record)"
-              >
-                部门关联
-              </a-button>
-              <a-dropdown>
-                <a-button
-                  type="link"
-                  size="small"
-                >
-                  更多<DownOutlined />
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleToggleStatus(record)">
-                      <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                    </a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item
-                      danger
-                      @click="handleDelete(record)"
-                    >
-                      <DeleteOutlined /> 删除
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 岗位表单弹窗 -->
     <a-modal
@@ -485,16 +370,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
   DownOutlined,
   StopOutlined,
+  DeleteOutlined,
   AppstoreOutlined
 } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
@@ -527,7 +410,7 @@ const pagination = reactive({
 })
 
 // 表格列定义
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '岗位编码', dataIndex: 'positionCode', width: 150 },
   { title: '岗位名称', dataIndex: 'positionName', width: 150 },
   { title: '岗位分类', dataIndex: 'categoryName', width: 120 },
@@ -539,6 +422,15 @@ const columns: TableProps['columns'] = [
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 180, fixed: 'right' }
 ]
+
+// 筛选字段
+const categoryList = ref<PositionCategory[]>([])
+
+const filterFields = computed<FilterField[]>(() => [
+  { key: 'positionName', label: '岗位名称', type: 'input', placeholder: '请输入岗位名称' },
+  { key: 'positionCode', label: '岗位编码', type: 'input', placeholder: '请输入岗位编码' },
+  { key: 'categoryId', label: '岗位分类', type: 'select', options: categoryList.value.map(c => ({ label: c.categoryName, value: c.id })) },
+])
 
 // 弹窗相关
 const modalVisible = ref(false)
@@ -570,7 +462,7 @@ const formRules = {
 const categoryModalVisible = ref(false)
 const categoryLoading = ref(false)
 const categoryData = ref<PositionCategory[]>([])
-const categoryColumns: TableProps['columns'] = [
+const categoryColumns: any[] = [
   { title: '分类编码', dataIndex: 'categoryCode', width: 150 },
   { title: '分类名称', dataIndex: 'categoryName', width: 150 },
   { title: '排序', dataIndex: 'sort', width: 80 },
@@ -599,9 +491,6 @@ const categoryFormRules = {
   categoryName: { required: true, message: '请输入分类名称', trigger: 'blur' },
   categoryCode: { required: true, message: '请输入分类编码', trigger: 'blur' },
 }
-
-// 分类列表（用于下拉选择）
-const categoryList = ref<PositionCategory[]>([])
 
 // 部门关联相关
 const departmentModalVisible = ref(false)
@@ -674,15 +563,29 @@ const handleReset = () => {
   handleSearch()
 }
 
-// 表格操作
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, {
+      positionCode: '',
+      positionName: '',
+      categoryId: undefined,
+      departmentId: undefined,
+      level: undefined,
+      status: undefined
+    })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
   fetchData()
 }
 
-const onSelectChange = (keys: (string | number)[]) => {
-  selectedRowKeys.value = keys
+// 分页变化
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
 // 新增岗位
@@ -753,15 +656,16 @@ const handleDelete = (record: PositionInfo) => {
 }
 
 // 批量删除
-const handleBatchDelete = () => {
+const handleBatchDelete = (deleteKeys?: number[]) => {
   if (batchDeleteLoading.value) return
+  const ids = deleteKeys || selectedRowKeys.value
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个岗位吗？`,
+    content: `确定要删除选中的 ${ids.length} 个岗位吗？`,
     async onOk() {
       batchDeleteLoading.value = true
       try {
-        await positionApi.batchDelete(selectedRowKeys.value)
+        await positionApi.batchDelete(ids)
         message.success('删除成功')
         selectedRowKeys.value = []
         fetchData()
@@ -911,31 +815,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .category-management {
   padding: 16px 0;
 }
@@ -951,16 +830,5 @@ onMounted(() => {
 .department-modal-content p {
   margin-bottom: 16px;
   font-size: 14px;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

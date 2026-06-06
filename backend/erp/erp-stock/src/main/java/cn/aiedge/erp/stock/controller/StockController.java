@@ -1,7 +1,9 @@
 package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.erp.stock.entity.Stock;
+import cn.aiedge.erp.stock.entity.Warehouse;
 import cn.aiedge.erp.stock.service.StockService;
+import cn.aiedge.erp.stock.service.WarehouseService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 库存管理Controller
@@ -25,6 +28,13 @@ import java.math.BigDecimal;
 public class StockController {
 
     private final StockService stockService;
+    private final WarehouseService warehouseService;
+
+    @Operation(summary = "查询仓库列表")
+    @GetMapping("/warehouses")
+    public List<Warehouse> getWarehouses() {
+        return warehouseService.getWarehouseList();
+    }
 
     @Operation(summary = "查询库存详情")
     @GetMapping("/{productId}/{warehouseId}")
@@ -69,7 +79,7 @@ public class StockController {
     }
 
     @Operation(summary = "查询库存详情(by id)")
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public Stock getById(@Parameter(description = "库存ID") @PathVariable Long id) {
         return stockService.getById(id);
     }

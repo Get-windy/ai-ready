@@ -1,125 +1,127 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="tableData"
-    :loading="loading"
-    :pagination="pagination"
-    :table-key="'crm-quotation-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    :show-export="true"
-    add-text="新建报价"
-    @add="handleAdd"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
-    <template #toolbar-actions>
-    </template>
+  <div class="crm-quotation-page">
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'crm-quotation-list'"
+      :filter-fields="filterFields"
+      :show-summary="true"
+      :summary-data="summaryData"
+      :show-export="true"
+      add-text="新建报价"
+      @add="handleAdd"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @sort-change="handleSortChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+    >
+      <template #toolbar-actions>
+      </template>
 
-    <template #quotationNo="{ record }">
-      <a @click="handleView(record)">{{ record.quotationNo }}</a>
-    </template>
-    <template #totalAmount="{ record }">
-      <span class="amount">¥{{ formatAmount(record.totalAmount) }}</span>
-    </template>
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
-    </template>
-    <template #action="{ record }">
-      <a-space :size="4">
-        <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'draft'" title="发送"><a-button type="link" size="small" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'accepted'" title="转订单"><a-button type="link" size="small" @click="handleConvert(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
-        <a-tooltip title="复制"><a-button type="link" size="small" @click="handleCopy(record)"><template #icon><CopyOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status === 'draft'" title="删除"><a-button type="link" danger size="small" @click="handleDeleteConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
-      </a-space>
-    </template>
-  </TableList>
+      <template #quotationNo="{ record }">
+        <a @click="handleView(record)">{{ record.quotationNo }}</a>
+      </template>
+      <template #totalAmount="{ record }">
+        <span class="amount">¥{{ formatAmount(record.totalAmount) }}</span>
+      </template>
+      <template #status="{ record }">
+        <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+      </template>
+      <template #action="{ record }">
+        <a-space :size="4">
+          <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
+          <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
+          <a-tooltip v-if="record.status === 'draft'" title="发送"><a-button type="link" size="small" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
+          <a-tooltip v-if="record.status === 'accepted'" title="转订单"><a-button type="link" size="small" @click="handleConvert(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
+          <a-tooltip title="复制"><a-button type="link" size="small" @click="handleCopy(record)"><template #icon><CopyOutlined /></template></a-button></a-tooltip>
+          <a-tooltip v-if="record.status === 'draft'" title="删除"><a-button type="link" danger size="small" @click="handleDeleteConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
+        </a-space>
+      </template>
+    </TableList>
 
-  <a-modal v-model:open="modalVisible" :title="modalTitle" width="900px" :confirm-loading="submitLoading" @ok="handleSubmit" @cancel="handleModalCancel">
-    <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
-      <a-row :gutter="24">
-        <a-col :span="12"><a-form-item label="报价单号" name="quotationNo" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.quotationNo" placeholder="自动生成" disabled /></a-form-item></a-col>
-        <a-col :span="12"><a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-date-picker v-model:value="formData.quotationDate" style="width:100%" /></a-form-item></a-col>
-      </a-row>
-      <a-row :gutter="24">
-        <a-col :span="12"><a-form-item label="报价名称" name="quotationName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.quotationName" placeholder="请输入报价名称" /></a-form-item></a-col>
-        <a-col :span="12"><a-form-item label="有效期(天)" name="validDays" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input-number v-model:value="formData.validDays" :min="1" style="width:100%" /></a-form-item></a-col>
-      </a-row>
-      <a-row :gutter="24">
-        <a-col :span="12"><a-form-item label="客户名称" name="customerId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-          <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption">
-            <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
-          </a-select>
-        </a-form-item></a-col>
-        <a-col :span="12"><a-form-item label="币种" name="currency" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-          <a-select v-model:value="formData.currency" placeholder="请选择币种">
-            <a-select-option value="CNY">人民币(CNY)</a-select-option>
-            <a-select-option value="USD">美元(USD)</a-select-option>
-            <a-select-option value="EUR">欧元(EUR)</a-select-option>
-          </a-select>
-        </a-form-item></a-col>
-      </a-row>
-      <a-row :gutter="24">
-        <a-col :span="12"><a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" /></a-form-item></a-col>
-        <a-col :span="12"><a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" /></a-form-item></a-col>
-      </a-row>
+    <a-modal v-model:open="modalVisible" :title="modalTitle" width="900px" :confirm-loading="submitLoading" @ok="handleSubmit" @cancel="handleModalCancel">
+      <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+        <a-row :gutter="24">
+          <a-col :span="12"><a-form-item label="报价单号" name="quotationNo" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.quotationNo" placeholder="自动生成" disabled /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-date-picker v-model:value="formData.quotationDate" style="width:100%" /></a-form-item></a-col>
+        </a-row>
+        <a-row :gutter="24">
+          <a-col :span="12"><a-form-item label="报价名称" name="quotationName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.quotationName" placeholder="请输入报价名称" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="有效期(天)" name="validDays" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input-number v-model:value="formData.validDays" :min="1" style="width:100%" /></a-form-item></a-col>
+        </a-row>
+        <a-row :gutter="24">
+          <a-col :span="12"><a-form-item label="客户名称" name="customerId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+            <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption">
+              <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
+            </a-select>
+          </a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="币种" name="currency" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+            <a-select v-model:value="formData.currency" placeholder="请选择币种">
+              <a-select-option value="CNY">人民币(CNY)</a-select-option>
+              <a-select-option value="USD">美元(USD)</a-select-option>
+              <a-select-option value="EUR">欧元(EUR)</a-select-option>
+            </a-select>
+          </a-form-item></a-col>
+        </a-row>
+        <a-row :gutter="24">
+          <a-col :span="12"><a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" /></a-form-item></a-col>
+        </a-row>
 
+        <a-divider>报价明细</a-divider>
+        <a-table :columns="itemColumns" :data-source="formData.items" :pagination="false" size="small">
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.key === 'productName'"><a-input v-model:value="record.productName" placeholder="产品名称" /></template>
+            <template v-if="column.key === 'spec'"><a-input v-model:value="record.spec" placeholder="规格型号" /></template>
+            <template v-if="column.key === 'quantity'"><a-input-number v-model:value="record.quantity" :min="1" style="width:80px" /></template>
+            <template v-if="column.key === 'unit'"><a-input v-model:value="record.unit" placeholder="单位" style="width:60px" /></template>
+            <template v-if="column.key === 'price'"><a-input-number v-model:value="record.price" :min="0" :precision="2" style="width:100px" /></template>
+            <template v-if="column.key === 'discount'"><a-input-number v-model:value="record.discount" :min="0" :max="100" style="width:80px" /></template>
+            <template v-if="column.key === 'subtotal'"><span class="amount">¥{{ calcItemSubtotal(record) }}</span></template>
+            <template v-if="column.key === 'action'"><a @click="removeItem(index)" v-if="formData.items.length > 1">删除</a></template>
+          </template>
+        </a-table>
+        <a-button type="dashed" block @click="addItem" style="margin-top:16px"><template #icon><PlusOutlined /></template>添加产品</a-button>
+
+        <a-divider>费用汇总</a-divider>
+        <a-row :gutter="24">
+          <a-col :span="8"><a-statistic title="产品金额" :value="calcTotalAmount()" :precision="2" prefix="¥" /></a-col>
+          <a-col :span="8"><a-statistic title="折扣金额" :value="calcDiscountAmount()" :precision="2" prefix="¥" /></a-col>
+          <a-col :span="8"><a-statistic title="报价总额" :value="calcGrandTotal()" :precision="2" prefix="¥" :value-style="{ color: '#f5222d' }" /></a-col>
+        </a-row>
+        <a-form-item label="报价条款" name="terms" style="margin-top:16px"><a-textarea v-model:value="formData.terms" placeholder="请输入报价条款" :rows="3" /></a-form-item>
+        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model:open="detailVisible" title="报价详情" width="900px" :footer="null">
+      <a-descriptions :column="2" bordered>
+        <a-descriptions-item label="报价单号">{{ quotationDetail.quotationNo }}</a-descriptions-item>
+        <a-descriptions-item label="报价名称">{{ quotationDetail.quotationName }}</a-descriptions-item>
+        <a-descriptions-item label="客户名称">{{ quotationDetail.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="联系人">{{ quotationDetail.contactPerson }}</a-descriptions-item>
+        <a-descriptions-item label="联系电话">{{ quotationDetail.contactPhone }}</a-descriptions-item>
+        <a-descriptions-item label="报价日期">{{ quotationDetail.quotationDate }}</a-descriptions-item>
+        <a-descriptions-item label="有效期">{{ quotationDetail.validDays }}天</a-descriptions-item>
+        <a-descriptions-item label="币种">{{ quotationDetail.currency }}</a-descriptions-item>
+        <a-descriptions-item label="报价总额"><span class="amount">¥{{ formatAmount(quotationDetail.totalAmount) }}</span></a-descriptions-item>
+        <a-descriptions-item label="报价状态"><a-tag :color="getStatusColor(quotationDetail.status)">{{ getStatusText(quotationDetail.status) }}</a-tag></a-descriptions-item>
+        <a-descriptions-item label="报价条款" :span="2">{{ quotationDetail.terms }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ quotationDetail.remark }}</a-descriptions-item>
+      </a-descriptions>
       <a-divider>报价明细</a-divider>
-      <a-table :columns="itemColumns" :data-source="formData.items" :pagination="false" size="small">
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productName'"><a-input v-model:value="record.productName" placeholder="产品名称" /></template>
-          <template v-if="column.key === 'spec'"><a-input v-model:value="record.spec" placeholder="规格型号" /></template>
-          <template v-if="column.key === 'quantity'"><a-input-number v-model:value="record.quantity" :min="1" style="width:80px" /></template>
-          <template v-if="column.key === 'unit'"><a-input v-model:value="record.unit" placeholder="单位" style="width:60px" /></template>
-          <template v-if="column.key === 'price'"><a-input-number v-model:value="record.price" :min="0" :precision="2" style="width:100px" /></template>
-          <template v-if="column.key === 'discount'"><a-input-number v-model:value="record.discount" :min="0" :max="100" style="width:80px" /></template>
-          <template v-if="column.key === 'subtotal'"><span class="amount">¥{{ calcItemSubtotal(record) }}</span></template>
-          <template v-if="column.key === 'action'"><a @click="removeItem(index)" v-if="formData.items.length > 1">删除</a></template>
+      <a-table :columns="detailItemColumns" :data-source="quotationDetail.items" :pagination="false" size="small">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'subtotal'"><span class="amount">¥{{ formatAmount(record.subtotal) }}</span></template>
         </template>
       </a-table>
-      <a-button type="dashed" block @click="addItem" style="margin-top:16px"><template #icon><PlusOutlined /></template>添加产品</a-button>
-
-      <a-divider>费用汇总</a-divider>
-      <a-row :gutter="24">
-        <a-col :span="8"><a-statistic title="产品金额" :value="calcTotalAmount()" :precision="2" prefix="¥" /></a-col>
-        <a-col :span="8"><a-statistic title="折扣金额" :value="calcDiscountAmount()" :precision="2" prefix="¥" /></a-col>
-        <a-col :span="8"><a-statistic title="报价总额" :value="calcGrandTotal()" :precision="2" prefix="¥" :value-style="{ color: '#f5222d' }" /></a-col>
-      </a-row>
-      <a-form-item label="报价条款" name="terms" style="margin-top:16px"><a-textarea v-model:value="formData.terms" placeholder="请输入报价条款" :rows="3" /></a-form-item>
-      <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
-    </a-form>
-  </a-modal>
-
-  <a-modal v-model:open="detailVisible" title="报价详情" width="900px" :footer="null">
-    <a-descriptions :column="2" bordered>
-      <a-descriptions-item label="报价单号">{{ quotationDetail.quotationNo }}</a-descriptions-item>
-      <a-descriptions-item label="报价名称">{{ quotationDetail.quotationName }}</a-descriptions-item>
-      <a-descriptions-item label="客户名称">{{ quotationDetail.customerName }}</a-descriptions-item>
-      <a-descriptions-item label="联系人">{{ quotationDetail.contactPerson }}</a-descriptions-item>
-      <a-descriptions-item label="联系电话">{{ quotationDetail.contactPhone }}</a-descriptions-item>
-      <a-descriptions-item label="报价日期">{{ quotationDetail.quotationDate }}</a-descriptions-item>
-      <a-descriptions-item label="有效期">{{ quotationDetail.validDays }}天</a-descriptions-item>
-      <a-descriptions-item label="币种">{{ quotationDetail.currency }}</a-descriptions-item>
-      <a-descriptions-item label="报价总额"><span class="amount">¥{{ formatAmount(quotationDetail.totalAmount) }}</span></a-descriptions-item>
-      <a-descriptions-item label="报价状态"><a-tag :color="getStatusColor(quotationDetail.status)">{{ getStatusText(quotationDetail.status) }}</a-tag></a-descriptions-item>
-      <a-descriptions-item label="报价条款" :span="2">{{ quotationDetail.terms }}</a-descriptions-item>
-      <a-descriptions-item label="备注" :span="2">{{ quotationDetail.remark }}</a-descriptions-item>
-    </a-descriptions>
-    <a-divider>报价明细</a-divider>
-    <a-table :columns="detailItemColumns" :data-source="quotationDetail.items" :pagination="false" size="small">
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'subtotal'"><span class="amount">¥{{ formatAmount(record.subtotal) }}</span></template>
-      </template>
-    </a-table>
-  </a-modal>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">

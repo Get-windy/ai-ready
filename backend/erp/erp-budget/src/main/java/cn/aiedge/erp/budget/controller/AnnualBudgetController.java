@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/erp/budget/annual")
+@RequestMapping("/api/erp/budget/annual")
 @Tag(name = "年度预算", description = "年度预算管理")
 @RequiredArgsConstructor
 public class AnnualBudgetController {

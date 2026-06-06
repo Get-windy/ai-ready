@@ -1,6 +1,8 @@
 package cn.aiedge.erp.batchsn.controller.dto;
 
 import lombok.Data;
+import lombok.ToString;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -45,21 +47,25 @@ public class BatchQueryRequest {
     /**
      * 生产日期开始
      */
+    @ToString.Exclude
     private String productionDateStart;
 
     /**
      * 生产日期结束
      */
+    @ToString.Exclude
     private String productionDateEnd;
 
     /**
      * 有效期开始
      */
+    @ToString.Exclude
     private String expirationDateStart;
 
     /**
      * 有效期结束
      */
+    @ToString.Exclude
     private String expirationDateEnd;
 
     /**
@@ -83,7 +89,7 @@ public class BatchQueryRequest {
      * 每页记录数
      */
     @Min(value = 1, message = "每页记录数必须大于等于1")
-    @Min(value = 100, message = "每页记录数不能超过100")
+    @Max(value = 100, message = "每页记录数不能超过100")
     private Integer size = 20;
 
     /**
@@ -99,11 +105,13 @@ public class BatchQueryRequest {
     /**
      * 是否只查询可用批次
      */
+    @ToString.Exclude
     private Boolean availableOnly = false;
 
     /**
      * 是否只查询临期批次
      */
+    @ToString.Exclude
     private Boolean expiringOnly = false;
 
     /**

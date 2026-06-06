@@ -51,4 +51,14 @@ public interface ReceivableService extends IService<Receivable> {
      * 根据客户ID查询应收账款
      */
     List<ReceivableVO> getByCustomer(Long customerId);
+
+    /**
+     * 批量删除应收账款
+     */
+    void batchDelete(List<Long> ids);
+
+    /**
+     * 导出应收账款列表
+     */
+    List<ReceivableVO> exportList(ReceivableQueryRequest request);
 }

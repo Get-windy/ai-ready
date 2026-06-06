@@ -2,6 +2,8 @@ package cn.aiedge.position.controller;
 
 import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.common.result.ApiResponse;
+import cn.aiedge.common.result.PageResult;
+import cn.aiedge.position.dto.CategoryQueryRequest;
 import cn.aiedge.position.dto.CategoryVO;
 import cn.aiedge.position.service.PositionCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,11 +21,24 @@ import java.util.List;
  */
 @Tag(name = "岗位分类管理", description = "岗位分类增删改查接口")
 @RestController
-@RequestMapping("/api/v1/position-categories")
+@RequestMapping("/api/position/category")
 @RequiredArgsConstructor
 public class PositionCategoryController {
 
     private final PositionCategoryService categoryService;
+
+    @Operation(summary = "分页查询分类")
+    @GetMapping("/page")
+    @RequiresPermission("position:list")
+    public ApiResponse<PageResult<CategoryVO>> pageList(CategoryQueryRequest request) {
+        return ApiResponse.ok(categoryService.pageList(request));
+    }
+
+    @Operation(summary = "获取所有分类列表")
+    @GetMapping("/list")
+    public ApiResponse<List<CategoryVO>> listAll() {
+        return ApiResponse.ok(categoryService.listAll());
+    }
 
     @Operation(summary = "获取分类树")
     @GetMapping("/tree")
@@ -46,10 +61,10 @@ public class PositionCategoryController {
     }
 
     @Operation(summary = "更新分类")
-    @PutMapping
+    @PutMapping("/{id}")
     @RequiresPermission("position:edit")
-    public ApiResponse<Void> update(@RequestBody CategoryVO request) {
-        categoryService.update(request);
+    public ApiResponse<Void> update(@PathVariable Long id, @RequestBody CategoryVO request) {
+        categoryService.update(id, request);
         return ApiResponse.ok();
     }
 
@@ -58,6 +73,14 @@ public class PositionCategoryController {
     @RequiresPermission("position:delete")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "更新分类状态")
+    @PutMapping("/{id}/status")
+    @RequiresPermission("position:edit")
+    public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
+        categoryService.updateStatus(id, status);
         return ApiResponse.ok();
     }
 

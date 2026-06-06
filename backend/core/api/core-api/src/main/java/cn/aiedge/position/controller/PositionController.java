@@ -7,10 +7,12 @@ import cn.aiedge.position.dto.*;
 import cn.aiedge.position.service.PositionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -21,7 +23,7 @@ import java.util.List;
  */
 @Tag(name = "岗位管理", description = "岗位增删改查接口")
 @RestController
-@RequestMapping("/api/v1/positions")
+@RequestMapping("/api/position")
 @RequiredArgsConstructor
 public class PositionController {
 
@@ -56,9 +58,10 @@ public class PositionController {
     }
 
     @Operation(summary = "更新岗位")
-    @PutMapping
+    @PutMapping("/{id}")
     @RequiresPermission("position:edit")
-    public ApiResponse<Void> update(@Valid @RequestBody PositionUpdateRequest request) {
+    public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody PositionUpdateRequest request) {
+        request.setId(id);
         positionService.update(request);
         return ApiResponse.success();
     }
@@ -85,6 +88,13 @@ public class PositionController {
     public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         positionService.updateStatus(id, status);
         return ApiResponse.ok(null);
+    }
+
+    @Operation(summary = "导出岗位")
+    @GetMapping("/export")
+    @RequiresPermission("position:list")
+    public void export(PositionQueryRequest request, HttpServletResponse response) throws IOException {
+        positionService.export(request, response);
     }
 
     @Operation(summary = "根据部门获取岗位")

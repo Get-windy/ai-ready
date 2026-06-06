@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/expense")
+@RequestMapping("/api/erp/expense")
 @Tag(name = "费用单管理", description = "费用单申请、审批、报销等全流程管理")
 @RequiredArgsConstructor
 public class ExpenseController {

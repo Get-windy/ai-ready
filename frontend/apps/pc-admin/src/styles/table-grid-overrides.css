@@ -1,0 +1,242 @@
+/* =========================================================
+ * 生产级表格网格线 & 布局覆盖
+ * 覆盖 Ant Design Vue 4.x Table 默认样式
+ * 目标：每个单元格四边 1px 实线，表头/汇总行加强，固定列分隔
+ * ========================================================= */
+
+/* ---------- 四边完整网格线 ---------- */
+.ant-table table {
+  border-collapse: collapse !important;
+}
+
+/* 所有单元格（含表头+数据）四边 1px 边框 */
+.ant-table .ant-table-thead > tr > th,
+.ant-table .ant-table-tbody > tr > td,
+.ant-table .ant-table-summary > tr > td,
+.ant-table .ant-table-measure-row > td {
+  border: 1px solid #d9d9d9 !important;
+  border-collapse: collapse !important;
+}
+
+/* 确保表头单元格之间也有竖向分割线 */
+.ant-table .ant-table-thead > tr > th {
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 1px solid #d9d9d9 !important;
+}
+.ant-table .ant-table-thead > tr > th:last-child {
+  border-right: 1px solid #d9d9d9 !important;
+}
+
+/* ---------- 表头底边加强 ---------- */
+.ant-table .ant-table-thead > tr > th {
+  border-bottom: 2px solid #b0b0b0 !important;
+  background-color: #fafafa !important;
+  font-weight: 600 !important;
+  color: #303133 !important;
+  padding: 10px 12px !important;
+}
+
+/* ---------- 表格行行高统一 ---------- */
+.ant-table .ant-table-tbody > tr > td {
+  padding: 9px 12px !important;
+  line-height: 1.5 !important;
+}
+
+/* ---------- 斑马纹（极淡） ---------- */
+.ant-table .ant-table-tbody > tr:nth-child(even):not(.ant-table-row-selected):not(.ant-table-row-hover) > td {
+  background-color: #fafafa !important;
+}
+
+/* 斑马纹不覆盖边框 */
+.ant-table .ant-table-tbody > tr > td {
+  background-clip: padding-box !important;
+}
+
+/* ---------- 行悬停 & 选中 ---------- */
+.ant-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  background-color: #e6f7ff !important;
+}
+.ant-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background-color: #e6f7ff !important;
+}
+
+/* ---------- 汇总行（表格内部）加强 ---------- */
+.ant-table .ant-table-summary > tr > td {
+  border-top: 2px solid #b0b0b0 !important;
+  background-color: #fafafa !important;
+  font-weight: 600 !important;
+}
+
+/* ---------- 固定列分隔线（2px 深色 + 阴影） ---------- */
+.ant-table .ant-table-cell-fix-left {
+  border-right: 2px solid #ccc !important;
+  position: sticky !important;
+  z-index: 2 !important;
+}
+.ant-table .ant-table-cell-fix-right {
+  border-left: 2px solid #ccc !important;
+  position: sticky !important;
+  z-index: 2 !important;
+}
+
+/* 固定列与主体之间的阴影（增强视觉分隔） */
+.ant-table .ant-table-cell-fix-left::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: -2px !important;
+  bottom: -1px !important;
+  width: 6px !important;
+  box-shadow: inset 4px 0 6px -4px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: none !important;
+}
+.ant-table .ant-table-cell-fix-right::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -2px !important;
+  bottom: -1px !important;
+  width: 6px !important;
+  box-shadow: inset -4px 0 6px -4px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: none !important;
+}
+
+/* 表头中的固定列 */
+.ant-table .ant-table-thead > tr > th.ant-table-cell-fix-left {
+  z-index: 3 !important;
+}
+.ant-table .ant-table-thead > tr > th.ant-table-cell-fix-right {
+  z-index: 3 !important;
+}
+
+/* ---------- 列对齐规则 ---------- */
+.ant-table .ant-table-thead > tr > th.ant-table-column-has-sorters {
+  /* 可排序表头保留对齐 */
+}
+
+/* 数值列右对齐 */
+.ant-table .ant-table-tbody > tr > td.currency-cell,
+.ant-table .ant-table-tbody > tr > td.number-cell,
+.ant-table .ant-table-tbody > tr > td.amount-cell {
+  text-align: right !important;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* 状态标签列居中 */
+.ant-table .ant-table-tbody > tr > td.status-cell {
+  text-align: center !important;
+}
+
+/* 操作列居中 */
+.ant-table .ant-table-tbody > tr > td.action-cell {
+  text-align: center !important;
+}
+
+/* ---------- sticky 表头 ---------- */
+.ant-table .ant-table-header {
+  overflow: hidden !important;
+}
+.ant-table .ant-table-header .ant-table-thead > tr > th {
+  background-color: #fafafa !important;
+}
+
+/* ---------- 滚动容器 ---------- */
+.ant-table .ant-table-body {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* 滚动条样式（薄、不占空间） */
+.ant-table .ant-table-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.ant-table .ant-table-body::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+.ant-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+.ant-table .ant-table-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 分页栏 ---------- */
+.ant-table .ant-table-pagination.ant-pagination {
+  margin: 0 !important;
+  padding: 10px 16px !important;
+  border-top: 1px solid #d9d9d9 !important;
+  background: #fff !important;
+}
+
+/* ---------- 空数据占位 ---------- */
+.ant-table .ant-empty {
+  padding: 32px 0 !important;
+}
+
+/* ---------- 占位空行样式 ---------- */
+.ant-table .ant-table-tbody > tr.production-empty-row > td {
+  background-color: #fff !important;
+  border-color: #d9d9d9 !important;
+  height: 1px !important; /* 会被行高覆盖，但确保 */
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* 偶数空行保持斑马纹 */
+.ant-table .ant-table-tbody > tr.production-empty-row:nth-child(even) > td {
+  background-color: #fafafa !important;
+}
+
+/* ---------- 全选复选框列 ---------- */
+.ant-table .ant-table-selection-column {
+  text-align: center !important;
+  width: 48px !important;
+  min-width: 48px !important;
+}
+
+/* ---------- 展开图标列 ---------- */
+.ant-table .ant-table-row-expand-icon-cell {
+  width: 48px !important;
+  min-width: 48px !important;
+}
+
+/* ---------- 去除表格容器内外边距 ---------- */
+.ant-table-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+.ant-table {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  background: #fff !important;
+}
+.ant-table-container {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  height: 100% !important;
+}
+
+/* 表头/主体/汇总分段 */
+.ant-table-header {
+  flex-shrink: 0 !important;
+}
+.ant-table-body {
+  flex: 1 !important;
+}
+
+/* 汇总行固定在表格可视区域底部，不随数据滚动 */
+.ant-table .ant-table-summary {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 1 !important;
+}
+.ant-table .ant-table-summary > tr > td {
+  border-top: 2px solid #b0b0b0 !important;
+  background-color: #fafafa !important;
+}

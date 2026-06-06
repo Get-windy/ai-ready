@@ -89,6 +89,11 @@ public class SysMessage {
     private Long businessId;
 
     /**
+     * 是否已读 0-未读 1-已读
+     */
+    private Integer isRead;
+
+    /**
      * 租户ID
      */
     private Long tenantId;

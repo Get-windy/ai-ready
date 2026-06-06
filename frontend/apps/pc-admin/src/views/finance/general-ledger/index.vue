@@ -1,84 +1,87 @@
 <template>
   <div class="general-ledger-page">
-    <a-card>
-      <template #title><FileTextOutlined /> 总账查询</template>
-      <template #extra>
-        会计期间：
-        <a-date-picker
-          v-model:value="periodDate"
-          picker="month"
-          style="width: 140px"
-          size="small"
-          @change="fetchData"
-        />
-        <a-select
-          v-model:value="querySubjectId"
-          placeholder="选择科目"
-          style="width: 200px; margin-left: 8px"
-          size="small"
-          allow-clear
-          show-search
-          :filter-option="false"
-          :loading="subjectLoading"
-          @change="fetchData"
-          @search="handleSubjectSearch"
-        >
-          <a-select-option
-            v-for="s in subjectOptions"
-            :key="s.id"
-            :value="s.id"
-          >
-            {{ s.subjectCode }} {{ s.subjectName }}
-          </a-select-option>
-        </a-select>
-        <a-button size="small" type="primary" style="margin-left: 8px" @click="fetchData">
-          <template #icon><SearchOutlined /></template>
-          查询
-        </a-button>
-      </template>
-
-      <a-table
-        :columns="columns"
-        :data-source="ledgerData"
-        :pagination="pagination"
-        :loading="loading"
-        row-key="id"
+    <div class="gl-search-bar">
+      <span class="gl-search-label">会计期间：</span>
+      <a-date-picker
+        v-model:value="periodDate"
+        picker="month"
+        style="width: 140px"
         size="small"
-        bordered
-        :scroll="{ x: 1000 }"
+        @change="fetchData"
+      />
+      <a-select
+        v-model:value="querySubjectId"
+        placeholder="选择科目"
+        style="width: 200px; margin-left: 8px"
+        size="small"
+        allow-clear
+        show-search
+        :filter-option="false"
+        :loading="subjectLoading"
+        @change="fetchData"
+        @search="handleSubjectSearch"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'debitAmount'">
-            <span v-if="record.debitAmount > 0" class="debit-amount">
-              {{ record.debitAmount.toFixed(2) }}
-            </span>
-            <span v-else class="text-disabled">-</span>
-          </template>
-          <template v-if="column.key === 'creditAmount'">
-            <span v-if="record.creditAmount > 0" class="credit-amount">
-              {{ record.creditAmount.toFixed(2) }}
-            </span>
-            <span v-else class="text-disabled">-</span>
-          </template>
-          <template v-if="column.key === 'balance'">
-            <span :class="record.balance >= 0 ? 'debit-balance' : 'credit-balance'">
-              {{ Math.abs(record.balance).toFixed(2) }}
-              <span class="balance-direction">{{ record.balance >= 0 ? '借' : '贷' }}</span>
-            </span>
-          </template>
-          <template v-if="column.key === 'voucherNo'">
-            <a @click="viewVoucher(record)">{{ record.voucherNo }}</a>
-          </template>
-        </template>
-      </a-table>
+        <a-select-option
+          v-for="s in subjectOptions"
+          :key="s.id"
+          :value="s.id"
+        >
+          {{ s.subjectCode }} {{ s.subjectName }}
+        </a-select-option>
+      </a-select>
+      <a-button size="small" type="primary" style="margin-left: 8px" @click="fetchData">
+        <template #icon><SearchOutlined /></template>
+        查询
+      </a-button>
+    </div>
 
-      <!-- 汇总信息 -->
-      <div v-if="summaryData" class="summary-bar">
-        本期合计：借方 {{ summaryData.totalDebit.toFixed(2) }} |
-        贷方 {{ summaryData.totalCredit.toFixed(2) }} |
-        余额 {{ summaryData.balance.toFixed(2) }}
-      </div>
-    </a-card>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="ledgerData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'finance-general-ledger-list'"
+      :show-toolbar="false"
+      :show-search="false"
+      :show-add="false"
+      :show-edit="false"
+      :show-delete="false"
+      :show-export="false"
+      :selectable="false"
+      :scroll="{ x: 1000 }"
+      size="small"
+      @page-change="handlePageChange"
+    >
+      <template #debitAmount="{ record }">
+        <span v-if="record.debitAmount > 0" class="debit-amount">
+          {{ record.debitAmount.toFixed(2) }}
+        </span>
+        <span v-else class="text-disabled">-</span>
+      </template>
+      <template #creditAmount="{ record }">
+        <span v-if="record.creditAmount > 0" class="credit-amount">
+          {{ record.creditAmount.toFixed(2) }}
+        </span>
+        <span v-else class="text-disabled">-</span>
+      </template>
+      <template #balance="{ record }">
+        <span :class="record.balance >= 0 ? 'debit-balance' : 'credit-balance'">
+          {{ Math.abs(record.balance).toFixed(2) }}
+          <span class="balance-direction">{{ record.balance >= 0 ? '借' : '贷' }}</span>
+        </span>
+      </template>
+      <template #voucherNo="{ record }">
+        <a @click="viewVoucher(record)">{{ record.voucherNo }}</a>
+      </template>
+    </TableList>
+
+    <!-- 汇总信息 -->
+    <div v-if="summaryData" class="summary-bar">
+      本期合计：借方 {{ summaryData.totalDebit.toFixed(2) }} |
+      贷方 {{ summaryData.totalCredit.toFixed(2) }} |
+      余额 {{ summaryData.balance.toFixed(2) }}
+    </div>
   </div>
 </template>
 
@@ -87,8 +90,10 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { FileTextOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { accountingApi, type LedgerRecord, type AccountSubject } from '@/api/finance/accounting'
 
+const tableRef = ref()
 const loading = ref(false)
 const subjectLoading = ref(false)
 const ledgerData = ref<LedgerRecord[]>([])
@@ -98,13 +103,13 @@ const subjectOptions = ref<AccountSubject[]>([])
 
 const columns = [
   { title: '日期', dataIndex: 'businessDate', key: 'businessDate', width: 100 },
-  { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', width: 130 },
+  { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', width: 130, slotName: 'voucherNo' },
   { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode', width: 100 },
   { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName', width: 150 },
   { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true },
-  { title: '借方金额', dataIndex: 'debitAmount', key: 'debitAmount', width: 120, align: 'right' },
-  { title: '贷方金额', dataIndex: 'creditAmount', key: 'creditAmount', width: 120, align: 'right' },
-  { title: '余额', dataIndex: 'balance', key: 'balance', width: 140, align: 'right' }
+  { title: '借方金额', dataIndex: 'debitAmount', key: 'debitAmount', width: 120, align: 'right' as const, slotName: 'debitAmount' },
+  { title: '贷方金额', dataIndex: 'creditAmount', key: 'creditAmount', width: 120, align: 'right' as const, slotName: 'creditAmount' },
+  { title: '余额', dataIndex: 'balance', key: 'balance', width: 140, align: 'right' as const, slotName: 'balance' }
 ]
 
 const pagination = reactive({
@@ -112,12 +117,7 @@ const pagination = reactive({
   pageSize: 20,
   total: 0,
   showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50', '100'],
-  onChange: (page: number, size: number) => {
-    pagination.current = page
-    pagination.pageSize = size
-    fetchData()
-  }
+  pageSizeOptions: ['10', '20', '50', '100']
 })
 
 const summaryData = computed(() => {
@@ -161,6 +161,12 @@ async function handleSubjectSearch(value: string) {
   }
 }
 
+function handlePageChange(page: number, pageSize: number) {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
+}
+
 function viewVoucher(record: LedgerRecord) {
   // TODO: 跳转到凭证详情
   message.info(`凭证: ${record.voucherNo}`)
@@ -178,6 +184,22 @@ onMounted(async () => {
 <style scoped>
 .general-ledger-page {
   padding: 16px;
+}
+
+.gl-search-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gl-search-label {
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .debit-amount {

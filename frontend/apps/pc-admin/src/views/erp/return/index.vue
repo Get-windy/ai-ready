@@ -1,146 +1,84 @@
 <template>
   <div class="return-page">
-    <a-card title="退货管理">
-      <!-- 搜索区域 -->
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="queryParams"
-        >
-          <a-form-item label="退货单号">
-            <a-input
-              v-model:value="queryParams.returnNo"
-              placeholder="请输入退货单号"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="销售订单">
-            <a-input
-              v-model:value="queryParams.orderNo"
-              placeholder="请输入订单号"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select
-              v-model:value="queryParams.status"
-              placeholder="请选择状态"
-              allow-clear
-              style="width: 120px"
-            >
-              <a-select-option :value="0">
-                待审核
-              </a-select-option>
-              <a-select-option :value="1">
-                已审核
-              </a-select-option>
-              <a-select-option :value="2">
-                已入库
-              </a-select-option>
-              <a-select-option :value="3">
-                已退款
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                <template #icon>
-                  <SearchOutlined />
-                </template>
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon>
-                  <ReloadOutlined />
-                </template>
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'erp-return-list'"
+      :filter-fields="filterFields"
+      :show-export="true"
+      add-text="新建退货申请"
+      @add="handleCreate"
+      @refresh="fetchData"
+      @export="handleExport"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+      </template>
 
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button
-            type="primary"
-            @click="handleCreate"
-          >
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            新建退货申请
-          </a-button>
-          <a-button @click="handleExport">
-            <template #icon>
-              <ExportOutlined />
-            </template>
-            导出
-          </a-button>
-        </a-space>
-      </div>
+      <template #empty>
+        <div class="table-empty">
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            没有符合条件的退货单，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无退货单数据，点击右上角「新建退货申请」开始创建
+          </p>
+        </div>
+      </template>
 
-      <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'returnAmount'">
-            ¥{{ record.returnAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                查看
-              </a-button>
-              <a-button
-                v-if="record.status === 0"
-                type="link"
-                size="small"
-                @click="handleApprove(record)"
-              >
-                审核
-              </a-button>
-              <a-button
-                v-if="record.status === 1"
-                type="link"
-                size="small"
-                @click="handleReceive(record)"
-              >
-                入库
-              </a-button>
-              <a-button
-                v-if="record.status === 2"
-                type="link"
-                size="small"
-                @click="handleRefund(record)"
-              >
-                退款
-              </a-button>
-            </a-space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <StatusTag :status="record.status" :map="RETURN_STATUS" />
         </template>
-      </a-table>
-    </a-card>
+        <template v-else-if="column.key === 'returnAmount'">
+          ¥{{ record.returnAmount?.toFixed(2) }}
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space>
+            <a-tooltip title="查看">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 0" title="审核">
+              <a-button type="link" size="small" @click="handleApprove(record)">
+                <template #icon><CheckCircleOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 1" title="入库">
+              <a-button type="link" size="small" @click="handleReceive(record)">
+                <template #icon><DownloadOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 2" title="退款">
+              <a-button type="link" size="small" @click="handleRefund(record)">
+                <template #icon><RollbackOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item key="delete">
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <a-modal
       v-model:open="detailVisible"
@@ -155,13 +93,13 @@
         <a-descriptions-item label="退货金额">¥{{ currentRecord.returnAmount?.toFixed(2) }}</a-descriptions-item>
         <a-descriptions-item label="退货原因" :span="2">{{ currentRecord.returnReason }}</a-descriptions-item>
         <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+          <StatusTag :status="currentRecord.status" :map="RETURN_STATUS" />
         </a-descriptions-item>
         <a-descriptions-item label="退货日期">{{ currentRecord.returnDate }}</a-descriptions-item>
         <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-      <div style="text-align: right; margin-top: 16px">
+      <div class="detail-modal-footer">
         <a-button @click="detailVisible = false">关闭</a-button>
       </div>
     </a-modal>
@@ -169,11 +107,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { saleReturnApi, type SaleReturn } from '@/api/erp'
+import { ref, reactive, computed, onUnmounted } from 'vue'
+import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
+import StatusTag from '@/components/StatusTag/StatusTag.vue'
+import { RETURN_STATUS } from '@/utils/statusConfig'
+import { message, Modal } from 'ant-design-vue'
+import { saleReturnApi } from '@/api/erp'
 import request from '@/utils/request'
+import {
+  EyeOutlined,
+  CheckCircleOutlined,
+  DownloadOutlined,
+  RollbackOutlined,
+  EllipsisOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  InboxOutlined
+} from '@ant-design/icons-vue'
 
 interface ReturnOrder {
   id: number
@@ -185,26 +136,26 @@ interface ReturnOrder {
   status: number
   returnDate: string
   operator: string
+  remark?: string
 }
 
 const loading = ref(false)
 const dataSource = ref<ReturnOrder[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<ReturnOrder | null>(null)
+const tableRef = ref()
+const lastUpdated = ref(new Date().toISOString())
 
-const queryParams = reactive({
-  returnNo: '',
-  orderNo: '',
-  status: undefined as number | undefined
-})
+const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条`
+})
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
 const columns = [
@@ -262,36 +213,34 @@ const columns = [
   }
 ]
 
-const getStatusColor = (status: number) => {
-  const colors: Record<number, string> = {
-    0: 'default',
-    1: 'processing',
-    2: 'warning',
-    3: 'success'
-  }
-  return colors[status] || 'default'
-}
-
-const getStatusText = (status: number) => {
-  const texts: Record<number, string> = {
-    0: '待审核',
-    1: '已审核',
-    2: '已入库',
-    3: '已退款'
-  }
-  return texts[status] || '未知'
-}
+const filterFields = [
+  { key: 'returnNo', label: '退货单号', type: 'input' as const, placeholder: '请输入退货单号' },
+  { key: 'orderNo', label: '销售订单', type: 'input' as const, placeholder: '请输入订单号' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '待审核', value: 0 },
+    { label: '已审核', value: 1 },
+    { label: '已入库', value: 2 },
+    { label: '已退款', value: 3 },
+  ]},
+]
 
 const handleSearch = () => {
   pagination.current = 1
   fetchData()
 }
 
-const handleReset = () => {
-  queryParams.returnNo = ''
-  queryParams.orderNo = ''
-  queryParams.status = undefined
-  handleSearch()
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
+  fetchData()
+}
+
+const handleResetFilters = () => {
+  for (const key of Object.keys(searchFilters)) {
+    searchFilters[key] = undefined
+  }
+  pagination.current = 1
+  fetchData()
 }
 
 const handleCreate = () => {
@@ -315,26 +264,59 @@ const handleRefund = (record: ReturnOrder) => {
   message.success(`退款完成: ${record.returnNo}`)
 }
 
+const handleDelete = async (record: ReturnOrder) => {
+  try {
+    await request.delete(`/erp/sale/return/${record.id}`)
+    message.success('删除成功')
+    fetchData()
+  } catch (error) {
+    message.error('删除失败')
+  }
+}
+
+const handleActionMenuClick = (key: string, record: ReturnOrder) => {
+  if (key === 'delete') {
+    Modal.confirm({
+      title: '确认删除',
+      content: '删除后数据不可恢复，确定要删除该退货单吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => handleDelete(record)
+    })
+  }
+}
+
 const handleExport = () => {
   message.info('导出退货单')
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   fetchData()
 }
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    handleCreate()
+  }
+}
+
+window.addEventListener('keydown', handleKeydown)
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await request.get('/erp/sale/return/page', {
-      params: {
-        ...queryParams,
-        pageNum: pagination.current,
-        pageSize: pagination.pageSize
-      }
-    })
+    const params: any = {
+      ...searchFilters,
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    }
+    const res = await request.get('/erp/sale/return/page', { params })
     if (res.data?.records) {
       dataSource.value = res.data.records
       pagination.total = res.data.total || 0
@@ -342,6 +324,7 @@ const fetchData = async () => {
       dataSource.value = []
       pagination.total = 0
     }
+    lastUpdated.value = new Date().toISOString()
   } catch (error) {
     message.error('获取数据失败')
   } finally {
@@ -357,11 +340,35 @@ fetchData()
   padding: 24px;
 }
 
-.search-area {
-  margin-bottom: 16px;
+.list-update-timestamp {
+  color: #999;
+  font-size: 12px;
+  margin-right: 12px;
 }
 
-.action-area {
-  margin-bottom: 16px;
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.action-more-btn {
+  padding: 0 4px;
+}
+
+.detail-modal-footer {
+  text-align: right;
+  margin-top: 16px;
 }
 </style>

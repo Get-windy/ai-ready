@@ -18,7 +18,7 @@ import java.util.List;
  * 固定资产折旧控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/depreciation")
+@RequestMapping("/api/erp/fixed-asset/depreciation")
 @Tag(name = "固定资产折旧管理", description = "折旧计提、查询等管理功能")
 @RequiredArgsConstructor
 public class FixedAssetDepreciationController {

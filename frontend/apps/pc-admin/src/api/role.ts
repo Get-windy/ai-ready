@@ -52,9 +52,9 @@ export const roleApi = {
     return request.delete(`/role/${id}`)
   },
 
-  // 更新角色状态 - 修复: 使用PATCH
+  // 更新角色状态
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/role/${id}/status`, null, { params: { status } })
+    return request.put(`/role/${id}/status`, null, { params: { status } })
   },
 
   // 分配权限

@@ -2,30 +2,18 @@ package cn.aiedge.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * Web安全配置
- * 配置认证、授权等安全策略
- *
- * @author AI-Ready Team
- * @since 1.0.0
+ * 密码编码器配置
+ * Spring Security 仅用于提供 PasswordEncoder，认证由 Sa-Token 处理
  */
 @Configuration
-@EnableWebSecurity
 public class WebSecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .authorizeHttpRequests(authorize -> authorize
-                .anyRequest().permitAll()
-            )
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.disable());
-
-        return http.build();
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

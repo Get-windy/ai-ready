@@ -1,14 +1,24 @@
 <template>
-  <div class="table-list-container">
+  <div
+    ref="containerRef"
+    class="table-list-container"
+    :class="{ 'table-list-container--no-toolbar': !showToolbar }"
+  >
     <!-- 顶部工具栏 -->
     <div v-if="showToolbar" class="table-toolbar">
       <div class="toolbar-left">
         <slot name="toolbar-left">
           <a-space>
-            <a-button v-if="showAdd" type="primary" @click="handleAdd">
-              <template #icon><PlusOutlined /></template>
-              {{ addText }}
-            </a-button>
+            <template v-if="showAdd">
+              <a-button v-if="addPermission" v-permission="addPermission" type="primary" @click="handleAdd">
+                <template #icon><PlusOutlined /></template>
+                {{ addText }}
+              </a-button>
+              <a-button v-else type="primary" @click="handleAdd">
+                <template #icon><PlusOutlined /></template>
+                {{ addText }}
+              </a-button>
+            </template>
             <slot name="toolbar-actions" />
           </a-space>
         </slot>
@@ -198,42 +208,32 @@
       </a-space>
     </div>
 
-    <!-- 汇总行 -->
-    <div v-if="showSummary && summaryData" class="summary-row">
-      <a-space wrap :size="[16, 4]">
-        <span
-          v-for="s in summaryData"
-          :key="s.label"
-          class="summary-item"
-        >
-          <span class="summary-label">{{ s.label }}:</span>
-          <span :class="['summary-value', s.type === 'currency' ? 'text-primary' : '', s.type === 'danger' ? 'text-danger' : '']">
-            {{ s.type === 'currency' ? '¥' : '' }}{{ formatSummaryValue(s) }}
-          </span>
-        </span>
-      </a-space>
-    </div>
-
-    <!-- 表格主体 -->
+    <!-- 表格主体（包含 sticky 表头、内部滚动、汇总行） -->
     <a-table
       ref="tableRef"
       :columns="processedColumns"
-      :data-source="dataSource"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="paginationConfig"
       :row-selection="rowSelection"
       :row-key="rowKey"
-      :scroll="scrollConfig"
-      :bordered="bordered"
+      :scroll="scrollConfigComputed"
+      :sticky="true"
+      :bordered="false"
       :size="tableSize"
-      :custom-row="customRow"
+      :custom-row="customRowFn"
       :locale="tableLocale"
       @change="handleTableChange"
       @resize-column="handleColumnResize"
     >
-      <!-- 自定义列插槽 -->
+      <!-- 自定义列插槽 / 主体单元格渲染 -->
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.slotName">
+        <!-- 空占位行：不渲染内容，只保留边框 -->
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <!-- 自定义插槽列 -->
+        <template v-else-if="column.slotName">
           <slot
             :name="column.slotName"
             :record="record"
@@ -241,59 +241,90 @@
             :column="column"
           />
         </template>
+        <!-- 操作列 -->
         <template v-else-if="column.type === 'action'">
-          <slot name="action" :record="record" :index="index">
-            <a-space :size="4">
-              <a-tooltip v-if="showView" title="查看">
-                <a-button type="link" size="small" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="showEdit" title="编辑">
-                <a-button type="link" size="small" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-popconfirm
-                v-if="showDelete"
-                title="确定要删除该项吗？"
-                @confirm="handleDelete(record)"
-              >
-                <a-tooltip title="删除">
-                  <a-button type="link" size="small" danger>
-                    <template #icon><DeleteOutlined /></template>
+          <div class="action-cell-inner">
+            <slot name="action" :record="record" :index="index">
+              <a-space :size="4">
+                <a-tooltip v-if="showView" title="查看">
+                  <a-button type="link" size="small" @click="handleView(record)">
+                    <template #icon><EyeOutlined /></template>
                   </a-button>
                 </a-tooltip>
-              </a-popconfirm>
-            </a-space>
-          </slot>
+                <a-tooltip v-if="showEdit" title="编辑">
+                  <a-button type="link" size="small" @click="handleEdit(record)">
+                    <template #icon><EditOutlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-popconfirm
+                  v-if="showDelete"
+                  title="确定要删除该项吗？"
+                  @confirm="handleDelete(record)"
+                >
+                  <a-tooltip title="删除">
+                    <a-button type="link" size="small" danger>
+                      <template #icon><DeleteOutlined /></template>
+                    </a-button>
+                  </a-tooltip>
+                </a-popconfirm>
+              </a-space>
+            </slot>
+          </div>
         </template>
+        <!-- 状态列 -->
         <template v-else-if="column.type === 'status'">
-          <a-tag :color="getStatusColor(record[column.dataIndex], column.statusMap)">
-            {{ getStatusText(record[column.dataIndex], column.statusMap) }}
-          </a-tag>
+          <span class="status-cell-inner">
+            <a-tag :color="getStatusColor(record[column.dataIndex], column.statusMap)">
+              {{ getStatusText(record[column.dataIndex], column.statusMap) }}
+            </a-tag>
+          </span>
         </template>
+        <!-- 日期列 -->
         <template v-else-if="column.type === 'date'">
           <span :title="formatDate(record[column.dataIndex], column.dateFormat)">
             {{ formatDate(record[column.dataIndex], column.dateFormat) }}
           </span>
         </template>
+        <!-- 金额列 -->
         <template v-else-if="column.type === 'currency'">
           <span class="currency-value">
             ¥{{ formatNumber(record[column.dataIndex], 'currency') }}
           </span>
         </template>
+        <!-- 数字列 -->
         <template v-else-if="column.type === 'number'">
-          {{ formatNumber(record[column.dataIndex], column.numberFormat) }}
+          <span class="number-value">
+            {{ formatNumber(record[column.dataIndex], column.numberFormat) }}
+          </span>
         </template>
+        <!-- 省略文本 -->
         <template v-else-if="column.type === 'ellipsis'">
           <a-tooltip :title="record[column.dataIndex]">
             <span class="ellipsis-text">{{ record[column.dataIndex] }}</span>
           </a-tooltip>
         </template>
+        <!-- 链接列 -->
         <template v-else-if="column.type === 'link'">
           <a class="cell-link" @click="handleCellClick(record, column)">{{ record[column.dataIndex] }}</a>
         </template>
+      </template>
+
+      <!-- 汇总行（集成在表格内部，固定在底部不参与滚动） -->
+      <template v-if="hasSummary || $slots.summary" #summary>
+        <tr class="table-summary-row">
+          <template v-if="$slots.summary">
+            <slot name="summary" />
+          </template>
+          <template v-else>
+            <td
+              v-for="(col, idx) in processedColumns"
+              :key="col.key || col.dataIndex || idx"
+              :class="getSummaryCellClass(col)"
+            >
+              {{ getSummaryCellValue(col) }}
+            </td>
+          </template>
+        </tr>
       </template>
 
       <!-- 空状态 -->
@@ -363,7 +394,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, type PropType } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, type PropType } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -406,6 +437,9 @@ export interface TableColumn {
   required?: boolean
   /** 列分组 */
   children?: TableColumn[]
+  /** 汇总值 */
+  summaryValue?: string | number
+  summaryType?: 'default' | 'currency' | 'number'
   [key: string]: any
 }
 
@@ -441,13 +475,13 @@ const props = defineProps({
   dataSource: { type: Array as PropType<any[]>, default: () => [] },
   loading: { type: Boolean, default: false },
   rowKey: { type: String, default: 'id' },
-  bordered: { type: Boolean, default: true },
   tableSize: { type: String as PropType<'small' | 'middle' | 'large'>, default: 'middle' },
   showToolbar: { type: Boolean, default: true },
   showSearch: { type: Boolean, default: true },
   searchPlaceholder: { type: String, default: '搜索...' },
   showAdd: { type: Boolean, default: true },
   addText: { type: String, default: '新增' },
+  addPermission: { type: String, default: undefined },
   showEdit: { type: Boolean, default: true },
   showView: { type: Boolean, default: false },
   showDelete: { type: Boolean, default: true },
@@ -475,10 +509,6 @@ const props = defineProps({
   // 筛选
   filterFields: { type: Array as PropType<FilterField[]>, default: () => [] },
 
-  // 汇总
-  showSummary: { type: Boolean, default: false },
-  summaryData: { type: Array as PropType<SummaryItem[]>, default: undefined },
-
   // 表格
   scroll: { type: Object as PropType<{ x?: number | string; y?: number | string }>, default: () => ({ x: '100%' }) },
   customRow: { type: Function, default: undefined },
@@ -488,6 +518,10 @@ const props = defineProps({
 
   // 行内编辑
   editable: { type: Boolean, default: false },
+
+  // 汇总行（内置）
+  showSummary: { type: Boolean, default: false },
+  summaryData: { type: Array as PropType<SummaryItem[]>, default: undefined },
 })
 
 const emit = defineEmits<{
@@ -522,6 +556,15 @@ const tableRef = ref()
 
 const filterValues = reactive<Record<string, any>>({})
 const currentViewName = ref('')
+
+// 容器及表格高度计算
+const containerRef = ref<HTMLDivElement>()
+const containerHeight = ref(0)
+const tableScrollY = ref<number | undefined>(undefined)
+
+// 行高常量（用于计算空行数）
+const ROW_HEIGHT_MAP: Record<string, number> = { small: 40, middle: 50, large: 60 }
+const getRowHeight = () => ROW_HEIGHT_MAP[props.tableSize] || 50
 
 // 列配置存储键
 const storageKey = computed(() => props.tableKey || `table-${props.columns.map(c => c.dataIndex).join('-')}`)
@@ -569,6 +612,8 @@ const processedColumns = computed(() => {
         key: col.key || col.dataIndex,
         ellipsis: col.ellipsis ?? (col.type === 'ellipsis'),
         sorter: col.sortable || undefined,
+        // 业务类型转为 className，用于全局 CSS 对齐
+        className: getColumnClassName(col),
       }
       // 移除内部属性
       delete base._hidden
@@ -577,6 +622,51 @@ const processedColumns = computed(() => {
       delete base.statusMap
       return base
     })
+})
+
+// 根据列类型生成 CSS 类名
+function getColumnClassName(col: TableColumn): string {
+  if (col.className) return col.className
+  const type = col.type
+  if (type === 'currency' || type === 'number') return 'amount-cell'
+  if (type === 'status') return 'status-cell'
+  if (type === 'action') return 'action-cell'
+  if (col.align === 'right') return 'number-cell'
+  return ''
+}
+
+// ========== 空行填充逻辑 ==========
+
+const hasSummary = computed(() => {
+  return props.showSummary && props.summaryData && props.summaryData.length > 0
+})
+
+const emptyRowCount = computed(() => {
+  if (!tableScrollY.value || tableScrollY.value <= 0) return 0
+  const dataCount = props.dataSource.length
+  // 如果有汇总行，汇总行占一行
+  const summaryOffset = hasSummary.value ? 1 : 0
+  const rowHeight = getRowHeight()
+  const visibleRowCount = Math.max(1, Math.floor(tableScrollY.value / rowHeight))
+  return Math.max(0, visibleRowCount - dataCount - summaryOffset)
+})
+
+// 扩展数据源：真实数据 + 占位空行
+const tableDataSource = computed(() => {
+  const data = [...props.dataSource]
+
+  // 仅在非加载状态下注入空行
+  if (!props.loading && emptyRowCount.value > 0) {
+    for (let i = 0; i < emptyRowCount.value; i++) {
+      data.push({
+        __empty_row: true,
+        __empty_index: i,
+        [props.rowKey]: `__empty_${i}`
+      })
+    }
+  }
+
+  return data
 })
 
 // ========== 拖拽排序列 ==========
@@ -610,6 +700,8 @@ const savedViews = ref<SavedView[]>([])
 
 onMounted(() => {
   loadSavedViews()
+  // 初始计算高度
+  nextTick(updateScrollY)
 })
 
 function loadSavedViews() {
@@ -744,13 +836,150 @@ const paginationConfig = computed(() => {
   }
 })
 
-// ========== 滚动配置 ==========
+// ========== 滚动与高度计算 ==========
 
-const scrollConfig = computed(() => {
-  if (props.editable) {
-    return { ...props.scroll, y: props.scroll?.y || 400 }
+const scrollConfigComputed = computed(() => {
+  const x = props.scroll?.x || '100%'
+  // 只在有实际高度值时设置 y
+  const y = tableScrollY.value && tableScrollY.value > 0 ? tableScrollY.value : undefined
+  return { x, y }
+})
+
+/**
+ * 计算表格可滚动区域高度
+ * 公式：容器高度 - 工具栏高度 - 批量操作栏高度 - 筛选面板高度 - 分页高度
+ */
+function updateScrollY() {
+  if (!containerRef.value) return
+
+  const container = containerRef.value
+  const containerH = container.clientHeight
+
+  // 获取各个固定元素的高度
+  let occupiedHeight = 0
+
+  // 工具栏
+  const toolbar = container.querySelector('.table-toolbar') as HTMLElement
+  if (toolbar) occupiedHeight += toolbar.offsetHeight
+
+  // 筛选面板（展开时）
+  const filterPanel = container.querySelector('.filter-panel') as HTMLElement
+  if (filterPanel && showFilterPanel.value) occupiedHeight += filterPanel.offsetHeight
+
+  // 批量操作栏（显示时）
+  const batchBar = container.querySelector('.batch-bar') as HTMLElement
+  if (batchBar) occupiedHeight += batchBar.offsetHeight + 8 // margin
+
+  // 分页区域（AntDV 分页在表格内部，但 AntDV 4 会把分页放在表格底部的 ant-table-pagination 中）
+  // 分页高度大约 48px（含 padding）
+  const hasPagination = props.pagination !== false && props.pagination !== undefined
+  if (hasPagination) occupiedHeight += 48 + 1 // +1 for border-top
+
+  // 额外预留边距
+  occupiedHeight += 2
+
+  const scrollY = Math.max(100, containerH - occupiedHeight)
+  tableScrollY.value = scrollY
+}
+
+// 监听窗口 resize
+let resizeObserver: ResizeObserver | null = null
+
+function setupResizeObserver() {
+  if (!containerRef.value) return
+
+  resizeObserver = new ResizeObserver(() => {
+    updateScrollY()
+  })
+  resizeObserver.observe(containerRef.value)
+}
+
+// 监听筛选面板展开/折叠，重新计算高度
+watch(showFilterPanel, () => {
+  nextTick(updateScrollY)
+})
+
+// 数据加载完成后重新计算
+watch(() => props.loading, () => {
+  if (!props.loading) {
+    nextTick(updateScrollY)
   }
-  return props.scroll
+})
+
+// 数据源变化后重新计算
+watch(() => props.dataSource.length, () => {
+  nextTick(updateScrollY)
+})
+
+onMounted(() => {
+  setupResizeObserver()
+})
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+})
+
+// ========== 汇总行处理 ==========
+
+function getSummaryCellClass(col: any): string {
+  const type = col.type
+  if (type === 'currency' || type === 'number') return 'amount-cell'
+  if (type === 'status') return 'status-cell'
+  if (type === 'action') return 'action-cell'
+  return ''
+}
+
+function getSummaryCellValue(col: any): string {
+  if (!props.summaryData || props.summaryData.length === 0) {
+    // 没有 summaryData 时，第一列显示"合计"
+    const firstDataIndex = processedColumns.value[0]?.dataIndex
+    if (col.dataIndex === firstDataIndex) return '合计'
+    return ''
+  }
+
+  // 查找匹配的汇总项（按 label 匹配）
+  const summaryItem = props.summaryData.find(s => s.label === col.title)
+  if (summaryItem) {
+    return formatSummaryValue(summaryItem)
+  }
+
+  // 列级别的 summaryValue
+  if (col.summaryValue !== undefined && col.summaryValue !== null) {
+    if (col.summaryType === 'currency') return `¥${Number(col.summaryValue).toFixed(2)}`
+    if (col.summaryType === 'number') return Number(col.summaryValue).toLocaleString()
+    return String(col.summaryValue)
+  }
+
+  // 汇总数据渲染到第一列（显示"合计 + 汇总文本"）
+  const firstDataIndex = processedColumns.value[0]?.dataIndex
+  if (col.dataIndex === firstDataIndex) {
+    const texts = props.summaryData.map(s => {
+      const val = typeof s.value === 'number'
+        ? (s.type === 'currency' ? `¥${s.value.toFixed(2)}` : s.value.toLocaleString())
+        : s.value
+      return `${s.label}: ${val}`
+    })
+    return texts.join(' | ')
+  }
+
+  return ''
+}
+
+// ========== 自定义行处理（空行禁止交互） ==========
+
+const customRowFn = computed(() => {
+  // 如果用户提供了 customRow，先包装一层
+  const userFn = props.customRow
+  return (record: any, index: number) => {
+    if (record.__empty_row) {
+      return { class: 'production-empty-row' }
+    }
+    if (userFn) return userFn(record, index)
+    return {}
+  }
 })
 
 // ========== 表格本地化 ==========
@@ -790,7 +1019,7 @@ function formatNumber(value: any, format?: string): string {
 
 function formatSummaryValue(s: SummaryItem): string {
   if (typeof s.value === 'number') {
-    if (s.type === 'currency') return s.value.toFixed(2)
+    if (s.type === 'currency') return `¥${s.value.toFixed(2)}`
     return s.value.toLocaleString()
   }
   return String(s.value)
@@ -807,9 +1036,7 @@ const handleBatchDelete = () => {
     message.warning('请先选择要删除的项')
     return
   }
-  emit('batch-delete', selectedRowKeys.value)
-  selectedRowKeys.value = []
-  selectedRows.value = []
+  emit('batch-delete', [...selectedRowKeys.value])
 }
 const handleBatchEdit = () => {
   if (selectedRowKeys.value.length === 0) {
@@ -869,24 +1096,36 @@ defineExpose({
   selectedRowKeys,
   selectedRows,
   refresh: () => emit('refresh'),
-  getTable: () => tableRef.value
+  getTable: () => tableRef.value,
+  updateScrollY,
 })
 </script>
 
 <style scoped>
 .table-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
   background: #fff;
-  padding: 16px;
-  border-radius: 6px;
+  overflow: hidden;
 }
 
+.table-list-container--no-toolbar {
+  /* 无工具栏时依然保持 flex 列 */
+}
+
+/* ===== 顶部工具栏 ===== */
 .table-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e8e8e8;
   flex-wrap: wrap;
   gap: 8px;
+  min-height: 44px;
 }
 
 .toolbar-left,
@@ -895,13 +1134,12 @@ defineExpose({
   align-items: center;
 }
 
-/* 筛选面板 */
+/* ===== 筛选面板 ===== */
 .filter-panel {
-  background: var(--color-bg-layout, #fafafa);
-  padding: 16px;
-  margin-bottom: 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border-secondary, #f0f0f0);
+  flex-shrink: 0;
+  background: #fafafa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .filter-actions {
@@ -910,46 +1148,162 @@ defineExpose({
   padding-bottom: 4px;
 }
 
-/* 批量操作栏 */
+/* ===== 批量操作栏 ===== */
 .batch-bar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  background: var(--color-primary-bg, #e6f7ff);
-  border: 1px solid var(--color-primary-border, #91d5ff);
-  border-radius: 4px;
+  padding: 6px 12px;
+  margin: 0;
+  background: #e6f7ff;
+  border-bottom: 1px solid #91d5ff;
 }
 
 .batch-info {
   font-size: 13px;
-  color: var(--color-primary, #1890ff);
+  color: #1890ff;
   font-weight: 500;
 }
 
-/* 汇总行 */
-.summary-row {
-  padding: 8px 12px;
-  background: var(--color-bg-layout, #fafafa);
-  border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
+/* ===== 核心表格网格边框 ===== */
+/* 每个单元格四边 1px 实线边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #c0c0c0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+}
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+:deep(.ant-table-thead > tr > th:last-child) {
+  /* 保留右边界，由最后一个 th 提供表格右外边框 */
+}
+:deep(.ant-table-thead > tr > th.ant-table-cell-fix-right-first) {
+  border-left: 2px solid #c0c0c0 !important;
 }
 
-.summary-item {
-  font-size: 13px;
-  white-space: nowrap;
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+}
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+:deep(.ant-table-tbody > tr > td:last-child) {
+  /* 保留右边界，由最后一个 td 提供表格右外边框 */
 }
 
-.summary-label {
-  color: var(--color-text-secondary, #666);
-  margin-right: 4px;
+/* ===== 固定列分隔线（2px solid） ===== */
+:deep(.ant-table-cell-fix-left-last) {
+  border-right: 2px solid #c0c0c0 !important;
+}
+:deep(.ant-table-cell-fix-right-first) {
+  border-left: 2px solid #c0c0c0 !important;
 }
 
-.summary-value {
-  font-weight: 600;
-  color: var(--color-text, #333);
+/* ===== 斑马纹（极浅 #fafafa，永不遮挡边框） ===== */
+:deep(.ant-table-tbody > tr:nth-child(even):not(.production-empty-row) > td) {
+  background-color: #fafafa !important;
 }
 
-/* 列设置 */
+/* ===== 行 hover 反馈（覆盖斑马纹，确保所有行 hover 都可见） ===== */
+:deep(.ant-table-tbody > tr.ant-table-row:hover > td) {
+  background-color: #f0f0f0 !important;
+}
+
+/* ===== 空占位行 ===== */
+:deep(.production-empty-row) {
+  cursor: default !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+:deep(.production-empty-row > td) {
+  border-left: 1px solid #e0e0e0 !important;
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  background: #fff !important;
+}
+
+/* ===== 汇总行（sticky 固定在底部） ===== */
+:deep(.ant-table-summary) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 2 !important;
+}
+:deep(.table-summary-row) {
+  background: #f5f5f5 !important;
+}
+:deep(.table-summary-row > td) {
+  border-top: 2px solid #c0c0c0 !important;
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: none !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 9px 12px !important;
+  background: #f5f5f5 !important;
+}
+:deep(.table-summary-row > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+:deep(.table-summary-row > td:last-child) {
+  /* 保留右边界 */
+}
+
+/* ===== 单元格对齐 ===== */
+/* 金额/数字：右对齐 + 等宽字体 */
+:deep(.amount-cell) {
+  text-align: right !important;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace !important;
+  font-variant-numeric: tabular-nums !important;
+}
+:deep(.number-cell) {
+  text-align: right !important;
+}
+:deep(.status-cell) {
+  text-align: center !important;
+}
+:deep(.action-cell) {
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* ===== 分页条（sticky 固定在底部，始终可见） ===== */
+:deep(.ant-table-pagination.ant-pagination) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 1 !important;
+  margin: 0 !important;
+  padding: 10px 16px !important;
+  background: #fff !important;
+  border-top: 1px solid #e8e8e8 !important;
+}
+
+/* ===== 滚动条美化 ===== */
+:deep(.ant-table-body::-webkit-scrollbar) {
+  width: 8px !important;
+  height: 8px !important;
+}
+:deep(.ant-table-body::-webkit-scrollbar-track) {
+  background: #f5f5f5 !important;
+  border-radius: 4px !important;
+}
+:deep(.ant-table-body::-webkit-scrollbar-thumb) {
+  background: #d9d9d9 !important;
+  border-radius: 4px !important;
+}
+:deep(.ant-table-body::-webkit-scrollbar-thumb:hover) {
+  background: #bfbfbf !important;
+}
+
+/* ===== 列设置弹窗 ===== */
 .column-settings {
   min-width: 220px;
   max-height: 360px;
@@ -961,7 +1315,7 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
+  border-bottom: 1px solid #f0f0f0;
   margin-bottom: 8px;
   font-weight: 500;
   font-size: 13px;
@@ -981,34 +1335,40 @@ defineExpose({
 }
 
 .column-settings-item:hover {
-  color: var(--color-primary, #1890ff);
+  color: #1890ff;
 }
 
 .column-drag-handle {
   margin-right: 6px;
-  color: var(--color-text-quaternary, #bbb);
+  color: #bbb;
   font-size: 14px;
   letter-spacing: 2px;
 }
 
-/* 金额样式 */
-.currency-value {
-  font-family: 'Menlo', 'Monaco', monospace;
+/* ===== 金额/数字等宽字体 ===== */
+:deep(.currency-value) {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* 链接样式 */
-.cell-link {
-  color: var(--color-primary, #1890ff);
+:deep(.number-value) {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 链接 ===== */
+:deep(.cell-link) {
+  color: #1890ff;
   cursor: pointer;
 }
 
-.cell-link:hover {
+:deep(.cell-link:hover) {
   text-decoration: underline;
 }
 
-/* 省略号文本 */
-.ellipsis-text {
+/* ===== 省略号文本 ===== */
+:deep(.ellipsis-text) {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1016,7 +1376,20 @@ defineExpose({
   display: inline-block;
 }
 
-/* 全局覆盖列设置弹窗 */
+/* ===== 操作列内部 ===== */
+:deep(.action-cell-inner) {
+  white-space: nowrap;
+  display: flex;
+  justify-content: center;
+}
+
+/* ===== 状态标签居中 ===== */
+:deep(.status-cell-inner) {
+  display: flex;
+  justify-content: center;
+}
+
+/* ===== 全局覆盖列设置弹窗 ===== */
 :deep(.column-settings-popover .ant-popover-inner-content) {
   padding: 12px;
 }

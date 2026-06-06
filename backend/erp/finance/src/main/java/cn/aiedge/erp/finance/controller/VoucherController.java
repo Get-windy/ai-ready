@@ -41,7 +41,7 @@ public class VoucherController {
     }
 
     @Operation(summary = "根据ID查询凭证")
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasPermission('/api/erp/finance/voucher/view', 'finance:voucher:view')")
     @OperationLog(module = "凭证管理", type = "QUERY", desc = "根据ID查询凭证")
     public Result<VoucherDTO> getById(@Parameter(description = "凭证ID") @PathVariable Long id) {

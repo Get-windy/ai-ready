@@ -43,7 +43,7 @@ public class ReceivableController {
     }
 
     @Operation(summary = "根据ID查询应收款")
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasPermission('/api/erp/finance/receivable/view', 'finance:receivable:view')")
     @OperationLog(module = "应收管理", type = "QUERY", desc = "根据ID查询应收款")
     public Result<ReceivableDTO> getById(@Parameter(description = "应收款ID") @PathVariable Long id) {

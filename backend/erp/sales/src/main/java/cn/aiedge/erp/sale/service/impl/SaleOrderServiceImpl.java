@@ -23,7 +23,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -299,6 +301,36 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
         dto.setTotalAmount(totalAmount);
         dto.setTaxAmount(totalTax);
         dto.setTotalAmountWithTax(totalAmount.add(totalTax));
+    }
+
+    @Override
+    public Map<String, Object> getOrderStats(Long tenantId) {
+        Map<String, Object> stats = new HashMap<>();
+
+        // 本月订单统计
+        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        LambdaQueryWrapper<SaleOrder> monthWrapper = new LambdaQueryWrapper<SaleOrder>()
+                .eq(tenantId != null, SaleOrder::getTenantId, tenantId)
+                .ge(SaleOrder::getCreateTime, startOfMonth);
+        List<SaleOrder> monthOrders = baseMapper.selectList(monthWrapper);
+        long monthOrderCount = monthOrders.size();
+        BigDecimal monthAmount = monthOrders.stream()
+                .map(o -> o.getTotalAmountWithTax() != null ? o.getTotalAmountWithTax() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 待审批数量
+        long pendingCount = 0;
+        if (tenantId != null) {
+            pendingCount = orderMapper.selectPendingOrders(tenantId).size();
+        }
+
+        stats.put("monthOrderCount", monthOrderCount);
+        stats.put("monthAmount", monthAmount);
+        stats.put("pendingCount", pendingCount);
+
+        log.info("获取销售订单统计: tenantId={}, monthOrderCount={}, monthAmount={}, pendingCount={}",
+                tenantId, monthOrderCount, monthAmount, pendingCount);
+        return stats;
     }
 
     private SaleOrderDTO convertToDTO(SaleOrder order) {

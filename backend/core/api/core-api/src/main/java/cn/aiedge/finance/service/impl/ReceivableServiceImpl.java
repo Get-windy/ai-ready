@@ -6,7 +6,7 @@ import cn.aiedge.finance.dto.*;
 import cn.aiedge.finance.entity.Receivable;
 import cn.aiedge.finance.entity.Receipt;
 import cn.aiedge.finance.mapper.ReceivableMapper;
-import cn.aiedge.finance.mapper.ReceiptMapper;
+import cn.aiedge.finance.mapper.FinanceReceiptMapper;
 import cn.aiedge.finance.service.ReceivableService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 public class ReceivableServiceImpl extends ServiceImpl<ReceivableMapper, Receivable> 
         implements ReceivableService {
 
-    private final ReceiptMapper receiptMapper;
+    private final FinanceReceiptMapper receiptMapper;
 
     @Override
     public PageResult<ReceivableVO> pageList(ReceivableQueryRequest request) {
@@ -288,6 +288,24 @@ public class ReceivableServiceImpl extends ServiceImpl<ReceivableMapper, Receiva
         return this.list(wrapper).stream()
             .map(this::convertToVO)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchDelete(List<Long> ids) {
+        removeBatchByIds(ids);
+    }
+
+    @Override
+    public List<ReceivableVO> exportList(ReceivableQueryRequest request) {
+        LambdaQueryWrapper<Receivable> wrapper = new LambdaQueryWrapper<>();
+        if (request.getCustomerId() != null) {
+            wrapper.eq(Receivable::getCustomerId, request.getCustomerId());
+        }
+        wrapper.orderByDesc(Receivable::getCreateTime);
+
+        List<Receivable> list = this.list(wrapper);
+        return list.stream().map(this::convertToVO).collect(Collectors.toList());
     }
 
     /**

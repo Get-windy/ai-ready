@@ -1,76 +1,84 @@
 <template>
   <div class="budget-adjustment-page">
-    <a-card title="预算调整管理">
-      <div class="search-area">
-        <a-form layout="inline" :model="queryParams">
-          <a-form-item label="预算ID">
-            <a-input-number v-model:value="queryParams.budgetId" :min="0" placeholder="预算ID" style="width: 120px" />
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select v-model:value="queryParams.status" placeholder="请选择" allow-clear style="width: 120px">
-              <a-select-option value="draft">草稿</a-select-option>
-              <a-select-option value="submitted">待审批</a-select-option>
-              <a-select-option value="approved">已通过</a-select-option>
-              <a-select-option value="rejected">已拒绝</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="类型">
-            <a-select v-model:value="queryParams.adjustmentType" placeholder="请选择" allow-clear style="width: 120px">
-              <a-select-option value="increase">增加</a-select-option>
-              <a-select-option value="decrease">减少</a-select-option>
-              <a-select-option value="transfer">调剂</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button type="primary" @click="handleSearch">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'budget-adjustment-list'"
+      :filter-fields="filterFields"
+      add-text="新建调整"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @refresh="loadData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+      </template>
 
-      <div class="action-area">
-        <a-space>
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新建调整
-          </a-button>
-        </a-space>
-      </div>
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配调整记录">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无预算调整记录">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button type="primary" @click="handleAdd">新建调整</a-button>
+        </a-empty>
+      </template>
 
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'adjustmentType'">
-            <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
-              {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) ?? '0.00' }}
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 'draft'" @click="handleEdit(record)">编辑</a>
-              <a v-if="record.status === 'draft'" @click="handleSubmit(record)">提交</a>
-              <a v-if="record.status === 'submitted'" @click="handleApprove(record)">通过</a>
-              <a v-if="record.status === 'submitted'" @click="handleReject(record)">拒绝</a>
-            </a-space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'adjustmentType'">
+          <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
+            {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
+          </a-tag>
         </template>
-      </a-table>
-    </a-card>
+        <template v-else-if="column.key === 'amount'">
+          ¥{{ record.amount?.toFixed(2) ?? '0.00' }}
+        </template>
+        <template v-else-if="column.key === 'status'">
+          <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip title="查看">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.status === 'draft'" key="submit">
+                    <CheckCircleOutlined /> 提交
+                  </a-menu-item>
+                  <a-menu-item v-if="record.status === 'submitted'" key="approve">
+                    <AuditOutlined /> 通过
+                  </a-menu-item>
+                  <a-menu-item v-if="record.status === 'submitted'" key="reject">
+                    <CloseCircleOutlined /> 拒绝
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal
@@ -131,22 +139,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { budgetAdjustmentApi, type BudgetAdjustment } from '@/api/budget'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, EllipsisOutlined, CheckCircleOutlined, AuditOutlined, CloseCircleOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
 
-const queryParams = reactive({
-  budgetId: undefined as number | undefined,
-  status: undefined as string | undefined,
-  adjustmentType: undefined as string | undefined,
-  pageNum: 0,
-  pageSize: 20,
-})
+const searchFilters = reactive<Record<string, any>>({})
 
 const dataSource = ref<BudgetAdjustment[]>([])
 const loading = ref(false)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` })
+const tableRef = ref()
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '调整单号', dataIndex: 'adjustmentNo', key: 'adjustmentNo' },
@@ -158,6 +168,21 @@ const columns = [
   { title: '申请人', dataIndex: 'applicantName', key: 'applicantName', width: 100 },
   { title: '申请日期', dataIndex: 'applyDate', key: 'applyDate', width: 110 },
   { title: '操作', key: 'action', width: 200 },
+]
+
+const filterFields = [
+  { key: 'budgetId', label: '预算ID', type: 'input' as const, placeholder: '预算ID' },
+  { key: 'status', label: '状态', type: 'select' as const, options: [
+    { label: '草稿', value: 'draft' },
+    { label: '待审批', value: 'submitted' },
+    { label: '已通过', value: 'approved' },
+    { label: '已拒绝', value: 'rejected' },
+  ]},
+  { key: 'adjustmentType', label: '类型', type: 'select' as const, options: [
+    { label: '增加', value: 'increase' },
+    { label: '减少', value: 'decrease' },
+    { label: '调剂', value: 'transfer' },
+  ]},
 ]
 
 const statusColor = (s: string) => {
@@ -212,9 +237,9 @@ const loadData = async () => {
   loading.value = true
   try {
     const res = await budgetAdjustmentApi.page({
-      budgetId: queryParams.budgetId || undefined,
-      status: queryParams.status || undefined,
-      adjustmentType: queryParams.adjustmentType || undefined,
+      budgetId: searchFilters.budgetId || undefined,
+      status: searchFilters.status || undefined,
+      adjustmentType: searchFilters.adjustmentType || undefined,
       pageNum: pagination.current - 1,
       pageSize: pagination.pageSize,
     })
@@ -222,21 +247,23 @@ const loadData = async () => {
       dataSource.value = res.data.records || []
       pagination.total = res.data.total || 0
     }
+    lastUpdated.value = new Date().toISOString()
   } finally {
     loading.value = false
   }
 }
 
 const handleSearch = () => { pagination.current = 1; loadData() }
-const handleReset = () => {
-  queryParams.budgetId = undefined
-  queryParams.status = undefined
-  queryParams.adjustmentType = undefined
-  handleSearch()
+
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
+  loadData()
 }
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   loadData()
 }
 
@@ -340,11 +367,41 @@ const handleReject = async (record: BudgetAdjustment) => {
   }
 }
 
-onMounted(() => { loadData() })
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1
+  loadData()
+}
+
+function handleActionMenuClick(key: string, record: BudgetAdjustment) {
+  switch (key) {
+    case 'submit': handleSubmit(record); break
+    case 'approve': handleApprove(record); break
+    case 'reject': handleReject(record); break
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+onMounted(() => {
+  loadData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
 .budget-adjustment-page { padding: 16px; }
-.search-area { margin-bottom: 16px; }
-.action-area { margin-bottom: 16px; }
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+.action-cell-inner { flex-wrap: nowrap; }
 </style>

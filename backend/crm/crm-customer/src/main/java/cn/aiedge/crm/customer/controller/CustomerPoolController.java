@@ -19,7 +19,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/crm/customer-pool")
+@RequestMapping("/api/crm/customer-pool")
 @Tag(name = "客户公海池管理", description = "公海池客户领取、退回、自动回收等操作")
 @RequiredArgsConstructor
 public class CustomerPoolController {

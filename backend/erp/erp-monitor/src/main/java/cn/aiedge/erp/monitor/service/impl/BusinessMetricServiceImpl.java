@@ -7,7 +7,7 @@ import cn.aiedge.erp.monitor.entity.BusinessMetric;
 import cn.aiedge.erp.monitor.entity.MetricDefinition;
 import cn.aiedge.erp.monitor.enums.MetricStatus;
 import cn.aiedge.erp.monitor.enums.MetricType;
-import cn.aiedge.erp.monitor.mapper.BusinessMetricMapper;
+import cn.aiedge.erp.monitor.mapper.MonitorBusinessMetricMapper;
 import cn.aiedge.erp.monitor.mapper.MetricDefinitionMapper;
 import cn.aiedge.erp.monitor.service.BusinessMetricService;
 import cn.aiedge.erp.monitor.service.MetricCollectorService;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BusinessMetricServiceImpl implements BusinessMetricService {
 
-    private final BusinessMetricMapper businessMetricMapper;
+    private final MonitorBusinessMetricMapper businessMetricMapper;
     private final MetricDefinitionMapper metricDefinitionMapper;
     private final MetricCollectorService metricCollectorService;
 

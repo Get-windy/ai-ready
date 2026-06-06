@@ -101,9 +101,27 @@ export default defineConfig({
     port: 3000,
     host: true, // 允许外部访问
     open: false, // 不自动打开浏览器
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            // 确保所有代理响应都带防缓存头，避免浏览器缓存错误响应
+            proxyRes.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+            proxyRes.headers['Pragma'] = 'no-cache';
+            proxyRes.headers['Expires'] = '0';
+          });
+        },
+      },
+      '/ws': {
+        target: 'http://localhost:8080',
+        ws: true,
         changeOrigin: true,
       },
     },

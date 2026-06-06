@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Tag(name = "价格策略管理", description = "销售价格策略管理API")
 @RestController
-@RequestMapping("/pricing")
+@RequestMapping("/api/erp/pricing")
 @RequiredArgsConstructor
 @Validated
 public class PricingController {

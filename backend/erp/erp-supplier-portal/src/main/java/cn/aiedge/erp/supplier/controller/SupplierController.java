@@ -46,7 +46,7 @@ public class SupplierController {
         return supplierService.updateSupplier(supplierDTO);
     }
     
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @Operation(summary = "获取供应商详情", description = "根据ID获取供应商详细信息")
     public R<SupplierDTO> getSupplierById(
             @Parameter(description = "供应商ID", required = true) 
@@ -212,5 +212,11 @@ public class SupplierController {
         // 从SecurityUtils获取tenantId
         String tenantId = "default"; // 实际应从SecurityUtils获取
         return supplierService.getSupplierStatistics(tenantId);
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "获取统计信息(别名)", description = "与/statistics相同，兼容前端不同拼写")
+    public R<Map<String, Object>> getSupplierStats() {
+        return getSupplierStatistics();
     }
 }

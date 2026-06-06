@@ -28,6 +28,9 @@
         <template #icon><ImportOutlined /></template>
         导入
       </a-button>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
     </template>
 
     <template #batch-actions>
@@ -42,49 +45,55 @@
       </a-tag>
     </template>
 
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配订单">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无采购订单">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建订单</a-button>
+      </a-empty>
+    </template>
+
     <template #action="{ record }">
-      <a-space :size="4">
+      <a-space :size="0" class="action-cell-inner">
         <a-tooltip title="查看">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
         <a-tooltip v-if="record.status === 0" title="编辑">
-          <a-button type="link" size="small" @click="handleEdit(record)">
+          <a-button v-permission.disabled="'sale:order:update'" type="link" size="small" @click="handleEdit(record)">
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="提交审核">
-          <a-button type="link" size="small" @click="handleSubmit(record)">
-            <template #icon><CheckCircleOutlined /></template>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
           </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 1" title="审核通过">
-          <a-button type="link" size="small" @click="handleApprove(record)">
-            <template #icon><AuditOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 2" title="关闭">
-          <a-button type="link" size="small" @click="handleClose(record)">
-            <template #icon><StopOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-tooltip title="打印">
-          <a-button type="link" size="small" @click="handlePrint(record)">
-            <template #icon><PrinterOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-popconfirm
-          v-if="record.status === 0 || record.status === 5"
-          title="确定删除该订单？"
-          @confirm="handleDelete(record)"
-        >
-          <a-tooltip title="删除">
-            <a-button type="link" size="small" danger>
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </a-tooltip>
-        </a-popconfirm>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item v-if="record.status === 0" key="submit">
+                <CheckCircleOutlined /> 提交审核
+              </a-menu-item>
+              <a-menu-item v-if="record.status === 1" key="approve">
+                <AuditOutlined /> 审核通过
+              </a-menu-item>
+              <a-menu-item v-if="record.status === 2" key="close">
+                <StopOutlined /> 关闭
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="print">
+                <PrinterOutlined /> 打印
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item v-if="record.status === 0 || record.status === 5" key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -99,18 +108,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchaseOrdersTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import {
   EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined,
-  AuditOutlined, PrinterOutlined, ImportOutlined, StopOutlined
+  AuditOutlined, PrinterOutlined, ImportOutlined, StopOutlined,
+  SearchOutlined, InboxOutlined, EllipsisOutlined
 } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import PurchaseOrderFormModal from '../components/PurchaseOrderFormModal.vue'
 import { purchaseOrderApi } from '@/api/erp'
-import { exportCsv } from '@/utils/exportCsv'
+import { useExport } from '@/composables/useExport'
 import { executeBatch, validateSelection } from '@/utils/batchOperations'
+
+const { execute: executeExport } = useExport()
 
 interface PurchaseOrder {
   id: number; orderNo: string; supplierName: string; orderDate: string
@@ -157,6 +172,11 @@ const editRecord = ref<PurchaseOrder | null>(null)
 const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const summaryData = computed(() => {
   if (dataSource.value.length === 0) return undefined
@@ -174,10 +194,10 @@ async function fetchData() {
   loading.value = true
   try {
     const res = await purchaseOrderApi.getPage({ current: pagination.current, size: pagination.pageSize, ...searchFilters })
-    // 兼容标准包装响应和无包装响应
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch {
     message.error('获取采购订单列表失败')
     dataSource.value = []
@@ -190,8 +210,28 @@ function handleEdit(record: PurchaseOrder) { isEdit.value = true; editRecord.val
 function handleFormSuccess() { formVisible.value = false; fetchData() }
 
 async function handleDelete(record: PurchaseOrder) {
-  try { await purchaseOrderApi.delete(record.id); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
+  Modal.confirm({
+    title: '删除订单', content: `确认删除订单 "${record.orderNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
+    async onOk() {
+      try { await purchaseOrderApi.delete(record.id); message.success('删除成功'); fetchData() }
+      catch { message.error('删除失败') }
+    }
+  })
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
+}
+
+function handleActionMenuClick(key: string, record: PurchaseOrder) {
+  switch (key) {
+    case 'submit': handleSubmit(record); break
+    case 'approve': handleApprove(record); break
+    case 'close': handleClose(record); break
+    case 'print': handlePrint(record); break
+    case 'delete': handleDelete(record); break
+  }
 }
 
 async function handleBatchDelete(ids: number[]) {
@@ -255,25 +295,62 @@ async function handleBatchPrint() {
   if (!validateSelection(keys, '打印')) return
   Modal.confirm({ title: '批量打印', content: `打印选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      const result = await executeBatch(keys, (id) => purchaseOrderApi.print(id), '批量打印')
+      await executeBatch(keys, (id) => purchaseOrderApi.print(id), '批量打印')
     }
   })
 }
 
 function handleExport() {
-  const headers = ['订单号', '供应商', '订单日期', '订单金额', '状态', '采购员', '创建时间']
-  const rows = dataSource.value.map(r => [
-    r.orderNo || '', r.supplierName || '', r.orderDate || '',
-    (r.totalAmountWithTax || 0).toFixed(2), getStatusText(r.status),
-    r.purchaserName || r.buyerName || '', r.createTime || ''
-  ])
-  exportCsv(headers, rows, '采购订单')
+  executeExport({
+    fileName: '采购订单',
+    headers: ['订单号', '供应商', '订单日期', '订单金额', '状态', '采购员', '创建时间'],
+    fetchAll: () => purchaseOrderApi.getPage({ current: 1, size: pagination.total, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((r: any) => [
+      r.orderNo || '', r.supplierName || '', r.orderDate || '',
+      (r.totalAmountWithTax || 0).toFixed(2), getStatusText(r.status),
+      r.purchaserName || r.buyerName || '', r.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((r: any) => [
+      r.orderNo || '', r.supplierName || '', r.orderDate || '',
+      (r.totalAmountWithTax || 0).toFixed(2), getStatusText(r.status),
+      r.purchaserName || r.buyerName || '', r.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => { fetchData() })
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:refresh', fetchData)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:refresh', fetchData)
+})
 </script>
+
+<style scoped>
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

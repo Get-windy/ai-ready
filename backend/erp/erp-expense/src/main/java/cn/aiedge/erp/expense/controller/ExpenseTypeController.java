@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * 实现1个费用类型API
  */
 @RestController
-@RequestMapping("/expense/type")
+@RequestMapping("/api/erp/expense/type")
 @Tag(name = "费用类型管理", description = "费用类型查询和配置")
 public class ExpenseTypeController {
     

@@ -2,7 +2,7 @@ package cn.aiedge.finance.service.impl;
 
 import cn.aiedge.finance.entity.Payment;
 import cn.aiedge.finance.entity.Payable;
-import cn.aiedge.finance.mapper.PaymentMapper;
+import cn.aiedge.finance.mapper.FinancePaymentMapper;
 import cn.aiedge.finance.mapper.PayableMapper;
 import cn.aiedge.finance.dto.PaymentCreateRequest;
 import cn.aiedge.finance.dto.PaymentQueryRequest;
@@ -26,12 +26,12 @@ import java.time.LocalDateTime;
  */
 @Service
 @Transactional
-public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> implements IPaymentService {
+public class PaymentServiceImpl extends ServiceImpl<FinancePaymentMapper, Payment> implements IPaymentService {
 
-    private final PaymentMapper paymentMapper;
+    private final FinancePaymentMapper paymentMapper;
     private final PayableMapper payableMapper;
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, PayableMapper payableMapper) {
+    public PaymentServiceImpl(FinancePaymentMapper paymentMapper, PayableMapper payableMapper) {
         this.paymentMapper = paymentMapper;
         this.payableMapper = payableMapper;
     }

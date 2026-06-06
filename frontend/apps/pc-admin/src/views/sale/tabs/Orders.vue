@@ -24,15 +24,45 @@
     @export="handleExport"
   >
     <template #toolbar-actions>
-      <a-button @click="handleImport">
-        <template #icon><ImportOutlined /></template>
-        导入
-      </a-button>
+      <a-tooltip title="从Excel/CSV文件批量导入订单数据">
+        <a-button v-permission="'sale:order:create'" @click="handleImport">
+          <template #icon><ImportOutlined /></template>
+          导入
+        </a-button>
+      </a-tooltip>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        上次更新: {{ formatRelativeTime(lastUpdated) }}
+      </span>
     </template>
 
     <template #batch-actions>
-      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
-      <a-button size="small" @click="handleBatchPrint">批量打印</a-button>
+      <a-button v-permission="'sale:order:approve'" size="small" :loading="batchApproving" @click="handleBatchApprove">批量审批</a-button>
+      <a-button v-permission="'sale:order:list'" size="small" :loading="batchPrinting" @click="handleBatchPrint">批量打印</a-button>
+      <a-button v-permission="'sale:order:list'" size="small" :loading="batchExporting" @click="handleBatchExport">
+        <template #icon><ExportOutlined /></template>
+        批量导出
+      </a-button>
+    </template>
+
+    <!-- 空状态引导（区分系统无数据 vs 筛选无匹配） -->
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配订单">
+        <template #image>
+          <SearchOutlined style="font-size: 48px; color: #faad14" />
+        </template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无销售订单">
+        <template #image>
+          <InboxOutlined style="font-size: 48px; color: #d9d9d9" />
+        </template>
+        <a-button type="primary" @click="handleAdd">创建第一个订单</a-button>
+      </a-empty>
+    </template>
+
+    <!-- 自定义列：订单号（可点击跳转，支持中键新标签页） -->
+    <template #orderNo="{ record }">
+      <a class="cell-link" @click="handleView(record)" @mouseup="handleOrderNoMiddleClick($event, record)">{{ record.orderNo }}</a>
     </template>
 
     <!-- 自定义列：状态 -->
@@ -42,45 +72,41 @@
       </a-tag>
     </template>
 
-    <!-- 自定义列：操作 -->
+    <!-- 自定义列：操作（主操作直接展示，次要操作折叠至更多菜单） -->
     <template #action="{ record }">
-      <a-space :size="4">
-        <a-tooltip title="查看">
+      <a-space :size="0" class="action-cell-inner">
+        <a-tooltip title="查看详情">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="编辑">
-          <a-button type="link" size="small" @click="handleEdit(record)">
+        <a-tooltip v-if="canEdit(record.status)" title="编辑">
+          <a-button v-permission="'sale:order:update'" type="link" size="small" @click="handleEdit(record)">
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="提交审核">
-          <a-button type="link" size="small" @click="handleSubmit(record)">
-            <template #icon><CheckCircleOutlined /></template>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
           </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 1" title="审核">
-          <a-button type="link" size="small" @click="handleApprove(record)">
-            <template #icon><AuditOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-tooltip title="打印">
-          <a-button type="link" size="small" @click="handlePrint(record)">
-            <template #icon><PrinterOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-popconfirm
-          v-if="record.status === 0 || record.status === 5"
-          title="确定删除该订单？"
-          @confirm="handleDelete(record)"
-        >
-          <a-tooltip title="删除">
-            <a-button type="link" size="small" danger>
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </a-tooltip>
-        </a-popconfirm>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item v-if="canSubmit(record.status)" key="submit">
+                <CheckCircleOutlined /> 提交审核
+              </a-menu-item>
+              <a-menu-item v-if="canApprove(record.status)" key="approve">
+                <AuditOutlined /> 审批
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="print">
+                <PrinterOutlined /> 打印
+              </a-menu-item>
+              <a-menu-item v-if="canDelete(record.status)" key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -92,12 +118,25 @@
     :record="editRecord"
     @success="handleFormSuccess"
   />
+
+  <!-- 导入订单弹窗 -->
+  <SaleOrderImportModal
+    v-model:open="importModalVisible"
+    @success="handleFormSuccess"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'SaleOrdersTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
 import {
   EyeOutlined,
   EditOutlined,
@@ -105,12 +144,25 @@ import {
   CheckCircleOutlined,
   AuditOutlined,
   PrinterOutlined,
-  ImportOutlined
+  ImportOutlined,
+  ExportOutlined,
+  InboxOutlined,
+  SearchOutlined,
+  EllipsisOutlined
 } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
+import SaleOrderImportModal from '../components/SaleOrderImportModal.vue'
 import { saleOrderApi } from '@/api/erp'
-import { exportCsv } from '@/utils/exportCsv'
+import { useExport } from '@/composables/useExport'
+import {
+  ORDER_STATUS_TEXT,
+  ORDER_STATUS_COLOR,
+  canEdit,
+  canSubmit,
+  canApprove,
+  canDelete,
+} from '../constants/orderStatus'
 
 interface SaleOrder {
   id: number
@@ -127,14 +179,14 @@ interface SaleOrder {
 
 // 列定义
 const columns = [
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160, sortable: true },
+  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160, sortable: true, type: 'link' as const, slotName: 'orderNo' },
   { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140 },
   { title: '订单日期', dataIndex: 'orderDate', key: 'orderDate', width: 110, type: 'date' as const, dateFormat: 'YYYY-MM-DD' },
   { title: '订单金额', dataIndex: 'totalAmountWithTax', key: 'totalAmountWithTax', width: 120, type: 'currency' as const, sortable: true },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
   { title: '销售员', dataIndex: 'salesmanName', key: 'salesmanName', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, type: 'action' as const }
+  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
 ]
 
 // 筛选字段
@@ -152,13 +204,10 @@ const filterFields = [
   { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
 ]
 
-const statusColorMap: Record<number, string> = {
-  0: 'default', 1: 'orange', 2: 'green', 3: 'blue', 4: 'success', 5: 'red'
-}
-
-const statusTextMap: Record<number, string> = {
-  0: '草稿', 1: '待审批', 2: '已审批', 3: '部分出库', 4: '已完成', 5: '已取消'
-}
+// 是否启用了筛选条件
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const router = useRouter()
 const tableRef = ref()
@@ -168,6 +217,14 @@ const formVisible = ref(false)
 const isEdit = ref(false)
 const editRecord = ref<SaleOrder | null>(null)
 const searchFilters = reactive<Record<string, any>>({})
+const lastUpdated = ref<string>('')
+const importModalVisible = ref(false)
+
+// 批量操作独立 loading
+const batchApproving = ref(false)
+const batchPrinting = ref(false)
+const batchExporting = ref(false)
+const batchDeleting = ref(false)
 
 const pagination = reactive({
   current: 1,
@@ -179,18 +236,22 @@ const summaryData = computed(() => {
   if (dataSource.value.length === 0) return undefined
   const totalAmount = dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0)
   return [
-    { label: '本页金额合计', value: totalAmount, type: 'currency' as const },
+    { label: '本页小计', value: totalAmount, type: 'currency' as const },
     { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
   ]
 })
 
 
+function formatRelativeTime(time: string): string {
+  return dayjs(time).fromNow()
+}
+
 function getStatusColor(status: number): string {
-  return statusColorMap[status] || 'default'
+  return ORDER_STATUS_COLOR[status] || 'default'
 }
 
 function getStatusText(status: number): string {
-  return statusTextMap[status] || '未知'
+  return ORDER_STATUS_TEXT[status] || '未知'
 }
 
 async function fetchData() {
@@ -203,7 +264,15 @@ async function fetchData() {
     }
     const res = await saleOrderApi.getPage(params)
     dataSource.value = res.data?.records || []
-    pagination.total = res.data?.total || 0
+    const total = res.data?.total || 0
+    pagination.total = total
+    if (total > 500) {
+      message.info(`当前共 ${total} 条记录，建议添加筛选条件缩小范围`, 3)
+    }
+    lastUpdated.value = new Date().toISOString()
+    if (searchFilters.keyword || Object.keys(searchFilters).some(k => k !== 'sortField' && k !== 'sortOrder' && searchFilters[k])) {
+      message.info(`共找到 ${res.data?.total || 0} 条匹配结果`)
+    }
   } catch (error) {
     message.error('获取销售订单列表失败')
     dataSource.value = []
@@ -212,8 +281,40 @@ async function fetchData() {
   }
 }
 
+function navigateToDetail(record: SaleOrder, newTab = false) {
+  const listIds = dataSource.value.map(item => item.id)
+  sessionStorage.setItem('sale_order_list_ids', JSON.stringify(listIds))
+  if (newTab) {
+    window.open(`/sale/order/${record.id}`, '_blank')
+  } else {
+    router.push(`/sale/order/${record.id}`)
+  }
+}
+
 function handleView(record: SaleOrder) {
-  router.push(`/sale/order/${record.id}`)
+  navigateToDetail(record)
+}
+
+function handleActionMenuClick(key: string, record: SaleOrder) {
+  switch (key) {
+    case 'submit': handleSubmit(record); break
+    case 'approve': handleApprove(record); break
+    case 'print': handlePrint(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1
+  fetchData()
+}
+
+function handleOrderNoMiddleClick(e: MouseEvent, record: SaleOrder) {
+  if (e.button === 1) {
+    e.preventDefault()
+    navigateToDetail(record, true)
+  }
 }
 
 function handleAdd() {
@@ -234,22 +335,37 @@ function handleFormSuccess() {
 }
 
 async function handleDelete(record: SaleOrder) {
-  try {
-    await saleOrderApi.delete(record.id)
-    message.success('删除成功')
-    fetchData()
-  } catch {
-    message.error('删除失败')
-  }
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除订单「${record.orderNo}」吗？删除后数据不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      try {
+        await saleOrderApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch {
+        message.error('删除失败')
+      }
+    }
+  })
 }
 
 async function handleBatchDelete(ids: number[]) {
+  if (batchDeleting.value) return
+  batchDeleting.value = true
   try {
     await saleOrderApi.batchDelete(ids)
     message.success(`成功删除 ${ids.length} 条记录`)
+    tableRef.value?.clearSelection()
     fetchData()
   } catch {
     message.error('批量删除失败')
+  } finally {
+    batchDeleting.value = false
   }
 }
 
@@ -310,28 +426,63 @@ function handlePrint(record: SaleOrder) {
 }
 
 function handleImport() {
-  Modal.confirm({
-    title: '导入销售订单',
-    content: '导入功能可通过 Excel/CSV 文件批量创建销售订单。功能尚在完善中，请关注后续版本更新。',
-    okText: '知道了',
-    centered: true
-  })
+  importModalVisible.value = true
 }
 
-function handleExport() {
-  const headers = ['订单号', '客户', '订单日期', '订单金额', '状态', '销售员', '创建时间']
-  const rows = dataSource.value.map((row: SaleOrder) => [
-    row.orderNo || '', row.customerName || '', row.orderDate || '',
-    (row.totalAmountWithTax || 0).toFixed(2), getStatusText(row.status),
-    row.salesmanName || '', row.createTime || ''
-  ])
-  exportCsv(headers, rows, '销售订单')
+async function handleExport() {
+  await executeExport({
+    fileName: '销售订单',
+    total: pagination.total,
+    headers: ['订单号', '客户', '订单日期', '订单金额', '状态', '销售员', '创建时间'],
+    fetchAll: () => saleOrderApi.export({ ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.orderNo || '', row.customerName || '', row.orderDate || '',
+      (row.totalAmountWithTax || row.totalAmount || 0).toFixed(2),
+      getStatusText(row.status),
+      row.salesmanName || row.salesperson || '', row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: SaleOrder) => [
+      row.orderNo || '', row.customerName || '', row.orderDate || '',
+      (row.totalAmountWithTax || 0).toFixed(2), getStatusText(row.status),
+      row.salesmanName || '', row.createTime || ''
+    ]),
+    maxRows: 10000,
+  })
 }
 
 function handleBatchApprove() {
   const keys = tableRef.value?.selectedRowKeys || []
+  const selectedRows = tableRef.value?.selectedRows || []
   if (keys.length === 0) {
     message.warning('请选择要审批的订单')
+    return
+  }
+  // 预校验：仅待审批(状态1)的记录可审批
+  const invalidCount = selectedRows.filter((r: any) => r.status !== 1).length
+  if (invalidCount > 0) {
+    message.warning(`选中记录中有 ${invalidCount} 条不是待审批状态，已自动过滤`)
+    const validKeys = selectedRows.filter((r: any) => r.status === 1).map((r: any) => r.id)
+    if (validKeys.length === 0) {
+      message.warning('无可审批的订单')
+      return
+    }
+    Modal.confirm({
+      title: '确认批量审批',
+      content: `过滤后将对 ${validKeys.length} 条待审批订单进行审批，是否继续？`,
+      okText: '确认审批',
+      cancelText: '取消',
+      centered: true,
+      async onOk() {
+        batchApproving.value = true
+        try {
+          await saleOrderApi.batchApprove(validKeys)
+          message.success(`成功审批 ${validKeys.length} 条记录`)
+          tableRef.value?.clearSelection()
+          fetchData()
+        } catch { message.error('批量审批失败') }
+        finally { batchApproving.value = false }
+      }
+    })
     return
   }
   Modal.confirm({
@@ -341,11 +492,37 @@ function handleBatchApprove() {
     cancelText: '取消',
     centered: true,
     async onOk() {
+      batchApproving.value = true
       try {
         await saleOrderApi.batchApprove(keys)
         message.success(`成功审批 ${keys.length} 条记录`)
+        tableRef.value?.clearSelection()
         fetchData()
       } catch { message.error('批量审批失败') }
+      finally { batchApproving.value = false }
+    }
+  })
+}
+
+function handleBatchExport() {
+  const keys = tableRef.value?.selectedRowKeys || []
+  if (keys.length === 0) {
+    message.warning('请选择要导出的订单')
+    return
+  }
+  Modal.confirm({
+    title: '导出订单',
+    content: `确定要导出选中的 ${keys.length} 条订单数据？`,
+    okText: '确认导出',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      batchExporting.value = true
+      try {
+        await saleOrderApi.batchExport(keys)
+        message.success('导出任务已提交，请稍后下载')
+      } catch { message.error('导出失败') }
+      finally { batchExporting.value = false }
     }
   })
 }
@@ -363,10 +540,12 @@ function handleBatchPrint() {
     cancelText: '取消',
     centered: true,
     async onOk() {
+      batchPrinting.value = true
       try {
         await saleOrderApi.batchPrint(keys)
         message.success(`打印任务已提交 (${keys.length} 条)`)
       } catch { message.error('批量打印失败') }
+      finally { batchPrinting.value = false }
     }
   })
 }
@@ -389,13 +568,53 @@ function handleSortChange(field: string, order: string) {
   fetchData()
 }
 
+const debouncedFetch = ref(0)
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters)
   pagination.current = 1
-  fetchData()
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => {
+    fetchData()
+  }, 400)
 }
 
 onMounted(() => {
   fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('sale:refresh', fetchData)
+  window.addEventListener('sale:create', handleAdd)
 })
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('sale:refresh', fetchData)
+  window.removeEventListener('sale:create', handleAdd)
+})
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    handleAdd()
+  }
+}
 </script>
+
+<style scoped>
+/* 操作列「更多」按钮 */
+.action-more-btn {
+  padding: 0 4px;
+  font-size: 16px;
+  vertical-align: middle;
+}
+
+/* 列表更新时间戳 */
+.list-update-timestamp {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap;
+  cursor: help;
+  margin-left: 8px;
+  line-height: 32px;
+  vertical-align: middle;
+}
+</style>

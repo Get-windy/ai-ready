@@ -38,6 +38,14 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
+    /** 清除本地缓存的陈旧会话数据，强制下次从后端重新获取 */
+    clearStaleSessionData() {
+      this.userInfo = null
+      this.permissions = []
+      this.roles = []
+      this.menus = []
+    },
+
     async login(loginForm: LoginForm) {
       try {
         const res = await userApi.login(loginForm)
@@ -120,6 +128,8 @@ export const useUserStore = defineStore('user', {
   persist: {
     key: 'user-store',
     storage: localStorage,
-    paths: ['token', 'userInfo', 'userId', 'tenantId', 'tenantName', 'userTenants', 'permissions', 'roles', 'menus']
+    // 只持久化凭据和租户信息，不持久化用户数据和权限
+    // userInfo/permissions/roles/menus 每次页面加载从后端重新获取
+    paths: ['token', 'userId', 'tenantId', 'tenantName', 'userTenants']
   }
 })

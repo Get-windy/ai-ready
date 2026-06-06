@@ -15,7 +15,7 @@ import java.util.Map;
  * 固定资产报表控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/report")
+@RequestMapping("/api/erp/fixed-asset/report")
 @Tag(name = "固定资产报表", description = "固定资产统计报表、台账、账龄分析等")
 @RequiredArgsConstructor
 public class FixedAssetReportController {

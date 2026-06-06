@@ -46,6 +46,22 @@ export function useTable<T extends { id: number }, Q extends Record<string, any>
     showTotal: (total: number) => `共 ${total} 条`
   })
 
+  // 搜索提交（对接 TableList @search 事件）
+  const handleSearchSubmit = (keyword: string) => {
+    if (keyword !== undefined) {
+      (searchParams as any).keyword = keyword || undefined
+    }
+    pagination.current = 1
+    fetchData()
+  }
+
+  // 分页变化（对接 TableList @page-change 事件）
+  const handlePageChange = (page: number, pageSize: number) => {
+    pagination.current = page
+    pagination.pageSize = pageSize
+    fetchData()
+  }
+
   // 加载数据
   const fetchData = async () => {
     loading.value = true
@@ -136,8 +152,10 @@ export function useTable<T extends { id: number }, Q extends Record<string, any>
     // 方法
     fetchData,
     handleSearch,
+    handleSearchSubmit,
     handleReset,
     handleTableChange,
+    handlePageChange,
     onSelectChange,
     clearSelection,
     refresh,

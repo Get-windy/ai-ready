@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -155,7 +156,7 @@ public class PurchaseOrderController {
     @Operation(summary = "批量删除采购订单")
     @DeleteMapping("/batch")
     @SaCheckPermission("purchase:order:delete")
-    public ApiResponse<Void> batchDeleteOrder(@RequestBody List<Long> ids) {
+    public ApiResponse<String> batchDeleteOrder(@RequestBody List<Long> ids) {
         purchaseOrderService.removeBatchByIds(ids);
         return ApiResponse.ok("批量删除成功");
     }

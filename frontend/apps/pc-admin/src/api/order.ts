@@ -186,10 +186,10 @@ export const salesOrderApi = {
   },
 
   /**
-   * 导出销售订单
+   * 导出销售订单（返回 JSON 数据，前端生成 CSV）
    */
-  export(params: OrderQuery): Promise<Blob> {
-    return request.get('/erp/sale/order/export', params, { responseType: 'blob' })
+  export(params: OrderQuery): Promise<ApiResponse<SalesOrder[]>> {
+    return request.get('/erp/sale/order/export', params)
   },
 
   /**

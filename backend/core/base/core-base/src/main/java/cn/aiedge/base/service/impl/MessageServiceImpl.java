@@ -1,10 +1,13 @@
 package cn.aiedge.base.service.impl;
 
+import cn.aiedge.base.dto.UnreadCountVO;
 import cn.aiedge.base.entity.SysMessage;
 import cn.aiedge.base.entity.SysMessageTemplate;
 import cn.aiedge.base.mapper.SysMessageMapper;
 import cn.aiedge.base.mapper.SysMessageTemplateMapper;
 import cn.aiedge.base.service.MessageService;
+import cn.aiedge.base.websocket.MessageWebSocketHandler;
+import cn.aiedge.base.websocket.WebSocketResponse;
 // import cn.dev33.satoken.stp.StpKit;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -33,6 +36,7 @@ public class MessageServiceImpl extends ServiceImpl<SysMessageMapper, SysMessage
 
     private final SysMessageMapper messageMapper;
     private final SysMessageTemplateMapper templateMapper;
+    private final MessageWebSocketHandler webSocketHandler;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,6 +58,23 @@ public class MessageServiceImpl extends ServiceImpl<SysMessageMapper, SysMessage
 
         messageMapper.insert(message);
         log.info("发送站内信: receiverId={}, title={}", receiverId, title);
+
+        // WebSocket 实时推送
+        try {
+            String notifyType = businessType == null ? "SYSTEM"
+                    : (businessType.contains("approval") ? "APPROVAL" : "BUSINESS");
+            java.util.HashMap<String, Object> pushData = new java.util.HashMap<>();
+            pushData.put("id", message.getId());
+            pushData.put("type", notifyType);
+            pushData.put("title", title);
+            pushData.put("content", content);
+            pushData.put("readStatus", 0);
+            webSocketHandler.sendToUser(receiverId,
+                    WebSocketResponse.success("NOTIFICATION", pushData));
+        } catch (Exception e) {
+            log.warn("WebSocket推送失败: receiverId={}", receiverId, e);
+        }
+
         return message.getId();
     }
 
@@ -128,6 +149,31 @@ public class MessageServiceImpl extends ServiceImpl<SysMessageMapper, SysMessage
         // return messageMapper.selectUnreadByUserId(userId, StpKit.getTenantId());
         // 暂时使用固定租户ID
         return messageMapper.selectUnreadByUserId(userId, 1L);
+    }
+
+    @Override
+    public UnreadCountVO getUnreadCount(Long userId) {
+        List<SysMessage> unreadList = lambdaQuery()
+                .eq(SysMessage::getReceiverId, userId)
+                .eq(SysMessage::getIsRead, 0)
+                .eq(SysMessage::getMsgType, 2)
+                .list();
+
+        long total = unreadList.size();
+        long system = 0, business = 0, approval = 0;
+
+        for (SysMessage msg : unreadList) {
+            String bt = msg.getBusinessType();
+            if (bt == null) {
+                system++;
+            } else if (bt.contains("approval")) {
+                approval++;
+            } else {
+                business++;
+            }
+        }
+
+        return new UnreadCountVO(total, system, business, approval);
     }
 
     @Override

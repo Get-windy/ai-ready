@@ -1,141 +1,89 @@
 <template>
   <div class="dict-management">
-    <!-- 字典类型搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="typeSearchForm" class="search-form">
-        <a-row :gutter="16" style="width: 100%">
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="类型编码">
-              <a-input
-                v-model:value="typeSearchForm.dictCode"
-                placeholder="请输入类型编码"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="类型名称">
-              <a-input
-                v-model:value="typeSearchForm.dictName"
-                placeholder="请输入类型名称"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="状态">
-              <a-select
-                v-model:value="typeSearchForm.status"
-                placeholder="请选择状态"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="1">启用</a-select-option>
-                <a-select-option :value="0">停用</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item>
-              <a-space>
-                <a-button type="primary" @click="handleTypeSearch">
-                  <template #icon><SearchOutlined /></template>
-                  搜索
-                </a-button>
-                <a-button @click="handleTypeReset">
-                  <template #icon><ReloadOutlined /></template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
-
-    <!-- 字典类型表格 -->
-    <a-card class="table-card" :bordered="false">
-      <template #title>
-        <div class="table-header">
-          <span class="title">字典类型</span>
-          <a-button type="primary" @click="handleAddType">
-            <template #icon><PlusOutlined /></template>
-            新增类型
-          </a-button>
-        </div>
+    <TableList
+      ref="tableRef"
+      :columns="typeColumns"
+      :data-source="typeTableData"
+      :loading="typeLoading"
+      :pagination="typePagination"
+      :table-key="'system-dict-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-add="false"
+      :show-edit="false"
+      :show-delete="false"
+      :show-batch-delete="false"
+      add-text="新增类型"
+      @add="handleAddType"
+      @refresh="fetchTypeData"
+      @page-change="handleTypePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <a-button type="primary" @click="handleAddType">
+          <template #icon><PlusOutlined /></template>
+          新增类型
+        </a-button>
       </template>
 
-      <a-table
-        :columns="typeColumns"
-        :data-source="typeTableData"
-        :loading="typeLoading"
-        :pagination="typePagination"
-        row-key="id"
-        :expand-row-by-click="true"
-        :expand-icon-column-index="0"
-        @change="handleTypeTableChange"
-        @expand="handleExpand"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'success' : 'error'">
-              {{ record.status === 1 ? '启用' : '停用' }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="handleEditType(record)">
-                编辑
-              </a-button>
-              <a-button type="link" size="small" danger @click="handleDeleteTypeConfirm(record)">
-                删除
-              </a-button>
-            </a-space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="record.status === 'ENABLED' ? 'success' : 'error'">
+            {{ record.status === 'ENABLED' ? '启用' : '停用' }}
+          </a-tag>
         </template>
 
-        <!-- 展开行：字典项子表 -->
-        <template #expandedRowRender="{ record }">
-          <div class="expanded-content">
-            <div class="expanded-header">
-              <span class="expanded-title">字典项列表</span>
-              <a-button type="primary" size="small" @click="handleAddItem(record)">
-                <template #icon><PlusOutlined /></template>
-                新增字典项
-              </a-button>
-            </div>
-            <a-table
-              :columns="itemColumns"
-              :data-source="dictItemMap[record.id] || []"
-              :loading="itemLoadingMap[record.id]"
-              :pagination="false"
-              row-key="id"
-              size="small"
-            >
-              <template #bodyCell="{ column: itemCol, record: itemRecord }">
-                <template v-if="itemCol.key === 'status'">
-                  <a-tag :color="itemRecord.status === 1 ? 'success' : 'error'">
-                    {{ itemRecord.status === 1 ? '启用' : '停用' }}
-                  </a-tag>
-                </template>
+        <template v-else-if="column.key === 'action'">
+          <a-space>
+            <a-button type="link" size="small" @click="handleEditType(record)">
+              编辑
+            </a-button>
+            <a-button type="link" size="small" danger @click="handleDeleteTypeConfirm(record)">
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </template>
 
-                <template v-else-if="itemCol.key === 'action'">
-                  <a-space>
-                    <a-button type="link" size="small" @click="handleEditItem(record, itemRecord)">
-                      编辑
-                    </a-button>
-                    <a-button type="link" size="small" danger @click="handleDeleteItemConfirm(record, itemRecord)">
-                      删除
-                    </a-button>
-                  </a-space>
-                </template>
-              </template>
-            </a-table>
+      <template #expandedRowRender="{ record }">
+        <div class="expanded-content">
+          <div class="expanded-header">
+            <span class="expanded-title">字典项列表</span>
+            <a-button type="primary" size="small" @click="handleAddItem(record)">
+              <template #icon><PlusOutlined /></template>
+              新增字典项
+            </a-button>
           </div>
-        </template>
-      </a-table>
-    </a-card>
+          <a-table
+            :columns="itemColumns"
+            :data-source="dictItemMap[record.id] || []"
+            :loading="itemLoadingMap[record.id]"
+            :pagination="false"
+            row-key="id"
+            size="small"
+          >
+            <template #bodyCell="{ column: itemCol, record: itemRecord }">
+              <template v-if="itemCol.key === 'status'">
+                <a-tag :color="itemRecord.status === 'ENABLED' ? 'success' : 'error'">
+                  {{ itemRecord.status === 'ENABLED' ? '启用' : '停用' }}
+                </a-tag>
+              </template>
+
+              <template v-else-if="itemCol.key === 'action'">
+                <a-space>
+                  <a-button type="link" size="small" @click="handleEditItem(record, itemRecord)">
+                    编辑
+                  </a-button>
+                  <a-button type="link" size="small" danger @click="handleDeleteItemConfirm(record, itemRecord)">
+                    删除
+                  </a-button>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
+        </div>
+      </template>
+    </TableList>
 
     <!-- 字典类型表单弹窗 -->
     <a-modal
@@ -168,8 +116,8 @@
         </a-form-item>
         <a-form-item label="状态" name="status">
           <a-radio-group v-model:value="typeFormState.status">
-            <a-radio :value="1">启用</a-radio>
-            <a-radio :value="0">停用</a-radio>
+            <a-radio value="ENABLED">启用</a-radio>
+            <a-radio value="DISABLED">停用</a-radio>
           </a-radio-group>
         </a-form-item>
         <a-form-item label="备注" name="remark">
@@ -221,8 +169,8 @@
         </a-form-item>
         <a-form-item label="状态" name="status">
           <a-radio-group v-model:value="itemFormState.status">
-            <a-radio :value="1">启用</a-radio>
-            <a-radio :value="0">停用</a-radio>
+            <a-radio value="ENABLED">启用</a-radio>
+            <a-radio value="DISABLED">停用</a-radio>
           </a-radio-group>
         </a-form-item>
       </a-form>
@@ -233,12 +181,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined
-} from '@ant-design/icons-vue'
+import type { FormInstance } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/dict'
 
 // ==================== 字典类型相关 ====================
@@ -247,7 +192,7 @@ import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/di
 const typeSearchForm = reactive({
   dictCode: '',
   dictName: '',
-  status: undefined as number | undefined
+  status: undefined as string | undefined
 })
 
 // 表格
@@ -262,13 +207,20 @@ const typePagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const typeColumns: TableProps['columns'] = [
+const typeColumns: any[] = [
   { title: '类型编码', dataIndex: 'dictCode', width: 160 },
   { title: '类型名称', dataIndex: 'dictName', width: 160 },
   { title: '状态', key: 'status', width: 80 },
   { title: '备注', dataIndex: 'remark', width: 200, ellipsis: true },
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 140, fixed: 'right' }
+]
+
+// 筛选字段
+const filterFields: FilterField[] = [
+  { key: 'dictCode', label: '类型编码', type: 'input', placeholder: '请输入类型编码' },
+  { key: 'dictName', label: '类型名称', type: 'input', placeholder: '请输入类型名称' },
+  { key: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 'ENABLED' }, { label: '停用', value: 'DISABLED' }] },
 ]
 
 // 弹窗
@@ -282,7 +234,7 @@ const typeFormState = reactive({
   id: 0,
   dictCode: '',
   dictName: '',
-  status: 1,
+  status: 'ENABLED',
   remark: ''
 })
 
@@ -321,16 +273,28 @@ const handleTypeReset = () => {
   handleTypeSearch()
 }
 
-const handleTypeTableChange: TableProps['onChange'] = (pag) => {
-  typePagination.current = pag.current || 1
-  typePagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(typeSearchForm, { dictCode: '', dictName: '', status: undefined })
+  } else {
+    Object.assign(typeSearchForm, filters)
+  }
+  typePagination.current = 1
+  fetchTypeData()
+}
+
+// 分页变化
+const handleTypePageChange = (page: number, pageSize: number) => {
+  typePagination.current = page
+  typePagination.pageSize = pageSize
   fetchTypeData()
 }
 
 // 新增类型
 const handleAddType = () => {
   isTypeEdit.value = false
-  Object.assign(typeFormState, { id: 0, dictCode: '', dictName: '', status: 1, remark: '' })
+  Object.assign(typeFormState, { id: 0, dictCode: '', dictName: '', status: 'ENABLED', remark: '' })
   typeModalVisible.value = true
 }
 
@@ -401,7 +365,7 @@ const handleTypeModalCancel = () => {
 const dictItemMap = reactive<Record<number, DictItem[]>>({})
 const itemLoadingMap = reactive<Record<number, boolean>>({})
 
-const itemColumns: TableProps['columns'] = [
+const itemColumns: any[] = [
   { title: '字典项编码', dataIndex: 'itemCode', width: 150 },
   { title: '字典项名称', dataIndex: 'itemName', width: 180 },
   { title: '排序', dataIndex: 'sortOrder', width: 80 },
@@ -422,7 +386,7 @@ const itemFormState = reactive({
   itemCode: '',
   itemName: '',
   sortOrder: 0,
-  status: 1
+  status: 'ENABLED'
 })
 
 const itemFormRules = {
@@ -460,7 +424,7 @@ const handleAddItem = (typeRecord: DictType) => {
     itemCode: '',
     itemName: '',
     sortOrder: 0,
-    status: 1
+    status: 'ENABLED'
   })
   itemModalVisible.value = true
 }
@@ -550,31 +514,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .expanded-content {
   padding: 12px 0;
 }
@@ -590,16 +529,5 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 500;
   color: #1890ff;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

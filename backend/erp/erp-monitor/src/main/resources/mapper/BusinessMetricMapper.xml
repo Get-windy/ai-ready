@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="cn.aiedge.erp.monitor.mapper.BusinessMetricMapper">
+<mapper namespace="cn.aiedge.erp.monitor.mapper.MonitorBusinessMetricMapper">
 
     <resultMap id="BaseResultMap" type="cn.aiedge.erp.monitor.entity.BusinessMetric">
         <id column="id" property="id"/>
@@ -123,4 +123,26 @@
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-                #{item.tenantId}, #{item
+                #{item.tenantId}, #{item.metricCode}, #{item.metricName}, #{item.metricType},
+                #{item.metricValue}, #{item.unit}, #{item.period}, #{item.statTime},
+                #{item.dimension1Type}, #{item.dimension1Value},
+                #{item.dimension2Type}, #{item.dimension2Value},
+                #{item.dimension3Type}, #{item.dimension3Value},
+                #{item.chainRatio}, #{item.yearRatio}, #{item.targetValue},
+                #{item.completionRate}, #{item.status}, #{item.remark},
+                #{item.createTime}, #{item.updateTime}
+            )
+        </foreach>
+        ON CONFLICT (tenant_id, metric_code, period, stat_time)
+        DO UPDATE SET
+            metric_value = EXCLUDED.metric_value,
+            metric_name = EXCLUDED.metric_name,
+            chain_ratio = EXCLUDED.chain_ratio,
+            year_ratio = EXCLUDED.year_ratio,
+            target_value = EXCLUDED.target_value,
+            completion_rate = EXCLUDED.completion_rate,
+            status = EXCLUDED.status,
+            update_time = EXCLUDED.update_time
+    </insert>
+
+</mapper>

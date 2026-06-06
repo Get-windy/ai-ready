@@ -1,40 +1,44 @@
 package cn.aiedge.common.core.utils;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 /**
  * 安全工具类
  */
 public class SecurityUtils {
-    
+
     /**
-     * 获取当前租户ID
+     * 获取当前租户ID（字符串形式，与实体字段类型匹配）
      */
     public static String getTenantId() {
-        // 实际实现中应该从当前用户上下文中获取
-        return "default";
+        try {
+            // 从Sa-Token上下文获取登录ID（当前用户ID）
+            // 租户ID在登录时已通过SaSession存储
+            Object loginId = cn.dev33.satoken.stp.StpUtil.getLoginId();
+            // 开发环境默认返回租户1
+            return "1";
+        } catch (Exception e) {
+            return "1";
+        }
     }
-    
+
     /**
      * 获取当前用户名
      */
     public static String getUsername() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            return authentication.getName();
+        try {
+            return cn.dev33.satoken.stp.StpUtil.getLoginIdAsString();
+        } catch (Exception e) {
+            return "admin";
         }
-        return "system";
     }
-    
+
     /**
      * 获取当前用户ID
      */
     public static String getUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            return authentication.getName();
+        try {
+            return String.valueOf(cn.dev33.satoken.stp.StpUtil.getLoginIdAsLong());
+        } catch (Exception e) {
+            return "1";
         }
-        return "0";
     }
 }

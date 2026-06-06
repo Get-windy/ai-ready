@@ -13,7 +13,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
-@RequestMapping("/erp/budget/item")
+@RequestMapping("/api/erp/budget/item")
 @Tag(name = "预算科目", description = "预算科目明细管理")
 @RequiredArgsConstructor
 public class BudgetItemController {

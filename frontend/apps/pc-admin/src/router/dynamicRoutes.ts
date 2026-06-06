@@ -82,7 +82,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'workflow/task-management': () => import('@/views/workflow/task-management.vue'),
 
   // ERP 模块
-  'erp/purchase/index': () => import('@/views/erp/purchase/index.vue'),
   'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
@@ -175,6 +174,23 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   const userId = userStore.userId
   const tenantId = userStore.tenantId || 1
 
+  // 先检查 Token 是否有效，避免因后端 Sa-Token 会话过期导致菜单接口异常
+  try {
+    const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
+    if (!checkRes?.data?.valid) {
+      console.warn('[动态路由] Token 已失效，准备跳转登录页')
+      const err: any = new Error('Token 已失效')
+      err.status = 401
+      throw err
+    }
+  } catch (checkErr: any) {
+    if (checkErr?.status === 401 || checkErr?.response?.status === 401) {
+      throw checkErr
+    }
+    // 其他错误（如网络错误）忽略，继续尝试加载菜单
+    console.warn('[动态路由] Token 检查失败，继续尝试加载菜单:', checkErr?.message)
+  }
+
   try {
     const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, { userId, tenantId })
 
@@ -186,12 +202,16 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         path: '/',
         name: 'Layout',
         component: () => import('@/layouts/BasicLayout.vue'),
-        redirect: '/dashboard',
         meta: { requiresAuth: true },
-        children: menuTree.map(menu => {
-          const route = transformMenuToRoute(menu)
-          return route
-        })
+        children: [
+          ...menuTree.map(menu => transformMenuToRoute(menu)),
+          {
+            path: '/:pathMatch(.*)*',
+            name: 'NotFound',
+            component: () => import('@/views/error/404.vue'),
+            meta: { title: '页面不存在', requiresAuth: false }
+          }
+        ]
       }
 
       return [layoutRoute]
@@ -202,6 +222,23 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
     // 检查是否是401错误，如果是则抛出错误让路由守卫处理
     if (error?.response?.status === 401 || error?.status === 401) {
       throw error
+    }
+
+    // 菜单接口返回 500 时，二次验证 Token 是否已失效
+    if (error?.response?.status === 500) {
+      try {
+        const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
+        if (!checkRes?.data?.valid) {
+          console.warn('[动态路由] Token 已失效（菜单接口500确认）')
+          const err: any = new Error('Token 已失效')
+          err.status = 401
+          throw err
+        }
+      } catch (secondaryErr: any) {
+        if (secondaryErr?.status === 401 || secondaryErr?.response?.status === 401) {
+          throw secondaryErr
+        }
+      }
     }
 
     // 其他错误，返回fallback路由
@@ -327,15 +364,9 @@ function getFallbackRoutes(): RouteRecordRaw[] {
           path: 'erp',
           name: 'ErpLayout',
           component: () => import('@/layouts/BasicLayout.vue'),
-          redirect: '/erp/purchase',
+          redirect: '/purchase',
           meta: { title: 'ERP管理', icon: 'AppstoreOutlined', requiresAuth: true },
           children: [
-            {
-              path: 'purchase',
-              name: 'ErpPurchase',
-              component: () => import('@/views/erp/purchase/index.vue'),
-              meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true }
-            },
             {
               path: 'sale',
               name: 'ErpSale',

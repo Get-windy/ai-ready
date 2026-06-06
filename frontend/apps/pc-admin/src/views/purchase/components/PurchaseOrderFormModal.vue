@@ -191,6 +191,8 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'PurchaseOrderFormModal' })
+
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ImportOutlined, InboxOutlined } from '@ant-design/icons-vue'

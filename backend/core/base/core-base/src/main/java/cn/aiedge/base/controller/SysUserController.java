@@ -9,6 +9,7 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,8 @@ public class SysUserController {
     @Operation(summary = "用户登录")
     @PostMapping("/login")
     public Result<String> login(@RequestBody @Valid UserDTO.Login dto,
-                                @RequestHeader("X-Real-IP") String loginIp) {
+                                HttpServletRequest request) {
+        String loginIp = getClientIp(request);
         String token = userService.login(dto.username(), dto.password(), dto.tenantId(), loginIp);
         return Result.ok("登录成功", token);
     }
@@ -171,6 +173,29 @@ public class SysUserController {
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 获取客户端IP
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
+    }
 
     private SysUser convertToEntity(UserDTO.Create dto) {
         return new SysUser()

@@ -295,7 +295,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public void updateLoginInfo(Long userId, String loginIp) {
-        userMapper.updateLoginInfo(userId, loginIp);
+        String safeLoginIp = (loginIp != null && !loginIp.isEmpty()) ? loginIp : "0.0.0.0";
+        userMapper.updateLoginInfo(userId, safeLoginIp);
     }
 
     @Override

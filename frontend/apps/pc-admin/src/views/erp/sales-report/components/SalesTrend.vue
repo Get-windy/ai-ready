@@ -185,7 +185,7 @@ const handleQuery = async () => {
   } catch { message.info('查询销售趋势失败') }
 }
 
-onMounted(() => initChart().then(() => handleQuery()))
+onMounted(async () => { await initChart(); await handleQuery() })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)

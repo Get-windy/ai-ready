@@ -3,7 +3,7 @@ package cn.aiedge.finance.service.impl;
 import cn.aiedge.finance.entity.Payable;
 import cn.aiedge.finance.entity.Payment;
 import cn.aiedge.finance.mapper.PayableMapper;
-import cn.aiedge.finance.mapper.PaymentMapper;
+import cn.aiedge.finance.mapper.FinancePaymentMapper;
 import cn.aiedge.finance.dto.PayableCreateRequest;
 import cn.aiedge.finance.dto.PayableUpdateRequest;
 import cn.aiedge.finance.dto.PayableQueryRequest;
@@ -32,9 +32,9 @@ import java.util.List;
 public class PayableServiceImpl extends ServiceImpl<PayableMapper, Payable> implements IPayableService {
 
     private final PayableMapper payableMapper;
-    private final PaymentMapper paymentMapper;
+    private final FinancePaymentMapper paymentMapper;
 
-    public PayableServiceImpl(PayableMapper payableMapper, PaymentMapper paymentMapper) {
+    public PayableServiceImpl(PayableMapper payableMapper, FinancePaymentMapper paymentMapper) {
         this.payableMapper = payableMapper;
         this.paymentMapper = paymentMapper;
     }
@@ -131,6 +131,22 @@ public class PayableServiceImpl extends ServiceImpl<PayableMapper, Payable> impl
             
             payableMapper.deleteById(id);
         }
+    }
+
+    @Override
+    public void batchDelete(List<Long> ids) {
+        removeBatchByIds(ids);
+    }
+
+    @Override
+    public List<PayableVO> exportList(PayableQueryRequest request) {
+        LambdaQueryWrapper<Payable> wrapper = Wrappers.lambdaQuery(Payable.class)
+                .eq(request.getSupplierId() != null, Payable::getSupplierId, request.getSupplierId())
+                .eq(Payable::getTenantId, getCurrentTenantId())
+                .orderByDesc(Payable::getCreateTime);
+
+        List<Payable> list = payableMapper.selectList(wrapper);
+        return list.stream().map(this::convertToVO).toList();
     }
 
     private PayableVO convertToVO(Payable payable) {

@@ -154,34 +154,34 @@ export interface ContractQuery {
 
 export const contractApi = {
   page(params: ContractQuery): Promise<PageResponse<ContractItem>> {
-    return request.get('/api/crm/contract/page', params)
+    return request.get('/crm/contract/page', params)
   },
   getById(id: number): Promise<ApiResponse<ContractItem>> {
-    return request.get(`/api/crm/contract/${id}`)
+    return request.get(`/crm/contract/${id}`)
   },
   create(data: Partial<ContractItem>): Promise<ApiResponse<ContractItem>> {
-    return request.post('/api/crm/contract', data)
+    return request.post('/crm/contract', data)
   },
   update(id: number, data: Partial<ContractItem>): Promise<ApiResponse<ContractItem>> {
-    return request.put(`/api/crm/contract/${id}`, data)
+    return request.put(`/crm/contract/${id}`, data)
   },
   submitForApproval(id: number): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/api/crm/contract/${id}/submit`)
+    return request.post(`/crm/contract/${id}/submit`)
   },
   approve(id: number, note?: string): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/api/crm/contract/${id}/approve`, null, { params: { note } })
+    return request.post(`/crm/contract/${id}/approve`, null, { params: { note } })
   },
   reject(id: number, reason: string): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/api/crm/contract/${id}/reject`, null, { params: { reason } })
+    return request.post(`/crm/contract/${id}/reject`, null, { params: { reason } })
   },
   sign(id: number, signMethod: string, location?: string): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/api/crm/contract/${id}/sign`, null, { params: { signMethod, location } })
+    return request.post(`/crm/contract/${id}/sign`, null, { params: { signMethod, location } })
   },
   terminate(id: number, reason: string): Promise<ApiResponse<ContractItem>> {
-    return request.post(`/api/crm/contract/${id}/terminate`, null, { params: { reason } })
+    return request.post(`/crm/contract/${id}/terminate`, null, { params: { reason } })
   },
   getStatistics(): Promise<ApiResponse<any>> {
-    return request.get('/api/crm/contract/statistics')
+    return request.get('/crm/contract/statistics')
   }
 }
 
@@ -214,24 +214,24 @@ export interface InvoiceQuery {
 
 export const invoiceApi = {
   page(params: InvoiceQuery): Promise<any> {
-    return request.get('/api/erp/invoice/page', params)
+    return request.get('/erp/invoice/page', params)
   },
   getById(id: number): Promise<ApiResponse<InvoiceItem>> {
-    return request.get(`/api/erp/invoice/${id}`)
+    return request.get(`/erp/invoice/${id}`)
   },
   create(data: Partial<InvoiceItem>): Promise<ApiResponse<InvoiceItem>> {
-    return request.post('/api/erp/invoice/create-from-application', data)
+    return request.post('/erp/invoice/create-from-application', data)
   },
   updateStatus(id: number, newStatus: string, notes?: string): Promise<ApiResponse<boolean>> {
-    return request.put(`/api/erp/invoice/${id}/status`, null, { params: { newStatus, notes } })
+    return request.put(`/erp/invoice/${id}/status`, null, { params: { newStatus, notes } })
   },
   voidInvoice(id: number, reason: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/erp/invoice/${id}/void`, null, { params: { reason } })
+    return request.post(`/erp/invoice/${id}/void`, null, { params: { reason } })
   },
   sendInvoice(id: number, sendMethod: string): Promise<ApiResponse<boolean>> {
-    return request.post(`/api/erp/invoice/${id}/send`, null, { params: { sendMethod } })
+    return request.post(`/erp/invoice/${id}/send`, null, { params: { sendMethod } })
   },
   getStatistics(startDate?: string, endDate?: string): Promise<ApiResponse<any>> {
-    return request.get('/api/erp/invoice/statistics', { startDate, endDate })
+    return request.get('/erp/invoice/statistics', { startDate, endDate })
   }
 }

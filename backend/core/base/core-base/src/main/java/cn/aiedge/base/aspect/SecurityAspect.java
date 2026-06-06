@@ -25,12 +25,12 @@ public class SecurityAspect {
     private RedisTemplate<String, Object> redisTemplate;
 
     private static final Pattern SQL_INJECTION_PATTERN = Pattern.compile(
-        "(?i)(select|insert|update|delete|drop|truncate|union|exec|execute|script|alert|javascript)",
+        "(?i)(\\b(select|insert|update|delete|drop|truncate|union|exec|execute)\\b|\\bscript\\b|\\balert\\b)",
         Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern XSS_PATTERN = Pattern.compile(
-        "(?i)(<script|javascript:|on\\w+=|alert\\(|confirm\\(|prompt\\()",
+        "(?i)(<script[^>]*>|javascript:|\\bon\\w+\\s*=|alert\\(|confirm\\(|prompt\\()",
         Pattern.CASE_INSENSITIVE
     );
 

@@ -124,14 +124,14 @@ export const userApi = {
     return request.delete('/user/batch', { data: ids })
   },
 
-  // 重置密码 - 修复: 使用PATCH
+  // 重置密码
   resetPassword(id: number, newPassword: string): Promise<ApiResponse<boolean>> {
-    return request.patch(`/user/${id}/password/reset`, null, { params: { newPassword } })
+    return request.put(`/user/${id}/password/reset`, null, { params: { newPassword } })
   },
 
   // 修改密码
   changePassword(id: number, oldPassword: string, newPassword: string): Promise<ApiResponse<boolean>> {
-    return request.patch(`/user/${id}/password/change`, null, { params: { oldPassword, newPassword } })
+    return request.put(`/user/${id}/password/change`, null, { params: { oldPassword, newPassword } })
   },
 
   // 分配角色
@@ -139,9 +139,9 @@ export const userApi = {
     return request.post(`/user/${id}/roles`, roleIds)
   },
 
-  // 更新用户状态 - 修复: 使用PATCH
+  // 更新用户状态
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/user/${id}/status`, null, { params: { status } })
+    return request.put(`/user/${id}/status`, null, { params: { status } })
   },
 
   // 获取用户列表

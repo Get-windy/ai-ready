@@ -213,6 +213,6 @@ public class OrderController {
         for (Long id : ids) {
             purchaseOrderService.deletePurchaseOrder(id);
         }
-        return ApiResponse.ok("批量删除成功");
+        return ApiResponse.ok("批量删除成功", null);
     }
 }

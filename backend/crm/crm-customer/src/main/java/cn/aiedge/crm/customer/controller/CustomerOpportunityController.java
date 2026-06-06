@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/crm/opportunity")
+@RequestMapping("/api/crm/opportunity")
 @Tag(name = "CRM商机管理", description = "商机管理、阶段推进、赢单输单")
 @RequiredArgsConstructor
 public class CustomerOpportunityController {

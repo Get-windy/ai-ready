@@ -71,7 +71,7 @@ export const tenantApi = {
 
   /** 更新租户状态 */
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/tenant/${id}/status`, null, { params: { status } })
+    return request.put(`/tenant/${id}/status`, null, { params: { status } })
   },
 
   /** 获取租户配置 */

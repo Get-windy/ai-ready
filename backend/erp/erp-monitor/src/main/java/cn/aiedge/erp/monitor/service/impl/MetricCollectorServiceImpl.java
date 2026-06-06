@@ -4,7 +4,7 @@ import cn.aiedge.erp.monitor.entity.BusinessMetric;
 import cn.aiedge.erp.monitor.enums.MetricPeriod;
 import cn.aiedge.erp.monitor.enums.MetricStatus;
 import cn.aiedge.erp.monitor.enums.MetricType;
-import cn.aiedge.erp.monitor.mapper.BusinessMetricMapper;
+import cn.aiedge.erp.monitor.mapper.MonitorBusinessMetricMapper;
 import cn.aiedge.erp.monitor.service.MetricCollectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class MetricCollectorServiceImpl implements MetricCollectorService {
 
-    private final BusinessMetricMapper businessMetricMapper;
+    private final MonitorBusinessMetricMapper businessMetricMapper;
     private final Random random = new Random();
 
     @Override

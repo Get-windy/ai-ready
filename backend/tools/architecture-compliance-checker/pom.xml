@@ -14,7 +14,7 @@
 
     <groupId>cn.aiedge.architecture</groupId>
     <artifactId>architecture-compliance-checker</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <name>Architecture Compliance Checker</name>
     <description>Automated architecture compliance checking tool for ERP system</description>
 
@@ -123,21 +123,7 @@
     </dependencies>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-            
-            <plugin>
+        <plugins><plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>

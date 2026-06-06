@@ -161,13 +161,22 @@ export async function refreshTokenAndRetry(
   }
 }
 
+// ── Token 格式判断 ──────────────────────────────────────
+
+/**
+ * 判断 Token 是否为 JWT 格式（header.payload.signature）
+ */
+export function isJWT(token: string): boolean {
+  return token.split('.').length === 3
+}
+
 // ── Token 过期检查 ──────────────────────────────────────
 
 const T = '[DEBUG:token]'
 
 /**
  * 检查 Token 是否已过期（仅检查 exp 字段，不做签名验证）
- * 对于非 JWT 格式的 token（如 mock），假定未过期
+ * 对于非 JWT 格式的 token（如 UUID），本地无法判断，需后端验证
  */
 export function isTokenExpired(token: string): boolean {
   try {
@@ -178,10 +187,78 @@ export function isTokenExpired(token: string): boolean {
     console.log(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
     return expired
   } catch {
-    // 非 JWT 格式的 Token（如 mock token），假定未过期
-    console.log(`${T} isTokenExpired: 非JWT格式, 假定未过期`)
+    // 非 JWT 格式（如 UUID token）→ 本地无法判断，返回 false
+    // 由 verifyToken() 进行后端验证
+    console.log(`${T} isTokenExpired: 非JWT格式, 需要后端验证`)
     return false
   }
+}
+
+// ── Token 后端验证（生产级前端无法本地验证 UUID token） ──
+
+let lastVerifiedToken: string | null = null
+let lastVerifiedTime = 0
+const VERIFY_TTL = 5 * 60 * 1000 // 5 分钟缓存
+
+/**
+ * 调用后端验证 Token 是否有效
+ * 用 /api/auth/user-info 作为验证端点（已有、轻量）
+ * 适用场景：非 JWT 格式 token（UUID），前端无法本地判断过期
+ */
+export async function verifyToken(): Promise<boolean> {
+  const token = getToken()
+  if (!token) return false
+
+  // 缓存命中：同一 token 且在 TTL 内
+  if (token === lastVerifiedToken && Date.now() - lastVerifiedTime < VERIFY_TTL) {
+    return true
+  }
+
+  try {
+    const response = await fetch('/api/auth/check', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+
+    // 404 等非预期状态 → 端点不可用，无法验证，保守起见视为有效
+    if (response.status === 404) {
+      console.warn(`${T} verifyToken: 验证端点不存在(404), 跳过验证`)
+      return true
+    }
+
+    if (!response.ok) {
+      console.warn(`${T} verifyToken: 后端拒绝, status=${response.status}`)
+      lastVerifiedToken = null
+      lastVerifiedTime = 0
+      return false
+    }
+
+    // 解析响应：/api/auth/check 返回 {code:200, data:{valid:true/false, userId, tokenTimeout}}
+    const body = await response.json()
+    const valid = body?.data?.valid === true
+    if (valid) {
+      lastVerifiedToken = token
+      lastVerifiedTime = Date.now()
+    } else {
+      console.warn(`${T} verifyToken: token 无效 (valid=false)`)
+      lastVerifiedToken = null
+      lastVerifiedTime = 0
+    }
+    return valid
+  } catch (err) {
+    console.warn(`${T} verifyToken: 请求失败`, err)
+    lastVerifiedToken = null
+    lastVerifiedTime = 0
+    return false
+  }
+}
+
+/**
+ * 清除 token 验证缓存（在登出时调用）
+ */
+export function clearTokenVerifyCache(): void {
+  lastVerifiedToken = null
+  lastVerifiedTime = 0
 }
 
 // ── Token 变更事件订阅 ──────────────────────────────────

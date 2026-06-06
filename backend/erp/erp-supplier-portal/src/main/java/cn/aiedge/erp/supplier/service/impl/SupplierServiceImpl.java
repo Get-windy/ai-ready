@@ -24,8 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -499,7 +498,13 @@ public class SupplierServiceImpl implements SupplierService {
             queryWrapper.orderByDesc(SupplierPerformanceEntity::getEvaluationDate);
             
             if (limit != null && limit > 0) {
-                queryWrapper.last("LIMIT " + limit);
+                // 使用 MyBatis-Plus 分页查询替代手动 LIMIT 拼接，防止 SQL 注入
+                Page<SupplierPerformanceEntity> page = new Page<>(1, limit);
+                List<SupplierPerformanceEntity> entityPage = supplierPerformanceRepository.selectPage(page, queryWrapper).getRecords();
+                List<SupplierPerformanceDTO> dtoList = entityPage.stream()
+                    .map(entity -> BeanUtils.copyProperties(entity, SupplierPerformanceDTO.class))
+                    .collect(Collectors.toList());
+                return R.ok(dtoList);
             }
             
             List<SupplierPerformanceEntity> entityList = supplierPerformanceRepository.selectList(queryWrapper);
@@ -840,11 +845,25 @@ public class SupplierServiceImpl implements SupplierService {
             queryWrapper.ne(SupplierEntity::getPortalStatus, 2); // 排除已禁用
         }
         
-        // 排序
+        // 排序（白名单校验防SQL注入）
         if (StringUtils.isNotEmpty(queryDTO.getOrderBy())) {
             String orderByField = StringUtils.camelToUnderline(queryDTO.getOrderBy());
+            // 仅允许已知字段名排序，防止SQL注入
+            Set<String> allowedFields = new java.util.HashSet<>(Arrays.asList(
+                "id", "supplier_code", "supplier_name", "short_name", "supplier_type",
+                "cooperation_status", "supplier_level", "comprehensive_score",
+                "certification_status", "portal_status", "create_time", "update_time",
+                "contact_person", "contact_phone", "contact_email", "company_address",
+                "credit_code", "legal_person", "registered_capital", "establishment_date"
+            ));
+            if (!allowedFields.contains(orderByField)) {
+                log.warn("不支持的排序字段: {}", orderByField);
+                orderByField = "create_time";
+            }
             boolean isAsc = "asc".equalsIgnoreCase(queryDTO.getOrderDirection());
-            queryWrapper.last((isAsc ? "ORDER BY " : "ORDER BY ") + orderByField + (isAsc ? " ASC" : " DESC"));
+            // LambdaQueryWrapper.orderBy 需要 SFunction 而非 String，
+            // 改用 last 追加排序，字段已通过白名单校验防SQL注入
+            queryWrapper.last("ORDER BY " + orderByField + " " + (isAsc ? "ASC" : "DESC"));
         } else {
             queryWrapper.orderByDesc(SupplierEntity::getCreateTime);
         }

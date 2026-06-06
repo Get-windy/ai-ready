@@ -17,7 +17,7 @@ import java.util.Map;
  * 固定资产分类控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/category")
+@RequestMapping("/api/erp/fixed-asset/category")
 @Tag(name = "固定资产分类管理", description = "固定资产分类的增删改查及树形结构")
 @RequiredArgsConstructor
 public class FixedAssetCategoryController {

@@ -15,7 +15,7 @@ import java.util.Map;
  */
 @Tag(name = "Drools规则管理", description = "Drools规则引擎管理API")
 @RestController
-@RequestMapping("/drools-rules")
+@RequestMapping("/api/erp/drools-rules")
 @RequiredArgsConstructor
 public class DroolsRuleController {
     

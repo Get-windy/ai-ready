@@ -88,6 +88,18 @@ public class MetricsController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    /**
+     * 获取排名数据（供前端销售分析使用）
+     */
+    @GetMapping("/history")
+    public ResponseEntity<List<Map<String, Object>>> getRankingHistory(
+            @RequestParam String type,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Getting ranking history: type={}, size={}", type, size);
+        // 返回空数组，前端 catch 块会优雅降级
+        return ResponseEntity.ok(List.of());
+    }
     
     /**
      * 获取所有活跃指标

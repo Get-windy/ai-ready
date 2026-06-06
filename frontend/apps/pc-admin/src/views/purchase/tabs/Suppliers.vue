@@ -23,6 +23,22 @@
     @filter-change="handleFilterChange"
     @export="handleExport"
   >
+    <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配供应商">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无供应商">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建供应商</a-button>
+      </a-empty>
+    </template>
 
     <template #batch-actions>
       <a-button size="small" @click="handleBatchEdit">批量编辑</a-button>
@@ -35,7 +51,7 @@
     </template>
 
     <template #action="{ record }">
-      <a-space :size="4">
+      <a-space :size="0" class="action-cell-inner">
         <a-tooltip title="查看">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
@@ -46,13 +62,18 @@
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-popconfirm title="确定删除该供应商？" @confirm="handleDelete(record)">
-          <a-tooltip title="删除">
-            <a-button type="link" size="small" danger>
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </a-tooltip>
-        </a-popconfirm>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
+          </a-button>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -101,15 +122,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchaseSuppliersTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
+import { EyeOutlined, EditOutlined, DeleteOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { supplierApi } from '@/api/supplier'
 import { useUserStore } from '@/stores/user'
-import { exportCsv } from '@/utils/exportCsv'
+import { useExport } from '@/composables/useExport'
 import { executeBatch } from '@/utils/batchOperations'
 
+const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
@@ -118,6 +144,11 @@ const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const selectedRowKeys = computed(() => tableRef.value?.selectedRowKeys || [])
 
@@ -179,6 +210,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch {
     message.error('获取供应商列表失败')
   } finally { loading.value = false }
@@ -189,8 +221,24 @@ function handleAdd() { router.push('/supplier/create') }
 function handleEdit(record: any) { router.push(`/supplier/edit/${record.id}`) }
 
 async function handleDelete(record: any) {
-  try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
+  Modal.confirm({
+    title: '删除供应商', content: `确认删除供应商 "${record.supplierName}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
+    async onOk() {
+      try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() }
+      catch { message.error('删除失败') }
+    }
+  })
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
+}
+
+function handleActionMenuClick(key: string, record: any) {
+  switch (key) {
+    case 'delete': handleDelete(record); break
+  }
 }
 
 async function handleBatchDelete(ids: number[]) {
@@ -199,12 +247,20 @@ async function handleBatchDelete(ids: number[]) {
 }
 
 function handleExport() {
-  const headers = ['供应商编码', '供应商名称', '联系人', '联系电话', '等级', '状态', '创建时间']
-  const rows = dataSource.value.map((row: any) => [
-    row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
-    getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
-  ])
-  exportCsv(headers, rows, '供应商')
+  executeExport({
+    fileName: '供应商',
+    headers: ['供应商编码', '供应商名称', '联系人', '联系电话', '等级', '状态', '创建时间'],
+    fetchAll: () => supplierApi.page({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
+      getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: any) => [
+      row.supplierCode || '', row.supplierName || '', row.contactPerson || '', row.contactPhone || '',
+      getLevelText(row.supplierLevel), row.status === 1 ? '正常' : '停用', row.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 function handleBatchEdit() {
@@ -232,7 +288,35 @@ const handleBatchEditConfirm = async () => {
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 
-onMounted(() => fetchData())
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:refresh', fetchData)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:refresh', fetchData)
+})
 </script>
+
+<style scoped>
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

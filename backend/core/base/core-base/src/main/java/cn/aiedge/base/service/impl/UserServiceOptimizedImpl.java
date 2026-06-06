@@ -465,7 +465,8 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
 
     @Override
     public void updateLoginInfo(Long userId, String loginIp) {
-        userMapper.updateLoginInfo(userId, loginIp);
+        String safeLoginIp = (loginIp != null && !loginIp.isEmpty()) ? loginIp : "0.0.0.0";
+        userMapper.updateLoginInfo(userId, safeLoginIp);
         // 清除缓存
         evictUserCache(userId);
     }

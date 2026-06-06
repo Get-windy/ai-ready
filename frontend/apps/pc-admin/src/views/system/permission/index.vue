@@ -1,223 +1,107 @@
 <template>
   <div class="permission-management">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="null as any"
+      :table-key="'system-permission-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-add="false"
+      :show-edit="false"
+      :show-delete="false"
+      :show-batch-delete="false"
+      @refresh="fetchData"
+      @filter-change="handleFilterChange"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="权限名称">
-              <a-input
-                v-model:value="searchForm.permissionName"
-                placeholder="请输入权限名称"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="权限类型">
-              <a-select
-                v-model:value="searchForm.permissionType"
-                placeholder="请选择权限类型"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="0">
-                  目录
-                </a-select-option>
-                <a-select-option :value="1">
-                  菜单
-                </a-select-option>
-                <a-select-option :value="2">
-                  按钮
-                </a-select-option>
-                <a-select-option :value="3">
-                  API
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="状态">
-              <a-select
-                v-model:value="searchForm.status"
-                placeholder="请选择状态"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="0">
-                  启用
-                </a-select-option>
-                <a-select-option :value="1">
-                  停用
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #toolbar-actions>
+        <a-button type="primary" @click="handleAdd(null)">
+          <template #icon><PlusOutlined /></template>
+          新增顶级权限
+        </a-button>
+        <a-button @click="handleExpandAll">
+          <template #icon><ExpandOutlined /></template>
+          展开/折叠
+        </a-button>
+      </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <span class="title">权限列表</span>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'permissionName'">
+          <a-space>
+            <component
+              :is="getIcon(record.icon)"
+              v-if="record.icon"
+            />
+            <span>{{ record.permissionName }}</span>
+            <a-tag
+              v-if="record.permissionType === 0"
+              color="blue"
+            >
+              目录
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 1"
+              color="green"
+            >
+              菜单
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 2"
+              color="orange"
+            >
+              按钮
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 3"
+              color="purple"
+            >
+              API
+            </a-tag>
+          </a-space>
+        </template>
+
+        <template v-else-if="column.key === 'status'">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '启用' : '停用' }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'visible'">
+          <a-tag :color="record.visible === 1 ? 'success' : 'default'">
+            {{ record.visible === 1 ? '显示' : '隐藏' }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              @click="handleAdd(null)"
+              type="link"
+              size="small"
+              @click="handleAdd(record)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增顶级权限
+              新增子权限
             </a-button>
-            <a-button @click="handleExpandAll">
-              <template #icon>
-                <ExpandOutlined />
-              </template>
-              展开/折叠
+            <a-button
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="handleDeleteConfirm(record)"
+            >
+              删除
             </a-button>
           </a-space>
-        </div>
-      </template>
-      
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="false"
-        row-key="id"
-        :expand-row-by-click="true"
-        :expanded-row-keys="expandedKeys"
-        @expand="(expanded: boolean, record: PermissionInfo) => handleExpand(expanded, record)"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'permissionName'">
-            <a-space>
-              <component
-                :is="getIcon(record.icon)"
-                v-if="record.icon"
-              />
-              <span>{{ record.permissionName }}</span>
-              <a-tag
-                v-if="record.permissionType === 0"
-                color="blue"
-              >
-                目录
-              </a-tag>
-              <a-tag
-                v-else-if="record.permissionType === 1"
-                color="green"
-              >
-                菜单
-              </a-tag>
-              <a-tag
-                v-else-if="record.permissionType === 2"
-                color="orange"
-              >
-                按钮
-              </a-tag>
-              <a-tag
-                v-else-if="record.permissionType === 3"
-                color="purple"
-              >
-                API
-              </a-tag>
-            </a-space>
-          </template>
-          
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '启用' : '停用' }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'visible'">
-            <a-tag :color="record.visible === 1 ? 'success' : 'default'">
-              {{ record.visible === 1 ? '显示' : '隐藏' }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleAdd(record)"
-              >
-                新增子权限
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                danger
-                @click="handleDeleteConfirm(record)"
-              >
-                删除
-              </a-button>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 权限表单弹窗 -->
     <a-modal
@@ -248,7 +132,7 @@
             tree-default-expand-all
           />
         </a-form-item>
-        
+
         <a-form-item
           label="权限名称"
           name="permissionName"
@@ -258,7 +142,7 @@
             placeholder="请输入权限名称"
           />
         </a-form-item>
-        
+
         <a-form-item
           label="权限编码"
           name="permissionCode"
@@ -268,7 +152,7 @@
             placeholder="请输入权限编码，如：system:user:list"
           />
         </a-form-item>
-        
+
         <a-form-item
           label="权限类型"
           name="permissionType"
@@ -291,7 +175,7 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType <= 1"
           label="路由路径"
@@ -302,7 +186,7 @@
             placeholder="请输入路由路径，如：/system/user"
           />
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType <= 1"
           label="组件路径"
@@ -313,7 +197,7 @@
             placeholder="请输入组件路径，如：@/views/system/user/index"
           />
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType === 3"
           label="API路径"
@@ -324,7 +208,7 @@
             placeholder="请输入API路径，如：/api/user/list"
           />
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType === 3"
           label="请求方法"
@@ -351,7 +235,7 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType <= 1"
           label="图标"
@@ -362,7 +246,7 @@
             placeholder="请输入图标名称，如：UserOutlined"
           />
         </a-form-item>
-        
+
         <a-form-item
           v-if="formState.permissionType <= 1"
           label="是否显示"
@@ -377,7 +261,7 @@
             </a-radio>
           </a-radio-group>
         </a-form-item>
-        
+
         <a-form-item
           label="排序"
           name="sort"
@@ -389,7 +273,7 @@
             style="width: 100%"
           />
         </a-form-item>
-        
+
         <a-form-item
           label="状态"
           name="status"
@@ -413,8 +297,6 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
   PlusOutlined,
   ExpandOutlined,
   UserOutlined,
@@ -423,6 +305,7 @@ import {
   FileTextOutlined,
   ApiOutlined
 } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { useUserStore } from '@/stores/user'
 
@@ -440,7 +323,7 @@ const loading = ref(false)
 const expandedKeys = ref<number[]>([])
 
 // 表格列定义
-const columns = [
+const columns: any[] = [
   { title: '权限名称', key: 'permissionName', width: 250 },
   { title: '权限编码', dataIndex: 'permissionCode', width: 200, ellipsis: true },
   { title: '路由/API路径', key: 'path', width: 200, ellipsis: true },
@@ -448,6 +331,15 @@ const columns = [
   { title: '状态', key: 'status', width: 80 },
   { title: '显示', key: 'visible', width: 80 },
   { title: '操作', key: 'action', width: 220, fixed: 'right' }
+]
+
+// 筛选字段
+const filterFields: FilterField[] = [
+  { key: 'permissionName', label: '权限名称', type: 'input', placeholder: '请输入权限名称' },
+  { key: 'permissionType', label: '权限类型', type: 'select', options: [
+    { label: '目录', value: 0 }, { label: '菜单', value: 1 }, { label: '按钮', value: 2 }, { label: 'API', value: 3 }
+  ]},
+  { key: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 0 }, { label: '停用', value: 1 }] },
 ]
 
 // 弹窗相关
@@ -539,6 +431,16 @@ const handleReset = () => {
   handleSearch()
 }
 
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { permissionName: '', permissionType: undefined, status: undefined })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  fetchData()
+}
+
 // 展开/折叠
 const handleExpandAll = () => {
   if (expandedKeys.value.length === 0) {
@@ -558,22 +460,11 @@ const handleExpandAll = () => {
   }
 }
 
-const handleExpand = (expanded: boolean, record: PermissionInfo) => {
-  if (expanded) {
-    expandedKeys.value.push(record.id)
-  } else {
-    const index = expandedKeys.value.indexOf(record.id)
-    if (index > -1) {
-      expandedKeys.value.splice(index, 1)
-    }
-  }
-}
-
 // 新增权限
 const handleAdd = (record: PermissionInfo | null) => {
   isEdit.value = false
   isTopLevel.value = record === null
-  
+
   Object.assign(formState, {
     id: 0,
     parentId: record ? record.id : 0,
@@ -590,7 +481,7 @@ const handleAdd = (record: PermissionInfo | null) => {
     visible: 1,
     status: 0
   })
-  
+
   modalVisible.value = true
 }
 
@@ -598,7 +489,7 @@ const handleAdd = (record: PermissionInfo | null) => {
 const handleEdit = (record: PermissionInfo) => {
   isEdit.value = false
   isTopLevel.value = record.parentId === 0
-  
+
   Object.assign(formState, {
     id: record.id,
     parentId: record.parentId,
@@ -615,7 +506,7 @@ const handleEdit = (record: PermissionInfo) => {
     visible: record.visible,
     status: record.status
   })
-  
+
   modalVisible.value = true
 }
 
@@ -624,7 +515,7 @@ const handleModalOk = async () => {
   try {
     await formRef.value?.validate()
     modalLoading.value = true
-    
+
     if (formState.id) {
       await permissionApi.update(formState.id, formState)
       message.success('更新成功')
@@ -632,7 +523,7 @@ const handleModalOk = async () => {
       await permissionApi.create(formState)
       message.success('创建成功')
     }
-    
+
     modalVisible.value = false
     fetchData()
   } catch (error) {
@@ -677,41 +568,5 @@ onMounted(() => {
 <style scoped>
 .permission-management {
   padding: 0;
-}
-
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

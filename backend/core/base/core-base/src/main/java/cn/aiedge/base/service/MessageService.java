@@ -1,5 +1,6 @@
 package cn.aiedge.base.service;
 
+import cn.aiedge.base.dto.UnreadCountVO;
 import cn.aiedge.base.entity.SysMessage;
 import cn.aiedge.base.entity.SysMessageTemplate;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -49,6 +50,11 @@ public interface MessageService extends IService<SysMessage> {
      * 获取用户的未读消息
      */
     List<SysMessage> getUnreadMessages(Long userId);
+
+    /**
+     * 获取未读数量统计（按通知类型分类）
+     */
+    UnreadCountVO getUnreadCount(Long userId);
 
     /**
      * 标记消息为已读

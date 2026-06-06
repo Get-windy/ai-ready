@@ -13,6 +13,7 @@ import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -20,6 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -159,6 +164,48 @@ public class PositionServiceImpl extends ServiceImpl<PositionMapper, Position> i
         position.setStatus(status);
         this.updateById(position);
         log.info("更新岗位状态: id={}, status={}", id, status);
+    }
+
+    @Override
+    public void export(PositionQueryRequest request, HttpServletResponse response) throws IOException {
+        // 查询所有匹配数据
+        LambdaQueryWrapper<Position> wrapper = new LambdaQueryWrapper<>();
+
+        if (StringUtils.hasText(request.getPositionCode())) {
+            wrapper.like(Position::getPositionCode, request.getPositionCode());
+        }
+        if (StringUtils.hasText(request.getPositionName())) {
+            wrapper.like(Position::getPositionName, request.getPositionName());
+        }
+        if (request.getCategoryId() != null) {
+            wrapper.eq(Position::getCategoryId, request.getCategoryId());
+        }
+        if (request.getDeptId() != null) {
+            wrapper.eq(Position::getDeptId, request.getDeptId());
+        }
+        if (request.getStatus() != null) {
+            wrapper.eq(Position::getStatus, request.getStatus());
+        }
+
+        wrapper.orderByAsc(Position::getSort);
+        List<Position> list = this.list(wrapper);
+
+        // 导出为CSV
+        response.setContentType("text/csv;charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment;filename=positions.csv");
+        response.setCharacterEncoding("UTF-8");
+
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
+            writer.println("岗位编码,岗位名称,排序,状态");
+            for (Position p : list) {
+                writer.printf("%s,%s,%d,%d%n",
+                    p.getPositionCode(),
+                    p.getPositionName(),
+                    p.getSort() != null ? p.getSort() : 0,
+                    p.getStatus() != null ? p.getStatus() : 1);
+            }
+            writer.flush();
+        }
     }
 
     @Override

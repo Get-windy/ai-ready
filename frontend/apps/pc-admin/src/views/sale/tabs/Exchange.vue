@@ -11,6 +11,7 @@
     :summary-data="summaryData"
     :show-export="true"
     add-text="新建换货"
+    add-permission="'sale:exchange:create'"
     @add="handleAdd"
     @edit="handleEdit"
     @view="handleView"
@@ -24,10 +25,24 @@
     @export="handleExport"
   >
     <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配换货单">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无换货单">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建换货单</a-button>
+      </a-empty>
     </template>
 
     <template #batch-actions>
-      <a-button size="small" @click="handleBatchApprove">批量审批</a-button>
+      <a-button v-permission="'sale:exchange:approve'" size="small" @click="handleBatchApprove">批量审批</a-button>
     </template>
 
     <template #status="{ record }">
@@ -37,27 +52,36 @@
     </template>
 
     <template #action="{ record }">
-      <a-space :size="4">
-        <a-tooltip title="查看">
+      <a-space :size="0" class="action-cell-inner">
+        <a-tooltip title="查看详情">
           <a-button type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
         <a-tooltip v-if="record.status === 0" title="编辑">
-          <a-button type="link" size="small" @click="handleEdit(record)">
+          <a-button v-permission.disabled="'sale:exchange:update'" type="link" size="small" @click="handleEdit(record)">
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="提交">
-          <a-button type="link" size="small" @click="handleSubmit(record)">
-            <template #icon><SendOutlined /></template>
+        <a-dropdown trigger="click">
+          <a-button type="link" size="small" class="action-more-btn">
+            <template #icon><EllipsisOutlined /></template>
           </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 1" title="审批">
-          <a-button type="link" size="small" @click="handleApprove(record)">
-            <template #icon><CheckCircleOutlined /></template>
-          </a-button>
-        </a-tooltip>
+          <template #overlay>
+            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu-item v-if="record.status === 0" key="submit">
+                <SendOutlined /> 提交
+              </a-menu-item>
+              <a-menu-item v-if="record.status === 1" key="approve">
+                <CheckCircleOutlined /> 审批
+              </a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="delete" danger>
+                <DeleteOutlined /> 删除
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </a-space>
     </template>
   </TableList>
@@ -75,7 +99,7 @@
       <a-descriptions-item label="换货原因" :span="2">{{ currentRecord.reason || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div style="text-align: right; margin-top: 16px"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
   </a-modal>
 
   <a-modal v-model:open="formModalVisible" :title="formMode === 'add' ? '新建换货单' : '编辑换货单'" width="700px" centered
@@ -109,19 +133,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'SaleExchangeTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
-import { exportCsv } from '@/utils/exportCsv'
+import { saleExchangeApi } from '@/api/erp'
+import { useUserStore } from '@/stores/user'
 import { executeBatch } from '@/utils/batchOperations'
+import { useExport } from '@/composables/useExport'
 
+const { execute: executeExport } = useExport()
+const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '换货单号', dataIndex: 'exchangeNo', key: 'exchangeNo', width: 160, sortable: true },
@@ -131,7 +167,7 @@ const columns = [
   { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
   { title: '创建人', dataIndex: 'creatorName', key: 'creatorName', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' as const, type: 'action' as const }
+  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
 ]
 const filterFields = [
   { key: 'exchangeNo', label: '换货单号', type: 'input' as const, placeholder: '输入换货单号' },
@@ -169,8 +205,10 @@ const formRules = {
 async function fetchData() {
   loading.value = true
   try {
-    // TODO: 接入销售换货API
-    dataSource.value = []; pagination.total = 0
+    const res = await saleExchangeApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    const pageData = (res as any).data ?? res
+    dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch { message.error('获取换货单列表失败') }
   finally { loading.value = false }
 }
@@ -189,13 +227,32 @@ function handleEdit(record: any) {
   formModalVisible.value = true
 }
 
-async function handleDelete(record: any) {
-  // TODO: 接入删除API
-  message.success('删除成功'); fetchData()
+function handleActionMenuClick(key: string, record: any) {
+  switch (key) {
+    case 'submit': handleSubmit(record); break
+    case 'approve': handleApprove(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+
+function handleDelete(record: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除换货单「${record.exchangeNo}」吗？删除后数据不可恢复。`,
+    okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
+    onOk: async () => {
+      try { await saleExchangeApi.delete(record.id); message.success('删除成功'); fetchData() }
+      catch { message.error('删除失败') }
+    }
+  })
+}
+
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
 }
 async function handleBatchDelete(ids: number[]) {
-  // TODO: 接入批量删除API后替换
-  const result = await executeBatch(ids, async (id) => { /* await api.delete(id) */ }, '批量删除')
+  const result = await executeBatch(ids, (id) => saleExchangeApi.delete(id), '批量删除')
   if (result.successCount > 0) fetchData()
 }
 
@@ -203,8 +260,13 @@ const handleFormSubmit = async () => {
   try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
   try {
+    if (formMode.value === 'add') {
+      await saleExchangeApi.create({ ...formData })
+    } else {
+      await saleExchangeApi.update(formData.id!, { ...formData })
+    }
     message.success(formMode.value === 'add' ? '新建换货单成功' : '编辑换货单成功')
-    formModalVisible.value = false; fetchData()
+    formModalVisible.value = false; pagination.current = 1; fetchData()
   } catch { message.error('操作失败') }
   finally { formSubmitting.value = false }
 }
@@ -212,13 +274,13 @@ const handleFormSubmit = async () => {
 function handleSubmit(record: any) {
   Modal.confirm({
     title: '提交换货单', content: `提交换货单 "${record.exchangeNo}" ？`, okText: '确认提交', centered: true,
-    async onOk() { message.success('提交成功'); fetchData() }
+    async onOk() { try { await saleExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch { message.error('提交失败') } }
   })
 }
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批换货单', content: `审批换货单 "${record.exchangeNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { message.success('审批成功'); fetchData() }
+    async onOk() { try { await saleExchangeApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
   })
 }
 function handleBatchApprove() {
@@ -227,25 +289,60 @@ function handleBatchApprove() {
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
     async onOk() {
-      // TODO: 接入审批API后使用: executeBatch(keys, (id) => api.approve(id), '批量审批')
-      message.success(`成功审批 ${keys.length} 条`); fetchData()
+      const result = await executeBatch(keys, (id) => saleExchangeApi.approve(id), '批量审批')
+      if (result.successCount > 0) fetchData()
     }
   })
 }
 
 function handleExport() {
-  const headers = ['换货单号', '关联订单', '客户', '换货日期', '状态', '创建人', '创建时间']
-  const rows = dataSource.value.map((row: any) => [
-    row.exchangeNo || '', row.orderNo || '', row.customerName || '', row.exchangeDate || '',
-    getStatusText(row.status), row.creatorName || '', row.createTime || ''
-  ])
-  exportCsv(headers, rows, '换货单')
+  executeExport({
+    fileName: '换货单',
+    headers: ['换货单号', '关联订单', '客户', '换货日期', '状态', '创建人', '创建时间'],
+    fetchAll: () => saleExchangeApi.page({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.exchangeNo || '', row.orderNo || '', row.customerName || '', row.exchangeDate || '',
+      getStatusText(row.status), row.creatorName || '', row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: any) => [
+      row.exchangeNo || '', row.orderNo || '', row.customerName || '', row.exchangeDate || '',
+      getStatusText(row.status), row.creatorName || '', row.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
 
-onMounted(() => fetchData())
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('sale:refresh', fetchData)
+})
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('sale:refresh', fetchData)
+})
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
 </script>
+
+<style scoped>
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.detail-modal-footer { text-align: right; margin-top: 16px; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

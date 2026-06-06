@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * 固定资产处置控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/disposal")
+@RequestMapping("/api/erp/fixed-asset/disposal")
 @Tag(name = "固定资产处置管理", description = "资产处置申请、审批等管理功能")
 @RequiredArgsConstructor
 public class FixedAssetDisposalController {

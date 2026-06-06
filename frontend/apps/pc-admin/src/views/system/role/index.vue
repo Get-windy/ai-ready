@@ -1,181 +1,76 @@
 <template>
   <div class="role-management">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'system-role-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      add-text="新增角色"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDeleteConfirm"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="角色名称">
-              <a-input
-                v-model:value="searchForm.roleName"
-                placeholder="请输入角色名称"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="角色编码">
-              <a-input
-                v-model:value="searchForm.roleCode"
-                placeholder="请输入角色编码"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="状态">
-              <a-select
-                v-model:value="searchForm.status"
-                placeholder="请选择状态"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="0">
-                  正常
-                </a-select-option>
-                <a-select-option :value="1">
-                  停用
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'roleName'">
+          <a-space>
+            <a-tag :color="getRoleTypeColor(record.roleType)">
+              {{ getRoleTypeName(record.roleType) }}
+            </a-tag>
+            <span>{{ record.roleName }}</span>
+          </a-space>
+        </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <span class="title">角色列表</span>
+        <template v-else-if="column.key === 'status'">
+          <a-switch
+            :checked="record.status === 0"
+            checked-children="启用"
+            un-checked-children="停用"
+            @change="(checked: string | boolean) => handleStatusChange(record, checked)"
+          />
+        </template>
+
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              :loading="submittingLoading"
-              @click="handleAdd"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增角色
+              编辑
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="handlePermission(record)"
+            >
+              权限
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleMenu(record)"
+            >
+              菜单
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="handleDeleteConfirm(record)"
+            >
+              删除
             </a-button>
           </a-space>
-        </div>
-      </template>
-      
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'roleName'">
-            <a-space>
-              <a-tag :color="getRoleTypeColor(record.roleType)">
-                {{ getRoleTypeName(record.roleType) }}
-              </a-tag>
-              <span>{{ record.roleName }}</span>
-            </a-space>
-          </template>
-          
-          <template v-else-if="column.key === 'status'">
-            <a-switch
-              :checked="record.status === 0"
-              checked-children="启用"
-              un-checked-children="停用"
-              @change="(checked: string | boolean) => handleStatusChange(record, checked)"
-            />
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handlePermission(record)"
-              >
-                权限
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleMenu(record)"
-              >
-                菜单
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                danger
-                @click="handleDeleteConfirm(record)"
-              >
-                删除
-              </a-button>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 角色表单弹窗 -->
     <a-modal
@@ -315,15 +210,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined
-} from '@ant-design/icons-vue'
+import type { FormInstance } from 'ant-design-vue'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 
 // 搜索表单
 const userStore = useUserStore()
@@ -348,7 +239,7 @@ const pagination = reactive({
 })
 
 // 表格列定义
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '角色信息', key: 'roleName', width: 200 },
   { title: '角色编码', dataIndex: 'roleCode', width: 150 },
   { title: '排序', dataIndex: 'sort', width: 80 },
@@ -356,6 +247,13 @@ const columns: TableProps['columns'] = [
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '备注', dataIndex: 'remark', ellipsis: true },
   { title: '操作', key: 'action', width: 220, fixed: 'right' }
+]
+
+// 筛选字段
+const filterFields: FilterField[] = [
+  { key: 'roleName', label: '角色名称', type: 'input', placeholder: '请输入角色名称' },
+  { key: 'roleCode', label: '角色编码', type: 'input', placeholder: '请输入角色编码' },
+  { key: 'status', label: '状态', type: 'select', options: [{ label: '正常', value: 0 }, { label: '停用', value: 1 }] },
 ]
 
 // 弹窗相关
@@ -428,10 +326,21 @@ const handleReset = () => {
   handleSearch()
 }
 
-// 表格操作
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { roleName: '', roleCode: '', status: undefined })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
+  fetchData()
+}
+
+// 分页变化
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
   fetchData()
 }
 
@@ -633,41 +542,5 @@ onMounted(() => {
 <style scoped>
 .role-management {
   padding: 0;
-}
-
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

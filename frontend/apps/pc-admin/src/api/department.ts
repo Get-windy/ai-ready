@@ -110,7 +110,7 @@ export const departmentApi = {
    * 更新部门状态
    */
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/department/${id}/status`, null, { params: { status } })
+    return request.put(`/department/${id}/status`, null, { params: { status } })
   },
 
   /**

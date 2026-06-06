@@ -1,5 +1,6 @@
 <template>
-  <TableList
+  <div class="crm-contract">
+    <TableList
     ref="tableRef"
     :columns="columns"
     :data-source="tableData"
@@ -112,6 +113,7 @@
       <a-form-item label="签订人" required><a-input v-model:value="signForm.signPerson" placeholder="请输入签订人姓名" /></a-form-item>
     </a-form>
   </a-modal>
+    </div>
 </template>
 
 <script setup lang="ts">

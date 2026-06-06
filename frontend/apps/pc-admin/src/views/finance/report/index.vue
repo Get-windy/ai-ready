@@ -1,145 +1,144 @@
 <template>
   <div class="finance-report-page">
-    <a-card :bordered="false">
-      <template #title>
-        <a-space>财务报表</a-space>
-      </template>
-      <template #extra>
-        <a-space>
-          <a-form layout="inline">
-            <a-form-item label="年度">
-              <a-input-number
-                v-model:value="filterYear"
-                :min="2020"
-                :max="2099"
-                style="width: 100px"
-                size="small"
-              />
-            </a-form-item>
-            <a-form-item label="期间">
-              <a-select v-model:value="filterPeriod" style="width: 80px" size="small">
-                <a-select-option v-for="p in 12" :key="p" :value="p">{{ p }}月</a-select-option>
-              </a-select>
-            </a-form-item>
-            <a-form-item>
-              <a-button type="primary" size="small" @click="handleGenerate">
-                <template #icon><SearchOutlined /></template>
-                生成
-              </a-button>
-            </a-form-item>
-          </a-form>
-        </a-space>
-      </template>
-
-      <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
-        <!-- 试算平衡表 -->
-        <a-tab-pane key="trial-balance" tab="试算平衡表">
-          <a-alert
-            v-if="trialBalanceBalanced !== null"
-            :type="trialBalanceBalanced ? 'success' : 'error'"
-            :message="trialBalanceBalanced ? '试算平衡 - 借贷相等' : '试算不平衡'"
-            show-icon
-            style="margin-bottom: 16px"
+    <div class="report-filter-bar">
+      <a-form layout="inline">
+        <a-form-item label="年度">
+          <a-input-number
+            v-model:value="filterYear"
+            :min="2020"
+            :max="2099"
+            style="width: 100px"
+            size="small"
           />
-          <a-table
-            :columns="trialBalanceColumns"
-            :data-source="trialBalanceData"
-            :loading="trialLoading"
-            :pagination="false"
-            row-key="subjectCode"
-            size="small"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'subjectName'">
-                {{ record.subjectCode }} {{ record.subjectName }}
-              </template>
-              <template v-else-if="column.dataIndex && column.dataIndex !== 'subjectCode' && column.dataIndex !== 'subjectName'">
-                <span :class="record[column.dataIndex] !== 0 ? 'amount-value' : 'text-muted'">
-                  {{ formatAmount(record[column.dataIndex]) }}
-                </span>
-              </template>
-            </template>
-          </a-table>
-        </a-tab-pane>
+        </a-form-item>
+        <a-form-item label="期间">
+          <a-select v-model:value="filterPeriod" style="width: 80px" size="small">
+            <a-select-option v-for="p in 12" :key="p" :value="p">{{ p }}月</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item>
+          <a-button type="primary" size="small" @click="handleGenerate">
+            <template #icon><SearchOutlined /></template>
+            生成
+          </a-button>
+        </a-form-item>
+      </a-form>
+    </div>
 
-        <!-- 资产负债表 -->
-        <a-tab-pane key="balance-sheet" tab="资产负债表">
-          <a-alert
-            :type="balanceSheetBalanced ? 'success' : 'warning'"
-            :message="balanceSheetBalanced ? '资产 = 负债 + 所有者权益' : '资产 不等于 负债 + 所有者权益'"
-            show-icon
-            style="margin-bottom: 16px"
-          />
-          <a-table
-            :columns="balanceSheetColumns"
-            :data-source="balanceSheetData"
-            :loading="bsLoading"
-            :pagination="false"
-            row-key="id"
-            size="small"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'itemName'">
-                <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
-                  {{ record.itemName }}
-                </span>
-              </template>
-              <template v-else-if="column.key === 'endingBalance' || column.key === 'beginningBalance'">
-                {{ formatAmount(record[column.dataIndex]) }}
-              </template>
-            </template>
-          </a-table>
-        </a-tab-pane>
+    <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
+      <!-- 试算平衡表 -->
+      <a-tab-pane key="trial-balance" tab="试算平衡表">
+        <a-alert
+          v-if="trialBalanceBalanced !== null"
+          :type="trialBalanceBalanced ? 'success' : 'error'"
+          :message="trialBalanceBalanced ? '试算平衡 - 借贷相等' : '试算不平衡'"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+        <TableList
+          :columns="trialBalanceColumns"
+          :data-source="trialBalanceData"
+          :loading="trialLoading"
+          :pagination="false"
+          :table-key="'finance-report-trial-balance'"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :show-export="false"
+          :selectable="false"
+          :scroll="{ x: 1000 }"
+          size="small"
+        >
+          <template #subjectName="{ record }">
+            {{ record.subjectCode }} {{ record.subjectName }}
+          </template>
+        </TableList>
+      </a-tab-pane>
 
-        <!-- 利润表 -->
-        <a-tab-pane key="income-statement" tab="利润表">
-          <a-table
-            :columns="incomeStatementColumns"
-            :data-source="incomeStatementData"
-            :loading="isLoading"
-            :pagination="false"
-            row-key="id"
-            size="small"
-            bordered
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'itemName'">
-                <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
-                  {{ record.itemName }}
-                </span>
-              </template>
-              <template v-else-if="column.key === 'currentAmount' || column.key === 'cumulativeAmount'">
-                {{ formatAmount(record[column.dataIndex]) }}
-              </template>
-            </template>
-            <template #summary>
-              <a-table-summary-row v-if="incomeNetProfit !== null">
-                <a-table-summary-cell :index="0">
-                  <strong>净利润</strong>
-                </a-table-summary-cell>
-                <a-table-summary-cell :index="1">
-                  <strong>{{ formatAmount(incomeNetProfit.current) }}</strong>
-                </a-table-summary-cell>
-                <a-table-summary-cell :index="2">
-                  <strong>{{ formatAmount(incomeNetProfit.cumulative) }}</strong>
-                </a-table-summary-cell>
-              </a-table-summary-row>
-            </template>
-          </a-table>
-        </a-tab-pane>
-      </a-tabs>
-    </a-card>
+      <!-- 资产负债表 -->
+      <a-tab-pane key="balance-sheet" tab="资产负债表">
+        <a-alert
+          :type="balanceSheetBalanced ? 'success' : 'warning'"
+          :message="balanceSheetBalanced ? '资产 = 负债 + 所有者权益' : '资产 不等于 负债 + 所有者权益'"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+        <TableList
+          :columns="balanceSheetColumns"
+          :data-source="balanceSheetData"
+          :loading="bsLoading"
+          :pagination="false"
+          :table-key="'finance-report-balance-sheet'"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :show-export="false"
+          :selectable="false"
+          :scroll="{ x: 800 }"
+          size="small"
+        >
+          <template #itemName="{ record }">
+            <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
+              {{ record.itemName }}
+            </span>
+          </template>
+          <template #endingBalance="{ record }">
+            {{ formatAmount(record.endingBalance) }}
+          </template>
+          <template #beginningBalance="{ record }">
+            {{ formatAmount(record.beginningBalance) }}
+          </template>
+        </TableList>
+      </a-tab-pane>
+
+      <!-- 利润表 -->
+      <a-tab-pane key="income-statement" tab="利润表">
+        <TableList
+          :columns="incomeStatementColumns"
+          :data-source="incomeStatementData"
+          :loading="isLoading"
+          :pagination="false"
+          :table-key="'finance-report-income-statement'"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-edit="false"
+          :show-delete="false"
+          :show-export="false"
+          :selectable="false"
+          :scroll="{ x: 800 }"
+          size="small"
+          :show-summary="!!incomeNetProfit"
+          :summary-data="incomeSummaryData"
+        >
+          <template #itemName="{ record }">
+            <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
+              {{ record.itemName }}
+            </span>
+          </template>
+          <template #currentAmount="{ record }">
+            {{ formatAmount(record.currentAmount) }}
+          </template>
+          <template #cumulativeAmount="{ record }">
+            {{ formatAmount(record.cumulativeAmount) }}
+          </template>
+        </TableList>
+      </a-tab-pane>
+    </a-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
 import { reportApi } from '@/api/finance'
 
 const activeTab = ref('trial-balance')
@@ -161,8 +160,16 @@ const incomeStatementData = ref<any[]>([])
 const isLoading = ref(false)
 const incomeNetProfit = ref<{ current: number; cumulative: number } | null>(null)
 
+const incomeSummaryData = computed(() => {
+  if (!incomeNetProfit.value) return undefined
+  return [
+    { label: '净利润（本期金额）', value: incomeNetProfit.value.current, type: 'currency' as const },
+    { label: '净利润（本年累计）', value: incomeNetProfit.value.cumulative, type: 'currency' as const }
+  ]
+})
+
 const trialBalanceColumns: TableProps['columns'] = [
-  { title: '科目', key: 'subjectName', dataIndex: 'subjectName', width: 220 },
+  { title: '科目', key: 'subjectName', dataIndex: 'subjectName', width: 220, slotName: 'subjectName' },
   { title: '期初借方', dataIndex: 'openingDebit', key: 'openingDebit', width: 130, align: 'right' },
   { title: '期初贷方', dataIndex: 'openingCredit', key: 'openingCredit', width: 130, align: 'right' },
   { title: '本期借方', dataIndex: 'periodDebit', key: 'periodDebit', width: 130, align: 'right' },
@@ -172,17 +179,17 @@ const trialBalanceColumns: TableProps['columns'] = [
 ]
 
 const balanceSheetColumns: TableProps['columns'] = [
-  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250 },
+  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250, slotName: 'itemName' },
   { title: '行次', dataIndex: 'lineNo', key: 'lineNo', width: 60, align: 'center' },
-  { title: '期末余额', key: 'endingBalance', dataIndex: 'endingBalance', width: 150, align: 'right' },
-  { title: '年初余额', key: 'beginningBalance', dataIndex: 'beginningBalance', width: 150, align: 'right' }
+  { title: '期末余额', key: 'endingBalance', dataIndex: 'endingBalance', width: 150, align: 'right', slotName: 'endingBalance' },
+  { title: '年初余额', key: 'beginningBalance', dataIndex: 'beginningBalance', width: 150, align: 'right', slotName: 'beginningBalance' }
 ]
 
 const incomeStatementColumns: TableProps['columns'] = [
-  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250 },
+  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250, slotName: 'itemName' },
   { title: '行次', dataIndex: 'lineNo', key: 'lineNo', width: 60, align: 'center' },
-  { title: '本期金额', key: 'currentAmount', dataIndex: 'currentAmount', width: 150, align: 'right' },
-  { title: '本年累计', key: 'cumulativeAmount', dataIndex: 'cumulativeAmount', width: 150, align: 'right' }
+  { title: '本期金额', key: 'currentAmount', dataIndex: 'currentAmount', width: 150, align: 'right', slotName: 'currentAmount' },
+  { title: '本年累计', key: 'cumulativeAmount', dataIndex: 'cumulativeAmount', width: 150, align: 'right', slotName: 'cumulativeAmount' }
 ]
 
 const handleTabChange = (key: string) => {
@@ -312,6 +319,13 @@ onMounted(() => {
 <style scoped>
 .finance-report-page {
   padding: 0;
+}
+
+.report-filter-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 6px;
 }
 
 .amount-value {

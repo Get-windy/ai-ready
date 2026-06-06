@@ -11,6 +11,7 @@
     :summary-data="summaryData"
     :show-export="true"
     add-text="新建客户"
+    add-permission="'crm:customer:create'"
     @add="handleAdd"
     @edit="handleEdit"
     @view="handleView"
@@ -24,6 +25,20 @@
     @export="handleExport"
   >
     <template #toolbar-actions>
+      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+      </span>
+    </template>
+
+    <template #empty>
+      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配客户">
+        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+        <a-button @click="handleResetFilters">清除筛选</a-button>
+      </a-empty>
+      <a-empty v-else description="暂无客户数据">
+        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        <a-button type="primary" @click="handleAdd">新建客户</a-button>
+      </a-empty>
     </template>
 
     <template #status="{ record }">
@@ -41,12 +56,12 @@
     <template #action="{ record }">
       <a-space :size="4">
         <a-tooltip title="查看">
-          <a-button type="link" size="small" @click="handleView(record)">
+          <a-button v-permission="'crm:customer:list'" type="link" size="small" @click="handleView(record)">
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
         <a-tooltip title="编辑">
-          <a-button type="link" size="small" @click="handleEdit(record)">
+          <a-button v-permission="'crm:customer:update'" type="link" size="small" @click="handleEdit(record)">
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
@@ -144,15 +159,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+defineOptions({ name: 'SaleCustomersTab' })
+
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import { EyeOutlined, EditOutlined, DeleteOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import TableList from '@/components/TableList/TableList.vue'
 import { customerApi } from '@/api/customer'
 import { useUserStore } from '@/stores/user'
-import { exportCsv } from '@/utils/exportCsv'
+import { useExport } from '@/composables/useExport'
+
+const { execute: executeExport } = useExport()
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -161,6 +181,11 @@ const loading = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
 
 const columns = [
   { title: '客户编码', dataIndex: 'code', key: 'code', width: 130 },
@@ -243,6 +268,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []
     pagination.total = pageData?.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch { message.error('获取客户列表失败') }
   finally { loading.value = false }
 }
@@ -303,6 +329,11 @@ async function handleBatchDelete(ids: number[]) {
   })
 }
 
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1; fetchData()
+}
+
 const handleFormSubmit = async () => {
   try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
@@ -327,6 +358,7 @@ const handleFormSubmit = async () => {
       message.success('编辑客户成功')
     }
     formModalVisible.value = false
+    pagination.current = 1
     fetchData()
   } catch {
     message.error(formMode.value === 'add' ? '新建客户失败' : '编辑客户失败')
@@ -336,18 +368,51 @@ const handleFormSubmit = async () => {
 }
 
 function handleExport() {
-  const headers = ['客户编码', '客户名称', '联系人', '联系电话', '等级', '状态', '创建时间']
-  const rows = dataSource.value.map((row: any) => [
-    row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
-    getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
-  ])
-  exportCsv(headers, rows, '客户列表')
+  executeExport({
+    fileName: '客户列表',
+    headers: ['客户编码', '客户名称', '联系人', '联系电话', '等级', '状态', '创建时间'],
+    fetchAll: () => customerApi.getPage({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
+    mapToRows: (list: any[]) => list.map((row: any) => [
+      row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
+      getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
+    ]),
+    fallbackRows: () => dataSource.value.map((row: any) => [
+      row.code || '', row.name || '', row.contactPerson || '', row.phone || '',
+      getLevelText(row.level), row.status === 1 ? '正常' : '停用', row.createTime || ''
+    ]),
+    total: pagination.total,
+  })
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+const debouncedFetch = ref(0)
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters); pagination.current = 1
+  clearTimeout(debouncedFetch.value)
+  debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
+}
 
-onMounted(() => fetchData())
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('sale:refresh', fetchData)
+})
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('sale:refresh', fetchData)
+})
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
 </script>
+
+<style scoped>
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
+}
+</style>

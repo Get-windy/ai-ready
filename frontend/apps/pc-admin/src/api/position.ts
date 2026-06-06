@@ -117,7 +117,7 @@ export const positionApi = {
    * 更新岗位状态
    */
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/position/${id}/status`, null, { params: { status } })
+    return request.put(`/position/${id}/status`, null, { params: { status } })
   },
 
   /**
@@ -168,7 +168,7 @@ export const positionApi = {
    * 更新分类状态
    */
   updateCategoryStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/position/category/${id}/status`, null, { params: { status } })
+    return request.put(`/position/category/${id}/status`, null, { params: { status } })
   }
 }
 

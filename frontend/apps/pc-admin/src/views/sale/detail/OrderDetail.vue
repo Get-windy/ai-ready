@@ -27,12 +27,13 @@
     </template>
 
     <template #actions>
-      <a-button v-if="order?.status === 0" type="primary" @click="handleEdit">编辑</a-button>
-      <a-button v-if="order?.status === 0" @click="handleSubmit">提交</a-button>
-      <a-button v-if="order?.status === 1" type="primary" @click="handleApprove">审批</a-button>
-      <a-button v-if="order?.status >= 2" @click="handleCreateOutbound">创建出库单</a-button>
+      <a-button v-if="order?.status === 0" v-permission="'sale:order:update'" type="primary" @click="handleEdit">编辑</a-button>
+      <a-button v-if="order?.status === 0" v-permission="'sale:order:submit'" :loading="submitting" @click="handleSubmit">提交</a-button>
+      <a-button v-if="order?.status === 1" v-permission="'sale:order:approve'" type="primary" :loading="approving" @click="handleApprove">审批</a-button>
+      <a-button v-if="order?.status >= 2" v-permission="'sale:order:ship'" @click="handleCreateOutbound">创建出库单</a-button>
       <PrintButton
         v-if="order?.status >= 2"
+        v-permission="'sale:order:list'"
         templateType="order"
         :businessId="order?.id"
         businessType="sale_order"
@@ -47,8 +48,11 @@
         <a-button>更多操作</a-button>
         <template #overlay>
           <a-menu>
-            <a-menu-item @click="handleCopy">复制</a-menu-item>
-            <a-menu-item v-if="order?.status === 0" @click="handleDelete">删除</a-menu-item>
+            <a-menu-item v-permission="'sale:order:create'" @click="handleCopy">复制订单</a-menu-item>
+            <a-menu-item v-permission="'sale:order:delete'" :disabled="order?.status !== 0" @click="handleDelete">
+              删除订单
+              <span v-if="order?.status !== 0" style="color: #999; font-size: 12px; margin-left: 4px">(仅草稿可删除)</span>
+            </a-menu-item>
           </a-menu>
         </template>
       </a-dropdown>
@@ -71,7 +75,12 @@
         <a-descriptions-item label="税额">¥{{ order?.taxAmount?.toFixed(2) || '0.00' }}</a-descriptions-item>
         <a-descriptions-item label="最终金额">¥{{ order?.finalAmount?.toFixed(2) || '0.00' }}</a-descriptions-item>
         <a-descriptions-item label="创建时间">{{ order?.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="更新时间">{{ order?.updateTime }}</a-descriptions-item>
+        <a-descriptions-item label="更新时间">
+          {{ order?.updateTime }}
+          <span v-if="order?.updateTime" class="update-time-hint">
+            ({{ dayjs(order.updateTime).fromNow() }})
+          </span>
+        </a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ order?.remark || '无' }}</a-descriptions-item>
       </a-descriptions>
     </template>
@@ -123,8 +132,11 @@
           :key="file.id"
           class="attachment-item"
         >
-          <span class="attachment-name">{{ file.name }}</span>
-          <span class="attachment-size">{{ file.size }}</span>
+          <span class="attachment-name" @click="handleDownloadAttachment(file)">{{ file.name }}</span>
+          <span class="attachment-size">{{ formatFileSize(file.size) }}</span>
+          <a-button type="link" size="small" @click="handleDownloadAttachment(file)">
+            <template #icon><DownloadOutlined /></template>
+          </a-button>
         </div>
       </div>
     </template>
@@ -144,13 +156,13 @@
     @cancel="outboundModalVisible = false"
     :confirm-loading="outboundSubmitting"
   >
-    <a-form :model="outboundForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+    <a-form ref="outboundFormRef" :model="outboundForm" :rules="outboundRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
       <a-form-item label="来源订单">{{ order?.orderNo }}</a-form-item>
       <a-form-item label="客户">{{ order?.customerName }}</a-form-item>
-      <a-form-item label="出库日期">
+      <a-form-item label="出库日期" name="outboundDate">
         <a-date-picker v-model:value="outboundForm.outboundDate" style="width: 100%" />
       </a-form-item>
-      <a-form-item label="仓库">
+      <a-form-item label="仓库" name="warehouseName">
         <a-input v-model:value="outboundForm.warehouseName" placeholder="请输入仓库" />
       </a-form-item>
       <a-form-item label="备注">
@@ -161,14 +173,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted } from 'vue'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
+import { DownloadOutlined } from '@ant-design/icons-vue'
+import type { FormInstance } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
 import { salesOrderApi, type SalesOrder } from '@/api/order'
 import { outboundApi } from '@/api/erp'
+import { logApi } from '@/api/log'
+import { ORDER_STATUS_TEXT, ORDER_STATUS_COLOR } from '@/views/sale/constants/orderStatus'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes <= 0) return '-'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  let size = bytes
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i++ }
+  return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+function validateId(id: string | string[] | undefined): number | null {
+  if (!id) return null
+  const num = Number(id)
+  return Number.isFinite(num) && num > 0 ? num : null
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -177,16 +213,34 @@ const order = ref<SalesOrder | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const formModalVisible = ref(false)
+const submitting = ref(false)
+const approving = ref(false)
 const outboundModalVisible = ref(false)
 const outboundSubmitting = ref(false)
+const creatingOutbound = ref(false)
 const outboundForm = ref({
   outboundDate: undefined as string | undefined,
   warehouseName: '',
   remark: ''
 })
+const outboundFormRef = ref<FormInstance>()
+const outboundRules = {
+  outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }],
+  warehouseName: [{ required: true, message: '请输入仓库名称', trigger: 'blur' }]
+}
+const listIds = ref<number[]>([])
 const currentIndex = ref(1)
 const totalCount = ref(1)
 const activeTab = ref('basic')
+
+// 从 sessionStorage 读取列表 ID 顺序
+try {
+  const stored = sessionStorage.getItem('sale_order_list_ids')
+  if (stored) {
+    listIds.value = JSON.parse(stored)
+    totalCount.value = listIds.value.length
+  }
+} catch { /* ignore */ }
 
 const breadcrumbItems = computed(() => [
   { text: '销售管理', path: '/sale' },
@@ -243,49 +297,33 @@ const relatedDocuments = computed(() => {
   return docs
 })
 
+const activityLogsList = ref<{ id: number; time: string; user: string; action: string }[]>([])
+
 const activityLogs = computed(() => {
+  if (activityLogsList.value.length > 0) return activityLogsList.value
+  // 降级：从订单字段生成活动日志
   const logs = []
   if (order.value?.createTime) {
-    logs.push({ id: 1, time: order.value.createTime, user: order.value.salesperson || '系统', action: '创建订单' })
+    logs.push({ id: 1, time: `${order.value.createTime} (${dayjs(order.value.createTime).fromNow()})`, user: order.value.salesperson || '系统', action: '创建订单' })
   }
   if (order.value?.submitTime) {
-    logs.push({ id: 2, time: order.value.submitTime, user: order.value.submitterName || '', action: '提交订单' })
+    logs.push({ id: 2, time: `${order.value.submitTime} (${dayjs(order.value.submitTime).fromNow()})`, user: order.value.submitterName || '', action: '提交订单' })
   }
   if (order.value?.approveTime) {
-    logs.push({ id: 3, time: order.value.approveTime, user: order.value.approverName || '', action: '审批订单' })
+    logs.push({ id: 3, time: `${order.value.approveTime} (${dayjs(order.value.approveTime).fromNow()})`, user: order.value.approverName || '', action: '审批订单' })
   }
   if (order.value?.shipTime) {
-    logs.push({ id: 4, time: order.value.shipTime, user: order.value.shipperName || '', action: '确认出库' })
+    logs.push({ id: 4, time: `${order.value.shipTime} (${dayjs(order.value.shipTime).fromNow()})`, user: order.value.shipperName || '', action: '确认出库' })
   }
   if (order.value?.completeTime) {
-    logs.push({ id: 5, time: order.value.completeTime, user: '系统', action: '订单完成' })
+    logs.push({ id: 5, time: `${order.value.completeTime} (${dayjs(order.value.completeTime).fromNow()})`, user: '系统', action: '订单完成' })
   }
-  return logs.length > 0 ? logs : [{ id: 1, time: order.value?.createTime || '', user: '系统', action: '创建订单' }]
+  return logs.length > 0 ? logs : [{ id: 1, time: order.value?.createTime ? `${order.value.createTime} (${dayjs(order.value.createTime).fromNow()})` : '', user: '系统', action: '创建订单' }]
 })
 
-const getStatusColor = (status?: number) => {
-  const colors: Record<number, string> = {
-    0: 'default',
-    1: 'orange',
-    2: 'green',
-    3: 'blue',
-    4: 'success',
-    5: 'red'
-  }
-  return colors[status ?? 0] || 'default'
-}
+const getStatusColor = (status?: number) => ORDER_STATUS_COLOR[status ?? 0] || 'default'
 
-const getStatusText = (status?: number) => {
-  const texts: Record<number, string> = {
-    0: '草稿',
-    1: '待审批',
-    2: '已审批',
-    3: '部分发货',
-    4: '已完成',
-    5: '已取消'
-  }
-  return texts[status ?? 0] || '未知'
-}
+const getStatusText = (status?: number) => ORDER_STATUS_TEXT[status ?? 0] || '未知'
 
 const getStatusType = (status?: number) => {
   const types: Record<number, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
@@ -300,15 +338,45 @@ const getStatusType = (status?: number) => {
 }
 
 const fetchOrderDetail = async () => {
+  const id = validateId(route.params.id)
+  if (!id) {
+    error.value = '无效的订单ID'
+    loading.value = false
+    return
+  }
   loading.value = true
   error.value = null
   try {
-    const res = await salesOrderApi.getById(Number(route.params.id))
+    const res = await salesOrderApi.getById(id)
     order.value = res.data || res
+    fetchActivityLogs()
   } catch (err: any) {
     error.value = err?.message || '获取订单详情失败'
   } finally {
     loading.value = false
+  }
+}
+
+const fetchActivityLogs = async () => {
+  if (!route.params.id) return
+  try {
+    const res = await logApi.getPage({
+      module: '销售订单管理',
+      pageNum: 1,
+      pageSize: 20
+    })
+    const pageData = (res as any)?.data ?? res
+    const records = pageData?.records ?? []
+    if (records.length > 0) {
+      activityLogsList.value = records.map((log: any) => ({
+        id: log.id,
+        time: `${log.operationTime || log.createTime} (${dayjs(log.operationTime || log.createTime).fromNow()})`,
+        user: log.operatorName || log.operator || '系统',
+        action: log.description || log.action || ''
+      }))
+    }
+  } catch {
+    // 活动日志为非关键信息，静默失败
   }
 }
 
@@ -318,28 +386,24 @@ const handleBreadcrumbClick = (item: any, index: number) => {
   }
 }
 
-const handlePrev = async () => {
-  const prevId = order.value ? order.value.id - 1 : 0
-  if (prevId < 1) {
-    message.warning('已是第一条')
+const handlePrev = () => {
+  if (!order.value) return
+  const idx = listIds.value.indexOf(order.value.id)
+  if (idx <= 0) {
+    message.warning('已是第一条记录')
     return
   }
-  try {
-    await salesOrderApi.getById(prevId)
-    router.push(`/sale/order/${prevId}`)
-  } catch {
-    message.warning('已是第一条')
-  }
+  router.push(`/sale/order/${listIds.value[idx - 1]}`)
 }
 
-const handleNext = async () => {
-  const nextId = order.value ? order.value.id + 1 : 1
-  try {
-    await salesOrderApi.getById(nextId)
-    router.push(`/sale/order/${nextId}`)
-  } catch {
-    message.warning('已是最后一条')
+const handleNext = () => {
+  if (!order.value) return
+  const idx = listIds.value.indexOf(order.value.id)
+  if (idx < 0 || idx >= listIds.value.length - 1) {
+    message.warning('已是最后一条记录')
+    return
   }
+  router.push(`/sale/order/${listIds.value[idx + 1]}`)
 }
 
 const handleTabChange = (key: string) => {
@@ -361,35 +425,48 @@ const handleEdit = () => {
 }
 
 const handleSubmit = async () => {
+  submitting.value = true
   try {
     await salesOrderApi.submit(order.value!.id)
     message.success('提交成功')
     fetchOrderDetail()
   } catch (err: any) {
     message.error('提交失败')
+  } finally {
+    submitting.value = false
   }
 }
 
 const handleApprove = async () => {
+  approving.value = true
   try {
     await salesOrderApi.approve(order.value!.id)
     message.success('审批成功')
     fetchOrderDetail()
   } catch (err: any) {
     message.error('审批失败')
+  } finally {
+    approving.value = false
   }
 }
 
 const handleCreateOutbound = () => {
+  creatingOutbound.value = true
   outboundForm.value = {
     outboundDate: new Date().toISOString().slice(0, 10),
     warehouseName: '',
     remark: ''
   }
   outboundModalVisible.value = true
+  creatingOutbound.value = false
 }
 
 const handleOutboundOk = async () => {
+  try {
+    await outboundFormRef.value?.validate()
+  } catch {
+    return
+  }
   outboundSubmitting.value = true
   try {
     const payload = {
@@ -430,13 +507,14 @@ const handleOutboundOk = async () => {
 const handleCopy = async () => {
   if (!order.value) return
   try {
-    const copyData: any = { ...order.value }
-    delete copyData.id
-    copyData.orderNo = (copyData.orderNo || '') + '-副本'
-    copyData.status = 0
-    copyData.createTime = undefined
-    copyData.updateTime = undefined
-    copyData.details = undefined
+    const { id, createTime, updateTime, ...rest } = order.value
+    const copyData: any = {
+      ...rest,
+      orderNo: (order.value.orderNo || '') + '-副本',
+      status: 0,
+      // 保留明细（移除 ID 重新生成）
+      details: order.value.details?.map(({ id: _id, ...item }: any) => ({ ...item })) || []
+    }
     const res = await salesOrderApi.create(copyData)
     const newId = (res as any).data?.id || (res as any).data
     message.success('复制成功')
@@ -453,7 +531,7 @@ const handleCopy = async () => {
 const handleDelete = () => {
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除订单「${order.value?.orderNo}」吗？删除后不可恢复。`,
+    content: `确定要删除订单「${order.value?.orderNo}」吗？删除后数据不可恢复。`,
     okText: '确定删除',
     okType: 'danger',
     cancelText: '取消',
@@ -480,6 +558,50 @@ const handlePrintSuccess = () => {
 const handlePrintError = (err: any) => {
   message.error(`打印失败: ${err.message || '未知错误'}`)
 }
+
+const handleDownloadAttachment = (file: any) => {
+  if (file.url) {
+    window.open(file.url, '_blank')
+  } else if (file.id) {
+    // 调用附件下载接口
+    const link = document.createElement('a')
+    link.href = `/api/file/download/${file.id}`
+    link.download = file.name || `附件-${file.id}`
+    link.click()
+  } else {
+    message.warning('该附件暂无下载地址')
+  }
+}
+
+// 计算当前记录在列表中的位置
+watch(() => order.value?.id, (id) => {
+  if (id && listIds.value.length > 0) {
+    const idx = listIds.value.indexOf(id)
+    currentIndex.value = idx >= 0 ? idx + 1 : 1
+  }
+})
+
+// 路由离开拦截：编辑表单未保存时提醒
+onBeforeRouteLeave((to, from, next) => {
+  if (formModalVisible.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前有未保存的编辑内容，确定要离开吗？',
+      okText: '确认离开',
+      cancelText: '继续编辑',
+      centered: true,
+      onOk() { next() },
+      onCancel() { next(false) }
+    })
+  } else {
+    next()
+  }
+})
+
+// 路由变化时重新加载（prev/next 导航）
+watch(() => route.params.id, () => {
+  fetchOrderDetail()
+})
 
 onMounted(() => {
   fetchOrderDetail()
@@ -516,5 +638,12 @@ onMounted(() => {
 .attachment-size {
   font-size: 12px;
   color: #999;
+}
+
+.update-time-hint {
+  color: #999;
+  font-size: 12px;
+  margin-left: 8px;
+  white-space: nowrap;
 }
 </style>

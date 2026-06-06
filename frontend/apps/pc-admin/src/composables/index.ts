@@ -33,6 +33,18 @@ export {
   getDevOverride,
 } from './useFeatureFlag'
 
+// WebSocket
+export { useWebSocket } from './useWebSocket'
+export type { WsStatus, UseWebSocketOptions, UseWebSocketReturn } from './useWebSocket'
+
+// 实时通知
+export { useNotification } from './useNotification'
+export type { NotificationItem } from './useNotification'
+
+// 仪表盘实时指标
+export { useDashboardMetrics } from './useDashboardMetrics'
+export type { DashboardMetricsState } from './useDashboardMetrics'
+
 // 用户管理 Query Hooks
 export {
   userKeys,

@@ -15,7 +15,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/erp/purchase-return")
+@RequestMapping("/api/erp/purchase/return")
 @RequiredArgsConstructor
 @Tag(name = "采购退货管理", description = "采购退货单的创建、审批、执行等操作")
 public class PurchaseReturnController {

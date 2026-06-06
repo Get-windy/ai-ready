@@ -1,123 +1,192 @@
 <template>
-  <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :current-view="currentView"
-    :selected-count="selectedRowKeys.length"
-    :show-search-panel="showSearchPanel"
-    :search-panel-collapsed="searchPanelCollapsed"
-    :filters="filterConfig"
-    :active-filters="activeFilters"
-    :current-page="pagination.current"
-    :total-pages="Math.ceil(pagination.total / pagination.pageSize)"
-    :page-size="pagination.pageSize"
-    :total-items="pagination.total"
-    :loading="loading"
-    :error="error"
-    :empty="!loading && !error && dataSource.length === 0"
-    empty-text="暂无供应商数据"
-    search-placeholder="搜索供应商编码 / 名称..."
-    @view-change="handleViewChange"
-    @clear-selection="handleClearSelection"
-    @search-submit="handleSearchSubmit"
-    @filter-toggle="handleFilterToggle"
-    @search-panel-toggle="handleSearchPanelToggle"
-    @filter-change="handleFilterChange"
-    @clear-all-filters="handleClearAllFilters"
-    @page-change="handlePageChange"
-    @page-size-change="handlePageSizeChange"
-  >
-    <template #actions>
-      <a-button type="primary" @click="handleCreate">
-        <template #icon><PlusOutlined /></template>
-        新增供应商
-      </a-button>
-      <a-button @click="handleImport">导入</a-button>
-      <a-button @click="handleExport">导出</a-button>
+  <PageContainer full-height>
+    <!-- 操作栏 -->
+    <template #headerExtra>
+      <a-space>
+        <a-button type="primary" @click="handleCreate">
+          <template #icon><PlusOutlined /></template>
+          新增供应商
+        </a-button>
+        <a-button @click="handleImport">导入</a-button>
+        <a-button @click="handleExport">导出</a-button>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+      </a-space>
     </template>
 
-    <template #batch-actions>
-      <a-button @click="handleBatchActivate">批量激活门户</a-button>
-      <a-button danger @click="handleBatchDelete">批量删除</a-button>
+    <!-- 搜索 -->
+    <template #filter>
+      <a-row :gutter="[12, 12]" align="middle">
+        <a-col :span="6">
+          <a-input
+            v-model:value="searchKeyword"
+            placeholder="搜索供应商编码 / 名称..."
+            allow-clear
+            @press-enter="handleSearch"
+          >
+            <template #prefix><SearchOutlined /></template>
+          </a-input>
+        </a-col>
+        <a-col :span="4">
+          <a-select
+            v-model:value="filters.supplierLevel"
+            placeholder="供应商等级"
+            allow-clear
+            style="width: 100%"
+            @change="handleFilterChange"
+          >
+            <a-select-option value="A">A级</a-select-option>
+            <a-select-option value="B">B级</a-select-option>
+            <a-select-option value="C">C级</a-select-option>
+            <a-select-option value="D">D级</a-select-option>
+          </a-select>
+        </a-col>
+        <a-col :span="4">
+          <a-select
+            v-model:value="filters.cooperationStatus"
+            placeholder="合作状态"
+            allow-clear
+            style="width: 100%"
+            @change="handleFilterChange"
+          >
+            <a-select-option :value="1">正常合作</a-select-option>
+            <a-select-option :value="2">暂停合作</a-select-option>
+            <a-select-option :value="3">终止合作</a-select-option>
+            <a-select-option :value="4">潜在供应商</a-select-option>
+          </a-select>
+        </a-col>
+        <a-col :span="4">
+          <a-space>
+            <a-button type="primary" @click="handleSearch">查询</a-button>
+            <a-button @click="handleReset">重置</a-button>
+          </a-space>
+        </a-col>
+        <a-col :span="6" style="text-align: right;">
+          <span style="color: #909399; font-size: 13px;">共 {{ pagination.total }} 条记录</span>
+        </a-col>
+      </a-row>
     </template>
 
     <!-- 统计卡片 -->
-    <template #list-view>
-      <a-row :gutter="16" style="margin-bottom: 16px">
+    <template #headerContent>
+      <a-row :gutter="12" style="flex: 1;">
         <a-col :span="6">
-          <a-card size="small" class="stat-card">
-            <a-statistic title="供应商总数" :value="pagination.total" />
-          </a-card>
+          <div class="stat-item">
+            <span class="stat-label">供应商总数</span>
+            <span class="stat-value">{{ pagination.total }}</span>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-card size="small" class="stat-card">
-            <a-statistic title="A级供应商" :value="dataSource.filter(s => s.supplierLevel === 'A').length" value-style="color: #07c160" />
-          </a-card>
+          <div class="stat-item">
+            <span class="stat-label">A级供应商</span>
+            <span class="stat-value" style="color: #07c160">{{ dataSource.filter(s => s.supplierLevel === 'A').length }}</span>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-card size="small" class="stat-card">
-            <a-statistic title="正常合作" :value="dataSource.filter(s => s.cooperationStatus === 1).length" value-style="color: #1890ff" />
-          </a-card>
+          <div class="stat-item">
+            <span class="stat-label">正常合作</span>
+            <span class="stat-value" style="color: #1890ff">{{ dataSource.filter(s => s.cooperationStatus === 1).length }}</span>
+          </div>
         </a-col>
         <a-col :span="6">
-          <a-card size="small" class="stat-card">
-            <a-statistic title="门户已激活" :value="dataSource.filter(s => s.portalStatus === 1).length" value-style="color: #722ed1" />
-          </a-card>
+          <div class="stat-item">
+            <span class="stat-label">门户已激活</span>
+            <span class="stat-value" style="color: #722ed1">{{ dataSource.filter(s => s.portalStatus === 1).length }}</span>
+          </div>
         </a-col>
       </a-row>
-
-      <a-table
-        :columns="columns"
-        :data-source="dataSource"
-        :loading="loading"
-        :row-selection="rowSelection"
-        row-key="id"
-        :scroll="{ x: 1400 }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'supplierLevel'">
-            <a-tag :color="getLevelColor(record.supplierLevel)">{{ record.supplierLevel }}级</a-tag>
-          </template>
-          <template v-else-if="column.key === 'cooperationStatus'">
-            <a-tag :color="getStatusColor(record.cooperationStatus)">
-              {{ getStatusLabel(record.cooperationStatus) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'portalStatus'">
-            <a-tag :color="record.portalStatus === 1 ? 'purple' : 'default'">
-              {{ getPortalStatusLabel(record.portalStatus) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'comprehensiveScore'">
-            <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 14px" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleDetail(record)">详情</a>
-              <a @click="handlePerformance(record)">绩效</a>
-              <a @click="handleEdit(record)">编辑</a>
-              <a-dropdown>
-                <a>更多</a>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handlePortal(record)">门户管理</a-menu-item>
-                    <a-menu-item v-if="record.portalStatus !== 1" @click="handleActivatePortal(record)">
-                      激活门户
-                    </a-menu-item>
-                    <a-menu-item v-else danger @click="handleDisablePortal(record)">
-                      禁用门户
-                    </a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item danger @click="handleDelete(record)">删除</a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
     </template>
-  </ModuleLayout>
 
+    <!-- 表格 -->
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :show-search="false"
+      :show-add="false"
+      :selectable="true"
+      :show-export="false"
+      :show-summary="true"
+      :summary-data="summaryData"
+      table-key="supplier-list"
+      @page-change="handlePageChange"
+      @selection-change="handleSelectionChange"
+    >
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配供应商">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无供应商数据">
+          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          <a-button type="primary" @click="handleCreate">新增供应商</a-button>
+        </a-empty>
+      </template>
+
+      <template #supplierLevel="{ record }">
+        <a-tag :color="getLevelColor(record.supplierLevel)">{{ record.supplierLevel }}级</a-tag>
+      </template>
+      <template #cooperationStatus="{ record }">
+        <a-tag :color="getStatusColor(record.cooperationStatus)">
+          {{ getStatusLabel(record.cooperationStatus) }}
+        </a-tag>
+      </template>
+      <template #portalStatus="{ record }">
+        <a-tag :color="record.portalStatus === 1 ? 'purple' : 'default'">
+          {{ getPortalStatusLabel(record.portalStatus) }}
+        </a-tag>
+      </template>
+      <template #comprehensiveScore="{ record }">
+        <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 14px" />
+      </template>
+      <template #action="{ record }">
+        <a-space :size="0" class="action-cell-inner">
+          <a-tooltip title="详情">
+            <a-button type="link" size="small" @click="handleDetail(record)">
+              <template #icon><ProfileOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip title="绩效">
+            <a-button type="link" size="small" @click="handlePerformance(record)">
+              <template #icon><BarChartOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip title="编辑">
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item key="portal">
+                  <DesktopOutlined /> 门户管理
+                </a-menu-item>
+                <a-menu-item v-if="record.portalStatus !== 1" key="activate_portal">
+                  <CheckCircleOutlined /> 激活门户
+                </a-menu-item>
+                <a-menu-item v-else key="disable_portal" danger>
+                  <StopOutlined /> 禁用门户
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="delete" danger>
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </TableList>
+  </PageContainer>
+
+  <!-- 导入弹窗 -->
   <a-modal
     v-model:open="importVisible"
     title="导入供应商"
@@ -161,116 +230,104 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, InboxOutlined } from '@ant-design/icons-vue'
-import { ModuleLayout } from '@ai-ready/components'
+import { PlusOutlined, InboxOutlined, SearchOutlined, DownOutlined, EditOutlined, EllipsisOutlined, DeleteOutlined, ProfileOutlined, BarChartOutlined, DesktopOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons-vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import TableList from '@/components/TableList/TableList.vue'
 import { exportCsv } from '@/utils/exportCsv'
 import { executeBatch } from '@/utils/batchOperations'
-import type { FilterItem } from '@ai-ready/components'
 import { supplierApi, type Supplier } from '@/api/supplier'
 
 const router = useRouter()
 
-// ── ModuleLayout 状态 ─────────────────────────────────
+// ── 状态 ──
 const loading = ref(false)
-const error = ref<string | null>(null)
 const dataSource = ref<Supplier[]>([])
 const selectedRowKeys = ref<(string | number)[]>([])
-const currentView = ref('list')
-const showSearchPanel = ref(false)
-const searchPanelCollapsed = ref(false)
+const searchKeyword = ref('')
+const tableRef = ref()
 
-const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
+const pagination = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true, showQuickJumper: true })
+const lastUpdated = ref('')
 
-const activeFilters = reactive<Record<string, any>>({})
+const hasActiveFilters = computed(() => {
+  return Object.values(filters).some(v => v !== undefined && v !== null && v !== '') || !!searchKeyword.value
+})
+
+const filters = reactive<Record<string, any>>({})
 
 const breadcrumbItems = computed(() => [
   { text: '供应商管理' }
 ])
 
-const filterConfig: FilterItem[] = [
-  {
-    key: 'supplierLevel',
-    label: '供应商等级',
-    type: 'checkbox',
-    options: [
-      { value: 'A', label: 'A级' },
-      { value: 'B', label: 'B级' },
-      { value: 'C', label: 'C级' },
-      { value: 'D', label: 'D级' }
-    ]
-  },
-  {
-    key: 'cooperationStatus',
-    label: '合作状态',
-    type: 'select',
-    options: [
-      { value: 1, label: '正常合作' },
-      { value: 2, label: '暂停合作' },
-      { value: 3, label: '终止合作' },
-      { value: 4, label: '潜在供应商' }
-    ]
-  }
-]
+// ── 汇总 ──
+const summaryData = computed(() => {
+  if (dataSource.value.length === 0) return undefined
+  return [
+    { label: '本页合计', value: dataSource.value.reduce((s, r) => s + (r.totalPoints || 0), 0), type: 'default' as const }
+  ]
+})
 
-// ── 表格列 ────────────────────────────────────────────
+// ── 表格列 ──
 const columns = [
   { title: '供应商编码', dataIndex: 'supplierCode', key: 'supplierCode', width: 140 },
-  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', ellipsis: true },
-  { title: '等级', key: 'supplierLevel', width: 80 },
-  { title: '综合评分', key: 'comprehensiveScore', width: 150 },
-  { title: '积分', dataIndex: 'totalPoints', key: 'totalPoints', width: 80 },
-  { title: '合作状态', key: 'cooperationStatus', width: 100 },
-  { title: '门户状态', key: 'portalStatus', width: 100 },
+  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', ellipsis: true, width: 200 },
+  { title: '等级', dataIndex: 'supplierLevel', key: 'supplierLevel', width: 80, slotName: 'supplierLevel' },
+  { title: '综合评分', dataIndex: 'comprehensiveScore', key: 'comprehensiveScore', width: 150, slotName: 'comprehensiveScore' },
+  { title: '积分', dataIndex: 'totalPoints', key: 'totalPoints', width: 80, type: 'number' as const },
+  { title: '合作状态', dataIndex: 'cooperationStatus', key: 'cooperationStatus', width: 100, slotName: 'cooperationStatus' },
+  { title: '门户状态', dataIndex: 'portalStatus', key: 'portalStatus', width: 100, slotName: 'portalStatus' },
   { title: '联系人', dataIndex: 'contactPerson', key: 'contactPerson', width: 100 },
   { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 130 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 200 }
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 220, slotName: 'action' }
 ]
 
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: (string | number)[]) => { selectedRowKeys.value = keys }
-}))
-
-// ── 数据加载 ──────────────────────────────────────────
+// ── 数据加载 ──
 const fetchData = async () => {
-  loading.value = true; error.value = null
+  loading.value = true
   try {
-    const res = await supplierApi.page({
+    const params: Record<string, any> = {
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
-      ...activeFilters
-    })
+    }
+    if (searchKeyword.value) params.keyword = searchKeyword.value
+    if (filters.supplierLevel) params.supplierLevel = filters.supplierLevel
+    if (filters.cooperationStatus) params.cooperationStatus = filters.cooperationStatus
+
+    const res = await supplierApi.page(params)
     dataSource.value = res.records || []
     pagination.total = res.total || 0
+    lastUpdated.value = new Date().toISOString()
   } catch (err: any) {
-    error.value = err?.message || '获取数据失败'
+    message.error(err?.message || '获取数据失败')
   } finally {
     loading.value = false
   }
 }
 
-// ── 事件处理 ──────────────────────────────────────────
-const handleSearchSubmit = (value: string) => {
-  activeFilters.keyword = value
+// ── 事件处理 ──
+const handleSearch = () => { pagination.current = 1; fetchData() }
+const handleReset = () => {
+  searchKeyword.value = ''
+  filters.supplierLevel = undefined
+  filters.cooperationStatus = undefined
   pagination.current = 1
   fetchData()
 }
-const handleViewChange = (view: string) => { currentView.value = view }
-const handleClearSelection = () => { selectedRowKeys.value = [] }
-const handleFilterToggle = () => { showSearchPanel.value = !showSearchPanel.value }
-const handleSearchPanelToggle = (collapsed: boolean) => { searchPanelCollapsed.value = collapsed }
-const handleFilterChange = (key: string, value: any) => { activeFilters[key] = value }
-const handleClearAllFilters = () => {
-  Object.keys(activeFilters).forEach(k => delete activeFilters[k])
-  pagination.current = 1; fetchData()
+const handleFilterChange = () => { pagination.current = 1; fetchData() }
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
 }
-const handlePageChange = (page: number) => { pagination.current = page; fetchData() }
-const handlePageSizeChange = (size: number) => { pagination.pageSize = size; pagination.current = 1; fetchData() }
+const handleSelectionChange = (keys: any[]) => {
+  selectedRowKeys.value = keys
+}
 
-// ── CRUD ──────────────────────────────────────────────
+// ── CRUD ──
 const handleCreate = () => router.push('/supplier/create')
 const handleDetail = (record: Supplier) => router.push(`/supplier/detail/${record.id}`)
 const handleEdit = (record: Supplier) => router.push(`/supplier/edit/${record.id}`)
@@ -294,7 +351,7 @@ const handleActivatePortal = (record: Supplier) => {
 const handleDisablePortal = (record: Supplier) => {
   Modal.confirm({
     title: '禁用门户',
-    content: `确定禁用供应商"${record.supplierName}"的门户账户吗？请输入禁用原因：`,
+    content: `确定禁用供应商"${record.supplierName}"的门户账户吗？`,
     async onOk() {
       try {
         await supplierApi.disablePortal(record.id, '管理员禁用')
@@ -320,6 +377,7 @@ const handleDelete = (record: Supplier) => {
   })
 }
 
+// ── 导入 ──
 const importVisible = ref(false)
 const uploadUrl = '/api/upload'
 const uploadHeaders = {}
@@ -371,6 +429,8 @@ const handleImportConfirm = async () => {
     message.error('导入失败，请检查文件格式')
   }
 }
+
+// ── 导出 ──
 const handleExport = () => {
   const headers = ['供应商编码', '供应商名称', '等级', '综合评分', '积分', '合作状态', '门户状态', '联系人', '联系电话']
   const rows = dataSource.value.map(row => [
@@ -381,40 +441,8 @@ const handleExport = () => {
   ])
   exportCsv(headers, rows, '供应商数据')
 }
-const handleBatchActivate = () => {
-  if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
-  const count = selectedRowKeys.value.length
-  Modal.confirm({
-    title: '批量激活门户',
-    content: `确定要批量激活选中的 ${count} 个供应商的门户账户吗？`,
-    okText: '确认激活',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      message.success(`成功激活 ${count} 个供应商门户`)
-      selectedRowKeys.value = []
-      fetchData()
-    }
-  })
-}
-const handleBatchDelete = () => {
-  if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要批量删除选中的 ${selectedRowKeys.value.length} 个供应商吗？`,
-    okText: '确认删除',
-    okType: 'danger',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      const success = await executeBatch(selectedRowKeys.value, supplierApi.delete, '批量删除')
-      selectedRowKeys.value = []
-      if (success) fetchData()
-    }
-  })
-}
 
-// ── 辅助 ──────────────────────────────────────────────
+// ── 辅助函数 ──
 const getLevelColor = (level: string) => {
   const colors: Record<string, string> = { A: '#07c160', B: '#1890ff', C: '#faad14', D: '#ff4d4f', E: '#999' }
   return colors[level] || '#999'
@@ -432,14 +460,57 @@ const getPortalStatusLabel = (status: number) => {
   return labels[status] || '未知'
 }
 
-onMounted(() => fetchData())
+function handleResetFilters() {
+  searchKeyword.value = ''
+  filters.supplierLevel = undefined
+  filters.cooperationStatus = undefined
+  pagination.current = 1
+  fetchData()
+}
+
+function handleActionMenuClick(key: string, record: Supplier) {
+  switch (key) {
+    case 'portal': handlePortal(record); break
+    case 'activate_portal': handleActivatePortal(record); break
+    case 'disable_portal': handleDisablePortal(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate() }
+}
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
-.stat-card {
-  text-align: center;
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.stat-card :deep(.ant-card-body) {
-  padding: 16px;
+.stat-label {
+  font-size: 12px;
+  color: #909399;
 }
+.stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help;
+  line-height: 32px; vertical-align: middle;
+}
+.action-cell-inner { flex-wrap: nowrap; }
 </style>

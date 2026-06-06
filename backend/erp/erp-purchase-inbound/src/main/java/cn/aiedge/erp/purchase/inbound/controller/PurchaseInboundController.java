@@ -6,6 +6,7 @@ import cn.aiedge.erp.purchase.inbound.dto.PurchaseInboundVO;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInbound;
 import cn.aiedge.erp.purchase.inbound.entity.PurchaseInboundItem;
 import cn.aiedge.erp.purchase.inbound.enums.InboundStatus;
+import cn.aiedge.erp.purchase.inbound.mapper.PurchaseInboundMapper;
 import cn.aiedge.erp.purchase.inbound.service.PurchaseInboundService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -25,12 +26,13 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/erp/purchase-inbound")
+@RequestMapping("/api/erp/purchase/inbound")
 @RequiredArgsConstructor
 @Tag(name = "采购入库管理", description = "采购入库单创建、审批、收货、质检、入库等操作")
 public class PurchaseInboundController {
 
     private final PurchaseInboundService purchaseInboundService;
+    private final PurchaseInboundMapper purchaseInboundMapper;
 
     @GetMapping("/page")
     @Operation(summary = "分页查询入库单")
@@ -241,7 +243,7 @@ public class PurchaseInboundController {
                     .eq(PurchaseInbound::getDeleted, 0)
                     .count());
         }
-        stats.put("totalInboundAmount", purchaseInboundService.baseMapper.sumInboundAmount(1L));
+        stats.put("totalInboundAmount", purchaseInboundMapper.sumInboundAmount(1L));
         return stats;
     }
 

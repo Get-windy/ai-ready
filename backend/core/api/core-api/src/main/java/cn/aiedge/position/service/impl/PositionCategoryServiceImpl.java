@@ -1,18 +1,22 @@
 package cn.aiedge.position.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.result.PageResult;
+import cn.aiedge.position.dto.CategoryQueryRequest;
 import cn.aiedge.position.dto.CategoryVO;
 import cn.aiedge.position.entity.PositionCategory;
 import cn.aiedge.position.mapper.PositionCategoryMapper;
 import cn.aiedge.position.mapper.PositionMapper;
 import cn.aiedge.position.service.PositionCategoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +36,39 @@ public class PositionCategoryServiceImpl extends ServiceImpl<PositionCategoryMap
         implements PositionCategoryService {
 
     private final PositionMapper positionMapper;
+
+    @Override
+    public PageResult<CategoryVO> pageList(CategoryQueryRequest request) {
+        LambdaQueryWrapper<PositionCategory> wrapper = new LambdaQueryWrapper<>();
+
+        if (StringUtils.hasText(request.getCategoryName())) {
+            wrapper.like(PositionCategory::getCategoryName, request.getCategoryName());
+        }
+        if (request.getStatus() != null) {
+            wrapper.eq(PositionCategory::getStatus, request.getStatus());
+        }
+
+        wrapper.orderByAsc(PositionCategory::getSort);
+
+        Page<PositionCategory> page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<PositionCategory> result = this.page(page, wrapper);
+
+        List<CategoryVO> voList = result.getRecords().stream()
+            .map(this::convertToVO)
+            .collect(Collectors.toList());
+
+        return PageResult.of(voList, result.getTotal(), request.getPageNum(), request.getPageSize());
+    }
+
+    @Override
+    public List<CategoryVO> listAll() {
+        LambdaQueryWrapper<PositionCategory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PositionCategory::getStatus, 1).orderByAsc(PositionCategory::getSort);
+
+        return this.list(wrapper).stream()
+            .map(this::convertToVO)
+            .collect(Collectors.toList());
+    }
 
     @Override
     public List<CategoryVO> getTree() {
@@ -89,23 +126,38 @@ public class PositionCategoryServiceImpl extends ServiceImpl<PositionCategoryMap
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void update(CategoryVO request) {
-        PositionCategory category = this.getById(request.getId());
+    public void update(Long id, CategoryVO request) {
+        PositionCategory category = this.getById(id);
         if (category == null) {
             throw BusinessException.notFound("分类不存在");
         }
-        
+
         // 检查编码唯一性（排除自身）
-        LambdaQueryWrapper<PositionCategory> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PositionCategory::getCategoryCode, request.getCategoryCode())
-               .ne(PositionCategory::getId, request.getId());
-        if (this.count(wrapper) > 0) {
-            throw BusinessException.badRequest("分类编码已存在");
+        if (StringUtils.hasText(request.getCategoryCode())) {
+            LambdaQueryWrapper<PositionCategory> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(PositionCategory::getCategoryCode, request.getCategoryCode())
+                   .ne(PositionCategory::getId, id);
+            if (this.count(wrapper) > 0) {
+                throw BusinessException.badRequest("分类编码已存在");
+            }
         }
-        
+
         BeanUtils.copyProperties(request, category);
         this.updateById(category);
         log.info("更新岗位分类成功: id={}", category.getId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStatus(Long id, Integer status) {
+        PositionCategory category = this.getById(id);
+        if (category == null) {
+            throw BusinessException.notFound("分类不存在");
+        }
+
+        category.setStatus(status);
+        this.updateById(category);
+        log.info("更新岗位分类状态: id={}, status={}", id, status);
     }
 
     @Override

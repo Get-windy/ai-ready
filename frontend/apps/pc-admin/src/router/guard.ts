@@ -7,6 +7,7 @@ import type { Router } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { checkRouteAccess, filterRoutesByPermission, loadDynamicRoutes } from './dynamicRoutes'
 import { message } from 'ant-design-vue'
+import { isTokenExpired, isJWT, getToken, verifyToken, clearTokenVerifyCache } from '@/utils/tokenRefresher'
 
 let dynamicRoutesLoaded = false
 
@@ -55,6 +56,32 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       console.log(`${G} 已登录, userInfo=${!!userStore.userInfo}, dynamicRoutesLoaded=${dynamicRoutesLoaded}`)
 
+      // Token 过期检查（仅对 JWT 格式有效）
+      const token = getToken()
+      if (token && isTokenExpired(token)) {
+        console.log(`${G} Token已过期 -> 清除状态并跳转登录页`)
+        resetDynamicRoutesLoaded()
+        message.warning('登录已过期，请重新登录')
+        userStore.logout()
+        next({ path: '/login', query: { redirect: to.fullPath }, replace: true })
+        return
+      }
+
+      // 非 JWT 格式 token（如 UUID）→ 后端验证
+      // 前端无法本地判断 UUID token 的过期状态，必须请求后端
+      if (token && !isJWT(token)) {
+        const valid = await verifyToken()
+        if (!valid) {
+          console.log(`${G} 后端Token验证失败 -> 清除状态并跳转登录页`)
+          resetDynamicRoutesLoaded()
+          clearTokenVerifyCache()
+          message.warning('登录已过期，请重新登录')
+          userStore.logout()
+          next({ path: '/login', query: { redirect: to.fullPath }, replace: true })
+          return
+        }
+      }
+
       // 加载用户信息
       if (!userStore.userInfo) {
         console.log(`${G} 开始加载用户信息 getUserInfo()`)
@@ -63,6 +90,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
           console.log(`${G} getUserInfo() 完成 ✅`)
         } catch (err) {
           console.log(`${G} getUserInfo() 失败 ❌:`, err)
+          resetDynamicRoutesLoaded()
           userStore.logout()
           next({ path: '/login', replace: true })
           return
@@ -76,23 +104,41 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
           const dynamicRoutes = await loadDynamicRoutes()
           console.log(`${G} 动态路由加载完成 ✅, 数量=${dynamicRoutes.length}`)
           for (const route of dynamicRoutes) {
-            if (route.children && route.children.length > 0) {
-              const { children: _, ...parentRoute } = route
-              router.addRoute(parentRoute as any)
-              for (const child of route.children) {
-                router.addRoute(route.name as string, child as any)
+            // 关键修复：将 Layout 路由与其 children 分开添加
+            // 直接 router.addRoute(route) 添加嵌套路由时，子路由可能无法被正确匹配
+            if (route.name === 'Layout' && route.children) {
+              const children = [...route.children]
+              // 先添加 Layout 路由（不含 children）
+              const layoutParent: any = {
+                path: route.path,
+                name: route.name,
+                component: route.component,
+                meta: route.meta,
+              }
+              if (route.redirect) layoutParent.redirect = route.redirect
+              router.addRoute(layoutParent)
+              // 再逐个添加子路由，明确指定父级名称
+              for (const child of children) {
+                router.addRoute('Layout', child)
               }
             } else {
               router.addRoute(route)
             }
           }
+
           dynamicRoutesLoaded = true
-          next()
+
+          console.log(`${G} 已添加动态路由, 当前路由表:`, router.getRoutes().map(r => `[${String(r.name ?? '?')}] ${r.path}`))
+
+          // 重定向到目标页面，利用新添加的动态路由重新解析
+          const redirectPath = to.path === '/' || to.path === '/login' ? '/dashboard' : to.fullPath
+          next({ path: redirectPath, replace: true })
           return
         } catch (error: any) {
           console.log(`${G} 动态路由加载失败 ❌:`, error?.message)
           if (error?.response?.status === 401 || error?.status === 401) {
             message.warning('登录已过期，请重新登录')
+            resetDynamicRoutesLoaded()
             userStore.logout()
             next({ path: '/login', replace: true })
             return

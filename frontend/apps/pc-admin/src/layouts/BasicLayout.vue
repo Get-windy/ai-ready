@@ -181,18 +181,81 @@
           </a-tooltip>
 
           <!-- 通知 -->
-          <a-badge :count="unreadCount" :dot="unreadCount > 0" size="small">
-            <a-tooltip title="通知">
-              <a-button
-                type="text"
-                size="small"
-                class="header-btn"
-                @click="navigateTo('/notification')"
-              >
-                <template #icon><BellOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-badge>
+          <a-dropdown v-model:open="notif.showDropdown.value" placement="bottomRight" :trigger="['click']">
+            <a-badge :count="notif.unreadCount.value" :dot="notif.unreadCount.value > 0" size="small">
+              <a-tooltip title="通知">
+                <a-button
+                  type="text"
+                  size="small"
+                  class="header-btn"
+                  @click="notif.showDropdown.value = !notif.showDropdown.value"
+                >
+                  <template #icon><BellOutlined /></template>
+                </a-button>
+              </a-tooltip>
+            </a-badge>
+            <template #overlay>
+              <a-menu class="notification-dropdown">
+                <a-menu-item key="header" disabled style="cursor: default; height: auto; padding: 8px 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>通知</strong>
+                    <span style="font-size: 12px; color: #999;">
+                      <a @click.stop="notif.markAllAsRead()" style="margin-right: 8px;">全部已读</a>
+                      <a @click.stop="notif.clearAll()">清空</a>
+                    </span>
+                  </div>
+                </a-menu-item>
+
+                <a-menu-item v-if="notif.notifications.value.length === 0" key="empty" disabled>
+                  <div style="text-align: center; padding: 20px 0; color: #999;">
+                    <BellOutlined style="font-size: 24px; display: block; margin-bottom: 8px;" />
+                    暂无通知
+                  </div>
+                </a-menu-item>
+
+                <a-menu-item
+                  v-for="item in notif.notifications.value.slice(0, 10)"
+                  :key="item.id"
+                  :class="{ 'notif-unread': !item.read }"
+                  style="height: auto; padding: 8px 16px; white-space: normal; border-bottom: 1px solid #f0f0f0;"
+                  @click="notif.goToNotificationPage()"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <a-badge v-if="!item.read" status="processing" color="#1890ff" />
+                        {{ item.title }}
+                      </div>
+                      <div style="font-size: 12px; color: #666; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ item.content }}
+                      </div>
+                      <div style="font-size: 11px; color: #bbb; margin-top: 2px;">{{ formatTime(item.time) }}</div>
+                    </div>
+                    <a-button
+                      v-if="!item.read"
+                      type="link"
+                      size="small"
+                      style="padding: 0 4px; min-width: auto; flex-shrink: 0;"
+                      @click.stop="notif.markAsRead(item.id)"
+                    >
+                      标已读
+                    </a-button>
+                  </div>
+                </a-menu-item>
+
+                <a-menu-item
+                  v-if="notif.notifications.value.length > 0"
+                  key="footer"
+                  disabled
+                  style="cursor: default; text-align: center; height: auto; padding: 6px 16px;"
+                >
+                  <a @click.stop="notif.goToNotificationPage()">
+                    查看全部通知 ({{ notif.unreadCount.value }} 条未读)
+                  </a>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
 
           <LocaleSwitcher v-if="isDesktopView" />
 
@@ -348,6 +411,8 @@ import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import GlobalSearch from '@/components/GlobalSearch/GlobalSearch.vue'
 import TabsView from '@/components/TabsView/TabsView.vue'
 import { useResponsive } from '@/composables/useResponsiveState'
+import { useNotification } from '@/composables/useNotification'
+import { getToken } from '@/utils/tokenRefresher'
 
 const router = useRouter()
 const route = useRoute()
@@ -362,7 +427,9 @@ const selectedKeys = ref(['dashboard'])
 const openKeys = ref(['erp'])
 const mobileMenuVisible = ref(false)
 const showFavorites = ref(false)
-const unreadCount = ref(0)
+
+// 通知系统（基于WebSocket实时推送）
+const notif = useNotification()
 
 // 缓存的路由（keep-alive）
 const cachedRoutes = computed(() => {
@@ -464,7 +531,6 @@ onMounted(() => {
   tabsStore.initTabs()
   recentStore.initFavorites()
   fetchTenants()
-  fetchUnreadCount()
 })
 
 // 路由变化时同步标签页
@@ -511,6 +577,8 @@ function syncMenuKeys(path: string) {
 
 // 加载租户列表（从 store 或 API 刷新）
 const fetchTenants = async () => {
+  // 无 token 时不请求（token 过期或未登录）
+  if (!getToken()) return
   try {
     const res = await userApi.getTenants()
     if (res.data) {
@@ -522,12 +590,20 @@ const fetchTenants = async () => {
   }
 }
 
-// 获取未读通知数
-const fetchUnreadCount = async () => {
-  try {
-    // TODO: 接入真实通知API
-    unreadCount.value = 0
-  } catch { /* ignore */ }
+/** 格式化时间显示 */
+function formatTime(timeStr: string): string {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const now = Date.now()
+  const diff = now - date.getTime()
+
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+
+  const d = `${date.getMonth() + 1}/${date.getDate()}`
+  if (date.getFullYear() === new Date(now).getFullYear()) return d
+  return `${date.getFullYear()}/${d}`
 }
 
 // 切换租户
@@ -563,7 +639,13 @@ const handleMobileMenuClick = (path: string) => {
 }
 
 const handleLogout = async () => {
-  await userStore.logout()
+  try {
+    await userStore.logout()
+  } catch {
+    // logout API 失败（如 token 过期），直接清除本地状态
+    userStore.token = ''
+    userStore.userInfo = null
+  }
   router.push('/login')
 }
 
@@ -700,7 +782,19 @@ const clearAllFavorites = () => {
   background: var(--color-bg-layout);
   border-radius: 0;
   transition: all var(--motion-duration-base) var(--motion-ease-in-out);
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 确保路由页面根元素填满内容区并作为 flex 容器 */
+.layout-content > :deep(*) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .favorites-list {

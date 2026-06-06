@@ -5,7 +5,7 @@ export interface DictType {
   id: number
   dictCode: string
   dictName: string
-  status: number // 0: 禁用, 1: 启用
+  status: string // "ENABLED": 启用, "DISABLED": 禁用
   remark: string
   createTime?: string
   updateTime?: string
@@ -18,7 +18,7 @@ export interface DictItem {
   itemCode: string
   itemName: string
   sortOrder: number
-  status: number // 0: 禁用, 1: 启用
+  status: string // "ENABLED": 启用, "DISABLED": 禁用
   createTime?: string
   updateTime?: string
 }
@@ -27,7 +27,7 @@ export interface DictItem {
 export interface DictTypeQuery {
   dictCode?: string
   dictName?: string
-  status?: number
+  status?: string
   pageNum?: number
   pageSize?: number
 }
@@ -37,14 +37,14 @@ export interface DictItemQuery {
   dictTypeId: number
   itemCode?: string
   itemName?: string
-  status?: number
+  status?: string
 }
 
 // 字典类型保存请求
 export interface DictTypeSaveRequest {
   dictCode: string
   dictName: string
-  status: number
+  status: string
   remark?: string
 }
 
@@ -59,7 +59,7 @@ export interface DictItemSaveRequest {
   itemCode: string
   itemName: string
   sortOrder: number
-  status: number
+  status: string
 }
 
 // 字典项更新请求

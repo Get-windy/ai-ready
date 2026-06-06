@@ -20,7 +20,7 @@ import java.util.Map;
  * 固定资产控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/asset")
+@RequestMapping("/api/erp/fixed-asset/asset")
 @Tag(name = "固定资产管理", description = "固定资产登记、折旧、查询等管理功能")
 @RequiredArgsConstructor
 public class FixedAssetController {

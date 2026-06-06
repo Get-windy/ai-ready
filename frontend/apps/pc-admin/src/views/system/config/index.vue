@@ -1,124 +1,66 @@
 <template>
   <div class="config-management">
-    <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchForm" class="search-form">
-        <a-row :gutter="16" style="width: 100%">
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="配置键">
-              <a-input
-                v-model:value="searchForm.configKey"
-                placeholder="请输入配置键"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item label="分组">
-              <a-select
-                v-model:value="searchForm.groupName"
-                placeholder="请选择分组"
-                allow-clear
-                style="width: 100%"
-                @change="handleSearch"
-              >
-                <a-select-option
-                  v-for="group in groupOptions"
-                  :key="group"
-                  :value="group"
-                >
-                  {{ group }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :md="6">
-            <a-form-item>
-              <a-space>
-                <a-button type="primary" @click="handleSearch">
-                  <template #icon><SearchOutlined /></template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon><ReloadOutlined /></template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
-
-    <!-- 表格区域 -->
-    <a-card class="table-card" :bordered="false">
-      <template #title>
-        <div class="table-header">
-          <span class="title">系统配置</span>
-          <a-space>
-            <a-button type="primary" @click="handleAdd">
-              <template #icon><PlusOutlined /></template>
-              新增配置
-            </a-button>
-            <a-button @click="handleRefreshCache">
-              <template #icon><SyncOutlined /></template>
-              刷新缓存
-            </a-button>
-            <a-button danger :disabled="!selectedRowKeys.length" @click="handleBatchDelete">
-              <template #icon><DeleteOutlined /></template>
-              批量删除
-            </a-button>
-          </a-space>
-        </div>
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'system-config-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      add-text="新增配置"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDeleteConfirm"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <a-button @click="handleRefreshCache">
+          <template #icon><SyncOutlined /></template>
+          刷新缓存
+        </a-button>
       </template>
 
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-        row-key="id"
-        :scroll="{ x: 1000 }"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'groupName'">
-            <a-tag color="blue">{{ record.groupName }}</a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'configValue'">
-            <span
-              class="config-value"
-              :class="{ sensitive: isSensitiveKey(record.configKey) }"
-            >
-              {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
-            </span>
-            <a-tooltip title="复制" v-if="!isSensitiveKey(record.configKey)">
-              <a-button
-                type="link"
-                size="small"
-                :style="{ padding: '0 4px' }"
-                @click="handleCopy(record.configValue)"
-              >
-                <CopyOutlined />
-              </a-button>
-            </a-tooltip>
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="handleEdit(record)">
-                编辑
-              </a-button>
-              <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
-                删除
-              </a-button>
-            </a-space>
-          </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'groupName'">
+          <a-tag color="blue">{{ record.groupName }}</a-tag>
         </template>
-      </a-table>
-    </a-card>
+
+        <template v-else-if="column.key === 'configValue'">
+          <span
+            class="config-value"
+            :class="{ sensitive: isSensitiveKey(record.configKey) }"
+          >
+            {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
+          </span>
+          <a-tooltip title="复制" v-if="!isSensitiveKey(record.configKey)">
+            <a-button
+              type="link"
+              size="small"
+              :style="{ padding: '0 4px' }"
+              @click="handleCopy(record.configValue)"
+            >
+              <CopyOutlined />
+            </a-button>
+          </a-tooltip>
+        </template>
+
+        <template v-else-if="column.key === 'action'">
+          <a-space>
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              编辑
+            </a-button>
+            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <!-- 配置表单弹窗 -->
     <a-modal
@@ -171,15 +113,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
   SyncOutlined,
   CopyOutlined
 } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { configApi, type ConfigInfo } from '@/api/config'
 
 // 搜索表单
@@ -206,7 +145,7 @@ const pagination = reactive({
 })
 
 // 表格列
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '配置键', dataIndex: 'configKey', width: 200, ellipsis: true },
   { title: '配置值', key: 'configValue', width: 300, ellipsis: true },
   { title: '描述', dataIndex: 'description', width: 200, ellipsis: true },
@@ -214,6 +153,12 @@ const columns: TableProps['columns'] = [
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 140, fixed: 'right' }
 ]
+
+// 筛选字段
+const filterFields = computed<FilterField[]>(() => [
+  { key: 'configKey', label: '配置键', type: 'input', placeholder: '请输入配置键' },
+  { key: 'groupName', label: '分组', type: 'select', options: groupOptions.value.map(g => ({ label: g, value: g })) },
+])
 
 // 弹窗
 const modalVisible = ref(false)
@@ -278,14 +223,22 @@ const handleReset = () => {
   handleSearch()
 }
 
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { configKey: '', groupName: undefined })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
   fetchData()
 }
 
-const onSelectChange = (keys: (string | number)[]) => {
-  selectedRowKeys.value = keys as number[]
+// 分页变化
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
 // 新增
@@ -330,16 +283,23 @@ const handleDeleteConfirm = (record: ConfigInfo) => {
 }
 
 // 批量删除
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) return
-  try {
-    await configApi.batchDelete(selectedRowKeys.value)
-    message.success('批量删除成功')
-    selectedRowKeys.value = []
-    fetchData()
-  } catch {
-    message.error('批量删除失败')
-  }
+const handleBatchDelete = (deleteKeys?: number[]) => {
+  const ids = deleteKeys || selectedRowKeys.value
+  if (!ids.length) return
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除选中的 ${ids.length} 个配置吗？`,
+    async onOk() {
+      try {
+        await configApi.batchDelete(ids)
+        message.success('批量删除成功')
+        selectedRowKeys.value = []
+        fetchData()
+      } catch {
+        message.error('批量删除失败')
+      }
+    }
+  })
 }
 
 // 刷新缓存
@@ -406,44 +366,8 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .config-value.sensitive {
   color: #999;
   font-style: italic;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

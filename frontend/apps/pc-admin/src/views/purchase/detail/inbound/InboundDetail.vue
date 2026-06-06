@@ -28,7 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+defineOptions({ name: 'PurchaseInboundDetail' })
+
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
@@ -57,5 +59,11 @@ const handleBreadcrumbClick = (item: any) => { if (item.path) router.push(item.p
 const handleTabChange = (k: string) => { activeTab.value = k }
 const handleRelatedClick = (doc: any) => { if (doc.type === '采购订单') router.push(`/purchase/order/${doc.id}`) }
 const handleApprove = async () => { try { await inboundApi.approve(data.value!.id); message.success('审批成功'); fetchDetail() } catch { message.error('审批失败') } }
-onMounted(() => fetchDetail())
+onMounted(() => {
+  fetchDetail()
+  window.addEventListener('purchase:refresh', fetchDetail)
+})
+onUnmounted(() => {
+  window.removeEventListener('purchase:refresh', fetchDetail)
+})
 </script>

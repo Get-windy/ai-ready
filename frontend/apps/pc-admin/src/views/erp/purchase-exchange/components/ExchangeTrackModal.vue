@@ -1,6 +1,6 @@
 <template>
   <a-modal
-    v-model:visible="visible"
+    v-model:open="open"
     title="换货单跟踪"
     width="800px"
     :footer="null"
@@ -96,13 +96,13 @@ interface TimelineItem {
 }
 
 interface Props {
-  visible: boolean
+  open: boolean
   record: PurchaseExchange | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
+  (e: 'update:open', value: boolean): void
 }>()
 
 const loading = ref(false)
@@ -110,9 +110,9 @@ const items = ref<PurchaseExchangeItem[]>([])
 const approvalRecords = ref<ExchangeApprovalRecord[]>([])
 const timeline = ref<TimelineItem[]>([])
 
-const visible = computed({
-  get: () => props.visible,
-  set: (val) => emit('update:visible', val)
+const open = computed({
+  get: () => props.open,
+  set: (val) => emit('update:open', val)
 })
 
 const itemColumns = [
@@ -281,7 +281,7 @@ const loadTrackData = async (exchangeId: number) => {
 }
 
 watch(() => props.record, (record) => {
-  if (record && visible.value) {
+  if (record && open.value) {
     loadTrackData(record.id)
   } else {
     items.value = []

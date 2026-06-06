@@ -1,5 +1,7 @@
 package cn.aiedge.notification.service;
 
+import cn.aiedge.notification.mapper.NotificationRecordMapper;
+import cn.aiedge.notification.mapper.NotificationTemplateMapper;
 import cn.aiedge.notification.cache.NotificationTemplateCache;
 import cn.aiedge.notification.channel.NotificationChannel;
 import cn.aiedge.notification.config.NotificationProperties;
@@ -36,10 +38,10 @@ import static org.mockito.Mockito.*;
 class EnhancedNotificationServiceImplTest {
 
     @Mock
-    private TemplateRepository templateRepository;
+    private NotificationTemplateMapper templateMapper;
 
     @Mock
-    private NotificationRecordRepository recordRepository;
+    private NotificationRecordMapper recordMapper;
 
     @Mock
     private TemplateRenderer templateRenderer;
@@ -89,7 +91,7 @@ class EnhancedNotificationServiceImplTest {
     @DisplayName("创建模板 - 成功")
     void testCreateTemplate_Success() {
         // Given
-        when(templateRepository.save(any(NotificationTemplate.class))).thenReturn(testTemplate);
+        when(templateMapper.insert(any(NotificationTemplate.class))).thenReturn(1);
 
         // When
         NotificationTemplate result = notificationService.createTemplate(testTemplate);
@@ -105,7 +107,7 @@ class EnhancedNotificationServiceImplTest {
     void testCreateTemplate_WithStatus() {
         // Given
         testTemplate.setStatus(NotificationTemplate.STATUS_DISABLED);
-        when(templateRepository.save(any(NotificationTemplate.class))).thenReturn(testTemplate);
+        when(templateMapper.insert(any(NotificationTemplate.class))).thenReturn(1);
 
         // When
         NotificationTemplate result = notificationService.createTemplate(testTemplate);
@@ -120,7 +122,7 @@ class EnhancedNotificationServiceImplTest {
     void testUpdateTemplate_Success() {
         // Given
         testTemplate.setTemplateName("更新后的名称");
-        when(templateRepository.save(any(NotificationTemplate.class))).thenReturn(testTemplate);
+        when(templateMapper.updateById(any(NotificationTemplate.class))).thenReturn(1);
 
         // When
         NotificationTemplate result = notificationService.updateTemplate(testTemplate);
@@ -135,7 +137,7 @@ class EnhancedNotificationServiceImplTest {
     @DisplayName("删除模板 - 成功")
     void testDeleteTemplate_Success() {
         // Given
-        doNothing().when(templateRepository).deleteById(anyLong());
+        when(templateMapper.deleteById(anyLong())).thenReturn(1);
 
         // When
         boolean result = notificationService.deleteTemplate(1L);
@@ -221,7 +223,8 @@ class EnhancedNotificationServiceImplTest {
         // Given
         when(templateCache.getByCode(anyString())).thenReturn(testTemplate);
         when(templateRenderer.render(anyString(), anyMap())).thenReturn("渲染后的内容");
-        when(recordRepository.save(any(NotificationRecord.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(recordMapper.insert(any(NotificationRecord.class))).thenReturn(1);
+        when(recordMapper.updateById(any(NotificationRecord.class))).thenReturn(1);
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(properties.isAsyncEnabled()).thenReturn(false);
 
@@ -264,7 +267,8 @@ class EnhancedNotificationServiceImplTest {
     @DisplayName("增强发送 - 直接发送")
     void testSendEnhanced_Direct() {
         // Given
-        when(recordRepository.save(any(NotificationRecord.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(recordMapper.insert(any(NotificationRecord.class))).thenReturn(1);
+        when(recordMapper.updateById(any(NotificationRecord.class))).thenReturn(1);
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(properties.isAsyncEnabled()).thenReturn(false);
 
@@ -291,11 +295,12 @@ class EnhancedNotificationServiceImplTest {
         // Given
         when(templateCache.getByCode(anyString())).thenReturn(testTemplate);
         when(templateRenderer.render(anyString(), anyMap())).thenReturn("渲染后的内容");
-        when(recordRepository.save(any(NotificationRecord.class))).thenAnswer(i -> {
-            NotificationRecord record = (NotificationRecord) i.getArguments()[0];
+        doAnswer(i -> {
+            NotificationRecord record = i.getArgument(0);
             record.setId(1L);
-            return record;
-        });
+            return 1;
+        }).when(recordMapper).insert(any(NotificationRecord.class));
+        when(recordMapper.updateById(any(NotificationRecord.class))).thenReturn(1);
 
         NotificationSendRequest request = NotificationSendRequest.builder()
             .templateCode("TEST_TEMPLATE")
@@ -320,7 +325,8 @@ class EnhancedNotificationServiceImplTest {
         // Given
         when(templateCache.getByCode(anyString())).thenReturn(testTemplate);
         when(templateRenderer.render(anyString(), anyMap())).thenReturn("渲染后的内容");
-        when(recordRepository.save(any(NotificationRecord.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(recordMapper.insert(any(NotificationRecord.class))).thenReturn(1);
+        when(recordMapper.updateById(any(NotificationRecord.class))).thenReturn(1);
         when(rateLimiter.tryAcquire(anyString())).thenReturn(false);
 
         NotificationSendRequest request = NotificationSendRequest.builder()
@@ -343,11 +349,12 @@ class EnhancedNotificationServiceImplTest {
         // Given
         when(templateCache.getByCode(anyString())).thenReturn(testTemplate);
         when(templateRenderer.render(anyString(), anyMap())).thenReturn("渲染后的内容");
-        when(recordRepository.save(any(NotificationRecord.class))).thenAnswer(i -> {
-            NotificationRecord record = (NotificationRecord) i.getArguments()[0];
+        doAnswer(i -> {
+            NotificationRecord record = i.getArgument(0);
             record.setId(1L);
-            return record;
-        });
+            return 1;
+        }).when(recordMapper).insert(any(NotificationRecord.class));
+        when(recordMapper.updateById(any(NotificationRecord.class))).thenReturn(1);
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(properties.isAsyncEnabled()).thenReturn(false);
 

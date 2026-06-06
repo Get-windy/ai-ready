@@ -1,6 +1,6 @@
 <template>
   <a-modal
-    v-model:visible="visible"
+    v-model:open="open"
     title="换货单详情"
     width="900px"
     :footer="null"
@@ -72,22 +72,22 @@ import {
 } from '@/api/purchase-exchange'
 
 interface Props {
-  visible: boolean
+  open: boolean
   record: PurchaseExchange | null
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
+  (e: 'update:open', value: boolean): void
 }>()
 
 const loading = ref(false)
 const items = ref<PurchaseExchangeItem[]>([])
 const approvalRecords = ref<ExchangeApprovalRecord[]>([])
 
-const visible = computed({
-  get: () => props.visible,
-  set: (val) => emit('update:visible', val)
+const open = computed({
+  get: () => props.open,
+  set: (val) => emit('update:open', val)
 })
 
 const itemColumns = [
@@ -165,7 +165,7 @@ const loadDetail = async (exchangeId: number) => {
 }
 
 watch(() => props.record, (record) => {
-  if (record && visible.value) {
+  if (record && open.value) {
     loadDetail(record.id)
   } else {
     items.value = []

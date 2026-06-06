@@ -145,6 +145,24 @@ export const quotationApi = {
   convertToOrder(id: number) { return request.post(`/crm/quotation/${id}/convert-to-order`) },
 }
 
+// ── 销售换货 ──────────────────────────────────────────
+export interface SaleExchange {
+  id: number; exchangeNo: string; orderNo?: string; customerName: string
+  exchangeDate: string; status: number; creatorName?: string; createTime: string
+}
+export const saleExchangeApi = {
+  page(params: PageQuery): Promise<PageResult<SaleExchange>> {
+    return request.get('/erp/sale/exchange/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/sale/exchange/${id}`) },
+  create(data: any) { return request.post('/erp/sale/exchange', data) },
+  update(id: number, data: any) { return request.put(`/erp/sale/exchange/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/sale/exchange/${id}`) },
+  submit(id: number) { return request.post(`/erp/sale/exchange/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/sale/exchange/${id}/approve`) },
+  batchApprove(ids: number[]) { return request.post('/erp/sale/exchange/batch-approve', ids) },
+}
+
 // ── 库存管理 ──────────────────────────────────────────
 export interface StockItem {
   id: number; productCode: string; productName: string; specification?: string
@@ -279,7 +297,7 @@ export const saleOrderApi = {
   batchApprove(ids: number[]) { return request.post('/erp/sale/order/batch-approve', ids) },
   print(id: number) { return request.get(`/erp/sale/order/${id}/print`) },
   batchPrint(ids: number[]) { return request.post('/erp/sale/order/batch-print', ids) },
-  export(params: any) { return request.get('/erp/sale/order/export', params, { responseType: 'blob' }) },
+  export(params: any) { return request.get('/erp/sale/order/export', params) },
 }
 
 // ── 采购订单 ──────────────────────────────────────────
@@ -302,5 +320,5 @@ export const purchaseOrderApi = {
   batchApprove(ids: number[]) { return request.post('/erp/purchase/order/batch-approve', ids) },
   close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
   print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
-  export(params: any) { return request.get('/erp/purchase/order/export', params, { responseType: 'blob' }) },
+  export(params: any) { return request.get('/erp/purchase/order/export', params) },
 }

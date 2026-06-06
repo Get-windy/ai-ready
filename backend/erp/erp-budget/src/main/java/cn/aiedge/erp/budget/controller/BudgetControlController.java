@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/erp/budget/control")
+@RequestMapping("/api/erp/budget/control")
 @Tag(name = "预算控制", description = "预算控制与执行接口")
 @RequiredArgsConstructor
 public class BudgetControlController {

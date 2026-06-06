@@ -59,7 +59,7 @@
       <a-table :columns="columns" :data-source="dataSource" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+            <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
           </template>
           <template v-else-if="column.key === 'exchangeType'">{{ getExchangeTypeText(record.exchangeType) }}</template>
           <template v-else-if="column.key === 'totalAmount'">¥{{ record.totalAmount?.toFixed(2) }}</template>
@@ -79,10 +79,10 @@
       </a-table>
     </a-card>
 
-    <ExchangeFormModal v-model:visible="formModalVisible" :record="currentRecord" @success="handleFormSuccess" />
-    <ExchangeApproveModal v-model:visible="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
-    <ExchangeDetailModal v-model:visible="detailModalVisible" :record="currentRecord" />
-    <ExchangeTrackModal v-model:visible="trackModalVisible" :record="currentRecord" />
+    <ExchangeFormModal v-model:open="formModalVisible" :record="currentRecord" @success="handleFormSuccess" />
+    <ExchangeApproveModal v-model:open="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
+    <ExchangeDetailModal v-model:open="detailModalVisible" :record="currentRecord" />
+    <ExchangeTrackModal v-model:open="trackModalVisible" :record="currentRecord" />
   </div>
 </template>
 
@@ -96,6 +96,9 @@ import ExchangeFormModal from './components/ExchangeFormModal.vue'
 import ExchangeApproveModal from './components/ExchangeApproveModal.vue'
 import ExchangeDetailModal from './components/ExchangeDetailModal.vue'
 import ExchangeTrackModal from './components/ExchangeTrackModal.vue'
+import StatusTag from '@/components/StatusTag/StatusTag.vue'
+import { RETURN_EXCHANGE_STATUS } from '@/utils/statusConfig'
+import { getStatusText } from '@/utils/statusConfig'
 import { exportCsv } from '@/utils/exportCsv'
 
 const loading = ref(false)
@@ -134,32 +137,6 @@ const columns = [
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
   { title: '操作', key: 'action', fixed: 'right', width: 250 }
 ]
-
-const getStatusColor = (status: ExchangeStatus): string => {
-  const colors: Record<ExchangeStatus, string> = {
-    [ExchangeStatus.DRAFT]: 'default',
-    [ExchangeStatus.PENDING_APPROVAL]: 'orange',
-    [ExchangeStatus.APPROVED]: 'blue',
-    [ExchangeStatus.EXCHANGING]: 'processing',
-    [ExchangeStatus.COMPLETED]: 'success',
-    [ExchangeStatus.REJECTED]: 'red',
-    [ExchangeStatus.CANCELLED]: 'red'
-  }
-  return colors[status] || 'default'
-}
-
-const getStatusText = (status: ExchangeStatus): string => {
-  const texts: Record<ExchangeStatus, string> = {
-    [ExchangeStatus.DRAFT]: '草稿',
-    [ExchangeStatus.PENDING_APPROVAL]: '待审批',
-    [ExchangeStatus.APPROVED]: '已审批',
-    [ExchangeStatus.EXCHANGING]: '换货中',
-    [ExchangeStatus.COMPLETED]: '已完成',
-    [ExchangeStatus.REJECTED]: '已拒绝',
-    [ExchangeStatus.CANCELLED]: '已取消'
-  }
-  return texts[status] || '未知'
-}
 
 const getExchangeTypeText = (type: number): string => {
   const texts: Record<number, string> = { 1: '质量问题', 2: '规格不符', 3: '数量错误', 4: '其他' }

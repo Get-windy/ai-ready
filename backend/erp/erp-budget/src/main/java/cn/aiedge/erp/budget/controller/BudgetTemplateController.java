@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/erp/budget/template")
+@RequestMapping("/api/erp/budget/template")
 @Tag(name = "预算模板", description = "预算模板管理")
 @RequiredArgsConstructor
 public class BudgetTemplateController {

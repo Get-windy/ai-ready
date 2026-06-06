@@ -6,7 +6,7 @@
 
     <groupId>cn.aiedge.ai-ready.tests</groupId>
     <artifactId>ai-ready-tests</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
     <name>AI-Ready Tests Module</name>
     <description>AI-Ready项目测试模块</description>

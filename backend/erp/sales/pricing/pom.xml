@@ -6,7 +6,7 @@
     <parent>
         <groupId>cn.aiedge.erp</groupId>
         <artifactId>erp</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     
@@ -92,28 +92,7 @@
     </dependencies>
     
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>cn.aiedge.erp.sales.pricing.PricingApplication</mainClass>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
+        <plugins><plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.10</version>

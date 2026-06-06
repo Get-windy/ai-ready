@@ -1,196 +1,73 @@
 <template>
   <div class="tenant-management">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'system-tenant-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      add-text="新增租户"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @delete="handleDelete"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="租户名称">
-              <a-input
-                v-model:value="searchForm.tenantName"
-                placeholder="请输入租户名称"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="租户编码">
-              <a-input
-                v-model:value="searchForm.tenantCode"
-                placeholder="请输入租户编码"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="状态">
-              <a-select
-                v-model:value="searchForm.status"
-                placeholder="请选择状态"
-                allow-clear
-                style="width: 100%"
-              >
-                <a-select-option :value="0">
-                  正常
-                </a-select-option>
-                <a-select-option :value="1">
-                  停用
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'status'">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <span class="title">租户列表</span>
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              :loading="submittingLoading"
-              @click="handleAdd"
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              新增租户
+              编辑
             </a-button>
             <a-button
-              danger
-              :loading="batchDeleteLoading"
-              :disabled="!selectedRowKeys.length || batchDeleteLoading"
-              @click="handleBatchDelete"
+              type="link"
+              size="small"
+              @click="handleConfig(record)"
             >
-              <template #icon>
-                <DeleteOutlined />
-              </template>
-              批量删除
+              配置
             </a-button>
+            <a-dropdown>
+              <a-button
+                type="link"
+                size="small"
+              >
+                更多<DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleToggleStatus(record)">
+                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
           </a-space>
-        </div>
-      </template>
-
-      <!-- 骨架屏加载状态 -->
-      <SkeletonTable
-        v-if="loading"
-        :rows="5"
-        :columns="7"
-      />
-
-      <!-- 数据表格 -->
-      <a-table
-        v-else
-        :columns="columns"
-        :data-source="tableData"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleConfig(record)"
-              >
-                配置
-              </a-button>
-              <a-dropdown>
-                <a-button
-                  type="link"
-                  size="small"
-                >
-                  更多<DownOutlined />
-                </a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handleToggleStatus(record)">
-                      <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                    </a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item
-                      danger
-                      @click="handleDelete(record)"
-                    >
-                      <DeleteOutlined /> 删除
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 新增/编辑租户弹窗 -->
     <a-modal
@@ -410,16 +287,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
   DownOutlined,
-  StopOutlined
+  StopOutlined,
+  DeleteOutlined
 } from '@ant-design/icons-vue'
-import { SkeletonTable } from '@/components/Skeleton'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { tenantApi, type TenantInfo } from '@/api/tenant'
 import { useSubmitLock } from '@/composables'
 
@@ -448,7 +322,7 @@ const pagination = reactive({
 })
 
 // ── 表格列定义 ────────────────────────────────────────────
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '租户编码', dataIndex: 'tenantCode', width: 150 },
   { title: '租户名称', dataIndex: 'tenantName', width: 200 },
   { title: '联系人', dataIndex: 'contactName' },
@@ -456,6 +330,13 @@ const columns: TableProps['columns'] = [
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createTime', width: 170 },
   { title: '操作', key: 'action', width: 180, fixed: 'right' }
+]
+
+// ── 筛选字段 ──────────────────────────────────────────────
+const filterFields: FilterField[] = [
+  { key: 'tenantName', label: '租户名称', type: 'input', placeholder: '请输入租户名称' },
+  { key: 'tenantCode', label: '租户编码', type: 'input', placeholder: '请输入租户编码' },
+  { key: 'status', label: '状态', type: 'select', options: [{ label: '正常', value: 0 }, { label: '停用', value: 1 }] },
 ]
 
 // ── 新增/编辑弹窗 ─────────────────────────────────────────
@@ -536,15 +417,22 @@ const handleReset = () => {
   handleSearch()
 }
 
-// ── 表格操作 ──────────────────────────────────────────────
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// ── 筛选变化 ──────────────────────────────────────────────
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { tenantName: '', tenantCode: '', status: undefined })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
   fetchData()
 }
 
-const onSelectChange = (keys: (string | number)[]) => {
-  selectedRowKeys.value = keys as number[]
+// ── 分页变化 ──────────────────────────────────────────────
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
 // ── 新增 ──────────────────────────────────────────────────
@@ -634,10 +522,10 @@ const handleDelete = (record: TenantInfo) => {
 }
 
 // ── 批量删除 ──────────────────────────────────────────────
-const handleBatchDelete = () => {
+const handleBatchDelete = (deleteKeys?: number[]) => {
   if (batchDeleteLoading.value) return
 
-  const idsToDelete = [...selectedRowKeys.value]
+  const idsToDelete = deleteKeys || [...selectedRowKeys.value]
 
   Modal.confirm({
     title: '确认删除',
@@ -720,31 +608,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .color-preview {
   display: inline-block;
   width: 20px;
@@ -753,16 +616,5 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
   margin-left: 8px;
   vertical-align: middle;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

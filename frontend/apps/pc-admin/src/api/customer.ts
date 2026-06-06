@@ -112,7 +112,7 @@ export const customerApi = {
    * 更新客户状态
    */
   updateStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return request.patch(`/customer/${id}/status`, null, { params: { status } })
+    return request.put(`/customer/${id}/status`, null, { params: { status } })
   },
 
   /**

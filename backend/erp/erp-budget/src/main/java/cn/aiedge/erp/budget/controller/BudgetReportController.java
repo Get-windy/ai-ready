@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/erp/budget/report")
+@RequestMapping("/api/erp/budget/report")
 @Tag(name = "预算报表", description = "预算报表与统计分析")
 @RequiredArgsConstructor
 public class BudgetReportController {

@@ -88,4 +88,9 @@ public interface ISaleOrderService extends IService<SaleOrder> {
      * 导出销售订单列表
      */
     List<SaleOrder> exportList(String keyword, Long customerId, Integer status);
+
+    /**
+     * 获取订单统计数据
+     */
+    java.util.Map<String, Object> getOrderStats(Long tenantId);
 }

@@ -1,179 +1,94 @@
 <template>
   <div class="department-personnel">
-    <!-- 搜索区域 -->
-    <a-card
-      class="search-card"
-      :bordered="false"
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'department-personnel-list'"
+      :filter-fields="filterFields"
+      :show-search="false"
+      :show-add="false"
+      :show-edit="false"
+      :show-delete="false"
+      :show-batch-delete="false"
+      add-text="添加人员"
+      @refresh="fetchData"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
     >
-      <a-form
-        layout="inline"
-        :model="searchForm"
-        class="search-form"
-      >
-        <a-row
-          :gutter="16"
-          style="width: 100%"
-        >
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="用户名">
-              <a-input
-                v-model:value="searchForm.username"
-                placeholder="请输入用户名"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item label="手机号">
-              <a-input
-                v-model:value="searchForm.phone"
-                placeholder="请输入手机号"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col
-            :xs="24"
-            :sm="12"
-            :md="6"
-          >
-            <a-form-item>
-              <a-space>
-                <a-button
-                  type="primary"
-                  @click="handleSearch"
-                >
-                  <template #icon>
-                    <SearchOutlined />
-                  </template>
-                  搜索
-                </a-button>
-                <a-button @click="handleReset">
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  重置
-                </a-button>
-              </a-space>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+      <template #toolbar-actions>
+        <a-space>
+          <a-tag v-if="currentDepartment" color="blue">
+            {{ currentDepartment.departmentName }}
+          </a-tag>
+          <a-button type="primary" @click="handleAdd">
+            <template #icon><PlusOutlined /></template>
+            添加人员
+          </a-button>
+          <a-button @click="handleTransfer">
+            <template #icon><SwapOutlined /></template>
+            人员调动
+          </a-button>
+          <a-button @click="handleBack">
+            <template #icon><ArrowLeftOutlined /></template>
+            返回
+          </a-button>
+        </a-space>
+      </template>
 
-    <!-- 表格区域 -->
-    <a-card
-      class="table-card"
-      :bordered="false"
-    >
-      <template #title>
-        <div class="table-header">
-          <div class="title">
-            <a-space>
-              <span>部门人员</span>
-              <a-tag
-                v-if="currentDepartment"
-                color="blue"
-              >
-                {{ currentDepartment.departmentName }}
-              </a-tag>
-            </a-space>
-          </div>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'userInfo'">
+          <a-space>
+            <a-avatar
+              :src="record.avatar"
+              :size="32"
+            >
+              {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
+            </a-avatar>
+            <div>
+              <div class="user-name">
+                {{ record.username }}
+              </div>
+              <div class="user-nickname">
+                {{ record.nickname }}
+              </div>
+            </div>
+          </a-space>
+        </template>
+
+        <template v-else-if="column.key === 'status'">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'position'">
+          {{ record.positionName || '-' }}
+        </template>
+
+        <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button
-              type="primary"
-              @click="handleAdd"
+              type="link"
+              size="small"
+              @click="handleTransferSingle(record as UserInfo)"
             >
-              <template #icon>
-                <PlusOutlined />
-              </template>
-              添加人员
+              调动
             </a-button>
-            <a-button @click="handleTransfer">
-              <template #icon>
-                <SwapOutlined />
-              </template>
-              人员调动
-            </a-button>
-            <a-button @click="handleBack">
-              <template #icon>
-                <ArrowLeftOutlined />
-              </template>
-              返回
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="handleRemove(record as UserInfo)"
+            >
+              移除
             </a-button>
           </a-space>
-        </div>
-      </template>
-      
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        :row-selection="{ selectedRowKeys: selectedRowKeys as any, onChange: onSelectChange as any }"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'userInfo'">
-            <a-space>
-              <a-avatar
-                :src="record.avatar"
-                :size="32"
-              >
-                {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
-              </a-avatar>
-              <div>
-                <div class="user-name">
-                  {{ record.username }}
-                </div>
-                <div class="user-nickname">
-                  {{ record.nickname }}
-                </div>
-              </div>
-            </a-space>
-          </template>
-          
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'position'">
-            {{ record.positionName || '-' }}
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleTransferSingle(record as UserInfo)"
-              >
-                调动
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                danger
-                @click="handleRemove(record as UserInfo)"
-              >
-                移除
-              </a-button>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+      </template>
+    </TableList>
 
     <!-- 添加人员弹窗 -->
     <a-modal
@@ -367,14 +282,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps, FormInstance } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
 import {
-  SearchOutlined,
-  ReloadOutlined,
   PlusOutlined,
   SwapOutlined,
   ArrowLeftOutlined
 } from '@ant-design/icons-vue'
+import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import request from '@/utils/request'
 import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
@@ -411,7 +325,7 @@ const pagination = reactive({
 })
 
 // 表格列定义
-const columns: TableProps['columns'] = [
+const columns: any[] = [
   { title: '用户信息', key: 'userInfo', width: 200 },
   { title: '手机号', dataIndex: 'phone', width: 120 },
   { title: '邮箱', dataIndex: 'email', width: 180, ellipsis: true },
@@ -419,6 +333,12 @@ const columns: TableProps['columns'] = [
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 150, fixed: 'right' }
+]
+
+// 筛选字段
+const filterFields: FilterField[] = [
+  { key: 'username', label: '用户名', type: 'input', placeholder: '请输入用户名' },
+  { key: 'phone', label: '手机号', type: 'input', placeholder: '请输入手机号' },
 ]
 
 // 添加人员弹窗
@@ -548,15 +468,22 @@ const handleReset = () => {
   handleSearch()
 }
 
-// 表格操作
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+// 筛选变化
+const handleFilterChange = (filters: Record<string, any>) => {
+  if (Object.keys(filters).length === 0) {
+    Object.assign(searchForm, { username: '', phone: '' })
+  } else {
+    Object.assign(searchForm, filters)
+  }
+  pagination.current = 1
   fetchData()
 }
 
-const onSelectChange = (keys: number[]) => {
-  selectedRowKeys.value = keys
+// 分页变化
+const handlePageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchData()
 }
 
 // 获取选中用户
@@ -576,7 +503,7 @@ const handleAddModalOk = async () => {
   try {
     await addFormRef.value?.validate()
     addModalLoading.value = true
-    
+
     await request.post('/department/personnel/add', {
       deptId: currentDepartment.value?.id,
       userIds: addFormState.userIds,
@@ -612,7 +539,7 @@ const handleTransferModalOk = async () => {
   try {
     await transferFormRef.value?.validate()
     transferModalLoading.value = true
-    
+
     await request.post('/department/personnel/transfer', {
       deptId: currentDepartment.value?.id,
       targetDeptId: transferFormState.targetDepartmentId,
@@ -645,11 +572,11 @@ const handleTransferSingle = (user: UserInfo) => {
 
 const handleSingleTransferModalOk = async () => {
   if (!selectedUser.value) return
-  
+
   try {
     await singleTransferFormRef.value?.validate()
     singleTransferModalLoading.value = true
-    
+
     await request.post('/department/personnel/transfer', {
       deptId: currentDepartment.value?.id,
       targetDeptId: singleTransferFormState.targetDepartmentId,
@@ -720,31 +647,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.search-card {
-  margin-bottom: 16px;
-}
-
-.search-form {
-  margin-bottom: -24px;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.table-header .title {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .user-name {
   font-weight: 500;
 }
@@ -756,16 +658,5 @@ onMounted(() => {
 
 .transfer-modal-content {
   padding: 16px 0;
-}
-
-@media (max-width: 768px) {
-  .search-form :deep(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    gap: 12px;
-  }
 }
 </style>

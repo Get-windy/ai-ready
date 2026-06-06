@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/crm/followUp")
+@RequestMapping("/api/crm/followUp")
 @Tag(name = "CRM跟进记录", description = "客户跟进记录管理")
 @RequiredArgsConstructor
 public class CustomerFollowUpController {

@@ -107,7 +107,10 @@ const txCols = [
 
 const fetchDetail = async () => {
   loading.value = true; error.value = null
-  try { data.value = await stockApi.getById(Number(route.params.id)) as any }
+  try {
+    const id = Number(route.params.id)
+    if (isNaN(id)) { error.value = '无效的ID'; return }
+    data.value = await stockApi.getById(id) as any }
   catch (err: any) { error.value = err?.message || '获取详情失败' }
   finally { loading.value = false }
 }

@@ -8,6 +8,8 @@ import cn.aiedge.finance.dto.PayableVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+
 /**
  * 应付账款服务接口
  */
@@ -37,4 +39,14 @@ public interface IPayableService extends IService<Payable> {
      * 删除应付账款
      */
     void deletePayable(Long id);
+
+    /**
+     * 批量删除应付账款
+     */
+    void batchDelete(List<Long> ids);
+
+    /**
+     * 导出应付账款列表
+     */
+    List<PayableVO> exportList(PayableQueryRequest request);
 }

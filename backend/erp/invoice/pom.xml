@@ -8,12 +8,12 @@
     <parent>
         <groupId>cn.aiedge.erp</groupId>
         <artifactId>erp</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>erp-invoice</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <name>ERP Invoice Management Module</name>
     <description>ERP invoice management module including invoice creation, approval, issuance, and verification functions.</description>
 

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * 固定资产转移控制器
  */
 @RestController
-@RequestMapping("/erp/fixed-asset/transfer")
+@RequestMapping("/api/erp/fixed-asset/transfer")
 @Tag(name = "固定资产转移管理", description = "资产转移申请、审批等管理功能")
 @RequiredArgsConstructor
 public class FixedAssetTransferController {

@@ -43,7 +43,7 @@ public class PayableController {
     }
 
     @Operation(summary = "根据ID查询应付款")
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasPermission('/api/erp/finance/payable/view', 'finance:payable:view')")
     @OperationLog(module = "应付管理", type = "QUERY", desc = "根据ID查询应付款")
     public Result<PayableDTO> getById(@Parameter(description = "应付款ID") @PathVariable Long id) {

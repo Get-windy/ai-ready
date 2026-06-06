@@ -4,7 +4,7 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>erp-sale</artifactId>
@@ -17,11 +17,15 @@
       <groupId>cn.aiedge</groupId>
       <artifactId>core-base</artifactId>
     </dependency>
+    <dependency>
+      <groupId>cn.aiedge</groupId>
+      <artifactId>core-common</artifactId>
+    </dependency>
     <!-- 库存服务依赖 -->
     <dependency>
       <groupId>cn.aiedge.erp</groupId>
       <artifactId>erp-stock</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>0.1.0</version>
     </dependency>
     <!-- Spring Boot Starter -->
     <dependency>
@@ -49,14 +53,6 @@
   </dependencies>
   
   <build>
-    <plugins>
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <configuration>
-          <skip>true</skip>
-        </configuration>
-      </plugin>
-    </plugins>
+    <plugins></plugins>
   </build>
 </project>

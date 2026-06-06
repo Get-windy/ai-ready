@@ -30,7 +30,7 @@
 |------|------|--------|----------|
 | 登录页 | /login | P0 | Login Form |
 | 仪表盘 | /dashboard | P0 | Stats Cards, Charts, Lists |
-| 采购管理 | /erp/purchase | P0 | TableList, Form |
+| 采购管理 | /purchase | P0 | TableList, Form |
 | 销售管理 | /erp/sale | P0 | TableList, Form |
 | 库存管理 | /erp/stock | P0 | TableList, Form |
 | 客户管理 | /crm/customer | P0 | TableList, Form |

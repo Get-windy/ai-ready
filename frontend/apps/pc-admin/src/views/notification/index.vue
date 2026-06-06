@@ -1,117 +1,102 @@
 <template>
   <div class="notification-center">
-    <!-- 顶部操作栏 -->
-    <a-card class="toolbar-card" :bordered="false">
-      <div class="toolbar-content">
-        <div class="toolbar-left">
-          <a-space>
-            <a-select
-              v-model:value="filterType"
-              placeholder="通知类型"
-              allow-clear
-              style="width: 140px"
-              @change="handleFilterChange"
-            >
-              <a-select-option :value="1">系统通知</a-select-option>
-              <a-select-option :value="2">业务通知</a-select-option>
-              <a-select-option :value="3">审批通知</a-select-option>
-            </a-select>
-            <a-select
-              v-model:value="filterReadStatus"
-              placeholder="阅读状态"
-              allow-clear
-              style="width: 120px"
-              @change="handleFilterChange"
-            >
-              <a-select-option :value="0">未读</a-select-option>
-              <a-select-option :value="1">已读</a-select-option>
-            </a-select>
-          </a-space>
-        </div>
-        <div class="toolbar-right">
-          <a-space>
-            <a-badge :count="unreadCount" :overflow-count="99">
-              <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
+    <TableList
+      ref="tableRef"
+      :columns="columns"
+      :data-source="tableData"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'notification-list'"
+      :filter-fields="filterFields"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+    >
+      <template #toolbar-actions>
+        <a-badge :count="unreadCount" :overflow-count="99">
+          <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
+        </a-badge>
+        <a-button type="link" @click="handleMarkAllRead">
+          <template #icon><CheckCircleOutlined /></template>
+          全部已读
+        </a-button>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+        </span>
+      </template>
+
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配通知">
+          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无通知消息">
+          <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+        </a-empty>
+      </template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'title'">
+          <a-space align="start">
+            <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
+              <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
             </a-badge>
-            <a-button type="link" @click="handleMarkAllRead">
-              <template #icon><CheckCircleOutlined /></template>
-              全部已读
-            </a-button>
+            <div>
+              <a
+                :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
+                @click="handleDetail(record)"
+                class="notification-title"
+              >
+                {{ record.title }}
+              </a>
+            </div>
           </a-space>
-        </div>
-      </div>
-    </a-card>
-
-    <!-- 通知列表 -->
-    <a-card class="table-card" :bordered="false">
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        @change="handleTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'title'">
-            <a-space align="start">
-              <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
-                <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
-              </a-badge>
-              <div>
-                <a
-                  :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
-                  @click="handleDetail(record)"
-                  class="notification-title"
-                >
-                  {{ record.title }}
-                </a>
-              </div>
-            </a-space>
-          </template>
-
-          <template v-else-if="column.key === 'type'">
-            <a-tag :color="getTypeColor(record.type)">
-              {{ getTypeName(record.type) }}
-            </a-tag>
-          </template>
-
-          <template v-else-if="column.key === 'readStatus'">
-            <a-badge
-              :status="record.readStatus === 0 ? 'processing' : 'default'"
-              :text="record.readStatus === 0 ? '未读' : '已读'"
-            />
-          </template>
-
-          <template v-else-if="column.key === 'summary'">
-            <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
-          </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                v-if="record.readStatus === 0"
-                type="link"
-                size="small"
-                @click="handleMarkRead(record)"
-              >
-                标记已读
-              </a-button>
-              <a-popconfirm
-                title="确定要删除该通知吗？"
-                ok-text="确定"
-                cancel-text="取消"
-                @confirm="handleDelete(record)"
-              >
-                <a-button type="link" size="small" danger>
-                  删除
-                </a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
         </template>
-      </a-table>
-    </a-card>
+
+        <template v-else-if="column.key === 'type'">
+          <a-tag :color="getTypeColor(record.type)">
+            {{ getTypeName(record.type) }}
+          </a-tag>
+        </template>
+
+        <template v-else-if="column.key === 'readStatus'">
+          <a-badge
+            :status="record.readStatus === 0 ? 'processing' : 'default'"
+            :text="record.readStatus === 0 ? '未读' : '已读'"
+          />
+        </template>
+
+        <template v-else-if="column.key === 'summary'">
+          <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
+        </template>
+
+        <template v-else-if="column.key === 'action'">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip v-if="record.readStatus === 0" title="标记已读">
+              <a-button type="link" size="small" @click="handleMarkRead(record)">
+                <template #icon><CheckOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.readStatus === 0" key="mark_read">
+                    <CheckOutlined /> 标记已读
+                  </a-menu-item>
+                  <a-menu-divider v-if="record.readStatus === 0" />
+                  <a-menu-item key="delete" danger>
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </TableList>
 
     <!-- 详情弹窗 -->
     <a-modal
@@ -145,34 +130,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import dayjs from 'dayjs'
+import TableList from '@/components/TableList/TableList.vue'
+import { message, Modal } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
   BellOutlined,
   CheckCircleOutlined,
+  CheckOutlined,
+  DeleteOutlined,
+  EllipsisOutlined,
+  SearchOutlined,
   InfoCircleOutlined,
   NotificationOutlined,
   AuditOutlined
 } from '@ant-design/icons-vue'
 import { notificationApi, type NotificationInfo } from '@/api/notification'
 
-// 筛选条件
-const filterType = ref<number | undefined>(undefined)
-const filterReadStatus = ref<number | undefined>(undefined)
-
 // 表格数据
 const tableData = ref<NotificationInfo[]>([])
 const loading = ref(false)
+const tableRef = ref()
+
+const searchFilters = reactive<Record<string, any>>({})
 
 // 分页
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条`
+})
+const lastUpdated = ref('')
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
 // 表格列
@@ -183,6 +175,18 @@ const columns: TableProps['columns'] = [
   { title: '发送时间', dataIndex: 'sendTime', width: 160 },
   { title: '状态', key: 'readStatus', width: 90 },
   { title: '操作', key: 'action', width: 140, fixed: 'right' }
+]
+
+const filterFields = [
+  { key: 'type', label: '通知类型', type: 'select' as const, options: [
+    { label: '系统通知', value: 1 },
+    { label: '业务通知', value: 2 },
+    { label: '审批通知', value: 3 },
+  ]},
+  { key: 'readStatus', label: '阅读状态', type: 'select' as const, options: [
+    { label: '未读', value: 0 },
+    { label: '已读', value: 1 },
+  ]},
 ]
 
 // 未读数量
@@ -200,13 +204,14 @@ const fetchData = async () => {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     }
-    if (filterType.value !== undefined) params.type = filterType.value
-    if (filterReadStatus.value !== undefined) params.readStatus = filterReadStatus.value
+    if (searchFilters.type !== undefined) params.type = searchFilters.type
+    if (searchFilters.readStatus !== undefined) params.readStatus = searchFilters.readStatus
 
     const res = await notificationApi.getPage(params)
     if (res.data) {
       tableData.value = res.data.records
       pagination.total = res.data.total
+      lastUpdated.value = new Date().toISOString()
     }
   } catch (error) {
     message.error('加载通知失败')
@@ -227,14 +232,20 @@ const fetchUnreadCount = async () => {
 }
 
 // 筛选
-const handleFilterChange = () => {
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
   pagination.current = 1
   fetchData()
 }
 
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+const handleSearch = () => {
+  pagination.current = 1
+  fetchData()
+}
+
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   fetchData()
 }
 
@@ -264,14 +275,24 @@ const handleMarkAllRead = async () => {
 
 // 删除
 const handleDelete = async (record: NotificationInfo) => {
-  try {
-    await notificationApi.delete(record.id)
-    message.success('删除成功')
-    fetchData()
-    fetchUnreadCount()
-  } catch {
-    message.error('删除失败')
-  }
+  Modal.confirm({
+    title: '确认删除',
+    content: '确定要删除该通知吗？删除后数据不可恢复。',
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    async onOk() {
+      try {
+        await notificationApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+        fetchUnreadCount()
+      } catch {
+        message.error('删除失败')
+      }
+    }
+  })
 }
 
 // 详情
@@ -304,36 +325,37 @@ const getTypeIcon = (type: number) => {
   return icons[type] || InfoCircleOutlined
 }
 
+function handleResetFilters() {
+  Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
+  pagination.current = 1
+  fetchData()
+}
+
+function handleActionMenuClick(key: string, record: NotificationInfo) {
+  switch (key) {
+    case 'mark_read': handleMarkRead(record); break
+    case 'delete': handleDelete(record); break
+  }
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault() }
+}
+
 onMounted(() => {
   fetchData()
   fetchUnreadCount()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <style scoped>
 .notification-center {
   padding: 0;
-}
-
-.toolbar-card {
-  margin-bottom: 16px;
-}
-
-.toolbar-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  align-items: center;
-}
-
-.table-card :deep(.ant-card-head) {
-  border-bottom: none;
-  padding-bottom: 0;
 }
 
 .notification-title {
@@ -361,10 +383,11 @@ onMounted(() => {
   word-break: break-all;
 }
 
-@media (max-width: 768px) {
-  .toolbar-content {
-    flex-direction: column;
-    gap: 12px;
-  }
+.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+.list-update-timestamp {
+  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap; cursor: help; margin-left: 8px;
+  line-height: 32px; vertical-align: middle;
 }
+.action-cell-inner { flex-wrap: nowrap; }
 </style>

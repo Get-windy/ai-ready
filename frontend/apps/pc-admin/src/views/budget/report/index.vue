@@ -160,7 +160,7 @@ const loadAllData = async () => {
   try {
     const res = await budgetReportApi.executionSummary(fiscalYear.value)
     if (res.success) summary.value = res.data
-  } catch (_) { /* ignore */ }
+  } catch { /* error already handled */ }
 
   // Department chart
   try {
@@ -174,7 +174,7 @@ const loadAllData = async () => {
         series: [{ name: '预算总额', type: 'bar', data: budgets }, { name: '已使用', type: 'bar', data: used }],
       })
     }
-  } catch (_) { /* ignore */ }
+  } catch { /* error already handled */ }
 
   // Subject chart
   try {
@@ -190,7 +190,7 @@ const loadAllData = async () => {
         }],
       })
     }
-  } catch (_) { /* ignore */ }
+  } catch { /* error already handled */ }
 
   // Trend
   try {
@@ -199,14 +199,14 @@ const loadAllData = async () => {
       const amounts = res.data.map((d: any) => d.amount)
       trendChart?.setOption({ series: [{ data: amounts }] })
     }
-  } catch (_) { /* ignore */ }
+  } catch { /* error already handled */ }
 
   // Variance
   varianceLoading.value = true
   try {
     const res = await budgetReportApi.varianceAnalysis(fiscalYear.value)
     if (res.success) varianceData.value = res.data || []
-  } catch (_) { /* ignore */ }
+  } catch { /* error already handled */ }
   varianceLoading.value = false
 }
 

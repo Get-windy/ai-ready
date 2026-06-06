@@ -2,8 +2,12 @@ import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestHeaders, ResponseType } from 'axios'
 import { message } from 'ant-design-vue'
 import { useUserStore } from '@/stores/user'
-import { refreshTokenAndRetry, getToken, isTokenExpired } from './tokenRefresher'
+import { refreshTokenAndRetry, getToken, isTokenExpired, clearTokenVerifyCache } from './tokenRefresher'
 import { trackApiCall, addSentryBreadcrumb } from './performanceMonitor'
+import NProgress from 'nprogress'
+import 'nprogress/nprogress.css'
+
+NProgress.configure({ showSpinner: false, minimum: 0.1 })
 
 // ── 类型定义 ────────────────────────────────────────────
 
@@ -66,8 +70,8 @@ interface ExtendedAxiosRequestConfig extends Partial<InternalAxiosRequestConfig>
 // ── 默认重试配置 ────────────────────────────────────────
 
 export const defaultRetryConfig: Required<Omit<RetryConfig, 'retry'>> = {
-  maxRetries: 3,
-  retryDelay: 1000,
+  maxRetries: 2,
+  retryDelay: 800,
   shouldRetry: (config: InternalAxiosRequestConfig) => {
     const method = config.method?.toUpperCase() || ''
     return method === 'GET'
@@ -114,6 +118,9 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
+    // 请求开始：启动进度条
+    NProgress.start()
+
     // 添加请求时间戳用于性能监控
     ;(config as any)._requestStartTime = Date.now()
 
@@ -141,6 +148,9 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const url = `${response.config.baseURL || ''}${response.config.url || ''}`
     console.log(`${R} ⬅️ ${response.config.method?.toUpperCase() || 'GET'} ${url} → ${response.status}`)
+
+    // 请求完成：结束进度条
+    NProgress.done()
 
     // 记录 API 调用耗时
     const startTime = (response.config as any)._requestStartTime
@@ -204,6 +214,9 @@ service.interceptors.response.use(
     const url = `${config?.baseURL || ''}${config?.url || ''}`
     console.log(`${R} ❌ ${config?.method?.toUpperCase() || '?'} ${url} → status=${error.response?.status || '网络错误'}`, error.message)
 
+    // 请求失败：结束进度条
+    NProgress.done()
+
     // 记录失败的 API 调用耗时
     if (config) {
       const startTime = (config as any)._requestStartTime
@@ -250,10 +263,11 @@ service.interceptors.response.use(
                 return service(config)
               })
             } catch {
+              // refreshTokenAndRetry 内部已处理跳转，此处作为安全保障
+              handleUnauthorized()
               return Promise.reject(error)
             }
           }
-          message.error('登录已过期，请重新登录')
           handleUnauthorized()
           break
         case 403:
@@ -283,6 +297,7 @@ service.interceptors.response.use(
 /** 清除登录状态并跳转登录页 */
 export function handleUnauthorized() {
   console.log(`${R} 🔴 handleUnauthorized() - 清除登录状态并跳转登录页`)
+  clearTokenVerifyCache() // 清除 token 验证缓存，防止使用过期缓存
   try {
     const userStore = useUserStore()
     userStore.token = ''

@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -28,22 +28,22 @@
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-party</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-sale</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-stock</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
 
         <!-- Spring Boot Starter -->

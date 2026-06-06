@@ -5,6 +5,7 @@ import cn.aiedge.base.service.SysMenuService;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +78,10 @@ public class SysMenuController {
     @Operation(summary = "获取用户菜单树")
     @GetMapping("/user/tree")
     @SaCheckLogin
-    public Result<List<SysMenu>> getUserMenuTree(@RequestParam Long userId) {
+    public Result<List<SysMenu>> getUserMenuTree(@RequestParam(required = false) Long userId) {
+        if (userId == null) {
+            userId = StpUtil.getLoginIdAsLong();
+        }
         List<SysMenu> tree = menuService.getUserMenuTree(userId);
         return Result.ok(tree);
     }
@@ -103,7 +107,10 @@ public class SysMenuController {
     @SaCheckLogin
     public Result<List<SysMenu>> getUserMenuByClientType(
             @PathVariable String clientType,
-            @RequestParam Long userId) {
+            @RequestParam(required = false) Long userId) {
+        if (userId == null) {
+            userId = StpUtil.getLoginIdAsLong();
+        }
         List<SysMenu> tree = menuService.getUserMenuByClientType(clientType, userId);
         return Result.ok(tree);
     }
