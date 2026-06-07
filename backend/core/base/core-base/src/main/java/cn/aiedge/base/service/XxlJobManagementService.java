@@ -29,7 +29,7 @@ public class XxlJobManagementService {
 
     private static final Logger logger = LoggerFactory.getLogger(XxlJobManagementService.class);
 
-    @Value("${xxl.job.admin.addresses:http://127.0.0.1:8080/xxl-job-admin}")
+    @Value("${xxl.job.admin.addresses:http://127.0.0.1:5655/xxl-job-admin}")
     private String adminAddresses;
 
     @Value("${xxl.job.accessToken:default_token}")

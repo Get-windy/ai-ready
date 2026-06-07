@@ -88,7 +88,7 @@ public class AiReadyApplication {
 
             ========================================
             智企连·AI-Ready 启动成功！
-            API文档: http://localhost:8080/doc.html
+            API文档: http://localhost:5655/doc.html
             ========================================
             """);
     }

@@ -96,9 +96,14 @@ import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 const supplierId = route.params.id as string
+
+if (!supplierId) {
+  console.warn('[供应商询价] 缺少供应商ID参数，将返回列表')
+  router.replace('/supplier/index')
+}
 
 interface InquiryRecord {
   id: number
@@ -159,6 +164,7 @@ onMounted(async () => {
 })
 
 const loadSupplier = async () => {
+  if (!supplierId) return
   try {
     const res = await supplierApi.getById(Number(supplierId))
     supplier.value = res as any
@@ -168,6 +174,7 @@ const loadSupplier = async () => {
 }
 
 const loadInquiries = async () => {
+  if (!supplierId) return
   loading.value = true
   try {
     const res = await supplierApi.getInquiries(Number(supplierId))
@@ -190,7 +197,7 @@ const submitInquiry = async () => {
     await formRef.value?.validate()
     submitLoading.value = true
     await request.post('/supplier-portal/inquiries', {
-      supplierId: Number(supplierId),
+      supplierId: Number(supplierId || 0),
       inquiryTitle: createForm.value.inquiryTitle,
       deadline: createForm.value.deadline?.format('YYYY-MM-DD'),
       remark: createForm.value.remark
@@ -251,6 +258,7 @@ const handleRejectQuotation = async (inquiry: InquiryRecord) => {
 }
 
 const handleBack = () => {
+  if (!supplierId) { router.push('/supplier/index'); return }
   router.push(`/supplier/detail/${supplierId}`)
 }
 

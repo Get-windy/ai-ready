@@ -62,7 +62,7 @@ export interface RoleMenuAssignRequest {
 export const menuApi = {
   // 获取菜单树
   getTree(params?: MenuQuery): Promise<ApiResponse<MenuInfo[]>> {
-    return request.post('/menu/tree', params || {})
+    return request.get('/menu/tree', { params })
   },
 
   // 获取所有菜单

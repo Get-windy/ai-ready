@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 public class XxlJobConfig {
     private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
 
-    @Value("${xxl.job.admin.addresses:http://127.0.0.1:8080/xxl-job-admin}")
+    @Value("${xxl.job.admin.addresses:http://127.0.0.1:5655/xxl-job-admin}")
     private String adminAddresses;
 
     @Value("${xxl.job.accessToken:default_token}")

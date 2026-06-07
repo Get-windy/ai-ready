@@ -28,7 +28,7 @@ public class LocalStorageStrategy implements StorageStrategy {
     @Value("${storage.local.base-path:./uploads}")
     private String basePath;
 
-    @Value("${storage.local.base-url:http://localhost:8080/files}")
+    @Value("${storage.local.base-url:http://localhost:5655/files}")
     private String baseUrl;
 
     @Override

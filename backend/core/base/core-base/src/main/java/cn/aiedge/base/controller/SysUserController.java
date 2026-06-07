@@ -116,6 +116,19 @@ public class SysUserController {
     }
 
     /**
+     * 获取用户列表（无分页，供下拉选择器等场景使用）
+     */
+    @Operation(summary = "获取用户列表")
+    @GetMapping("/list")
+    @SaCheckPermission("user:list")
+    public Result<List<SysUser>> listUsers(UserDTO.Query query) {
+        Page<SysUser> page = new Page<>(1, query.pageSize() != null ? query.pageSize() : 1000);
+        Page<SysUser> result = userService.pageUsers(page, query.tenantId(),
+                query.username(), query.status(), query.deptId());
+        return Result.ok(result.getRecords());
+    }
+
+    /**
      * 获取用户详情
      */
     @Operation(summary = "获取用户详情")
