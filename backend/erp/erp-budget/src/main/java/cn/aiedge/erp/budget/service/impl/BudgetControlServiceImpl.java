@@ -1,5 +1,6 @@
 package cn.aiedge.erp.budget.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.budget.model.BudgetExecutionLog;
 import cn.aiedge.erp.budget.model.BudgetItem;
 import cn.aiedge.erp.budget.repository.BudgetExecutionLogRepository;
@@ -60,13 +61,13 @@ public class BudgetControlServiceImpl implements BudgetControlService {
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
-                .orElseThrow(() -> new RuntimeException("预算科目不存在: " + budgetItemId));
+                .orElseThrow(() -> BusinessException.notFound("预算科目不存在: " + budgetItemId));
 
         BigDecimal remaining = item.getRemainingAmount() != null ? item.getRemainingAmount() : BigDecimal.ZERO;
         BigDecimal frozen = item.getFrozenAmount() != null ? item.getFrozenAmount() : BigDecimal.ZERO;
 
         if (remaining.subtract(frozen).compareTo(amount) < 0) {
-            throw new RuntimeException("预算不足，无法冻结");
+            throw BusinessException.badRequest("预算不足，无法冻结");
         }
 
         item.setFrozenAmount(frozen.add(amount));
@@ -97,11 +98,11 @@ public class BudgetControlServiceImpl implements BudgetControlService {
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
-                .orElseThrow(() -> new RuntimeException("预算科目不存在: " + budgetItemId));
+                .orElseThrow(() -> BusinessException.notFound("预算科目不存在: " + budgetItemId));
 
         BigDecimal frozen = item.getFrozenAmount() != null ? item.getFrozenAmount() : BigDecimal.ZERO;
         if (frozen.compareTo(amount) < 0) {
-            throw new RuntimeException("冻结余额不足，无法释放");
+            throw BusinessException.badRequest("冻结余额不足，无法释放");
         }
 
         item.setFrozenAmount(frozen.subtract(amount));
@@ -132,14 +133,14 @@ public class BudgetControlServiceImpl implements BudgetControlService {
         Map<String, Object> result = new HashMap<>();
 
         BudgetItem item = budgetItemRepository.findById(budgetItemId)
-                .orElseThrow(() -> new RuntimeException("预算科目不存在: " + budgetItemId));
+                .orElseThrow(() -> BusinessException.notFound("预算科目不存在: " + budgetItemId));
 
         BigDecimal remaining = item.getRemainingAmount() != null ? item.getRemainingAmount() : BigDecimal.ZERO;
         BigDecimal frozen = item.getFrozenAmount() != null ? item.getFrozenAmount() : BigDecimal.ZERO;
 
         // Try to consume from remaining first
         if (remaining.compareTo(amount) < 0) {
-            throw new RuntimeException("预算余额不足，无法消耗");
+            throw BusinessException.badRequest("预算余额不足，无法消耗");
         }
 
         BigDecimal actualFrozenRelease = frozen.min(amount);

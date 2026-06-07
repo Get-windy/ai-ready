@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.BusinessAccountingRequest;
 import cn.aiedge.erp.finance.dto.PayableDTO;
 import cn.aiedge.erp.finance.dto.ReceivableDTO;
@@ -41,7 +42,7 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
     @Transactional
     public VoucherDTO createVoucherFromBusiness(BusinessAccountingRequest request) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
-            throw new RuntimeException("记账明细项不能为空");
+            throw BusinessException.badRequest("记账明细项不能为空");
         }
 
         LocalDate voucherDate = request.getVoucherDate() != null ? request.getVoucherDate() : LocalDate.now();
@@ -51,7 +52,7 @@ public class BusinessAccountingServiceImpl implements BusinessAccountingService 
         List<VoucherItemDTO> items = new ArrayList<>();
         for (BusinessAccountingRequest.AccountingRequestItem reqItem : request.getItems()) {
             AccountSubject subject = accountSubjectMapper.findBySubjectCode(reqItem.getSubjectCode())
-                    .orElseThrow(() -> new RuntimeException("科目编码不存在: " + reqItem.getSubjectCode()));
+                    .orElseThrow(() -> BusinessException.notFound("科目编码不存在: " + reqItem.getSubjectCode()));
 
             VoucherItemDTO item = new VoucherItemDTO();
             item.setSummary(reqItem.getSummary() != null ? reqItem.getSummary() : request.getSummary());

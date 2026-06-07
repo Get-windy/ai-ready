@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.StockTransfer;
 import cn.aiedge.erp.stock.entity.StockTransferItem;
 import cn.aiedge.erp.stock.service.StockTransferService;
@@ -40,7 +41,7 @@ public class StockTransferController {
     public StockTransfer getById(@PathVariable Long id) {
         StockTransfer transfer = transferService.getById(id);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         return transfer;
     }

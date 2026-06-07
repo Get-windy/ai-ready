@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
@@ -49,10 +49,18 @@
     </modules>
     
     <properties>
-        <erp-common.version>0.1.0</erp-common.version>
+        <erp-common.version>0.2.0</erp-common.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     
+    <dependencies>
+        <!-- 核心公共模块（BusinessException等） -->
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>core-common</artifactId>
+        </dependency>
+    </dependencies>
+
     <dependencyManagement>
         <dependencies>
             <!-- ERP 通用模块 -->

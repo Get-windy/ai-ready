@@ -1,6 +1,6 @@
 # Spring Boot 配置
 server:
-  port: 8080
+  port: 5655
 
 spring:
   application:

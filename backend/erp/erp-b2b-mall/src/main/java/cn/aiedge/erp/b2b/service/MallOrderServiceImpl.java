@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.service;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.*;
 import cn.aiedge.erp.b2b.mapper.MallOrderItemMapper;
 import cn.aiedge.erp.b2b.mapper.MallOrderMapper;
@@ -42,7 +43,7 @@ public class MallOrderServiceImpl implements MallOrderService {
         String customerId = StpUtil.getLoginIdAsString();
 
         if (request.getItems() == null || request.getItems().isEmpty()) {
-            throw new RuntimeException("订单商品不能为空");
+            throw BusinessException.badRequest("订单商品不能为空");
         }
 
         // Calculate order amounts
@@ -56,10 +57,10 @@ public class MallOrderServiceImpl implements MallOrderService {
                             .eq(MallProduct::getDeleted, false)
             );
             if (product == null) {
-                throw new RuntimeException("商品不存在: " + itemRequest.getProductId());
+                throw BusinessException.notFound("商品不存在: " + itemRequest.getProductId());
             }
             if (product.getStockQuantity() < itemRequest.getQuantity()) {
-                throw new RuntimeException("商品库存不足: " + product.getProductName());
+                throw BusinessException.badRequest("商品库存不足: " + product.getProductName());
             }
 
             MallOrderItem orderItem = new MallOrderItem();
@@ -140,7 +141,7 @@ public class MallOrderServiceImpl implements MallOrderService {
         log.info("获取订单详情: {}", id);
         MallOrder order = mallOrderMapper.selectById(id);
         if (order == null) {
-            throw new RuntimeException("订单不存在: " + id);
+            throw BusinessException.notFound("订单不存在: " + id);
         }
 
         List<MallOrderItem> items = mallOrderItemMapper.selectList(
@@ -157,11 +158,11 @@ public class MallOrderServiceImpl implements MallOrderService {
         log.info("取消订单: {}", id);
         MallOrder order = mallOrderMapper.selectById(id);
         if (order == null) {
-            throw new RuntimeException("订单不存在: " + id);
+            throw BusinessException.notFound("订单不存在: " + id);
         }
 
         if (!"PENDING_PAYMENT".equals(order.getOrderStatus())) {
-            throw new RuntimeException("当前订单状态不允许取消");
+            throw BusinessException.badRequest("当前订单状态不允许取消");
         }
 
         order.setOrderStatus("CANCELLED");
@@ -193,11 +194,11 @@ public class MallOrderServiceImpl implements MallOrderService {
         log.info("确认收货: {}", id);
         MallOrder order = mallOrderMapper.selectById(id);
         if (order == null) {
-            throw new RuntimeException("订单不存在: " + id);
+            throw BusinessException.notFound("订单不存在: " + id);
         }
 
         if (!"SHIPPED".equals(order.getOrderStatus())) {
-            throw new RuntimeException("当前订单状态不允许确认收货");
+            throw BusinessException.badRequest("当前订单状态不允许确认收货");
         }
 
         order.setOrderStatus("COMPLETED");
@@ -214,11 +215,11 @@ public class MallOrderServiceImpl implements MallOrderService {
         log.info("支付订单: {}", id);
         MallOrder order = mallOrderMapper.selectById(id);
         if (order == null) {
-            throw new RuntimeException("订单不存在: " + id);
+            throw BusinessException.notFound("订单不存在: " + id);
         }
 
         if (!"PENDING_PAYMENT".equals(order.getOrderStatus())) {
-            throw new RuntimeException("当前订单状态不允许支付");
+            throw BusinessException.badRequest("当前订单状态不允许支付");
         }
 
         order.setOrderStatus("PAID");

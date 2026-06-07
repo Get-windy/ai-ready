@@ -1,5 +1,6 @@
 package cn.aiedge.erp.expense.service.integration;
 
+import cn.aiedge.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -86,10 +87,10 @@ public class ExpenseAccountingService {
                 return body.get("data");
             }
             String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw new RuntimeException("Finance API error: " + errMsg + " (path=" + path + ")");
+            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
         } catch (Exception e) {
             log.error("调用财务模块API失败: path={}", path, e);
-            throw new RuntimeException("调用财务模块API失败: " + e.getMessage(), e);
+            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
         }
     }
 }

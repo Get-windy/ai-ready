@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.sale.dto.PromotionActivityDTO;
 import cn.aiedge.erp.sale.entity.PromotionActivity;
 import cn.aiedge.erp.sale.mapper.PromotionActivityMapper;
@@ -61,7 +62,7 @@ public class PromotionServiceImpl extends ServiceImpl<PromotionActivityMapper, P
     public void updatePromotion(Long id, PromotionActivityDTO dto) {
         PromotionActivity activity = promotionMapper.selectById(id);
         if (activity == null) {
-            throw new RuntimeException("促销活动不存在");
+            throw BusinessException.notFound("促销活动不存在");
         }
         BeanUtils.copyProperties(dto, activity, "id", "createTime", "createBy", "status");
 
@@ -122,10 +123,10 @@ public class PromotionServiceImpl extends ServiceImpl<PromotionActivityMapper, P
     public void publishPromotion(Long id) {
         PromotionActivity activity = promotionMapper.selectById(id);
         if (activity == null) {
-            throw new RuntimeException("促销活动不存在");
+            throw BusinessException.notFound("促销活动不存在");
         }
         if (!"draft".equals(activity.getStatus()) && !"cancelled".equals(activity.getStatus())) {
-            throw new RuntimeException("只有草稿或已取消状态的促销可以发布");
+            throw BusinessException.badRequest("只有草稿或已取消状态的促销可以发布");
         }
         activity.setStatus("published");
         promotionMapper.updateById(activity);
@@ -136,10 +137,10 @@ public class PromotionServiceImpl extends ServiceImpl<PromotionActivityMapper, P
     public void cancelPromotion(Long id) {
         PromotionActivity activity = promotionMapper.selectById(id);
         if (activity == null) {
-            throw new RuntimeException("促销活动不存在");
+            throw BusinessException.notFound("促销活动不存在");
         }
         if (!"published".equals(activity.getStatus())) {
-            throw new RuntimeException("只有已发布状态的促销可以取消");
+            throw BusinessException.badRequest("只有已发布状态的促销可以取消");
         }
         activity.setStatus("cancelled");
         promotionMapper.updateById(activity);

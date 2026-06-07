@@ -203,8 +203,8 @@ integration-test:
       fi
     
     # 验证监控端点
-    - curl -f http://localhost:8080/actuator/health
-    - curl -f http://localhost:8080/actuator/prometheus | head -20
+    - curl -f http://localhost:5655/actuator/health
+    - curl -f http://localhost:5655/actuator/prometheus | head -20
   
   artifacts:
     paths:

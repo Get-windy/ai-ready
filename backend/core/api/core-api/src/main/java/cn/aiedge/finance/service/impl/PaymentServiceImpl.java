@@ -1,5 +1,6 @@
 package cn.aiedge.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.finance.entity.Payment;
 import cn.aiedge.finance.entity.Payable;
 import cn.aiedge.finance.mapper.FinancePaymentMapper;
@@ -41,13 +42,13 @@ public class PaymentServiceImpl extends ServiceImpl<FinancePaymentMapper, Paymen
         // 首先检查应付账款是否存在
         Payable payable = payableMapper.selectById(request.getPayableId());
         if (payable == null) {
-            throw new RuntimeException("应付账款不存在");
+            throw BusinessException.notFound("应付账款不存在");
         }
 
         // 检查付款金额是否超过剩余金额
         BigDecimal remainingAmount = payable.getOriginalAmount().subtract(payable.getPaidAmount());
         if (request.getAmount().compareTo(remainingAmount) > 0) {
-            throw new RuntimeException("付款金额不能超过剩余应付金额");
+            throw BusinessException.badRequest("付款金额不能超过剩余应付金额");
         }
 
         Payment payment = new Payment();

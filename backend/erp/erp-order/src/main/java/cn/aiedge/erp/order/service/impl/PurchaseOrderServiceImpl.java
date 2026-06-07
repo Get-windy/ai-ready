@@ -1,5 +1,6 @@
 package cn.aiedge.erp.order.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.order.dto.PurchaseOrderApproveDTO;
 import cn.aiedge.erp.order.dto.PurchaseOrderCreateDTO;
 import cn.aiedge.erp.order.dto.PurchaseOrderStatisticsDTO;
@@ -100,18 +101,18 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
     @Transactional(rollbackFor = Exception.class)
     public void updatePurchaseOrder(PurchaseOrderCreateDTO dto) {
         if (dto.getId() == null) {
-            throw new RuntimeException("订单ID不能为空");
+            throw BusinessException.badRequest("订单ID不能为空");
         }
         
         log.info("更新采购订单: ID={}", dto.getId());
         
         PurchaseOrder purchaseOrder = this.getById(dto.getId());
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (!canUpdateOrder(purchaseOrder.getStatus())) {
-            throw new RuntimeException("当前状态不允许更新");
+            throw BusinessException.badRequest("当前状态不允许更新");
         }
         
         BeanUtils.copyProperties(dto, purchaseOrder);
@@ -143,11 +144,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
         
         PurchaseOrder purchaseOrder = this.getById(orderId);
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (purchaseOrder.getStatus() != Status.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的订单才能提交审批");
+            throw BusinessException.badRequest("只有草稿状态的订单才能提交审批");
         }
         
         purchaseOrder.setStatus(Status.SUBMITTED.getCode());
@@ -164,12 +165,12 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
         
         PurchaseOrder purchaseOrder = this.getById(orderId);
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (purchaseOrder.getStatus() != Status.SUBMITTED.getCode() && 
             purchaseOrder.getStatus() != Status.APPROVING.getCode()) {
-            throw new RuntimeException("只有已提交或审批中的订单才能审批");
+            throw BusinessException.badRequest("只有已提交或审批中的订单才能审批");
         }
         
         if (approveDTO.getApprovalResult() == 1) {
@@ -210,11 +211,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
         
         PurchaseOrder purchaseOrder = this.getById(orderId);
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (purchaseOrder.getStatus() != Status.APPROVED.getCode()) {
-            throw new RuntimeException("只有已批准的订单才能进行供应商确认");
+            throw BusinessException.badRequest("只有已批准的订单才能进行供应商确认");
         }
         
         purchaseOrder.setStatus(Status.CONFIRMED.getCode());
@@ -232,11 +233,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
         
         PurchaseOrder purchaseOrder = this.getById(orderId);
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (purchaseOrder.getStatus() != Status.CONFIRMED.getCode()) {
-            throw new RuntimeException("只有供应商已确认的订单才能标记为已发货");
+            throw BusinessException.badRequest("只有供应商已确认的订单才能标记为已发货");
         }
         
         purchaseOrder.setStatus(Status.SHIPPING.getCode());
@@ -256,11 +257,11 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<OrderCenterPurchaseOrd
         
         PurchaseOrder purchaseOrder = this.getById(orderId);
         if (purchaseOrder == null) {
-            throw new RuntimeException("采购订单不存在");
+            throw BusinessException.notFound("采购订单不存在");
         }
         
         if (purchaseOrder.getStatus() != Status.SHIPPING.getCode()) {
-            throw new RuntimeException("只有已发货的订单才能标记为已收货");
+            throw BusinessException.badRequest("只有已发货的订单才能标记为已收货");
         }
         
         purchaseOrder.setStatus(Status.PARTIALLY_RECEIVED.getCode());

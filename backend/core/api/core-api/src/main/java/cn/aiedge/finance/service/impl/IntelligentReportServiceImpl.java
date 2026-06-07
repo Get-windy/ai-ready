@@ -1,5 +1,6 @@
 package cn.aiedge.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.finance.entity.ReportTemplate;
 import cn.aiedge.finance.entity.DataSource;
 import cn.aiedge.finance.entity.ChartConfig;
@@ -285,11 +286,11 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     public Object previewDataSourceData(Long id, String query, int limit) {
         DataSource dataSource = dataSourceMapper.selectById(id);
         if (dataSource == null) {
-            throw new RuntimeException("数据源不存在");
+            throw BusinessException.notFound("数据源不存在");
         }
 
         if (query == null || query.isEmpty()) {
-            throw new RuntimeException("查询语句不能为空");
+            throw BusinessException.badRequest("查询语句不能为空");
         }
 
         // 添加限制条件以防止返回过多数据
@@ -330,7 +331,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
             
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("预览数据时出错: " + e.getMessage());
+            throw BusinessException.badRequest("预览数据时出错: " + e.getMessage());
         } finally {
             if (conn != null) {
                 try {
@@ -440,12 +441,12 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     public Object getChartData(Long id) {
         ChartConfig chartConfig = chartConfigMapper.selectById(id);
         if (chartConfig == null) {
-            throw new RuntimeException("图表配置不存在");
+            throw BusinessException.notFound("图表配置不存在");
         }
 
         String sqlQuery = chartConfig.getSqlQuery();
         if (sqlQuery == null || sqlQuery.isEmpty()) {
-            throw new RuntimeException("图表配置中未设置SQL查询语句");
+            throw BusinessException.badRequest("图表配置中未设置SQL查询语句");
         }
 
         DataSource dataSource = null;
@@ -473,7 +474,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
         }
 
         if (dataSource == null) {
-            throw new RuntimeException("找不到可用的数据源");
+            throw BusinessException.notFound("找不到可用的数据源");
         }
 
         Connection conn = null;
@@ -518,7 +519,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
             
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("获取图表数据时出错: " + e.getMessage());
+            throw BusinessException.badRequest("获取图表数据时出错: " + e.getMessage());
         } finally {
             if (conn != null) {
                 try {
@@ -576,7 +577,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
             instance.setExecutionLog("生成失败: " + e.getMessage());
             instance.setUpdateTime(LocalDateTime.now());
             reportInstanceMapper.updateById(instance);
-            throw new RuntimeException("报表生成失败: " + e.getMessage());
+            throw BusinessException.badRequest("报表生成失败: " + e.getMessage());
         }
         
         return instance.getId();
@@ -635,7 +636,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     public byte[] exportReport(Long id, String format) {
         ReportInstance instance = reportInstanceMapper.selectById(id);
         if (instance == null) {
-            throw new RuntimeException("报表实例不存在");
+            throw BusinessException.notFound("报表实例不存在");
         }
 
         // 根据格式生成相应的内容
@@ -647,7 +648,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     public void publishReport(Long id) {
         ReportInstance instance = reportInstanceMapper.selectById(id);
         if (instance == null) {
-            throw new RuntimeException("报表实例不存在");
+            throw BusinessException.notFound("报表实例不存在");
         }
 
         // 更新状态为已发布
@@ -661,7 +662,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     public Object getReportData(Long id) {
         ReportInstance instance = reportInstanceMapper.selectById(id);
         if (instance == null) {
-            throw new RuntimeException("报表实例不存在");
+            throw BusinessException.notFound("报表实例不存在");
         }
 
         // 返回报表数据
@@ -675,7 +676,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
     @Override
     public Object executeCustomQuery(String dataSourceId, String sql, Object[] params) {
         if (sql == null || sql.isEmpty()) {
-            throw new RuntimeException("SQL查询语句不能为空");
+            throw BusinessException.badRequest("SQL查询语句不能为空");
         }
 
         // 查找数据源
@@ -683,7 +684,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 .eq(DataSource::getDataSourceCode, dataSourceId);
         List<DataSource> dataSources = dataSourceMapper.selectList(dsWrapper);
         if (dataSources.isEmpty()) {
-            throw new RuntimeException("找不到指定的数据源: " + dataSourceId);
+            throw BusinessException.notFound("找不到指定的数据源: " + dataSourceId);
         }
 
         DataSource dataSource = dataSources.get(0);
@@ -723,7 +724,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
             
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("执行自定义查询时出错: " + e.getMessage());
+            throw BusinessException.badRequest("执行自定义查询时出错: " + e.getMessage());
         } finally {
             if (conn != null) {
                 try {
@@ -764,7 +765,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
         // 获取报表模板
         ReportTemplate template = reportTemplateMapper.selectById(instance.getTemplateId());
         if (template == null) {
-            throw new RuntimeException("报表模板不存在");
+            throw BusinessException.notFound("报表模板不存在");
         }
 
         // 获取关联的数据源
@@ -779,13 +780,13 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
         }
 
         if (dataSource == null) {
-            throw new RuntimeException("报表模板未配置数据源");
+            throw BusinessException.badRequest("报表模板未配置数据源");
         }
 
         // 执行SQL查询获取报表数据
         String sqlQuery = template.getSqlQuery();
         if (sqlQuery == null || sqlQuery.isEmpty()) {
-            throw new RuntimeException("报表模板未配置SQL查询语句");
+            throw BusinessException.badRequest("报表模板未配置SQL查询语句");
         }
 
         Connection conn = null;
@@ -845,7 +846,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("生成报表数据时出错: " + e.getMessage());
+            throw BusinessException.badRequest("生成报表数据时出错: " + e.getMessage());
         } finally {
             if (conn != null) {
                 try {

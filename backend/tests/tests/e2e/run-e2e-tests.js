@@ -10,7 +10,7 @@
  * 选项：
  * --browser=<browser>  指定浏览器 (chromium|firefox|webkit|all)
  * --suite=<suite>      指定测试套件 (user-auth|order-flow|inventory-flow|crm-flow|all)
- * --base-url=<url>     指定测试URL (默认: http://localhost:8080)
+ * --base-url=<url>     指定测试URL (默认: http://localhost:5655)
  * --headed             以有头模式运行（显示浏览器）
  * --debug              启用调试模式
  * --report             生成测试报告
@@ -43,7 +43,7 @@ args.forEach(arg => {
 const config = {
   browser: options.browser || 'chromium',
   suite: options.suite || 'all',
-  baseUrl: options.baseUrl || process.env.E2E_BASE_URL || 'http://localhost:8080',
+  baseUrl: options.baseUrl || process.env.E2E_BASE_URL || 'http://localhost:5655',
   headed: options.headed || false,
   debug: options.debug || false,
   report: options.report || false

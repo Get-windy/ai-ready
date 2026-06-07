@@ -1,5 +1,6 @@
 package cn.aiedge.notification.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.notification.entity.NotificationRecord;
 import cn.aiedge.notification.entity.NotificationTemplate;
 import cn.aiedge.notification.service.NotificationService;
@@ -40,7 +41,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public NotificationTemplate updateTemplate(NotificationTemplate template) {
         if (template.getId() == null || !templates.containsKey(template.getId())) {
-            throw new RuntimeException("模板不存在");
+            throw BusinessException.notFound("模板不存在");
         }
         template.setUpdateTime(LocalDateTime.now());
         templates.put(template.getId(), template);
@@ -89,7 +90,7 @@ public class NotificationServiceImpl implements NotificationService {
                                     String receiverAddress, Map<String, Object> variables) {
         NotificationTemplate template = getTemplateByCode(templateCode);
         if (template == null) {
-            throw new RuntimeException("模板不存在: " + templateCode);
+            throw BusinessException.notFound("模板不存在: " + templateCode);
         }
 
         NotificationRecord record = new NotificationRecord();

@@ -1,5 +1,6 @@
 package cn.aiedge.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.finance.entity.Reconciliation;
 import cn.aiedge.finance.entity.ReconciliationItem;
 import cn.aiedge.finance.mapper.ReconciliationMapper;
@@ -153,7 +154,7 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
     public void reconcile(Long id) {
         Reconciliation reconciliation = reconciliationMapper.selectById(id);
         if (reconciliation == null || !reconciliation.getTenantId().equals(getCurrentTenantId())) {
-            throw new RuntimeException("对账记录不存在");
+            throw BusinessException.notFound("对账记录不存在");
         }
         
         // 计算差异
@@ -176,7 +177,7 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
     public void handleDifference(Long id, String differenceReason) {
         Reconciliation reconciliation = reconciliationMapper.selectById(id);
         if (reconciliation == null || !reconciliation.getTenantId().equals(getCurrentTenantId())) {
-            throw new RuntimeException("对账记录不存在");
+            throw BusinessException.notFound("对账记录不存在");
         }
         
         // 更新差异处理信息

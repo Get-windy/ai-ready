@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerLead;
 import cn.aiedge.crm.customer.mapper.CustomerLeadMapper;
@@ -93,11 +94,11 @@ public class CustomerLeadServiceImpl extends ServiceImpl<CustomerLeadMapper, Cus
     public Customer convertToCustomer(Long leadId) {
         CustomerLead lead = baseMapper.selectById(leadId);
         if (lead == null || lead.getDeleted() == 1) {
-            throw new RuntimeException("线索不存在: " + leadId);
+            throw BusinessException.notFound("线索不存在: " + leadId);
         }
         
         if (lead.getConvertedCustomerId() != null) {
-            throw new RuntimeException("线索已转化: " + leadId);
+            throw BusinessException.badRequest("线索已转化: " + leadId);
         }
         
         Customer customer = new Customer();

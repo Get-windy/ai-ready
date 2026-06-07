@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -109,7 +110,7 @@ public class PurchaseOrderEnhancedController {
             log.info("导出采购订单数据: tenantId={}, 记录数={}", tenantId, report.size());
         } catch (Exception e) {
             log.error("导出采购订单数据失败", e);
-            throw new RuntimeException("导出失败", e);
+            throw BusinessException.badRequest("导出失败");
         }
     }
 }

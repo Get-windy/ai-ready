@@ -86,7 +86,7 @@ jobs:
       - name: 运行API测试
         run: |
           mvn test -Papi-test \
-            -Dbase.url=${{ secrets.TEST_BASE_URL || 'http://localhost:8080' }} \
+            -Dbase.url=${{ secrets.TEST_BASE_URL || 'http://localhost:5655' }} \
             -Dallure.results.directory=target/allure-results
 
       - name: 上传API测试结果

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.sale.dto.PriceRuleDTO;
 import cn.aiedge.erp.sale.dto.PriceStrategyDTO;
 import cn.aiedge.erp.sale.entity.PriceRule;
@@ -55,7 +56,7 @@ public class PriceStrategyServiceImpl extends ServiceImpl<PriceStrategyMapper, P
     public void updateStrategy(Long id, PriceStrategyDTO dto) {
         PriceStrategy strategy = priceStrategyMapper.selectById(id);
         if (strategy == null) {
-            throw new RuntimeException("价格策略不存在");
+            throw BusinessException.notFound("价格策略不存在");
         }
         BeanUtils.copyProperties(dto, strategy, "id", "createTime", "createBy");
         priceStrategyMapper.updateById(strategy);
@@ -149,7 +150,7 @@ public class PriceStrategyServiceImpl extends ServiceImpl<PriceStrategyMapper, P
     public Long copyStrategy(Long id) {
         PriceStrategyDTO source = getStrategyDetail(id);
         if (source == null) {
-            throw new RuntimeException("原策略不存在");
+            throw BusinessException.notFound("原策略不存在");
         }
         source.setId(null);
         source.setName(source.getName() + " - 副本");

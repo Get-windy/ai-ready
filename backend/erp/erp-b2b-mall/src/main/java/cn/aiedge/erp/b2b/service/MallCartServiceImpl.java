@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.service;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.CartAddRequest;
 import cn.aiedge.erp.b2b.dto.CartDTO;
 import cn.aiedge.erp.b2b.mapper.MallCartMapper;
@@ -53,7 +54,7 @@ public class MallCartServiceImpl implements MallCartService {
                         .eq(MallProduct::getDeleted, false)
         );
         if (product == null) {
-            throw new RuntimeException("商品不存在: " + request.getProductId());
+            throw BusinessException.notFound("商品不存在: " + request.getProductId());
         }
 
         // Check if already in cart
@@ -94,7 +95,7 @@ public class MallCartServiceImpl implements MallCartService {
         log.info("更新购物车: id={}, quantity={}", id, request.getQuantity());
         MallCart cart = mallCartMapper.selectById(id);
         if (cart == null) {
-            throw new RuntimeException("购物车项不存在: " + id);
+            throw BusinessException.notFound("购物车项不存在: " + id);
         }
 
         cart.setQuantity(request.getQuantity());
@@ -111,7 +112,7 @@ public class MallCartServiceImpl implements MallCartService {
         log.info("删除购物车项: {}", id);
         MallCart cart = mallCartMapper.selectById(id);
         if (cart == null) {
-            throw new RuntimeException("购物车项不存在: " + id);
+            throw BusinessException.notFound("购物车项不存在: " + id);
         }
         cart.setDeleted(true);
         cart.setUpdatedAt(LocalDateTime.now());
@@ -155,7 +156,7 @@ public class MallCartServiceImpl implements MallCartService {
                             .eq(MallProduct::getProductId, item.getProductId())
             );
             if (product != null && product.getStockQuantity() < item.getQuantity()) {
-                throw new RuntimeException("商品库存不足: " + item.getProductName() +
+                throw BusinessException.badRequest("商品库存不足: " + item.getProductName() +
                         ", 库存: " + product.getStockQuantity() + ", 需要: " + item.getQuantity());
             }
         }

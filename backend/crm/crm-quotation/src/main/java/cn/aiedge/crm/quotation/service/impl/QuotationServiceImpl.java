@@ -1,5 +1,6 @@
 package cn.aiedge.crm.quotation.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.quotation.entity.Quotation;
 import cn.aiedge.crm.quotation.entity.QuotationItem;
 import cn.aiedge.crm.quotation.enums.QuotationStatus;
@@ -158,7 +159,7 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation copyQuotation(Long quotationId) {
         Quotation source = getById(quotationId);
         if (source == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         Quotation copy = new Quotation();
         copy.setCustomerId(source.getCustomerId());
@@ -191,7 +192,7 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation createNewVersion(Long quotationId) {
         Quotation source = getById(quotationId);
         if (source == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         Long parentId = source.getParentId() != null ? source.getParentId() : source.getId();
         Integer maxVersion = baseMapper.selectMaxVersionByParentId(parentId);
@@ -229,10 +230,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation updateQuotation(Long quotationId, Quotation quotation, List<QuotationItem> items) {
         Quotation existing = getById(quotationId);
         if (existing == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (existing.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以修改");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以修改");
         }
         quotation.setId(quotationId);
         updateById(quotation);
@@ -259,10 +260,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation submitForApproval(Long quotationId) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以提交审批");
         }
         quotation.setStatus(QuotationStatus.PENDING_APPROVAL.getCode());
         updateById(quotation);
@@ -274,10 +275,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation approve(Long quotationId, Long approverId, String note) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的报价单可以审批");
+            throw BusinessException.badRequest("只有待审批状态的报价单可以审批");
         }
         quotation.setStatus(QuotationStatus.APPROVED.getCode());
         quotation.setApprovedBy(approverId);
@@ -292,10 +293,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation reject(Long quotationId, Long rejecterId, String reason) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的报价单可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的报价单可以拒绝");
         }
         quotation.setStatus(QuotationStatus.DRAFT.getCode());
         quotation.setRejectedBy(rejecterId);
@@ -310,10 +311,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation sendToCustomer(Long quotationId, Long senderId, String method) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的报价单可以发送");
+            throw BusinessException.badRequest("只有已审批状态的报价单可以发送");
         }
         quotation.setStatus(QuotationStatus.SENT.getCode());
         quotation.setSentBy(senderId);
@@ -328,10 +329,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation markAccepted(Long quotationId, Long accepterId, String note) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.SENT.getCode()) {
-            throw new RuntimeException("只有已发送状态的报价单可以标记为已接受");
+            throw BusinessException.badRequest("只有已发送状态的报价单可以标记为已接受");
         }
         quotation.setStatus(QuotationStatus.ACCEPTED.getCode());
         quotation.setAcceptedBy(accepterId);
@@ -346,10 +347,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation markRejected(Long quotationId, Long rejecterId, String reason) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.SENT.getCode()) {
-            throw new RuntimeException("只有已发送状态的报价单可以标记为已拒绝");
+            throw BusinessException.badRequest("只有已发送状态的报价单可以标记为已拒绝");
         }
         quotation.setStatus(QuotationStatus.REJECTED.getCode());
         quotation.setRejectedBy(rejecterId);
@@ -364,10 +365,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation convertToOrder(Long quotationId) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.ACCEPTED.getCode()) {
-            throw new RuntimeException("只有已接受状态的报价单可以转订单");
+            throw BusinessException.badRequest("只有已接受状态的报价单可以转订单");
         }
         quotation.setStatus(QuotationStatus.CONVERTED.getCode());
         quotation.setConvertedBy(quotation.getCreateBy());
@@ -381,10 +382,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public Quotation cancel(Long quotationId, String reason) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() == QuotationStatus.CONVERTED.getCode()) {
-            throw new RuntimeException("已转订单的报价单不能取消");
+            throw BusinessException.badRequest("已转订单的报价单不能取消");
         }
         quotation.setStatus(QuotationStatus.CANCELLED.getCode());
         quotation.setRemark(reason);
@@ -451,10 +452,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public QuotationItem addItem(Long quotationId, QuotationItem item) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以添加明细");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以添加明细");
         }
         Integer count = quotationItemMapper.countByQuotationId(quotationId);
         item.setQuotationId(quotationId);
@@ -471,11 +472,11 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public QuotationItem updateItem(Long itemId, QuotationItem item) {
         QuotationItem existing = quotationItemMapper.selectById(itemId);
         if (existing == null) {
-            throw new RuntimeException("报价明细不存在");
+            throw BusinessException.notFound("报价明细不存在");
         }
         Quotation quotation = getById(existing.getQuotationId());
         if (quotation.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以修改明细");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以修改明细");
         }
         item.setId(itemId);
         calculateLineAmount(item);
@@ -489,11 +490,11 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public void removeItem(Long itemId) {
         QuotationItem item = quotationItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("报价明细不存在");
+            throw BusinessException.notFound("报价明细不存在");
         }
         Quotation quotation = getById(item.getQuotationId());
         if (quotation.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以删除明细");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以删除明细");
         }
         quotationItemMapper.deleteById(itemId);
         calculateAmounts(item.getQuotationId());
@@ -509,10 +510,10 @@ public class QuotationServiceImpl extends ServiceImpl<QuotationMapper, Quotation
     public void reorderItems(Long quotationId, List<Long> itemIds) {
         Quotation quotation = getById(quotationId);
         if (quotation == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         if (quotation.getStatus() != QuotationStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的报价单可以调整明细顺序");
+            throw BusinessException.badRequest("只有草稿状态的报价单可以调整明细顺序");
         }
         for (int i = 0; i < itemIds.size(); i++) {
             QuotationItem item = quotationItemMapper.selectById(itemIds.get(i));

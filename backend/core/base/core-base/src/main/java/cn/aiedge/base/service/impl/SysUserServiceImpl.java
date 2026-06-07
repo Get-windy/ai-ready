@@ -8,6 +8,7 @@ import cn.aiedge.base.mapper.SysUserMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.mapper.SysUserTenantMapper;
 import cn.aiedge.base.service.SysUserService;
+import cn.aiedge.common.exception.BusinessException;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -41,22 +42,22 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
         // 1. 查询用户（用户名全局唯一）
         SysUser user = baseMapper.selectByUsername(username, null);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw BusinessException.notFound("用户不存在");
         }
 
         // 2. 验证用户是否属于指定租户（通过 sys_user_tenant 关联表）
         if (!isUserInTenant(user.getId(), tenantId)) {
-            throw new RuntimeException("该用户不属于此租户，请检查租户名称");
+            throw BusinessException.badRequest("该用户不属于此租户，请检查租户名称");
         }
 
         // 3. 检查用户状态
         if (user.getStatus() != 1) {
-            throw new RuntimeException("用户已禁用或锁定");
+            throw new BusinessException(403, "用户已禁用或锁定");
         }
 
         // 4. 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
-            throw new RuntimeException("密码错误");
+            throw BusinessException.badRequest("密码错误");
         }
 
         // 5. 登录成功，生成Token
@@ -95,7 +96,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     public Long createUser(SysUser user) {
         // 检查用户名是否存在
         if (baseMapper.selectByUsername(user.getUsername(), user.getTenantId()) != null) {
-            throw new RuntimeException("用户名已存在");
+            throw BusinessException.badRequest("用户名已存在");
         }
 
         // 加密密码
@@ -113,6 +114,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUser(SysUser user) {
+        if (user == null || user.getId() == null) {
+            throw BusinessException.badRequest("用户ID不能为空");
+        }
+        SysUser existing = getById(user.getId());
+        if (existing == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
         user.setUpdateTime(LocalDateTime.now());
         updateById(user);
         log.info("更新用户成功: userId={}", user.getId());
@@ -121,6 +129,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Long userId) {
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
         removeById(userId);
         log.info("删除用户成功: userId={}", userId);
     }
@@ -128,6 +140,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchDeleteUsers(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        List<SysUser> users = listByIds(userIds);
+        if (users.size() != userIds.size()) {
+            throw BusinessException.notFound("部分用户不存在");
+        }
         removeByIds(userIds);
         log.info("批量删除用户成功: userIds={}", userIds);
     }
@@ -135,6 +154,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resetPassword(Long userId, String newPassword) {
+        SysUser existing = getById(userId);
+        if (existing == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
         SysUser user = new SysUser();
         user.setId(userId);
         user.setPassword(BCrypt.hashpw(newPassword, BCrypt.gensalt()));
@@ -147,8 +170,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         SysUser user = getById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
         if (!BCrypt.checkpw(oldPassword, user.getPassword())) {
-            throw new RuntimeException("原密码错误");
+            throw BusinessException.badRequest("原密码错误");
         }
         resetPassword(userId, newPassword);
     }
@@ -161,7 +187,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
 
     @Override
     public SysUser getUserDetail(Long userId) {
-        return getById(userId);
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+        return user;
     }
 
     @Override
@@ -221,6 +251,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Long userId, Integer status) {
+        SysUser existing = getById(userId);
+        if (existing == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
         SysUser user = new SysUser();
         user.setId(userId);
         user.setStatus(status);

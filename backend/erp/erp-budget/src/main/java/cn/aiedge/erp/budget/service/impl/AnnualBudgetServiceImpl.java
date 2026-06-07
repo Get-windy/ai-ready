@@ -1,5 +1,6 @@
 package cn.aiedge.erp.budget.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.budget.dto.AnnualBudgetDTO;
 import cn.aiedge.erp.budget.dto.BudgetItemDTO;
 import cn.aiedge.erp.budget.model.AnnualBudget;
@@ -83,10 +84,10 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public AnnualBudgetDTO update(Long id, AnnualBudgetDTO dto) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
 
         if (!"draft".equals(entity.getStatus())) {
-            throw new RuntimeException("只有草稿状态的预算可以编辑");
+            throw BusinessException.badRequest("只有草稿状态的预算可以编辑");
         }
 
         BeanUtil.copyProperties(dto, entity, "id", "items", "budgetNo", "status",
@@ -140,7 +141,7 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public void delete(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         entity.markAsDeleted();
         annualBudgetRepository.save(entity);
     }
@@ -148,7 +149,7 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Override
     public AnnualBudgetDTO getById(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         AnnualBudgetDTO dto = new AnnualBudgetDTO();
         BeanUtil.copyProperties(entity, dto);
 
@@ -189,9 +190,9 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public AnnualBudgetDTO submit(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         if (!"draft".equals(entity.getStatus())) {
-            throw new RuntimeException("只有草稿状态的预算可以提交");
+            throw BusinessException.badRequest("只有草稿状态的预算可以提交");
         }
         entity.setStatus("submitted");
         entity = annualBudgetRepository.save(entity);
@@ -202,9 +203,9 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public AnnualBudgetDTO approve(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         if (!"submitted".equals(entity.getStatus())) {
-            throw new RuntimeException("只有已提交状态的预算可以审批通过");
+            throw BusinessException.badRequest("只有已提交状态的预算可以审批通过");
         }
         entity.setStatus("approved");
         entity.setTotalApprovedAmount(entity.getTotalAmount());
@@ -216,9 +217,9 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public AnnualBudgetDTO reject(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         if (!"submitted".equals(entity.getStatus())) {
-            throw new RuntimeException("只有已提交状态的预算可以拒绝");
+            throw BusinessException.badRequest("只有已提交状态的预算可以拒绝");
         }
         entity.setStatus("rejected");
         entity = annualBudgetRepository.save(entity);
@@ -229,9 +230,9 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
     @Transactional
     public AnnualBudgetDTO close(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("年度预算不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
         if (!"executing".equals(entity.getStatus())) {
-            throw new RuntimeException("只有执行中的预算可以关闭");
+            throw BusinessException.badRequest("只有执行中的预算可以关闭");
         }
         entity.setStatus("closed");
         entity = annualBudgetRepository.save(entity);

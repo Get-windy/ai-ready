@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAsset;
 import cn.aiedge.erp.fixedasset.model.FixedAssetDepreciation;
@@ -54,7 +55,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Transactional
     public FixedAssetDTO update(Long id, FixedAssetDTO dto) {
         FixedAsset asset = fixedAssetRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("固定资产不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
         updateEntity(asset, dto);
         asset = fixedAssetRepository.save(asset);
         return toDTO(asset);
@@ -64,7 +65,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Transactional
     public void delete(Long id) {
         FixedAsset asset = fixedAssetRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("固定资产不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
         asset.markAsDeleted();
         fixedAssetRepository.save(asset);
     }
@@ -72,7 +73,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Override
     public FixedAssetDTO getById(Long id) {
         FixedAsset asset = fixedAssetRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("固定资产不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
         return toDTO(asset);
     }
 
@@ -98,10 +99,10 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Transactional
     public FixedAssetDTO depreciate(Long id) {
         FixedAsset asset = fixedAssetRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("固定资产不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
 
         if (!"active".equals(asset.getStatus())) {
-            throw new RuntimeException("只有已启用的资产才能计提折旧");
+            throw BusinessException.badRequest("只有已启用的资产才能计提折旧");
         }
 
         Map<String, BigDecimal> result = depreciationContext.calculateDepreciation(asset);

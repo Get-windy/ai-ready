@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -28,103 +28,103 @@
         <dependency>
             <groupId>cn.aiedge</groupId>
             <artifactId>core-common</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- Agent 调用层 -->
         <dependency>
             <groupId>cn.aiedge</groupId>
             <artifactId>core-agent</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- 通知服务模块 -->
         <dependency>
             <groupId>cn.aiedge</groupId>
             <artifactId>core-notification</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 业务模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-finance</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- CRM 客户管理模块 -->
         <dependency>
             <groupId>cn.aiedge.crm</groupId>
             <artifactId>crm-customer</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- CRM 报价管理模块 -->
         <dependency>
             <groupId>cn.aiedge.crm</groupId>
             <artifactId>crm-quotation</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- CRM 合同管理模块 -->
         <dependency>
             <groupId>cn.aiedge.crm</groupId>
             <artifactId>crm-contract</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- CRM 营销管理模块 -->
         <dependency>
             <groupId>cn.aiedge.crm</groupId>
             <artifactId>crm-marketing</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 库存模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-stock</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 采购管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 销售管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-sale</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 往来单位模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-party</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 发票管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-invoice</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 订单中心模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-order</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 费用管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-expense</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 付款管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-payment</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 供应商协同门户模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-supplier-portal</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 批次序列号模块 -->
         <dependency>
@@ -136,91 +136,91 @@
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-printing</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 签收管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-signature</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 配送路线模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-delivery-route</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 组装拆卸模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-product-kit</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 采购退货模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase-return</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 采购换货模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase-exchange</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 采购入库模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase-inbound</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 销售出库模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-sale-outbound</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 业务指标模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-metrics</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 监控模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-monitor</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 价格引擎模块 -->
         <dependency>
             <groupId>cn.aiedge.erp.price</groupId>
             <artifactId>erp-price-engine</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 固定资产模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-fixed-asset</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 预算管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-budget</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP 客户等级模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-customer</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
         <!-- ERP B2B订货平台模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-b2b-mall</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
         </dependency>
 
         <!-- Lombok -->

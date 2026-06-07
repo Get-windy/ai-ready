@@ -1,6 +1,6 @@
 # Spring Boot 配置
 server:
-  port: 8080
+  port: 5655
   servlet:
     context-path: /
 
@@ -30,15 +30,15 @@ spring:
       routes:
         # API文档路由
         - id: api-docs
-          uri: http://localhost:8080
+          uri: http://localhost:5655
           predicates:
             - Path=/v3/api-docs/**
           filters:
             - RewritePath=/v3/api-docs/(?<path>.*)/, /${path}
-            
+
         # 健康检查路由
         - id: health
-          uri: http://localhost:8080
+          uri: http://localhost:5655
           predicates:
             - Path=/actuator/health
           filters:

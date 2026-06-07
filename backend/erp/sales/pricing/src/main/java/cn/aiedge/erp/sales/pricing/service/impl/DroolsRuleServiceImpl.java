@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sales.pricing.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.sales.pricing.service.IDroolsRuleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +50,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
             
             if (kieBuilder.getResults().hasMessages(Message.Level.ERROR)) {
                 log.error("规则编译错误: {}", kieBuilder.getResults().getMessages());
-                throw new RuntimeException("规则编译失败");
+                throw BusinessException.badRequest("规则编译失败");
             }
             
             kieContainer = kieServices.newKieContainer(kieRepository.getDefaultReleaseId());
@@ -58,7 +59,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
             log.info("Drools规则引擎初始化完成");
         } catch (Exception e) {
             log.error("Drools规则引擎初始化失败", e);
-            throw new RuntimeException("规则引擎初始化失败", e);
+            throw BusinessException.badRequest("规则引擎初始化失败");
         }
     }
     
@@ -159,7 +160,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
         log.info("添加新规则: ruleName={}", ruleName);
         
         if (!validateRuleSyntax(ruleContent)) {
-            throw new RuntimeException("规则语法错误");
+            throw BusinessException.badRequest("规则语法错误");
         }
         
         try {
@@ -170,7 +171,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
             reloadRules();
         } catch (IOException e) {
             log.error("保存规则文件失败", e);
-            throw new RuntimeException("保存规则文件失败", e);
+            throw BusinessException.badRequest("保存规则文件失败");
         }
     }
     
@@ -179,7 +180,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
         log.info("更新规则: ruleName={}", ruleName);
         
         if (!validateRuleSyntax(newRuleContent)) {
-            throw new RuntimeException("规则语法错误");
+            throw BusinessException.badRequest("规则语法错误");
         }
         
         try {
@@ -189,7 +190,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
             reloadRules();
         } catch (IOException e) {
             log.error("更新规则文件失败", e);
-            throw new RuntimeException("更新规则文件失败", e);
+            throw BusinessException.badRequest("更新规则文件失败");
         }
     }
     
@@ -204,7 +205,7 @@ public class DroolsRuleServiceImpl implements IDroolsRuleService {
             reloadRules();
         } catch (IOException e) {
             log.error("删除规则文件失败", e);
-            throw new RuntimeException("删除规则文件失败", e);
+            throw BusinessException.badRequest("删除规则文件失败");
         }
     }
     

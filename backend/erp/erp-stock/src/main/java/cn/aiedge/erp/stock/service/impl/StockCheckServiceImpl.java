@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockCheck;
 import cn.aiedge.erp.stock.entity.StockCheckItem;
@@ -138,10 +139,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck updateCheck(Long checkId, StockCheck check) {
         StockCheck existing = this.getById(checkId);
         if (existing == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (existing.getStatus() != StockCheckStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的盘点单可以修改");
+            throw BusinessException.badRequest("只有草稿状态的盘点单可以修改");
         }
         
         existing.setWarehouseId(check.getWarehouseId());
@@ -158,10 +159,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck submitForApproval(Long checkId) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的盘点单可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的盘点单可以提交审批");
         }
         
         check.setStatus(StockCheckStatus.PENDING_APPROVAL.getCode());
@@ -175,10 +176,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck approve(Long checkId, Long approverId, String note) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的盘点单可以审批");
+            throw BusinessException.badRequest("只有待审批状态的盘点单可以审批");
         }
         
         check.setStatus(StockCheckStatus.APPROVED.getCode());
@@ -195,10 +196,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck reject(Long checkId, String reason) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的盘点单可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的盘点单可以拒绝");
         }
         
         check.setStatus(StockCheckStatus.REJECTED.getCode());
@@ -213,10 +214,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck startCheck(Long checkId) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的盘点单可以开始盘点");
+            throw BusinessException.badRequest("只有已审批状态的盘点单可以开始盘点");
         }
         
         Long userId = StpUtil.getLoginIdAsLong();
@@ -232,12 +233,12 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheckItem checkItem(Long itemId, BigDecimal actualQuantity, String note) {
         StockCheckItem item = stockCheckItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("盘点明细不存在");
+            throw BusinessException.notFound("盘点明细不存在");
         }
         
         StockCheck check = this.getById(item.getCheckId());
         if (check.getStatus() != StockCheckStatus.IN_PROGRESS.getCode()) {
-            throw new RuntimeException("盘点单不在进行中状态");
+            throw BusinessException.badRequest("盘点单不在进行中状态");
         }
         
         item.setActualQuantity(actualQuantity);
@@ -257,10 +258,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck completeCheck(Long checkId) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.IN_PROGRESS.getCode()) {
-            throw new RuntimeException("只有进行中状态的盘点单可以完成");
+            throw BusinessException.badRequest("只有进行中状态的盘点单可以完成");
         }
         
         calculateTotals(checkId);
@@ -276,10 +277,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck adjust(Long checkId) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() != StockCheckStatus.COMPLETED.getCode()) {
-            throw new RuntimeException("只有已完成状态的盘点单可以调整库存");
+            throw BusinessException.badRequest("只有已完成状态的盘点单可以调整库存");
         }
         
         List<StockCheckItem> diffItems = getDiffItems(checkId);
@@ -319,10 +320,10 @@ public class StockCheckServiceImpl extends ServiceImpl<StockCheckMapper, StockCh
     public StockCheck cancel(Long checkId, String reason) {
         StockCheck check = this.getById(checkId);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         if (check.getStatus() == StockCheckStatus.ADJUSTED.getCode()) {
-            throw new RuntimeException("已调整库存的盘点单不能取消");
+            throw BusinessException.badRequest("已调整库存的盘点单不能取消");
         }
         
         check.setStatus(StockCheckStatus.CANCELLED.getCode());

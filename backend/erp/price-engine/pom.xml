@@ -8,13 +8,13 @@
     <parent>
         <groupId>cn.aiedge.erp</groupId>
         <artifactId>erp</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
     <groupId>cn.aiedge.erp.price</groupId>
     <artifactId>erp-price-engine</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <name>ERP Price Engine</name>
     <description>价格策略智能配置与优化引擎</description>
     

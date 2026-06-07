@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.CustomerOpportunity;
 import cn.aiedge.crm.customer.mapper.CustomerOpportunityMapper;
 import cn.aiedge.crm.customer.service.CustomerOpportunityService;
@@ -102,12 +103,12 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
     public CustomerOpportunity advanceStage(Long opportunityId) {
         CustomerOpportunity opportunity = baseMapper.selectById(opportunityId);
         if (opportunity == null || opportunity.getDeleted() == 1) {
-            throw new RuntimeException("商机不存在: " + opportunityId);
+            throw BusinessException.notFound("商机不存在: " + opportunityId);
         }
         
         int currentStage = opportunity.getOpportunityStage();
         if (currentStage >= 5) {
-            throw new RuntimeException("商机已处于最终阶段");
+            throw BusinessException.badRequest("商机已处于最终阶段");
         }
         
         int nextStage = currentStage + 1;
@@ -127,7 +128,7 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
     public CustomerOpportunity winOpportunity(Long opportunityId, BigDecimal actualAmount) {
         CustomerOpportunity opportunity = baseMapper.selectById(opportunityId);
         if (opportunity == null || opportunity.getDeleted() == 1) {
-            throw new RuntimeException("商机不存在: " + opportunityId);
+            throw BusinessException.notFound("商机不存在: " + opportunityId);
         }
         
         opportunity.setOpportunityStage(5);
@@ -148,7 +149,7 @@ public class CustomerOpportunityServiceImpl extends ServiceImpl<CustomerOpportun
     public CustomerOpportunity loseOpportunity(Long opportunityId, String loseReason) {
         CustomerOpportunity opportunity = baseMapper.selectById(opportunityId);
         if (opportunity == null || opportunity.getDeleted() == 1) {
-            throw new RuntimeException("商机不存在: " + opportunityId);
+            throw BusinessException.notFound("商机不存在: " + opportunityId);
         }
         
         opportunity.setStatus(3);

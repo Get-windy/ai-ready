@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.entity.PurchaseSupplierQuote;
 import cn.aiedge.erp.purchase.entity.PurchaseQuoteItem;
 import cn.aiedge.erp.purchase.enums.QuoteStatus;
@@ -52,7 +53,7 @@ public class PurchaseQuoteServiceImpl implements PurchaseQuoteService {
     public PurchaseSupplierQuote updateQuote(Long id, PurchaseSupplierQuote quote) {
         PurchaseSupplierQuote existing = quoteMapper.findById(id);
         if (existing == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         quote.setId(id);
         quoteMapper.update(quote);
@@ -65,7 +66,7 @@ public class PurchaseQuoteServiceImpl implements PurchaseQuoteService {
                                              Double serviceScore, String reviewComment) {
         PurchaseSupplierQuote quote = quoteMapper.findById(id);
         if (quote == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         
         // 设置评分
@@ -92,7 +93,7 @@ public class PurchaseQuoteServiceImpl implements PurchaseQuoteService {
     public PurchaseSupplierQuote acceptQuote(Long id) {
         PurchaseSupplierQuote quote = quoteMapper.findById(id);
         if (quote == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         quote.setQuoteStatus(QuoteStatus.ACCEPTED);
         quote.setIsRecommended(true);
@@ -105,7 +106,7 @@ public class PurchaseQuoteServiceImpl implements PurchaseQuoteService {
     public PurchaseSupplierQuote rejectQuote(Long id, String reason) {
         PurchaseSupplierQuote quote = quoteMapper.findById(id);
         if (quote == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         quote.setQuoteStatus(QuoteStatus.REJECTED);
         quote.setRecommendReason(reason);
@@ -118,7 +119,7 @@ public class PurchaseQuoteServiceImpl implements PurchaseQuoteService {
     public PurchaseSupplierQuote withdrawQuote(Long id) {
         PurchaseSupplierQuote quote = quoteMapper.findById(id);
         if (quote == null) {
-            throw new RuntimeException("报价单不存在");
+            throw BusinessException.notFound("报价单不存在");
         }
         quote.setQuoteStatus(QuoteStatus.WITHDRAWN);
         quoteMapper.update(quote);

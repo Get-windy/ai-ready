@@ -1,5 +1,6 @@
 package cn.aiedge.erp.invoice.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.invoice.model.entity.InvoiceApplication;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
 import cn.aiedge.erp.invoice.repository.InvoiceApplicationRepository;
@@ -118,7 +119,7 @@ public class InvoiceApplicationServiceImpl implements InvoiceApplicationService 
             
             return invoiceApplicationRepository.save(existingApp);
         }
-        throw new RuntimeException("发票申请不存在");
+        throw BusinessException.notFound("发票申请不存在");
     }
 
     @Override

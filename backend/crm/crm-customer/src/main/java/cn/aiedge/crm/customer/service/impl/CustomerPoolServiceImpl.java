@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.entity.CustomerPool;
 import cn.aiedge.crm.customer.enums.PoolReason;
@@ -71,7 +72,7 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
     public CustomerPool putToPool(Long customerId, Integer poolReason, String remark) {
         Customer customer = customerMapper.selectById(customerId);
         if (customer == null) {
-            throw new RuntimeException("客户不存在");
+            throw BusinessException.notFound("客户不存在");
         }
         CustomerPool pool = new CustomerPool();
         pool.setCustomerId(customerId);
@@ -104,10 +105,10 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
     public CustomerPool claimFromPool(Long poolId, Long salesPersonId) {
         CustomerPool pool = getById(poolId);
         if (pool == null) {
-            throw new RuntimeException("公海池记录不存在");
+            throw BusinessException.notFound("公海池记录不存在");
         }
         if (pool.getStatus() != PoolStatus.AVAILABLE.getCode()) {
-            throw new RuntimeException("该客户不可领取");
+            throw BusinessException.badRequest("该客户不可领取");
         }
         pool.setClaimSalesPersonId(salesPersonId);
         pool.setClaimTime(LocalDateTime.now());
@@ -125,7 +126,7 @@ public class CustomerPoolServiceImpl extends ServiceImpl<CustomerPoolMapper, Cus
     public CustomerPool returnToPool(Long poolId, String remark) {
         CustomerPool pool = getById(poolId);
         if (pool == null) {
-            throw new RuntimeException("公海池记录不存在");
+            throw BusinessException.notFound("公海池记录不存在");
         }
         CustomerPool newPool = new CustomerPool();
         newPool.setCustomerId(pool.getCustomerId());

@@ -98,7 +98,7 @@ export default defineConfig({
   },
 
   server: {
-    port: 3000,
+    port: 5656,
     host: true, // 允许外部访问
     open: false, // 不自动打开浏览器
     headers: {
@@ -108,7 +108,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:5655',
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes) => {
@@ -120,7 +120,7 @@ export default defineConfig({
         },
       },
       '/ws': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:5655',
         ws: true,
         changeOrigin: true,
       },

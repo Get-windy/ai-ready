@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.StockAlertConfig;
 import cn.aiedge.erp.stock.mapper.StockAlertConfigMapper;
 import cn.aiedge.erp.stock.service.StockAlertConfigService;
@@ -64,7 +65,7 @@ public class StockAlertConfigServiceImpl extends ServiceImpl<StockAlertConfigMap
     public StockAlertConfig updateConfig(Long configId, StockAlertConfig config) {
         StockAlertConfig existing = getById(configId);
         if (existing == null) {
-            throw new RuntimeException("预警配置不存在");
+            throw BusinessException.notFound("预警配置不存在");
         }
         config.setId(configId);
         updateById(config);
@@ -76,7 +77,7 @@ public class StockAlertConfigServiceImpl extends ServiceImpl<StockAlertConfigMap
     public void activateConfig(Long configId) {
         StockAlertConfig config = getById(configId);
         if (config == null) {
-            throw new RuntimeException("预警配置不存在");
+            throw BusinessException.notFound("预警配置不存在");
         }
         config.setActive(true);
         updateById(config);
@@ -87,7 +88,7 @@ public class StockAlertConfigServiceImpl extends ServiceImpl<StockAlertConfigMap
     public void deactivateConfig(Long configId) {
         StockAlertConfig config = getById(configId);
         if (config == null) {
-            throw new RuntimeException("预警配置不存在");
+            throw BusinessException.notFound("预警配置不存在");
         }
         config.setActive(false);
         updateById(config);

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.sale.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.sale.dto.SaleOrderDTO;
 import cn.aiedge.erp.sale.dto.SaleOrderItemDTO;
 import cn.aiedge.erp.sale.entity.SaleOrder;
@@ -124,9 +125,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void updateOrder(SaleOrderDTO dto) {
         SaleOrder order = getById(dto.getId());
-        if (order == null) throw new RuntimeException("订单不存在");
+        if (order == null) throw BusinessException.notFound("订单不存在");
 
-        if (order.getStatus() > 1) throw new RuntimeException("只有草稿和待审批状态的订单可以修改");
+        if (order.getStatus() > 1) throw BusinessException.badRequest("只有草稿和待审批状态的订单可以修改");
 
         calculateAmount(dto);
         BeanUtils.copyProperties(dto, order);
@@ -158,8 +159,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void deleteOrder(Long id) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
-        if (order.getStatus() > 1) throw new RuntimeException("只有草稿和待审批状态的订单可以删除");
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() > 1) throw BusinessException.badRequest("只有草稿和待审批状态的订单可以删除");
 
         // 删除明细
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
@@ -173,8 +174,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void submitForApproval(Long id) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
-        if (order.getStatus() != 0) throw new RuntimeException("只有草稿状态的订单可以提交审批");
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() != 0) throw BusinessException.badRequest("只有草稿状态的订单可以提交审批");
 
         orderMapper.updateStatus(id, 1); // 待审批
         log.info("提交销售订单审批: orderId={}", id);
@@ -184,8 +185,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long id, Long auditorId) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
-        if (order.getStatus() != 1) throw new RuntimeException("订单不是待审批状态");
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
 
         orderMapper.updateStatus(id, 2); // 已审批
         log.info("销售订单审批通过: orderId={}, auditorId={}", id, auditorId);
@@ -195,8 +196,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, Long auditorId, String reason) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
-        if (order.getStatus() != 1) throw new RuntimeException("订单不是待审批状态");
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() != 1) throw BusinessException.badRequest("订单不是待审批状态");
 
         orderMapper.updateStatus(id, 0); // 退回草稿
         order.setRemark(reason);
@@ -208,8 +209,8 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void cancelOrder(Long id, String reason) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
-        if (order.getStatus() >= 4) throw new RuntimeException("已完成的订单不能取消");
+        if (order == null) throw BusinessException.notFound("订单不存在");
+        if (order.getStatus() >= 4) throw BusinessException.badRequest("已完成的订单不能取消");
 
         orderMapper.updateStatus(id, 5); // 取消
         order.setRemark(reason);
@@ -221,9 +222,9 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void confirmShipment(Long id, Long warehouseId) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
+        if (order == null) throw BusinessException.notFound("订单不存在");
         if (order.getStatus() != 2 && order.getStatus() != 3) 
-            throw new RuntimeException("订单状态不允许出库");
+            throw BusinessException.badRequest("订单状态不允许出库");
 
         List<SaleOrderItem> items = itemMapper.selectByOrderId(id);
         
@@ -257,7 +258,7 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     @Transactional(rollbackFor = Exception.class)
     public void recordPayment(Long id, BigDecimal amount) {
         SaleOrder order = getById(id);
-        if (order == null) throw new RuntimeException("订单不存在");
+        if (order == null) throw BusinessException.notFound("订单不存在");
 
         orderMapper.addReceivedAmount(id, amount);
         log.info("记录销售订单收款: orderId={}, amount={}", id, amount);

@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.ReceivableDTO;
 import cn.aiedge.erp.finance.mapper.ReceivableMapper;
 import cn.aiedge.erp.finance.model.entity.Receivable;
@@ -58,7 +59,7 @@ public class ReceivableServiceImpl implements ReceivableService {
     public ReceivableDTO getById(Long id) {
         Receivable entity = receivableMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("应收账款不存在: " + id);
+            throw BusinessException.notFound("应收账款不存在: " + id);
         }
         return toDTO(entity);
     }
@@ -134,18 +135,18 @@ public class ReceivableServiceImpl implements ReceivableService {
     public ReceivableDTO writeOff(Long id, BigDecimal amount) {
         Receivable entity = receivableMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("应收账款不存在: " + id);
+            throw BusinessException.notFound("应收账款不存在: " + id);
         }
 
         if ("written_off".equals(entity.getStatus()) || "bad_debt".equals(entity.getStatus())) {
-            throw new RuntimeException("该应收账款已核销或已标记为坏账，无法再次核销");
+            throw BusinessException.badRequest("该应收账款已核销或已标记为坏账，无法再次核销");
         }
 
         BigDecimal writeOffAmount = amount.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : amount;
         BigDecimal remaining = entity.getRemainingAmount() != null ? entity.getRemainingAmount() : BigDecimal.ZERO;
 
         if (writeOffAmount.compareTo(remaining) > 0) {
-            throw new RuntimeException("核销金额不能超过剩余金额: remaining=" + remaining + ", writeOff=" + writeOffAmount);
+            throw BusinessException.badRequest("核销金额不能超过剩余金额: remaining=" + remaining + ", writeOff=" + writeOffAmount);
         }
 
         entity.setPaidAmount((entity.getPaidAmount() != null ? entity.getPaidAmount() : BigDecimal.ZERO).add(writeOffAmount));
@@ -167,11 +168,11 @@ public class ReceivableServiceImpl implements ReceivableService {
     public ReceivableDTO markBadDebt(Long id) {
         Receivable entity = receivableMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("应收账款不存在: " + id);
+            throw BusinessException.notFound("应收账款不存在: " + id);
         }
 
         if ("written_off".equals(entity.getStatus())) {
-            throw new RuntimeException("该应收账款已核销，无法再标记为坏账");
+            throw BusinessException.badRequest("该应收账款已核销，无法再标记为坏账");
         }
 
         entity.setStatus("bad_debt");

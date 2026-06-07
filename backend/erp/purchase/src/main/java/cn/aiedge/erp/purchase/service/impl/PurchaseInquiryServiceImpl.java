@@ -1,5 +1,6 @@
 package cn.aiedge.erp.purchase.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.purchase.entity.PurchaseInquiry;
 import cn.aiedge.erp.purchase.enums.InquiryStatus;
 import cn.aiedge.erp.purchase.mapper.PurchaseInquiryMapper;
@@ -34,7 +35,7 @@ public class PurchaseInquiryServiceImpl implements PurchaseInquiryService {
     public PurchaseInquiry updateInquiry(Long id, PurchaseInquiry inquiry) {
         PurchaseInquiry existing = inquiryMapper.findById(id);
         if (existing == null) {
-            throw new RuntimeException("询价单不存在");
+            throw BusinessException.notFound("询价单不存在");
         }
         inquiry.setId(id);
         inquiryMapper.update(inquiry);
@@ -46,7 +47,7 @@ public class PurchaseInquiryServiceImpl implements PurchaseInquiryService {
     public PurchaseInquiry publishInquiry(Long id) {
         PurchaseInquiry inquiry = inquiryMapper.findById(id);
         if (inquiry == null) {
-            throw new RuntimeException("询价单不存在");
+            throw BusinessException.notFound("询价单不存在");
         }
         inquiry.setStatus(InquiryStatus.PUBLISHED);
         inquiry.setPublishDate(LocalDateTime.now());
@@ -65,7 +66,7 @@ public class PurchaseInquiryServiceImpl implements PurchaseInquiryService {
     public PurchaseInquiry closeInquiry(Long id, String reason) {
         PurchaseInquiry inquiry = inquiryMapper.findById(id);
         if (inquiry == null) {
-            throw new RuntimeException("询价单不存在");
+            throw BusinessException.notFound("询价单不存在");
         }
         inquiry.setStatus(InquiryStatus.CLOSED);
         inquiry.setCloseDate(LocalDateTime.now());
@@ -90,7 +91,7 @@ public class PurchaseInquiryServiceImpl implements PurchaseInquiryService {
     public PurchaseInquiry cancelInquiry(Long id) {
         PurchaseInquiry inquiry = inquiryMapper.findById(id);
         if (inquiry == null) {
-            throw new RuntimeException("询价单不存在");
+            throw BusinessException.notFound("询价单不存在");
         }
         inquiry.setStatus(InquiryStatus.CANCELLED);
         inquiryMapper.updateStatus(id, InquiryStatus.CANCELLED.name(), null);

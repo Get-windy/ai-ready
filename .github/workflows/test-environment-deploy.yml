@@ -269,7 +269,7 @@ jobs:
         
         # Define health check endpoints
         declare -A HEALTH_ENDPOINTS=(
-          ["api-gateway"]="http://api-gateway.$NAMESPACE.svc.cluster.local:8080/actuator/health"
+          ["api-gateway"]="http://api-gateway.$NAMESPACE.svc.cluster.local:5655/actuator/health"
           ["postgres"]="postgres.$NAMESPACE.svc.cluster.local:5432"
           ["redis"]="redis.$NAMESPACE.svc.cluster.local:6379"
         )

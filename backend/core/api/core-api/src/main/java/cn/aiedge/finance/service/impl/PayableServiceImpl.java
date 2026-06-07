@@ -1,5 +1,6 @@
 package cn.aiedge.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.finance.entity.Payable;
 import cn.aiedge.finance.entity.Payment;
 import cn.aiedge.finance.mapper.PayableMapper;
@@ -126,7 +127,7 @@ public class PayableServiceImpl extends ServiceImpl<PayableMapper, Payable> impl
             List<Payment> payments = paymentMapper.selectList(paymentWrapper);
             
             if (!payments.isEmpty()) {
-                throw new RuntimeException("存在关联的付款记录，无法删除");
+                throw BusinessException.badRequest("存在关联的付款记录，无法删除");
             }
             
             payableMapper.deleteById(id);

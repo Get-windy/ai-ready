@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.StockCheck;
 import cn.aiedge.erp.stock.entity.StockCheckItem;
 import cn.aiedge.erp.stock.service.StockCheckService;
@@ -41,7 +42,7 @@ public class StockCheckController {
     public StockCheck getById(@PathVariable Long id) {
         StockCheck check = checkService.getById(id);
         if (check == null) {
-            throw new RuntimeException("盘点单不存在");
+            throw BusinessException.notFound("盘点单不存在");
         }
         return check;
     }

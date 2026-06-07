@@ -1,5 +1,6 @@
 package cn.aiedge.erp.budget.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.budget.dto.BudgetAdjustmentDTO;
 import cn.aiedge.erp.budget.model.BudgetAdjustment;
 import cn.aiedge.erp.budget.model.BudgetItem;
@@ -49,9 +50,9 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
     @Transactional
     public BudgetAdjustmentDTO update(Long id, BudgetAdjustmentDTO dto) {
         BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("预算调整不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
         if (!"draft".equals(entity.getStatus())) {
-            throw new RuntimeException("只有草稿状态的调整可以编辑");
+            throw BusinessException.badRequest("只有草稿状态的调整可以编辑");
         }
         BeanUtil.copyProperties(dto, entity, "id", "adjustmentNo", "status", "applicantId", "applicantName");
         entity = budgetAdjustmentRepository.save(entity);
@@ -64,7 +65,7 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
     @Override
     public BudgetAdjustmentDTO getById(Long id) {
         BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("预算调整不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
         BudgetAdjustmentDTO dto = new BudgetAdjustmentDTO();
         BeanUtil.copyProperties(entity, dto);
 
@@ -107,9 +108,9 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
     @Transactional
     public BudgetAdjustmentDTO submit(Long id) {
         BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("预算调整不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
         if (!"draft".equals(entity.getStatus())) {
-            throw new RuntimeException("只有草稿状态的调整可以提交");
+            throw BusinessException.badRequest("只有草稿状态的调整可以提交");
         }
         entity.setStatus("submitted");
         entity = budgetAdjustmentRepository.save(entity);
@@ -123,9 +124,9 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
     @Transactional
     public BudgetAdjustmentDTO approve(Long id, String comment) {
         BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("预算调整不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
         if (!"submitted".equals(entity.getStatus())) {
-            throw new RuntimeException("只有已提交状态的调整可以审批通过");
+            throw BusinessException.badRequest("只有已提交状态的调整可以审批通过");
         }
         entity.setStatus("approved");
         entity.setApprovalComment(comment);
@@ -171,9 +172,9 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
     @Transactional
     public BudgetAdjustmentDTO reject(Long id, String comment) {
         BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("预算调整不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
         if (!"submitted".equals(entity.getStatus())) {
-            throw new RuntimeException("只有已提交状态的调整可以拒绝");
+            throw BusinessException.badRequest("只有已提交状态的调整可以拒绝");
         }
         entity.setStatus("rejected");
         entity.setApprovalComment(comment);

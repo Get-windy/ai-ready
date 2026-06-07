@@ -4,8 +4,8 @@
     "version": "1.0.0",
     "description": "AI-Ready项目安全扫描配置",
     "target": {
-      "base_url": "http://localhost:8080",
-      "api_base": "http://localhost:8080/api",
+      "base_url": "http://localhost:5655",
+      "api_base": "http://localhost:5655/api",
       "timeout": 30,
       "verify_ssl": false
     },

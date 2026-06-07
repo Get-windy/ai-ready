@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.service;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.PageResult;
 import cn.aiedge.erp.b2b.dto.ProductDetailDTO;
 import cn.aiedge.erp.b2b.dto.ProductListDTO;
@@ -62,7 +63,7 @@ public class MallProductServiceImpl implements MallProductService {
         log.info("获取商品详情: {}", id);
         MallProduct product = mallProductMapper.selectById(id);
         if (product == null) {
-            throw new RuntimeException("商品不存在: " + id);
+            throw BusinessException.notFound("商品不存在: " + id);
         }
 
         ProductDetailDTO dto = new ProductDetailDTO();

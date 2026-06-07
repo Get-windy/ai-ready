@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockTransfer;
 import cn.aiedge.erp.stock.entity.StockTransferItem;
@@ -115,10 +116,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransfer submitForApproval(Long transferId) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() != StockTransferStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的调拨单可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的调拨单可以提交审批");
         }
         
         transfer.setStatus(StockTransferStatus.PENDING_APPROVAL.getCode());
@@ -132,10 +133,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransfer approve(Long transferId, Long approverId, String note) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() != StockTransferStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的调拨单可以审批");
+            throw BusinessException.badRequest("只有待审批状态的调拨单可以审批");
         }
         
         transfer.setStatus(StockTransferStatus.APPROVED.getCode());
@@ -152,10 +153,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransfer reject(Long transferId, String reason) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() != StockTransferStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的调拨单可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的调拨单可以拒绝");
         }
         
         transfer.setStatus(StockTransferStatus.REJECTED.getCode());
@@ -170,10 +171,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransfer execute(Long transferId) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() != StockTransferStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的调拨单可以执行");
+            throw BusinessException.badRequest("只有已审批状态的调拨单可以执行");
         }
         
         List<StockTransferItem> items = getItems(transferId);
@@ -187,7 +188,7 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
             );
             
             if (fromStock == null || fromStock.getQuantity().compareTo(item.getQuantity()) < 0) {
-                throw new RuntimeException("源仓库库存不足: " + item.getProductName());
+                throw BusinessException.badRequest("源仓库库存不足: " + item.getProductName());
             }
             
             fromStock.setQuantity(fromStock.getQuantity().subtract(item.getQuantity()));
@@ -238,10 +239,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransfer cancel(Long transferId, String reason) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() == StockTransferStatus.COMPLETED.getCode()) {
-            throw new RuntimeException("已完成的调拨单不能取消");
+            throw BusinessException.badRequest("已完成的调拨单不能取消");
         }
         
         transfer.setStatus(StockTransferStatus.CANCELLED.getCode());
@@ -265,10 +266,10 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransferItem addItem(Long transferId, StockTransferItem item) {
         StockTransfer transfer = this.getById(transferId);
         if (transfer == null) {
-            throw new RuntimeException("调拨单不存在");
+            throw BusinessException.notFound("调拨单不存在");
         }
         if (transfer.getStatus() != StockTransferStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的调拨单可以添加明细");
+            throw BusinessException.badRequest("只有草稿状态的调拨单可以添加明细");
         }
         
         Long tenantId = StpUtil.getLoginIdAsLong();
@@ -288,12 +289,12 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public StockTransferItem updateItem(Long itemId, StockTransferItem item) {
         StockTransferItem existing = stockTransferItemMapper.selectById(itemId);
         if (existing == null) {
-            throw new RuntimeException("调拨明细不存在");
+            throw BusinessException.notFound("调拨明细不存在");
         }
         
         StockTransfer transfer = this.getById(existing.getTransferId());
         if (transfer.getStatus() != StockTransferStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的调拨单可以修改明细");
+            throw BusinessException.badRequest("只有草稿状态的调拨单可以修改明细");
         }
         
         existing.setProductId(item.getProductId());
@@ -315,12 +316,12 @@ public class StockTransferServiceImpl extends ServiceImpl<StockTransferMapper, S
     public void removeItem(Long itemId) {
         StockTransferItem item = stockTransferItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("调拨明细不存在");
+            throw BusinessException.notFound("调拨明细不存在");
         }
         
         StockTransfer transfer = this.getById(item.getTransferId());
         if (transfer.getStatus() != StockTransferStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的调拨单可以删除明细");
+            throw BusinessException.badRequest("只有草稿状态的调拨单可以删除明细");
         }
         
         stockTransferItemMapper.deleteById(itemId);

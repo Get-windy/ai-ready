@@ -1,5 +1,6 @@
 package cn.aiedge.crm.customer.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.customer.entity.Customer;
 import cn.aiedge.crm.customer.mapper.CustomerMapper;
 import cn.aiedge.crm.customer.service.CustomerCreditService;
@@ -29,7 +30,7 @@ public class CustomerCreditServiceImpl extends ServiceImpl<CustomerMapper, Custo
     public Customer setCreditLimit(Long customerId, BigDecimal creditLimit) {
         Customer customer = customerService.getById(customerId);
         if (customer == null) {
-            throw new RuntimeException("客户不存在");
+            throw BusinessException.notFound("客户不存在");
         }
         
         customer.setCreditLimit(creditLimit);
@@ -83,7 +84,7 @@ public class CustomerCreditServiceImpl extends ServiceImpl<CustomerMapper, Custo
     public Map<String, Object> getCreditStatus(Long customerId) {
         Customer customer = customerService.getById(customerId);
         if (customer == null) {
-            throw new RuntimeException("客户不存在");
+            throw BusinessException.notFound("客户不存在");
         }
         
         Map<String, Object> status = new HashMap<>();
@@ -257,7 +258,7 @@ public class CustomerCreditServiceImpl extends ServiceImpl<CustomerMapper, Custo
     public Customer freezeCredit(Long customerId, String reason) {
         Customer customer = customerService.getById(customerId);
         if (customer == null) {
-            throw new RuntimeException("客户不存在");
+            throw BusinessException.notFound("客户不存在");
         }
         
         customer.setStatus(4);
@@ -273,7 +274,7 @@ public class CustomerCreditServiceImpl extends ServiceImpl<CustomerMapper, Custo
     public Customer unfreezeCredit(Long customerId) {
         Customer customer = customerService.getById(customerId);
         if (customer == null) {
-            throw new RuntimeException("客户不存在");
+            throw BusinessException.notFound("客户不存在");
         }
         
         customer.setStatus(1);

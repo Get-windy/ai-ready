@@ -1,5 +1,6 @@
 package cn.aiedge.crm.quotation.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.quotation.entity.QuotationTemplate;
 import cn.aiedge.crm.quotation.entity.QuotationTemplateItem;
 import cn.aiedge.crm.quotation.mapper.QuotationTemplateItemMapper;
@@ -107,7 +108,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public QuotationTemplate updateTemplate(Long templateId, QuotationTemplate template, List<QuotationTemplateItem> items) {
         QuotationTemplate existing = getById(templateId);
         if (existing == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         template.setId(templateId);
         updateById(template);
@@ -132,7 +133,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public QuotationTemplate copyTemplate(Long templateId) {
         QuotationTemplate source = getById(templateId);
         if (source == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         QuotationTemplate copy = new QuotationTemplate();
         copy.setTemplateName(source.getTemplateName() + "(副本)");
@@ -159,7 +160,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public void activateTemplate(Long templateId) {
         QuotationTemplate template = getById(templateId);
         if (template == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         template.setActive(true);
         updateById(template);
@@ -170,7 +171,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public void deactivateTemplate(Long templateId) {
         QuotationTemplate template = getById(templateId);
         if (template == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         template.setActive(false);
         updateById(template);
@@ -181,7 +182,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public void incrementUsageCount(Long templateId) {
         QuotationTemplate template = getById(templateId);
         if (template == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         template.setUsageCount(template.getUsageCount() + 1);
         template.setLastUsedTime(java.time.LocalDateTime.now());
@@ -198,7 +199,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public QuotationTemplateItem addTemplateItem(Long templateId, QuotationTemplateItem item) {
         QuotationTemplate template = getById(templateId);
         if (template == null) {
-            throw new RuntimeException("报价模板不存在");
+            throw BusinessException.notFound("报价模板不存在");
         }
         List<QuotationTemplateItem> existingItems = getTemplateItems(templateId);
         item.setTemplateId(templateId);
@@ -213,7 +214,7 @@ public class QuotationTemplateServiceImpl extends ServiceImpl<QuotationTemplateM
     public QuotationTemplateItem updateTemplateItem(Long itemId, QuotationTemplateItem item) {
         QuotationTemplateItem existing = templateItemMapper.selectById(itemId);
         if (existing == null) {
-            throw new RuntimeException("模板明细不存在");
+            throw BusinessException.notFound("模板明细不存在");
         }
         item.setId(itemId);
         templateItemMapper.updateById(item);

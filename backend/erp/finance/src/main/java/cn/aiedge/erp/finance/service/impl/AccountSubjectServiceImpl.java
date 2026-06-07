@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.AccountSubjectDTO;
 import cn.aiedge.erp.finance.mapper.AccountSubjectMapper;
 import cn.aiedge.erp.finance.model.entity.AccountSubject;
@@ -38,7 +39,7 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
     public AccountSubjectDTO getById(Long id) {
         AccountSubject subject = accountSubjectMapper.selectById(id);
         if (subject == null) {
-            throw new RuntimeException("会计科目不存在: " + id);
+            throw BusinessException.notFound("会计科目不存在: " + id);
         }
         return toDTO(subject);
     }
@@ -49,14 +50,14 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
         // 验证科目编码唯一性
         accountSubjectMapper.findBySubjectCode(dto.getSubjectCode())
                 .ifPresent(s -> {
-                    throw new RuntimeException("科目编码已存在: " + dto.getSubjectCode());
+                    throw BusinessException.badRequest("科目编码已存在: " + dto.getSubjectCode());
                 });
 
         // 验证上级科目存在
         if (dto.getParentId() != null) {
             AccountSubject parent = accountSubjectMapper.selectById(dto.getParentId());
             if (parent == null) {
-                throw new RuntimeException("上级科目不存在: " + dto.getParentId());
+                throw BusinessException.notFound("上级科目不存在: " + dto.getParentId());
             }
         }
 
@@ -72,25 +73,25 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
     public AccountSubjectDTO update(Long id, AccountSubjectDTO dto) {
         AccountSubject entity = accountSubjectMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("会计科目不存在: " + id);
+            throw BusinessException.notFound("会计科目不存在: " + id);
         }
 
         // 验证编码唯一性（排除自身）
         if (dto.getSubjectCode() != null && !dto.getSubjectCode().equals(entity.getSubjectCode())) {
             accountSubjectMapper.findBySubjectCode(dto.getSubjectCode())
                     .ifPresent(s -> {
-                        throw new RuntimeException("科目编码已存在: " + dto.getSubjectCode());
+                        throw BusinessException.badRequest("科目编码已存在: " + dto.getSubjectCode());
                     });
         }
 
         // 验证上级科目存在且不能是自己
         if (dto.getParentId() != null) {
             if (dto.getParentId().equals(id)) {
-                throw new RuntimeException("上级科目不能是自身");
+                throw BusinessException.badRequest("上级科目不能是自身");
             }
             AccountSubject parent = accountSubjectMapper.selectById(dto.getParentId());
             if (parent == null) {
-                throw new RuntimeException("上级科目不存在: " + dto.getParentId());
+                throw BusinessException.notFound("上级科目不存在: " + dto.getParentId());
             }
         }
 
@@ -114,13 +115,13 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
     public void delete(Long id) {
         AccountSubject entity = accountSubjectMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("会计科目不存在: " + id);
+            throw BusinessException.notFound("会计科目不存在: " + id);
         }
 
         // 检查是否有子科目
         List<AccountSubject> children = accountSubjectMapper.findByParentId(id);
         if (!children.isEmpty()) {
-            throw new RuntimeException("该科目下有子科目，无法删除");
+            throw BusinessException.badRequest("该科目下有子科目，无法删除");
         }
 
         entity.setDeletedFlag(1);
@@ -167,7 +168,7 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
     public AccountSubjectDTO enable(Long id, boolean enabled) {
         AccountSubject entity = accountSubjectMapper.selectById(id);
         if (entity == null) {
-            throw new RuntimeException("会计科目不存在: " + id);
+            throw BusinessException.notFound("会计科目不存在: " + id);
         }
         entity.setIsEnabled(enabled);
         accountSubjectMapper.updateById(entity);
@@ -181,11 +182,11 @@ public class AccountSubjectServiceImpl implements AccountSubjectService {
         for (Long id : ids) {
             AccountSubject entity = accountSubjectMapper.selectById(id);
             if (entity == null) {
-                throw new RuntimeException("会计科目不存在: " + id);
+                throw BusinessException.notFound("会计科目不存在: " + id);
             }
             List<AccountSubject> children = accountSubjectMapper.findByParentId(id);
             if (!children.isEmpty()) {
-                throw new RuntimeException("科目包含子科目，无法删除: " + entity.getSubjectCode());
+                throw BusinessException.badRequest("科目包含子科目，无法删除: " + entity.getSubjectCode());
             }
         }
         accountSubjectMapper.deleteBatchIds(ids);

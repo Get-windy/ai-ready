@@ -32,7 +32,7 @@ class WebSocketService {
 
   private loadConfig(): WebSocketConfig {
     return {
-      serverUrl: this.store.get('websocket.serverUrl', 'ws://localhost:8080/ws/print') as string,
+      serverUrl: this.store.get('websocket.serverUrl', 'ws://localhost:5655/ws/print') as string,
       reconnectInterval: this.store.get('websocket.reconnectInterval', 5000) as number,
       maxReconnectAttempts: this.store.get('websocket.maxReconnectAttempts', 10) as number
     }

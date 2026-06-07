@@ -1,5 +1,6 @@
 package cn.aiedge.erp.b2b.service;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.AddressDTO;
 import cn.aiedge.erp.b2b.dto.UserInfo;
 import cn.aiedge.erp.b2b.mapper.MallAddressMapper;
@@ -92,7 +93,7 @@ public class MallUserServiceImpl implements MallUserService {
         log.info("更新地址: {}", id);
         MallAddress address = mallAddressMapper.selectById(id);
         if (address == null) {
-            throw new RuntimeException("地址不存在: " + id);
+            throw BusinessException.notFound("地址不存在: " + id);
         }
 
         address.setConsignee(addressDTO.getConsignee());
@@ -119,7 +120,7 @@ public class MallUserServiceImpl implements MallUserService {
         log.info("删除地址: {}", id);
         MallAddress address = mallAddressMapper.selectById(id);
         if (address == null) {
-            throw new RuntimeException("地址不存在: " + id);
+            throw BusinessException.notFound("地址不存在: " + id);
         }
         address.setDeleted(true);
         address.setUpdatedAt(LocalDateTime.now());
@@ -132,7 +133,7 @@ public class MallUserServiceImpl implements MallUserService {
         log.info("设置默认地址: {}", id);
         MallAddress address = mallAddressMapper.selectById(id);
         if (address == null) {
-            throw new RuntimeException("地址不存在: " + id);
+            throw BusinessException.notFound("地址不存在: " + id);
         }
 
         clearDefaultAddress(address.getCustomerId());

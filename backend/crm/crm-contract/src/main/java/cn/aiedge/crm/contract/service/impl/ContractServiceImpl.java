@@ -1,5 +1,6 @@
 package cn.aiedge.crm.contract.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.contract.entity.Contract;
 import cn.aiedge.crm.contract.entity.ContractAttachment;
 import cn.aiedge.crm.contract.entity.ContractChange;
@@ -163,10 +164,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract updateContract(Long contractId, Contract contract) {
         Contract existing = getById(contractId);
         if (existing == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (existing.getStatus() != ContractStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的合同可以修改");
+            throw BusinessException.badRequest("只有草稿状态的合同可以修改");
         }
         contract.setId(contractId);
         updateById(contract);
@@ -178,10 +179,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract submitForApproval(Long contractId) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() != ContractStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的合同可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的合同可以提交审批");
         }
         contract.setStatus(ContractStatus.PENDING_APPROVAL.getCode());
         updateById(contract);
@@ -193,10 +194,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract approve(Long contractId, Long approverId, String note) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() != ContractStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的合同可以审批");
+            throw BusinessException.badRequest("只有待审批状态的合同可以审批");
         }
         contract.setStatus(ContractStatus.APPROVED.getCode());
         contract.setApprovedBy(approverId);
@@ -211,10 +212,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract reject(Long contractId, Long rejecterId, String reason) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() != ContractStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的合同可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的合同可以拒绝");
         }
         contract.setStatus(ContractStatus.DRAFT.getCode());
         updateById(contract);
@@ -226,10 +227,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract sign(Long contractId, Long signerId, String signMethod, String location) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() != ContractStatus.APPROVED.getCode() && contract.getStatus() != ContractStatus.PENDING_SIGN.getCode()) {
-            throw new RuntimeException("只有已审批或待签署状态的合同可以签署");
+            throw BusinessException.badRequest("只有已审批或待签署状态的合同可以签署");
         }
         contract.setStatus(ContractStatus.SIGNED.getCode());
         contract.setSignedBy(signerId);
@@ -244,10 +245,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract makeEffective(Long contractId) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() != ContractStatus.SIGNED.getCode()) {
-            throw new RuntimeException("只有已签署状态的合同可以生效");
+            throw BusinessException.badRequest("只有已签署状态的合同可以生效");
         }
         contract.setStatus(ContractStatus.EFFECTIVE.getCode());
         contract.setEffectiveBy(contract.getCreateBy());
@@ -261,7 +262,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract complete(Long contractId) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         contract.setStatus(ContractStatus.COMPLETED.getCode());
         contract.setExecutionProgress(100);
@@ -274,7 +275,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract terminate(Long contractId, Long terminatorId, String reason) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         contract.setStatus(ContractStatus.TERMINATED.getCode());
         contract.setTerminatedBy(terminatorId);
@@ -289,10 +290,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract cancel(Long contractId, String reason) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         if (contract.getStatus() == ContractStatus.EFFECTIVE.getCode() || contract.getStatus() == ContractStatus.EXECUTING.getCode()) {
-            throw new RuntimeException("生效中的合同不能取消");
+            throw BusinessException.badRequest("生效中的合同不能取消");
         }
         contract.setStatus(ContractStatus.CANCELLED.getCode());
         contract.setRemark(reason);
@@ -305,7 +306,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract renew(Long contractId, LocalDate newEndDate) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         contract.setEndDate(newEndDate);
         contract.setRenewalCount(contract.getRenewalCount() + 1);
@@ -340,7 +341,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract updateExecutionProgress(Long contractId, Integer progress, BigDecimal executionAmount) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         contract.setExecutionProgress(progress);
         contract.setExecutionAmount(executionAmount);
@@ -358,7 +359,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public Contract updatePaidAmount(Long contractId, BigDecimal paidAmount) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         contract.setPaidAmount(paidAmount);
         contract.setPendingAmount(contract.getContractAmount().subtract(paidAmount));
@@ -376,7 +377,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractClause addClause(Long contractId, ContractClause clause) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         List<ContractClause> existingClauses = getContractClauses(contractId);
         clause.setContractId(contractId);
@@ -391,7 +392,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractClause updateClause(Long clauseId, ContractClause clause) {
         ContractClause existing = clauseMapper.selectById(clauseId);
         if (existing == null) {
-            throw new RuntimeException("合同条款不存在");
+            throw BusinessException.notFound("合同条款不存在");
         }
         clause.setId(clauseId);
         clauseMapper.updateById(clause);
@@ -414,7 +415,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractAttachment addAttachment(Long contractId, ContractAttachment attachment) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         attachment.setContractId(contractId);
         attachment.setTenantId(contract.getTenantId());
@@ -440,7 +441,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractPayment addPayment(Long contractId, ContractPayment payment) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         List<ContractPayment> existingPayments = getPayments(contractId);
         payment.setContractId(contractId);
@@ -456,7 +457,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractPayment updatePayment(Long paymentId, ContractPayment payment) {
         ContractPayment existing = paymentMapper.selectById(paymentId);
         if (existing == null) {
-            throw new RuntimeException("付款计划不存在");
+            throw BusinessException.notFound("付款计划不存在");
         }
         payment.setId(paymentId);
         paymentMapper.updateById(payment);
@@ -468,7 +469,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractPayment confirmPayment(Long paymentId, BigDecimal actualAmount) {
         ContractPayment payment = paymentMapper.selectById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款计划不存在");
+            throw BusinessException.notFound("付款计划不存在");
         }
         payment.setStatus(2);
         payment.setActualAmount(actualAmount);
@@ -494,7 +495,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractChange proposeChange(Long contractId, ContractChange change) {
         Contract contract = getById(contractId);
         if (contract == null) {
-            throw new RuntimeException("合同不存在");
+            throw BusinessException.notFound("合同不存在");
         }
         String changeNo = contract.getContractNo() + "-C" + String.format("%02d", getChanges(contractId).size() + 1);
         change.setContractId(contractId);
@@ -512,7 +513,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractChange approveChange(Long changeId, Long approverId, String note) {
         ContractChange change = changeMapper.selectById(changeId);
         if (change == null) {
-            throw new RuntimeException("合同变更不存在");
+            throw BusinessException.notFound("合同变更不存在");
         }
         change.setStatus(1);
         change.setApprovedBy(approverId);
@@ -527,7 +528,7 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractChange rejectChange(Long changeId, Long rejecterId, String reason) {
         ContractChange change = changeMapper.selectById(changeId);
         if (change == null) {
-            throw new RuntimeException("合同变更不存在");
+            throw BusinessException.notFound("合同变更不存在");
         }
         change.setStatus(2);
         changeMapper.updateById(change);
@@ -539,10 +540,10 @@ public class ContractServiceImpl extends ServiceImpl<ContractMapper, Contract> i
     public ContractChange executeChange(Long changeId) {
         ContractChange change = changeMapper.selectById(changeId);
         if (change == null) {
-            throw new RuntimeException("合同变更不存在");
+            throw BusinessException.notFound("合同变更不存在");
         }
         if (change.getStatus() != 1) {
-            throw new RuntimeException("只有已审批的变更可以执行");
+            throw BusinessException.badRequest("只有已审批的变更可以执行");
         }
         change.setStatus(3);
         change.setExecutedBy(change.getApprovedBy());

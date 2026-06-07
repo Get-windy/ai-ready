@@ -1,5 +1,6 @@
 package cn.aiedge.erp.expense.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.expense.dto.ExpenseApplicationDTO;
 import cn.aiedge.erp.expense.dto.ExpenseRequest;
 import cn.aiedge.erp.expense.model.ExpenseApplication;
@@ -82,10 +83,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     public ExpenseApplicationDTO getExpenseDetail(Long id) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (application.isDeleted()) {
-            throw new RuntimeException("费用单已被删除: " + id);
+            throw BusinessException.badRequest("费用单已被删除: " + id);
         }
         
         List<ExpenseItem> items = expenseItemRepository.findByExpenseApplicationId(id);
@@ -98,14 +99,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public ExpenseApplicationDTO updateExpense(Long id, ExpenseRequest request) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (application.isDeleted()) {
-            throw new RuntimeException("费用单已被删除: " + id);
+            throw BusinessException.badRequest("费用单已被删除: " + id);
         }
         
         if (!application.canSubmit()) {
-            throw new RuntimeException("费用单状态不允许修改: " + application.getStatus().getDescription());
+            throw BusinessException.badRequest("费用单状态不允许修改: " + application.getStatus().getDescription());
         }
         
         application.setApplicantId(request.getApplicantId());
@@ -146,10 +147,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public void deleteExpense(Long id) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (!application.canCancel()) {
-            throw new RuntimeException("费用单状态不允许删除: " + application.getStatus().getDescription());
+            throw BusinessException.badRequest("费用单状态不允许删除: " + application.getStatus().getDescription());
         }
         
         application.markAsDeleted();
@@ -162,18 +163,18 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public ExpenseApplicationDTO submitForApproval(Long id) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (application.isDeleted()) {
-            throw new RuntimeException("费用单已被删除: " + id);
+            throw BusinessException.badRequest("费用单已被删除: " + id);
         }
         
         if (!application.canSubmit()) {
-            throw new RuntimeException("费用单状态不允许提交审批: " + application.getStatus().getDescription());
+            throw BusinessException.badRequest("费用单状态不允许提交审批: " + application.getStatus().getDescription());
         }
         
         if (application.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("费用单金额必须大于0");
+            throw BusinessException.badRequest("费用单金额必须大于0");
         }
         
         int approvalLevel = determineApprovalLevel(application);
@@ -208,14 +209,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public ExpenseApplicationDTO approveExpense(Long id, String comment) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (application.isDeleted()) {
-            throw new RuntimeException("费用单已被删除: " + id);
+            throw BusinessException.badRequest("费用单已被删除: " + id);
         }
         
         if (!application.canApprove()) {
-            throw new RuntimeException("费用单状态不允许审批: " + application.getStatus().getDescription());
+            throw BusinessException.badRequest("费用单状态不允许审批: " + application.getStatus().getDescription());
         }
         
         ExpenseStatus previousStatus = application.getStatus();
@@ -279,14 +280,14 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public ExpenseApplicationDTO rejectExpense(Long id, String reason) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("费用单不存在: " + id));
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
         
         if (application.isDeleted()) {
-            throw new RuntimeException("费用单已被删除: " + id);
+            throw BusinessException.badRequest("费用单已被删除: " + id);
         }
         
         if (!application.canApprove()) {
-            throw new RuntimeException("费用单状态不允许审批: " + application.getStatus().getDescription());
+            throw BusinessException.badRequest("费用单状态不允许审批: " + application.getStatus().getDescription());
         }
         
         ExpenseStatus previousStatus = application.getStatus();

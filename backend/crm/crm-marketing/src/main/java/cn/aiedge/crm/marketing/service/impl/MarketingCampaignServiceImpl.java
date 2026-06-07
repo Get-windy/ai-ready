@@ -1,5 +1,6 @@
 package cn.aiedge.crm.marketing.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.crm.marketing.entity.MarketingCampaign;
 import cn.aiedge.crm.marketing.entity.MarketingExecution;
 import cn.aiedge.crm.marketing.entity.MarketingTarget;
@@ -131,10 +132,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign updateCampaign(Long campaignId, MarketingCampaign campaign) {
         MarketingCampaign existing = getById(campaignId);
         if (existing == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (existing.getStatus() != CampaignStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的营销活动可以修改");
+            throw BusinessException.badRequest("只有草稿状态的营销活动可以修改");
         }
         campaign.setId(campaignId);
         updateById(campaign);
@@ -146,10 +147,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign submitForApproval(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的营销活动可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的营销活动可以提交审批");
         }
         campaign.setStatus(CampaignStatus.PENDING_APPROVAL.getCode());
         updateById(campaign);
@@ -161,10 +162,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign approve(Long campaignId, Long approverId, String note) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的营销活动可以审批");
+            throw BusinessException.badRequest("只有待审批状态的营销活动可以审批");
         }
         campaign.setStatus(CampaignStatus.APPROVED.getCode());
         campaign.setApprovedBy(approverId);
@@ -179,10 +180,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign reject(Long campaignId, Long rejecterId, String reason) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的营销活动可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的营销活动可以拒绝");
         }
         campaign.setStatus(CampaignStatus.DRAFT.getCode());
         updateById(campaign);
@@ -194,10 +195,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign schedule(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的营销活动可以排期");
+            throw BusinessException.badRequest("只有已审批状态的营销活动可以排期");
         }
         campaign.setStatus(CampaignStatus.SCHEDULED.getCode());
         updateById(campaign);
@@ -209,10 +210,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign start(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.SCHEDULED.getCode() && campaign.getStatus() != CampaignStatus.PAUSED.getCode()) {
-            throw new RuntimeException("只有已排期或已暂停状态的营销活动可以启动");
+            throw BusinessException.badRequest("只有已排期或已暂停状态的营销活动可以启动");
         }
         campaign.setStatus(CampaignStatus.RUNNING.getCode());
         campaign.setStartedBy(campaign.getCreateBy());
@@ -226,10 +227,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign pause(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() != CampaignStatus.RUNNING.getCode()) {
-            throw new RuntimeException("只有进行中的营销活动可以暂停");
+            throw BusinessException.badRequest("只有进行中的营销活动可以暂停");
         }
         campaign.setStatus(CampaignStatus.PAUSED.getCode());
         updateById(campaign);
@@ -247,7 +248,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign complete(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         campaign.setStatus(CampaignStatus.COMPLETED.getCode());
         campaign.setCompletedBy(campaign.getCreateBy());
@@ -262,10 +263,10 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign cancel(Long campaignId, String reason) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         if (campaign.getStatus() == CampaignStatus.COMPLETED.getCode()) {
-            throw new RuntimeException("已完成的营销活动不能取消");
+            throw BusinessException.badRequest("已完成的营销活动不能取消");
         }
         campaign.setStatus(CampaignStatus.CANCELLED.getCode());
         campaign.setRemark(reason);
@@ -278,7 +279,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign updateProgress(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         Integer reachedCount = targetMapper.countReachedByCampaignId(campaignId);
         Integer respondedCount = targetMapper.countRespondedByCampaignId(campaignId);
@@ -299,7 +300,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign updateCost(Long campaignId, BigDecimal actualCost) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         campaign.setActualCost(actualCost);
         updateById(campaign);
@@ -311,7 +312,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign updateRevenue(Long campaignId, BigDecimal actualRevenue) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         campaign.setActualRevenue(actualRevenue);
         updateById(campaign);
@@ -323,7 +324,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingCampaign calculateROI(Long campaignId) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         BigDecimal cost = campaign.getActualCost();
         BigDecimal revenue = campaign.getActualRevenue();
@@ -345,7 +346,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingTarget addTarget(Long campaignId, MarketingTarget target) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         target.setCampaignId(campaignId);
         target.setTenantId(campaign.getTenantId());
@@ -365,7 +366,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingTarget updateTarget(Long targetId, MarketingTarget target) {
         MarketingTarget existing = targetMapper.selectById(targetId);
         if (existing == null) {
-            throw new RuntimeException("目标客户不存在");
+            throw BusinessException.notFound("目标客户不存在");
         }
         target.setId(targetId);
         targetMapper.updateById(target);
@@ -403,7 +404,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingTarget markReached(Long targetId, Integer channel) {
         MarketingTarget target = targetMapper.selectById(targetId);
         if (target == null) {
-            throw new RuntimeException("目标客户不存在");
+            throw BusinessException.notFound("目标客户不存在");
         }
         target.setTargetStatus(1);
         target.setReachStatus(1);
@@ -419,7 +420,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingTarget markResponded(Long targetId, String content) {
         MarketingTarget target = targetMapper.selectById(targetId);
         if (target == null) {
-            throw new RuntimeException("目标客户不存在");
+            throw BusinessException.notFound("目标客户不存在");
         }
         target.setTargetStatus(2);
         target.setResponseStatus(1);
@@ -435,7 +436,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingTarget markConverted(Long targetId, Long leadId, Long opportunityId, Long orderId, BigDecimal orderAmount) {
         MarketingTarget target = targetMapper.selectById(targetId);
         if (target == null) {
-            throw new RuntimeException("目标客户不存在");
+            throw BusinessException.notFound("目标客户不存在");
         }
         target.setTargetStatus(3);
         target.setConversionStatus(1);
@@ -472,7 +473,7 @@ public class MarketingCampaignServiceImpl extends ServiceImpl<MarketingCampaignM
     public MarketingExecution addExecution(Long campaignId, MarketingExecution execution) {
         MarketingCampaign campaign = getById(campaignId);
         if (campaign == null) {
-            throw new RuntimeException("营销活动不存在");
+            throw BusinessException.notFound("营销活动不存在");
         }
         execution.setCampaignId(campaignId);
         execution.setTenantId(campaign.getTenantId());

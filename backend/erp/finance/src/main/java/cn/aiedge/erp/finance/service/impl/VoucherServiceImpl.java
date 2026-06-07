@@ -1,5 +1,6 @@
 package cn.aiedge.erp.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.finance.dto.VoucherDTO;
 import cn.aiedge.erp.finance.dto.VoucherItemDTO;
 import cn.aiedge.erp.finance.mapper.VoucherItemMapper;
@@ -48,7 +49,7 @@ public class VoucherServiceImpl implements VoucherService {
             totalCredit = totalCredit.add(item.getCreditAmount() != null ? item.getCreditAmount() : BigDecimal.ZERO);
         }
         if (totalDebit.compareTo(totalCredit) != 0) {
-            throw new RuntimeException("借方金额合计与贷方金额合计不平: debit=" + totalDebit + ", credit=" + totalCredit);
+            throw BusinessException.badRequest("借方金额合计与贷方金额合计不平: debit=" + totalDebit + ", credit=" + totalCredit);
         }
 
         // 生成凭证编号
@@ -101,7 +102,7 @@ public class VoucherServiceImpl implements VoucherService {
     public VoucherDTO getById(Long id) {
         Voucher voucher = voucherMapper.selectById(id);
         if (voucher == null) {
-            throw new RuntimeException("凭证不存在: " + id);
+            throw BusinessException.notFound("凭证不存在: " + id);
         }
         List<VoucherItem> items = voucherItemMapper.findByVoucherId(id);
         voucher.setItems(items);
@@ -111,7 +112,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public VoucherDTO getByVoucherNo(String voucherNo) {
         Voucher voucher = voucherMapper.findByVoucherNo(voucherNo)
-                .orElseThrow(() -> new RuntimeException("凭证不存在: " + voucherNo));
+                .orElseThrow(() -> BusinessException.notFound("凭证不存在: " + voucherNo));
         List<VoucherItem> items = voucherItemMapper.findByVoucherId(voucher.getId());
         voucher.setItems(items);
         return toDTO(voucher);
@@ -142,11 +143,11 @@ public class VoucherServiceImpl implements VoucherService {
     public VoucherDTO audit(Long id, String auditor) {
         Voucher voucher = voucherMapper.selectById(id);
         if (voucher == null) {
-            throw new RuntimeException("凭证不存在: " + id);
+            throw BusinessException.notFound("凭证不存在: " + id);
         }
 
         if (!"draft".equals(voucher.getStatus())) {
-            throw new RuntimeException("只有草稿状态的凭证才能审核，当前状态: " + voucher.getStatus());
+            throw BusinessException.badRequest("只有草稿状态的凭证才能审核，当前状态: " + voucher.getStatus());
         }
 
         voucher.setStatus("audited");
@@ -165,11 +166,11 @@ public class VoucherServiceImpl implements VoucherService {
     public VoucherDTO post(Long id, String poster) {
         Voucher voucher = voucherMapper.selectById(id);
         if (voucher == null) {
-            throw new RuntimeException("凭证不存在: " + id);
+            throw BusinessException.notFound("凭证不存在: " + id);
         }
 
         if (!"audited".equals(voucher.getStatus())) {
-            throw new RuntimeException("只有已审核状态的凭证才能过账，当前状态: " + voucher.getStatus());
+            throw BusinessException.badRequest("只有已审核状态的凭证才能过账，当前状态: " + voucher.getStatus());
         }
 
         voucher.setStatus("posted");
@@ -191,7 +192,7 @@ public class VoucherServiceImpl implements VoucherService {
     public VoucherDTO reverse(Long id, String reason) {
         Voucher original = voucherMapper.selectById(id);
         if (original == null) {
-            throw new RuntimeException("凭证不存在: " + id);
+            throw BusinessException.notFound("凭证不存在: " + id);
         }
 
         List<VoucherItem> originalItems = voucherItemMapper.findByVoucherId(id);
@@ -252,10 +253,10 @@ public class VoucherServiceImpl implements VoucherService {
         for (Long id : ids) {
             Voucher voucher = voucherMapper.selectById(id);
             if (voucher == null) {
-                throw new RuntimeException("凭证不存在: " + id);
+                throw BusinessException.notFound("凭证不存在: " + id);
             }
             if (!"draft".equals(voucher.getStatus())) {
-                throw new RuntimeException("只有草稿状态的凭证才能删除，当前状态: " + voucher.getStatus() + ", voucherNo: " + voucher.getVoucherNo());
+                throw BusinessException.badRequest("只有草稿状态的凭证才能删除，当前状态: " + voucher.getStatus() + ", voucherNo: " + voucher.getVoucherNo());
             }
         }
         voucherMapper.deleteBatchIds(ids);

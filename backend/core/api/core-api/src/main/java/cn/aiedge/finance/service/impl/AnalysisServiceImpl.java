@@ -1,5 +1,6 @@
 package cn.aiedge.finance.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.finance.entity.DataAnalysis;
 import cn.aiedge.finance.entity.AnalysisReport;
 import cn.aiedge.finance.mapper.DataAnalysisMapper;
@@ -107,7 +108,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
     public void executeDataAnalysis(Long id) {
         DataAnalysis analysis = dataAnalysisMapper.selectById(id);
         if (analysis == null) {
-            throw new RuntimeException("数据分析不存在");
+            throw BusinessException.notFound("数据分析不存在");
         }
 
         // 更新状态为处理中
@@ -131,7 +132,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
             analysis.setAnalysisNotes("分析失败: " + e.getMessage());
             analysis.setUpdateTime(LocalDateTime.now());
             dataAnalysisMapper.updateById(analysis);
-            throw new RuntimeException("数据分析执行失败: " + e.getMessage());
+            throw BusinessException.badRequest("数据分析执行失败: " + e.getMessage());
         }
     }
 
@@ -141,7 +142,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
         // 这里可以根据不同的格式返回相应的字节数组
         DataAnalysisVO analysis = getDataAnalysisById(id);
         if (analysis == null) {
-            throw new RuntimeException("分析结果不存在");
+            throw BusinessException.notFound("分析结果不存在");
         }
 
         // 根据格式生成相应的内容
@@ -225,7 +226,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
     public void publishAnalysisReport(Long id) {
         AnalysisReport report = analysisReportMapper.selectById(id);
         if (report == null) {
-            throw new RuntimeException("分析报告不存在");
+            throw BusinessException.notFound("分析报告不存在");
         }
 
         // 更新状态为已发布
@@ -239,7 +240,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
     public void generateAnalysisReport(Long id) {
         AnalysisReport report = analysisReportMapper.selectById(id);
         if (report == null) {
-            throw new RuntimeException("分析报告不存在");
+            throw BusinessException.notFound("分析报告不存在");
         }
 
         // 更新状态为处理中
@@ -262,7 +263,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
             report.setStatus("FAILED");
             report.setUpdateTime(LocalDateTime.now());
             analysisReportMapper.updateById(report);
-            throw new RuntimeException("分析报告生成失败: " + e.getMessage());
+            throw BusinessException.badRequest("分析报告生成失败: " + e.getMessage());
         }
     }
 
@@ -271,7 +272,7 @@ public class AnalysisServiceImpl implements IAnalysisService {
         // 导出分析报告的实现
         AnalysisReportVO report = getAnalysisReportById(id);
         if (report == null) {
-            throw new RuntimeException("分析报告不存在");
+            throw BusinessException.notFound("分析报告不存在");
         }
 
         // 根据格式生成相应的内容
