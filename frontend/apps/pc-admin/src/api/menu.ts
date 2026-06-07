@@ -1,4 +1,5 @@
 import request, { type ApiResponse } from '@/utils/request'
+import { useUserStore } from '@/stores/user'
 
 // 菜单信息
 export interface MenuInfo {
@@ -62,7 +63,8 @@ export interface RoleMenuAssignRequest {
 export const menuApi = {
   // 获取菜单树
   getTree(params?: MenuQuery): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get('/menu/tree', { params })
+    const userStore = useUserStore()
+    return request.get('/menu/tree', { ...params, tenantId: userStore.tenantId })
   },
 
   // 获取所有菜单

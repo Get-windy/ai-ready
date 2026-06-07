@@ -348,6 +348,18 @@ function getFallbackRoutes(): RouteRecordRaw[] {
           meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
         },
         {
+          path: 'supplier/inquiry/:id',
+          name: 'SupplierInquiry',
+          component: () => import('@/views/supplier/inquiry/index.vue'),
+          meta: { title: '供应商询价', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
+          path: 'supplier/performance/:id',
+          name: 'SupplierPerformance',
+          component: () => import('@/views/supplier/performance/index.vue'),
+          meta: { title: '供应商绩效', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+        },
+        {
           path: 'system/tenant',
           name: 'SystemTenant',
           component: () => import('@/views/system/tenant/index.vue'),

@@ -1,9 +1,10 @@
 <template>
-  <!-- 骨架屏加载状态 -->
-  <SkeletonDashboard v-if="pageLoading" />
+  <div class="dashboard-root">
+    <!-- 骨架屏加载状态 -->
+    <SkeletonDashboard v-if="pageLoading" />
 
-  <!-- 已加载状态 -->
-  <div v-else class="dashboard">
+    <!-- 已加载状态 -->
+    <div v-else class="dashboard">
     <!-- 欢迎栏 -->
     <div class="dashboard-header">
       <div>
@@ -130,6 +131,7 @@
         </a-card>
       </a-col>
     </a-row>
+  </div>
   </div>
 </template>
 

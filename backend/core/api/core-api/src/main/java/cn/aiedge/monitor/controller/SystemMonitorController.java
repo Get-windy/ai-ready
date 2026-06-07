@@ -1,5 +1,6 @@
 package cn.aiedge.monitor.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.monitor.model.AlertRule;
 import cn.aiedge.monitor.model.SystemMetrics;
 import cn.aiedge.monitor.service.AlertRuleService;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 /**
  * 系统监控控制器
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -33,115 +34,115 @@ public class SystemMonitorController {
 
     @GetMapping("/metrics")
     @Operation(summary = "获取当前系统指标")
-    public SystemMetrics getCurrentMetrics() {
-        return monitorService.getCurrentMetrics();
+    public Result<SystemMetrics> getCurrentMetrics() {
+        return Result.ok(monitorService.getCurrentMetrics());
     }
 
     @GetMapping("/metrics/history")
     @Operation(summary = "获取历史指标")
-    public List<SystemMetrics> getHistoryMetrics(
+    public Result<List<SystemMetrics>> getHistoryMetrics(
             @RequestParam(defaultValue = "1") int hours) {
-        return monitorService.getHistoryMetrics(hours);
+        return Result.ok(monitorService.getHistoryMetrics(hours));
     }
 
     @GetMapping("/metrics/trend/{metricName}")
     @Operation(summary = "获取指标趋势")
-    public Map<String, Object> getMetricTrend(
+    public Result<Map<String, Object>> getMetricTrend(
             @PathVariable String metricName,
             @RequestParam(defaultValue = "1") int hours) {
-        return monitorService.getMetricTrend(metricName, hours);
+        return Result.ok(monitorService.getMetricTrend(metricName, hours));
     }
 
     @GetMapping("/overview")
     @Operation(summary = "获取系统概览")
-    public Map<String, Object> getSystemOverview() {
-        return monitorService.getSystemOverview();
+    public Result<Map<String, Object>> getSystemOverview() {
+        return Result.ok(monitorService.getSystemOverview());
     }
 
     @GetMapping("/health")
     @Operation(summary = "检查系统健康状态")
-    public Map<String, Object> checkHealth() {
-        return monitorService.checkHealth();
+    public Result<Map<String, Object>> checkHealth() {
+        return Result.ok(monitorService.checkHealth());
     }
 
     @GetMapping("/jvm")
     @Operation(summary = "获取JVM信息")
-    public Map<String, Object> getJvmInfo() {
-        return monitorService.getJvmInfo();
+    public Result<Map<String, Object>> getJvmInfo() {
+        return Result.ok(monitorService.getJvmInfo());
     }
 
     @GetMapping("/threads")
     @Operation(summary = "获取线程信息")
-    public Map<String, Object> getThreadInfo() {
-        return monitorService.getThreadInfo();
+    public Result<Map<String, Object>> getThreadInfo() {
+        return Result.ok(monitorService.getThreadInfo());
     }
 
     @GetMapping("/memory")
     @Operation(summary = "获取内存信息")
-    public Map<String, Object> getMemoryInfo() {
-        return monitorService.getMemoryInfo();
+    public Result<Map<String, Object>> getMemoryInfo() {
+        return Result.ok(monitorService.getMemoryInfo());
     }
 
     @PostMapping("/gc")
     @Operation(summary = "执行垃圾回收")
-    public Map<String, Object> performGc() {
+    public Result<Map<String, Object>> performGc() {
         monitorService.performGc();
-        return Map.of("success", true, "message", "GC triggered");
+        return Result.ok(Map.of("success", true, "message", "GC triggered"));
     }
 
     // ==================== 告警规则管理 ====================
 
     @PostMapping("/alerts/rules")
     @Operation(summary = "创建告警规则")
-    public AlertRule createAlertRule(@RequestBody AlertRule rule) {
-        return alertRuleService.createRule(rule);
+    public Result<AlertRule> createAlertRule(@RequestBody AlertRule rule) {
+        return Result.ok(alertRuleService.createRule(rule));
     }
 
     @PutMapping("/alerts/rules")
     @Operation(summary = "更新告警规则")
-    public AlertRule updateAlertRule(@RequestBody AlertRule rule) {
-        return alertRuleService.updateRule(rule);
+    public Result<AlertRule> updateAlertRule(@RequestBody AlertRule rule) {
+        return Result.ok(alertRuleService.updateRule(rule));
     }
 
     @DeleteMapping("/alerts/rules/{ruleId}")
     @Operation(summary = "删除告警规则")
-    public Map<String, Object> deleteAlertRule(@PathVariable Long ruleId) {
+    public Result<Map<String, Object>> deleteAlertRule(@PathVariable Long ruleId) {
         boolean success = alertRuleService.deleteRule(ruleId);
-        return Map.of("success", success);
+        return Result.ok(Map.of("success", success));
     }
 
     @GetMapping("/alerts/rules/{ruleId}")
     @Operation(summary = "获取告警规则")
-    public AlertRule getAlertRule(@PathVariable Long ruleId) {
-        return alertRuleService.getRule(ruleId);
+    public Result<AlertRule> getAlertRule(@PathVariable Long ruleId) {
+        return Result.ok(alertRuleService.getRule(ruleId));
     }
 
     @GetMapping("/alerts/rules")
     @Operation(summary = "获取告警规则列表")
-    public List<AlertRule> getEnabledRules(
+    public Result<List<AlertRule>> getEnabledRules(
             @RequestParam(required = false) Long tenantId) {
-        return alertRuleService.getEnabledRules(tenantId);
+        return Result.ok(alertRuleService.getEnabledRules(tenantId));
     }
 
     @PostMapping("/alerts/rules/{ruleId}/enable")
     @Operation(summary = "启用告警规则")
-    public Map<String, Object> enableAlertRule(@PathVariable Long ruleId) {
+    public Result<Map<String, Object>> enableAlertRule(@PathVariable Long ruleId) {
         boolean success = alertRuleService.enableRule(ruleId);
-        return Map.of("success", success);
+        return Result.ok(Map.of("success", success));
     }
 
     @PostMapping("/alerts/rules/{ruleId}/disable")
     @Operation(summary = "禁用告警规则")
-    public Map<String, Object> disableAlertRule(@PathVariable Long ruleId) {
+    public Result<Map<String, Object>> disableAlertRule(@PathVariable Long ruleId) {
         boolean success = alertRuleService.disableRule(ruleId);
-        return Map.of("success", success);
+        return Result.ok(Map.of("success", success));
     }
 
     @GetMapping("/alerts/history")
     @Operation(summary = "获取告警历史")
-    public List<Map<String, Object>> getAlertHistory(
+    public Result<List<Map<String, Object>>> getAlertHistory(
             @RequestParam(required = false) Long tenantId,
             @RequestParam(defaultValue = "24") int hours) {
-        return alertRuleService.getAlertHistory(tenantId, hours);
+        return Result.ok(alertRuleService.getAlertHistory(tenantId, hours));
     }
 }

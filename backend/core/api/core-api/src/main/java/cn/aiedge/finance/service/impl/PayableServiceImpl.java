@@ -87,7 +87,7 @@ public class PayableServiceImpl extends ServiceImpl<PayableMapper, Payable> impl
     public Page<PayableVO> pagePayables(PayableQueryRequest request) {
         LambdaQueryWrapper<Payable> wrapper = Wrappers.lambdaQuery(Payable.class)
                 .eq(request.getSupplierId() != null, Payable::getSupplierId, request.getSupplierId())
-                .like(request.getSupplierName() != null, Payable::getSupplierName, request.getSupplierName())
+                .like(request.getSupplierName() != null && !request.getSupplierName().isEmpty(), Payable::getSupplierName, request.getSupplierName())
                 .eq(request.getStatus() != null, Payable::getStatus, request.getStatus())
                 .ge(request.getBillDateStart() != null, Payable::getBillDate, request.getBillDateStart())
                 .le(request.getBillDateEnd() != null, Payable::getBillDate, request.getBillDateEnd())

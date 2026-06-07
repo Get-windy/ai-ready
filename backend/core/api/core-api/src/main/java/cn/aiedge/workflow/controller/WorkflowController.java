@@ -115,6 +115,21 @@ public class WorkflowController {
         return ResponseEntity.ok(status);
     }
 
+    @GetMapping("/instance/page")
+    @Operation(summary = "分页查询流程实例")
+    public ResponseEntity<Map<String, Object>> pageInstances(
+            @Parameter(description = "流程名称") @RequestParam(required = false) String processName,
+            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize,
+            @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+
+        Map<String, Object> result = workflowService.pageInstances(pageNum, pageSize, processName, status, tenantId);
+        return ResponseEntity.ok(result);
+    }
+
     // ==================== 待办/已办 ====================
 
     @GetMapping("/pending")
@@ -178,6 +193,19 @@ public class WorkflowController {
         
         int count = workflowService.getPendingCount(userId, tenantId);
         return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    @GetMapping("/task/page")
+    @Operation(summary = "分页查询任务（待办/已办）")
+    public ResponseEntity<Map<String, Object>> pageTasks(
+            @Parameter(description = "标签页: todo/done") @RequestParam(defaultValue = "todo") String tab,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize,
+            @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @Parameter(hidden = true) @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+
+        Map<String, Object> result = workflowService.pageTasks(tab, userId, pageNum, pageSize, tenantId);
+        return ResponseEntity.ok(result);
     }
 
     // ==================== 审批操作 ====================

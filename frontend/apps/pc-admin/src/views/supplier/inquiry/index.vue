@@ -98,7 +98,7 @@ import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
-const supplierId = route.params.id as string
+const supplierId = (route.params.id as string) || (route.query.id as string) || ''
 
 if (!supplierId) {
   console.warn('[供应商询价] 缺少供应商ID参数，将返回列表')

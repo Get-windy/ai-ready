@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/erp/sale-outbound")
+@RequestMapping("/api/erp/sale/outbound")
 @RequiredArgsConstructor
 @Tag(name = "销售出库管理", description = "销售出库单创建、审批、拣货、打包、发货等操作")
 public class SaleOutboundController {

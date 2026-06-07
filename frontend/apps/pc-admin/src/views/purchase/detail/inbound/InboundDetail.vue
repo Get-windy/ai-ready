@@ -24,6 +24,23 @@
         <a-descriptions-item label="创建时间">{{ data?.createTime }}</a-descriptions-item>
       </a-descriptions>
     </template>
+    <template #tab-items>
+      <a-table
+        :columns="itemColumns"
+        :data-source="data?.items || []"
+        row-key="id"
+        :pagination="false"
+        size="small"
+        bordered
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'amount'">
+            ¥{{ record.amount?.toFixed(2) }}
+          </template>
+        </template>
+      </a-table>
+      <a-empty v-if="!data?.items || data.items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
+    </template>
   </DetailLayout>
 </template>
 
@@ -41,7 +58,21 @@ const router = useRouter(); const route = useRoute()
 const data = ref<PurchaseInbound | null>(null)
 const loading = ref(false); const error = ref<string | null>(null); const activeTab = ref('basic')
 const breadcrumbItems = computed(() => [{ text: '采购管理', path: '/purchase?tab=inbound' }, { text: '入库单', path: '/purchase?tab=inbound' }, { text: data.value?.inboundNo || '' }])
-const tabs = [{ key: 'basic', label: '基本信息' }]
+const tabs = computed(() => [
+  { key: 'basic', label: '基本信息' },
+  { key: 'items', label: '入库明细' }
+])
+
+const itemColumns = [
+  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 150 },
+  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
+  { title: '规格型号', dataIndex: 'specification', key: 'specification', width: 120 },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
+  { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
+  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
+  { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
+  { title: '备注', dataIndex: 'remark', key: 'remark' }
+]
 const relatedDocuments = computed(() => data.value?.orderNo ? [{ id: 1, type: '采购订单', no: data.value.orderNo }] : [])
 const activityLogs = computed(() => [{ id: 1, time: data.value?.createTime || '', user: data.value?.creatorName || '系统', action: '创建入库单' }])
 

@@ -249,7 +249,30 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         );
         savePermissions(erpPermissions);
 
-        log.info("系统权限初始化完成，共{}项", systemPermissions.size() + erpPermissions.size());
+        // 创建岗位管理权限
+        List<SysPermission> positionPermissions = Arrays.asList(
+            createPermission("岗位管理", "position:manage", 1, "/position", null, null, 41),
+            createPermission("岗位查询", "position:list", 3, null, "/api/position/page", "GET", 42),
+            createPermission("岗位创建", "position:create", 3, null, "/api/position", "POST", 43),
+            createPermission("岗位更新", "position:edit", 3, null, "/api/position/*", "PUT", 44),
+            createPermission("岗位删除", "position:delete", 3, null, "/api/position/*", "DELETE", 45),
+            createPermission("岗位详情", "position:query", 3, null, "/api/position/*", "GET", 46),
+            createPermission("岗位分配", "position:assign", 3, null, "/api/position/assign", "POST", 47)
+        );
+        savePermissions(positionPermissions);
+
+        // 创建部门管理权限
+        List<SysPermission> departmentPermissions = Arrays.asList(
+            createPermission("部门管理", "department:manage", 1, "/department", null, null, 48),
+            createPermission("部门查询", "department:list", 3, null, "/api/department/page", "GET", 49),
+            createPermission("部门创建", "department:create", 3, null, "/api/department", "POST", 50),
+            createPermission("部门更新", "department:edit", 3, null, "/api/department/*", "PUT", 51),
+            createPermission("部门删除", "department:delete", 3, null, "/api/department/*", "DELETE", 52),
+            createPermission("部门详情", "department:query", 3, null, "/api/department/*", "GET", 53)
+        );
+        savePermissions(departmentPermissions);
+
+        log.info("系统权限初始化完成，共{}项", systemPermissions.size() + erpPermissions.size() + positionPermissions.size() + departmentPermissions.size());
     }
 
     /**

@@ -167,14 +167,6 @@ service.interceptors.response.use(
 
     const resData = response.data
 
-    // ── 处理无 wrapper 的原始响应 ──────────────────────
-    // 后端某些 Controller（如 StockController）直接返回 Page<T> / List<T>
-    // 这些响应没有 {code, message, data} 包装，直接透传
-    if (resData && typeof resData === 'object' && !('code' in resData)) {
-      console.log(`${R} ⚠️ 检测到无 wrapper 响应, 直接透传`)
-      return resData
-    }
-
     // ── 标准 wrapper 响应处理 ──────────────────────────
     const { code, message: msg, data } = response.data
 

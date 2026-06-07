@@ -15,7 +15,7 @@ spring:
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: cn.aiedge.erp.sale.return.entity
+  type-aliases-package: cn.aiedge.erp.sale.salereturn.entity
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -38,7 +38,7 @@ knife4j:
         group-name: 销售退货管理
         api-rule: package
         api-rule-resources:
-          - cn.aiedge.erp.sale.return.controller
+          - cn.aiedge.erp.sale.salereturn.controller
 
 sa-token:
   token-name: Authorization

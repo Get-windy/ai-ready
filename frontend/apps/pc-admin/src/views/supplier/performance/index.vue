@@ -117,8 +117,13 @@ import type { FormInstance } from 'ant-design-vue'
 
 const router = useRouter()
 const route = useRoute()
-const supplierId = route.params.id as string
+const supplierId = (route.params.id as string) || (route.query.id as string) || ''
 const supplierIdNum = computed(() => { const n = Number(supplierId); return isNaN(n) ? null : n })
+
+if (!supplierId) {
+  console.warn('[供应商绩效] 缺少供应商ID参数，将返回列表')
+  router.replace('/supplier/index')
+}
 
 interface PerformanceRecord {
   id: number

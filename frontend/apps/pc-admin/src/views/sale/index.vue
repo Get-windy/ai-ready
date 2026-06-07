@@ -38,8 +38,7 @@
               title="本月金额"
               :value="stats.monthAmount"
               :precision="2"
-              prefix="¥"
-              :formatter="formatCurrency"
+              :formatter="() => formatCurrency(stats.monthAmount)"
             />
             <a-divider type="vertical" />
             <a-statistic title="待审批" :value="stats.pendingCount">
@@ -130,12 +129,10 @@ import ExchangeTab from './tabs/Exchange.vue'
 import ReceiptTab from './tabs/Receipt.vue'
 import CustomersTab from './tabs/Customers.vue'
 import request from '@/utils/request'
-import { usePermission } from '@/composables/usePermission'
 import { useIntervalRefresh } from '@/composables/useIntervalRefresh'
 
 const router = useRouter()
 const route = useRoute()
-const { checkPermission } = usePermission()
 
 // Tab 定义（集中管理）
 interface TabItem {
@@ -157,10 +154,8 @@ const allTabs: TabItem[] = [
 
 const allTabKeys = allTabs.map(t => t.key) as string[]
 
-// 按权限过滤可见 Tab
-const visibleTabs = computed(() =>
-  allTabs.filter(t => checkPermission(t.permission))
-)
+// 显示所有 Tab（模块内权限由各 tab 内部自行控制）
+const visibleTabs = computed(() => allTabs)
 
 const activeTab = ref<string>('orders')
 

@@ -446,6 +446,78 @@ public class WorkflowServiceImpl implements WorkflowService {
         return result;
     }
 
+    // ==================== 分页查询 ====================
+
+    @Override
+    public Map<String, Object> pageInstances(int pageNum, int pageSize, String processName, String status, Long tenantId) {
+        List<WorkflowInstance> allInstances = new ArrayList<>();
+        try {
+            // 尝试从缓存中扫描所有流程实例
+            Set<String> keys = cacheService.keys(INSTANCE_KEY + "*");
+            if (keys != null) {
+                for (String key : keys) {
+                    WorkflowInstance instance = cacheService.get(key, WorkflowInstance.class);
+                    if (instance != null) {
+                        allInstances.add(instance);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[workflow] 扫描流程实例缓存失败: {}", e.getMessage());
+        }
+
+        // 过滤
+        if (processName != null && !processName.isEmpty()) {
+            allInstances.removeIf(i -> i.getWorkflowName() == null || !i.getWorkflowName().contains(processName));
+        }
+        if (status != null && !status.isEmpty()) {
+            allInstances.removeIf(i -> !status.equals(i.getStatus()));
+        }
+        if (tenantId != null) {
+            allInstances.removeIf(i -> !tenantId.equals(i.getTenantId()));
+        }
+
+        // 按申请时间降序排序
+        allInstances.sort((a, b) -> {
+            if (a.getApplyTime() == null || b.getApplyTime() == null) return 0;
+            return b.getApplyTime().compareTo(a.getApplyTime());
+        });
+
+        int total = allInstances.size();
+        int fromIndex = (pageNum - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        List<WorkflowInstance> records = (fromIndex >= total) ? List.of() : allInstances.subList(fromIndex, toIndex);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", records);
+        result.put("total", total);
+        result.put("page", pageNum);
+        result.put("pageSize", pageSize);
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId) {
+        List<WorkflowInstance> records;
+        int total;
+
+        if ("done".equals(tab)) {
+            records = getMyApproved(userId, pageNum, pageSize, tenantId);
+            total = records.size(); // 简化：无总计数
+        } else {
+            // default: todo
+            records = getMyPendingApprovals(userId, pageNum, pageSize, tenantId);
+            total = getPendingCount(userId, tenantId);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", records);
+        result.put("total", total);
+        result.put("page", pageNum);
+        result.put("pageSize", pageSize);
+        return result;
+    }
+
     // ==================== 内置流程定义 ====================
 
     private static WorkflowDefinition createOrderApprovalWorkflow() {

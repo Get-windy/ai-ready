@@ -180,6 +180,18 @@
             <artifactId>erp-sale-outbound</artifactId>
             <version>0.2.0</version>
         </dependency>
+        <!-- ERP 销售退货模块 -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-sale-return</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <!-- ERP 销售换货模块 -->
+        <dependency>
+            <groupId>cn.aiedge.erp</groupId>
+            <artifactId>erp-sale-exchange</artifactId>
+            <version>0.2.0</version>
+        </dependency>
         <!-- ERP 业务指标模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>

@@ -375,7 +375,8 @@ import {
   DownOutlined,
   StopOutlined,
   DeleteOutlined,
-  AppstoreOutlined
+  AppstoreOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
 import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'

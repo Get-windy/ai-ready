@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.Warehouse;
 import cn.aiedge.erp.stock.service.StockService;
@@ -32,8 +33,8 @@ public class StockController {
 
     @Operation(summary = "查询仓库列表")
     @GetMapping("/warehouses")
-    public List<Warehouse> getWarehouses() {
-        return warehouseService.getWarehouseList();
+    public Result<List<Warehouse>> getWarehouses() {
+        return Result.ok(warehouseService.getWarehouseList());
     }
 
     @Operation(summary = "查询库存详情")

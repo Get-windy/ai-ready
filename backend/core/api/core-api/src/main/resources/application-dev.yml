@@ -10,7 +10,6 @@ spring:
     exclude:
       - org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration
       - org.springframework.cloud.gateway.config.GatewayMetricsAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
       - org.optaplanner.spring.boot.autoconfigure.OptaPlannerAutoConfiguration
   jpa:
     hibernate:

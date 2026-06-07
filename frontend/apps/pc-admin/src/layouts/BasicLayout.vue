@@ -343,11 +343,13 @@
           minHeight: contentMinHeight
         }"
       >
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component, route }">
           <transition name="fade" mode="out-in">
-            <keep-alive :include="cachedRoutes">
-              <component :is="Component" />
-            </keep-alive>
+            <div :key="route.fullPath" style="height: 100%">
+              <keep-alive :include="cachedRoutes">
+                <component :is="Component" />
+              </keep-alive>
+            </div>
           </transition>
         </router-view>
       </a-layout-content>

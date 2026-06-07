@@ -115,4 +115,16 @@ public interface WorkflowService {
      * 获取流程状态
      */
     Map<String, Object> getWorkflowStatus(String instanceId);
+
+    // ==================== 分页查询 ====================
+
+    /**
+     * 分页查询流程实例（供监控页面使用）
+     */
+    Map<String, Object> pageInstances(int pageNum, int pageSize, String processName, String status, Long tenantId);
+
+    /**
+     * 分页查询任务（待办/已办，供任务管理页面使用）
+     */
+    Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId);
 }

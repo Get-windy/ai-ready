@@ -38,6 +38,7 @@
         <module>erp-payment</module>
         <module>erp-product-kit</module>
         <module>erp-sale-return</module>
+        <module>erp-sale-exchange</module>
         <module>erp-b2b-mall</module>
         <module>erp-fixed-asset</module>
         <module>erp-budget</module>

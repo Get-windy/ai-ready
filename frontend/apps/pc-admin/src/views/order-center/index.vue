@@ -390,7 +390,7 @@
   </a-modal>
 
   <!-- 回到顶部 -->
-  <a-back-top visibility-height="400" />
+  <a-back-top :visibility-height="400" />
 </template>
 
 <script setup lang="ts">
