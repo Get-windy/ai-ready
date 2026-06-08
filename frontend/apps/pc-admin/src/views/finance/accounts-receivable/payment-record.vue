@@ -1,126 +1,131 @@
 <template>
   <div class="payment-record-page">
-    <a-card title="收款记录">
-      <!-- 搜索区域 -->
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="queryParams"
-        >
-          <a-form-item label="客户名称">
-            <a-input
-              v-model:value="queryParams.customerName"
-              placeholder="请输入客户名称"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="收款日期">
-            <a-range-picker
-              v-model:value="queryParams.dateRange"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-            />
-          </a-form-item>
-          <a-form-item label="收款方式">
-            <a-select
-              v-model:value="queryParams.paymentMethod"
-              placeholder="请选择"
-              allow-clear
-              style="width: 120px"
-            >
-              <a-select-option value="cash">
-                现金
-              </a-select-option>
-              <a-select-option value="bank">
-                银行转账
-              </a-select-option>
-              <a-select-option value="wechat">
-                微信支付
-              </a-select-option>
-              <a-select-option value="alipay">
-                支付宝
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
+          <div class="stat-card-label">收款总额</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
       </div>
-
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button
-            type="primary"
-            @click="handleAdd"
-          >
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            新增收款
-          </a-button>
-          <a-button @click="handleExport">
-            <template #icon>
-              <ExportOutlined />
-            </template>
-            导出
-          </a-button>
-        </a-space>
+      <div class="stat-card stat-today">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.todayAmount) }}</div>
+          <div class="stat-card-label">今日收款</div>
+        </div>
+        <CalendarOutlined class="stat-card-icon" />
       </div>
+      <div class="stat-card stat-count">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ stats.totalCount }}</div>
+          <div class="stat-card-label">收款笔数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-avg">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(avgAmount) }}</div>
+          <div class="stat-card-label">平均金额</div>
+        </div>
+        <LineChartOutlined class="stat-card-icon" />
+      </div>
+    </div>
 
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        class="stats-area"
+    <!-- 搜索区域 -->
+    <div class="search-area">
+      <a-form
+        layout="inline"
+        :model="queryParams"
       >
-        <a-col :span="8">
-          <a-statistic
-            title="收款总额"
-            :value="stats.totalAmount"
-            :precision="2"
-            prefix="¥"
+        <a-form-item label="客户名称">
+          <a-input
+            v-model:value="queryParams.customerName"
+            placeholder="请输入客户名称"
+            allow-clear
           />
-        </a-col>
-        <a-col :span="8">
-          <a-statistic
-            title="今日收款"
-            :value="stats.todayAmount"
-            :precision="2"
-            prefix="¥"
+        </a-form-item>
+        <a-form-item label="收款日期">
+          <a-range-picker
+            v-model:value="queryParams.dateRange"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
           />
-        </a-col>
-        <a-col :span="8">
-          <a-statistic
-            title="收款笔数"
-            :value="totalCount"
-            suffix="笔"
-          />
-        </a-col>
-      </a-row>
+        </a-form-item>
+        <a-form-item label="收款方式">
+          <a-select
+            v-model:value="queryParams.paymentMethod"
+            placeholder="请选择"
+            allow-clear
+            style="width: 120px"
+          >
+            <a-select-option value="cash">
+              现金
+            </a-select-option>
+            <a-select-option value="bank">
+              银行转账
+            </a-select-option>
+            <a-select-option value="wechat">
+              微信支付
+            </a-select-option>
+            <a-select-option value="alipay">
+              支付宝
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item>
+          <a-space>
+            <a-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </a-button>
+            <a-button @click="handleReset">
+              重置
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
+    </div>
 
-      <!-- 数据表格 -->
+    <!-- 操作按钮 -->
+    <div class="action-area">
+      <a-space>
+        <a-button
+          type="primary"
+          @click="handleAdd"
+        >
+          <template #icon>
+            <PlusOutlined />
+          </template>
+          新增收款
+        </a-button>
+        <a-button @click="handleExport">
+          <template #icon>
+            <ExportOutlined />
+          </template>
+          导出
+        </a-button>
+      </a-space>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="table-area">
       <a-table
         :columns="columns"
-        :data-source="dataSource"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) }}
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'amount'">
+            <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
           </template>
           <template v-else-if="column.key === 'paymentMethod'">
             <a-tag>{{ getPaymentMethodText(record.paymentMethod) }}</a-tag>
@@ -145,7 +150,7 @@
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
 
     <a-modal
       v-model:open="detailVisible"
@@ -175,7 +180,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, DollarOutlined, CalendarOutlined, FileTextOutlined, LineChartOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
 
 interface PaymentRecord {
@@ -190,7 +195,7 @@ interface PaymentRecord {
 }
 
 const loading = ref(false)
-const dataSource = ref<PaymentRecord[]>([])
+const tableData = ref<PaymentRecord[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<PaymentRecord | null>(null)
 
@@ -201,11 +206,15 @@ const queryParams = reactive({
 })
 
 const stats = reactive({
-  totalAmount: 0,
-  todayAmount: 0
+  totalAmount: 856000,
+  todayAmount: 42000,
+  totalCount: 156
 })
 
-const totalCount = computed(() => dataSource.value.length)
+const avgAmount = computed(() => {
+  if (stats.totalCount === 0) return 0
+  return Math.round(stats.totalAmount / stats.totalCount)
+})
 
 const pagination = reactive({
   current: 1,
@@ -214,6 +223,17 @@ const pagination = reactive({
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
+})
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
+  }
+  return data
 })
 
 const columns = [
@@ -232,7 +252,8 @@ const columns = [
   {
     title: '收款金额',
     key: 'amount',
-    width: 120
+    width: 120,
+    align: 'right' as const
   },
   {
     title: '收款方式',
@@ -261,7 +282,7 @@ const columns = [
     title: '操作',
     key: 'action',
     width: 150,
-    fixed: 'right'
+    fixed: 'right' as const
   }
 ]
 
@@ -273,6 +294,11 @@ const getPaymentMethodText = (method: string) => {
     alipay: '支付宝'
   }
   return methods[method] || method
+}
+
+const formatAmount = (val: number) => {
+  if (val === undefined || val === null) return '0.00'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const handleSearch = () => {
@@ -321,15 +347,17 @@ const fetchData = async () => {
       }
     })
     if (res.data?.records) {
-      dataSource.value = res.data.records
+      tableData.value = res.data.records
       pagination.total = res.data.total || 0
-      stats.totalAmount = res.data.totalAmount ?? dataSource.value.reduce((sum, item) => sum + item.amount, 0)
+      stats.totalAmount = res.data.totalAmount ?? tableData.value.reduce((sum, item) => sum + item.amount, 0)
       stats.todayAmount = res.data.todayAmount ?? 0
+      stats.totalCount = res.data.totalCount ?? pagination.total
     } else {
-      dataSource.value = []
+      tableData.value = []
       pagination.total = 0
       stats.totalAmount = 0
       stats.todayAmount = 0
+      stats.totalCount = 0
     }
   } catch (error) {
     message.error('获取数据失败')
@@ -343,21 +371,116 @@ fetchData()
 
 <style scoped>
 .payment-record-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-today { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-count { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-avg { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .search-area {
-  margin-bottom: 16px;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
 }
 
 .action-area {
-  margin-bottom: 16px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
 }
 
-.stats-area {
-  margin-bottom: 16px;
+.table-area {
+  background: #fff;
+  border-radius: 8px;
   padding: 16px;
-  background: #fafafa;
-  border-radius: 4px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

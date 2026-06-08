@@ -1,38 +1,74 @@
 <template>
-  <div class="pricing-tiers">
-    <a-card title="价格层级配置">
+  <div class="pricing-tiers" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <DatabaseOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">价层总数</div>
+            <div class="summary-value">{{ tiers.length }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">启用中</div>
+            <div class="summary-value">{{ activeTierCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
+            <StopOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已禁用</div>
+            <div class="summary-value warning">{{ inactiveTierCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <SettingOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">定价模式</div>
+            <div class="summary-value">{{ pricingModeCount }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <a-card title="价格层级配置" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
       <template #extra>
         <a-button type="primary" @click="showAddModal">
           <PlusOutlined /> 新增价层
         </a-button>
       </template>
 
-      <!-- 统计概览 -->
-      <a-row :gutter="16" style="margin-bottom: 24px">
-        <a-col :span="6">
-          <a-statistic title="价层总数" :value="tiers.length" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="启用中" :value="activeTierCount" value-style="color: #52c41a" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="已禁用" :value="inactiveTierCount" value-style="color: #ff4d4f" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="定价模式" :value="pricingModeCount" />
-        </a-col>
-      </a-row>
-
       <!-- 价层列表 -->
       <a-table
         :columns="columns"
-        :data-source="tiers"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
         row-key="tierId"
+        style="flex: 1; overflow: auto;"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'status'">
             <StatusTag :status="record.status" :map="TIER_STATUS_MAP" />
           </template>
           <template v-else-if="column.key === 'pricingMode'">
@@ -123,7 +159,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { requiredRule, requiredSelectRule } from '@/utils/formRules'
@@ -160,6 +196,17 @@ const formRef = ref<FormInstance>()
 
 const activeTierCount = computed(() => tiers.value.filter(t => t.status === 'active').length)
 const inactiveTierCount = computed(() => tiers.value.filter(t => t.status !== 'active').length)
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tiers.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, tierId: `__empty_${i}` } as PriceTier)
+  }
+  return data
+})
 
 const columns = [
   { title: '层级名称', dataIndex: 'tierName', key: 'tierName' },
@@ -265,6 +312,95 @@ onMounted(() => { fetchTiers() })
 </script>
 
 <style scoped>
-.pricing-tiers { padding: 16px; }
+.pricing-tiers { padding: 16px; height: 100%; display: flex; flex-direction: column; }
 .danger { color: #ff4d4f; }
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border: 1px solid #d3adf7;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #f5222d;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
+}
 </style>

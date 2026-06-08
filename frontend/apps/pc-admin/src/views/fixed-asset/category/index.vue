@@ -1,8 +1,33 @@
 <template>
-  <div class="category-list">
-    <a-row :gutter="16">
+  <div class="category-list-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ treeData.length || 0 }}</div>
+          <div class="stat-card-label">分类总数</div>
+        </div>
+        <FolderOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-root">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ rootCount }}</div>
+          <div class="stat-card-label">根分类数</div>
+        </div>
+        <ApartmentOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-depth">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ maxDepth }}</div>
+          <div class="stat-card-label">最大层级</div>
+        </div>
+        <ClusterOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <a-row :gutter="16" class="category-content">
       <a-col :span="10">
-        <a-card title="分类树">
+        <a-card title="分类树" class="category-card">
           <template #extra>
             <a-button type="primary" size="small" @click="showAddRootModal">添加根分类</a-button>
           </template>
@@ -16,7 +41,7 @@
         </a-card>
       </a-col>
       <a-col :span="14">
-        <a-card :title="selectedCategory ? '分类详情' : '选择分类'">
+        <a-card :title="selectedCategory ? '分类详情' : '选择分类'" class="category-card">
           <template v-if="selectedCategory">
             <a-descriptions :column="1" bordered :label-style="{ fontWeight: 'bold' }">
               <a-descriptions-item label="分类编码">{{ selectedCategory.categoryCode }}</a-descriptions-item>
@@ -78,6 +103,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { fixedAssetCategoryApi } from '@/api/fixed-asset'
 import { message } from 'ant-design-vue'
+import { FolderOutlined, ApartmentOutlined, ClusterOutlined } from '@ant-design/icons-vue'
 
 interface Category {
   id: number
@@ -88,15 +114,35 @@ interface Category {
   defaultDepreciationMethod: string
   defaultUsefulLife: number
   description: string
+  children?: Category[]
 }
 
-const treeData = ref<any[]>([])
+const treeData = ref<Category[]>([])
 const selectedCategory = ref<Category | null>(null)
 const modalVisible = ref(false)
 const modalLoading = ref(false)
 const isEdit = ref(false)
 const isAddChild = ref(false)
 const editId = ref<number | null>(null)
+
+// ── 统计数据 ────────────────────────────────────────────
+const rootCount = computed(() => {
+  return treeData.value.filter(node => !node.parentId || node.parentId === 0).length
+})
+
+const maxDepth = computed(() => {
+  function getDepth(nodes: Category[], depth = 1): number {
+    if (!nodes || nodes.length === 0) return depth
+    let max = depth
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        max = Math.max(max, getDepth(node.children, depth + 1))
+      }
+    }
+    return max
+  }
+  return getDepth(treeData.value)
+})
 
 const formData = reactive({
   categoryCode: '',
@@ -208,3 +254,91 @@ function handleDelete() {
   })
 }
 </script>
+
+<style scoped>
+.category-list-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+.stat-root { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-depth { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* 内容区域 */
+.category-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.category-card {
+  height: 100%;
+}
+
+:deep(.ant-card-body) {
+  height: calc(100% - 57px);
+  overflow-y: auto;
+}
+
+/* 表格网格边框 */
+:deep(.ant-descriptions-bordered .ant-descriptions-item-label) {
+  background: #fafafa;
+  border-right: 1px solid #d9d9d9;
+  font-weight: 600;
+}
+
+:deep(.ant-descriptions-bordered .ant-descriptions-item-content) {
+  border-right: 1px solid #e8e8e8;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .category-content {
+    flex-direction: column;
+  }
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
+}
+</style>

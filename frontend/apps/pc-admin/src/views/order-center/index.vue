@@ -195,24 +195,48 @@
         </template>
         <template v-else>
           <a-col :xs="12" :sm="12" :md="6">
-            <a-card size="small" class="stat-card">
-              <a-statistic title="订单总数" :value="filteredTotal" />
-            </a-card>
+            <div class="stat-card stat-card--primary">
+              <div class="stat-card-icon">
+                <FileTextOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">订单总数</div>
+                <div class="stat-card-value">{{ filteredTotal }}</div>
+              </div>
+            </div>
           </a-col>
           <a-col :xs="12" :sm="12" :md="6">
-            <a-card size="small" class="stat-card stat-card--purchase">
-              <a-statistic title="采购订单" :value="purchaseCount" />
-            </a-card>
+            <div class="stat-card stat-card--blue">
+              <div class="stat-card-icon">
+                <ShoppingCartOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">采购订单</div>
+                <div class="stat-card-value">{{ purchaseCount }}</div>
+              </div>
+            </div>
           </a-col>
           <a-col :xs="12" :sm="12" :md="6">
-            <a-card size="small" class="stat-card stat-card--sales">
-              <a-statistic title="销售订单" :value="salesCount" />
-            </a-card>
+            <div class="stat-card stat-card--green">
+              <div class="stat-card-icon">
+                <RocketOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">销售订单</div>
+                <div class="stat-card-value">{{ salesCount }}</div>
+              </div>
+            </div>
           </a-col>
           <a-col :xs="12" :sm="12" :md="6">
-            <a-card size="small" class="stat-card stat-card--pending">
-              <a-statistic title="待审批" :value="pendingCount" />
-            </a-card>
+            <div class="stat-card stat-card--orange">
+              <div class="stat-card-icon">
+                <ClockCircleOutlined />
+              </div>
+              <div class="stat-card-content">
+                <div class="stat-card-title">待审批</div>
+                <div class="stat-card-value">{{ pendingCount }}</div>
+              </div>
+            </div>
           </a-col>
         </template>
       </a-row>
@@ -407,7 +431,11 @@ import {
   ReloadOutlined,
   SettingOutlined,
   ImportOutlined,
-  ExportOutlined
+  ExportOutlined,
+  FileTextOutlined,
+  ShoppingCartOutlined,
+  RocketOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue'
 import { ModuleLayout } from '@ai-ready/components'
 import { purchaseOrderApi } from '@/api/purchase'
@@ -415,6 +443,8 @@ import { salesOrderApi } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 
 // ── 常量 ──────────────────────────────────────────────────
+
+const MIN_TABLE_ROWS = 20
 
 const STATUS_COLORS: Record<number, string> = {
   0: '#999999',
@@ -671,10 +701,24 @@ const sortedOrders = computed(() => {
   return data
 })
 
-/** 分页数据 */
+/** 分页数据（含空行填充） */
 const displayData = computed(() => {
   const start = (pagination.current - 1) * pagination.pageSize
-  return sortedOrders.value.slice(start, start + pagination.pageSize)
+  const pageData = sortedOrders.value.slice(start, start + pagination.pageSize)
+  // 空行填充：确保表格始终显示 MIN_TABLE_ROWS 行
+  if (pageData.length < MIN_TABLE_ROWS && pageData.length > 0) {
+    const emptyRows = Array.from({ length: MIN_TABLE_ROWS - pageData.length }, (_, i) => ({
+      id: `empty-${i}`,
+      orderNo: '',
+      orderType: 'purchase' as const,
+      orderStatus: -1,
+      totalAmount: 0,
+      createTime: '',
+      isEmpty: true
+    }))
+    return [...pageData, ...emptyRows] as UnifiedOrder[]
+  }
+  return pageData
 })
 
 const filteredTotal = computed(() => sortedOrders.value.length)
@@ -1297,24 +1341,56 @@ onUnmounted(() => {
   margin-bottom: 16px;
 }
 .stat-card {
-  text-align: center;
-  border-radius: 8px;
-  transition: box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  cursor: default;
 }
 .stat-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-.stat-card :deep(.ant-card-body) {
-  padding: 16px;
+.stat-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  margin-right: 16px;
 }
-.stat-card--purchase :deep(.ant-statistic-content-value) {
-  color: #1890ff;
+.stat-card-content {
+  flex: 1;
 }
-.stat-card--sales :deep(.ant-statistic-content-value) {
-  color: #52c41a;
+.stat-card-title {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 4px;
 }
-.stat-card--pending :deep(.ant-statistic-content-value) {
-  color: #fa8c16;
+.stat-card-value {
+  font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+}
+/* 渐变背景主题 */
+.stat-card--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.stat-card--blue {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+}
+.stat-card--green {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+}
+.stat-card--orange {
+  background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);
 }
 
 /* ── 统计卡片骨架屏 ─────────────────────── */

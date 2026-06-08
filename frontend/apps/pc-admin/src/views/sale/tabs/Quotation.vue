@@ -1,29 +1,64 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="dataSource"
-    :loading="loading"
-    :pagination="pagination"
-    :table-key="'sale-quotation-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    :show-export="true"
-    add-text="新建报价"
-    add-permission="'sale:quotation:create'"
-    @add="handleAdd"
-    @edit="handleEdit"
-    @view="handleView"
-    @delete="handleDelete"
-    @batch-delete="handleBatchDelete"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
+  <div class="quotation-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-draft">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ draftCount }}</div>
+          <div class="stat-card-label">草稿</div>
+        </div>
+        <FileOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-sent">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ sentCount }}</div>
+          <div class="stat-card-label">已发送</div>
+        </div>
+        <SendOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-accepted">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ acceptedCount }}</div>
+          <div class="stat-card-label">已接受</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-amount">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
+          <div class="stat-card-label">本页金额</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
+      ref="tableRef"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'sale-quotation-list'"
+      :filter-fields="filterFields"
+      :show-summary="true"
+      :summary-data="summaryData"
+      :show-export="true"
+      :selectable="true"
+      add-text="新建报价"
+      add-permission="'sale:quotation:create'"
+      @add="handleAdd"
+      @edit="handleEdit"
+      @view="handleView"
+      @delete="handleDelete"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @sort-change="handleSortChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+      @selection-change="handleSelectionChange"
+    >
     <template #toolbar-actions>
       <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
         更新 {{ dayjs(lastUpdated).format('HH:mm') }}
@@ -39,12 +74,6 @@
         <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
         <a-button type="primary" @click="handleAdd">新建报价单</a-button>
       </a-empty>
-    </template>
-
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">
-        {{ getStatusText(record.status) }}
-      </a-tag>
     </template>
 
     <template #action="{ record }">
@@ -80,7 +109,8 @@
         </a-dropdown>
       </a-space>
     </template>
-  </TableList>
+  </VxeTableList>
+  </div>
 
   <a-modal v-model:open="detailVisible" title="报价单详情" width="700px" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
@@ -127,8 +157,8 @@ defineOptions({ name: 'SaleQuotationTab' })
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
-import TableList from '@/components/TableList/TableList.vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { quotationApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { executeBatch } from '@/utils/batchOperations'
@@ -146,19 +176,46 @@ const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdated = ref('')
 
+// ── 统计数据 ────────────────────────────────────────────
+const draftCount = computed(() => dataSource.value.filter(r => r.status === 0).length)
+const sentCount = computed(() => dataSource.value.filter(r => r.status === 1).length)
+const acceptedCount = computed(() => dataSource.value.filter(r => r.status === 2).length)
+const totalAmount = computed(() => dataSource.value.reduce((s, r) => s + (r.totalAmount || 0), 0))
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}`, quotationNo: '', customerName: '', quotationDate: '', validDate: '', status: 0, createTime: '' })
+  }
+  return data
+})
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
+
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-const columns = [
-  { title: '报价单号', dataIndex: 'quotationNo', key: 'quotationNo', width: 160, sortable: true },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140 },
-  { title: '报价日期', dataIndex: 'quotationDate', key: 'quotationDate', width: 110, type: 'date' as const },
-  { title: '有效期', dataIndex: 'validDate', key: 'validDate', width: 110, type: 'date' as const },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
-]
+const vxeColumns = computed(() => [
+  { title: '报价单号', field: 'quotationNo', width: 160, sortable: true },
+  { title: '客户', field: 'customerName', width: 140 },
+  { title: '报价日期', field: 'quotationDate', width: 110 },
+  { title: '有效期', field: 'validDate', width: 110 },
+  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '创建时间', field: 'createTime', width: 160 },
+  { title: '操作', field: 'action', width: 130, fixed: 'right', type: 'action' }
+])
+
+  // 选择变化处理
+  const selectedRowKeys = ref<number[]>([])
+  function handleSelectionChange(keys: number[]) {
+    selectedRowKeys.value = keys
+  }
 const filterFields = [
   { key: 'quotationNo', label: '报价单号', type: 'input' as const, placeholder: '输入报价单号' },
   { key: 'customerName', label: '客户', type: 'input' as const, placeholder: '输入客户' },
@@ -350,6 +407,52 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <style scoped>
+.quotation-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-draft { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-sent { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-accepted { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-amount { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
 .action-more-btn {
   padding: 0 4px;
   font-size: 16px;
@@ -365,6 +468,8 @@ function handleKeydown(e: KeyboardEvent) {
   margin-bottom: 8px;
 }
 
+.empty-placeholder { color: transparent; }
+
 .list-update-timestamp {
   font-size: 12px;
   color: var(--color-text-tertiary, #bbb);
@@ -373,5 +478,43 @@ function handleKeydown(e: KeyboardEvent) {
   margin-left: 8px;
   line-height: 32px;
   vertical-align: middle;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
+  .quotation-page {
+    padding: 8px;
+  }
 }
 </style>

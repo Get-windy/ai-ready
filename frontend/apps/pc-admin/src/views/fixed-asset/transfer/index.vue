@@ -1,13 +1,46 @@
 <template>
-  <div class="transfer-list">
-    <TableList
+  <div class="transfer-list-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-draft">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.draft }}</div>
+          <div class="stat-card-label">待审批</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-approved">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.approved }}</div>
+          <div class="stat-card-label">已通过</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-completed">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.completed }}</div>
+          <div class="stat-card-label">已完成</div>
+        </div>
+        <SwapOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-count">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">转移记录数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'fixed-asset-transfer-list'"
       :filter-fields="filterFields"
+      :selectable="true"
       add-text="新增转移"
       @add="showCreateModal"
       @edit="editRecord"
@@ -16,6 +49,7 @@
       @search="handleSearch"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -23,48 +57,55 @@
         </span>
       </template>
       <template #empty>
-        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配转移记录">
-          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-          <a-button @click="handleResetFilters">清除筛选</a-button>
-        </a-empty>
-        <a-empty v-else description="暂无转移记录">
-          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-          <a-button @click="showCreateModal">新增转移</a-button>
-        </a-empty>
+        <div class="table-empty">
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            没有符合条件的转移记录，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无转移记录，点击右上角「新增转移」开始创建
+          </p>
+        </div>
       </template>
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <a-tag :color="statusColorMap[record.status]">{{ statusMap[record.status] }}</a-tag>
-        </template>
-        <template v-if="column.key === 'action'">
-          <a-space :size="0" class="action-cell-inner">
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" @click="viewDetail(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="approve">通过</a-menu-item>
-                  <a-menu-item v-if="record.status === 'draft'" key="reject">拒绝</a-menu-item>
-                  <a-menu-divider v-if="record.status === 'draft'" />
-                  <a-menu-item v-if="record.status === 'draft'" key="delete" danger>删除</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+      <template #action="{ record }">
+        <a-space :size="4">
+          <a-tooltip title="查看详情">
+            <a-button type="link" size="small" @click="viewDetail(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 'draft'" title="编辑">
+            <a-button type="link" size="small" @click="editRecord(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item v-if="record.status === 'draft'" key="approve">
+                  <CheckCircleOutlined /> 审批通过
+                </a-menu-item>
+                <a-menu-item v-if="record.status === 'draft'" key="reject">
+                  <CloseCircleOutlined /> 审批拒绝
+                </a-menu-item>
+                <a-menu-divider v-if="record.status === 'draft'" />
+                <a-menu-item key="print">
+                  <PrinterOutlined /> 打印
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </template>
-    </TableList>
+    </VxeTableList>
 
     <!-- Create/Edit Modal -->
     <a-modal
@@ -122,9 +163,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons-vue'
+import {
+  SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined,
+  ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined,
+  PrinterOutlined, SwapOutlined, FileTextOutlined
+} from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { transferApi } from '@/api/fixed-asset'
 
 const loading = ref(false)
@@ -132,9 +177,10 @@ const modalVisible = ref(false)
 const modalLoading = ref(false)
 const isEdit = ref(false)
 const editId = ref<number | null>(null)
-const tableData = ref([])
+const tableData = ref<any[]>([])
 const tableRef = ref()
 const lastUpdated = ref('')
+const selectedRowKeys = ref<number[]>([])
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -164,18 +210,41 @@ const pagination = reactive({
   total: 0,
 })
 
-const columns = [
-  { title: '转移单号', dataIndex: 'transferNo', width: 150 },
-  { title: '资产编码', dataIndex: 'assetCode', width: 120 },
-  { title: '资产名称', dataIndex: 'assetName', width: 160 },
-  { title: '调出部门', dataIndex: 'fromDepartmentName', width: 120 },
-  { title: '调入部门', dataIndex: 'toDepartmentName', width: 120 },
-  { title: '调出保管人', dataIndex: 'fromCustodianName', width: 100 },
-  { title: '调入保管人', dataIndex: 'toCustodianName', width: 100 },
-  { title: '转移日期', dataIndex: 'transferDate', width: 120 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 240, fixed: 'right' },
-]
+function handleSelectionChange(keys: number[]) {
+  selectedRowKeys.value = keys
+}
+
+// ── 统计数据 ────────────────────────────────────────────
+const statusCounts = computed(() => {
+  const draft = tableData.value.filter(r => r.status === 'draft').length
+  const approved = tableData.value.filter(r => r.status === 'approved').length
+  const completed = tableData.value.filter(r => r.status === 'completed').length
+  return { draft, approved, completed }
+})
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+const vxeColumns = computed(() => [
+  { field: 'transferNo', title: '转移单号', width: 150 },
+  { field: 'assetCode', title: '资产编码', width: 120 },
+  { field: 'assetName', title: '资产名称', width: 160 },
+  { field: 'fromDepartmentName', title: '调出部门', width: 120 },
+  { field: 'toDepartmentName', title: '调入部门', width: 120 },
+  { field: 'fromCustodianName', title: '调出保管人', width: 100 },
+  { field: 'toCustodianName', title: '调入保管人', width: 100 },
+  { field: 'transferDate', title: '转移日期', width: 120 },
+  { field: 'status', title: '状态', width: 80, align: 'center' },
+  { type: 'action', title: '操作', width: 160, fixed: 'right' },
+])
 
 const filterFields = [
   { key: 'transferNo', label: '转移单号', type: 'input' as const, placeholder: '转移单号' },
@@ -347,15 +416,126 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.list-update-timestamp {
-  font-size: 12px; color: var(--color-text-tertiary, #bbb);
-  white-space: nowrap; cursor: help; margin-left: 8px;
-  line-height: 32px; vertical-align: middle;
+.transfer-list-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-draft { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-approved { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-completed { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-count { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.transfer-no {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-weight: 500;
+}
+
 .action-more-btn {
-  border: none; box-shadow: none; padding: 4px 8px;
+  padding: 0 4px;
 }
-.action-cell-inner {
-  display: inline-flex; align-items: center;
+
+.list-update-timestamp {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap;
+  cursor: help;
+  margin-left: 8px;
+  line-height: 32px;
+  vertical-align: middle;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

@@ -12,6 +12,38 @@
       </template>
     </a-page-header>
 
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ inquiries.length }}</div>
+          <div class="stat-card-label">询价总数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pendingCount }}</div>
+          <div class="stat-card-label">待报价</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-quoted">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ quotedCount }}</div>
+          <div class="stat-card-label">已报价</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-accepted">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ acceptedCount }}</div>
+          <div class="stat-card-label">已接受</div>
+        </div>
+        <CheckOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-card :bordered="false" v-if="supplier" style="margin-bottom: 16px">
       <a-descriptions size="small" :column="4">
         <a-descriptions-item label="供应商名称">{{ supplier.supplierName }}</a-descriptions-item>
@@ -21,16 +53,19 @@
       </a-descriptions>
     </a-card>
 
-    <a-card :bordered="false">
+    <a-card :bordered="false" class="table-card">
       <a-table
         :columns="columns"
-        :data-source="inquiries"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
         row-key="id"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'inquiryStatus'">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'inquiryStatus'">
             <a-tag :color="getStatusColor(record.inquiryStatus)">{{ getStatusLabel(record.inquiryStatus) }}</a-tag>
           </template>
           <template v-else-if="column.key === 'quotationStatus'">
@@ -89,7 +124,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined } from '@ant-design/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import { requiredRule } from '@/utils/formRules'
@@ -137,6 +172,19 @@ const formRules = {
 }
 
 const pendingCount = computed(() => inquiries.value.filter(i => i.inquiryStatus === 0).length)
+const quotedCount = computed(() => inquiries.value.filter(i => i.quotationStatus === 1).length)
+const acceptedCount = computed(() => inquiries.value.filter(i => i.inquiryStatus === 2).length)
+
+// 空行填充 - 确保表格最少显示20行
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...inquiries.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
 
 const columns = [
   { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 160 },
@@ -267,6 +315,93 @@ import request from '@/utils/request'
 
 <style scoped>
 .inquiry-page {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-pending { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-quoted { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-accepted { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.table-card {
+  flex: 1;
+  border-radius: 8px;
+}
+
+/* 空行占位符 */
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

@@ -1,28 +1,63 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="dataSource"
-    :loading="loading"
-    :pagination="pagination"
-    :table-key="'sale-receipt-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    :show-export="true"
-    add-text="新建收款"
-    add-permission="'sale:receipt:create'"
-    @add="handleAdd"
-    @view="handleView"
-    @delete="handleDelete"
-    @batch-delete="handleBatchDelete"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
+  <div class="receipt-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-draft">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ draftCount }}</div>
+          <div class="stat-card-label">草稿</div>
+        </div>
+        <FileOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pendingCount }}</div>
+          <div class="stat-card-label">待审批</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-completed">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ completedCount }}</div>
+          <div class="stat-card-label">已收款</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-amount">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
+          <div class="stat-card-label">本页金额</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
+      ref="tableRef"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'sale-receipt-list'"
+      :filter-fields="filterFields"
+      :show-summary="true"
+      :summary-data="summaryData"
+      :show-export="true"
+      :selectable="true"
+      add-text="新建收款"
+      add-permission="'sale:receipt:create'"
+      @add="handleAdd"
+      @view="handleView"
+      @delete="handleDelete"
+      @batch-delete="handleBatchDelete"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @sort-change="handleSortChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+      @selection-change="handleSelectionChange"
+    >
     <template #toolbar-actions>
       <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
         更新 {{ dayjs(lastUpdated).format('HH:mm') }}
@@ -42,12 +77,6 @@
 
     <template #batch-actions>
       <a-button v-permission="'sale:receipt:approve'" size="small" @click="handleBatchApprove">批量审批</a-button>
-    </template>
-
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">
-        {{ getStatusText(record.status) }}
-      </a-tag>
     </template>
 
     <template #action="{ record }">
@@ -75,7 +104,8 @@
         </a-dropdown>
       </a-space>
     </template>
-  </TableList>
+  </VxeTableList>
+  </div>
 
   <a-modal v-model:open="detailVisible" title="收款单详情" width="700px" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
@@ -131,8 +161,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
-import TableList from '@/components/TableList/TableList.vue'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, ClockCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { receiptApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { executeBatch } from '@/utils/batchOperations'
@@ -147,21 +177,48 @@ const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdated = ref('')
 
+// ── 统计数据 ────────────────────────────────────────────
+const draftCount = computed(() => dataSource.value.filter(r => r.status === 0).length)
+const pendingCount = computed(() => dataSource.value.filter(r => r.status === 1).length)
+const completedCount = computed(() => dataSource.value.filter(r => r.status === 2).length)
+const totalAmount = computed(() => dataSource.value.reduce((s, r) => s + (r.receiptAmount || 0), 0))
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}`, receiptNo: '', orderNo: '', customerName: '', receiptDate: '', receiptAmount: 0, receiptMethod: '', status: 0, createTime: '' })
+  }
+  return data
+})
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
+
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-const columns = [
-  { title: '收款单号', dataIndex: 'receiptNo', key: 'receiptNo', width: 160, sortable: true },
-  { title: '销售订单', dataIndex: 'orderNo', key: 'orderNo', width: 160 },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140 },
-  { title: '收款日期', dataIndex: 'receiptDate', key: 'receiptDate', width: 110, type: 'date' as const },
-  { title: '收款金额', dataIndex: 'receiptAmount', key: 'receiptAmount', width: 120, type: 'currency' as const, sortable: true },
-  { title: '收款方式', dataIndex: 'receiptMethod', key: 'receiptMethod', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 100, fixed: 'right' as const, type: 'action' as const }
-]
+const vxeColumns = computed(() => [
+  { title: '收款单号', field: 'receiptNo', width: 160, sortable: true },
+  { title: '销售订单', field: 'orderNo', width: 160 },
+  { title: '客户', field: 'customerName', width: 140 },
+  { title: '收款日期', field: 'receiptDate', width: 110 },
+  { title: '收款金额', field: 'receiptAmount', width: 120, sortable: true, formatter: ({ cellValue }) => cellValue ? `¥${cellValue.toFixed(2)}` : '¥0.00' },
+  { title: '收款方式', field: 'receiptMethod', width: 100 },
+  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '创建时间', field: 'createTime', width: 160 },
+  { title: '操作', field: 'action', width: 100, fixed: 'right', type: 'action' }
+])
+
+  // 选择变化处理
+  const selectedRowKeys = ref<number[]>([])
+  function handleSelectionChange(keys: number[]) {
+    selectedRowKeys.value = keys
+  }
 const filterFields = [
   { key: 'receiptNo', label: '收款单号', type: 'input' as const, placeholder: '输入收款单号' },
   { key: 'orderNo', label: '销售订单', type: 'input' as const, placeholder: '输入订单号' },
@@ -323,11 +380,96 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <style scoped>
+.receipt-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-draft { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-pending { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-completed { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-amount { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .detail-modal-footer { text-align: right; margin-top: 16px; }
+.empty-placeholder { color: transparent; }
 .list-update-timestamp {
   font-size: 12px; color: var(--color-text-tertiary, #bbb);
   white-space: nowrap; cursor: help; margin-left: 8px;
   line-height: 32px; vertical-align: middle;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
+  .receipt-page {
+    padding: 8px;
+  }
 }
 </style>

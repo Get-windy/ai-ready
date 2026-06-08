@@ -1,17 +1,50 @@
 <template>
   <div class="notification-center">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">通知总数</div>
+        </div>
+        <BellOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-unread">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ unreadCount }}</div>
+          <div class="stat-card-label">未读通知</div>
+        </div>
+        <ExclamationCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-read">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ readCount }}</div>
+          <div class="stat-card-label">已读通知</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-system">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ systemCount }}</div>
+          <div class="stat-card-label">系统通知</div>
+        </div>
+        <InfoCircleOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
+      :columns="vxeColumns"
       :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'notification-list'"
       :filter-fields="filterFields"
+      :selectable="true"
       @refresh="fetchData"
       @search="handleSearch"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
         <a-badge :count="unreadCount" :overflow-count="99">
@@ -35,68 +68,67 @@
           <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
         </a-empty>
       </template>
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'title'">
-          <a-space align="start">
-            <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
-              <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
-            </a-badge>
-            <div>
-              <a
-                :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
-                @click="handleDetail(record)"
-                class="notification-title"
-              >
-                {{ record.title }}
-              </a>
-            </div>
-          </a-space>
-        </template>
 
-        <template v-else-if="column.key === 'type'">
-          <a-tag :color="getTypeColor(record.type)">
-            {{ getTypeName(record.type) }}
-          </a-tag>
-        </template>
-
-        <template v-else-if="column.key === 'readStatus'">
-          <a-badge
-            :status="record.readStatus === 0 ? 'processing' : 'default'"
-            :text="record.readStatus === 0 ? '未读' : '已读'"
-          />
-        </template>
-
-        <template v-else-if="column.key === 'summary'">
-          <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
-        </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space :size="0" class="action-cell-inner">
-            <a-tooltip v-if="record.readStatus === 0" title="标记已读">
-              <a-button type="link" size="small" @click="handleMarkRead(record)">
-                <template #icon><CheckOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.readStatus === 0" key="mark_read">
-                    <CheckOutlined /> 标记已读
-                  </a-menu-item>
-                  <a-menu-divider v-if="record.readStatus === 0" />
-                  <a-menu-item key="delete" danger>
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+      <template #title="{ record }">
+        <a-space align="start">
+          <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
+            <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
+          </a-badge>
+          <div>
+            <a
+              :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
+              @click="handleDetail(record)"
+              class="notification-title"
+            >
+              {{ record.title }}
+            </a>
+          </div>
+        </a-space>
       </template>
-    </TableList>
+
+      <template #type="{ record }">
+        <a-tag :color="getTypeColor(record.type)">
+          {{ getTypeName(record.type) }}
+        </a-tag>
+      </template>
+
+      <template #readStatus="{ record }">
+        <a-badge
+          :status="record.readStatus === 0 ? 'processing' : 'default'"
+          :text="record.readStatus === 0 ? '未读' : '已读'"
+        />
+      </template>
+
+      <template #summary="{ record }">
+        <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
+      </template>
+
+      <template #action="{ record }">
+        <a-space :size="0" class="action-cell-inner">
+          <a-tooltip v-if="record.readStatus === 0" title="标记已读">
+            <a-button type="link" size="small" @click="handleMarkRead(record)">
+              <template #icon><CheckOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item v-if="record.readStatus === 0" key="mark_read">
+                  <CheckOutlined /> 标记已读
+                </a-menu-item>
+                <a-menu-divider v-if="record.readStatus === 0" />
+                <a-menu-item key="delete" danger>
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 详情弹窗 -->
     <a-modal
@@ -132,9 +164,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps } from 'ant-design-vue'
 import {
   BellOutlined,
   CheckCircleOutlined,
@@ -144,7 +175,8 @@ import {
   SearchOutlined,
   InfoCircleOutlined,
   NotificationOutlined,
-  AuditOutlined
+  AuditOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons-vue'
 import { notificationApi, type NotificationInfo } from '@/api/notification'
 
@@ -152,6 +184,10 @@ import { notificationApi, type NotificationInfo } from '@/api/notification'
 const tableData = ref<NotificationInfo[]>([])
 const loading = ref(false)
 const tableRef = ref()
+
+// ── 统计数据 ────────────────────────────────────────────
+const readCount = computed(() => tableData.value.filter(r => r.readStatus === 1).length)
+const systemCount = computed(() => tableData.value.filter(r => r.type === 1).length)
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -168,14 +204,20 @@ const hasActiveFilters = computed(() => {
 })
 
 // 表格列
-const columns: TableProps['columns'] = [
-  { title: '标题', key: 'title', width: 300 },
-  { title: '类型', key: 'type', width: 100 },
-  { title: '内容摘要', key: 'summary', width: 260, ellipsis: true },
-  { title: '发送时间', dataIndex: 'sendTime', width: 160 },
-  { title: '状态', key: 'readStatus', width: 90 },
-  { title: '操作', key: 'action', width: 140, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { title: '标题', field: 'title', width: 300, slotName: 'title' },
+  { title: '类型', field: 'type', width: 100, slotName: 'type' },
+  { title: '内容摘要', field: 'summary', width: 260, slotName: 'summary' },
+  { title: '发送时间', field: 'sendTime', width: 160 },
+  { title: '状态', field: 'readStatus', width: 90, slotName: 'readStatus' },
+  { title: '操作', field: 'action', width: 140, fixed: 'right', type: 'action' }
+])
+
+// 选择变化处理
+const selectedRowKeys = ref<(string | number)[]>([])
+const handleSelectionChange = (rows: any[], ids: (string | number)[]) => {
+  selectedRowKeys.value = ids
+}
 
 const filterFields = [
   { key: 'type', label: '通知类型', type: 'select' as const, options: [
@@ -355,7 +397,49 @@ onUnmounted(() => {
 
 <style scoped>
 .notification-center {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-unread { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-read { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-system { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .notification-title {
@@ -390,4 +474,34 @@ onUnmounted(() => {
   line-height: 32px; vertical-align: middle;
 }
 .action-cell-inner { flex-wrap: nowrap; }
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
 </style>

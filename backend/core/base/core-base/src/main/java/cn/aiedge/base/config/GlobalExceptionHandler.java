@@ -25,6 +25,7 @@ import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -184,6 +185,17 @@ public class GlobalExceptionHandler {
     public Result<Void> handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException e) {
         log.warn("不支持的 Content-Type: {}", e.getContentType());
         return Result.fail(415, "不支持的 Content-Type: " + e.getContentType());
+    }
+
+    /**
+     * 处理数据完整性违例（如 NOT NULL 约束、唯一约束冲突）
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        log.warn("数据完整性违例: {}", e.getMostSpecificCause().getMessage());
+        // 4xx 客户端错误不写入错误日志文件，避免日志污染
+        return Result.fail(400, "请求数据不完整或存在冲突");
     }
 
     /**

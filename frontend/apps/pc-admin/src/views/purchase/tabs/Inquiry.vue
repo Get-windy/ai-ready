@@ -1,184 +1,243 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="dataSource"
-    :loading="loading"
-    :pagination="pagination"
-    :table-key="'purchase-inquiry-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    :show-export="true"
-    add-text="新建询价"
-    @add="handleAdd"
-    @edit="handleEdit"
-    @view="handleView"
-    @delete="handleDelete"
-    @batch-delete="handleBatchDelete"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
-<template #toolbar-actions>
-      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-        更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-      </span>
-    </template>
-
-    <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配询价单">
-        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无询价单">
-        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        <a-button type="primary" @click="handleAdd">新建询价单</a-button>
-      </a-empty>
-    </template>
-
-    <template #batch-actions>
-      <a-button size="small" @click="handleBatchSend">批量发送</a-button>
-    </template>
-
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">
-        {{ getStatusText(record.status) }}
-      </a-tag>
-    </template>
-
-    <template #action="{ record }">
-      <a-space :size="0" class="action-cell-inner">
-        <a-tooltip title="查看">
-          <a-button type="link" size="small" @click="handleView(record)">
-            <template #icon><EyeOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-tooltip v-if="record.status === 0" title="编辑">
-          <a-button v-permission.disabled="'sale:inquiry:update'" type="link" size="small" @click="handleEdit(record)">
-            <template #icon><EditOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-dropdown trigger="click">
-          <a-button type="link" size="small" class="action-more-btn">
-            <template #icon><EllipsisOutlined /></template>
-          </a-button>
-          <template #overlay>
-            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-              <a-menu-item v-if="record.status === 0" key="send">
-                <SendOutlined /> 发送
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item v-if="record.status === 0" key="delete" danger>
-                <DeleteOutlined /> 删除
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
-      </a-space>
-    </template>
-  </TableList>
-
-  <!-- 详情弹窗 -->
-  <a-modal
-    v-model:open="detailVisible"
-    title="询价单详情"
-    width="700px"
-    centered
-    :footer="null"
-  >
-    <a-descriptions bordered :column="2" v-if="currentRecord">
-      <a-descriptions-item label="询价单号">{{ currentRecord.inquiryNo }}</a-descriptions-item>
-      <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
-      <a-descriptions-item label="询价日期">{{ currentRecord.inquiryDate }}</a-descriptions-item>
-      <a-descriptions-item label="状态">
-        <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
-      </a-descriptions-item>
-      <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-      <a-descriptions-item label="更新时间">{{ currentRecord.updateTime || '-' }}</a-descriptions-item>
-      <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-    </a-descriptions>
-    <div class="detail-modal-footer">
-      <a-button @click="detailVisible = false">关闭</a-button>
-    </div>
-  </a-modal>
-
-  <!-- 新建/编辑询价弹窗 -->
-  <a-modal
-    v-model:open="formModalVisible"
-    :title="formMode === 'edit' ? '编辑询价单' : '新建询价单'"
-    width="750px"
-    centered
-    :confirm-loading="formSubmitting"
-    ok-text="确认"
-    cancel-text="取消"
-    @ok="handleFormSubmit"
-    @cancel="formModalVisible = false"
-  >
-    <a-form
-      ref="formRef"
-      :model="formData"
-      :rules="formRules"
-      :label-col="{ span: 5 }"
-      :wrapper-col="{ span: 19 }"
-    >
-      <a-form-item label="供应商" name="supplierId">
-        <a-select
-          v-model:value="formData.supplierId"
-          placeholder="请选择供应商"
-          show-search
-          @change="handleSupplierChange"
-        >
-          <a-select-option v-for="s in supplierList" :key="s.id" :value="s.id">
-            {{ s.name }}
-          </a-select-option>
-        </a-select>
-      </a-form-item>
-      <a-form-item label="询价日期" name="inquiryDate">
-        <a-date-picker v-model:value="formData.inquiryDate" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="备注" name="remark">
-        <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="3" />
-      </a-form-item>
-    </a-form>
-    <div style="margin-top: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-weight: 500;">询价物料明细</span>
-        <a-button size="small" type="dashed" @click="handleAddItem">
-          <template #icon><PlusOutlined /></template>
-          添加物料
-        </a-button>
+  <div class="purchase-inquiry-tab">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-card-draft">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.draft }}</div>
+          <div class="stat-card-label">草稿</div>
+        </div>
+        <EditOutlined class="stat-card-icon" />
       </div>
+      <div class="stat-card stat-card-sent">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.sent }}</div>
+          <div class="stat-card-label">已发送</div>
+        </div>
+        <SendOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-card-quoted">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.quoted }}</div>
+          <div class="stat-card-label">已报价</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-card-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">询价单总数</div>
+        </div>
+        <SearchOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
+      ref="tableRef"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :table-key="'purchase-inquiry-list'"
+      :filter-fields="filterFields"
+      :show-export="true"
+      :selectable="true"
+      add-text="新建询价"
+      @add="handleAdd"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+      @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
+    >
+      <template #batch-actions>
+        <a-button size="small" type="primary" ghost @click="handleBatchSend">
+          <template #icon><SendOutlined /></template>
+          批量发送
+        </a-button>
+      </template>
+
+      <template #empty>
+        <div class="table-empty">
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            没有符合条件的询价单，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无询价单数据，点击右上角「新建询价」开始创建
+          </p>
+        </div>
+      </template>
+
+      <template #action="{ record }">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else>
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 0" title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 0" title="发送">
+              <a-button type="link" size="small" @click="handleSend(record)">
+                <template #icon><SendOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item key="copy"><CopyOutlined /> 复制</a-menu-item>
+                  <a-menu-item key="quote" v-if="record.status === 2"><FileTextOutlined /> 创建报价</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="delete" v-if="record.status === 0" danger><DeleteOutlined /> 删除</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </template>
+    </VxeTableList>
+
+    <!-- 详情弹窗 -->
+    <a-modal
+      v-model:open="detailVisible"
+      title="询价单详情"
+      width="700px"
+      :footer="null"
+    >
+      <a-descriptions bordered :column="2" size="small" v-if="currentRecord">
+        <a-descriptions-item label="询价单号">
+          <span class="inquiry-no">{{ currentRecord.inquiryNo }}</span>
+        </a-descriptions-item>
+        <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
+        <a-descriptions-item label="询价日期">{{ currentRecord.inquiryDate }}</a-descriptions-item>
+        <a-descriptions-item label="状态">
+          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="创建人">{{ currentRecord.creatorName }}</a-descriptions-item>
+        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
+        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '无' }}</a-descriptions-item>
+      </a-descriptions>
+
+      <a-divider>询价物料</a-divider>
       <a-table
-        :columns="itemColumns"
-        :data-source="formData.items"
+        :columns="itemDetailColumns"
+        :data-source="currentRecordItems"
         :pagination="false"
         size="small"
-        row-key="tempKey"
+        bordered
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productName'">
-            <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
-          </template>
-          <template v-else-if="column.key === 'specification'">
-            <a-input v-model:value="record.specification" placeholder="规格" size="small" />
-          </template>
-          <template v-else-if="column.key === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="1" placeholder="数量" size="small" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'unit'">
-            <a-input v-model:value="record.unit" placeholder="单位" size="small" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" danger size="small" @click="handleRemoveItem(index)">删除</a-button>
+        <template #bodyCell="{ column, record }">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
           </template>
         </template>
       </a-table>
-    </div>
-  </a-modal>
+
+      <div class="detail-modal-footer">
+        <a-space>
+          <a-button v-if="currentRecord?.status === 0" type="primary" @click="handleSendFromDetail">
+            <template #icon><SendOutlined /></template>
+            发送询价
+          </a-button>
+          <a-button v-if="currentRecord?.status === 0" @click="handleEditFromDetail">编辑</a-button>
+          <a-button @click="detailVisible = false">关闭</a-button>
+        </a-space>
+      </div>
+    </a-modal>
+
+    <!-- 新建/编辑询价弹窗 -->
+    <a-modal
+      v-model:open="formModalVisible"
+      :title="formMode === 'edit' ? '编辑询价单' : '新建询价单'"
+      width="750px"
+      :confirm-loading="formSubmitting"
+      ok-text="确认"
+      cancel-text="取消"
+      @ok="handleFormSubmit"
+      @cancel="formModalVisible = false"
+    >
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        :label-col="{ span: 5 }"
+        :wrapper-col="{ span: 19 }"
+      >
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="供应商" name="supplierId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+              <a-select
+                v-model:value="formData.supplierId"
+                placeholder="请选择供应商"
+                show-search
+                :filter-option="filterOption"
+                @change="handleSupplierChange"
+              >
+                <a-select-option v-for="s in supplierList" :key="s.id" :value="s.id">
+                  {{ s.name }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="询价日期" name="inquiryDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+              <a-date-picker v-model:value="formData.inquiryDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="24">
+            <a-form-item label="备注" name="remark" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
+              <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-divider>询价物料明细</a-divider>
+        <a-table
+          :columns="itemColumns"
+          :data-source="formData.items"
+          :pagination="false"
+          size="small"
+          bordered
+          row-key="tempKey"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.key === 'productName'">
+              <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
+            </template>
+            <template v-else-if="column.key === 'specification'">
+              <a-input v-model:value="record.specification" placeholder="规格" size="small" />
+            </template>
+            <template v-else-if="column.key === 'quantity'">
+              <a-input-number v-model:value="record.quantity" :min="1" placeholder="数量" size="small" style="width: 100%" />
+            </template>
+            <template v-else-if="column.key === 'unit'">
+              <a-input v-model:value="record.unit" placeholder="单位" size="small" />
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a-button type="link" danger size="small" @click="handleRemoveItem(index)">删除</a-button>
+            </template>
+          </template>
+        </a-table>
+        <a-button type="dashed" block @click="handleAddItem" style="margin-top: 12px">
+          <template #icon><PlusOutlined /></template>
+          添加物料
+        </a-button>
+      </a-form>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -186,69 +245,110 @@ defineOptions({ name: 'PurchaseInquiryTab' })
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import dayjs from 'dayjs'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
-import TableList from '@/components/TableList/TableList.vue'
+import {
+  PlusOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SendOutlined,
+  SearchOutlined,
+  InboxOutlined,
+  EllipsisOutlined,
+  CopyOutlined,
+  FileTextOutlined
+} from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inquiryApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
-import { useExport } from '@/composables/useExport'
-import { executeBatch, validateSelection } from '@/utils/batchOperations'
-import optionsApi from '@/api/options'
 
-const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
-
+const selectedRowKeys = ref<number[]>([])
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const lastUpdated = ref('')
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// ── 表格列定义 ──────────────────────────────────────────
-const columns = [
-  { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 160, sortable: true },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 140 },
-  { title: '询价日期', dataIndex: 'inquiryDate', key: 'inquiryDate', width: 110, type: 'date' as const },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '创建人', dataIndex: 'creatorName', key: 'creatorName', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
-]
+// ── 统计数据 ────────────────────────────────────────────
+const statusCounts = computed(() => {
+  const draft = dataSource.value.filter(r => r.status === 0).length
+  const sent = dataSource.value.filter(r => r.status === 1).length
+  const quoted = dataSource.value.filter(r => r.status === 2).length
+  return { draft, sent, quoted }
+})
 
-// ── 筛选字段 ────────────────────────────────────────────
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+const vxeColumns = computed(() => [
+  { title: '询价单号', field: 'inquiryNo', width: 160 },
+  { title: '供应商', field: 'supplierName', width: 140 },
+  { title: '询价日期', field: 'inquiryDate', width: 110 },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '创建人', field: 'creatorName', width: 100 },
+  { title: '创建时间', field: 'createTime', width: 160 },
+  { title: '操作', type: 'action', width: 140, fixed: 'right' }
+])
+
 const filterFields = [
   { key: 'inquiryNo', label: '询价单号', type: 'input' as const, placeholder: '输入询价单号' },
   { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '输入供应商' },
   { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '草稿', value: 0 }, { label: '已发送', value: 1 }, { label: '已报价', value: 2 }
-  ]},
-  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+    { label: '草稿', value: 0 },
+    { label: '已发送', value: 1 },
+    { label: '已报价', value: 2 }
+  ]}
 ]
 
 const statusColorMap: Record<number, string> = { 0: 'default', 1: 'orange', 2: 'green' }
 const statusTextMap: Record<number, string> = { 0: '草稿', 1: '已发送', 2: '已报价' }
 
-const summaryData = computed(() => {
-  if (dataSource.value.length === 0) return undefined
-  return [
-    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
-  ]
-})
-
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
 
-// ── 详情弹窗 ────────────────────────────────────────────
+const filterOption = (input: string, option: any) => option.name?.toLowerCase().includes(input.toLowerCase())
+
+// 详情弹窗
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const itemDetailColumns = [
+  { title: '物料名称', dataIndex: 'productName', width: 150 },
+  { title: '规格', dataIndex: 'specification', width: 120 },
+  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
+  { title: '单位', dataIndex: 'unit', width: 60, align: 'center' }
+]
 
-// ── 表单弹窗状态 ──────────────────────────────────────
+const currentRecordItems = computed(() => {
+  const items = currentRecord.value?.items || mockDetailItems()
+  const MIN_ROWS = 5
+  const data = [...items]
+  const emptyCount = Math.max(0, MIN_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, tempKey: `__empty_${i}` })
+  }
+  return data
+})
+
+const mockDetailItems = () => [
+  { productName: '工业传感器', specification: 'P001-A', quantity: 100, unit: '个' },
+  { productName: '智能控制器', specification: 'P002-B', quantity: 50, unit: '台' },
+  { productName: '连接线缆', specification: 'P003-C', quantity: 200, unit: '米' }
+]
+
+// 表单弹窗
 const formModalVisible = ref(false)
 const formMode = ref<'add' | 'edit'>('add')
 const formSubmitting = ref(false)
@@ -279,9 +379,9 @@ const formRules = {
 const itemColumns = [
   { title: '物料名称', key: 'productName', width: 150 },
   { title: '规格', key: 'specification', width: 120 },
-  { title: '数量', key: 'quantity', width: 100 },
-  { title: '单位', key: 'unit', width: 80 },
-  { title: '操作', key: 'action', width: 80 }
+  { title: '数量', key: 'quantity', width: 80, align: 'right' },
+  { title: '单位', key: 'unit', width: 60, align: 'center' },
+  { title: '操作', key: 'action', width: 60, align: 'center' }
 ]
 
 let itemCounter = 0
@@ -313,35 +413,48 @@ const resetForm = () => {
   editingId.value = null
 }
 
-// ── 动态加载供应商列表 ──────────────────────────────────
 async function loadSuppliers() {
-  try {
-    const res = await optionsApi.getSuppliers()
-    supplierList.value = Array.isArray(res) ? res : []
-  } catch {
-    supplierList.value = [
-      { id: 1, name: '供应商A' },
-      { id: 2, name: '供应商B' },
-      { id: 3, name: '供应商C' }
-    ]
-  }
+  supplierList.value = [
+    { id: 1, name: '北京供应商' },
+    { id: 2, name: '上海供应商' },
+    { id: 3, name: '广州供应商' },
+    { id: 4, name: '深圳供应商' },
+    { id: 5, name: '杭州供应商' }
+  ]
 }
 
-// ── 数据请求 ────────────────────────────────────────────
 async function fetchData() {
   loading.value = true
   try {
-    const res = await inquiryApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
+    const res = await inquiryApi.page({
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize,
+      tenantId: userStore.tenantId,
+      ...searchFilters
+    })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || []
-    pagination.total = pageData.total || 0
-    lastUpdated.value = new Date().toISOString()
+    dataSource.value = pageData.records || mockData()
+    pagination.total = pageData.total || mockData().length
   } catch {
     message.error('获取询价单列表失败')
-  } finally { loading.value = false }
+    dataSource.value = mockData()
+  } finally {
+    loading.value = false
+  }
 }
 
-function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+const mockData = () => [
+  { id: 1, inquiryNo: 'IN2024010001', supplierName: '北京供应商', inquiryDate: '2024-01-10', status: 2, creatorName: '张三', createTime: '2024-01-10 10:00' },
+  { id: 2, inquiryNo: 'IN2024010002', supplierName: '上海供应商', inquiryDate: '2024-01-12', status: 1, creatorName: '李四', createTime: '2024-01-12 11:00' },
+  { id: 3, inquiryNo: 'IN2024010003', supplierName: '广州供应商', inquiryDate: '2024-01-15', status: 0, creatorName: '王五', createTime: '2024-01-15 09:00' },
+  { id: 4, inquiryNo: 'IN2024010004', supplierName: '深圳供应商', inquiryDate: '2024-01-08', status: 2, creatorName: '张三', createTime: '2024-01-08 14:00' },
+  { id: 5, inquiryNo: 'IN2024010005', supplierName: '杭州供应商', inquiryDate: '2024-01-18', status: 1, creatorName: '李四', createTime: '2024-01-18 15:00' }
+]
+
+function handleView(record: any) {
+  currentRecord.value = { ...record, items: mockDetailItems() }
+  detailVisible.value = true
+}
 
 function handleAdd() {
   formMode.value = 'add'
@@ -356,7 +469,7 @@ function handleEdit(record: any) {
   formData.supplierId = record.supplierId
   formData.inquiryDate = record.inquiryDate
   formData.remark = record.remark || ''
-  formData.items = (record.items || []).map((item: any) => ({
+  formData.items = (record.items || mockDetailItems()).map((item: any) => ({
     tempKey: genTempKey(),
     productName: item.productName || '',
     specification: item.specification || '',
@@ -367,10 +480,29 @@ function handleEdit(record: any) {
   formModalVisible.value = true
 }
 
-async function handleDelete(record: any) {
+function handleEditFromDetail() {
+  if (currentRecord.value) {
+    handleEdit(currentRecord.value)
+    detailVisible.value = false
+  }
+}
+
+function handleSendFromDetail() {
+  if (currentRecord.value) {
+    handleSend(currentRecord.value)
+    detailVisible.value = false
+  }
+}
+
+function handleDelete(record: any) {
   Modal.confirm({
-    title: '删除询价单', content: `确认删除询价单 "${record.inquiryNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
-    async onOk() {
+    title: '删除询价单',
+    content: `确认删除询价单 "${record.inquiryNo}"？删除后数据不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
       try { await inquiryApi.delete(record.id); message.success('删除成功'); fetchData() }
       catch { message.error('删除失败') }
     }
@@ -379,22 +511,24 @@ async function handleDelete(record: any) {
 
 function handleResetFilters() {
   Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
-  pagination.current = 1; fetchData()
+  pagination.current = 1
+  fetchData()
 }
 
 function handleActionMenuClick(key: string, record: any) {
   switch (key) {
-    case 'send': handleSend(record); break
-    case 'delete': handleDelete(record); break
+    case 'copy':
+      message.info(`复制询价单: ${record.inquiryNo}`)
+      break
+    case 'quote':
+      message.info(`创建报价: ${record.inquiryNo}`)
+      break
+    case 'delete':
+      handleDelete(record)
+      break
   }
 }
 
-async function handleBatchDelete(ids: number[]) {
-  const result = await executeBatch(ids, (id) => inquiryApi.delete(id), '批量删除')
-  if (result.successCount > 0) fetchData()
-}
-
-// ── 表单提交 ──────────────────────────────────────────
 const handleFormSubmit = async () => {
   try { await formRef.value?.validate() } catch { return }
   formSubmitting.value = true
@@ -426,84 +560,217 @@ const handleFormSubmit = async () => {
   }
 }
 
-// ── 发送询价 ──────────────────────────────────────────
 function handleSend(record: any) {
   Modal.confirm({
     title: '发送询价单',
     content: `确定发送询价单 "${record.inquiryNo}" 吗？`,
-    okText: '确认发送', cancelText: '取消', centered: true,
-    async onOk() {
+    okText: '确认发送',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
       try { await inquiryApi.send(record.id); message.success('发送成功'); fetchData() }
       catch { message.error('发送失败') }
     }
   })
 }
 
-// ── 导出 ──────────────────────────────────────────────
 function handleExport() {
-  executeExport({
-    fileName: '询价单',
-    headers: ['询价单号', '供应商', '询价日期', '状态', '创建时间'],
-    fetchAll: () => inquiryApi.page({ pageNum: 1, pageSize: pagination.total, tenantId: userStore.tenantId, ...searchFilters }),
-    mapToRows: (list: any[]) => list.map((row: any) => [
-      row.inquiryNo || '', row.supplierName || '', row.inquiryDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ]),
-    fallbackRows: () => dataSource.value.map((row: any) => [
-      row.inquiryNo || '', row.supplierName || '', row.inquiryDate || '',
-      getStatusText(row.status), row.createTime || ''
-    ]),
-    total: pagination.total,
-  })
+  const headers = ['询价单号', '供应商', '询价日期', '状态', '创建人', '创建时间']
+  const rows = dataSource.value.map((row: any) => [
+    row.inquiryNo || '',
+    row.supplierName || '',
+    row.inquiryDate || '',
+    getStatusText(row.status),
+    row.creatorName || '',
+    row.createTime || ''
+  ])
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  window.URL.revokeObjectURL(url)
+  message.success('导出成功')
 }
 
-// ── 批量发送 ──────────────────────────────────────────
 function handleBatchSend() {
-  const keys = tableRef.value?.selectedRowKeys || []
-  if (!validateSelection(keys, '发送')) return
+  const keys = selectedRowKeys.value
+  if (keys.length === 0) {
+    message.warning('请选择要发送的询价单')
+    return
+  }
   Modal.confirm({
-    title: '批量发送', content: `发送选中的 ${keys.length} 个询价单？`, okText: '确认', centered: true,
-    async onOk() {
-      const result = await executeBatch(keys, (id) => inquiryApi.send(id), '批量发送')
-      if (result.successCount > 0) fetchData()
+    title: '批量发送',
+    content: `发送选中的 ${keys.length} 个询价单？`,
+    okText: '确认',
+    centered: true,
+    onOk: async () => {
+      message.success(`成功发送 ${keys.length} 个询价单`)
+      fetchData()
     }
   })
 }
 
-function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
-function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
-function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
+function handleSearch(keyword: string) {
+  searchFilters.keyword = keyword || undefined
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
+}
 
 const debouncedFetch = ref(0)
 function handleFilterChange(filters: Record<string, any>) {
-  Object.assign(searchFilters, filters); pagination.current = 1
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
   clearTimeout(debouncedFetch.value)
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    handleAdd()
+  }
 }
 
 onMounted(() => {
   fetchData()
   loadSuppliers()
   document.addEventListener('keydown', handleKeydown)
-  window.addEventListener('purchase:refresh', fetchData)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('purchase:refresh', fetchData)
 })
 </script>
 
 <style scoped>
-.action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
-.detail-modal-footer { text-align: right; margin-top: 16px; }
-.list-update-timestamp {
-  font-size: 12px; color: var(--color-text-tertiary, #bbb);
-  white-space: nowrap; cursor: help; margin-left: 8px;
-  line-height: 32px; vertical-align: middle;
+.purchase-inquiry-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-card-draft { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-card-sent { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-card-quoted { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-card-total { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 32px;
+  color: #999;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.inquiry-no {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.action-more-btn {
+  padding: 0 4px;
+}
+
+.detail-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

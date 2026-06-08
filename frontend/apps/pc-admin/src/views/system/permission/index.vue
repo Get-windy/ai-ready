@@ -1,18 +1,51 @@
 <template>
   <div class="permission-management">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ permissionCount }}</div>
+          <div class="stat-card-label">权限总数</div>
+        </div>
+        <SafetyOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-menu">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ menuCount }}</div>
+          <div class="stat-card-label">菜单权限</div>
+        </div>
+        <MenuOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-button">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ buttonCount }}</div>
+          <div class="stat-card-label">按钮权限</div>
+        </div>
+        <ControlOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-api">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ apiCount }}</div>
+          <div class="stat-card-label">API权限</div>
+        </div>
+        <ApiOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
+      :columns="vxeColumns"
       :data-source="tableData"
       :loading="loading"
       :pagination="null as any"
-      :table-key="'system-permission-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
       :show-edit="false"
       :show-delete="false"
       :show-batch-delete="false"
+      :selectable="false"
       @refresh="fetchData"
       @filter-change="handleFilterChange"
     >
@@ -28,7 +61,7 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'permissionName'">
+        <template v-if="column.field === 'permissionName'">
           <a-space>
             <component
               :is="getIcon(record.icon)"
@@ -62,46 +95,46 @@
           </a-space>
         </template>
 
-        <template v-else-if="column.key === 'status'">
+        <template v-else-if="column.field === 'status'">
           <a-tag :color="record.status === 0 ? 'success' : 'error'">
             {{ record.status === 0 ? '启用' : '停用' }}
           </a-tag>
         </template>
 
-        <template v-else-if="column.key === 'visible'">
+        <template v-else-if="column.field === 'visible'">
           <a-tag :color="record.visible === 1 ? 'success' : 'default'">
             {{ record.visible === 1 ? '显示' : '隐藏' }}
           </a-tag>
         </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleAdd(record)"
-            >
-              新增子权限
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleEdit(record)"
-            >
-              编辑
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              danger
-              @click="handleDeleteConfirm(record)"
-            >
-              删除
-            </a-button>
-          </a-space>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-space>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleAdd(record)"
+          >
+            新增子权限
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleEdit(record)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            danger
+            @click="handleDeleteConfirm(record)"
+          >
+            删除
+          </a-button>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 权限表单弹窗 -->
     <a-modal
@@ -303,9 +336,12 @@ import {
   SettingOutlined,
   DashboardOutlined,
   FileTextOutlined,
-  ApiOutlined
+  ApiOutlined,
+  SafetyOutlined,
+  MenuOutlined,
+  ControlOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { useUserStore } from '@/stores/user'
 
@@ -322,16 +358,33 @@ const tableData = ref<PermissionInfo[]>([])
 const loading = ref(false)
 const expandedKeys = ref<number[]>([])
 
+// ── 统计数据 ────────────────────────────────────────────
+const flattenPermissions = (tree: PermissionInfo[]): PermissionInfo[] => {
+  const result: PermissionInfo[] = []
+  const traverse = (nodes: PermissionInfo[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(tree)
+  return result
+}
+const permissionCount = computed(() => flattenPermissions(tableData.value).length)
+const menuCount = computed(() => flattenPermissions(tableData.value).filter(p => p.permissionType === 0 || p.permissionType === 1).length)
+const buttonCount = computed(() => flattenPermissions(tableData.value).filter(p => p.permissionType === 2).length)
+const apiCount = computed(() => flattenPermissions(tableData.value).filter(p => p.permissionType === 3).length)
+
 // 表格列定义
-const columns: any[] = [
-  { title: '权限名称', key: 'permissionName', width: 250 },
-  { title: '权限编码', dataIndex: 'permissionCode', width: 200, ellipsis: true },
-  { title: '路由/API路径', key: 'path', width: 200, ellipsis: true },
-  { title: '排序', dataIndex: 'sort', width: 80 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '显示', key: 'visible', width: 80 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'permissionName', title: '权限名称', width: 250 },
+  { field: 'permissionCode', title: '权限编码', width: 200, showOverflow: 'tooltip' },
+  { field: 'path', title: '路由/API路径', width: 200, showOverflow: 'tooltip' },
+  { field: 'sort', title: '排序', width: 80 },
+  { field: 'status', title: '状态', width: 80 },
+  { field: 'visible', title: '显示', width: 80 },
+  { type: 'action', title: '操作', width: 220, fixed: 'right' }
+])
 
 // 筛选字段
 const filterFields: FilterField[] = [
@@ -567,6 +620,78 @@ onMounted(() => {
 
 <style scoped>
 .permission-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-menu { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-button { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-api { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

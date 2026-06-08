@@ -1,5 +1,44 @@
 <template>
   <div class="finance-subject-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ totalSubjectCount }}</div>
+          <div class="stat-card-label">科目总数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-asset">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ typeCounts[1] || 0 }}</div>
+          <div class="stat-card-label">资产类</div>
+        </div>
+        <FundOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-liability">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ typeCounts[2] || 0 }}</div>
+          <div class="stat-card-label">负债类</div>
+        </div>
+        <CreditCardOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-equity">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ typeCounts[3] || 0 }}</div>
+          <div class="stat-card-label">权益类</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-enabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ enabledCount }}</div>
+          <div class="stat-card-label">已启用</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <!-- 类型过滤标签 -->
     <a-card :bordered="false" class="filter-card">
       <a-tabs v-model:activeKey="activeTypeTab" @change="handleTypeTabChange">
@@ -160,7 +199,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
+  FileTextOutlined, FundOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined
+} from '@ant-design/icons-vue'
 import { accountSubjectApi } from '@/api/finance'
 
 interface SubjectNode {
@@ -232,6 +274,39 @@ const formRules = {
   type: [{ required: true, message: '请选择科目类型', trigger: 'change' }],
   direction: [{ required: true, message: '请选择借贷方向', trigger: 'change' }]
 }
+
+// ── 统计数据 ────────────────────────────────────────────
+const totalSubjectCount = computed(() => {
+  const countNodes = (nodes: SubjectNode[]): number => {
+    return nodes.reduce((sum, node) => {
+      return sum + 1 + (node.children ? countNodes(node.children) : 0)
+    }, 0)
+  }
+  return countNodes(subjectTree.value)
+})
+
+const typeCounts = computed(() => {
+  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  const countByType = (nodes: SubjectNode[]) => {
+    nodes.forEach(node => {
+      const type = node.subjectType || node.type || 0
+      if (type >= 1 && type <= 5) counts[type]++
+      if (node.children) countByType(node.children)
+    })
+  }
+  countByType(subjectTree.value)
+  return counts
+})
+
+const enabledCount = computed(() => {
+  const countEnabled = (nodes: SubjectNode[]): number => {
+    return nodes.reduce((sum, node) => {
+      const nodeEnabled = node.enabled !== undefined ? node.enabled : (node.status === 1)
+      return sum + (nodeEnabled ? 1 : 0) + (node.children ? countEnabled(node.children) : 0)
+    }, 0)
+  }
+  return countEnabled(subjectTree.value)
+})
 
 const filteredTree = computed(() => {
   let tree = subjectTree.value
@@ -446,10 +521,55 @@ onMounted(() => {
 <style scoped>
 .finance-subject-page {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-asset { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-liability { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-equity { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+.stat-enabled { background: linear-gradient(135deg, #e6fffb 0%, #b5f5ec 100%); }
+
+.stat-card-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .filter-card {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .filter-card :deep(.ant-tabs-nav) {
@@ -457,21 +577,41 @@ onMounted(() => {
 }
 
 .content-row {
-  height: calc(100vh - 240px);
+  flex: 1;
+  min-height: 0;
 }
 
 .tree-card,
 .detail-card {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-card :deep(.ant-card-body),
+.detail-card :deep(.ant-card-body) {
+  flex: 1;
+  overflow: auto;
 }
 
 .tree-container {
-  max-height: 520px;
+  flex: 1;
   overflow-y: auto;
 }
 
 .text-disabled {
   color: #bbb;
   text-decoration: line-through;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 30%;
+    min-width: 100px;
+  }
 }
 </style>

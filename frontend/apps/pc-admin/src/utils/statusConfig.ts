@@ -45,6 +45,16 @@ export const PURCHASE_ORDER_STATUS: StatusMap = {
   5: { text: '已取消', color: 'error' }
 }
 
+/** 销售订单状态 */
+export const SALES_ORDER_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'processing' },
+  3: { text: '部分发货', color: 'blue' },
+  4: { text: '已完成', color: 'success' },
+  5: { text: '已取消', color: 'error' }
+}
+
 /** 入库单状态 */
 export const INBOUND_STATUS: StatusMap = {
   0: { text: '待入库', color: 'orange' },

@@ -1,13 +1,46 @@
 <template>
-  <div class="inventory-list">
-    <TableList
+  <div class="inventory-list-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-pending">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.pending }}</div>
+          <div class="stat-card-label">待盘点</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-completed">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ statusCounts.completed }}</div>
+          <div class="stat-card-label">已完成</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-mismatch">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ resultCounts.mismatch }}</div>
+          <div class="stat-card-label">差异记录</div>
+        </div>
+        <ExclamationCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-count">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">盘点记录数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'fixed-asset-inventory-list'"
       :filter-fields="filterFields"
+      :selectable="true"
       add-text="新增盘点"
       @add="showCreateModal"
       @edit="editRecord"
@@ -15,6 +48,7 @@
       @search="handleSearch"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -22,42 +56,67 @@
         </span>
       </template>
       <template #empty>
-        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配盘点记录">
-          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-          <a-button @click="handleResetFilters">清除筛选</a-button>
-        </a-empty>
-        <a-empty v-else description="暂无盘点记录">
-          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-          <a-button @click="showCreateModal">新增盘点</a-button>
-        </a-empty>
+        <div class="table-empty">
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            没有符合条件的盘点记录，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无盘点记录，点击右上角「新增盘点」开始创建
+          </p>
+        </div>
       </template>
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.field === 'inventoryNo'">
+          <a @click="viewDetail(record)" class="inventory-no">{{ record.inventoryNo }}</a>
+        </template>
+        <template v-else-if="column.field === 'status'">
           <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
             {{ record.status === 'completed' ? '已完成' : '待盘点' }}
           </a-tag>
         </template>
-        <template v-if="column.key === 'checkResult'">
+        <template v-else-if="column.field === 'checkResult'">
           <a-tag :color="resultColorMap[record.checkResult]">
             {{ resultMap[record.checkResult] || record.checkResult }}
           </a-tag>
         </template>
-        <template v-if="column.key === 'action'">
-          <a-space :size="0" class="action-cell-inner">
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" @click="viewDetail(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'pending'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-space>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-space :size="4">
+          <a-tooltip title="查看详情">
+            <a-button type="link" size="small" @click="viewDetail(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 'pending'" title="编辑">
+            <a-button type="link" size="small" @click="editRecord(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item v-if="record.status === 'pending'" key="complete">
+                  <CheckCircleOutlined /> 完成盘点
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="print">
+                  <PrinterOutlined /> 打印
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- Create/Edit Modal -->
     <a-modal
@@ -158,9 +217,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { SearchOutlined, InboxOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons-vue'
+import {
+  SearchOutlined, InboxOutlined, EyeOutlined, EditOutlined,
+  ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
+  FileTextOutlined, EllipsisOutlined, PrinterOutlined
+} from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inventoryApi } from '@/api/fixed-asset'
 
 const loading = ref(false)
@@ -168,9 +231,10 @@ const modalVisible = ref(false)
 const modalLoading = ref(false)
 const isEdit = ref(false)
 const editId = ref<number | null>(null)
-const tableData = ref([])
+const tableData = ref<any[]>([])
 const tableRef = ref()
 const lastUpdated = ref('')
+const selectedRowKeys = ref<number[]>([])
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -201,20 +265,47 @@ const pagination = reactive({
   total: 0,
 })
 
-const columns = [
-  { title: '盘点单号', dataIndex: 'inventoryNo', width: 150 },
-  { title: '资产编码', dataIndex: 'assetCode', width: 120 },
-  { title: '资产名称', dataIndex: 'assetName', width: 160 },
-  { title: '盘点日期', dataIndex: 'inventoryDate', width: 120 },
-  { title: '部门', dataIndex: 'departmentName', width: 120 },
-  { title: '预期位置', dataIndex: 'expectedLocation', width: 130 },
-  { title: '实际位置', dataIndex: 'actualLocation', width: 130 },
-  { title: '预期状态', dataIndex: 'expectedStatus', width: 100 },
-  { title: '实际状态', dataIndex: 'actualStatus', width: 100 },
-  { title: '盘点结果', dataIndex: 'checkResult', key: 'checkResult', width: 100 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 120, fixed: 'right' },
-]
+function handleSelectionChange(keys: number[]) {
+  selectedRowKeys.value = keys
+}
+
+// ── 统计数据 ────────────────────────────────────────────
+const statusCounts = computed(() => {
+  const pending = tableData.value.filter(r => r.status === 'pending').length
+  const completed = tableData.value.filter(r => r.status === 'completed').length
+  return { pending, completed }
+})
+
+const resultCounts = computed(() => {
+  const mismatch = tableData.value.filter(r => r.checkResult === 'mismatch' || r.checkResult === 'missing' || r.checkResult === 'surplus').length
+  return { mismatch }
+})
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+const vxeColumns = computed(() => [
+  { field: 'inventoryNo', title: '盘点单号', width: 150 },
+  { field: 'assetCode', title: '资产编码', width: 120 },
+  { field: 'assetName', title: '资产名称', width: 160 },
+  { field: 'inventoryDate', title: '盘点日期', width: 120 },
+  { field: 'departmentName', title: '部门', width: 120 },
+  { field: 'expectedLocation', title: '预期位置', width: 130 },
+  { field: 'actualLocation', title: '实际位置', width: 130 },
+  { field: 'expectedStatus', title: '预期状态', width: 100 },
+  { field: 'actualStatus', title: '实际状态', width: 100 },
+  { field: 'checkResult', title: '盘点结果', width: 100 },
+  { field: 'status', title: '状态', width: 80 },
+  { type: 'action', title: '操作', width: 120, fixed: 'right' },
+])
 
 const filterFields = [
   { key: 'inventoryNo', label: '盘点单号', type: 'input' as const, placeholder: '盘点单号' },
@@ -351,15 +442,126 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.list-update-timestamp {
-  font-size: 12px; color: var(--color-text-tertiary, #bbb);
-  white-space: nowrap; cursor: help; margin-left: 8px;
-  line-height: 32px; vertical-align: middle;
+.inventory-list-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-pending { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-completed { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-mismatch { background: linear-gradient(135deg, #fff1f0 0%, #ffa39e 100%); }
+.stat-count { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.inventory-no {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-weight: 500;
+}
+
 .action-more-btn {
-  border: none; box-shadow: none; padding: 4px 8px;
+  padding: 0 4px;
 }
-.action-cell-inner {
-  display: inline-flex; align-items: center;
+
+.list-update-timestamp {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #bbb);
+  white-space: nowrap;
+  cursor: help;
+  margin-left: 8px;
+  line-height: 32px;
+  vertical-align: middle;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

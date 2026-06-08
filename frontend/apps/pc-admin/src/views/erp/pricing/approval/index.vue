@@ -1,6 +1,54 @@
 <template>
-  <PageContainer title="价格审批管理">
-    <a-card :bordered="false">
+  <div class="pricing-approval-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <FileTextOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">总申请数</div>
+            <div class="summary-value">{{ statistics.totalCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            <ClockCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">待审批</div>
+            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已通过</div>
+            <div class="summary-value">{{ statistics.approvedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
+            <CloseCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已拒绝</div>
+            <div class="summary-value">{{ statistics.rejectedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <a-card :bordered="false" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
       <template #extra>
         <a-button type="primary" @click="handleApply">
           <template #icon><PlusOutlined /></template>
@@ -8,32 +56,21 @@
         </a-button>
       </template>
 
-      <a-row :gutter="16" class="summary-row">
-        <a-col :span="6">
-          <a-statistic title="待审批" :value="statistics.pendingCount" :value-style="{ color: '#faad14' }" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="已通过" :value="statistics.approvedCount" :value-style="{ color: '#3f8600' }" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="已拒绝" :value="statistics.rejectedCount" :value-style="{ color: '#f5222d' }" />
-        </a-col>
-        <a-col :span="6">
-          <a-statistic title="总申请数" :value="statistics.totalCount" />
-        </a-col>
-      </a-row>
-
-      <a-tabs v-model:activeKey="activeTab">
+      <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待审批">
           <a-table
             :columns="columns"
-            :data-source="pendingList"
+            :data-source="pendingTableData"
             :loading="loading"
             :pagination="pagination"
             row-key="id"
+            style="flex: 1; overflow: auto;"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'priceChange'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'priceChange'">
                 <div class="price-change">
                   <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
                   <span class="new-price">新价: ¥{{ record.newPrice }}</span>
@@ -58,13 +95,16 @@
         <a-tab-pane key="approved" tab="已通过">
           <a-table
             :columns="processedColumns"
-            :data-source="approvedList"
+            :data-source="approvedTableData"
             :loading="loading"
             :pagination="false"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'status'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
                 <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
               <template v-else-if="column.key === 'approver'">
@@ -76,13 +116,16 @@
         <a-tab-pane key="rejected" tab="已拒绝">
           <a-table
             :columns="processedColumns"
-            :data-source="rejectedList"
+            :data-source="rejectedTableData"
             :loading="loading"
             :pagination="false"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'status'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
                 <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
               <template v-else-if="column.key === 'approver'">
@@ -94,13 +137,16 @@
         <a-tab-pane key="my" tab="我的申请">
           <a-table
             :columns="myColumns"
-            :data-source="myList"
+            :data-source="myTableData"
             :loading="loading"
             :pagination="false"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'status'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
                 <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
               </template>
             </template>
@@ -242,18 +288,17 @@
         <a-descriptions-item label="审批备注" :span="2">{{ detailData.approveRemark || '-' }}</a-descriptions-item>
       </a-descriptions>
     </a-modal>
-  </PageContainer>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
 import { useUserStore } from '@/stores/user'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { PRICE_APPROVAL_STATUS } from '@/utils/statusConfig'
 
 const userStore = useUserStore()
@@ -274,6 +319,22 @@ const pendingList = ref<PriceApproval[]>([])
 const approvedList = ref<PriceApproval[]>([])
 const rejectedList = ref<PriceApproval[]>([])
 const myList = ref<PriceApproval[]>([])
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const fillEmptyRows = (data: PriceApproval[]) => {
+  const result = [...data]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - result.length)
+  for (let i = 0; i < emptyCount; i++) {
+    result.push({ __empty_row: true, id: `__empty_${i}` } as PriceApproval)
+  }
+  return result
+}
+
+const pendingTableData = computed(() => fillEmptyRows(pendingList.value))
+const approvedTableData = computed(() => fillEmptyRows(approvedList.value))
+const rejectedTableData = computed(() => fillEmptyRows(rejectedList.value))
+const myTableData = computed(() => fillEmptyRows(myList.value))
 
 const productList = ref<{ id: number; name: string; code: string; basePrice: number }[]>([])
 const customerList = ref<{ id: number; name: string }[]>([])
@@ -507,8 +568,70 @@ onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">
-.summary-row {
-  margin-bottom: 16px;
+.pricing-approval-page {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%);
+  border: 1px solid #ffa39e;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #faad14;
+}
+
+.empty-placeholder {
+  color: transparent;
 }
 
 .price-change {
@@ -551,5 +674,35 @@ onMounted(() => loadData())
 .decrease {
   color: #3f8600;
   font-weight: 500;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
 }
 </style>

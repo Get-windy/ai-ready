@@ -1,12 +1,44 @@
 <template>
   <div class="log-management">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">日志总数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-success">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ successCount }}</div>
+          <div class="stat-card-label">成功操作</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-error">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ errorCount }}</div>
+          <div class="stat-card-label">失败操作</div>
+        </div>
+        <CloseCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-slow">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ slowCount }}</div>
+          <div class="stat-card-label">慢请求</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'system-log-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
@@ -14,6 +46,7 @@
       :show-delete="false"
       :show-batch-delete="false"
       :show-export="true"
+      :selectable="false"
       @refresh="fetchData"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
@@ -27,13 +60,16 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.field === 'status'">
           <a-tag :color="record.status === 0 ? 'success' : 'error'">
             {{ record.status === 0 ? '成功' : '失败' }}
           </a-tag>
         </template>
 
-        <template v-else-if="column.key === 'costTime'">
+        <template v-else-if="column.field === 'costTime'">
           <span v-if="record.costTime > 1000" style="color: #ff4d4f">
             {{ record.costTime }}ms
           </span>
@@ -44,14 +80,14 @@
             {{ record.costTime }}ms
           </span>
         </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-button type="link" size="small" @click="handleDetail(record)">
-            详情
-          </a-button>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-button type="link" size="small" @click="handleDetail(record)">
+          详情
+        </a-button>
+      </template>
+    </VxeTableList>
 
     <!-- 详情弹窗 -->
     <a-modal
@@ -97,9 +133,13 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
-  DeleteOutlined
+  DeleteOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { logApi, type OperationLog } from '@/api/log'
 
 // 搜索表单
@@ -116,6 +156,22 @@ const moduleOptions = ref<string[]>([])
 const tableData = ref<OperationLog[]>([])
 const loading = ref(false)
 
+// ── 统计数据 ────────────────────────────────────────────
+const successCount = computed(() => tableData.value.filter(r => r.status === 0).length)
+const errorCount = computed(() => tableData.value.filter(r => r.status === 1).length)
+const slowCount = computed(() => tableData.value.filter(r => r.costTime > 1000).length)
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
 // 分页配置
 const pagination = reactive({
   current: 1,
@@ -128,19 +184,19 @@ const pagination = reactive({
 })
 
 // 表格列定义
-const columns: any[] = [
-  { title: '模块', dataIndex: 'module', width: 120, ellipsis: true },
-  { title: '操作类型', dataIndex: 'operationType', width: 100 },
-  { title: '操作描述', dataIndex: 'description', width: 200, ellipsis: true },
-  { title: '请求URL', dataIndex: 'requestUrl', width: 200, ellipsis: true },
-  { title: '请求方法', dataIndex: 'requestMethod', width: 100 },
-  { title: '操作人', dataIndex: 'operatorName', width: 100 },
-  { title: 'IP地址', dataIndex: 'ipAddress', width: 130 },
-  { title: '操作时间', dataIndex: 'operationTime', width: 160 },
-  { title: '耗时(ms)', key: 'costTime', width: 100 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 80, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'module', title: '模块', width: 120, showOverflow: 'tooltip' },
+  { field: 'operationType', title: '操作类型', width: 100 },
+  { field: 'description', title: '操作描述', width: 200, showOverflow: 'tooltip' },
+  { field: 'requestUrl', title: '请求URL', width: 200, showOverflow: 'tooltip' },
+  { field: 'requestMethod', title: '请求方法', width: 100 },
+  { field: 'operatorName', title: '操作人', width: 100 },
+  { field: 'ipAddress', title: 'IP地址', width: 130 },
+  { field: 'operationTime', title: '操作时间', width: 160 },
+  { field: 'costTime', title: '耗时(ms)', width: 100 },
+  { field: 'status', title: '状态', width: 80 },
+  { type: 'action', title: '操作', width: 80, fixed: 'right' }
+])
 
 // 筛选字段
 const moduleSelectOptions = computed(() =>
@@ -305,8 +361,52 @@ onMounted(() => {
 
 <style scoped>
 .log-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-success { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-error { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-slow { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.empty-placeholder { color: transparent; }
 
 .json-content {
   background: #f5f5f5;
@@ -319,5 +419,35 @@ onMounted(() => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

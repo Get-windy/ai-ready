@@ -1,75 +1,107 @@
 <template>
   <div class="collection-reminder-page">
-    <a-card title="催收提醒设置">
-      <!-- 搜索区域 -->
-      <div class="search-area">
-        <a-form
-          layout="inline"
-          :model="queryParams"
-        >
-          <a-form-item label="客户名称">
-            <a-input
-              v-model:value="queryParams.customerName"
-              placeholder="请输入客户名称"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="提醒状态">
-            <a-select
-              v-model:value="queryParams.status"
-              placeholder="请选择"
-              allow-clear
-              style="width: 120px"
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-pending">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ stats.pendingCount }}</div>
+          <div class="stat-card-label">待提醒</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-reminded">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ stats.remindedCount }}</div>
+          <div class="stat-card-label">已提醒</div>
+        </div>
+        <BellOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-collected">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ stats.collectedCount }}</div>
+          <div class="stat-card-label">已收款</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-amount">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.totalOverdueAmount) }}</div>
+          <div class="stat-card-label">逾期总额</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <!-- 搜索区域 -->
+    <div class="search-area">
+      <a-form
+        layout="inline"
+        :model="queryParams"
+      >
+        <a-form-item label="客户名称">
+          <a-input
+            v-model:value="queryParams.customerName"
+            placeholder="请输入客户名称"
+            allow-clear
+          />
+        </a-form-item>
+        <a-form-item label="提醒状态">
+          <a-select
+            v-model:value="queryParams.status"
+            placeholder="请选择"
+            allow-clear
+            style="width: 120px"
+          >
+            <a-select-option :value="0">
+              待提醒
+            </a-select-option>
+            <a-select-option :value="1">
+              已提醒
+            </a-select-option>
+            <a-select-option :value="2">
+              已收款
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item>
+          <a-space>
+            <a-button
+              type="primary"
+              @click="handleSearch"
             >
-              <a-select-option :value="0">
-                待提醒
-              </a-select-option>
-              <a-select-option :value="1">
-                已提醒
-              </a-select-option>
-              <a-select-option :value="2">
-                已收款
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+              查询
+            </a-button>
+            <a-button @click="handleReset">
+              重置
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
+    </div>
 
-      <!-- 操作按钮 -->
-      <div class="action-area">
-        <a-space>
-          <a-button @click="handleBatchRemind">
-            <template #icon>
-              <BellOutlined />
-            </template>
-            批量提醒
-          </a-button>
-          <a-button @click="handleExport">
-            <template #icon>
-              <ExportOutlined />
-            </template>
-            导出
-          </a-button>
-        </a-space>
-      </div>
+    <!-- 操作按钮 -->
+    <div class="action-area">
+      <a-space>
+        <a-button @click="handleBatchRemind">
+          <template #icon>
+            <BellOutlined />
+          </template>
+          批量提醒
+        </a-button>
+        <a-button @click="handleExport">
+          <template #icon>
+            <ExportOutlined />
+          </template>
+          导出
+        </a-button>
+      </a-space>
+    </div>
 
-      <!-- 数据表格 -->
+    <!-- 数据表格 -->
+    <div class="table-area">
       <a-table
         :columns="columns"
-        :data-source="dataSource"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="pagination"
         :row-selection="rowSelection"
@@ -77,8 +109,11 @@
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) }}
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'amount'">
+            <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
           </template>
           <template v-else-if="column.key === 'overdueDays'">
             <a-tag color="red">
@@ -115,14 +150,14 @@
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import { BellOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { BellOutlined, ExportOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
 
 interface CollectionReminder {
@@ -138,12 +173,19 @@ interface CollectionReminder {
 }
 
 const loading = ref(false)
-const dataSource = ref<CollectionReminder[]>([])
+const tableData = ref<CollectionReminder[]>([])
 const selectedRowKeys = ref<number[]>([])
 
 const queryParams = reactive({
   customerName: '',
   status: undefined as number | undefined
+})
+
+const stats = reactive({
+  pendingCount: 8,
+  remindedCount: 15,
+  collectedCount: 32,
+  totalOverdueAmount: 256000
 })
 
 const pagination = reactive({
@@ -153,6 +195,17 @@ const pagination = reactive({
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
+})
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
+  }
+  return data
 })
 
 const columns = [
@@ -171,7 +224,8 @@ const columns = [
   {
     title: '应收金额',
     key: 'amount',
-    width: 120
+    width: 120,
+    align: 'right' as const
   },
   {
     title: '逾期天数',
@@ -204,7 +258,7 @@ const columns = [
     title: '操作',
     key: 'action',
     width: 200,
-    fixed: 'right'
+    fixed: 'right' as const
   }
 ]
 
@@ -238,6 +292,11 @@ const isUrgent = (date: string) => {
   const today = new Date()
   const diffDays = Math.ceil((reminderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   return diffDays <= 2
+}
+
+const formatAmount = (val: number) => {
+  if (val === undefined || val === null) return '0.00'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const handleSearch = () => {
@@ -288,10 +347,10 @@ const fetchData = async () => {
       }
     })
     if (res.data?.records) {
-      dataSource.value = res.data.records
+      tableData.value = res.data.records
       pagination.total = res.data.total || 0
     } else {
-      dataSource.value = []
+      tableData.value = []
       pagination.total = 0
     }
   } catch (error) {
@@ -306,19 +365,121 @@ fetchData()
 
 <style scoped>
 .collection-reminder-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.stat-pending { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-reminded { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-collected { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-amount { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+
+.stat-card-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .search-area {
-  margin-bottom: 16px;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
 }
 
 .action-area {
-  margin-bottom: 16px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.table-area {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .urgent {
   color: #ff4d4f;
   font-weight: bold;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

@@ -1,5 +1,37 @@
 <template>
   <div class="department-management">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ departmentCount }}</div>
+          <div class="stat-card-label">部门总数</div>
+        </div>
+        <ApartmentOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-active">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ activeCount }}</div>
+          <div class="stat-card-label">正常部门</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-disabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ disabledCount }}</div>
+          <div class="stat-card-label">停用部门</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-leaders">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ leaderCount }}</div>
+          <div class="stat-card-label">有负责人</div>
+        </div>
+        <UserOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <!-- 顶部工具栏 -->
     <a-card
       class="toolbar-card"
@@ -277,7 +309,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   StopOutlined,
-  DragOutlined
+  DragOutlined,
+  ApartmentOutlined,
+  CheckCircleOutlined,
+  UserOutlined
 } from '@ant-design/icons-vue'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { userApi, type UserInfo } from '@/api/user'
@@ -295,6 +330,23 @@ const treeData = ref<DepartmentInfo[]>([])
 const treeLoading = ref(false)
 const expandedKeys = ref<number[]>([])
 const selectedKeys = ref<number[]>([])
+
+// ── 统计数据 ────────────────────────────────────────────
+const flattenDepartments = (tree: DepartmentInfo[]): DepartmentInfo[] => {
+  const result: DepartmentInfo[] = []
+  const traverse = (nodes: DepartmentInfo[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(tree)
+  return result
+}
+const departmentCount = computed(() => flattenDepartments(treeData.value).length)
+const activeCount = computed(() => flattenDepartments(treeData.value).filter(d => d.status === 0).length)
+const disabledCount = computed(() => flattenDepartments(treeData.value).filter(d => d.status === 1).length)
+const leaderCount = computed(() => flattenDepartments(treeData.value).filter(d => d.leaderId).length)
 
 // 根据搜索关键词过滤树数据（保留匹配节点的父级路径）
 const filterTree = (nodes: DepartmentInfo[], keyword: string): DepartmentInfo[] => {
@@ -633,10 +685,49 @@ onMounted(() => {
 
 <style scoped>
 .department-management {
-  padding: 0;
+  padding: 16px;
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-active { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-leaders { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .toolbar-card {
@@ -680,5 +771,11 @@ onMounted(() => {
 
 :deep(.ant-tree-node-selected .ant-tree-node-content-wrapper) {
   background-color: #e6f7ff;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

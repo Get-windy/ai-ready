@@ -1,31 +1,39 @@
 <template>
   <div class="report-page">
     <!-- Summary Cards -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="6">
-        <a-card hoverable @click="activeTab = 'summary'">
-          <a-statistic title="资产原值" :value="depreciationSummary?.totalOriginalValue || 0" :precision="2" prefix="¥" />
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card hoverable @click="activeTab = 'summary'">
-          <a-statistic title="累计折旧" :value="depreciationSummary?.totalAccumulatedDepreciation || 0" :precision="2" prefix="¥" />
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card hoverable @click="activeTab = 'summary'">
-          <a-statistic title="资产净值" :value="depreciationSummary?.totalNetValue || 0" :precision="2" prefix="¥" />
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card hoverable @click="activeTab = 'summary'">
-          <a-statistic title="资产数量" :value="depreciationSummary?.assetCount || 0" />
-        </a-card>
-      </a-col>
-    </a-row>
+    <div class="stat-cards">
+      <div class="stat-card stat-original" @click="activeTab = 'summary'">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalOriginalValue || 0) }}</div>
+          <div class="stat-card-label">资产原值</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-depreciation" @click="activeTab = 'summary'">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalAccumulatedDepreciation || 0) }}</div>
+          <div class="stat-card-label">累计折旧</div>
+        </div>
+        <CalculatorOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-net" @click="activeTab = 'summary'">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalNetValue || 0) }}</div>
+          <div class="stat-card-label">资产净值</div>
+        </div>
+        <LineChartOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-count" @click="activeTab = 'summary'">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ depreciationSummary?.assetCount || 0 }}</div>
+          <div class="stat-card-label">资产数量</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+    </div>
 
     <!-- Tabs -->
-    <a-card>
+    <a-card class="report-tabs-card">
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="summary" tab="折旧汇总">
           <a-table
@@ -114,10 +122,13 @@ import { reportApi } from '@/api/fixed-asset'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart, BarChart } from 'echarts/charts'
+import { PieChart, BarChart, LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import {
+  DollarOutlined, CalculatorOutlined, LineChartOutlined, FileTextOutlined
+} from '@ant-design/icons-vue'
 
-use([CanvasRenderer, PieChart, BarChart, TitleComponent, TooltipComponent, LegendComponent])
+use([CanvasRenderer, PieChart, BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent])
 
 const activeTab = ref('summary')
 const loading = ref(false)
@@ -167,6 +178,10 @@ const categoryColumns = [
   { title: '原值', dataIndex: 'originalValue' },
   { title: '净值', dataIndex: 'netValue' },
 ]
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 const ageChartOption = computed(() => ({
   title: { text: '资产账龄分析', left: 'center' },
@@ -257,7 +272,119 @@ function fetchCategorySummary() {
 </script>
 
 <style scoped>
-.report-page :deep(.ant-statistic) {
-  text-align: center;
+.report-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-original { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-depreciation { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-net { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-count { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* Tabs Card */
+.report-tabs-card {
+  flex: 1;
+  min-height: 0;
+}
+
+:deep(.ant-card-body) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ant-tabs) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.ant-tabs-content) {
+  flex: 1;
+}
+
+:deep(.ant-tabs-tabpane) {
+  height: 100%;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

@@ -1,5 +1,37 @@
 <template>
   <div class="account-subject-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ flattenTree.length }}</div>
+          <div class="stat-card-label">科目总数</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-asset">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ assetCount }}</div>
+          <div class="stat-card-label">资产类</div>
+        </div>
+        <DashboardOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-liability">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ liabilityCount }}</div>
+          <div class="stat-card-label">负债类</div>
+        </div>
+        <BankOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-active">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ activeCount }}</div>
+          <div class="stat-card-label">启用科目</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-card>
       <template #title>
         <a-space>
@@ -195,7 +227,9 @@ import {
   DollarOutlined,
   GoldOutlined,
   ToolOutlined,
-  PercentageOutlined
+  PercentageOutlined,
+  CheckCircleOutlined,
+  DashboardOutlined
 } from '@ant-design/icons-vue'
 import { accountingApi, type AccountSubject, type AccountSubjectSave } from '@/api/finance/accounting'
 
@@ -232,6 +266,23 @@ const filteredTree = computed(() => {
   }
   return filterNodes(subjectTree.value)
 })
+
+// ── 统计数据 ────────────────────────────────────────────
+const flattenTree = computed(() => {
+  const result: AccountSubject[] = []
+  const traverse = (nodes: AccountSubject[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(subjectTree.value)
+  return result
+})
+
+const assetCount = computed(() => flattenTree.value.filter(r => r.subjectType === 1).length)
+const liabilityCount = computed(() => flattenTree.value.filter(r => r.subjectType === 2).length)
+const activeCount = computed(() => flattenTree.value.filter(r => r.status === 1).length)
 
 const formState = reactive({
   subjectCode: '',
@@ -411,8 +462,54 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.account-subject-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
 .account-subject-page :deep(.ant-card) {
   height: 100%;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-asset { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-liability { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-active { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .subject-tree-container {

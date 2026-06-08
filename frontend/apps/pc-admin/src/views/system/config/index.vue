@@ -1,14 +1,40 @@
 <template>
   <div class="config-management">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">配置总数</div>
+        </div>
+        <SettingOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-groups">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ groupCount }}</div>
+          <div class="stat-card-label">分组数量</div>
+        </div>
+        <FolderOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-sensitive">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ sensitiveCount }}</div>
+          <div class="stat-card-label">敏感配置</div>
+        </div>
+        <LockOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'system-config-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
+      :selectable="true"
       add-text="新增配置"
       @add="handleAdd"
       @edit="handleEdit"
@@ -17,6 +43,7 @@
       @refresh="fetchData"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
       <template #toolbar-actions>
         <a-button @click="handleRefreshCache">
@@ -26,11 +53,14 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'groupName'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.field === 'groupName'">
           <a-tag color="blue">{{ record.groupName }}</a-tag>
         </template>
 
-        <template v-else-if="column.key === 'configValue'">
+        <template v-else-if="column.field === 'configValue'">
           <span
             class="config-value"
             :class="{ sensitive: isSensitiveKey(record.configKey) }"
@@ -48,19 +78,19 @@
             </a-button>
           </a-tooltip>
         </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button type="link" size="small" @click="handleEdit(record)">
-              编辑
-            </a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
-              删除
-            </a-button>
-          </a-space>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-space>
+          <a-button type="link" size="small" @click="handleEdit(record)">
+            编辑
+          </a-button>
+          <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+            删除
+          </a-button>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 配置表单弹窗 -->
     <a-modal
@@ -116,9 +146,12 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   SyncOutlined,
-  CopyOutlined
+  CopyOutlined,
+  SettingOutlined,
+  FolderOutlined,
+  LockOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { configApi, type ConfigInfo } from '@/api/config'
 
 // 搜索表单
@@ -134,6 +167,21 @@ const tableData = ref<ConfigInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
 
+// ── 统计数据 ────────────────────────────────────────────
+const groupCount = computed(() => new Set(tableData.value.map(c => c.groupName)).size)
+const sensitiveCount = computed(() => tableData.value.filter(c => isSensitiveKey(c.configKey)).length)
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
 // 分页
 const pagination = reactive({
   current: 1,
@@ -145,14 +193,14 @@ const pagination = reactive({
 })
 
 // 表格列
-const columns: any[] = [
-  { title: '配置键', dataIndex: 'configKey', width: 200, ellipsis: true },
-  { title: '配置值', key: 'configValue', width: 300, ellipsis: true },
-  { title: '描述', dataIndex: 'description', width: 200, ellipsis: true },
-  { title: '分组', key: 'groupName', width: 120 },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 140, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'configKey', title: '配置键', width: 200, showOverflow: 'tooltip' },
+  { field: 'configValue', title: '配置值', width: 300, showOverflow: 'tooltip' },
+  { field: 'description', title: '描述', width: 200, showOverflow: 'tooltip' },
+  { field: 'groupName', title: '分组', width: 120 },
+  { field: 'createTime', title: '创建时间', width: 160 },
+  { type: 'action', title: '操作', width: 140, fixed: 'right' }
+])
 
 // 筛选字段
 const filterFields = computed<FilterField[]>(() => [
@@ -363,11 +411,84 @@ onMounted(() => {
 
 <style scoped>
 .config-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-groups { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-sensitive { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.empty-placeholder { color: transparent; }
 
 .config-value.sensitive {
   color: #999;
   font-style: italic;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

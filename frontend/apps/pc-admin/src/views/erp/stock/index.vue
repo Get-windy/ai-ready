@@ -1,6 +1,54 @@
 <template>
-  <div class="erp-page">
-    <a-card title="库存管理">
+  <div class="erp-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <DatabaseOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">总库存SKU</div>
+            <div class="summary-value">{{ statistics.totalSku }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
+            <AlertOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">低库存预警</div>
+            <div class="summary-value warning">{{ statistics.lowStockCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);">
+            <ExclamationCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">超储预警</div>
+            <div class="summary-value warning">{{ statistics.overStockCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">正常库存</div>
+            <div class="summary-value">{{ statistics.normalCount }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <a-card title="库存管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
       <!-- 搜索区域 -->
       <div class="search-area">
         <a-form layout="inline" :model="searchParams">
@@ -49,14 +97,18 @@
       <!-- 数据表格 -->
       <a-table
         :columns="columns"
-        :data-source="tableData"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
+        style="flex: 1; overflow: auto;"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'quantity'">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'quantity'">
             <span :class="getStockClass(record)">
               {{ record.quantity }} {{ record.unit }}
             </span>
@@ -108,10 +160,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import { stockApi } from '@/api/erp'
 import request from '@/utils/request'
 
@@ -123,6 +175,25 @@ const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 const stockLogs = ref<any[]>([])
 const warehouseOptions = ref<{ id: number; name: string }[]>([])
+
+// 统计数据
+const statistics = ref({
+  totalSku: 0,
+  lowStockCount: 0,
+  overStockCount: 0,
+  normalCount: 0
+})
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
 
 const searchParams = reactive({
   productCode: '',
@@ -173,6 +244,11 @@ const fetchData = async () => {
     })
     tableData.value = res.records || []
     pagination.total = res.total || 0
+    // 更新统计
+    statistics.value.totalSku = tableData.value.length
+    statistics.value.lowStockCount = tableData.value.filter(r => r.quantity < (r.minStock ?? 0)).length
+    statistics.value.overStockCount = tableData.value.filter(r => r.quantity > (r.maxStock ?? 999999)).length
+    statistics.value.normalCount = tableData.value.filter(r => r.quantity >= (r.minStock ?? 0) && r.quantity <= (r.maxStock ?? 999999)).length
   } catch (err: any) {
     message.error(err?.message || '加载库存数据失败')
   } finally {
@@ -211,9 +287,98 @@ onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
-.erp-page { padding: 24px; }
+.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; }
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 .low-stock { color: #ff4d4f; font-weight: bold; }
 .over-stock { color: #fa8c16; font-weight: bold; }
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #f6ffed 0%, #e6f7e6 100%);
+  border: 1px solid #b7eb8f;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #f5222d;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
+}
 </style>

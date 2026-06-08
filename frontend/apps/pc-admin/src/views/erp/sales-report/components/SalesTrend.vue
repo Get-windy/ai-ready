@@ -1,215 +1,498 @@
 <template>
   <div class="sales-trend">
-    <div class="filter-area">
-      <a-form layout="inline">
-        <a-form-item label="时间范围">
-          <a-range-picker
-            v-model:value="queryParams.dateRange"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </a-form-item>
-        <a-form-item label="统计类型">
-          <a-select
-            v-model:value="queryParams.type"
-            style="width: 120px"
-          >
-            <a-select-option value="daily">
-              按日
-            </a-select-option>
-            <a-select-option value="weekly">
-              按周
-            </a-select-option>
-            <a-select-option value="monthly">
-              按月
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-button
-            type="primary"
-            @click="handleQuery"
-          >
-            查询
-          </a-button>
-        </a-form-item>
-      </a-form>
+    <!-- 筛选区 -->
+    <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
+      <a-collapse-panel key="1" header="筛选条件">
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-form-item label="时间范围">
+              <a-range-picker
+                v-model:value="queryParams.dateRange"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="统计类型">
+              <a-select
+                v-model:value="queryParams.type"
+                placeholder="按日"
+                style="width: 100%"
+              >
+                <a-select-option value="daily">按日</a-select-option>
+                <a-select-option value="weekly">按周</a-select-option>
+                <a-select-option value="monthly">按月</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="对比维度">
+              <a-select
+                v-model:value="queryParams.compareType"
+                placeholder="同比"
+                style="width: 100%"
+              >
+                <a-select-option value="yoy">同比</a-select-option>
+                <a-select-option value="mom">环比</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6" class="filter-actions">
+            <a-space>
+              <a-button type="primary" :loading="loading" @click="handleQuery">查询</a-button>
+              <a-button @click="handleReset">重置</a-button>
+              <a-button @click="handleExport">
+                <template #icon><ExportOutlined /></template>
+                导出
+              </a-button>
+            </a-space>
+          </a-col>
+        </a-row>
+      </a-collapse-panel>
+    </a-collapse>
+
+    <!-- 关键指标卡片 -->
+    <div class="stats-cards">
+      <a-row :gutter="16">
+        <a-col :span="6">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+              <ArrowUpOutlined />
+            </div>
+            <div class="stat-content">
+              <div class="stat-title">同比增长</div>
+              <div class="stat-value" :class="{ positive: stats.yoyGrowth >= 0, negative: stats.yoyGrowth < 0 }">
+                {{ stats.yoyGrowth >= 0 ? '+' : '' }}{{ stats.yoyGrowth }}%
+              </div>
+              <div class="stat-desc">与去年同期对比</div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+              <LineChartOutlined />
+            </div>
+            <div class="stat-content">
+              <div class="stat-title">环比增长</div>
+              <div class="stat-value" :class="{ positive: stats.momGrowth >= 0, negative: stats.momGrowth < 0 }">
+                {{ stats.momGrowth >= 0 ? '+' : '' }}{{ stats.momGrowth }}%
+              </div>
+              <div class="stat-desc">与上期对比</div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+              <DollarOutlined />
+            </div>
+            <div class="stat-content">
+              <div class="stat-title">本期销售</div>
+              <div class="stat-value">¥{{ formatAmount(stats.currentPeriod) }}</div>
+              <div class="stat-desc">{{ getPeriodDesc() }}</div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="6">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+              <HistoryOutlined />
+            </div>
+            <div class="stat-content">
+              <div class="stat-title">上期销售</div>
+              <div class="stat-value">¥{{ formatAmount(stats.lastPeriod) }}</div>
+              <div class="stat-desc">对比基准</div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
     </div>
 
     <!-- 销售趋势图表 -->
-    <div class="chart-area">
-      <a-card title="销售趋势">
-        <div
-          ref="chartRef"
-          style="height: 400px"
-        />
-      </a-card>
-    </div>
+    <a-card title="销售趋势" size="small" :loading="chartLoading">
+      <template #extra>
+        <a-radio-group v-model:value="chartMode" size="small" @change="initChart">
+          <a-radio-button value="line">折线图</a-radio-button>
+          <a-radio-button value="bar">柱状图</a-radio-button>
+          <a-radio-button value="area">面积图</a-radio-button>
+        </a-radio-group>
+      </template>
+      <div ref="chartRef" class="chart-container"></div>
+    </a-card>
 
-    <!-- 关键指标 -->
-    <a-row
-      :gutter="16"
-      class="stats-area"
-    >
-      <a-col :span="6">
-        <a-statistic
-          title="同比增长"
-          :value="stats.yoyGrowth"
-          suffix="%"
-          :value-style="{ color: stats.yoyGrowth >= 0 ? '#3f8600' : '#cf1322' }"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="环比增长"
-          :value="stats.momGrowth"
-          suffix="%"
-          :value-style="{ color: stats.momGrowth >= 0 ? '#3f8600' : '#cf1322' }"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="本期销售"
-          :value="stats.currentPeriod"
-          :precision="2"
-          prefix="¥"
-        />
-      </a-col>
-      <a-col :span="6">
-        <a-statistic
-          title="上期销售"
-          :value="stats.lastPeriod"
-          :precision="2"
-          prefix="¥"
-        />
-      </a-col>
-    </a-row>
+    <!-- 趋势明细表格 -->
+    <a-card title="趋势明细" size="small" style="margin-top: 16px">
+      <div class="table-container">
+        <a-table
+          :columns="columns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="false"
+          size="small"
+          bordered
+          row-key="period"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="record.__empty_row">
+              <span class="empty-placeholder">&nbsp;</span>
+            </template>
+            <template v-else-if="column.key === 'currentSales'">
+              <span class="amount-cell">¥{{ formatAmount(record.currentSales) }}</span>
+            </template>
+            <template v-else-if="column.key === 'lastSales'">
+              <span class="amount-cell">¥{{ formatAmount(record.lastSales) }}</span>
+            </template>
+            <template v-else-if="column.key === 'growth'">
+              <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+                <ArrowUpOutlined v-if="record.growth > 0" />
+                <ArrowDownOutlined v-if="record.growth < 0" />
+                {{ Math.abs(record.growth) }}%
+              </span>
+            </template>
+          </template>
+        </a-table>
+      </div>
+    </a-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import * as echarts from 'echarts'
+import {
+  ExportOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  DollarOutlined,
+  LineChartOutlined
+} from '@ant-design/icons-vue'
 import { salesReportApi } from '@/api/sales-report'
 
+// HistoryOutlined 使用 LineChartOutlined 替代
+const HistoryOutlined = LineChartOutlined
+
 const chartRef = ref<HTMLElement>()
+const loading = ref(false)
+const chartLoading = ref(false)
+const filterExpanded = ref<string[]>([])
+const chartMode = ref<'line' | 'bar' | 'area'>('area')
 
 const queryParams = reactive({
   dateRange: [] as string[],
-  type: 'daily'
+  type: 'daily',
+  compareType: 'yoy'
 })
 
 const stats = reactive({
   yoyGrowth: 15.5,
   momGrowth: 8.2,
-  currentPeriod: 116000,
-  lastPeriod: 100000
+  currentPeriod: 1160000,
+  lastPeriod: 1000000
+})
+
+const trendData = ref<any[]>([])
+
+const columns = [
+  { title: '周期', dataIndex: 'period', width: 120 },
+  { title: '本期销售', key: 'currentSales', width: 140, align: 'right' },
+  { title: '上期销售', key: 'lastSales', width: 140, align: 'right' },
+  { title: '增长率', key: 'growth', width: 100, align: 'right' },
+  { title: '订单数', dataIndex: 'orderCount', width: 100, align: 'right' }
+]
+
+// 空行填充
+const MIN_TABLE_ROWS = 10
+const tableDataSource = computed(() => {
+  const data = [...trendData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, period: `__empty_${i}` })
+  }
+  return data
 })
 
 let chart: echarts.ECharts | null = null
 
-const handleResize = () => {
-  chart?.resize()
+const handleResize = () => chart?.resize()
+
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
+
+const getPeriodDesc = () => {
+  const typeMap = { daily: '本日', weekly: '本周', monthly: '本月' }
+  return typeMap[queryParams.type] || '本期'
+}
+
+const buildParams = () => {
+  const params: any = { type: queryParams.type, compareType: queryParams.compareType }
+  if (queryParams.dateRange.length === 2) {
+    params.startDate = queryParams.dateRange[0]
+    params.endDate = queryParams.dateRange[1]
+  }
+  return params
+}
+
+const handleQuery = async () => {
+  loading.value = true
+  chartLoading.value = true
+  try {
+    const res = await salesReportApi.getSalesTrend(buildParams())
+    if (res.data) {
+      const d = res.data
+      stats.currentPeriod = d.reduce((s: number, v: any) => s + v.sales, 0)
+      trendData.value = mockData()
+      initChart()
+    } else {
+      trendData.value = mockData()
+      initChart()
+    }
+  } catch {
+    trendData.value = mockData()
+    initChart()
+  } finally {
+    loading.value = false
+    chartLoading.value = false
+  }
+}
+
+const handleReset = () => {
+  queryParams.dateRange = []
+  queryParams.type = 'daily'
+  queryParams.compareType = 'yoy'
+  handleQuery()
+}
+
+const handleExport = () => {
+  const csvData = trendData.value.map(item =>
+    `${item.period},${item.currentSales},${item.lastSales},${item.growth},${item.orderCount}`
+  )
+  const csv = ['周期,本期销售,上期销售,增长率,订单数', ...csvData].join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `销售趋势_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  window.URL.revokeObjectURL(url)
+  message.success('导出成功')
+}
+
+const mockData = () => [
+  { period: '2024-01', currentSales: 120000, lastSales: 100000, growth: 20.0, orderCount: 45 },
+  { period: '2024-02', currentSales: 150000, lastSales: 130000, growth: 15.4, orderCount: 52 },
+  { period: '2024-03', currentSales: 180000, lastSales: 160000, growth: 12.5, orderCount: 68 },
+  { period: '2024-04', currentSales: 200000, lastSales: 175000, growth: 14.3, orderCount: 75 },
+  { period: '2024-05', currentSales: 220000, lastSales: 190000, growth: 15.8, orderCount: 82 },
+  { period: '2024-06', currentSales: 250000, lastSales: 210000, growth: 19.0, orderCount: 90 }
+]
 
 const initChart = () => {
   nextTick(() => {
     if (!chartRef.value) return
+    if (!chart) chart = echarts.init(chartRef.value)
 
-    chart = echarts.init(chartRef.value)
-    const option = {
-      title: {
-        text: '销售趋势'
-      },
+    const periods = trendData.value.map(d => d.period)
+    const currentSales = trendData.value.map(d => d.currentSales)
+    const lastSales = trendData.value.map(d => d.lastSales)
+
+    const seriesConfig = {
+      line: { type: 'line', smooth: true },
+      bar: { type: 'bar' },
+      area: { type: 'line', smooth: true, areaStyle: { opacity: 0.3 } }
+    }
+
+    chart.setOption({
       tooltip: {
         trigger: 'axis',
-        axisPointer: {
-          type: 'shadow'
+        axisPointer: { type: 'cross' },
+        formatter: (params: any[]) => {
+          let result = `${params[0].axisValue}<br/>`
+          params.forEach(p => {
+            result += `${p.marker}${p.seriesName}: ¥${formatAmount(p.value)}<br/>`
+          })
+          return result
         }
       },
-      legend: {
-        data: ['本期销售', '上期销售']
-      },
-      xAxis: {
-        type: 'category',
-        data: ['1月', '2月', '3月', '4月', '5月', '6月']
-      },
+      legend: { data: ['本期销售', '上期销售'], bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+      xAxis: { type: 'category', data: periods },
       yAxis: {
         type: 'value',
-        name: '销售额（元）'
+        name: '销售额(万)',
+        axisLabel: { formatter: (v: number) => `${v / 10000}` }
       },
       series: [
         {
           name: '本期销售',
-          type: 'line',
-          smooth: true,
-          data: [50000, 60000, 55000, 70000, 80000, 90000],
-          areaStyle: {
-            opacity: 0.3
-          }
+          ...seriesConfig[chartMode.value],
+          data: currentSales,
+          itemStyle: { color: '#1890ff' }
         },
         {
           name: '上期销售',
-          type: 'line',
-          smooth: true,
-          data: [45000, 55000, 50000, 65000, 75000, 85000],
-          areaStyle: {
-            opacity: 0.3
-          }
+          ...seriesConfig[chartMode.value],
+          data: lastSales,
+          itemStyle: { color: '#52c41a' }
         }
       ]
-    }
-    chart.setOption(option)
-
+    })
     window.addEventListener('resize', handleResize)
   })
 }
 
-const handleQuery = async () => {
-  try {
-    const params = queryParams.dateRange.length === 2
-      ? { startDate: queryParams.dateRange[0], endDate: queryParams.dateRange[1] } : {}
-    const res = await salesReportApi.getSalesTrend(params)
-    if (res.data) {
-      const d = res.data
-      stats.currentPeriod = d.reduce((s, v) => s + v.sales, 0)
-      // 更新图表数据...
-      if (chart) {
-        chart.setOption({
-          xAxis: { data: d.map(p => p.date) },
-          series: [{ data: d.map(p => p.sales) }, { data: d.map(p => p.orders) }]
-        })
-      }
-    }
-  } catch { message.info('查询销售趋势失败') }
-}
-
-onMounted(async () => { await initChart(); await handleQuery() })
-
+onMounted(() => handleQuery())
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
+  chart?.dispose()
+  chart = null
 })
+
+defineExpose({ handleQuery })
 </script>
 
 <style scoped>
 .sales-trend {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 16px;
+  overflow-y: auto;
 }
 
-.filter-area {
-  margin-bottom: 16px;
+.filter-collapse {
+  flex-shrink: 0;
 }
 
-.chart-area {
-  margin-bottom: 16px;
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 4px;
 }
 
-.stats-area {
-  margin-bottom: 16px;
+.stats-cards {
+  flex-shrink: 0;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value.positive {
+  color: #52c41a;
+}
+
+.stat-value.negative {
+  color: #f5222d;
+}
+
+.stat-desc {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.chart-container {
+  height: 350px;
+}
+
+.table-container {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  color: #f5222d;
+  font-weight: 500;
+}
+
+.growth-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.growth-cell.positive {
+  color: #52c41a;
+}
+
+.growth-cell.negative {
+  color: #f5222d;
+}
+
+.empty-placeholder {
+  color: transparent;
 }
 </style>

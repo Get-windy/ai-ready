@@ -1,6 +1,54 @@
 <template>
-  <div class="purchase-exchange-page">
-    <a-card title="采购换货管理">
+  <div class="purchase-exchange-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <FileTextOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">换货单总数</div>
+            <div class="summary-value">{{ statistics.totalCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            <ClockCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">待审批</div>
+            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已完成</div>
+            <div class="summary-value">{{ statistics.completedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <DollarOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">换货金额</div>
+            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <a-card title="采购换货管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
       <!-- 搜索区域 -->
       <div class="search-area">
         <a-form layout="inline" :model="queryParams">
@@ -56,8 +104,11 @@
       </div>
 
       <!-- 数据表格 -->
-      <a-table :columns="columns" :data-source="dataSource" :loading="loading" :pagination="pagination" row-key="id" @change="handleTableChange">
+      <a-table :columns="columns" :data-source="tableDataSource" :loading="loading" :pagination="pagination" row-key="id" style="flex: 1; overflow: auto;" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
           <template v-if="column.key === 'status'">
             <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
           </template>
@@ -87,9 +138,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import type { Dayjs } from 'dayjs'
 import { purchaseExchangeApi, type PurchaseExchange, ExchangeStatus } from '@/api/purchase-exchange'
 import ExchangeFormModal from './components/ExchangeFormModal.vue'
@@ -104,6 +155,29 @@ import { exportCsv } from '@/utils/exportCsv'
 const loading = ref(false)
 const dataSource = ref<PurchaseExchange[]>([])
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+
+// 统计数据
+const statistics = ref({
+  totalCount: 0,
+  pendingCount: 0,
+  completedCount: 0,
+  totalAmount: 0
+})
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 const queryParams = reactive({
   exchangeNo: '',
@@ -159,6 +233,11 @@ const fetchData = async () => {
     })
     dataSource.value = res.data?.records || []
     pagination.total = res.data?.total || 0
+    // 更新统计
+    statistics.value.totalCount = dataSource.value.length
+    statistics.value.pendingCount = dataSource.value.filter(r => r.status === ExchangeStatus.PENDING_APPROVAL).length
+    statistics.value.completedCount = dataSource.value.filter(r => r.status === ExchangeStatus.COMPLETED).length
+    statistics.value.totalAmount = dataSource.value.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
   } catch (error) {
     message.error('获取数据失败')
   } finally {
@@ -270,7 +349,10 @@ onMounted(() => {
 
 <style scoped>
 .purchase-exchange-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .search-area {
@@ -279,5 +361,94 @@ onMounted(() => {
 
 .action-area {
   margin-bottom: 16px;
+}
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border: 1px solid #d3adf7;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #faad14;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
 }
 </style>

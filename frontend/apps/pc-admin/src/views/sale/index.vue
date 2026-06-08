@@ -5,7 +5,8 @@
       <div class="sale-module-header-left">
         <h1 class="sale-module-title">{{ route.meta?.title || '销售管理' }}</h1>
       </div>
-      <div class="sale-module-header-right">
+      <!-- 统计卡片 -->
+      <div class="sale-stat-cards">
         <!-- 加载态：骨架屏 -->
         <template v-if="statsLoading">
           <a-skeleton
@@ -15,7 +16,7 @@
             style="padding: 4px 0"
           />
         </template>
-        <!-- 错误态：Alert 横幅 -->
+        <!-- 错误态 -->
         <template v-else-if="statsError">
           <a-alert
             type="warning"
@@ -31,26 +32,27 @@
         </template>
         <!-- 正常态 -->
         <template v-else>
-          <a-space size="middle" wrap>
-            <a-statistic title="本月订单" :value="stats.monthOrderCount" />
-            <a-divider type="vertical" />
-            <a-statistic
-              title="本月金额"
-              :value="stats.monthAmount"
-              :precision="2"
-              :formatter="() => formatCurrency(stats.monthAmount)"
-            />
-            <a-divider type="vertical" />
-            <a-statistic title="待审批" :value="stats.pendingCount">
-              <template #suffix>
-                <a-badge
-                  v-if="stats.pendingCount > 0"
-                  :count="stats.pendingCount > 99 ? '99+' : stats.pendingCount"
-                  :number-style="{ backgroundColor: '#faad14', fontSize: '10px', minWidth: '16px', height: '16px', lineHeight: '16px' }"
-                />
-              </template>
-            </a-statistic>
-          </a-space>
+          <div class="stat-card stat-blue">
+            <div class="stat-card-icon"><FileTextOutlined /></div>
+            <div class="stat-card-content">
+              <div class="stat-card-title">本月订单</div>
+              <div class="stat-card-value">{{ stats.monthOrderCount }}</div>
+            </div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-card-icon"><DollarOutlined /></div>
+            <div class="stat-card-content">
+              <div class="stat-card-title">本月金额</div>
+              <div class="stat-card-value">¥{{ formatCurrency(stats.monthAmount) }}</div>
+            </div>
+          </div>
+          <div class="stat-card stat-orange">
+            <div class="stat-card-icon"><ClockCircleOutlined /></div>
+            <div class="stat-card-content">
+              <div class="stat-card-title">待审批</div>
+              <div class="stat-card-value">{{ stats.pendingCount }}</div>
+            </div>
+          </div>
           <span v-if="lastStatsUpdate" class="stats-update-time" :title="`最后更新: ${dayjs(lastStatsUpdate).format('YYYY-MM-DD HH:mm:ss')}`">
             更新 {{ dayjs(lastStatsUpdate).format('HH:mm') }}
           </span>
@@ -121,6 +123,9 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import dayjs from 'dayjs'
+import {
+  FileTextOutlined, DollarOutlined, ClockCircleOutlined
+} from '@ant-design/icons-vue'
 import OrdersTab from './tabs/Orders.vue'
 import QuotationTab from './tabs/Quotation.vue'
 import OutboundTab from './tabs/Outbound.vue'
@@ -279,14 +284,6 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.sale-module-header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
 .sale-module-title {
   font-size: 20px;
   font-weight: 500;
@@ -295,13 +292,53 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.sale-stat-cards {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 统计卡片 */
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  min-width: 100px;
+}
+
+.stat-blue { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-green { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-orange { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+
+.stat-card-icon {
+  font-size: 20px;
+  margin-right: 8px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.stat-card-content {
+  flex: 1;
+}
+
+.stat-card-title {
+  font-size: 12px;
+  color: #666;
+}
+
+.stat-card-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
 .stats-update-time {
   font-size: 12px;
   color: #bbb;
   white-space: nowrap;
   cursor: help;
-  vertical-align: bottom;
-  line-height: 40px;
 }
 
 /* Tab 容器 */
@@ -397,6 +434,19 @@ onUnmounted(() => {
   }
   .sale-module-header {
     padding: 12px 16px;
+  }
+  .sale-stat-cards {
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 6px 10px;
+    min-width: 80px;
+  }
+  .stat-card-icon {
+    font-size: 16px;
+  }
+  .stat-card-value {
+    font-size: 14px;
   }
 }
 </style>

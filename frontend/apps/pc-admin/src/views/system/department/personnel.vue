@@ -1,22 +1,56 @@
 <template>
   <div class="department-personnel">
-    <TableList
+    <!-- 缁熻鍗＄墖 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">浜哄憳鎬绘暟</div>
+        </div>
+        <TeamOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-active">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ activeCount }}</div>
+          <div class="stat-card-label">姝ｅ父浜哄憳</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-disabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ disabledCount }}</div>
+          <div class="stat-card-label">鍋滅敤浜哄憳</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-dept">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ currentDepartment?.departmentName || '-' }}</div>
+          <div class="stat-card-label">褰撳墠閮ㄩ棬</div>
+        </div>
+        <ApartmentOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'department-personnel-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
       :show-edit="false"
       :show-delete="false"
       :show-batch-delete="false"
-      add-text="添加人员"
+      :selectable="true"
+      add-text="娣诲姞浜哄憳"
       @refresh="fetchData"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
       <template #toolbar-actions>
         <a-space>
@@ -25,21 +59,24 @@
           </a-tag>
           <a-button type="primary" @click="handleAdd">
             <template #icon><PlusOutlined /></template>
-            添加人员
+            娣诲姞浜哄憳
           </a-button>
           <a-button @click="handleTransfer">
             <template #icon><SwapOutlined /></template>
-            人员调动
+            浜哄憳璋冨姩
           </a-button>
           <a-button @click="handleBack">
             <template #icon><ArrowLeftOutlined /></template>
-            返回
+            杩斿洖
           </a-button>
         </a-space>
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'userInfo'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.field === 'userInfo'">
           <a-space>
             <a-avatar
               :src="record.avatar"
@@ -58,9 +95,9 @@
           </a-space>
         </template>
 
-        <template v-else-if="column.key === 'status'">
+        <template v-else-if="column.field === 'status'">
           <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '正常' : '停用' }}
+            {{ record.status === 0 ? '姝ｅ父' : '鍋滅敤' }}
           </a-tag>
         </template>
 
@@ -75,7 +112,7 @@
               size="small"
               @click="handleTransferSingle(record as UserInfo)"
             >
-              调动
+              璋冨姩
             </a-button>
             <a-button
               type="link"
@@ -83,17 +120,17 @@
               danger
               @click="handleRemove(record as UserInfo)"
             >
-              移除
+              绉婚櫎
             </a-button>
           </a-space>
         </template>
       </template>
     </TableList>
 
-    <!-- 添加人员弹窗 -->
+    <!-- 娣诲姞浜哄憳寮圭獥 -->
     <a-modal
       v-model:open="addModalVisible"
-      title="添加部门人员"
+      title="娣诲姞閮ㄩ棬浜哄憳"
       :confirm-loading="addModalLoading"
       width="600px"
       @ok="handleAddModalOk"
@@ -107,13 +144,13 @@
         :wrapper-col="{ span: 16 }"
       >
         <a-form-item
-          label="选择人员"
+          label="閫夋嫨浜哄憳"
           name="userIds"
         >
           <a-select
             v-model:value="addFormState.userIds"
             mode="multiple"
-            placeholder="请选择要添加的人员"
+            placeholder="璇烽€夋嫨瑕佹坊鍔犵殑浜哄憳"
             show-search
             :filter-option="filterUserOption"
           >
@@ -127,12 +164,12 @@
           </a-select>
         </a-form-item>
         <a-form-item
-          label="岗位"
+          label="宀椾綅"
           name="positionId"
         >
           <a-select
             v-model:value="addFormState.positionId"
-            placeholder="请选择岗位"
+            placeholder="璇烽€夋嫨宀椾綅"
             allow-clear
           >
             <a-select-option
@@ -147,10 +184,10 @@
       </a-form>
     </a-modal>
 
-    <!-- 人员调动弹窗 -->
+    <!-- 浜哄憳璋冨姩寮圭獥 -->
     <a-modal
       v-model:open="transferModalVisible"
-      title="人员调动"
+      title="浜哄憳璋冨姩"
       :confirm-loading="transferModalLoading"
       width="600px"
       @ok="handleTransferModalOk"
@@ -165,20 +202,20 @@
           :wrapper-col="{ span: 16 }"
         >
           <a-form-item
-            label="目标部门"
+            label="鐩爣閮ㄩ棬"
             name="targetDepartmentId"
           >
             <a-tree-select
               v-model:value="transferFormState.targetDepartmentId"
               :tree-data="departmentTreeData"
               :field-names="{ children: 'children', label: 'departmentName', value: 'id' }"
-              placeholder="请选择目标部门"
+              placeholder="璇烽€夋嫨鐩爣閮ㄩ棬"
               allow-clear
               show-search
               tree-node-filter-prop="departmentName"
             />
           </a-form-item>
-          <a-form-item label="调岗人员">
+          <a-form-item label="璋冨矖浜哄憳">
             <a-list
               size="small"
               :data-source="selectedUsers"
@@ -199,12 +236,12 @@
             </a-list>
           </a-form-item>
           <a-form-item
-            label="新岗位"
+            label="鏂板矖浣�"
             name="newPositionId"
           >
             <a-select
               v-model:value="transferFormState.newPositionId"
-              placeholder="请选择新岗位（可选）"
+              placeholder="璇烽€夋嫨鏂板矖浣嶏紙鍙€夛級"
               allow-clear
             >
               <a-select-option
@@ -220,10 +257,10 @@
       </div>
     </a-modal>
 
-    <!-- 单人调动弹窗 -->
+    <!-- 鍗曚汉璋冨姩寮圭獥 -->
     <a-modal
       v-model:open="singleTransferModalVisible"
-      title="人员调动"
+      title="浜哄憳璋冨姩"
       :confirm-loading="singleTransferModalLoading"
       width="600px"
       @ok="handleSingleTransferModalOk"
@@ -236,33 +273,33 @@
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="当前人员">
+        <a-form-item label="褰撳墠浜哄憳">
           <a-input
             :value="selectedUser?.nickname || selectedUser?.username"
             disabled
           />
         </a-form-item>
         <a-form-item
-          label="目标部门"
+          label="鐩爣閮ㄩ棬"
           name="targetDepartmentId"
         >
           <a-tree-select
             v-model:value="singleTransferFormState.targetDepartmentId"
             :tree-data="departmentTreeData"
             :field-names="{ children: 'children', label: 'departmentName', value: 'id' }"
-            placeholder="请选择目标部门"
+            placeholder="璇烽€夋嫨鐩爣閮ㄩ棬"
             allow-clear
             show-search
             tree-node-filter-prop="departmentName"
           />
         </a-form-item>
         <a-form-item
-          label="新岗位"
+          label="鏂板矖浣�"
           name="newPositionId"
         >
           <a-select
             v-model:value="singleTransferFormState.newPositionId"
-            placeholder="请选择新岗位（可选）"
+            placeholder="璇烽€夋嫨鏂板矖浣嶏紙鍙€夛級"
             allow-clear
           >
             <a-select-option
@@ -286,9 +323,13 @@ import type { FormInstance } from 'ant-design-vue'
 import {
   PlusOutlined,
   SwapOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  TeamOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
@@ -300,21 +341,36 @@ const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 
-// 当前部门
+// 褰撳墠閮ㄩ棬
 const currentDepartment = ref<DepartmentInfo | null>(null)
 
-// 搜索表单
+// 鎼滅储琛ㄥ崟
 const searchForm = reactive({
   username: '',
   phone: ''
 })
 
-// 表格数据
+// 琛ㄦ牸鏁版嵁
 const tableData = ref<UserInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
 
-// 分页配置
+// ── 统计数据 ────────────────────────────────────────────
+const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
+const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+// 鍒嗛〉閰嶇疆
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -324,24 +380,24 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-// 表格列定义
+// 琛ㄦ牸鍒楀畾涔�
 const columns: any[] = [
-  { title: '用户信息', key: 'userInfo', width: 200 },
-  { title: '手机号', dataIndex: 'phone', width: 120 },
-  { title: '邮箱', dataIndex: 'email', width: 180, ellipsis: true },
-  { title: '岗位', key: 'position', width: 150 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 150, fixed: 'right' }
+  { title: '鐢ㄦ埛淇℃伅', key: 'userInfo', width: 200 },
+  { title: '鎵嬫満鍙�', dataIndex: 'phone', width: 120 },
+  { title: '閭', dataIndex: 'email', width: 180, ellipsis: true },
+  { title: '宀椾綅', key: 'position', width: 150 },
+  { title: '鐘舵€�', key: 'status', width: 80 },
+  { title: '鍒涘缓鏃堕棿', dataIndex: 'createTime', width: 160 },
+  { title: '鎿嶄綔', key: 'action', width: 150, fixed: 'right' }
 ]
 
-// 筛选字段
+// 绛涢€夊瓧娈�
 const filterFields: FilterField[] = [
-  { key: 'username', label: '用户名', type: 'input', placeholder: '请输入用户名' },
-  { key: 'phone', label: '手机号', type: 'input', placeholder: '请输入手机号' },
+  { key: 'username', label: '鐢ㄦ埛鍚�', type: 'input', placeholder: '璇疯緭鍏ョ敤鎴峰悕' },
+  { key: 'phone', label: '鎵嬫満鍙�', type: 'input', placeholder: '璇疯緭鍏ユ墜鏈哄彿' },
 ]
 
-// 添加人员弹窗
+// 娣诲姞浜哄憳寮圭獥
 const addModalVisible = ref(false)
 const addModalLoading = ref(false)
 const addFormRef = ref<FormInstance>()
@@ -352,16 +408,16 @@ const addFormState = reactive({
 })
 
 const addFormRules = {
-  userIds: [{ required: true, message: '请选择人员', trigger: 'change' }]
+  userIds: [{ required: true, message: '璇烽€夋嫨浜哄憳', trigger: 'change' }]
 }
 
-// 可用用户列表（不在当前部门的用户）
+// 鍙敤鐢ㄦ埛鍒楄〃锛堜笉鍦ㄥ綋鍓嶉儴闂ㄧ殑鐢ㄦ埛锛�
 const availableUsers = ref<UserInfo[]>([])
 
-// 岗位列表
+// 宀椾綅鍒楄〃
 const positionList = ref<PositionInfo[]>([])
 
-// 批量调动弹窗
+// 鎵归噺璋冨姩寮圭獥
 const transferModalVisible = ref(false)
 const transferModalLoading = ref(false)
 const transferFormRef = ref<FormInstance>()
@@ -372,10 +428,10 @@ const transferFormState = reactive({
 })
 
 const transferFormRules = {
-  targetDepartmentId: [{ required: true, message: '请选择目标部门', trigger: 'change' }]
+  targetDepartmentId: [{ required: true, message: '璇烽€夋嫨鐩爣閮ㄩ棬', trigger: 'change' }]
 }
 
-// 单人调动弹窗
+// 鍗曚汉璋冨姩寮圭獥
 const singleTransferModalVisible = ref(false)
 const singleTransferModalLoading = ref(false)
 const singleTransferFormRef = ref<FormInstance>()
@@ -387,13 +443,13 @@ const singleTransferFormState = reactive({
 })
 
 const singleTransferFormRules = {
-  targetDepartmentId: [{ required: true, message: '请选择目标部门', trigger: 'change' }]
+  targetDepartmentId: [{ required: true, message: '璇烽€夋嫨鐩爣閮ㄩ棬', trigger: 'change' }]
 }
 
-// 部门树数据
+// 閮ㄩ棬鏍戞暟鎹�
 const departmentTreeData = ref<DepartmentInfo[]>([])
 
-// 数据加载
+// 鏁版嵁鍔犺浇
 const fetchData = async () => {
   loading.value = true
   try {
@@ -409,13 +465,13 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
-    message.error('加载数据失败')
+    message.error('鍔犺浇鏁版嵁澶辫触')
   } finally {
     loading.value = false
   }
 }
 
-// 加载可用用户列表
+// 鍔犺浇鍙敤鐢ㄦ埛鍒楄〃
 const fetchAvailableUsers = async () => {
   try {
     const res = await userApi.getList({
@@ -424,16 +480,16 @@ const fetchAvailableUsers = async () => {
       pageSize: 1000
     })
     if (res.data) {
-      // 过滤掉已在当前部门的用户
+      // 杩囨护鎺夊凡鍦ㄥ綋鍓嶉儴闂ㄧ殑鐢ㄦ埛
       const currentDeptUserIds = tableData.value.map(u => u.id)
       availableUsers.value = res.data.filter(u => !currentDeptUserIds.includes(u.id))
     }
   } catch (error) {
-    console.error('加载可用用户失败:', error)
+    console.error('鍔犺浇鍙敤鐢ㄦ埛澶辫触:', error)
   }
 }
 
-// 加载岗位列表
+// 鍔犺浇宀椾綅鍒楄〃
 const fetchPositionList = async () => {
   try {
     const res = await positionApi.getList({ tenantId: userStore.tenantId, status: 0 })
@@ -441,11 +497,11 @@ const fetchPositionList = async () => {
       positionList.value = res.data
     }
   } catch (error) {
-    console.error('加载岗位列表失败:', error)
+    console.error('鍔犺浇宀椾綅鍒楄〃澶辫触:', error)
   }
 }
 
-// 加载部门树
+// 鍔犺浇閮ㄩ棬鏍�
 const fetchDepartmentTree = async () => {
   try {
     const res = await departmentApi.getTree({ tenantId: userStore.tenantId, status: 0 })
@@ -453,11 +509,11 @@ const fetchDepartmentTree = async () => {
       departmentTreeData.value = res.data
     }
   } catch (error) {
-    console.error('加载部门树失败:', error)
+    console.error('鍔犺浇閮ㄩ棬鏍戝け璐�:', error)
   }
 }
 
-// 搜索
+// 鎼滅储
 const handleSearch = () => {
   pagination.current = 1
   fetchData()
@@ -468,7 +524,7 @@ const handleReset = () => {
   handleSearch()
 }
 
-// 筛选变化
+// 绛涢€夊彉鍖�
 const handleFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) {
     Object.assign(searchForm, { username: '', phone: '' })
@@ -479,19 +535,19 @@ const handleFilterChange = (filters: Record<string, any>) => {
   fetchData()
 }
 
-// 分页变化
+// 鍒嗛〉鍙樺寲
 const handlePageChange = (page: number, pageSize: number) => {
   pagination.current = page
   pagination.pageSize = pageSize
   fetchData()
 }
 
-// 获取选中用户
+// 鑾峰彇閫変腑鐢ㄦ埛
 const selectedUsers = computed(() => {
   return tableData.value.filter(u => selectedRowKeys.value.includes(u.id))
 })
 
-// 添加人员
+// 娣诲姞浜哄憳
 const handleAdd = () => {
   addFormState.userIds = []
   addFormState.positionId = undefined
@@ -509,11 +565,11 @@ const handleAddModalOk = async () => {
       userIds: addFormState.userIds,
       positionId: addFormState.positionId
     })
-    message.success('添加成功')
+    message.success('娣诲姞鎴愬姛')
     addModalVisible.value = false
     fetchData()
   } catch (error) {
-    message.error('操作失败')
+    message.error('鎿嶄綔澶辫触')
   } finally {
     addModalLoading.value = false
   }
@@ -524,10 +580,10 @@ const handleAddModalCancel = () => {
   addFormRef.value?.resetFields()
 }
 
-// 批量调动
+// 鎵归噺璋冨姩
 const handleTransfer = () => {
   if (selectedRowKeys.value.length === 0) {
-    message.warning('请先选择要调动的人员')
+    message.warning('璇峰厛閫夋嫨瑕佽皟鍔ㄧ殑浜哄憳')
     return
   }
   transferFormState.targetDepartmentId = undefined
@@ -546,12 +602,12 @@ const handleTransferModalOk = async () => {
       userIds: selectedRowKeys.value,
       positionId: transferFormState.newPositionId
     })
-    message.success('调动成功')
+    message.success('璋冨姩鎴愬姛')
     transferModalVisible.value = false
     selectedRowKeys.value = []
     fetchData()
   } catch (error) {
-    message.error('操作失败')
+    message.error('鎿嶄綔澶辫触')
   } finally {
     transferModalLoading.value = false
   }
@@ -562,7 +618,7 @@ const handleTransferModalCancel = () => {
   transferFormRef.value?.resetFields()
 }
 
-// 单人调动
+// 鍗曚汉璋冨姩
 const handleTransferSingle = (user: UserInfo) => {
   selectedUser.value = user
   singleTransferFormState.targetDepartmentId = undefined
@@ -583,11 +639,11 @@ const handleSingleTransferModalOk = async () => {
       userIds: [selectedUser.value!.id],
       positionId: singleTransferFormState.newPositionId
     })
-    message.success('调动成功')
+    message.success('璋冨姩鎴愬姛')
     singleTransferModalVisible.value = false
     fetchData()
   } catch (error) {
-    message.error('操作失败')
+    message.error('鎿嶄綔澶辫触')
   } finally {
     singleTransferModalLoading.value = false
   }
@@ -598,7 +654,7 @@ const handleSingleTransferModalCancel = () => {
   singleTransferFormRef.value?.resetFields()
 }
 
-// 移除人员
+// 绉婚櫎浜哄憳
 const handleRemove = (user: UserInfo) => {
   Modal.confirm({
     title: '确认移除',
@@ -613,12 +669,12 @@ const handleRemove = (user: UserInfo) => {
   })
 }
 
-// 返回
+// 杩斿洖
 const handleBack = () => {
   router.push('/system/department')
 }
 
-// 过滤用户
+// 杩囨护鐢ㄦ埛
 const filterUserOption = (input: string, option: any) => {
   const user = availableUsers.value.find(u => u.id === option.value)
   if (!user) return false
@@ -627,7 +683,7 @@ const filterUserOption = (input: string, option: any) => {
 }
 
 onMounted(() => {
-  // 从路由参数获取部门ID
+  // 浠庤矾鐢卞弬鏁拌幏鍙栭儴闂↖D
   const deptId = route.query.deptId as string
   if (deptId) {
     departmentApi.getById(Number(deptId)).then(res => {
@@ -644,8 +700,52 @@ onMounted(() => {
 
 <style scoped>
 .department-personnel {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-active { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-dept { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.empty-placeholder { color: transparent; }
 
 .user-name {
   font-weight: 500;
@@ -658,5 +758,35 @@ onMounted(() => {
 
 .transfer-modal-content {
   padding: 16px 0;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

@@ -1,129 +1,135 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="dataSource"
-    :loading="loading"
-    :pagination="pagination"
-    :show-export="true"
-    :table-key="'sale-order-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    add-text="新建订单"
-    @add="handleAdd"
-    @edit="handleEdit"
-    @view="handleView"
-    @delete="handleDelete"
-    @batch-delete="handleBatchDelete"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
-    <template #toolbar-actions>
-      <a-tooltip title="从Excel/CSV文件批量导入订单数据">
-        <a-button v-permission="'sale:order:create'" @click="handleImport">
-          <template #icon><ImportOutlined /></template>
-          导入
-        </a-button>
-      </a-tooltip>
-      <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-        上次更新: {{ formatRelativeTime(lastUpdated) }}
-      </span>
-    </template>
+  <div class="orders-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-draft">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ draftCount }}</div>
+          <div class="stat-card-label">草稿</div>
+        </div>
+        <FileOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pendingCount }}</div>
+          <div class="stat-card-label">待审批</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-completed">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ completedCount }}</div>
+          <div class="stat-card-label">已完成</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-amount">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
+          <div class="stat-card-label">本页金额</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+    </div>
 
-    <template #batch-actions>
-      <a-button v-permission="'sale:order:approve'" size="small" :loading="batchApproving" @click="handleBatchApprove">批量审批</a-button>
-      <a-button v-permission="'sale:order:list'" size="small" :loading="batchPrinting" @click="handleBatchPrint">批量打印</a-button>
-      <a-button v-permission="'sale:order:list'" size="small" :loading="batchExporting" @click="handleBatchExport">
-        <template #icon><ExportOutlined /></template>
-        批量导出
-      </a-button>
-    </template>
-
-    <!-- 空状态引导（区分系统无数据 vs 筛选无匹配） -->
-    <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配订单">
-        <template #image>
-          <SearchOutlined style="font-size: 48px; color: #faad14" />
-        </template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无销售订单">
-        <template #image>
-          <InboxOutlined style="font-size: 48px; color: #d9d9d9" />
-        </template>
-        <a-button type="primary" @click="handleAdd">创建第一个订单</a-button>
-      </a-empty>
-    </template>
-
-    <!-- 自定义列：订单号（可点击跳转，支持中键新标签页） -->
-    <template #orderNo="{ record }">
-      <a class="cell-link" @click="handleView(record)" @mouseup="handleOrderNoMiddleClick($event, record)">{{ record.orderNo }}</a>
-    </template>
-
-    <!-- 自定义列：状态 -->
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">
-        {{ getStatusText(record.status) }}
-      </a-tag>
-    </template>
-
-    <!-- 自定义列：操作（主操作直接展示，次要操作折叠至更多菜单） -->
-    <template #action="{ record }">
-      <a-space :size="0" class="action-cell-inner">
-        <a-tooltip title="查看详情">
-          <a-button type="link" size="small" @click="handleView(record)">
-            <template #icon><EyeOutlined /></template>
+    <!-- vxe-table 表格 -->
+    <VxeTableList
+      ref="tableRef"
+      :columns="vxeColumns"
+      :data-source="dataSource"
+      :loading="loading"
+      :pagination="pagination"
+      :show-export="true"
+      :filter-fields="filterFields"
+      :show-summary="true"
+      :summary-data="summaryData"
+      :selectable="true"
+      add-text="新建订单"
+      @add="handleAdd"
+      @refresh="fetchData"
+      @search="handleSearch"
+      @page-change="handlePageChange"
+      @sort-change="handleSortChange"
+      @filter-change="handleFilterChange"
+      @export="handleExport"
+      @batch-delete="handleBatchDelete"
+      @selection-change="handleSelectionChange"
+      @view="handleView"
+    >
+      <template #toolbar-actions>
+        <a-tooltip title="从Excel/CSV文件批量导入订单数据">
+          <a-button v-permission="'sale:order:create'" @click="handleImport">
+            <template #icon><ImportOutlined /></template>
+            导入
           </a-button>
         </a-tooltip>
-        <a-tooltip v-if="canEdit(record.status)" title="编辑">
-          <a-button v-permission="'sale:order:update'" type="link" size="small" @click="handleEdit(record)">
-            <template #icon><EditOutlined /></template>
-          </a-button>
-        </a-tooltip>
-        <a-dropdown trigger="click">
-          <a-button type="link" size="small" class="action-more-btn">
-            <template #icon><EllipsisOutlined /></template>
-          </a-button>
-          <template #overlay>
-            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-              <a-menu-item v-if="canSubmit(record.status)" key="submit">
-                <CheckCircleOutlined /> 提交审核
-              </a-menu-item>
-              <a-menu-item v-if="canApprove(record.status)" key="approve">
-                <AuditOutlined /> 审批
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="print">
-                <PrinterOutlined /> 打印
-              </a-menu-item>
-              <a-menu-item v-if="canDelete(record.status)" key="delete" danger>
-                <DeleteOutlined /> 删除
-              </a-menu-item>
-            </a-menu>
+        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+          上次更新: {{ formatRelativeTime(lastUpdated) }}
+        </span>
+      </template>
+
+      <template #batch-actions="{ selectedRows }">
+        <a-button v-permission="'sale:order:approve'" size="small" :loading="batchApproving" @click="handleBatchApprove(selectedRows)">批量审批</a-button>
+        <a-button v-permission="'sale:order:list'" size="small" :loading="batchPrinting" @click="handleBatchPrint(selectedRows)">批量打印</a-button>
+      </template>
+
+      <template #action="{ record }">
+        <a-space :size="4">
+          <a-tooltip v-if="canEdit(record.status)" title="编辑">
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip title="查看">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown v-if="canSubmit(record.status) || canApprove(record.status) || canDelete(record.status)">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><MoreOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="(e: any) => handleActionMenuClick(e.key, record)">
+                <a-menu-item v-if="canSubmit(record.status)" key="submit">提交审批</a-menu-item>
+                <a-menu-item v-if="canApprove(record.status)" key="approve">审批通过</a-menu-item>
+                <a-menu-item v-if="canDelete(record.status)" key="delete" danger>删除</a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+
+      <template #empty>
+        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配订单">
+          <template #image>
+            <SearchOutlined style="font-size: 48px; color: #faad14" />
           </template>
-        </a-dropdown>
-      </a-space>
-    </template>
-  </TableList>
+          <a-button @click="handleResetFilters">清除筛选</a-button>
+        </a-empty>
+        <a-empty v-else description="暂无销售订单">
+          <template #image>
+            <InboxOutlined style="font-size: 48px; color: #d9d9d9" />
+          </template>
+          <a-button type="primary" @click="handleAdd">创建第一个订单</a-button>
+        </a-empty>
+      </template>
+    </VxeTableList>
 
-  <!-- 新建/编辑订单弹窗 -->
-  <SaleOrderFormModal
-    v-model:open="formVisible"
-    :is-edit="isEdit"
-    :record="editRecord"
-    @success="handleFormSuccess"
-  />
+    <!-- 新建/编辑订单弹窗 -->
+    <SaleOrderFormModal
+      v-model:open="formVisible"
+      :is-edit="isEdit"
+      :record="editRecord"
+      @success="handleFormSuccess"
+    />
 
-  <!-- 导入订单弹窗 -->
-  <SaleOrderImportModal
-    v-model:open="importModalVisible"
-    @success="handleFormSuccess"
-  />
+    <!-- 导入订单弹窗 -->
+    <SaleOrderImportModal
+      v-model:open="importModalVisible"
+      @success="handleFormSuccess"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -138,19 +144,19 @@ import 'dayjs/locale/zh-cn'
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 import {
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
+  FileOutlined,
+  ClockCircleOutlined,
   CheckCircleOutlined,
-  AuditOutlined,
-  PrinterOutlined,
+  DollarOutlined,
   ImportOutlined,
   ExportOutlined,
   InboxOutlined,
   SearchOutlined,
-  EllipsisOutlined
+  EditOutlined,
+  EyeOutlined,
+  MoreOutlined,
 } from '@ant-design/icons-vue'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import SaleOrderImportModal from '../components/SaleOrderImportModal.vue'
 import { saleOrderApi } from '@/api/erp'
@@ -177,17 +183,36 @@ interface SaleOrder {
   remark?: string
 }
 
-// 列定义
-const columns = [
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 160, sortable: true, type: 'link' as const, slotName: 'orderNo' },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 140 },
-  { title: '订单日期', dataIndex: 'orderDate', key: 'orderDate', width: 110, type: 'date' as const, dateFormat: 'YYYY-MM-DD' },
-  { title: '订单金额', dataIndex: 'totalAmountWithTax', key: 'totalAmountWithTax', width: 120, type: 'currency' as const, sortable: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '销售员', dataIndex: 'salesmanName', key: 'salesmanName', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 130, fixed: 'right' as const, type: 'action' as const }
-]
+// vxe-table 列定义
+const vxeColumns = computed(() => [
+  {
+    field: 'orderNo',
+    title: '订单号',
+    width: 160,
+    sortable: true,
+    formatter: ({ cellValue, row }: any) => `<a style="color: #1890ff; cursor: pointer;">${cellValue}</a>`,
+  },
+  { field: 'customerName', title: '客户', width: 140 },
+  { field: 'orderDate', title: '订单日期', width: 110 },
+  {
+    field: 'totalAmountWithTax',
+    title: '订单金额',
+    width: 120,
+    sortable: true,
+    align: 'right',
+    formatter: ({ cellValue }: any) => `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+  },
+  {
+    field: 'status',
+    title: '状态',
+    width: 100,
+    align: 'center',
+    formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`,
+  },
+  { field: 'salesmanName', title: '销售员', width: 100 },
+  { field: 'createTime', title: '创建时间', width: 160 },
+  { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
+])
 
 // 筛选字段
 const filterFields = [
@@ -219,12 +244,21 @@ const editRecord = ref<SaleOrder | null>(null)
 const searchFilters = reactive<Record<string, any>>({})
 const lastUpdated = ref<string>('')
 const importModalVisible = ref(false)
+const selectedRowKeys = ref<number[]>([])
+
+// ── 统计数据 ────────────────────────────────────────────
+const draftCount = computed(() => dataSource.value.filter(r => r.status === 0).length)
+const pendingCount = computed(() => dataSource.value.filter(r => r.status === 1).length)
+const completedCount = computed(() => dataSource.value.filter(r => r.status === 4).length)
+const totalAmount = computed(() => dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0))
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 // 批量操作独立 loading
 const batchApproving = ref(false)
 const batchPrinting = ref(false)
-const batchExporting = ref(false)
-const batchDeleting = ref(false)
 
 const pagination = reactive({
   current: 1,
@@ -234,13 +268,11 @@ const pagination = reactive({
 
 const summaryData = computed(() => {
   if (dataSource.value.length === 0) return undefined
-  const totalAmount = dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0)
+  const total = dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0)
   return [
-    { label: '本页小计', value: totalAmount, type: 'currency' as const },
-    { label: '本页数量', value: dataSource.value.length, type: 'default' as const }
+    { label: '本页小计', value: total, type: 'currency' as const },
   ]
 })
-
 
 function formatRelativeTime(time: string): string {
   return dayjs(time).fromNow()
@@ -355,17 +387,76 @@ async function handleDelete(record: SaleOrder) {
 }
 
 async function handleBatchDelete(ids: number[]) {
-  if (batchDeleting.value) return
-  batchDeleting.value = true
+  if (ids.length === 0) return
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定要删除选中的 ${ids.length} 条订单吗？`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      try {
+        await saleOrderApi.batchDelete(ids)
+        message.success(`成功删除 ${ids.length} 条记录`)
+        tableRef.value?.clearSelection()
+        fetchData()
+      } catch {
+        message.error('批量删除失败')
+      }
+    }
+  })
+}
+
+function handleSelectionChange(rows: any[], ids: any[]) {
+  selectedRowKeys.value = ids
+}
+
+async function handleBatchApprove(selectedRows: any[]) {
+  if (!selectedRows || selectedRows.length === 0) {
+    message.warning('请选择要审批的订单')
+    return
+  }
+  const validRows = selectedRows.filter(r => r.status === 1)
+  if (validRows.length === 0) {
+    message.warning('选中的订单中没有待审批状态的订单')
+    return
+  }
+  Modal.confirm({
+    title: '批量审批',
+    content: `确定要审批 ${validRows.length} 条待审批订单吗？`,
+    okText: '确认审批',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      batchApproving.value = true
+      try {
+        await saleOrderApi.batchApprove(validRows.map(r => r.id))
+        message.success(`成功审批 ${validRows.length} 条订单`)
+        tableRef.value?.clearSelection()
+        fetchData()
+      } catch {
+        message.error('批量审批失败')
+      } finally {
+        batchApproving.value = false
+      }
+    }
+  })
+}
+
+async function handleBatchPrint(selectedRows: any[]) {
+  if (!selectedRows || selectedRows.length === 0) {
+    message.warning('请选择要打印的订单')
+    return
+  }
+  batchPrinting.value = true
   try {
-    await saleOrderApi.batchDelete(ids)
-    message.success(`成功删除 ${ids.length} 条记录`)
-    tableRef.value?.clearSelection()
-    fetchData()
+    await saleOrderApi.batchPrint(selectedRows.map(r => r.id))
+    message.success(`打印任务已提交 (${selectedRows.length} 条)`)
   } catch {
-    message.error('批量删除失败')
+    message.error('批量打印失败')
   } finally {
-    batchDeleting.value = false
+    batchPrinting.value = false
   }
 }
 
@@ -450,105 +541,6 @@ async function handleExport() {
   })
 }
 
-function handleBatchApprove() {
-  const keys = tableRef.value?.selectedRowKeys || []
-  const selectedRows = tableRef.value?.selectedRows || []
-  if (keys.length === 0) {
-    message.warning('请选择要审批的订单')
-    return
-  }
-  // 预校验：仅待审批(状态1)的记录可审批
-  const invalidCount = selectedRows.filter((r: any) => r.status !== 1).length
-  if (invalidCount > 0) {
-    message.warning(`选中记录中有 ${invalidCount} 条不是待审批状态，已自动过滤`)
-    const validKeys = selectedRows.filter((r: any) => r.status === 1).map((r: any) => r.id)
-    if (validKeys.length === 0) {
-      message.warning('无可审批的订单')
-      return
-    }
-    Modal.confirm({
-      title: '确认批量审批',
-      content: `过滤后将对 ${validKeys.length} 条待审批订单进行审批，是否继续？`,
-      okText: '确认审批',
-      cancelText: '取消',
-      centered: true,
-      async onOk() {
-        batchApproving.value = true
-        try {
-          await saleOrderApi.batchApprove(validKeys)
-          message.success(`成功审批 ${validKeys.length} 条记录`)
-          tableRef.value?.clearSelection()
-          fetchData()
-        } catch { message.error('批量审批失败') }
-        finally { batchApproving.value = false }
-      }
-    })
-    return
-  }
-  Modal.confirm({
-    title: '确认批量审批',
-    content: `确定要批量审批选中的 ${keys.length} 条记录吗？`,
-    okText: '确认审批',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      batchApproving.value = true
-      try {
-        await saleOrderApi.batchApprove(keys)
-        message.success(`成功审批 ${keys.length} 条记录`)
-        tableRef.value?.clearSelection()
-        fetchData()
-      } catch { message.error('批量审批失败') }
-      finally { batchApproving.value = false }
-    }
-  })
-}
-
-function handleBatchExport() {
-  const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) {
-    message.warning('请选择要导出的订单')
-    return
-  }
-  Modal.confirm({
-    title: '导出订单',
-    content: `确定要导出选中的 ${keys.length} 条订单数据？`,
-    okText: '确认导出',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      batchExporting.value = true
-      try {
-        await saleOrderApi.batchExport(keys)
-        message.success('导出任务已提交，请稍后下载')
-      } catch { message.error('导出失败') }
-      finally { batchExporting.value = false }
-    }
-  })
-}
-
-function handleBatchPrint() {
-  const keys = tableRef.value?.selectedRowKeys || []
-  if (keys.length === 0) {
-    message.warning('请选择要打印的订单')
-    return
-  }
-  Modal.confirm({
-    title: '确认批量打印',
-    content: `确定要批量打印选中的 ${keys.length} 条记录吗？`,
-    okText: '确认打印',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      batchPrinting.value = true
-      try {
-        await saleOrderApi.batchPrint(keys)
-        message.success(`打印任务已提交 (${keys.length} 条)`)
-      } catch { message.error('批量打印失败') }
-      finally { batchPrinting.value = false }
-    }
-  })
-}
 
 function handleSearch(keyword: string) {
   searchFilters.keyword = keyword || undefined
@@ -600,6 +592,52 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <style scoped>
+.orders-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-draft { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-pending { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-completed { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-amount { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
 /* 操作列「更多」按钮 */
 .action-more-btn {
   padding: 0 4px;
@@ -616,5 +654,72 @@ function handleKeydown(e: KeyboardEvent) {
   margin-left: 8px;
   line-height: 32px;
   vertical-align: middle;
+}
+
+.empty-placeholder { color: transparent; }
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* vxe-table 样式覆盖 */
+:deep(.vxe-table) {
+  font-size: 13px;
+}
+
+:deep(.vxe-table--header .vxe-header--column) {
+  background: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #b0b0b0 !important;
+}
+
+:deep(.vxe-table--body .vxe-body--row) {
+  height: 42px;
+}
+
+:deep(.vxe-table--body .vxe-body--column) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
+:deep(.vxe-table--footer .vxe-footer--column) {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
+  .orders-page {
+    padding: 8px;
+  }
 }
 </style>

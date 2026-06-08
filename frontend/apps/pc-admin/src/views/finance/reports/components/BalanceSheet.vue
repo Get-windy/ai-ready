@@ -1,5 +1,25 @@
 <template>
   <div class="balance-sheet">
+    <!-- 统计卡片 -->
+    <div class="summary-cards">
+      <div class="summary-card" style="--card-color: #1890ff;">
+        <div class="summary-card-title">资产总额</div>
+        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.totalAssets) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #faad14;">
+        <div class="summary-card-title">负债总额</div>
+        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.totalLiabilities) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #52c41a;">
+        <div class="summary-card-title">所有者权益</div>
+        <div class="summary-card-value">¥{{ formatAmount(balanceSheet.equity) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #722ed1;">
+        <div class="summary-card-title">资产负债率</div>
+        <div class="summary-card-value">{{ debtRatio }}%</div>
+      </div>
+    </div>
+
     <div class="filter-area">
       <a-form layout="inline">
         <a-form-item label="报表日期">
@@ -27,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import request from '@/utils/request'
 
@@ -44,6 +64,16 @@ interface BalanceSheet {
 const balanceSheet = ref<BalanceSheet>({ totalAssets: 0, totalLiabilities: 0, currentAssets: 0, currentLiabilities: 0, fixedAssets: 0, nonCurrentLiabilities: 0, equity: 0 })
 const queryParams = reactive({ month: undefined as string | undefined })
 const loading = ref(false)
+
+// 资产负债率
+const debtRatio = computed(() => {
+  if (!balanceSheet.value.totalAssets) return '0.00'
+  return ((balanceSheet.value.totalLiabilities / balanceSheet.value.totalAssets) * 100).toFixed(2)
+})
+
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
+}
 
 const handleGenerate = async () => {
   if (!queryParams.month) { message.warning('请选择报表日期'); return }
@@ -63,6 +93,42 @@ const handleExport = () => {
 </script>
 
 <style scoped>
-.balance-sheet { padding: 16px; }
-.filter-area { margin-bottom: 16px; }
+.balance-sheet {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, var(--card-color), color-mix(in srgb, var(--card-color) 70%, #fff));
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card-title {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.summary-card-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.filter-area {
+  margin-bottom: 0;
+}
 </style>

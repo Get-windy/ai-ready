@@ -361,6 +361,38 @@ public class DatabaseInitializer implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE sys_position_category ADD COLUMN update_by VARCHAR(64)");
         }
 
+        // ========== fin_payable 表字段 ==========
+        // Payable 实体存在多个字段但数据库表结构可能不完整，全部检查补齐
+        // 注意：不使用 tableExists 守卫检查，因为 information_schema 可能因搜索路径
+        // 或模式权限问题无法识别该表，与其他表的字段检查逻辑保持一致
+        String[][] finPayableColumns = {
+            {"supplier_name",        "VARCHAR(500) DEFAULT NULL"},
+            {"contract_id",          "BIGINT DEFAULT NULL"},
+            {"contract_no",          "VARCHAR(200) DEFAULT NULL"},
+            {"original_amount",      "DECIMAL(18,2) DEFAULT 0"},
+            {"paid_amount",          "DECIMAL(18,2) DEFAULT 0"},
+            {"remaining_amount",     "DECIMAL(18,2) DEFAULT 0"},
+            {"bill_date",            "DATE DEFAULT NULL"},
+            {"due_date",             "DATE DEFAULT NULL"},
+            {"overdue_days",         "INTEGER DEFAULT 0"},
+            {"deleted",              "INTEGER DEFAULT 0"},
+        };
+        for (String[] col : finPayableColumns) {
+            if (!columnExists("fin_payable", col[0])) {
+                try {
+                    log.info("添加 fin_payable.{} 字段", col[0]);
+                    jdbcTemplate.execute("ALTER TABLE fin_payable ADD COLUMN IF NOT EXISTS " + col[0] + " " + col[1]);
+                } catch (Exception e) {
+                    log.warn("添加 fin_payable.{} 字段失败: {}", col[0], e.getMessage());
+                }
+            }
+        }
+
+        // 修复 fin_payable.create_by/update_by 类型: 实体中为 String 类型 (VARCHAR),
+        // 但数据库表中为 bigint, 导致 MyBatis-Plus INSERT 时类型不匹配
+        fixFinPayableColumnType("create_by");
+        fixFinPayableColumnType("update_by");
+
         // ========== erp_sale_order 表字段（Flyway 被禁用，手动补齐） ==========
         if (tableExists("erp_sale_order")) {
             String[] saleOrderColumns = {
@@ -452,6 +484,22 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("检查表是否存在时出错: {}", e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * 修复 fin_payable 表字段类型：实体中为 String(VARCHAR)，但数据库为 bigint
+     */
+    private void fixFinPayableColumnType(String columnName) {
+        try {
+            String checkSql = "SELECT data_type FROM information_schema.columns WHERE table_name = 'fin_payable' AND column_name = '" + columnName + "'";
+            String dataType = jdbcTemplate.queryForObject(checkSql, String.class);
+            if ("bigint".equals(dataType) || "integer".equals(dataType)) {
+                log.info("修复 fin_payable.{} 字段类型: {} → VARCHAR(64)", columnName, dataType);
+                jdbcTemplate.execute("ALTER TABLE fin_payable ALTER COLUMN " + columnName + " TYPE VARCHAR(64)");
+            }
+        } catch (Exception e) {
+            log.warn("修复 fin_payable.{} 字段类型失败: {}", columnName, e.getMessage());
         }
     }
 

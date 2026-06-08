@@ -320,6 +320,30 @@ onBeforeUnmount(() => { chartInstance?.dispose() })
 .quick-entry-icon { font-size: 28px; margin-bottom: var(--spacing-sm); }
 .quick-entry-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 
+/* ── 库存预警表格网格边框 ──────────────────────────────── */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 2px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #d9d9d9 !important;
+  background: #fafafa !important;
+  padding: 12px 16px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 2px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e8e8e8 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 12px 16px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e8e8e8 !important;
+}
+
 @media (max-width: 768px) {
   .dashboard { padding: var(--spacing-lg); }
   .dashboard-header { flex-direction: column; align-items: flex-start; }

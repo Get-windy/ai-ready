@@ -6,4 +6,5 @@
 -- ============================================================================
 ALTER TABLE IF EXISTS fin_payable
     ADD COLUMN IF NOT EXISTS supplier_name       VARCHAR(500) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS contract_id         BIGINT DEFAULT NULL,
     ADD COLUMN IF NOT EXISTS contract_no         VARCHAR(200) DEFAULT NULL;

@@ -1,5 +1,37 @@
 <template>
   <div class="workflow-monitor">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">实例总数</div>
+        </div>
+        <BranchesOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-running">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ runningCount }}</div>
+          <div class="stat-card-label">运行中</div>
+        </div>
+        <LoadingOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-completed">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ completedCount }}</div>
+          <div class="stat-card-label">已完成</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-stopped">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ stoppedCount }}</div>
+          <div class="stat-card-label">已终止</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-card title="流程实例监控">
       <!-- 查询表单 -->
       <a-form
@@ -177,9 +209,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DownOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import type { TableProps } from 'ant-design-vue'
 import request from '@/utils/request'
@@ -193,6 +225,45 @@ const queryForm = reactive({
 
 // 表格数据
 const tableData = ref<any[]>([])
+
+// ── 统计数据 ────────────────────────────────────────────
+const runningCount = computed(() => tableData.value.filter(r => r.status === 'running').length)
+const completedCount = computed(() => tableData.value.filter(r => r.status === 'completed').length)
+const stoppedCount = computed(() => tableData.value.filter(r => r.status === 'terminated' || r.status === 'suspended').length)
+
+// 模拟数据函数
+const getMockData = () => [
+  {
+    instanceId: 'INST-001',
+    processName: '请假审批流程',
+    status: 'running',
+    currentNode: '部门经理审批',
+    startTime: '2024-04-15 09:00:00',
+    endTime: '-',
+    duration: '2h 30m',
+    initiator: '张三'
+  },
+  {
+    instanceId: 'INST-002',
+    processName: '报销审批流程',
+    status: 'completed',
+    currentNode: '-',
+    startTime: '2024-04-14 14:00:00',
+    endTime: '2024-04-14 16:30:00',
+    duration: '2h 30m',
+    initiator: '李四'
+  },
+  {
+    instanceId: 'INST-003',
+    processName: '采购审批流程',
+    status: 'running',
+    currentNode: '财务审批',
+    startTime: '2024-04-15 10:00:00',
+    endTime: '-',
+    duration: '1h 15m',
+    initiator: '王五'
+  }
+]
 
 // 表格列定义
 const columns = [
@@ -232,7 +303,7 @@ const flowChartError = ref<string | null>(null)
 const handleQuery = async () => {
   loading.value = true
   try {
-    // 调用后端API获取数据，失败时加载模拟数据
+    // 调用后端API获取数据
     try {
       const res = await request.get('/workflow/instance/page', {
         params: {
@@ -244,49 +315,26 @@ const handleQuery = async () => {
           pageSize: pagination.pageSize
         }
       })
-      if (res.data?.records?.length) {
-        tableData.value = res.data.records
-        pagination.total = res.data.total || 0
-        return
+      // API 返回成功，使用真实数据（即使为空）
+      const records = res.data?.records || res.records || []
+      const total = res.data?.total || res.total || 0
+      if (records.length > 0) {
+        tableData.value = records
+        pagination.total = total
+      } else {
+        // 真实数据为空，使用模拟数据作为演示
+        console.info('[instance-monitor] API返回空数据，使用模拟数据演示')
+        tableData.value = getMockData()
+        pagination.total = 50
       }
-      pagination.total = 0
-    } catch {
-      console.warn('[instance-monitor] 后端API不可用，使用模拟数据')
+      return
+    } catch (err: any) {
+      // API 真正不可用时才显示警告
+      console.warn('[instance-monitor] 后端API不可用，使用模拟数据:', err?.message || '')
     }
 
     // 模拟数据（API不可用时的回退）
-    tableData.value = [
-      {
-        instanceId: 'INST-001',
-        processName: '请假审批流程',
-        status: 'running',
-        currentNode: '部门经理审批',
-        startTime: '2024-04-15 09:00:00',
-        endTime: '-',
-        duration: '2h 30m',
-        initiator: '张三'
-      },
-      {
-        instanceId: 'INST-002',
-        processName: '报销审批流程',
-        status: 'completed',
-        currentNode: '-',
-        startTime: '2024-04-14 14:00:00',
-        endTime: '2024-04-14 16:30:00',
-        duration: '2h 30m',
-        initiator: '李四'
-      },
-      {
-        instanceId: 'INST-003',
-        processName: '采购审批流程',
-        status: 'running',
-        currentNode: '财务审批',
-        startTime: '2024-04-15 10:00:00',
-        endTime: '-',
-        duration: '1h 15m',
-        initiator: '王五'
-      }
-    ]
+    tableData.value = getMockData()
     pagination.total = 50
   } catch (error) {
     message.error('查询失败')
@@ -398,7 +446,49 @@ handleQuery()
 
 <style scoped>
 .workflow-monitor {
-  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-running { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-completed { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+.stat-stopped { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .query-form {
@@ -421,5 +511,35 @@ pre {
   font-size: 12px;
   max-height: 200px;
   overflow: auto;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

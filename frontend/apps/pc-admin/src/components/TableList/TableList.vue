@@ -208,7 +208,7 @@
       </a-space>
     </div>
 
-    <!-- 表格主体（包含 sticky 表头、内部滚动、汇总行） -->
+    <!-- 表格主体 -->
     <a-table
       ref="tableRef"
       :columns="processedColumns"
@@ -218,8 +218,7 @@
       :row-selection="rowSelection"
       :row-key="rowKey"
       :scroll="scrollConfigComputed"
-      :sticky="true"
-      :bordered="false"
+      :bordered="true"
       :size="tableSize"
       :custom-row="customRowFn"
       :locale="tableLocale"
@@ -700,9 +699,79 @@ const savedViews = ref<SavedView[]>([])
 
 onMounted(() => {
   loadSavedViews()
-  // 初始计算高度
-  nextTick(updateScrollY)
+  // 初始计算高度并设置 ResizeObserver
+  nextTick(() => {
+    updateScrollY()
+    setupResizeObserver()
+    // 延迟修正列宽度
+    debouncedFixColumnWidths()
+  })
 })
+
+// ========== 修正 AntDV 4.x 的 col width bug ==========
+
+/**
+ * 手动修正 colgroup 中 col 元素的宽度
+ * Ant Design Vue 4.x 在 scroll 模式下不会正确设置 col 的 width
+ */
+function fixColumnWidths() {
+  if (!containerRef.value) return
+
+  const headerTable = containerRef.value.querySelector('.ant-table-header table')
+  const bodyTable = containerRef.value.querySelector('.ant-table-body table')
+
+  if (!headerTable && !bodyTable) return
+
+  // 获取列宽度数组
+  const widths: number[] = []
+
+  // 选择列宽度（如果启用）
+  if (props.selectable) {
+    widths.push(40)
+  }
+
+  processedColumns.value.forEach(col => {
+    const w = col.width
+    if (typeof w === 'number') widths.push(w)
+    else if (typeof w === 'string' && w.endsWith('px')) widths.push(parseInt(w))
+    else widths.push(100)
+  })
+
+  // 滚动条占位列
+  widths.push(8)
+
+  // 设置 header table 的 colgroup
+  if (headerTable) {
+    const headerCols = headerTable.querySelectorAll('colgroup col')
+    headerCols.forEach((col, i) => {
+      if (i < widths.length) {
+        col.setAttribute('width', String(widths[i]))
+        col.setAttribute('style', `width: ${widths[i]}px; min-width: ${widths[i]}px;`)
+      }
+    })
+  }
+
+  // 设置 body table 的 colgroup
+  if (bodyTable) {
+    const bodyCols = bodyTable.querySelectorAll('colgroup col')
+    bodyCols.forEach((col, i) => {
+      if (i < widths.length) {
+        col.setAttribute('width', String(widths[i]))
+        col.setAttribute('style', `width: ${widths[i]}px; min-width: ${widths[i]}px;`)
+      }
+    })
+  }
+}
+
+// 防抖修正列宽度
+let fixTimer: number | null = null
+function debouncedFixColumnWidths() {
+  if (fixTimer) clearTimeout(fixTimer)
+  fixTimer = window.setTimeout(() => {
+    fixColumnWidths()
+    fixTimer = null
+  }, 100)
+}
 
 function loadSavedViews() {
   try {
@@ -839,9 +908,18 @@ const paginationConfig = computed(() => {
 // ========== 滚动与高度计算 ==========
 
 const scrollConfigComputed = computed(() => {
-  const x = props.scroll?.x || '100%'
-  // 只在有实际高度值时设置 y
-  const y = tableScrollY.value && tableScrollY.value > 0 ? tableScrollY.value : undefined
+  // 计算所有列的总宽度
+  const totalWidth = processedColumns.value.reduce((sum, col) => {
+    const w = col.width
+    if (typeof w === 'number') return sum + w
+    if (typeof w === 'string' && w.endsWith('px')) return sum + parseInt(w)
+    return sum + 100 // 默认宽度
+  }, 0)
+  const selectionWidth = props.selectable ? 40 : 0
+  const x = Math.max(totalWidth + selectionWidth + 20, 600)
+
+  // 设置 y 值，启用固定表头
+  const y = tableScrollY.value && tableScrollY.value > 100 ? tableScrollY.value : 300
   return { x, y }
 })
 
@@ -896,29 +974,38 @@ function setupResizeObserver() {
 
 // 监听筛选面板展开/折叠，重新计算高度
 watch(showFilterPanel, () => {
-  nextTick(updateScrollY)
+  nextTick(() => {
+    updateScrollY()
+    fixColumnWidths()
+  })
 })
 
-// 数据加载完成后重新计算
+// 数据加载完成后重新计算和修正列宽度
 watch(() => props.loading, () => {
   if (!props.loading) {
-    nextTick(updateScrollY)
+    nextTick(() => {
+      updateScrollY()
+      fixColumnWidths()
+    })
   }
 })
 
-// 数据源变化后重新计算
+// 数据源变化后重新计算和修正列宽度
 watch(() => props.dataSource.length, () => {
-  nextTick(updateScrollY)
-})
-
-onMounted(() => {
-  setupResizeObserver()
+  nextTick(() => {
+    updateScrollY()
+    fixColumnWidths()
+  })
 })
 
 onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
+  }
+  if (colWidthObserver) {
+    colWidthObserver.disconnect()
+    colWidthObserver = null
   }
 })
 
@@ -933,36 +1020,17 @@ function getSummaryCellClass(col: any): string {
 }
 
 function getSummaryCellValue(col: any): string {
-  if (!props.summaryData || props.summaryData.length === 0) {
-    // 没有 summaryData 时，第一列显示"合计"
-    const firstDataIndex = processedColumns.value[0]?.dataIndex
-    if (col.dataIndex === firstDataIndex) return '合计'
-    return ''
-  }
-
-  // 查找匹配的汇总项（按 label 匹配）
-  const summaryItem = props.summaryData.find(s => s.label === col.title)
-  if (summaryItem) {
-    return formatSummaryValue(summaryItem)
-  }
-
-  // 列级别的 summaryValue
+  // 列级别的 summaryValue 优先
   if (col.summaryValue !== undefined && col.summaryValue !== null) {
     if (col.summaryType === 'currency') return `¥${Number(col.summaryValue).toFixed(2)}`
     if (col.summaryType === 'number') return Number(col.summaryValue).toLocaleString()
     return String(col.summaryValue)
   }
 
-  // 汇总数据渲染到第一列（显示"合计 + 汇总文本"）
+  // 第一列显示"合计"
   const firstDataIndex = processedColumns.value[0]?.dataIndex
   if (col.dataIndex === firstDataIndex) {
-    const texts = props.summaryData.map(s => {
-      const val = typeof s.value === 'number'
-        ? (s.type === 'currency' ? `¥${s.value.toFixed(2)}` : s.value.toLocaleString())
-        : s.value
-      return `${s.label}: ${val}`
-    })
-    return texts.join(' | ')
+    return '合计'
   }
 
   return ''
@@ -1165,40 +1233,44 @@ defineExpose({
   font-weight: 500;
 }
 
-/* ===== 核心表格网格边框 ===== */
-/* 每个单元格四边 1px 实线边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #c0c0c0 !important;
+/* ===== 核心表格样式 ===== */
+
+/* 强制使用 auto layout 来修复 AntDV 4.x 的 col width bug */
+:deep(.ant-table-wrapper .ant-table) {
+  table-layout: auto !important;
+}
+
+:deep(.ant-table-header) {
   background: #fafafa !important;
-  padding: 8px 12px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+:deep(.ant-table-body) {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+/* 表头单元格样式 - 强制设置最小宽度 */
+:deep(.ant-table-thead > tr > th) {
+  background: #fafafa !important;
+  border-top: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  border-left: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  padding: 10px 12px !important;
   font-weight: 600 !important;
   font-size: 13px !important;
   white-space: nowrap !important;
-  text-align: center !important;
-}
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-:deep(.ant-table-thead > tr > th:last-child) {
-  /* 保留右边界，由最后一个 th 提供表格右外边框 */
-}
-:deep(.ant-table-thead > tr > th.ant-table-cell-fix-right-first) {
-  border-left: 2px solid #c0c0c0 !important;
 }
 
+/* 表体单元格样式 */
 :deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
+  border-left: 1px solid #e8e8e8 !important;
+  border-right: 1px solid #e8e8e8 !important;
   border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
+  padding: 10px 12px !important;
   font-size: 13px !important;
-}
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-:deep(.ant-table-tbody > tr > td:last-child) {
-  /* 保留右边界，由最后一个 td 提供表格右外边框 */
 }
 
 /* ===== 固定列分隔线（2px solid） ===== */

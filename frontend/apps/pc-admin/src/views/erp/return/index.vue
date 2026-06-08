@@ -1,21 +1,72 @@
 <template>
-  <div class="return-page">
-    <TableList
+  <div class="return-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <FileTextOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">退货单总数</div>
+            <div class="summary-value">{{ statistics.totalCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            <ClockCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">待审核</div>
+            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已退款</div>
+            <div class="summary-value">{{ statistics.refundedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
+            <DollarOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">退货金额</div>
+            <div class="summary-value">¥{{ formatAmount(statistics.totalAmount) }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="dataSource"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'erp-return-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
+      :selectable="true"
       :show-export="true"
       add-text="新建退货申请"
+      style="flex: 1;"
       @add="handleCreate"
       @refresh="fetchData"
       @export="handleExport"
       @search="handleSearch"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
@@ -34,14 +85,11 @@
         </div>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <StatusTag :status="record.status" :map="RETURN_STATUS" />
+      <template #action="{ record }">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
         </template>
-        <template v-else-if="column.key === 'returnAmount'">
-          ¥{{ record.returnAmount?.toFixed(2) }}
-        </template>
-        <template v-else-if="column.key === 'action'">
+        <template v-else>
           <a-space>
             <a-tooltip title="查看">
               <a-button type="link" size="small" @click="handleView(record)">
@@ -78,7 +126,7 @@
           </a-space>
         </template>
       </template>
-    </TableList>
+    </VxeTableList>
 
     <a-modal
       v-model:open="detailVisible"
@@ -109,7 +157,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { RETURN_STATUS } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'
@@ -123,7 +171,10 @@ import {
   EllipsisOutlined,
   DeleteOutlined,
   SearchOutlined,
-  InboxOutlined
+  InboxOutlined,
+  FileTextOutlined,
+  ClockCircleOutlined,
+  DollarOutlined
 } from '@ant-design/icons-vue'
 
 interface ReturnOrder {
@@ -145,6 +196,16 @@ const detailVisible = ref(false)
 const currentRecord = ref<ReturnOrder | null>(null)
 const tableRef = ref()
 const lastUpdated = ref(new Date().toISOString())
+const selectedRows = ref<ReturnOrder[]>([])
+const selectedIds = ref<number[]>([])
+
+// 统计数据
+const statistics = ref({
+  totalCount: 0,
+  pendingCount: 0,
+  refundedCount: 0,
+  totalAmount: 0
+})
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -158,60 +219,32 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-const columns = [
-  {
-    title: '退货单号',
-    dataIndex: 'returnNo',
-    key: 'returnNo',
-    width: 150
-  },
-  {
-    title: '销售订单',
-    dataIndex: 'orderNo',
-    key: 'orderNo',
-    width: 150
-  },
-  {
-    title: '客户名称',
-    dataIndex: 'customerName',
-    key: 'customerName',
-    width: 150
-  },
-  {
-    title: '退货金额',
-    key: 'returnAmount',
-    width: 120
-  },
-  {
-    title: '退货原因',
-    dataIndex: 'returnReason',
-    key: 'returnReason',
-    ellipsis: true
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100
-  },
-  {
-    title: '退货日期',
-    dataIndex: 'returnDate',
-    key: 'returnDate',
-    width: 120
-  },
-  {
-    title: '操作人',
-    dataIndex: 'operator',
-    key: 'operator',
-    width: 100
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 200,
-    fixed: 'right'
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
   }
-]
+  return data
+})
+
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
+
+const vxeColumns = computed(() => [
+  { field: 'returnNo', title: '退货单号', width: 150 },
+  { field: 'orderNo', title: '销售订单', width: 150 },
+  { field: 'customerName', title: '客户名称', width: 150 },
+  { field: 'returnAmount', title: '退货金额', width: 120, align: 'right', formatter: ({ cellValue }) => `¥${cellValue?.toFixed(2) || '0.00'}` },
+  { field: 'returnReason', title: '退货原因', minWidth: 100, showOverflow: 'tooltip' },
+  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }) => RETURN_STATUS[cellValue]?.text || '' },
+  { field: 'returnDate', title: '退货日期', width: 120 },
+  { field: 'operator', title: '操作人', width: 100 },
+  { type: 'action', title: '操作', width: 200, fixed: 'right' },
+])
 
 const filterFields = [
   { key: 'returnNo', label: '退货单号', type: 'input' as const, placeholder: '请输入退货单号' },
@@ -241,6 +274,11 @@ const handleResetFilters = () => {
   }
   pagination.current = 1
   fetchData()
+}
+
+const handleSelectionChange = (rows: ReturnOrder[], ids: number[]) => {
+  selectedRows.value = rows
+  selectedIds.value = ids
 }
 
 const handleCreate = () => {
@@ -320,6 +358,11 @@ const fetchData = async () => {
     if (res.data?.records) {
       dataSource.value = res.data.records
       pagination.total = res.data.total || 0
+      // 更新统计
+      statistics.value.totalCount = dataSource.value.length
+      statistics.value.pendingCount = dataSource.value.filter(r => r.status === 0).length
+      statistics.value.refundedCount = dataSource.value.filter(r => r.status === 3).length
+      statistics.value.totalAmount = dataSource.value.reduce((sum, r) => sum + (r.returnAmount || 0), 0)
     } else {
       dataSource.value = []
       pagination.total = 0
@@ -337,7 +380,10 @@ fetchData()
 
 <style scoped>
 .return-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .list-update-timestamp {
@@ -370,5 +416,94 @@ fetchData()
 .detail-modal-footer {
   text-align: right;
   margin-top: 16px;
+}
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%);
+  border: 1px solid #ffa39e;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #faad14;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
 }
 </style>

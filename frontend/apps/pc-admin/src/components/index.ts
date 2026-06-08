@@ -1,3 +1,6 @@
+// 页面容器组件
+export { default as PageContainer } from './PageContainer/PageContainer.vue'
+
 // 表格列表组件
 export { default as TableList } from './TableList/TableList.vue'
 export type { TableColumn, PaginationConfig } from './TableList/TableList.vue'

@@ -1,19 +1,70 @@
 <template>
-  <div class="stocktake-page">
-    <TableList
+  <div class="stocktake-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <FileTextOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">盘点单总数</div>
+            <div class="summary-value">{{ statistics.totalCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+            <ClockCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">待审核</div>
+            <div class="summary-value warning">{{ statistics.pendingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <FormOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">盘点中</div>
+            <div class="summary-value">{{ statistics.processingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已完成</div>
+            <div class="summary-value">{{ statistics.completedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="dataSource"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'erp-stocktake-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
+      :selectable="true"
       add-text="新建盘点单"
+      style="flex: 1;"
       @add="handleCreate"
       @refresh="fetchData"
       @search="handleSearch"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
+      @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
@@ -32,16 +83,11 @@
         </div>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
-          <StatusTag :status="record.status" :map="STOCKTAKE_STATUS_ORDER" />
+      <template #action="{ record }">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
         </template>
-        <template v-else-if="column.key === 'difference'">
-          <span :class="{ 'positive': record.difference > 0, 'negative': record.difference < 0 }">
-            {{ record.difference > 0 ? '+' : '' }}{{ record.difference }}
-          </span>
-        </template>
-        <template v-else-if="column.key === 'action'">
+        <template v-else>
           <a-space>
             <a-tooltip title="查看">
               <a-button type="link" size="small" @click="handleView(record)">
@@ -73,7 +119,7 @@
           </a-space>
         </template>
       </template>
-    </TableList>
+    </VxeTableList>
 
     <a-modal
       v-model:open="detailVisible"
@@ -108,7 +154,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { STOCKTAKE_STATUS_ORDER } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'
@@ -122,7 +168,9 @@ import {
   EllipsisOutlined,
   DeleteOutlined,
   SearchOutlined,
-  InboxOutlined
+  InboxOutlined,
+  FileTextOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue'
 
 interface Stocktake {
@@ -145,6 +193,16 @@ const detailVisible = ref(false)
 const currentRecord = ref<Stocktake | null>(null)
 const tableRef = ref()
 const lastUpdated = ref(new Date().toISOString())
+const selectedRows = ref<Stocktake[]>([])
+const selectedIds = ref<number[]>([])
+
+// 统计数据
+const statistics = ref({
+  totalCount: 0,
+  pendingCount: 0,
+  processingCount: 0,
+  completedCount: 0
+})
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -158,60 +216,31 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-const columns = [
-  {
-    title: '盘点单号',
-    dataIndex: 'stocktakeNo',
-    key: 'stocktakeNo',
-    width: 150
-  },
-  {
-    title: '仓库',
-    dataIndex: 'warehouseName',
-    key: 'warehouseName',
-    width: 120
-  },
-  {
-    title: '盘点日期',
-    dataIndex: 'stocktakeDate',
-    key: 'stocktakeDate',
-    width: 120
-  },
-  {
-    title: '系统数量',
-    dataIndex: 'systemQuantity',
-    key: 'systemQuantity',
-    width: 100
-  },
-  {
-    title: '实际数量',
-    dataIndex: 'actualQuantity',
-    key: 'actualQuantity',
-    width: 100
-  },
-  {
-    title: '差异',
-    key: 'difference',
-    width: 100
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100
-  },
-  {
-    title: '操作人',
-    dataIndex: 'operator',
-    key: 'operator',
-    width: 100
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 200,
-    fixed: 'right'
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
   }
-]
+  return data
+})
+
+const vxeColumns = computed(() => [
+  { field: 'stocktakeNo', title: '盘点单号', width: 150 },
+  { field: 'warehouseName', title: '仓库', width: 120 },
+  { field: 'stocktakeDate', title: '盘点日期', width: 120 },
+  { field: 'systemQuantity', title: '系统数量', width: 100, align: 'right' },
+  { field: 'actualQuantity', title: '实际数量', width: 100, align: 'right' },
+  { field: 'difference', title: '差异', width: 100, align: 'right', formatter: ({ cellValue }) => {
+    const prefix = cellValue > 0 ? '+' : ''
+    return `${prefix}${cellValue}`
+  }},
+  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }) => STOCKTAKE_STATUS_ORDER[cellValue]?.text || '' },
+  { field: 'operator', title: '操作人', width: 100 },
+  { type: 'action', title: '操作', width: 200, fixed: 'right' },
+])
 
 const filterFields = [
   { key: 'stocktakeNo', label: '盘点单号', type: 'input' as const, placeholder: '请输入盘点单号' },
@@ -290,6 +319,11 @@ const handlePageChange = (page: number, size: number) => {
   fetchData()
 }
 
+const handleSelectionChange = (rows: Stocktake[], ids: number[]) => {
+  selectedRows.value = rows
+  selectedIds.value = ids
+}
+
 const handleKeydown = (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
@@ -326,6 +360,11 @@ const fetchData = async () => {
         remark: item.remark || ''
       }))
       pagination.total = res.data.total || 0
+      // 更新统计
+      statistics.value.totalCount = dataSource.value.length
+      statistics.value.pendingCount = dataSource.value.filter(item => item.status === 0).length
+      statistics.value.processingCount = dataSource.value.filter(item => item.status === 1).length
+      statistics.value.completedCount = dataSource.value.filter(item => item.status === 2).length
     } else {
       dataSource.value = []
       pagination.total = 0
@@ -343,7 +382,10 @@ fetchData()
 
 <style scoped>
 .stocktake-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .list-update-timestamp {
@@ -386,5 +428,94 @@ fetchData()
 .negative {
   color: #ff4d4f;
   font-weight: bold;
+}
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #f6ffed 0%, #e6f7e6 100%);
+  border: 1px solid #b7eb8f;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #faad14;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
 }
 </style>

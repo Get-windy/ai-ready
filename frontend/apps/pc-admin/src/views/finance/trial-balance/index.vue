@@ -1,5 +1,41 @@
 <template>
   <div class="trial-balance-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-subjects">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ rawItems.length }}</div>
+          <div class="stat-card-label">科目数量</div>
+        </div>
+        <AuditOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-opening">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ formatAmount(totals.totalOpeningDebit) }}</div>
+          <div class="stat-card-label">期初余额</div>
+        </div>
+        <CalendarOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-period">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ formatAmount(totals.totalPeriodDebit) }}</div>
+          <div class="stat-card-label">本期发生额</div>
+        </div>
+        <LineChartOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-status">
+        <div class="stat-card-body">
+          <div class="stat-card-value" :class="{ 'balanced': isBalanced, 'unbalanced': !isBalanced }">
+            {{ isBalanced === null ? '-' : (isBalanced ? '平衡' : '不平衡') }}
+          </div>
+          <div class="stat-card-label">试算状态</div>
+        </div>
+        <CheckCircleOutlined v-if="isBalanced" class="stat-card-icon success" />
+        <CloseCircleOutlined v-else-if="isBalanced === false" class="stat-card-icon error" />
+        <QuestionCircleOutlined v-else class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-card>
       <template #title><AuditOutlined /> 试算平衡表</template>
       <template #extra>
@@ -58,7 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { AuditOutlined, SearchOutlined, ExportOutlined } from '@ant-design/icons-vue'
+import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { accountingApi, type TrialBalanceItem } from '@/api/finance/accounting'
 
@@ -121,6 +157,10 @@ const balanceMessage = computed(() => {
     `期末差额: ${(totals.value.totalClosingDebit - totals.value.totalClosingCredit).toFixed(2)}`
 })
 
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
+
 async function fetchData() {
   loading.value = true
   try {
@@ -154,7 +194,55 @@ onMounted(() => {
 <style scoped>
 .trial-balance-page {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-subjects { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-opening { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-period { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-status { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-value.balanced { color: #52c41a; }
+.stat-card-value.unbalanced { color: #f5222d; }
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-icon.success { color: rgba(82, 196, 26, 0.3); }
+.stat-card-icon.error { color: rgba(245, 34, 45, 0.3); }
 
 .amount-value {
   font-family: monospace;

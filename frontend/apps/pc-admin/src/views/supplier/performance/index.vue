@@ -12,6 +12,45 @@
       </template>
     </a-page-header>
 
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-quality">
+        <div class="stat-card-body">
+          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.quality) }">{{ avgScores.quality.toFixed(1) }}</div>
+          <div class="stat-card-label">质量评分</div>
+        </div>
+        <SafetyOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-delivery">
+        <div class="stat-card-body">
+          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.delivery) }">{{ avgScores.delivery.toFixed(1) }}</div>
+          <div class="stat-card-label">交付评分</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-price">
+        <div class="stat-card-body">
+          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.price) }">{{ avgScores.price.toFixed(1) }}</div>
+          <div class="stat-card-label">价格评分</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-service">
+        <div class="stat-card-body">
+          <div class="stat-card-value" :style="{ color: getScoreColor(avgScores.service) }">{{ avgScores.service.toFixed(1) }}</div>
+          <div class="stat-card-label">服务评分</div>
+        </div>
+        <SmileOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-comprehensive">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ avgScores.comprehensive.toFixed(1) }}</div>
+          <div class="stat-card-label">综合评分</div>
+        </div>
+        <StarOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-card :bordered="false" v-if="supplier" style="margin-bottom: 16px">
       <a-descriptions size="small" :column="4">
         <a-descriptions-item label="供应商名称">{{ supplier.supplierName }}</a-descriptions-item>
@@ -27,29 +66,19 @@
       </a-descriptions>
     </a-card>
 
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="4" v-for="(score, key) in scoreCards" :key="key">
-        <a-card :class="{ 'comprehensive-card': key === 'comprehensive' }">
-          <a-statistic
-            :title="score.title"
-            :value="score.value"
-            :precision="1"
-            :value-style="{ color: score.color }"
-          />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-card :bordered="false">
+    <a-card :bordered="false" class="table-card">
       <a-table
         :columns="columns"
-        :data-source="performances"
+        :data-source="tableDataSource"
         :loading="loading"
         :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
         row-key="id"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'periodType'">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else-if="column.key === 'periodType'">
             {{ periodTypeLabel(record.periodType) }}
           </template>
           <template v-else-if="column.key === 'qualityScore'">
@@ -109,7 +138,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined } from '@ant-design/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import { requiredRule } from '@/utils/formRules'
@@ -186,13 +215,16 @@ const avgScores = computed(() => {
   }
 })
 
-const scoreCards = computed(() => [
-  { title: '质量评分', value: avgScores.value.quality, color: getScoreColor(avgScores.value.quality) },
-  { title: '交付评分', value: avgScores.value.delivery, color: getScoreColor(avgScores.value.delivery) },
-  { title: '价格评分', value: avgScores.value.price, color: getScoreColor(avgScores.value.price) },
-  { title: '服务评分', value: avgScores.value.service, color: getScoreColor(avgScores.value.service) },
-  { title: '综合评分', value: avgScores.value.comprehensive, color: '#fff' }
-])
+// 空行填充 - 确保表格最少显示20行
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...performances.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
 
 const columns = [
   { title: '评估周期', dataIndex: 'period', key: 'period', width: 110 },
@@ -299,11 +331,104 @@ import request from '@/utils/request'
 </script>
 
 <style scoped>
-.comprehensive-card {
-  background: #1890ff;
+.performance-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
-.comprehensive-card :deep(.ant-statistic-title),
-.comprehensive-card :deep(.ant-statistic-content) {
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-quality { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-delivery { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-price { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-service { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+.stat-comprehensive {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+}
+.stat-comprehensive .stat-card-value,
+.stat-comprehensive .stat-card-label {
   color: #fff;
+}
+.stat-comprehensive .stat-card-icon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.table-card {
+  flex: 1;
+  border-radius: 8px;
+}
+
+/* 空行占位符 */
+.empty-placeholder {
+  color: transparent;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 30%;
+    min-width: 100px;
+  }
 }
 </style>

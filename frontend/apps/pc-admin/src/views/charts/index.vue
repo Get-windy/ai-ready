@@ -28,27 +28,51 @@
       </a-space>
     </a-card>
 
-    <!-- KPI 概览 -->
-    <a-row :gutter="16" class="kpi-row">
+    <!-- 统计卡片（渐变背景） -->
+    <a-row :gutter="16" class="stat-row">
       <a-col :xs="12" :sm="12" :md="6">
-        <a-card class="kpi-card" :bordered="false" :loading="overviewLoading">
-          <a-statistic title="销售总额" :value="overview?.totalAmount || 0" prefix="¥" :precision="2" />
-        </a-card>
+        <div class="stat-card stat-card--blue">
+          <div class="stat-card-icon">
+            <DollarOutlined />
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">销售总额</div>
+            <div class="stat-card-value">{{ formatAmount(overview?.totalAmount || 0) }}</div>
+          </div>
+        </div>
       </a-col>
       <a-col :xs="12" :sm="12" :md="6">
-        <a-card class="kpi-card" :bordered="false" :loading="overviewLoading">
-          <a-statistic title="订单数量" :value="overview?.orderCount || 0" />
-        </a-card>
+        <div class="stat-card stat-card--green">
+          <div class="stat-card-icon">
+            <FileTextOutlined />
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">订单数量</div>
+            <div class="stat-card-value">{{ overview?.orderCount || 0 }}</div>
+          </div>
+        </div>
       </a-col>
       <a-col :xs="12" :sm="12" :md="6">
-        <a-card class="kpi-card" :bordered="false" :loading="overviewLoading">
-          <a-statistic title="平均客单价" :value="overview?.avgOrderAmount || 0" prefix="¥" :precision="2" />
-        </a-card>
+        <div class="stat-card stat-card--orange">
+          <div class="stat-card-icon">
+            <BarChartOutlined />
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">平均客单价</div>
+            <div class="stat-card-value">{{ formatAmount(overview?.avgOrderAmount || 0) }}</div>
+          </div>
+        </div>
       </a-col>
       <a-col :xs="12" :sm="12" :md="6">
-        <a-card class="kpi-card" :bordered="false" :loading="overviewLoading">
-          <a-statistic title="毛利率" :value="(overview?.grossMargin || 0) * 100" suffix="%" :precision="1" />
-        </a-card>
+        <div class="stat-card stat-card--purple">
+          <div class="stat-card-icon">
+            <PercentageOutlined />
+          </div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">毛利率</div>
+            <div class="stat-card-value">{{ ((overview?.grossMargin || 0) * 100).toFixed(1) }}%</div>
+          </div>
+        </div>
       </a-col>
     </a-row>
 
@@ -74,14 +98,18 @@
         <a-card :bordered="false" title="客户排行 TOP10" class="rank-card">
           <a-table
             :columns="customerRankCols"
-            :data-source="customerRankData"
+            :data-source="displayCustomerRankData"
             :pagination="false"
             :loading="rankLoading"
             size="small"
             row-key="rank"
+            class="rank-table"
           >
             <template #bodyCell="{ column, record, index }">
-              <template v-if="column.key === 'rank'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'rank'">
                 <a-tag :color="index < 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
               </template>
               <template v-else-if="column.key === 'growth'">
@@ -100,14 +128,18 @@
         <a-card :bordered="false" title="产品排行 TOP10" class="rank-card">
           <a-table
             :columns="productRankCols"
-            :data-source="productRankData"
+            :data-source="displayProductRankData"
             :pagination="false"
             :loading="rankLoading"
             size="small"
             row-key="rank"
+            class="rank-table"
           >
             <template #bodyCell="{ column, record, index }">
-              <template v-if="column.key === 'rank'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'rank'">
                 <a-tag :color="index < 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
               </template>
               <template v-else-if="column.key === 'margin'">
@@ -127,9 +159,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { message } from 'ant-design-vue'
+import { DollarOutlined, FileTextOutlined, BarChartOutlined, PercentageOutlined } from '@ant-design/icons-vue'
 import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type ChannelDistribution, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
+
+// ── 常量 ────────────────────────────────
+const MIN_TABLE_ROWS = 20
 
 // ── 筛选 ──
 const dateRange = ref<any[]>([])
@@ -172,6 +208,30 @@ const productRankCols = [
 ]
 
 const loading = ref(false)
+
+// ── 辅助函数 ────────────────────────────────
+function formatAmount(value: number): string {
+  return `¥${value.toFixed(2)}`
+}
+
+// ── 排行榜空行填充 ────────────────────────────────
+const displayCustomerRankData = computed(() => {
+  const data = [...customerRankData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ rank: 0, name: '', orderCount: 0, totalAmount: 0, growth: 0, __empty_row: true })
+  }
+  return data
+})
+
+const displayProductRankData = computed(() => {
+  const data = [...productRankData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ rank: 0, name: '', volume: 0, totalAmount: 0, margin: 0, __empty_row: true })
+  }
+  return data
+})
 
 // ── 筛选参数 ──
 function buildParams() {
@@ -344,19 +404,98 @@ onBeforeUnmount(() => {
 <style scoped>
 .sales-analysis {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .filter-card {
   margin-bottom: 16px;
 }
 
-.kpi-row {
+/* ── 统计卡片（渐变背景） ──────────────────────── */
+.stat-row {
   margin-bottom: 16px;
 }
 
-.kpi-card {
-  border-radius: 8px;
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  cursor: default;
+  height: 100%;
 }
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  margin-right: 16px;
+}
+
+.stat-card-content {
+  flex: 1;
+}
+
+.stat-card-title {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 4px;
+}
+
+.stat-card-value {
+  font-family: 'SFMono-Regular', 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+}
+
+/* 渐变背景 */
+.stat-card--blue {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+}
+
+.stat-card--green {
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+}
+
+.stat-card--orange {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
+}
+
+.stat-card--purple {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+}
+
+/* 深色渐变（图标背景用） */
+.stat-card--blue .stat-card-icon { background: rgba(24, 144, 255, 0.3); color: #1890ff; }
+.stat-card--green .stat-card-icon { background: rgba(82, 196, 26, 0.3); color: #52c41a; }
+.stat-card--orange .stat-card-icon { background: rgba(250, 173, 20, 0.3); color: #faad14; }
+.stat-card--purple .stat-card-icon { background: rgba(114, 46, 209, 0.3); color: #722ed1; }
+
+/* 深色渐变文字 */
+.stat-card--blue .stat-card-value { color: #1890ff; }
+.stat-card--blue .stat-card-title { color: rgba(24, 144, 255, 0.85); }
+.stat-card--green .stat-card-value { color: #52c41a; }
+.stat-card--green .stat-card-title { color: rgba(82, 196, 26, 0.85); }
+.stat-card--orange .stat-card-value { color: #faad14; }
+.stat-card--orange .stat-card-title { color: rgba(250, 173, 20, 0.85); }
+.stat-card--purple .stat-card-value { color: #722ed1; }
+.stat-card--purple .stat-card-title { color: rgba(114, 46, 209, 0.85); }
 
 .chart-row {
   margin-bottom: 16px;
@@ -383,5 +522,34 @@ onBeforeUnmount(() => {
 
 .rank-card {
   border-radius: 8px;
+}
+
+/* ── 空行占位符 ──────────────────────────────── */
+.empty-placeholder {
+  color: transparent;
+}
+
+/* ── 表格网格边框 ──────────────────────────────── */
+.rank-table :deep(.ant-table-thead > tr > th) {
+  border-top: 2px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #d9d9d9 !important;
+  background: #fafafa !important;
+  padding: 12px 16px !important;
+  font-weight: 600 !important;
+}
+
+.rank-table :deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 2px solid #d9d9d9 !important;
+}
+
+.rank-table :deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e8e8e8 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 12px 16px !important;
+}
+
+.rank-table :deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e8e8e8 !important;
 }
 </style>

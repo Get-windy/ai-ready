@@ -1,5 +1,47 @@
 <template>
   <div class="finance-report-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-trial" :class="{ 'stat-success': trialBalanceBalanced === true, 'stat-error': trialBalanceBalanced === false }">
+        <div class="stat-card-body">
+          <div class="stat-card-value">
+            <span v-if="trialBalanceBalanced === null">-</span>
+            <span v-else-if="trialBalanceBalanced">平衡</span>
+            <span v-else>不平衡</span>
+          </div>
+          <div class="stat-card-label">试算平衡</div>
+        </div>
+        <CheckCircleOutlined v-if="trialBalanceBalanced" class="stat-card-icon" />
+        <CloseCircleOutlined v-else-if="trialBalanceBalanced === false" class="stat-card-icon" />
+        <LoadingOutlined v-else class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-balance" :class="{ 'stat-success': balanceSheetBalanced }">
+        <div class="stat-card-body">
+          <div class="stat-card-value">
+            <span v-if="balanceSheetBalanced">平衡</span>
+            <span v-else>待检查</span>
+          </div>
+          <div class="stat-card-label">资产负债</div>
+        </div>
+        <SyncOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-profit" :class="{ 'stat-profit-negative': incomeNetProfit && incomeNetProfit.current < 0 }">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(incomeNetProfit?.current || 0) }}</div>
+          <div class="stat-card-label">本期净利润</div>
+        </div>
+        <RiseOutlined v-if="incomeNetProfit && incomeNetProfit.current >= 0" class="stat-card-icon" />
+        <FallOutlined v-else class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-cumulative">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(incomeNetProfit?.cumulative || 0) }}</div>
+          <div class="stat-card-label">累计净利润</div>
+        </div>
+        <DollarOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <div class="report-filter-bar">
       <a-form layout="inline">
         <a-form-item label="年度">
@@ -35,26 +77,22 @@
           show-icon
           style="margin-bottom: 16px"
         />
-        <TableList
+        <VxeTableList
           :columns="trialBalanceColumns"
           :data-source="trialBalanceData"
           :loading="trialLoading"
           :pagination="false"
-          :table-key="'finance-report-trial-balance'"
+          :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
           :show-add="false"
           :show-edit="false"
           :show-delete="false"
           :show-export="false"
-          :selectable="false"
-          :scroll="{ x: 1000 }"
+          :selectable="true"
           size="small"
-        >
-          <template #subjectName="{ record }">
-            {{ record.subjectCode }} {{ record.subjectName }}
-          </template>
-        </TableList>
+          @selection-change="handleSelectionChange"
+        />
       </a-tab-pane>
 
       <!-- 资产负债表 -->
@@ -65,68 +103,44 @@
           show-icon
           style="margin-bottom: 16px"
         />
-        <TableList
+        <VxeTableList
           :columns="balanceSheetColumns"
           :data-source="balanceSheetData"
           :loading="bsLoading"
           :pagination="false"
-          :table-key="'finance-report-balance-sheet'"
+          :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
           :show-add="false"
           :show-edit="false"
           :show-delete="false"
           :show-export="false"
-          :selectable="false"
-          :scroll="{ x: 800 }"
+          :selectable="true"
           size="small"
-        >
-          <template #itemName="{ record }">
-            <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
-              {{ record.itemName }}
-            </span>
-          </template>
-          <template #endingBalance="{ record }">
-            {{ formatAmount(record.endingBalance) }}
-          </template>
-          <template #beginningBalance="{ record }">
-            {{ formatAmount(record.beginningBalance) }}
-          </template>
-        </TableList>
+          @selection-change="handleSelectionChange"
+        />
       </a-tab-pane>
 
       <!-- 利润表 -->
       <a-tab-pane key="income-statement" tab="利润表">
-        <TableList
+        <VxeTableList
           :columns="incomeStatementColumns"
           :data-source="incomeStatementData"
           :loading="isLoading"
           :pagination="false"
-          :table-key="'finance-report-income-statement'"
+          :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
           :show-add="false"
           :show-edit="false"
           :show-delete="false"
           :show-export="false"
-          :selectable="false"
-          :scroll="{ x: 800 }"
-          size="small"
+          :selectable="true"
           :show-summary="!!incomeNetProfit"
           :summary-data="incomeSummaryData"
-        >
-          <template #itemName="{ record }">
-            <span :style="{ paddingLeft: (record.level || 0) * 20 + 'px', fontWeight: record.level === 0 ? 600 : 'normal' }">
-              {{ record.itemName }}
-            </span>
-          </template>
-          <template #currentAmount="{ record }">
-            {{ formatAmount(record.currentAmount) }}
-          </template>
-          <template #cumulativeAmount="{ record }">
-            {{ formatAmount(record.cumulativeAmount) }}
-          </template>
-        </TableList>
+          size="small"
+          @selection-change="handleSelectionChange"
+        />
       </a-tab-pane>
     </a-tabs>
   </div>
@@ -136,9 +150,12 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
-import { SearchOutlined } from '@ant-design/icons-vue'
+import {
+  SearchOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined,
+  SyncOutlined, RiseOutlined, FallOutlined, DollarOutlined
+} from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { reportApi } from '@/api/finance'
 
 const activeTab = ref('trial-balance')
@@ -168,29 +185,29 @@ const incomeSummaryData = computed(() => {
   ]
 })
 
-const trialBalanceColumns: TableProps['columns'] = [
-  { title: '科目', key: 'subjectName', dataIndex: 'subjectName', width: 220, slotName: 'subjectName' },
-  { title: '期初借方', dataIndex: 'openingDebit', key: 'openingDebit', width: 130, align: 'right' },
-  { title: '期初贷方', dataIndex: 'openingCredit', key: 'openingCredit', width: 130, align: 'right' },
-  { title: '本期借方', dataIndex: 'periodDebit', key: 'periodDebit', width: 130, align: 'right' },
-  { title: '本期贷方', dataIndex: 'periodCredit', key: 'periodCredit', width: 130, align: 'right' },
-  { title: '期末借方', dataIndex: 'closingDebit', key: 'closingDebit', width: 130, align: 'right' },
-  { title: '期末贷方', dataIndex: 'closingCredit', key: 'closingCredit', width: 130, align: 'right' }
-]
+const trialBalanceColumns = computed(() => [
+  { title: '科目', field: 'subjectName', width: 220, formatter: ({ row }) => `${row.subjectCode || ''} ${row.subjectName || ''}` },
+  { title: '期初借方', field: 'openingDebit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '期初贷方', field: 'openingCredit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '本期借方', field: 'periodDebit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '本期贷方', field: 'periodCredit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '期末借方', field: 'closingDebit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '期末贷方', field: 'closingCredit', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' }
+])
 
-const balanceSheetColumns: TableProps['columns'] = [
-  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250, slotName: 'itemName' },
-  { title: '行次', dataIndex: 'lineNo', key: 'lineNo', width: 60, align: 'center' },
-  { title: '期末余额', key: 'endingBalance', dataIndex: 'endingBalance', width: 150, align: 'right', slotName: 'endingBalance' },
-  { title: '年初余额', key: 'beginningBalance', dataIndex: 'beginningBalance', width: 150, align: 'right', slotName: 'beginningBalance' }
-]
+const balanceSheetColumns = computed(() => [
+  { title: '项目', field: 'itemName', width: 250, formatter: ({ cellValue, row }) => `${'  '.repeat(row.level || 0)}${cellValue}` },
+  { title: '行次', field: 'lineNo', width: 60, align: 'center' },
+  { title: '期末余额', field: 'endingBalance', width: 150, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '年初余额', field: 'beginningBalance', width: 150, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' }
+])
 
-const incomeStatementColumns: TableProps['columns'] = [
-  { title: '项目', key: 'itemName', dataIndex: 'itemName', width: 250, slotName: 'itemName' },
-  { title: '行次', dataIndex: 'lineNo', key: 'lineNo', width: 60, align: 'center' },
-  { title: '本期金额', key: 'currentAmount', dataIndex: 'currentAmount', width: 150, align: 'right', slotName: 'currentAmount' },
-  { title: '本年累计', key: 'cumulativeAmount', dataIndex: 'cumulativeAmount', width: 150, align: 'right', slotName: 'cumulativeAmount' }
-]
+const incomeStatementColumns = computed(() => [
+  { title: '项目', field: 'itemName', width: 250, formatter: ({ cellValue, row }) => `${'  '.repeat(row.level || 0)}${cellValue}` },
+  { title: '行次', field: 'lineNo', width: 60, align: 'center' },
+  { title: '本期金额', field: 'currentAmount', width: 150, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' },
+  { title: '本年累计', field: 'cumulativeAmount', width: 150, align: 'right', formatter: ({ cellValue }) => cellValue ? formatAmount(cellValue) : '-' }
+])
 
 const handleTabChange = (key: string) => {
   activeTab.value = key
@@ -318,11 +335,60 @@ onMounted(() => {
 
 <style scoped>
 .finance-report-page {
-  padding: 0;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.stat-trial { background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%); }
+.stat-trial.stat-success { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-trial.stat-error { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-balance { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-balance.stat-success { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-profit { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-profit.stat-profit-negative { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-cumulative { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .report-filter-bar {
-  margin-bottom: 16px;
+  margin-bottom: 0;
   padding: 12px 16px;
   background: #fff;
   border-radius: 6px;
@@ -335,5 +401,40 @@ onMounted(() => {
 
 .text-muted {
   color: #bbb;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

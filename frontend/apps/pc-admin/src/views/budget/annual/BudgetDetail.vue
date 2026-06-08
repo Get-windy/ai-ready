@@ -1,5 +1,37 @@
 <template>
   <div class="budget-detail-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(budget?.totalAmount) }}</div>
+          <div class="stat-card-label">预算总额</div>
+        </div>
+        <FundOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-used">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(budget?.totalUsedAmount) }}</div>
+          <div class="stat-card-label">已使用</div>
+        </div>
+        <ShoppingOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-remaining">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(budget?.totalRemainingAmount) }}</div>
+          <div class="stat-card-label">剩余预算</div>
+        </div>
+        <WalletOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-rate">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ (budget?.executionRate || 0).toFixed(1) }}%</div>
+          <div class="stat-card-label">执行率</div>
+        </div>
+        <LineChartOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <a-page-header
       :title="`预算详情 - ${budget?.budgetNo ?? ''}`"
       @back="() => $router.push('/budget/annual')"
@@ -127,6 +159,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { annualBudgetApi, budgetItemApi, budgetAdjustmentApi, budgetReportApi } from '@/api/budget'
 import { message } from 'ant-design-vue'
+import { FundOutlined, ShoppingOutlined, WalletOutlined, LineChartOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -138,6 +171,10 @@ const itemLoading = ref(false)
 const executionLogs = ref<any[]>([])
 const adjustments = ref<any[]>([])
 const adjLoading = ref(false)
+
+function formatAmount(amount: number | undefined): string {
+  return (amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+}
 
 const itemColumns = [
   { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode' },
@@ -252,6 +289,61 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.budget-detail-page { padding: 16px; }
+.budget-detail-page {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .mt-2 { margin-top: 16px; }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-used { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-remaining { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-rate { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-body {
+  flex: 1;
+}
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
 </style>

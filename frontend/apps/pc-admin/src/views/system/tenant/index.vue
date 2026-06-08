@@ -1,14 +1,47 @@
 <template>
   <div class="tenant-management">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">租户总数</div>
+        </div>
+        <ShopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-active">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ activeCount }}</div>
+          <div class="stat-card-label">正常租户</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-disabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ disabledCount }}</div>
+          <div class="stat-card-label">停用租户</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-users">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ totalUsers }}</div>
+          <div class="stat-card-label">用户总数</div>
+        </div>
+        <TeamOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
+      :columns="vxeColumns"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'system-tenant-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
+      :selectable="true"
       add-text="新增租户"
       @add="handleAdd"
       @edit="handleEdit"
@@ -20,54 +53,57 @@
       @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.field === 'status'">
           <a-tag :color="record.status === 0 ? 'success' : 'error'">
             {{ record.status === 0 ? '正常' : '停用' }}
           </a-tag>
         </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleEdit(record)"
-            >
-              编辑
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleConfig(record)"
-            >
-              配置
-            </a-button>
-            <a-dropdown>
-              <a-button
-                type="link"
-                size="small"
-              >
-                更多<DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handleToggleStatus(record)">
-                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item
-                    danger
-                    @click="handleDelete(record)"
-                  >
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-space>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleEdit(record)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleConfig(record)"
+          >
+            配置
+          </a-button>
+          <a-dropdown>
+            <a-button
+              type="link"
+              size="small"
+            >
+              更多<DownOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="handleToggleStatus(record)">
+                  <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 新增/编辑租户弹窗 -->
     <a-modal
@@ -291,9 +327,12 @@ import type { FormInstance } from 'ant-design-vue'
 import {
   DownOutlined,
   StopOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  ShopOutlined,
+  CheckCircleOutlined,
+  TeamOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { tenantApi, type TenantInfo } from '@/api/tenant'
 import { useSubmitLock } from '@/composables'
 
@@ -311,6 +350,22 @@ const selectedRowKeys = ref<number[]>([])
 const { isSubmitting: submittingLoading, withSubmitLock } = useSubmitLock()
 const { isSubmitting: batchDeleteLoading } = useSubmitLock()
 
+// ── 统计数据 ────────────────────────────────────────────
+const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
+const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
+const totalUsers = computed(() => tableData.value.reduce((s, r) => s + (r.maxUsers || 0), 0))
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
 // ── 分页配置 ──────────────────────────────────────────────
 const pagination = reactive({
   current: 1,
@@ -322,15 +377,15 @@ const pagination = reactive({
 })
 
 // ── 表格列定义 ────────────────────────────────────────────
-const columns: any[] = [
-  { title: '租户编码', dataIndex: 'tenantCode', width: 150 },
-  { title: '租户名称', dataIndex: 'tenantName', width: 200 },
-  { title: '联系人', dataIndex: 'contactName' },
-  { title: '联系电话', dataIndex: 'contactPhone', width: 130 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createTime', width: 170 },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'tenantCode', title: '租户编码', width: 150 },
+  { field: 'tenantName', title: '租户名称', width: 200 },
+  { field: 'contactName', title: '联系人' },
+  { field: 'contactPhone', title: '联系电话', width: 130 },
+  { field: 'status', title: '状态', width: 80 },
+  { field: 'createTime', title: '创建时间', width: 170 },
+  { type: 'action', title: '操作', width: 180, fixed: 'right' }
+])
 
 // ── 筛选字段 ──────────────────────────────────────────────
 const filterFields: FilterField[] = [
@@ -605,8 +660,52 @@ onMounted(() => {
 
 <style scoped>
 .tenant-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-active { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-users { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.empty-placeholder { color: transparent; }
 
 .color-preview {
   display: inline-block;
@@ -616,5 +715,35 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
   margin-left: 8px;
   vertical-align: middle;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

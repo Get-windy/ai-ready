@@ -110,6 +110,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   error: [error: Error, instance: ComponentPublicInstance, info: string]
   retry: []
+  reset: []
 }>()
 
 // State
@@ -178,6 +179,7 @@ const handleRetry = () => {
   errorSubtitle.value = props.fallbackSubtitle
   
   emit('retry')
+  emit('reset')
   message.success('正在重新加载...')
 }
 

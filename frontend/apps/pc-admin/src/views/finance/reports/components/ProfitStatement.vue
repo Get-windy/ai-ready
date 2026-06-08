@@ -1,5 +1,25 @@
 <template>
   <div class="profit-statement">
+    <!-- 统计卡片 -->
+    <div class="summary-cards">
+      <div class="summary-card" style="--card-color: #1890ff;">
+        <div class="summary-card-title">营业收入</div>
+        <div class="summary-card-value">¥{{ formatAmount(profitStatement.revenue) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #faad14;">
+        <div class="summary-card-title">毛利</div>
+        <div class="summary-card-value">¥{{ formatAmount(profitStatement.grossProfit) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #52c41a;">
+        <div class="summary-card-title">营业利润</div>
+        <div class="summary-card-value">¥{{ formatAmount(profitStatement.operatingProfit) }}</div>
+      </div>
+      <div class="summary-card" style="--card-color: #722ed1;">
+        <div class="summary-card-title">净利润</div>
+        <div class="summary-card-value">¥{{ formatAmount(profitStatement.netProfit) }}</div>
+      </div>
+    </div>
+
     <div class="filter-area">
       <a-form layout="inline">
         <a-form-item label="报表月份">
@@ -38,6 +58,10 @@ const profitStatement = ref<ProfitStatement>({ revenue: 0, cost: 0, grossProfit:
 const queryParams = reactive({ month: undefined as string | undefined })
 const loading = ref(false)
 
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
+}
+
 const handleGenerate = async () => {
   if (!queryParams.month) { message.warning('请选择报表月份'); return }
   loading.value = true
@@ -56,6 +80,42 @@ const handleExport = () => {
 </script>
 
 <style scoped>
-.profit-statement { padding: 16px; }
-.filter-area { margin-bottom: 16px; }
+.profit-statement {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, var(--card-color), color-mix(in srgb, var(--card-color) 70%, #fff));
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card-title {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.summary-card-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.filter-area {
+  margin-bottom: 0;
+}
 </style>

@@ -17,6 +17,13 @@ import { useUserStore } from '@/stores/user'
 import { getVueQueryClientConfig } from '@/composables/useQueryConfig'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
+
+// vxe-table
+import VXETable from 'vxe-table'
+import 'vxe-table/lib/style.css'
+import zhCNVXETable from 'vxe-table/lib/locale/lang/zh-CN'
+
+// Ant Design Vue (保留部分组件如 Form, Modal, Button 等)
 import 'ant-design-vue/dist/reset.css'
 import './styles/variables.css'
 import './styles/components.css'
@@ -79,6 +86,15 @@ async function bootstrap() {
   app.use(VueQueryPlugin, {
     queryClientConfig: getVueQueryClientConfig(),
   })
+
+  // 安装 vxe-table（表格组件）
+  VXETable.setup({
+    i18n: (key: string, args: any) => {
+      // 使用 vxe-table 自带的中文语言包
+      return zhCNVXETable.vxe[key] || key
+    }
+  })
+  app.use(VXETable)
 
   // Sentry RUM 错误监控 & 性能追踪（异步加载，不阻塞启动）
   initSentry(app, router).catch(() => {

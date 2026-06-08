@@ -1,9 +1,41 @@
 <template>
   <div class="position-management">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ pagination.total }}</div>
+          <div class="stat-card-label">岗位总数</div>
+        </div>
+        <SolutionOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-active">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ activeCount }}</div>
+          <div class="stat-card-label">正常岗位</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-disabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ disabledCount }}</div>
+          <div class="stat-card-label">停用岗位</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-categories">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ categoryList.length }}</div>
+          <div class="stat-card-label">分类数量</div>
+        </div>
+        <AppstoreOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <TableList
       ref="tableRef"
       :columns="columns"
-      :data-source="tableData"
+      :data-source="tableDataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'system-position-list'"
@@ -27,7 +59,10 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'level'">
+        <template v-if="record.__empty_row">
+          <span class="empty-placeholder">&nbsp;</span>
+        </template>
+        <template v-else-if="column.key === 'level'">
           <a-tag :color="getLevelColor(record.level)">
             {{ getLevelName(record.level) }}
           </a-tag>
@@ -376,9 +411,11 @@ import {
   StopOutlined,
   DeleteOutlined,
   AppstoreOutlined,
-  PlusOutlined
+  PlusOutlined,
+  SolutionOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
@@ -399,6 +436,21 @@ const searchForm = reactive<PositionQuery>({
 const tableData = ref<PositionInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
+
+// ── 统计数据 ────────────────────────────────────────────
+const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
+const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
 
 // 分页配置
 const pagination = reactive({
@@ -813,8 +865,52 @@ onMounted(() => {
 
 <style scoped>
 .position-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-active { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-categories { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
+}
+
+.empty-placeholder { color: transparent; }
 
 .category-management {
   padding: 16px 0;
@@ -831,5 +927,35 @@ onMounted(() => {
 .department-modal-content p {
   margin-bottom: 16px;
   font-size: 14px;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

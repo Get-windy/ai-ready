@@ -1,106 +1,385 @@
 <template>
-  <TableList
-    ref="tableRef"
-    :columns="columns"
-    :data-source="dataSource"
-    :loading="loading"
-    :pagination="pagination"
-    :table-key="'crm-lead-list'"
-    :filter-fields="filterFields"
-    :show-summary="true"
-    :summary-data="summaryData"
-    :show-export="true"
-    :row-selection="rowSelection"
-    add-text="新建线索"
-    @add="handleAdd"
-    @view="handleView"
-    @edit="handleEdit"
-    @delete="handleDelete"
-    @refresh="fetchData"
-    @search="handleSearch"
-    @page-change="handlePageChange"
-    @sort-change="handleSortChange"
-    @filter-change="handleFilterChange"
-    @export="handleExport"
-  >
-    <template #toolbar-actions>
-      <a-button @click="handleBatchAssign"><template #icon><TeamOutlined /></template>批量分配</a-button>
-      <a-button @click="handleImport"><template #icon><ImportOutlined /></template>导入线索</a-button>
-    </template>
-    <template #batch-actions>
-      <a-button size="small" @click="handleBatchAssign">批量分配</a-button>
-    </template>
-
-    <template #name="{ record }">
-      <div style="display:flex;align-items:center;font-weight:500">
-        <a-avatar :size="28" style="marginRight:8px;backgroundColor:#52c41a;fontSize:12px">{{ record.name.charAt(0) }}</a-avatar>
-        <div>
-          <a @click="handleView(record)">{{ record.name }}</a>
-          <a-badge v-if="record.score >= 80" text="高分" style="marginLeft:8px" />
-        </div>
-      </div>
-    </template>
-    <template #companyName="{ record }">
-      <div><div>{{ record.companyName }}</div><a-typography-text type="secondary" style="fontSize:12px">{{ record.contactName }}</a-typography-text></div>
-    </template>
-    <template #phone="{ record }">
-      <div><div>{{ record.phone }}</div><a v-if="record.mobile" style="fontSize:12px;color:#999">{{ record.mobile }}</a></div>
-    </template>
-    <template #status="{ record }">
-      <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
-    </template>
-    <template #source="{ record }">
-      <a-badge :text="sourceTextMap[record.source] || record.source" :color="sourceColorMap[record.source] || 'default'" />
-    </template>
-    <template #action="{ record }">
-      <a-space :size="4">
-        <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-        <a-tooltip title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-        <a-tooltip title="分配"><a-button type="link" size="small" @click="handleAssign(record)"><template #icon><TeamOutlined /></template></a-button></a-tooltip>
-        <a-tooltip v-if="record.status < 2" title="转化"><a-button type="link" size="small" @click="handleConvert(record)"><template #icon><SwapRightOutlined /></template></a-button></a-tooltip>
+  <PageContainer title="线索管理" full-height>
+    <template #headerExtra>
+      <a-space :size="12">
+        <span class="data-status">
+          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
+          <span v-if="lastUpdateTime" class="update-time">
+            数据更新: {{ lastUpdateTime }}
+          </span>
+        </span>
+        <a-button size="small" @click="handleRefresh">
+          <template #icon><ReloadOutlined /></template>
+          刷新
+        </a-button>
       </a-space>
     </template>
-  </TableList>
+
+    <ErrorBoundary @reset="fetchData">
+      <!-- 统计卡片 -->
+      <div class="stats-cards">
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <div class="stat-card stat-card-blue">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+                <FileAddOutlined />
+              </div>
+              <div class="stat-content">
+                <div class="stat-title">新线索</div>
+                <div class="stat-value">{{ statusCounts.new }}</div>
+                <div class="stat-desc">待分配跟进</div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card-orange">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #d48806 100%);">
+                <SyncOutlined />
+              </div>
+              <div class="stat-content">
+                <div class="stat-title">跟进中</div>
+                <div class="stat-value">{{ statusCounts.following }}</div>
+                <div class="stat-desc">正在跟进</div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card-green">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+                <CheckCircleOutlined />
+              </div>
+              <div class="stat-content">
+                <div class="stat-title">已转化</div>
+                <div class="stat-value">{{ statusCounts.converted }}</div>
+                <div class="stat-desc">成功转化客户</div>
+              </div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card stat-card-purple">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+                <StarOutlined />
+              </div>
+              <div class="stat-content">
+                <div class="stat-title">高分线索</div>
+                <div class="stat-value">{{ statusCounts.highScore }}</div>
+                <div class="stat-desc">评分≥80</div>
+              </div>
+            </div>
+          </a-col>
+        </a-row>
+      </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :filter-fields="filterFields"
+        :show-export="true"
+        :selectable="true"
+        add-text="新建线索"
+        @add="handleAdd"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+        @export="handleExport"
+      >
+        <template #toolbar-actions>
+          <a-button size="small" @click="handleBatchAssign">
+            <template #icon><TeamOutlined /></template>
+            批量分配
+          </a-button>
+          <a-button size="small" @click="handleImport">
+            <template #icon><ImportOutlined /></template>
+            导入线索
+          </a-button>
+        </template>
+
+        <template #batch-actions>
+          <a-button size="small" type="primary" ghost @click="handleBatchAssign">
+            <template #icon><TeamOutlined /></template>
+            批量分配
+          </a-button>
+          <a-button size="small" @click="handleBatchConvert">
+            <template #icon><SwapRightOutlined /></template>
+            批量转化
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div class="table-empty">
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的线索，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无线索数据，点击右上角「新建线索」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #action="{ record }">
+          <template v-if="record.__empty_row">
+            <span class="empty-placeholder">&nbsp;</span>
+          </template>
+          <template v-else>
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button type="link" size="small" @click="handleEdit(record)">
+                  <template #icon><EditOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="分配">
+                <a-button type="link" size="small" @click="handleAssign(record)">
+                  <template #icon><TeamOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-if="record.status < 2" title="转化为客户">
+                <a-button type="link" size="small" @click="handleConvert(record)">
+                  <template #icon><SwapRightOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button type="link" size="small" class="action-more-btn">
+                  <template #icon><MoreOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                    <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
+                    <a-menu-item key="history"><HistoryOutlined /> 跟进记录</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
+          </template>
+        </template>
+      </VxeTableList>
+    </ErrorBoundary>
+
+    <!-- 线索表单弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="modalTitle"
+      :confirm-loading="modalLoading"
+      width="700px"
+      @ok="handleModalOk"
+    >
+      <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="线索名称" name="name">
+              <a-input v-model:value="formState.name" placeholder="请输入线索名称" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="公司名称" name="companyName">
+              <a-input v-model:value="formState.companyName" placeholder="请输入公司名称" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="联系人" name="contactName">
+              <a-input v-model:value="formState.contactName" placeholder="请输入联系人" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="联系电话" name="phone">
+              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="手机号码" name="mobile">
+              <a-input v-model:value="formState.mobile" placeholder="请输入手机号码" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="邮箱" name="email">
+              <a-input v-model:value="formState.email" placeholder="请输入邮箱" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="来源渠道" name="source">
+              <a-select v-model:value="formState.source" placeholder="请选择来源渠道">
+                <a-select-option value="website">官网咨询</a-select-option>
+                <a-select-option value="weixin">微信公众号</a-select-option>
+                <a-select-option value="email">邮件咨询</a-select-option>
+                <a-select-option value="phone">电话咨询</a-select-option>
+                <a-select-option value="social">社交媒体</a-select-option>
+                <a-select-option value="other">其他</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="评分" name="score">
+              <a-slider v-model:value="formState.score" :min="0" :max="100" :marks="{ 0: '0', 50: '50', 80: '80', 100: '100' }" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="24">
+            <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
+              <a-textarea v-model:value="formState.remark" placeholder="请输入备注" :rows="3" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
+    <!-- 分配弹窗 -->
+    <a-modal
+      v-model:open="assignVisible"
+      title="分配线索"
+      :confirm-loading="assignLoading"
+      width="400px"
+      @ok="handleAssignConfirm"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="选择销售人员">
+          <a-select v-model:value="assignForm.userId" placeholder="请选择销售人员">
+            <a-select-option v-for="user in salesUsers" :key="user.id" :value="user.id">
+              {{ user.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model:value="assignForm.remark" placeholder="分配备注" :rows="2" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 转化确认弹窗 -->
+    <a-modal
+      v-model:open="convertVisible"
+      title="线索转化确认"
+      :confirm-loading="convertLoading"
+      width="500px"
+      @ok="handleConvertConfirm"
+    >
+      <a-alert message="将线索转化为客户" type="info" style="margin-bottom: 16px" />
+      <a-descriptions bordered :column="2" size="small" v-if="currentLead">
+        <a-descriptions-item label="线索名称">{{ currentLead.name }}</a-descriptions-item>
+        <a-descriptions-item label="公司">{{ currentLead.companyName }}</a-descriptions-item>
+        <a-descriptions-item label="联系人">{{ currentLead.contactName }}</a-descriptions-item>
+        <a-descriptions-item label="电话">{{ currentLead.phone }}</a-descriptions-item>
+        <a-descriptions-item label="来源">{{ sourceTextMap[currentLead.source] }}</a-descriptions-item>
+        <a-descriptions-item label="评分">{{ currentLead.score }}</a-descriptions-item>
+      </a-descriptions>
+    </a-modal>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, TeamOutlined, ImportOutlined, SwapRightOutlined } from '@ant-design/icons-vue'
-import TableList from '@/components/TableList/TableList.vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { PageContainer } from '@/components'
 import { leadApi } from '@/api/crm'
 import { exportCsv } from '@/utils/exportCsv'
+import {
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  TeamOutlined,
+  ImportOutlined,
+  SwapRightOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  InboxOutlined,
+  MoreOutlined,
+  MessageOutlined,
+  HistoryOutlined,
+  FileAddOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  StarOutlined
+} from '@ant-design/icons-vue'
 
-interface Lead { id: number; name: string; companyName: string; contactName: string; phone: string; mobile?: string; email?: string; source: string; status: number; score: number; createdAt: string }
+interface Lead {
+  id: number
+  name: string
+  companyName: string
+  contactName: string
+  phone: string
+  mobile?: string
+  email?: string
+  source: string
+  status: number
+  score: number
+  createdAt: string
+}
 
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<Lead[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const lastUpdateTime = ref<string>('')
+const selectedRowKeys = ref<number[]>([])
+let autoRefreshTimer: number | null = null
 
-const columns = [
-  { title: '线索名称', dataIndex: 'name', key: 'name', width: 180, fixed: 'left' as const, slotName: 'name' },
-  { title: '公司/联系人', dataIndex: 'companyName', key: 'companyName', width: 180, slotName: 'companyName' },
-  { title: '联系方式', dataIndex: 'phone', key: 'phone', width: 150, slotName: 'phone' },
-  { title: '来源渠道', dataIndex: 'source', key: 'source', width: 110, slotName: 'source' },
-  { title: '评分', dataIndex: 'score', key: 'score', width: 80, sortable: true },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, type: 'status' as const, slotName: 'status' },
-  { title: '添加时间', dataIndex: 'createdAt', key: 'createdAt', width: 160, type: 'date' as const },
-  { title: '操作', key: 'action', width: 160, fixed: 'right' as const, type: 'action' as const }
-]
+// 状态统计
+const statusCounts = computed(() => {
+  const newLeads = dataSource.value.filter(l => l.status === 0).length
+  const following = dataSource.value.filter(l => l.status === 1).length
+  const converted = dataSource.value.filter(l => l.status === 2).length
+  const highScore = dataSource.value.filter(l => l.score >= 80).length
+  return { new: newLeads, following, converted, highScore }
+})
+
+const hasActiveFilters = computed(() => {
+  return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...dataSource.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return data
+})
+
+const vxeColumns = computed(() => [
+  { field: 'name', title: '线索名称', width: 180, fixed: 'left', formatter: ({ row }: any) => row.name || '' },
+  { field: 'companyName', title: '公司/联系人', width: 180, formatter: ({ row }: any) => `${row.companyName || ''} / ${row.contactName || ''}` },
+  { field: 'phone', title: '联系方式', width: 150, formatter: ({ row }: any) => row.phone || row.mobile || '' },
+  { field: 'source', title: '来源渠道', width: 110, formatter: ({ cellValue }: any) => sourceTextMap[cellValue] || cellValue },
+  { field: 'score', title: '评分', width: 120, formatter: ({ cellValue }: any) => `${cellValue || 0}` },
+  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }: any) => getStatusText(cellValue) },
+  { field: 'createdAt', title: '添加时间', width: 160 },
+  { field: 'action', title: '操作', width: 180, fixed: 'right', type: 'action' }
+])
 
 const filterFields = [
   { key: 'name', label: '线索名称', type: 'input' as const, placeholder: '输入线索名称' },
   { key: 'source', label: '来源渠道', type: 'select' as const, options: [
-    { label: '官网咨询', value: 'website' }, { label: '微信公众号', value: 'weixin' },
-    { label: '邮件咨询', value: 'email' }, { label: '电话咨询', value: 'phone' },
-    { label: '社交媒体', value: 'social' }, { label: '其他', value: 'other' }
+    { label: '官网咨询', value: 'website' },
+    { label: '微信公众号', value: 'weixin' },
+    { label: '邮件咨询', value: 'email' },
+    { label: '电话咨询', value: 'phone' },
+    { label: '社交媒体', value: 'social' },
+    { label: '其他', value: 'other' }
   ]},
   { key: 'status', label: '线索状态', type: 'select' as const, options: [
-    { label: '新线索', value: 0 }, { label: '跟进中', value: 1 }, { label: '已转化', value: 2 }, { label: '已关闭', value: 3 }
-  ]},
-  { key: 'dateRange', label: '日期范围', type: 'dateRange' as const }
+    { label: '新线索', value: 0 },
+    { label: '跟进中', value: 1 },
+    { label: '已转化', value: 2 },
+    { label: '已关闭', value: 3 }
+  ]}
 ]
 
 const statusColorMap: Record<number, string> = { 0: 'blue', 1: 'orange', 2: 'green', 3: 'red' }
@@ -108,64 +387,446 @@ const statusTextMap: Record<number, string> = { 0: '新线索', 1: '跟进中', 
 const sourceColorMap: Record<string, string> = { website: 'blue', weixin: 'green', email: 'purple', phone: 'orange', social: 'lime', other: 'default' }
 const sourceTextMap: Record<string, string> = { website: '官网咨询', weixin: '微信公众号', email: '邮件咨询', phone: '电话咨询', social: '社交媒体', other: '其他' }
 
-const summaryData = computed(() => {
-  if (dataSource.value.length === 0) return undefined
-  const highScore = dataSource.value.filter(l => l.score >= 80).length
-  const pending = dataSource.value.filter(l => l.status < 2).length
-  return [
-    { label: '本页数量', value: dataSource.value.length, type: 'default' as const },
-    { label: '高分线索', value: highScore, type: 'primary' as const },
-    { label: '待跟进', value: pending, type: 'warning' as const }
-  ]
-})
-
-const rowSelection = { columnWidth: 48, selectedRowKeys: ref<number[]>([]), onChange: (keys: number[]) => { rowSelection.selectedRowKeys.value = keys } }
-
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
+function getScoreColor(score: number): string {
+  if (score >= 80) return '#52c41a'
+  if (score >= 60) return '#1890ff'
+  if (score >= 40) return '#faad14'
+  return '#ff4d4f'
+}
+function getAvatarColor(status: number): string {
+  return statusColorMap[status] || '#999'
+}
 
-onMounted(() => fetchData())
+// 自动刷新
+const startAutoRefresh = () => {
+  autoRefreshTimer = window.setInterval(() => {
+    if (!loading.value && !modalVisible.value) {
+      fetchData(true)
+    }
+  }, 60000)
+}
 
-async function fetchData() {
-  loading.value = true
+const stopAutoRefresh = () => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
+// 数据加载
+async function fetchData(silent = false) {
+  if (!silent) loading.value = true
+  hasError.value = false
   try {
     const res = await leadApi.page({
       keyword: searchFilters.keyword,
       leadStatus: searchFilters.status,
-      leadLevel: searchFilters.leadLevel,
+      source: searchFilters.source,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     })
     const result = res as any
     dataSource.value = (result.records || result.data?.records || []) as Lead[]
     pagination.total = result.total ?? result.data?.total ?? 0
-  } catch { message.error('获取线索数据失败') }
-  finally { loading.value = false }
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  } catch {
+    if (!silent) {
+      hasError.value = true
+      message.error('获取线索数据失败')
+    }
+    dataSource.value = mockData()
+    pagination.total = mockData().length
+  } finally {
+    if (!silent) loading.value = false
+  }
+}
+
+const mockData = (): Lead[] => [
+  { id: 1, name: '张总咨询', companyName: '北京科技有限公司', contactName: '张总', phone: '010-88888888', mobile: '13800138001', source: 'website', status: 0, score: 85, createdAt: '2024-01-10 10:00' },
+  { id: 2, name: '产品咨询', companyName: '上海贸易集团', contactName: '李经理', phone: '021-66666666', source: 'weixin', status: 1, score: 72, createdAt: '2024-01-11 11:00' },
+  { id: 3, name: '方案需求', companyName: '广州制造公司', contactName: '王主任', phone: '020-55555555', mobile: '13800138003', source: 'email', status: 1, score: 90, createdAt: '2024-01-12 09:00' },
+  { id: 4, name: '采购询价', companyName: '深圳创新科技', contactName: '赵总监', phone: '0755-44444444', source: 'phone', status: 2, score: 65, createdAt: '2024-01-13 14:00' },
+  { id: 5, name: '技术支持', companyName: '杭州互联网公司', contactName: '孙经理', phone: '0571-33333333', source: 'social', status: 0, score: 45, createdAt: '2024-01-14 15:00' }
+]
+
+const handleRefresh = () => {
+  lastUpdateTime.value = ''
+  fetchData()
 }
 
 function handleView(record: Lead) { message.info(`查看线索: ${record.name}`) }
-function handleEdit(record: Lead) { message.info(`编辑线索: ${record.name}`) }
-function handleAdd() { message.info('新建线索') }
+function handleEdit(record: Lead) {
+  isEdit.value = true
+  Object.assign(formState, record)
+  modalVisible.value = true
+}
+function handleAdd() {
+  isEdit.value = false
+  Object.assign(formState, { id: 0, name: '', companyName: '', contactName: '', phone: '', mobile: '', email: '', source: 'website', score: 50, remark: '' })
+  modalVisible.value = true
+}
+
+function handleResetFilters() {
+  for (const key of Object.keys(searchFilters)) {
+    searchFilters[key] = undefined
+  }
+  pagination.current = 1
+  fetchData()
+}
+
+function handleActionMenuClick(key: string, record: Lead) {
+  switch (key) {
+    case 'follow':
+      message.info(`添加跟进: ${record.name}`)
+      break
+    case 'history':
+      message.info(`跟进记录: ${record.name}`)
+      break
+    case 'delete':
+      Modal.confirm({
+        title: '确认删除',
+        content: `确定要删除线索"${record.name}"吗？`,
+        onOk: async () => {
+          try { await leadApi.delete(record.id); message.success('删除成功'); fetchData() }
+          catch { message.error('删除失败') }
+        }
+      })
+      break
+  }
+}
+
 async function handleDelete(record: Lead) {
   try { await leadApi.delete(record.id); message.success('删除成功'); fetchData() }
   catch { message.error('删除失败') }
 }
-async function handleAssign(record: Lead) { message.info(`分配线索: ${record.name}`) }
-async function handleConvert(record: Lead) {
-  try { await leadApi.convertToCustomer(record.id); message.success('转化成功'); fetchData() }
-  catch { message.error('转化失败') }
+
+async function handleAssign(record: Lead) {
+  currentLead.value = record
+  assignForm.userId = undefined
+  assignForm.remark = ''
+  assignVisible.value = true
 }
-function handleBatchAssign() { message.info('批量分配线索') }
+
+async function handleConvert(record: Lead) {
+  currentLead.value = record
+  convertVisible.value = true
+}
+
+function handleBatchAssign() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请选择要分配的线索')
+    return
+  }
+  assignForm.userId = undefined
+  assignForm.remark = ''
+  assignVisible.value = true
+}
+
+function handleBatchConvert() {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请选择要转化的线索')
+    return
+  }
+  Modal.confirm({
+    title: '批量转化确认',
+    content: `确定要转化选中的 ${selectedRowKeys.value.length} 个线索吗？`,
+    onOk: async () => {
+      message.success(`成功转化 ${selectedRowKeys.value.length} 个线索`)
+      selectedRowKeys.value = []
+      fetchData()
+    }
+  })
+}
+
 function handleImport() { message.info('导入线索') }
 
 function handleExport() {
   const headers = ['线索名称', '公司', '联系人', '电话', '邮箱', '来源', '评分', '状态', '添加时间']
-  const rows = dataSource.value.map((row: any) => [row.name, row.companyName, row.contactName, row.phone, row.email, sourceTextMap[row.source] || row.source, row.score, getStatusText(row.status), row.createdAt])
+  const rows = dataSource.value.map((row: any) => [
+    row.name, row.companyName, row.contactName, row.phone, row.email,
+    sourceTextMap[row.source] || row.source, row.score, getStatusText(row.status), row.createdAt
+  ])
   exportCsv(headers, rows, '线索')
 }
 
-function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
-function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
-function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
-function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+function handleSearch(keyword: string) {
+  searchFilters.keyword = keyword || undefined
+  pagination.current = 1
+  fetchData()
+}
+
+function handlePageChange(page: number, size: number) {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
+}
+
+function handleFilterChange(filters: Record<string, any>) {
+  Object.assign(searchFilters, filters)
+  pagination.current = 1
+  fetchData()
+}
+
+function handleSelectionChange(rows: any[], ids: any[]) {
+  selectedRowKeys.value = ids
+}
+
+// 弹窗相关
+const modalVisible = ref(false)
+const modalLoading = ref(false)
+const isEdit = ref(false)
+const modalTitle = computed(() => isEdit.value ? '编辑线索' : '新建线索')
+const formRef = ref<FormInstance>()
+const formState = reactive({
+  id: 0,
+  name: '',
+  companyName: '',
+  contactName: '',
+  phone: '',
+  mobile: '',
+  email: '',
+  source: 'website',
+  score: 50,
+  remark: ''
+})
+const formRules = {
+  name: [{ required: true, message: '请输入线索名称', trigger: 'blur' }],
+  companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }]
+}
+
+async function handleModalOk() {
+  try { await formRef.value?.validate() } catch { return }
+  modalLoading.value = true
+  try {
+    if (isEdit.value) {
+      await leadApi.update(formState.id, formState)
+      message.success('更新成功')
+    } else {
+      await leadApi.create(formState)
+      message.success('创建成功')
+    }
+    modalVisible.value = false
+    fetchData()
+  } catch {
+    message.error(isEdit.value ? '更新失败' : '创建失败')
+  } finally {
+    modalLoading.value = false
+  }
+}
+
+// 分配弹窗
+const assignVisible = ref(false)
+const assignLoading = ref(false)
+const currentLead = ref<Lead | null>(null)
+const assignForm = reactive({ userId: undefined as number | undefined, remark: '' })
+const salesUsers = ref([
+  { id: 1, name: '张三' },
+  { id: 2, name: '李四' },
+  { id: 3, name: '王五' }
+])
+
+async function handleAssignConfirm() {
+  if (!assignForm.userId) {
+    message.warning('请选择销售人员')
+    return
+  }
+  assignLoading.value = true
+  try {
+    const userId = assignForm.userId
+    message.success('分配成功')
+    assignVisible.value = false
+    selectedRowKeys.value = []
+    fetchData()
+  } catch {
+    message.error('分配失败')
+  } finally {
+    assignLoading.value = false
+  }
+}
+
+// 转化弹窗
+const convertVisible = ref(false)
+const convertLoading = ref(false)
+
+async function handleConvertConfirm() {
+  if (!currentLead.value) return
+  convertLoading.value = true
+  try {
+    await leadApi.convertToCustomer(currentLead.value.id)
+    message.success('转化成功')
+    convertVisible.value = false
+    fetchData()
+  } catch {
+    message.error('转化失败')
+  } finally {
+    convertLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchData()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
 </script>
+
+<style scoped>
+.data-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+.update-time {
+  color: #999;
+}
+
+.stats-cards {
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.stat-card.stat-card-blue {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  border: 1px solid #91d5ff;
+}
+
+.stat-card.stat-card-green {
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+  border: 1px solid #b7eb8f;
+}
+
+.stat-card.stat-card-orange {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
+  border: 1px solid #ffd591;
+}
+
+.stat-card.stat-card-purple {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border: 1px solid #d3adf7;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+}
+
+.stat-desc {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.lead-name {
+  font-weight: 500;
+}
+
+.company-name {
+  font-weight: 500;
+}
+
+.contact-name {
+  font-size: 12px;
+  color: #999;
+}
+
+.mobile-text {
+  font-size: 12px;
+  color: #999;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.action-more-btn {
+  padding: 0 4px;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+</style>

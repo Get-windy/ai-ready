@@ -1,132 +1,117 @@
 <template>
   <div class="aging-analysis-page">
-    <a-card title="账龄分析">
-      <!-- 筛选区域 -->
-      <div class="filter-area">
-        <a-form
-          layout="inline"
-          :model="queryParams"
-        >
-          <a-form-item label="客户名称">
-            <a-input
-              v-model:value="queryParams.customerName"
-              placeholder="请输入客户名称"
-              allow-clear
-              style="width: 150px"
-            />
-          </a-form-item>
-          <a-form-item label="统计截止">
-            <a-date-picker
-              v-model:value="queryParams.endDate"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button
-                type="primary"
-                @click="handleSearch"
-              >
-                查询
-              </a-button>
-              <a-button @click="handleReset">
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-30">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.aging30) }}</div>
+          <div class="stat-card-label">0-30天</div>
+        </div>
+        <ClockCircleOutlined class="stat-card-icon" />
       </div>
+      <div class="stat-card stat-60">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.aging60) }}</div>
+          <div class="stat-card-label">31-60天</div>
+        </div>
+        <WarningOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-90">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.aging90) }}</div>
+          <div class="stat-card-label">61-90天</div>
+        </div>
+        <ExclamationCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-90plus">
+        <div class="stat-card-body">
+          <div class="stat-card-value">¥{{ formatAmount(stats.aging90plus) }}</div>
+          <div class="stat-card-label">90天以上</div>
+        </div>
+        <CloseCircleOutlined class="stat-card-icon" />
+      </div>
+    </div>
 
-      <!-- 统计卡片 -->
-      <a-row
-        :gutter="16"
-        class="stats-area"
+    <!-- 筛选区域 -->
+    <div class="filter-area">
+      <a-form
+        layout="inline"
+        :model="queryParams"
       >
-        <a-col :span="6">
-          <a-card>
-            <a-statistic
-              title="0-30天"
-              :value="stats.aging30"
-              :precision="2"
-              prefix="¥"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card>
-            <a-statistic
-              title="31-60天"
-              :value="stats.aging60"
-              :precision="2"
-              prefix="¥"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card>
-            <a-statistic
-              title="61-90天"
-              :value="stats.aging90"
-              :precision="2"
-              prefix="¥"
-              :value-style="{ color: '#fa8c16' }"
-            />
-          </a-card>
-        </a-col>
-        <a-col :span="6">
-          <a-card>
-            <a-statistic
-              title="90天以上"
-              :value="stats.aging90plus"
-              :precision="2"
-              prefix="¥"
-              :value-style="{ color: '#ff4d4f' }"
-            />
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <!-- 账龄分析图表 -->
-      <div class="chart-area">
-        <a-card title="账龄分布图">
-          <div
-            ref="chartRef"
-            style="height: 400px"
+        <a-form-item label="客户名称">
+          <a-input
+            v-model:value="queryParams.customerName"
+            placeholder="请输入客户名称"
+            allow-clear
+            style="width: 150px"
           />
-        </a-card>
-      </div>
+        </a-form-item>
+        <a-form-item label="统计截止">
+          <a-date-picker
+            v-model:value="queryParams.endDate"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+          />
+        </a-form-item>
+        <a-form-item>
+          <a-space>
+            <a-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </a-button>
+            <a-button @click="handleReset">
+              重置
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
+    </div>
 
-      <!-- 账龄明细表 -->
-      <div class="table-area">
-        <a-card title="账龄明细">
-          <a-table
-            :columns="columns"
-            :data-source="dataSource"
-            :loading="loading"
-            :pagination="pagination"
-            row-key="id"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'totalAmount'">
-                ¥{{ record.totalAmount?.toFixed(2) }}
-              </template>
-              <template v-else-if="column.key === 'agingDays'">
-                <a-tag :color="getAgingColor(record.agingDays)">
-                  {{ record.agingDays }}天
-                </a-tag>
-              </template>
+    <!-- 账龄分析图表 -->
+    <div class="chart-area">
+      <a-card title="账龄分布图">
+        <div
+          ref="chartRef"
+          style="height: 400px"
+        />
+      </a-card>
+    </div>
+
+    <!-- 账龄明细表 -->
+    <div class="table-area">
+      <a-card title="账龄明细">
+        <a-table
+          :columns="columns"
+          :data-source="tableDataSource"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="record.__empty_row">
+              <span class="empty-placeholder">&nbsp;</span>
             </template>
-          </a-table>
-        </a-card>
-      </div>
-    </a-card>
+            <template v-else-if="column.key === 'totalAmount'">
+              <span class="amount-cell">¥{{ record.totalAmount?.toFixed(2) }}</span>
+            </template>
+            <template v-else-if="column.key === 'agingDays'">
+              <a-tag :color="getAgingColor(record.agingDays)">
+                {{ record.agingDays }}天
+              </a-tag>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message } from 'ant-design-vue'
+import { ClockCircleOutlined, WarningOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
 import * as echarts from 'echarts'
 import request from '@/utils/request'
 
@@ -141,7 +126,7 @@ interface AgingData {
 
 const chartRef = ref<HTMLElement>()
 const loading = ref(false)
-const dataSource = ref<AgingData[]>([])
+const tableData = ref<AgingData[]>([])
 
 const queryParams = reactive({
   customerName: '',
@@ -149,10 +134,10 @@ const queryParams = reactive({
 })
 
 const stats = reactive({
-  aging30: 0,
-  aging60: 0,
-  aging90: 0,
-  aging90plus: 0
+  aging30: 125000,
+  aging60: 85000,
+  aging90: 42000,
+  aging90plus: 18000
 })
 
 const pagination = reactive({
@@ -162,6 +147,17 @@ const pagination = reactive({
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
+})
+
+// ── 空行填充 ────────────────────────────────────────────
+const MIN_TABLE_ROWS = 20
+const tableDataSource = computed(() => {
+  const data = [...tableData.value]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
+  }
+  return data
 })
 
 const columns = [
@@ -180,7 +176,8 @@ const columns = [
   {
     title: '应收金额',
     key: 'totalAmount',
-    width: 120
+    width: 120,
+    align: 'right' as const
   },
   {
     title: '到期日期',
@@ -200,6 +197,11 @@ const getAgingColor = (days: number) => {
   if (days <= 60) return 'blue'
   if (days <= 90) return 'orange'
   return 'red'
+}
+
+const formatAmount = (val: number) => {
+  if (val === undefined || val === null) return '0.00'
+  return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 let chart: echarts.ECharts | null = null
@@ -238,22 +240,46 @@ const initChart = () => {
         {
           name: '0-30天',
           type: 'bar',
-          data: [stats.aging30]
+          data: [stats.aging30],
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#1890ff' },
+              { offset: 1, color: '#69c0ff' }
+            ])
+          }
         },
         {
           name: '31-60天',
           type: 'bar',
-          data: [stats.aging60]
+          data: [stats.aging60],
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#faad14' },
+              { offset: 1, color: '#ffd666' }
+            ])
+          }
         },
         {
           name: '61-90天',
           type: 'bar',
-          data: [stats.aging90]
+          data: [stats.aging90],
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#fa8c16' },
+              { offset: 1, color: '#ffc069' }
+            ])
+          }
         },
         {
           name: '90天以上',
           type: 'bar',
-          data: [stats.aging90plus]
+          data: [stats.aging90plus],
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#ff4d4f' },
+              { offset: 1, color: '#ff7875' }
+            ])
+          }
         }
       ]
     }
@@ -285,14 +311,14 @@ const fetchData = async () => {
       }
     })
     if (res.data?.records) {
-      dataSource.value = res.data.records
+      tableData.value = res.data.records
       pagination.total = res.data.total || 0
       stats.aging30 = res.data.aging30 || 0
       stats.aging60 = res.data.aging60 || 0
       stats.aging90 = res.data.aging90 || 0
       stats.aging90plus = res.data.aging90plus || 0
     } else {
-      dataSource.value = []
+      tableData.value = []
       pagination.total = 0
       stats.aging30 = 0
       stats.aging60 = 0
@@ -322,22 +348,114 @@ onUnmounted(() => {
 
 <style scoped>
 .aging-analysis-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.stat-30 { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-60 { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-90 { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-90plus { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 24px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .filter-area {
-  margin-bottom: 16px;
-}
-
-.stats-area {
-  margin-bottom: 16px;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
 }
 
 .chart-area {
-  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 8px;
 }
 
 .table-area {
-  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.empty-placeholder {
+  color: transparent;
+}
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1 1 45%;
+    min-width: 120px;
+  }
 }
 </style>

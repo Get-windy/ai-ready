@@ -1,0 +1,546 @@
+<template>
+  <div class="vxe-table-list-container">
+    <!-- 顶部工具栏 -->
+    <div v-if="showToolbar" class="table-toolbar">
+      <div class="toolbar-left">
+        <a-space>
+          <a-button v-if="showAdd" type="primary" @click="emit('add')">
+            <template #icon><PlusOutlined /></template>
+            {{ addText }}
+          </a-button>
+          <slot name="toolbar-actions" />
+        </a-space>
+      </div>
+      <div class="toolbar-right">
+        <a-space>
+          <a-tooltip title="筛选面板">
+            <a-button
+              :type="showFilterPanel ? 'primary' : 'default'"
+              size="small"
+              @click="showFilterPanel = !showFilterPanel"
+            >
+              <template #icon><FilterOutlined /></template>
+              筛选
+            </a-button>
+          </a-tooltip>
+          <a-input-search
+            v-if="showSearch"
+            v-model:value="searchKeyword"
+            :placeholder="searchPlaceholder"
+            style="width: 200px"
+            size="small"
+            allow-clear
+            @search="handleSearch"
+          />
+          <a-tooltip title="刷新">
+            <a-button size="small" @click="emit('refresh')">
+              <template #icon><ReloadOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="showExport" title="导出">
+            <a-button size="small" @click="emit('export')">
+              <template #icon><ExportOutlined /></template>
+            </a-button>
+          </a-tooltip>
+        </a-space>
+      </div>
+    </div>
+
+    <!-- 筛选面板 -->
+    <div v-if="showFilterPanel" class="filter-panel">
+      <a-row :gutter="[12, 12]">
+        <a-col
+          v-for="filter in filterFields"
+          :key="filter.key"
+          :span="filter.span || 6"
+        >
+          <a-form-item :label="filter.label" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
+            <a-input
+              v-if="filter.type === 'input'"
+              v-model:value="filterValues[filter.key]"
+              :placeholder="filter.placeholder || '请输入'"
+              size="small"
+              @change="handleFilterChange"
+            />
+            <a-select
+              v-else-if="filter.type === 'select'"
+              v-model:value="filterValues[filter.key]"
+              :placeholder="filter.placeholder || '请选择'"
+              :options="filter.options"
+              size="small"
+              allow-clear
+              @change="handleFilterChange"
+            />
+            <a-range-picker
+              v-else-if="filter.type === 'dateRange'"
+              v-model:value="filterValues[filter.key]"
+              size="small"
+              style="width: 100%"
+              @change="handleFilterChange"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="6" class="filter-actions">
+          <a-space>
+            <a-button type="primary" size="small" @click="handleFilterSubmit">查询</a-button>
+            <a-button size="small" @click="handleFilterReset">重置</a-button>
+          </a-space>
+        </a-col>
+      </a-row>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div v-if="selectedRows.length > 0" class="batch-bar">
+      <a-space>
+        <span class="batch-info">已选择 {{ selectedRows.length }} 项</span>
+        <a-button v-if="showBatchDelete" danger size="small" @click="handleBatchDelete">
+          <template #icon><DeleteOutlined /></template>
+          批量删除
+        </a-button>
+        <slot name="batch-actions" :selected-rows="selectedRows" />
+        <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
+      </a-space>
+    </div>
+
+    <!-- vxe-table 表格 -->
+    <vxe-table
+      ref="tableRef"
+      :data="tableData"
+      :columns="vxeColumns"
+      :loading="loading"
+      :height="tableHeight"
+      :row-config="{ keyField: rowKey, isHover: true }"
+      :checkbox-config="{ visible: selectable, highlight: true, range: true }"
+      :seq-config="{ show: false }"
+      :sort-config="{ trigger: 'cell', defaultSort: defaultSort }"
+      :footer-config="{ show: showSummary, footerMethod: footerMethod }"
+      :scroll-y="{ enabled: true, gt: 20 }"
+      :scroll-x="{ enabled: true, gt: 10 }"
+      border="inner"
+      stripe
+      show-header-overflow="tooltip"
+      show-overflow="tooltip"
+      empty-text="暂无数据"
+      @checkbox-change="handleCheckboxChange"
+      @checkbox-all="handleCheckboxAll"
+      @sort-change="handleSortChange"
+      @cell-click="handleCellClick"
+    >
+      <!-- 操作列插槽 -->
+      <template #action_default="{ row, $rowIndex }">
+        <slot name="action" :record="row" :index="$rowIndex">
+          <span>-</span>
+        </slot>
+      </template>
+
+      <!-- 自定义列插槽 -->
+      <template v-for="slotName in customSlotColumns" :key="slotName" #[`custom_${slotName}`]="{ row, $rowIndex }">
+        <slot :name="slotName" :record="row" :index="$rowIndex">
+          <span>-</span>
+        </slot>
+      </template>
+
+      <!-- 空状态插槽 -->
+      <template #empty>
+        <slot name="empty">
+          <div class="table-empty">
+            <InboxOutlined class="table-empty-icon" />
+            <p class="table-empty-text">暂无数据</p>
+          </div>
+        </slot>
+      </template>
+    </vxe-table>
+
+    <!-- 分页 -->
+    <div v-if="pagination" class="table-pagination">
+      <a-pagination
+        v-model:current="currentPage"
+        v-model:pageSize="pageSize"
+        :total="paginationTotal"
+        :show-size-changer="true"
+        :show-quick-jumper="true"
+        :pageSizeOptions="['10', '20', '50', '100']"
+        :show-total="(total: number) => `共 ${total} 条`"
+        size="small"
+        @change="handlePageChange"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, type PropType } from 'vue'
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+  ExportOutlined,
+  FilterOutlined,
+  InboxOutlined,
+} from '@ant-design/icons-vue'
+import type { VxeTableInstance, VxeTablePropTypes, VxeColumnPropTypes } from 'vxe-table'
+
+// ========== Props ==========
+const props = defineProps({
+  columns: { type: Array as PropType<any[]>, required: true },
+  dataSource: { type: Array as PropType<any[]>, default: () => [] },
+  loading: { type: Boolean, default: false },
+  rowKey: { type: String, default: 'id' },
+  showToolbar: { type: Boolean, default: true },
+  showSearch: { type: Boolean, default: true },
+  searchPlaceholder: { type: String, default: '搜索...' },
+  showAdd: { type: Boolean, default: true },
+  addText: { type: String, default: '新增' },
+  showDelete: { type: Boolean, default: false },
+  showBatchDelete: { type: Boolean, default: true },
+  showExport: { type: Boolean, default: false },
+  selectable: { type: Boolean, default: true },
+  filterFields: { type: Array as PropType<any[]>, default: () => [] },
+  showSummary: { type: Boolean, default: false },
+  summaryData: { type: Array as PropType<any[]>, default: undefined },
+
+  // 分页
+  pagination: {
+    type: Object as PropType<{ current?: number; pageSize?: number; total?: number }>,
+    default: () => ({ current: 1, pageSize: 20, total: 0 })
+  },
+
+  // 默认排序
+  defaultSort: { type: Object as PropType<{ field: string; order: string }>, default: undefined },
+})
+
+const emit = defineEmits<{
+  'add': []
+  'edit': [record: any]
+  'view': [record: any]
+  'delete': [record: any]
+  'batch-delete': [ids: any[]]
+  'refresh': []
+  'search': [keyword: string]
+  'export': []
+  'page-change': [page: number, pageSize: number]
+  'selection-change': [rows: any[], ids: any[]]
+  'sort-change': [field: string, order: string]
+  'filter-change': [filters: Record<string, any>]
+  'cell-click': [record: any, column: any]
+}>()
+
+// ========== State ==========
+const tableRef = ref<VxeTableInstance>()
+const searchKeyword = ref('')
+const showFilterPanel = ref(false)
+const selectedRows = ref<any[]>([])
+const filterValues = reactive<Record<string, any>>({})
+
+// 分页
+const currentPage = ref(props.pagination?.current || 1)
+const pageSize = ref(props.pagination?.pageSize || 20)
+const paginationTotal = ref(props.pagination?.total || 0)
+
+// 表格高度
+const tableHeight = ref(400)
+
+// ========== 列转换 ==========
+const vxeColumns = computed<VxeColumnPropTypes[]>(() => {
+  const cols: VxeColumnPropTypes[] = []
+
+  // 选择列
+  if (props.selectable) {
+    cols.push({
+      type: 'checkbox',
+      width: 50,
+      fixed: 'left',
+    })
+  }
+
+  // 数据列
+  props.columns.forEach((col: any, index: number) => {
+    // 确保 field 有值，使用 dataIndex、key 或生成默认值
+    const field = col.dataIndex || col.key || `col_${index}`
+    const vxeCol: VxeColumnPropTypes = {
+      field,
+      title: col.title || '',
+      width: col.width || 100,
+      minWidth: col.minWidth || 60,
+      sortable: col.sortable || false,
+      fixed: col.fixed,
+      align: col.align || 'left',
+      showOverflow: 'tooltip',
+    }
+
+    // 如果列定义中有 formatter 函数，使用它
+    if (col.formatter && typeof col.formatter === 'function') {
+      vxeCol.formatter = ({ cellValue, row }: any) => col.formatter({ cellValue, row })
+    }
+
+    // 操作列特殊处理
+    if (col.type === 'action' || col.key === 'action' || col.dataIndex === 'action') {
+      vxeCol.width = col.width || 120
+      vxeCol.fixed = col.fixed || 'right'
+      // 操作列使用插槽
+      vxeCol.slots = { default: 'action_default' }
+    }
+    // 自定义列插槽
+    else if (col.slotName) {
+      vxeCol.slots = { default: `custom_${col.slotName}` }
+    }
+
+    cols.push(vxeCol)
+  })
+
+  return cols
+})
+
+// 收集所有自定义列插槽名称
+const customSlotColumns = computed(() => {
+  return props.columns
+    .filter((col: any) => col.slotName && col.type !== 'action' && col.key !== 'action')
+    .map((col: any) => col.slotName)
+})
+
+// ========== 数据处理 ==========
+const tableData = computed(() => {
+  // 空行填充
+  const data = [...props.dataSource]
+  const minRows = 20
+  const emptyCount = Math.max(0, minRows - data.length)
+  for (let i = 0; i < emptyCount; i++) {
+    data.push({
+      [props.rowKey]: `__empty_${i}`,
+      __empty_row: true,
+    })
+  }
+  return data
+})
+
+// ========== 汇总行 ==========
+const footerMethod = computed<VxeTablePropTypes.FooterMethod>(() => {
+  if (!props.showSummary || !props.summaryData?.length) return undefined
+
+  return ({ columns, data }: any) => {
+    const footerData: any[][] = []
+    const row: any[] = []
+
+    columns.forEach((col: any, index: number) => {
+      if (col.type === 'checkbox') {
+        row.push('')
+      } else if (index === (props.selectable ? 1 : 0)) {
+        row.push('合计')
+      } else {
+        // 查找对应的汇总数据
+        const summaryItem = props.summaryData?.find((s: any) => s.label && col.field)
+        if (summaryItem) {
+          if (summaryItem.type === 'currency') {
+            row.push(`¥${Number(summaryItem.value).toFixed(2)}`)
+          } else {
+            row.push(summaryItem.value)
+          }
+        } else {
+          row.push('')
+        }
+      }
+    })
+
+    footerData.push(row)
+    return footerData
+  }
+})
+
+// ========== 事件处理 ==========
+function handleSearch() {
+  emit('search', searchKeyword.value)
+}
+
+function handleFilterChange() {
+  // 自动触发查询
+}
+
+function handleFilterSubmit() {
+  emit('filter-change', { ...filterValues })
+}
+
+function handleFilterReset() {
+  Object.keys(filterValues).forEach(k => {
+    filterValues[k] = undefined
+  })
+  emit('filter-change', {})
+}
+
+function handlePageChange(page: number, size: number) {
+  currentPage.value = page
+  pageSize.value = size
+  emit('page-change', page, size)
+}
+
+function handleCheckboxChange({ records }: any) {
+  selectedRows.value = records
+  emit('selection-change', records, records.map(r => r[props.rowKey]))
+}
+
+function handleCheckboxAll({ records }: any) {
+  selectedRows.value = records
+  emit('selection-change', records, records.map(r => r[props.rowKey]))
+}
+
+function handleSortChange({ property, order }: any) {
+  if (property) {
+    emit('sort-change', property, order || '')
+  }
+}
+
+function handleCellClick({ row, column }: any) {
+  if (!row.__empty_row) {
+    emit('cell-click', row, column)
+  }
+}
+
+function handleBatchDelete() {
+  if (selectedRows.value.length === 0) return
+  emit('batch-delete', selectedRows.value.map(r => r[props.rowKey]))
+}
+
+function clearSelection() {
+  selectedRows.value = []
+  tableRef.value?.clearCheckboxRow()
+  tableRef.value?.clearCheckboxReserve()
+  emit('selection-change', [], [])
+}
+
+// ========== 高度计算 ==========
+function updateTableHeight() {
+  // 默认高度，可根据容器调整
+  tableHeight.value = Math.max(300, window.innerHeight - 300)
+}
+
+// ========== 暴露方法 ==========
+defineExpose({
+  clearSelection,
+  selectedRows,
+  getTableRef: () => tableRef.value,
+  refresh: () => emit('refresh'),
+})
+
+// ========== 生命周期 ==========
+onMounted(() => {
+  updateTableHeight()
+  window.addEventListener('resize', updateTableHeight)
+
+  // 初始化筛选字段
+  props.filterFields.forEach((f: any) => {
+    if (!(f.key in filterValues)) {
+      filterValues[f.key] = f.defaultValue ?? undefined
+    }
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateTableHeight)
+})
+
+// 监听分页变化
+watch(() => props.pagination, (p) => {
+  if (p) {
+    currentPage.value = p.current || 1
+    pageSize.value = p.pageSize || 20
+    paginationTotal.value = p.total || 0
+  }
+}, { immediate: true, deep: true })
+</script>
+
+<style scoped>
+.vxe-table-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.filter-panel {
+  padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 22px;
+}
+
+.batch-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #e6f7ff;
+  border-bottom: 1px solid #91d5ff;
+  flex-shrink: 0;
+}
+
+.batch-info {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.table-pagination {
+  padding: 12px 16px;
+  border-top: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+/* vxe-table 样式覆盖 */
+:deep(.vxe-table) {
+  font-size: 13px;
+}
+
+:deep(.vxe-table--header .vxe-header--column) {
+  background: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #b0b0b0 !important;
+}
+
+:deep(.vxe-table--body .vxe-body--row) {
+  height: 42px;
+}
+
+:deep(.vxe-table--body .vxe-body--column) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
+:deep(.vxe-table--footer .vxe-footer--column) {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+</style>

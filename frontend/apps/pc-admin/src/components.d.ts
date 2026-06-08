@@ -17,6 +17,7 @@ declare module 'vue' {
     ACard: typeof import('ant-design-vue/es')['Card']
     ACardMeta: typeof import('ant-design-vue/es')['CardMeta']
     ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
+    ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
     ACol: typeof import('ant-design-vue/es')['Col']
     ACollapse: typeof import('ant-design-vue/es')['Collapse']
     ACollapsePanel: typeof import('ant-design-vue/es')['CollapsePanel']
@@ -82,7 +83,6 @@ declare module 'vue' {
     ATransfer: typeof import('ant-design-vue/es')['Transfer']
     ATree: typeof import('ant-design-vue/es')['Tree']
     ATreeSelect: typeof import('ant-design-vue/es')['TreeSelect']
-    ATypographyText: typeof import('ant-design-vue/es')['TypographyText']
     AUpload: typeof import('ant-design-vue/es')['Upload']
     AUploadDragger: typeof import('ant-design-vue/es')['UploadDragger']
     BarChart: typeof import('./components/Charts/BarChart.vue')['default']
@@ -123,5 +123,6 @@ declare module 'vue' {
     StatusTag: typeof import('./components/StatusTag/StatusTag.vue')['default']
     TableList: typeof import('./components/TableList/TableList.vue')['default']
     TabsView: typeof import('./components/TabsView/TabsView.vue')['default']
+    VxeTableList: typeof import('./components/VxeTableList/VxeTableList.vue')['default']
   }
 }

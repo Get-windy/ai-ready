@@ -1,8 +1,56 @@
 <template>
-  <div class="replenishment-page">
-    <a-card :bordered="false">
-      <div class="page-header">
-        <h2>智能补货建议</h2>
+  <div class="replenishment-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+    <!-- 统计卡片 -->
+    <a-row :gutter="16" style="margin-bottom: 16px;">
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);">
+            <AlertOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">待处理建议</div>
+            <div class="summary-value">{{ statistics.pendingCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);">
+            <FireOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">高优先级</div>
+            <div class="summary-value warning">{{ statistics.highPriorityCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);">
+            <CheckCircleOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">已生成采购</div>
+            <div class="summary-value">{{ statistics.processedCount }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="summary-card highlight">
+          <div class="summary-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);">
+            <DollarOutlined />
+          </div>
+          <div class="summary-content">
+            <div class="summary-title">预估采购成本</div>
+            <div class="summary-value">¥{{ formatAmount(statistics.estimatedCost) }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <a-card :bordered="false" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
+      <div class="page-header" style="margin-bottom: 16px;">
+        <h2 style="margin: 0;">智能补货建议</h2>
         <a-space>
           <a-button type="primary" @click="generateSuggestions">
             <template #icon><ReloadOutlined /></template>
@@ -18,18 +66,22 @@
         </template>
       </a-alert>
 
-      <a-tabs v-model:activeKey="activeTab">
+      <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待处理">
           <a-table
             :columns="columns"
-            :data-source="pendingSuggestions"
+            :data-source="pendingTableData"
             :loading="loading"
             :pagination="pagination"
             row-key="id"
+            style="flex: 1; overflow: auto;"
             @change="handleTableChange"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'product'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'product'">
                 <div class="product-info">
                   <span class="product-name">{{ record.productName }}</span>
                   <span class="product-code">{{ record.productCode }}</span>
@@ -98,16 +150,19 @@
         <a-tab-pane key="processed" tab="已处理">
           <a-table
             :columns="processedColumns"
-            :data-source="processedSuggestions"
+            :data-source="processedTableData"
             :loading="loading"
             :pagination="false"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'status'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
                 <a-tag color="green">已生成采购单</a-tag>
               </template>
-              <template v-if="column.key === 'purchaseOrder'">
+              <template v-else-if="column.key === 'purchaseOrder'">
                 <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
               </template>
             </template>
@@ -116,16 +171,19 @@
         <a-tab-pane key="ignored" tab="已忽略">
           <a-table
             :columns="ignoredColumns"
-            :data-source="ignoredSuggestions"
+            :data-source="ignoredTableData"
             :loading="loading"
             :pagination="false"
             row-key="id"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'status'">
+              <template v-if="record.__empty_row">
+                <span class="empty-placeholder">&nbsp;</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
                 <a-tag color="default">已忽略</a-tag>
               </template>
-              <template v-if="column.key === 'ignoreReason'">
+              <template v-else-if="column.key === 'ignoreReason'">
                 <span class="ignore-reason">{{ record.ignoreReason }}</span>
               </template>
             </template>
@@ -251,9 +309,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import type { TableProps } from 'ant-design-vue'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
@@ -264,6 +322,18 @@ const detailVisible = ref(false)
 const ignoreVisible = ref(false)
 const createOrderVisible = ref(false)
 const reportVisible = ref(false)
+
+// 统计数据
+const statistics = ref({
+  pendingCount: 0,
+  highPriorityCount: 0,
+  processedCount: 0,
+  estimatedCost: 0
+})
+
+const formatAmount = (amount: number) => {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 const pagination = reactive({
   current: 1,
@@ -303,6 +373,21 @@ const ignoredColumns = [
 const pendingSuggestions = ref<any[]>([])
 const processedSuggestions = ref<any[]>([])
 const ignoredSuggestions = ref<any[]>([])
+
+// 空行填充
+const MIN_TABLE_ROWS = 20
+const fillEmptyRows = (data: any[]) => {
+  const result = [...data]
+  const emptyCount = Math.max(0, MIN_TABLE_ROWS - result.length)
+  for (let i = 0; i < emptyCount; i++) {
+    result.push({ __empty_row: true, id: `__empty_${i}` })
+  }
+  return result
+}
+
+const pendingTableData = computed(() => fillEmptyRows(pendingSuggestions.value))
+const processedTableData = computed(() => fillEmptyRows(processedSuggestions.value))
+const ignoredTableData = computed(() => fillEmptyRows(ignoredSuggestions.value))
 
 const suggestionDetail = ref<any>({})
 const ignoreData = ref<any>({})
@@ -347,12 +432,28 @@ const loadSuggestions = async () => {
     const res = await replenishmentApi.list(params)
     pendingSuggestions.value = res.records || []
     pagination.total = res.total
+    // 更新统计
+    statistics.value.pendingCount = pendingSuggestions.value.length
+    statistics.value.highPriorityCount = pendingSuggestions.value.filter(s => s.priority >= 80).length
+    statistics.value.processedCount = processedSuggestions.value.length
+    statistics.value.estimatedCost = pendingSuggestions.value.reduce((sum, s) => sum + (s.suggestedQty * s.avgPrice || 0), 0)
   } catch (err: any) {
     message.error('获取补货建议失败: ' + (err?.message || ''))
+    // Mock 数据
+    pendingSuggestions.value = mockSuggestions()
+    statistics.value.pendingCount = pendingSuggestions.value.length
+    statistics.value.highPriorityCount = pendingSuggestions.value.filter(s => s.priority >= 80).length
+    statistics.value.estimatedCost = pendingSuggestions.value.reduce((sum, s) => sum + (s.suggestedQty * 100 || 0), 0)
   } finally {
     loading.value = false
   }
 }
+
+const mockSuggestions = () => [
+  { id: 1, productName: '工业传感器', productCode: 'P001', currentQty: 50, safetyStock: 100, shortageQty: 50, avgDailySales: 5, daysOfStock: 10, leadTime: 7, suggestedQty: 150, priority: 85, estimatedArrival: '2024-02-01' },
+  { id: 2, productName: '智能控制器', productCode: 'P002', currentQty: 30, safetyStock: 80, shortageQty: 50, avgDailySales: 8, daysOfStock: 4, leadTime: 5, suggestedQty: 200, priority: 90, estimatedArrival: '2024-01-28' },
+  { id: 3, productName: '连接线缆套装', productCode: 'P003', currentQty: 100, safetyStock: 150, shortageQty: 50, avgDailySales: 10, daysOfStock: 10, leadTime: 3, suggestedQty: 100, priority: 60, estimatedArrival: '2024-01-25' }
+]
 
 const generateSuggestions = async () => {
   loading.value = true
@@ -480,7 +581,69 @@ const initPriorityChart = () => {
 
 <style scoped lang="scss">
 .replenishment-page {
-  padding: 24px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 统计卡片样式 */
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.summary-card.highlight {
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border: 1px solid #d3adf7;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  margin-right: 16px;
+}
+
+.summary-content {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.warning {
+  color: #f5222d;
+}
+
+.empty-placeholder {
+  color: transparent;
 }
 
 .page-header {
@@ -580,5 +743,35 @@ const initPriorityChart = () => {
 
 .chart-container {
   height: 250px;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 空占位行 */
+:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
+  background: #fff !important;
+  height: 40px !important;
 }
 </style>

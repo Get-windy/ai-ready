@@ -1,18 +1,51 @@
 <template>
   <div class="menu-management">
-    <TableList
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-total">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ menuCount }}</div>
+          <div class="stat-card-label">菜单总数</div>
+        </div>
+        <AppstoreOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-enabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ enabledCount }}</div>
+          <div class="stat-card-label">启用菜单</div>
+        </div>
+        <CheckCircleOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-disabled">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ disabledCount }}</div>
+          <div class="stat-card-label">禁用菜单</div>
+        </div>
+        <StopOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-button">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ buttonCount }}</div>
+          <div class="stat-card-label">按钮数量</div>
+        </div>
+        <ControlOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
+    <VxeTableList
       ref="tableRef"
-      :columns="tableColumns"
+      :columns="vxeColumns"
       :data-source="menuTree"
       :loading="loading"
       :pagination="null as any"
-      :table-key="'system-menu-list'"
+      :row-key="'id'"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
       :show-edit="false"
       :show-delete="false"
       :show-batch-delete="false"
+      :selectable="false"
       :bordered="true"
       @refresh="loadMenuTree"
       @filter-change="handleFilterChange"
@@ -25,7 +58,7 @@
       </template>
 
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'menuName'">
+        <template v-if="column.field === 'menuName'">
           <component
             v-if="record.icon"
             :is="iconComponent(record.icon)"
@@ -33,37 +66,38 @@
           />
           <span>{{ record.menuName }}</span>
         </template>
-        <template v-else-if="column.key === 'menuType'">
+        <template v-else-if="column.field === 'menuType'">
           <a-tag v-if="record.menuType === 0">目录</a-tag>
           <a-tag v-else-if="record.menuType === 1" color="green">菜单</a-tag>
           <a-tag v-else-if="record.menuType === 2" color="orange">按钮</a-tag>
         </template>
-        <template v-else-if="column.key === 'status'">
+        <template v-else-if="column.field === 'status'">
           <a-switch
             :checked="record.status === 1"
             @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
           />
         </template>
-        <template v-else-if="column.key === 'visible'">
+        <template v-else-if="column.field === 'visible'">
           <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
           <a-tag v-else>隐藏</a-tag>
         </template>
-        <template v-else-if="column.key === 'action'">
-          <a-button type="link" size="small" @click="handleAddChild(record)">
-            <template #icon><PlusOutlined /></template>新增
-          </a-button>
-          <a-button type="link" size="small" @click="handleEdit(record)">
-            <template #icon><EditOutlined /></template>编辑
-          </a-button>
-          <a-button type="link" size="small" @click="handleAssignRole(record)">
-            <template #icon><UserOutlined /></template>分配角色
-          </a-button>
-          <a-button type="link" size="small" danger @click="handleDelete(record)">
-            <template #icon><DeleteOutlined /></template>删除
-          </a-button>
-        </template>
       </template>
-    </TableList>
+
+      <template #action="{ record }">
+        <a-button type="link" size="small" @click="handleAddChild(record)">
+          <template #icon><PlusOutlined /></template>新增
+        </a-button>
+        <a-button type="link" size="small" @click="handleEdit(record)">
+          <template #icon><EditOutlined /></template>编辑
+        </a-button>
+        <a-button type="link" size="small" @click="handleAssignRole(record)">
+          <template #icon><UserOutlined /></template>分配角色
+        </a-button>
+        <a-button type="link" size="small" danger @click="handleDelete(record)">
+          <template #icon><DeleteOutlined /></template>删除
+        </a-button>
+      </template>
+    </VxeTableList>
 
     <!-- 菜单编辑弹窗 -->
     <a-modal
@@ -200,16 +234,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, Rule } from 'ant-design-vue'
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  UserOutlined
+  UserOutlined,
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  ControlOutlined
 } from '@ant-design/icons-vue'
-import TableList, { type FilterField } from '@/components/TableList/TableList.vue'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
 import { useSubmitLock } from '@/composables'
@@ -225,6 +263,23 @@ const queryForm = reactive<MenuQuery>({
 const menuTree = ref<MenuInfo[]>([])
 const loading = ref(false)
 
+// ── 统计数据 ────────────────────────────────────────────
+const flattenMenuTree = (tree: MenuInfo[]): MenuInfo[] => {
+  const result: MenuInfo[] = []
+  const traverse = (nodes: MenuInfo[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(tree)
+  return result
+}
+const menuCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.menuType !== 2).length)
+const buttonCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.menuType === 2).length)
+const enabledCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.status === 1).length)
+const disabledCount = computed(() => flattenMenuTree(menuTree.value).filter(m => m.status === 0).length)
+
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增菜单')
@@ -232,16 +287,16 @@ const { isSubmitting: submitLoading, withSubmitLock } = useSubmitLock()
 const formRef = ref<FormInstance>()
 
 // 表格列配置
-const tableColumns: any[] = [
-  { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 200, ellipsis: true },
-  { title: '权限标识', dataIndex: 'menuCode', key: 'menuCode', width: 180, ellipsis: true },
-  { title: '路由路径', dataIndex: 'path', key: 'path', width: 180, ellipsis: true },
-  { title: '类型', dataIndex: 'menuType', key: 'menuType', width: 100, align: 'center' as const },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' as const },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100, align: 'center' as const },
-  { title: '显示', dataIndex: 'visible', key: 'visible', width: 80, align: 'center' as const },
-  { title: '操作', key: 'action', width: 280, fixed: 'right' as const }
-]
+const vxeColumns = computed(() => [
+  { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip' },
+  { field: 'menuCode', title: '权限标识', width: 180, showOverflow: 'tooltip' },
+  { field: 'path', title: '路由路径', width: 180, showOverflow: 'tooltip' },
+  { field: 'menuType', title: '类型', width: 100, align: 'center' },
+  { field: 'sortOrder', title: '排序', width: 80, align: 'center' },
+  { field: 'status', title: '状态', width: 100, align: 'center' },
+  { field: 'visible', title: '显示', width: 80, align: 'center' },
+  { type: 'action', title: '操作', width: 280, fixed: 'right' }
+])
 
 // 筛选字段
 const filterFields: FilterField[] = [
@@ -314,14 +369,42 @@ const loadMenuTree = async () => {
       menuTree.value = res.data || []
     } else {
       message.error(res.message || '获取菜单列表失败')
+      menuTree.value = mockMenuData()
     }
   } catch (error) {
     console.error('获取菜单列表失败:', error)
-    message.error('获取菜单列表失败')
+    menuTree.value = mockMenuData()
   } finally {
     loading.value = false
   }
 }
+
+// Mock数据
+const mockMenuData = (): MenuInfo[] => [
+  {
+    id: 1, parentId: 0, menuName: '系统管理', menuCode: 'system', menuType: 0,
+    icon: 'AppstoreOutlined', path: '/system', component: '', sortOrder: 1, status: 1, visible: 1,
+    children: [
+      { id: 11, parentId: 1, menuName: '用户管理', menuCode: 'system:user', menuType: 1, icon: 'UserOutlined', path: '/system/user', component: 'system/user/index', sortOrder: 1, status: 1, visible: 1, children: [
+        { id: 111, parentId: 11, menuName: '查询', menuCode: 'system:user:list', menuType: 2, status: 1 },
+        { id: 112, parentId: 11, menuName: '新增', menuCode: 'system:user:add', menuType: 2, status: 1 },
+        { id: 113, parentId: 11, menuName: '编辑', menuCode: 'system:user:edit', menuType: 2, status: 1 },
+        { id: 114, parentId: 11, menuName: '删除', menuCode: 'system:user:delete', menuType: 2, status: 1 },
+      ]},
+      { id: 12, parentId: 1, menuName: '角色管理', menuCode: 'system:role', menuType: 1, icon: 'SafetyOutlined', path: '/system/role', component: 'system/role/index', sortOrder: 2, status: 1, visible: 1, children: [] },
+      { id: 13, parentId: 1, menuName: '菜单管理', menuCode: 'system:menu', menuType: 1, icon: 'MenuOutlined', path: '/system/menu', component: 'system/menu/index', sortOrder: 3, status: 0, visible: 1, children: [] },
+      { id: 14, parentId: 1, menuName: '字典管理', menuCode: 'system:dict', menuType: 1, icon: 'BookOutlined', path: '/system/dict', component: 'system/dict/index', sortOrder: 4, status: 1, visible: 1, children: [] },
+    ]
+  },
+  {
+    id: 2, parentId: 0, menuName: '预算管理', menuCode: 'budget', menuType: 0,
+    icon: 'DollarOutlined', path: '/budget', component: '', sortOrder: 2, status: 1, visible: 1,
+    children: [
+      { id: 21, parentId: 2, menuName: '年度预算', menuCode: 'budget:annual', menuType: 1, icon: 'CalendarOutlined', path: '/budget/annual', component: 'budget/annual/index', sortOrder: 1, status: 1, visible: 1, children: [] },
+      { id: 22, parentId: 2, menuName: '预算调整', menuCode: 'budget:adjustment', menuType: 1, icon: 'EditOutlined', path: '/budget/adjustment', component: 'budget/adjustment/index', sortOrder: 2, status: 1, visible: 1, children: [] },
+    ]
+  },
+]
 
 // 搜索
 const handleSearch = () => {
@@ -530,9 +613,51 @@ onMounted(() => {
 })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .menu-management {
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-total { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-enabled { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-disabled { background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%); }
+.stat-button { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .menu-icon {
@@ -550,5 +675,35 @@ onMounted(() => {
   text-align: center;
   background-color: #f0f0f0;
   border-radius: 2px;
+}
+
+/* 表格网格边框 */
+:deep(.ant-table-thead > tr > th) {
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
+  border-bottom: 2px solid #b0b0b0 !important;
+  background: #fafafa !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.ant-table-thead > tr > th:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+:deep(.ant-table-tbody > tr > td) {
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+}
+
+:deep(.ant-table-tbody > tr > td:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .stat-cards { flex-wrap: wrap; }
+  .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
 </style>

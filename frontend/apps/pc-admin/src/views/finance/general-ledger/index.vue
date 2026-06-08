@@ -1,5 +1,37 @@
 <template>
   <div class="general-ledger-page">
+    <!-- 统计卡片 -->
+    <div class="stat-cards">
+      <div class="stat-card stat-records">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ ledgerData.length }}</div>
+          <div class="stat-card-label">本期记录</div>
+        </div>
+        <FileTextOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-debit">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ formatAmount(summaryData?.totalDebit || 0) }}</div>
+          <div class="stat-card-label">借方合计</div>
+        </div>
+        <ArrowUpOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-credit">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ formatAmount(summaryData?.totalCredit || 0) }}</div>
+          <div class="stat-card-label">贷方合计</div>
+        </div>
+        <ArrowDownOutlined class="stat-card-icon" />
+      </div>
+      <div class="stat-card stat-balance">
+        <div class="stat-card-body">
+          <div class="stat-card-value">{{ formatAmount(summaryData?.balance || 0) }}</div>
+          <div class="stat-card-label">期末余额</div>
+        </div>
+        <WalletOutlined class="stat-card-icon" />
+      </div>
+    </div>
+
     <div class="gl-search-bar">
       <span class="gl-search-label">会计期间：</span>
       <a-date-picker
@@ -35,46 +67,24 @@
       </a-button>
     </div>
 
-    <TableList
+    <VxeTableList
       ref="tableRef"
       :columns="columns"
       :data-source="ledgerData"
       :loading="loading"
       :pagination="pagination"
-      :table-key="'finance-general-ledger-list'"
+      :row-key="'id'"
       :show-toolbar="false"
       :show-search="false"
       :show-add="false"
       :show-edit="false"
       :show-delete="false"
       :show-export="false"
-      :selectable="false"
-      :scroll="{ x: 1000 }"
+      :selectable="true"
       size="small"
       @page-change="handlePageChange"
-    >
-      <template #debitAmount="{ record }">
-        <span v-if="record.debitAmount > 0" class="debit-amount">
-          {{ record.debitAmount.toFixed(2) }}
-        </span>
-        <span v-else class="text-disabled">-</span>
-      </template>
-      <template #creditAmount="{ record }">
-        <span v-if="record.creditAmount > 0" class="credit-amount">
-          {{ record.creditAmount.toFixed(2) }}
-        </span>
-        <span v-else class="text-disabled">-</span>
-      </template>
-      <template #balance="{ record }">
-        <span :class="record.balance >= 0 ? 'debit-balance' : 'credit-balance'">
-          {{ Math.abs(record.balance).toFixed(2) }}
-          <span class="balance-direction">{{ record.balance >= 0 ? '借' : '贷' }}</span>
-        </span>
-      </template>
-      <template #voucherNo="{ record }">
-        <a @click="viewVoucher(record)">{{ record.voucherNo }}</a>
-      </template>
-    </TableList>
+      @selection-change="handleSelectionChange"
+    />
 
     <!-- 汇总信息 -->
     <div v-if="summaryData" class="summary-bar">
@@ -88,9 +98,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import { FileTextOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import TableList from '@/components/TableList/TableList.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { accountingApi, type LedgerRecord, type AccountSubject } from '@/api/finance/accounting'
 
 const tableRef = ref()
@@ -101,16 +111,20 @@ const periodDate = ref(dayjs())
 const querySubjectId = ref<number | undefined>(undefined)
 const subjectOptions = ref<AccountSubject[]>([])
 
-const columns = [
-  { title: '日期', dataIndex: 'businessDate', key: 'businessDate', width: 100 },
-  { title: '凭证号', dataIndex: 'voucherNo', key: 'voucherNo', width: 130, slotName: 'voucherNo' },
-  { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode', width: 100 },
-  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName', width: 150 },
-  { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true },
-  { title: '借方金额', dataIndex: 'debitAmount', key: 'debitAmount', width: 120, align: 'right' as const, slotName: 'debitAmount' },
-  { title: '贷方金额', dataIndex: 'creditAmount', key: 'creditAmount', width: 120, align: 'right' as const, slotName: 'creditAmount' },
-  { title: '余额', dataIndex: 'balance', key: 'balance', width: 140, align: 'right' as const, slotName: 'balance' }
-]
+const columns = computed(() => [
+  { title: '日期', field: 'businessDate', width: 100 },
+  { title: '凭证号', field: 'voucherNo', width: 130 },
+  { title: '科目编码', field: 'subjectCode', width: 100 },
+  { title: '科目名称', field: 'subjectName', width: 150 },
+  { title: '摘要', field: 'summary', minWidth: 100 },
+  { title: '借方金额', field: 'debitAmount', width: 120, align: 'right', formatter: ({ cellValue }) => cellValue > 0 ? cellValue.toFixed(2) : '-' },
+  { title: '贷方金额', field: 'creditAmount', width: 120, align: 'right', formatter: ({ cellValue }) => cellValue > 0 ? cellValue.toFixed(2) : '-' },
+  { title: '余额', field: 'balance', width: 140, align: 'right', formatter: ({ cellValue, row }) => {
+    const absVal = Math.abs(cellValue).toFixed(2)
+    const dir = cellValue >= 0 ? '借' : '贷'
+    return `${absVal} ${dir}`
+  }}
+])
 
 const pagination = reactive({
   current: 1,
@@ -128,6 +142,10 @@ const summaryData = computed(() => {
     balance: ledgerData.value[ledgerData.value.length - 1]?.balance || 0
   }
 })
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 async function fetchData() {
   loading.value = true
@@ -167,6 +185,11 @@ function handlePageChange(page: number, pageSize: number) {
   fetchData()
 }
 
+function handleSelectionChange(rows: any[], ids: any[]) {
+  // 可以在这里处理选中行的逻辑
+  console.log('Selected rows:', rows.length)
+}
+
 function viewVoucher(record: LedgerRecord) {
   // TODO: 跳转到凭证详情
   message.info(`凭证: ${record.voucherNo}`)
@@ -184,6 +207,48 @@ onMounted(async () => {
 <style scoped>
 .general-ledger-page {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 统计卡片 */
+.stat-cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-records { background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%); }
+.stat-debit { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+.stat-credit { background: linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%); }
+.stat-balance { background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%); }
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #333;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stat-card-icon {
+  font-size: 28px;
+  color: rgba(0, 0, 0, 0.15);
 }
 
 .gl-search-bar {
