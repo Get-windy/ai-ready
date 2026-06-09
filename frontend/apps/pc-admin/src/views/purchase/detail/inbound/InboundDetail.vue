@@ -58,6 +58,7 @@ import { inboundApi, type PurchaseInbound } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 const router = useRouter(); const route = useRoute()
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 const data = ref<PurchaseInbound | null>(null)
 const loading = ref(false); const error = ref<string | null>(null); const activeTab = ref('basic')
 const breadcrumbItems = computed(() => [{ text: '采购管理', path: '/purchase?tab=inbound' }, { text: '入库单', path: '/purchase?tab=inbound' }, { text: data.value?.inboundNo || '' }])
@@ -86,18 +87,20 @@ const getStatusType = (s?: number): any => ({ 0: 'default', 1: 'warning', 2: 'su
 const fetchDetail = async () => {
   loading.value = true; error.value = null
   try { data.value = await inboundApi.getById(Number(route.params.id)) as any }
-  catch (err: any) { error.value = err?.message || '获取详情失败' }
+  catch (err: any) { console.warn('[入库详情] 获取失败', err); error.value = err?.message || '获取详情失败' }
   finally { loading.value = false }
 }
 const handleBreadcrumbClick = (item: any) => { if (item.path) router.push(item.path) }
 const handleTabChange = (k: string) => { activeTab.value = k }
 const handleRelatedClick = (doc: any) => { if (doc.type === '采购订单') router.push(`/purchase/order/${doc.id}`) }
-const handleApprove = async () => { try { await inboundApi.approve(data.value!.id); message.success('审批成功'); fetchDetail() } catch { message.error('审批失败') } }
+const handleApprove = async () => { try { await inboundApi.approve(data.value!.id); message.success('审批成功'); fetchDetail() } catch (e) { console.warn('[入库详情] 审批失败', e); message.error('审批失败') } }
 onMounted(() => {
   fetchDetail()
+  refreshTimer = setInterval(() => fetchDetail(), 30000)
   window.addEventListener('purchase:refresh', fetchDetail)
 })
 onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   window.removeEventListener('purchase:refresh', fetchDetail)
 })
 </script>

@@ -1,140 +1,167 @@
 <template>
-  <div class="log-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">日志总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="log-page-header">
+        <div class="log-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>操作日志</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="log-page-header-title">操作日志</h2>
         </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-success">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ successCount }}</div>
-          <div class="stat-card-label">成功操作</div>
+        <div class="log-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-error">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ errorCount }}</div>
-          <div class="stat-card-label">失败操作</div>
+    </template>
+
+    <div class="log-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">日志总数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
         </div>
-        <CloseCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-slow">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ slowCount }}</div>
-          <div class="stat-card-label">慢请求</div>
+        <div class="stat-card stat-success">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ successCount }}</div>
+            <div class="stat-card-label">成功操作</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <ClockCircleOutlined class="stat-card-icon" />
+        <div class="stat-card stat-error">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ errorCount }}</div>
+            <div class="stat-card-label">失败操作</div>
+          </div>
+          <CloseCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-slow">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ slowCount }}</div>
+            <div class="stat-card-label">慢请求</div>
+          </div>
+          <ClockCircleOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :show-search="false"
+        :show-add="false"
+        :show-edit="false"
+        :show-delete="false"
+        :show-batch-delete="false"
+        :show-export="true"
+        :selectable="false"
+        @refresh="fetchData"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @export="handleExport"
+      >
+        <template #toolbar-actions>
+          <a-button danger @click="handleClearLogs">
+            <template #icon><DeleteOutlined /></template>
+            清空日志
+          </a-button>
+        </template>
+
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '成功' : '失败' }}
+          </a-tag>
+        </template>
+        <template #costTimeCell="{ record }">
+          <span v-if="record.costTime > 1000" style="color: #ff4d4f">
+            {{ record.costTime }}ms
+          </span>
+          <span v-else-if="record.costTime > 500" style="color: #faad14">
+            {{ record.costTime }}ms
+          </span>
+          <span v-else>
+            {{ record.costTime }}ms
+          </span>
+        </template>
+
+        <template #action="{ record }">
+          <a-button type="link" size="small" @click="handleDetail(record)">
+            详情
+          </a-button>
+        </template>
+      </VxeTableList>
+
+      <!-- 详情抽屉 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="操作日志详情"
+        width="700px"
+        :destroy-on-close="true"
+      >
+        <a-descriptions :column="1" bordered size="small" v-if="currentLog">
+          <a-descriptions-item label="模块">{{ currentLog.module }}</a-descriptions-item>
+          <a-descriptions-item label="操作类型">{{ currentLog.operationType }}</a-descriptions-item>
+          <a-descriptions-item label="操作描述">{{ currentLog.description }}</a-descriptions-item>
+          <a-descriptions-item label="请求URL">{{ currentLog.requestUrl }}</a-descriptions-item>
+          <a-descriptions-item label="请求方法">
+            <a-tag :color="getMethodColor(currentLog.requestMethod)">
+              {{ currentLog.requestMethod }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="操作人">{{ currentLog.operatorName }}</a-descriptions-item>
+          <a-descriptions-item label="IP地址">{{ currentLog.ipAddress }}</a-descriptions-item>
+          <a-descriptions-item label="操作时间">{{ currentLog.operationTime }}</a-descriptions-item>
+          <a-descriptions-item label="耗时">{{ currentLog.costTime }}ms</a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <a-tag :color="currentLog.status === 0 ? 'success' : 'error'">
+              {{ currentLog.status === 0 ? '成功' : '失败' }}
+            </a-tag>
+          </a-descriptions-item>
+        </a-descriptions>
+        <a-divider v-if="currentLog">请求/响应详情</a-divider>
+        <a-tabs v-if="currentLog">
+          <a-tab-pane key="request" tab="请求参数">
+            <pre class="json-content">{{ formatJson(currentLog.requestParams) }}</pre>
+          </a-tab-pane>
+          <a-tab-pane key="response" tab="响应结果">
+            <pre class="json-content">{{ formatJson(currentLog.responseResult) }}</pre>
+          </a-tab-pane>
+        </a-tabs>
+      </a-drawer>
     </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :show-add="false"
-      :show-edit="false"
-      :show-delete="false"
-      :show-batch-delete="false"
-      :show-export="true"
-      :selectable="false"
-      @refresh="fetchData"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @export="handleExport"
-    >
-      <template #toolbar-actions>
-        <a-button danger @click="handleClearLogs">
-          <template #icon><DeleteOutlined /></template>
-          清空日志
-        </a-button>
-      </template>
-
-      <template #statusCell="{ record }">
-        <a-tag :color="record.status === 0 ? 'success' : 'error'">
-          {{ record.status === 0 ? '成功' : '失败' }}
-        </a-tag>
-      </template>
-      <template #costTimeCell="{ record }">
-        <span v-if="record.costTime > 1000" style="color: #ff4d4f">
-          {{ record.costTime }}ms
-        </span>
-        <span v-else-if="record.costTime > 500" style="color: #faad14">
-          {{ record.costTime }}ms
-        </span>
-        <span v-else>
-          {{ record.costTime }}ms
-        </span>
-      </template>
-
-      <template #action="{ record }">
-        <a-button type="link" size="small" @click="handleDetail(record)">
-          详情
-        </a-button>
-      </template>
-    </VxeTableList>
-
-    <!-- 详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
-      title="操作日志详情"
-      :footer="null"
-      width="700px"
-    >
-      <a-descriptions :column="1" bordered size="small" v-if="currentLog">
-        <a-descriptions-item label="模块">{{ currentLog.module }}</a-descriptions-item>
-        <a-descriptions-item label="操作类型">{{ currentLog.operationType }}</a-descriptions-item>
-        <a-descriptions-item label="操作描述">{{ currentLog.description }}</a-descriptions-item>
-        <a-descriptions-item label="请求URL">{{ currentLog.requestUrl }}</a-descriptions-item>
-        <a-descriptions-item label="请求方法">
-          <a-tag :color="getMethodColor(currentLog.requestMethod)">
-            {{ currentLog.requestMethod }}
-          </a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ currentLog.operatorName }}</a-descriptions-item>
-        <a-descriptions-item label="IP地址">{{ currentLog.ipAddress }}</a-descriptions-item>
-        <a-descriptions-item label="操作时间">{{ currentLog.operationTime }}</a-descriptions-item>
-        <a-descriptions-item label="耗时">{{ currentLog.costTime }}ms</a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="currentLog.status === 0 ? 'success' : 'error'">
-            {{ currentLog.status === 0 ? '成功' : '失败' }}
-          </a-tag>
-        </a-descriptions-item>
-      </a-descriptions>
-      <a-divider v-if="currentLog">请求/响应详情</a-divider>
-      <a-tabs v-if="currentLog">
-        <a-tab-pane key="request" tab="请求参数">
-          <pre class="json-content">{{ formatJson(currentLog.requestParams) }}</pre>
-        </a-tab-pane>
-        <a-tab-pane key="response" tab="响应结果">
-          <pre class="json-content">{{ formatJson(currentLog.responseResult) }}</pre>
-        </a-tab-pane>
-      </a-tabs>
-    </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   DeleteOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  SyncOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { logApi, type OperationLog } from '@/api/log'
+import { PageContainer } from '@/components'
 
 // 搜索表单
 const searchForm = reactive({
@@ -149,6 +176,11 @@ const moduleOptions = ref<string[]>([])
 // 表格数据
 const tableData = ref<OperationLog[]>([])
 const loading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const successCount = computed(() => tableData.value.filter(r => r.status === 0).length)
@@ -225,9 +257,14 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[操作日志] 加载日志数据失败')
     message.error('加载数据失败')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -237,9 +274,10 @@ const fetchModules = async () => {
     if (res.data) {
       moduleOptions.value = res.data
     }
-  } catch {
-    // 忽略模块列表加载失败
+  } catch (err) {
+    console.warn('[系统管理] 加载模块列表失败', err)
   }
+    message.error('加载模块列表失败')
 }
 
 // 搜索
@@ -293,7 +331,8 @@ const handleClearLogs = () => {
         await logApi.clearLogs()
         message.success('日志已清空')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[系统管理] 清空日志失败', err)
         message.error('清空失败')
       }
     }
@@ -313,8 +352,9 @@ const handleExport = async () => {
     link.click()
     window.URL.revokeObjectURL(url)
     message.success({ content: '导出成功', key: 'export' })
-  } catch {
+  } catch (err) {
     message.error({ content: '导出失败', key: 'export' })
+    console.warn('[系统管理] 导出日志失败', err)
   }
 }
 
@@ -334,7 +374,7 @@ const formatJson = (jsonStr: string | undefined) => {
   if (!jsonStr) return '无数据'
   try {
     return JSON.stringify(JSON.parse(jsonStr), null, 2)
-  } catch {
+  } catch (err) {
     return jsonStr
   }
 }
@@ -342,10 +382,63 @@ const formatJson = (jsonStr: string | undefined) => {
 onMounted(() => {
   fetchData()
   fetchModules()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.log-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.log-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.log-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.log-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .log-management {
   height: 100%;
   display: flex;

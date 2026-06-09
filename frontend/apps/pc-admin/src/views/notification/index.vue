@@ -1,134 +1,162 @@
 <template>
-  <div class="notification-center">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">通知总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="notification-page-header">
+        <div class="notification-page-header-left">
+          <a-breadcrumb class="notification-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>通知中心</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="notification-page-header-title">通知中心</h2>
         </div>
-        <BellOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-unread">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ unreadCount }}</div>
-          <div class="stat-card-label">未读通知</div>
+        <div class="notification-page-header-right">
+          <span v-if="lastUpdated" class="update-time">更新于 {{ dayjs(lastUpdated).format('HH:mm:ss') }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <ExclamationCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-read">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ readCount }}</div>
-          <div class="stat-card-label">已读通知</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-system">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ systemCount }}</div>
-          <div class="stat-card-label">系统通知</div>
-        </div>
-        <InfoCircleOutlined class="stat-card-icon" />
-      </div>
-    </div>
+    </template>
 
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      :filter-fields="filterFields"
-      :selectable="true"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <a-badge :count="unreadCount" :overflow-count="99">
-          <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
-        </a-badge>
-        <a-button type="link" @click="handleMarkAllRead">
-          <template #icon><CheckCircleOutlined /></template>
-          全部已读
-        </a-button>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
+    <div class="notification-center">
+      <!-- 统计卡片骨架 -->
+      <template v-if="loading && tableData.length === 0">
+        <div class="stat-cards" style="margin-bottom: 16px;">
+          <a-card v-for="i in 4" :key="i" :bordered="false" class="stat-skeleton">
+            <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" />
+          </a-card>
+        </div>
       </template>
-
-      <template #empty>
-        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配通知">
-          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-          <a-button @click="handleResetFilters">清除筛选</a-button>
-        </a-empty>
-        <a-empty v-else description="暂无通知消息">
-          <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        </a-empty>
-      </template>
-
-      <template #title="{ record }">
-        <a-space align="start">
-          <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
-            <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
-          </a-badge>
-          <div>
-            <a
-              :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
-              @click="handleDetail(record)"
-              class="notification-title"
-            >
-              {{ record.title }}
-            </a>
+      <div v-else class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">通知总数</div>
           </div>
-        </a-space>
-      </template>
+          <BellOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-unread">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ unreadCount }}</div>
+            <div class="stat-card-label">未读通知</div>
+          </div>
+          <ExclamationCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-read">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ readCount }}</div>
+            <div class="stat-card-label">已读通知</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-system">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ systemCount }}</div>
+            <div class="stat-card-label">系统通知</div>
+          </div>
+          <InfoCircleOutlined class="stat-card-icon" />
+        </div>
+      </div>
 
-      <template #type="{ record }">
-        <a-tag :color="getTypeColor(record.type)">
-          {{ getTypeName(record.type) }}
-        </a-tag>
-      </template>
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="pagination"
+        :filter-fields="filterFields"
+        :selectable="true"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+      >
+        <template #toolbar-actions>
+          <a-badge :count="unreadCount" :overflow-count="99">
+            <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
+          </a-badge>
+          <a-button type="link" @click="handleMarkAllRead">
+            <template #icon><CheckCircleOutlined /></template>
+            全部已读
+          </a-button>
+        </template>
 
-      <template #readStatus="{ record }">
-        <a-badge
-          :status="record.readStatus === 0 ? 'processing' : 'default'"
-          :text="record.readStatus === 0 ? '未读' : '已读'"
-        />
-      </template>
+        <template #empty>
+          <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配通知">
+            <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
+            <a-button @click="handleResetFilters">清除筛选</a-button>
+          </a-empty>
+          <a-empty v-else description="暂无通知消息">
+            <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
+          </a-empty>
+        </template>
 
-      <template #summary="{ record }">
-        <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
-      </template>
+        <template #title="{ record }">
+          <a-space align="start">
+            <a-badge :dot="record.readStatus === 0" :offset="[-2, 2]">
+              <component :is="getTypeIcon(record.type)" :style="{ fontSize: '16px' }" />
+            </a-badge>
+            <div>
+              <a
+                :style="{ fontWeight: record.readStatus === 0 ? 'bold' : 'normal' }"
+                @click="handleDetail(record)"
+                class="notification-title"
+              >
+                {{ record.title }}
+              </a>
+            </div>
+          </a-space>
+        </template>
 
-      <template #action="{ record }">
-        <a-space :size="0" class="action-cell-inner">
-          <a-tooltip v-if="record.readStatus === 0" title="标记已读">
-            <a-button type="link" size="small" @click="handleMarkRead(record)">
-              <template #icon><CheckOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.readStatus === 0" key="mark_read">
-                  <CheckOutlined /> 标记已读
-                </a-menu-item>
-                <a-menu-divider v-if="record.readStatus === 0" />
-                <a-menu-item key="delete" danger>
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </VxeTableList>
+        <template #type="{ record }">
+          <a-tag :color="getTypeColor(record.type)">
+            {{ getTypeName(record.type) }}
+          </a-tag>
+        </template>
+
+        <template #readStatus="{ record }">
+          <a-badge
+            :status="record.readStatus === 0 ? 'processing' : 'default'"
+            :text="record.readStatus === 0 ? '未读' : '已读'"
+          />
+        </template>
+
+        <template #summary="{ record }">
+          <span class="summary-text">{{ record.summary || record.content?.substring(0, 80) }}</span>
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip v-if="record.readStatus === 0" title="标记已读">
+              <a-button type="link" size="small" @click="handleMarkRead(record)">
+                <template #icon><CheckOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.readStatus === 0" key="mark_read">
+                    <CheckOutlined /> 标记已读
+                  </a-menu-item>
+                  <a-menu-divider v-if="record.readStatus === 0" />
+                  <a-menu-item key="delete" danger>
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </VxeTableList>
+    </div>
 
     <!-- 详情弹窗 -->
     <a-modal
@@ -158,12 +186,13 @@
         </div>
       </template>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
+import { PageContainer } from '@/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -176,14 +205,21 @@ import {
   InfoCircleOutlined,
   NotificationOutlined,
   AuditOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import { notificationApi, type NotificationInfo } from '@/api/notification'
 
-// 表格数据
+// ── 表格数据 ────────────────────────────────────────────
 const tableData = ref<NotificationInfo[]>([])
 const loading = ref(false)
+const refreshLoading = ref(false)
 const tableRef = ref()
+
+// ── 自动刷新 ────────────────────────────────────────────
+const autoRefreshCountdown = ref(0)
+const lastUpdated = ref('')
 
 // ── 统计数据 ────────────────────────────────────────────
 const readCount = computed(() => tableData.value.filter(r => r.readStatus === 1).length)
@@ -197,7 +233,6 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
 })
-const lastUpdated = ref('')
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -238,7 +273,7 @@ const unreadCount = ref(0)
 const detailVisible = ref(false)
 const currentNotification = ref<NotificationInfo | null>(null)
 
-// 数据加载
+// ── 数据加载 ────────────────────────────────────────────
 const fetchData = async () => {
   loading.value = true
   try {
@@ -253,12 +288,14 @@ const fetchData = async () => {
     if (res.data) {
       tableData.value = res.data.records
       pagination.total = res.data.total
-      lastUpdated.value = new Date().toISOString()
     }
-  } catch (error) {
+    lastUpdated.value = new Date().toISOString()
+  } catch (err) {
+    console.warn('[通知] 加载通知失败', err)
     message.error('加载通知失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -268,9 +305,15 @@ const fetchUnreadCount = async () => {
     if (res.data) {
       unreadCount.value = res.data.total
     }
-  } catch {
-    // 忽略加载失败
+  } catch (err) {
+    console.warn('[通知] 获取未读数量失败', err)
   }
+}
+
+function handleRefresh() {
+  refreshLoading.value = true
+  fetchData()
+  fetchUnreadCount()
 }
 
 // 筛选
@@ -298,7 +341,8 @@ const handleMarkRead = async (record: NotificationInfo) => {
     record.readStatus = 1
     message.success('已标记为已读')
     fetchUnreadCount()
-  } catch {
+  } catch (err) {
+    console.warn('[通知] 标记已读失败', err)
     message.error('操作失败')
   }
 }
@@ -310,7 +354,8 @@ const handleMarkAllRead = async () => {
     message.success('已全部标记为已读')
     fetchData()
     fetchUnreadCount()
-  } catch {
+  } catch (err) {
+    console.warn('[通知] 全部已读失败', err)
     message.error('操作失败')
   }
 }
@@ -330,7 +375,8 @@ const handleDelete = async (record: NotificationInfo) => {
         message.success('删除成功')
         fetchData()
         fetchUnreadCount()
-      } catch {
+      } catch (err) {
+        console.warn('[通知] 删除通知失败', err)
         message.error('删除失败')
       }
     }
@@ -341,7 +387,6 @@ const handleDelete = async (record: NotificationInfo) => {
 const handleDetail = (record: NotificationInfo) => {
   currentNotification.value = record
   detailVisible.value = true
-  // 如果是未读，自动标记已读
   if (record.readStatus === 0) {
     handleMarkRead(record)
   }
@@ -384,25 +429,94 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault() }
 }
 
+// ── 自动刷新 ────────────────────────────────────────────
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
   fetchUnreadCount()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    fetchUnreadCount()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.notification-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.notification-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.notification-breadcrumb {
+  font-size: 13px;
+}
+.notification-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.notification-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.notification-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .notification-center {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   overflow: hidden;
   min-height: 0;
+}
+
+/* 统计卡片骨架 */
+.stat-skeleton {
+  flex: 1;
+  border-radius: 8px;
+}
+.stat-skeleton :deep(.ant-card-body) {
+  padding: 12px 16px;
 }
 
 /* 统计卡片 */
@@ -410,6 +524,7 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .stat-card {
@@ -470,16 +585,7 @@ onUnmounted(() => {
 }
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
-.list-update-timestamp {
-  font-size: 12px; color: var(--color-text-tertiary, #bbb);
-  white-space: nowrap; cursor: help; margin-left: 8px;
-  line-height: 32px; vertical-align: middle;
-}
 .action-cell-inner { flex-wrap: nowrap; }
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

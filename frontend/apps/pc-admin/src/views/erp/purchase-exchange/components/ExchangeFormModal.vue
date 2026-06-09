@@ -239,7 +239,7 @@ const handleOrderSearch = async (keyword: string) => {
     })
     orderOptions.value = res.data?.records || []
   } catch (error) {
-    console.error('搜索采购订单失败', error)
+    console.warn('[采购换货] 搜索采购订单失败', error)
   }
 }
 
@@ -323,7 +323,7 @@ const handleSubmit = async () => {
     emit('success')
     resetForm()
   } catch (error) {
-    console.error('提交失败', error)
+    console.warn('[采购换货] 提交失败', error)
     message.error('提交失败，请检查表单')
   } finally {
     submitting.value = false

@@ -83,7 +83,7 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="批次详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="批次详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="批次号">{{ currentRecord.batchNo }}</a-descriptions-item>
         <a-descriptions-item label="产品编码">{{ currentRecord.productCode }}</a-descriptions-item>
@@ -97,7 +97,7 @@
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
       <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-    </a-modal>
+    </a-drawer>
   </div>
 </template>
 
@@ -205,25 +205,19 @@ async function fetchData() {
   try {
     const res = await batchApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
     emit('update-count', pagination.total)
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[批次管理] 获取批次列表失败', err)
+    tableData.value = []
+    pagination.total = 0
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, batchNo: 'B-2024-001', productCode: 'PROD-001', productName: '螺丝螺母套装', productionDate: '2024-01-01', expiryDate: '2025-01-01', status: 1, quantity: 500, warehouseName: '主仓库', createTime: '2024-01-02 10:00' },
-  { id: 2, batchNo: 'B-2024-002', productCode: 'PROD-002', productName: '不锈钢板材', productionDate: '2024-01-15', expiryDate: '2024-07-15', status: 2, quantity: 200, warehouseName: '主仓库', createTime: '2024-01-16 14:00' },
-  { id: 3, batchNo: 'B-2024-003', productCode: 'PROD-003', productName: '电子元件A型', productionDate: '2024-02-01', expiryDate: '2024-03-01', status: 3, quantity: 50, warehouseName: '备品仓库', createTime: '2024-02-02 09:00' },
-  { id: 4, batchNo: 'B-2024-004', productCode: 'PROD-004', productName: '包装箱(大)', productionDate: '2024-02-10', expiryDate: '2026-02-10', status: 1, quantity: 300, warehouseName: '成品仓库', createTime: '2024-02-11 16:00' },
-  { id: 5, batchNo: 'B-2024-005', productCode: 'PROD-005', productName: '电机驱动器', productionDate: '2024-02-20', expiryDate: '2024-03-20', status: 0, quantity: 20, warehouseName: '半成品仓库', createTime: '2024-02-21 11:00' },
-]
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 
@@ -241,6 +235,7 @@ function handleExport() {
   a.download = `批次报表_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[批次管理] 导出批次列表（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -266,6 +261,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

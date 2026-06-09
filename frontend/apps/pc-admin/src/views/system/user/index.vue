@@ -1,29 +1,52 @@
 <template>
-  <div class="user-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">用户总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="user-page-header">
+        <div class="user-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>用户管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="user-page-header-title">用户管理</h2>
         </div>
-        <TeamOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-active">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ activeCount }}</div>
-          <div class="stat-card-label">正常用户</div>
+        <div class="user-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-disabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ disabledCount }}</div>
-          <div class="stat-card-label">停用用户</div>
+    </template>
+
+    <div class="user-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">用户总数</div>
+          </div>
+          <TeamOutlined class="stat-card-icon" />
         </div>
-        <StopOutlined class="stat-card-icon" />
+        <div class="stat-card stat-active">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ activeCount }}</div>
+            <div class="stat-card-label">正常用户</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-disabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ disabledCount }}</div>
+            <div class="stat-card-label">停用用户</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
     <VxeTableList
       ref="tableRef"
@@ -141,20 +164,27 @@
       <a-transfer v-model:target-keys="targetRoleKeys" :data-source="roleList" :titles="['可选角色', '已选角色']" :render="(item: any) => item.title" show-search :filter-option="filterRoleOption" />
     </a-modal>
   </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 import { useUserStore } from '@/stores/user'
+import { PageContainer } from '@/components'
 
 const userStore = useUserStore()
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 const searchForm = reactive({ username: '', phone: '', status: undefined as number | undefined, tenantId: undefined as number | undefined })
 
 const tableData = ref<UserInfo[]>([])
@@ -228,7 +258,7 @@ const tenantMap = computed(() => {
 })
 
 const loadTenants = async () => {
-  try { const res = await userApi.getTenants(); if (res.data) tenantList.value = res.data } catch { tenantList.value = mockTenantData() }
+  try { const res = await userApi.getTenants(); if (res.data) tenantList.value = res.data } catch (err) { tenantList.value = []; console.warn('[系统管理] 加载租户列表失败', err); message.error('加载租户列表失败') }
 }
 
 const fetchData = async () => {
@@ -236,23 +266,12 @@ const fetchData = async () => {
   try {
     const res = await userApi.getPage({ tenantId: userStore.tenantId, ...searchForm, pageNum: pagination.current, pageSize: pagination.pageSize })
     if (res.data) { tableData.value = res.data.records; pagination.total = res.data.total }
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
-  } finally { loading.value = false }
+  } catch (err) {
+    console.warn('[系统管理] 加载用户数据失败', err)
+    tableData.value = []
+    pagination.total = 0
+  } finally { loading.value = false; lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN'); refreshLoading.value = false }
 }
-
-const mockData = (): UserInfo[] => [
-  { id: 1, username: 'admin', nickname: '管理员', phone: '13800138000', email: 'admin@example.com', userType: 0, tenantId: 1, status: 0, createTime: '2024-01-01', avatar: '' },
-  { id: 2, username: 'user01', nickname: '张三', phone: '13900139001', email: 'zhangsan@example.com', userType: 1, tenantId: 1, status: 0, createTime: '2024-01-15', avatar: '' },
-  { id: 3, username: 'user02', nickname: '李四', phone: '13900139002', email: 'lisi@example.com', userType: 2, tenantId: 2, status: 1, createTime: '2024-02-01', avatar: '' },
-  { id: 4, username: 'user03', nickname: '王五', phone: '13900139003', email: 'wangwu@example.com', userType: 1, tenantId: 1, status: 0, createTime: '2024-02-10', avatar: '' },
-]
-
-const mockTenantData = (): TenantInfo[] => [
-  { id: 1, tenantName: '默认租户', tenantCode: 'default' },
-  { id: 2, tenantName: '测试租户', tenantCode: 'test' },
-]
 
 const handleFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) Object.assign(searchForm, { username: '', phone: '', status: undefined, tenantId: undefined })
@@ -285,7 +304,7 @@ const handleModalOk = async () => {
       modalVisible.value = false; fetchData()
     })
     void result
-  } catch (error: any) { if (error) message.error(error?.message || '操作失败') }
+  } catch (error: any) { console.warn('[用户管理] 提交用户表单失败', error); if (error) message.error(error?.message || '操作失败') }
 }
 
 const handleModalCancel = () => { modalVisible.value = false; formRef.value?.resetFields() }
@@ -318,7 +337,7 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
         (list) => list.filter((item) => !idsToDelete.includes(item.id)),
         (originalList) => { tableData.value = originalList },
         () => userApi.batchDelete(idsToDelete),
-        async () => { for (const item of deletedItems) { try { const createData = { ...item, password: '123456' } as Record<string, any>; delete createData.id; await userApi.create(createData as any) } catch {} }; await fetchData() },
+        async () => { for (const item of deletedItems) { try { const createData = { ...item, password: '123456' } as Record<string, any>; delete createData.id; await userApi.create(createData as any) } catch (err) { console.warn('[系统管理] 恢复用户失败', err) } }; await fetchData() },
         '删除'
       )
       if (result) selectedRowKeys.value = []
@@ -369,7 +388,7 @@ const handleAssignRole = async (record: UserInfo) => {
   try {
     const userRes = await userApi.getById(record.id)
     targetRoleKeys.value = userRes.data?.roleIds ? userRes.data.roleIds.map(String) : []
-  } catch { targetRoleKeys.value = [] }
+  } catch (err) { console.warn('[系统管理] 获取用户角色失败', err); targetRoleKeys.value = [] }
   roleModalVisible.value = true
 }
 
@@ -382,10 +401,66 @@ const filterRoleOption = (input: string, option: any) => option.title.toLowerCas
 const getUserTypeColor = (type: number) => { const colors: Record<number, string> = { 0: 'gold', 1: 'blue', 2: 'green' }; return colors[type] || 'default' }
 const getUserTypeName = (type: number) => { const names: Record<number, string> = { 0: '系统用户', 1: '企业用户', 2: '代理用户' }; return names[type] || '未知' }
 
-onMounted(() => { fetchData(); loadTenants() })
+onMounted(() => {
+  fetchData()
+  loadTenants()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.user-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.user-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.user-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .user-management {
   height: 100%;
   display: flex;

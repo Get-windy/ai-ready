@@ -1,16 +1,39 @@
 <template>
-  <div class="inquiry-page">
-    <a-page-header
-      title="供应商询价报价"
-      @back="handleBack"
-    >
-      <template #extra>
-        <a-button type="primary" @click="handleCreateInquiry">
-          <template #icon><PlusOutlined /></template>
-          发起询价
-        </a-button>
-      </template>
-    </a-page-header>
+  <PageContainer full-height>
+    <template #header>
+      <div class="inquiry-header">
+        <div class="inquiry-header__left">
+          <a-button type="text" class="inquiry-header__back" @click="handleBack">
+            <template #icon><LeftOutlined /></template>
+          </a-button>
+          <div class="inquiry-header__titles">
+            <span class="inquiry-header__breadcrumb">供应商 / 询价报价</span>
+            <h2 class="inquiry-header__title">供应商询价报价</h2>
+          </div>
+        </div>
+        <div class="inquiry-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="loadInquiries">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+            <a-button type="primary" @click="handleCreateInquiry">
+              <template #icon><PlusOutlined /></template>
+              发起询价
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
 
     <!-- 统计卡片 -->
     <div class="stat-cards">
@@ -120,13 +143,14 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined, ReloadOutlined, SyncOutlined, LeftOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import { requiredRule } from '@/utils/formRules'
@@ -139,7 +163,7 @@ const router = useRouter()
 const supplierId = (route.params.id as string) || (route.query.id as string) || ''
 
 if (!supplierId) {
-  console.warn('[供应商询价] 缺少供应商ID参数，将返回列表')
+  console.warn('[供应商] 缺少供应商ID参数，将返回列表')
   router.replace('/supplier/index')
 }
 
@@ -160,8 +184,14 @@ const supplier = ref<{ supplierCode: string; supplierName: string } | null>(null
 const inquiries = ref<InquiryRecord[]>([])
 const loading = ref(false)
 const submitLoading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const showCreateModal = ref(false)
 const formRef = ref<FormInstance>()
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const createForm = ref({
   inquiryTitle: '',
@@ -203,15 +233,30 @@ const getStatusColor = (status: number) => {
 
 onMounted(async () => {
   await Promise.allSettled([loadSupplier(), loadInquiries()])
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadInquiries()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadInquiries })
 
 const loadSupplier = async () => {
   if (!supplierId) return
   try {
     const res = await supplierApi.getById(Number(supplierId))
     supplier.value = res as any
-  } catch {
-    supplier.value = { supplierCode: 'SUP001', supplierName: '示例供应商' }
+  } catch (err) {
+    console.warn('[供应商] 加载供应商信息失败', err)
   }
 }
 
@@ -222,10 +267,13 @@ const loadInquiries = async () => {
     const res = await supplierApi.getInquiries(Number(supplierId))
     inquiries.value = (res as any)?.data || (res as any) || []
   } catch (err: any) {
+    console.warn('[供应商] 获取询价记录失败', err)
     message.error(err?.message || '获取询价记录失败')
     inquiries.value = []
   } finally {
     loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
@@ -244,11 +292,13 @@ const submitInquiry = async () => {
       deadline: createForm.value.deadline?.format('YYYY-MM-DD'),
       remark: createForm.value.remark
     })
+    console.warn('[供应商] 操作成功: 询价单创建成功')
     message.success('询价单创建成功')
     showCreateModal.value = false
     await loadInquiries()
   } catch (err: any) {
-    if (err?.errorFields) return // 表单验证错误，不提示
+    if (err?.errorFields) { console.warn('[供应商] 表单验证失败', err); return }
+    console.warn('[供应商] 创建询价失败', err)
     message.error(err?.message || '创建失败')
   } finally {
     submitLoading.value = false
@@ -269,9 +319,11 @@ const handleAcceptQuotation = async (inquiry: InquiryRecord) => {
     onOk: async () => {
       try {
         await request.post(`/v1/supplier-portal/quotations/${inquiry.id}/accept`)
+        console.warn('[供应商] 操作成功: 报价已接受')
         message.success('报价已接受')
         await loadInquiries()
       } catch (err: any) {
+        console.warn('[供应商] 接受报价失败', err)
         message.error(err?.message || '操作失败')
       }
     }
@@ -290,9 +342,11 @@ const handleRejectQuotation = async (inquiry: InquiryRecord) => {
       }
       try {
         await request.post(`/v1/supplier-portal/quotations/${inquiry.id}/reject`, null, { params: { reason } })
+        console.warn('[供应商] 操作成功: 报价已拒绝')
         message.success('报价已拒绝')
         await loadInquiries()
       } catch (err: any) {
+        console.warn('[供应商] 拒绝报价失败', err)
         message.error(err?.message || '操作失败')
       }
     }
@@ -307,11 +361,68 @@ const handleBack = () => {
 </script>
 
 <style scoped>
-.inquiry-page {
-  height: 100%;
+.inquiry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.inquiry-header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inquiry-header__back {
+  color: #303133;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+.inquiry-header__titles {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  gap: 2px;
+}
+
+.inquiry-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.inquiry-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.inquiry-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
 }
 
 /* 统计卡片 */

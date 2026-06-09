@@ -1,5 +1,31 @@
 <template>
-  <div class="erp-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="stock-in-header">
+        <div class="stock-in-header__left">
+          <span class="stock-in-header__breadcrumb">ERP / 采购管理 / 入库管理</span>
+          <h2 class="stock-in-header__title">入库管理</h2>
+        </div>
+        <div class="stock-in-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="fetchData">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -129,7 +155,7 @@
     </a-card>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="入库单详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="入库单详情" placement="right" width="80vw">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="入库单号">{{ currentRecord.inboundNo }}</a-descriptions-item>
         <a-descriptions-item label="采购订单">{{ currentRecord.purchaseOrderNo }}</a-descriptions-item>
@@ -143,14 +169,15 @@
         <a-descriptions-item label="操作人">{{ currentRecord.operator || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-    </a-modal>
-  </div>
+    </a-drawer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ExportOutlined, ReloadOutlined, SyncOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -158,10 +185,16 @@ import request from '@/utils/request'
 import { INBOUND_STATUS } from '@/utils/statusConfig'
 
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const tableData = ref<any[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 const tableRef = ref()
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 统计数据
 const statistics = ref({
@@ -213,8 +246,14 @@ const fetchData = async () => {
     statistics.value.pendingCount = tableData.value.filter(r => r.status === 0).length
     statistics.value.completedCount = tableData.value.filter(r => r.status >= 2).length
     statistics.value.totalAmount = tableData.value.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
-  } catch { message.error('获取数据失败') }
-  finally { loading.value = false }
+  } catch (error) {
+    console.warn('[入库管理] 获取数据失败', error)
+    message.error('获取数据失败')
+  } finally {
+    loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  }
 }
 
 const handleSearch = () => { pagination.current = 1; fetchData() }
@@ -228,23 +267,91 @@ const handleApprove = async (record: any) => {
   try {
     await request.put(`/erp/purchase/inbound/${record.id}/approve`)
     message.success('审核成功'); fetchData()
-  } catch { message.error('审核失败') }
+  } catch (error) { console.warn('[入库管理] 审核失败', error); message.error('审核失败') }
 }
 
 const handleExecuteInbound = async (record: any) => {
   try {
     await request.put(`/erp/purchase/inbound/${record.id}/execute`)
     message.success('入库完成'); fetchData()
-  } catch { message.error('入库操作失败') }
+  } catch (error) { console.warn('[入库管理] 入库操作失败', error); message.error('入库操作失败') }
 }
 
 const handleExport = () => message.info('导出功能开发中')
 
-onMounted(() => { fetchData() })
+onMounted(() => {
+  fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.stock-in-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.stock-in-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-in-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.stock-in-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.stock-in-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 

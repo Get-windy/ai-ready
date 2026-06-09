@@ -2,13 +2,16 @@
   <PageContainer title="预算管理" full-height>
     <template #headerExtra>
       <a-space :size="12">
+        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <SyncOutlined /> {{ autoRefreshCountdown }}s
+        </span>
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : 'success'" />
           <span v-if="lastUpdateTime" class="update-time">
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" @click="loadData">
+        <a-button size="small" :loading="refreshLoading" @click="loadData">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -133,7 +136,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
-  ReloadOutlined, DollarOutlined, PieChartOutlined, WalletOutlined,
+  ReloadOutlined, SyncOutlined, DollarOutlined, PieChartOutlined, WalletOutlined,
   FileTextOutlined, CalendarOutlined, EditOutlined, BarChartOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -143,6 +146,11 @@ import * as echarts from 'echarts'
 
 const loading = ref(false)
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const statistics = ref<any>({
   totalBudgetAmount: 0,
@@ -233,7 +241,7 @@ const loadData = async () => {
         ]}],
       })
     }
-  } catch { /* error handled */ }
+  } catch { console.warn('[预算管理] 加载汇总数据失败') }
 
   try {
     const trendRes = await budgetReportApi.trend()
@@ -242,28 +250,24 @@ const loadData = async () => {
       const amounts = trendRes.data.map((d: any) => d.amount)
       trendChart?.setOption({ xAxis: { data: months }, series: [{ data: amounts }] })
     }
-  } catch { /* error handled */ }
+  } catch { console.warn('[预算管理] 加载趋势数据失败') }
 
   adjustmentLoading.value = true
   try {
     const adjRes = await budgetAdjustmentApi.page({ pageNum: 0, pageSize: 10 })
     if (adjRes.success) {
-      recentAdjustments.value = adjRes.data.records || mockAdjustmentData()
+      recentAdjustments.value = adjRes.data.records || []
     }
   } catch {
-    recentAdjustments.value = mockAdjustmentData()
+    console.warn('[预算管理] 加载调整记录失败')
+    recentAdjustments.value = []
   }
   adjustmentLoading.value = false
 
   loading.value = false
+  refreshLoading.value = false
   lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
 }
-
-const mockAdjustmentData = (): any[] => [
-  { id: 1, adjustmentNo: 'ADJ-2024-001', adjustmentType: 'increase', amount: 50000, status: 'approved', applyDate: '2024-01-15' },
-  { id: 2, adjustmentNo: 'ADJ-2024-002', adjustmentType: 'decrease', amount: 30000, status: 'submitted', applyDate: '2024-02-01' },
-  { id: 3, adjustmentNo: 'ADJ-2024-003', adjustmentType: 'transfer', amount: 20000, status: 'draft', applyDate: '2024-02-10' },
-]
 
 onMounted(() => {
   setTimeout(() => {
@@ -272,18 +276,30 @@ onMounted(() => {
     loadData()
   }, 100)
   window.addEventListener('resize', handleResize)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   trendChart?.dispose()
   statusChart?.dispose()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 
 const handleResize = () => {
   trendChart?.resize()
   statusChart?.resize()
 }
+
+defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped>
@@ -305,6 +321,18 @@ const handleResize = () => {
 
 .update-time {
   color: #999;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 /* 统计卡片 */

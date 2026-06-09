@@ -131,13 +131,18 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="供应商详情"
-      width="800px"
-      centered
+      placement="right"
+      width="80vw"
       :footer="null"
     >
+      <template #extra>
+        <a-button @click="handleViewOrders(currentRecord)">查看订单</a-button>
+        <a-button type="primary" @click="handleEdit(currentRecord)">编辑</a-button>
+      </template>
+
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="供应商编码">{{ currentRecord.supplierCode }}</a-descriptions-item>
         <a-descriptions-item label="供应商名称">{{ currentRecord.supplierName }}</a-descriptions-item>
@@ -180,13 +185,7 @@
           </template>
         </VxeTableList>
       </div>
-
-      <div class="detail-modal-footer">
-        <a-button @click="handleViewOrders(currentRecord)">查看订单</a-button>
-        <a-button type="primary" @click="handleEdit(currentRecord)">编辑</a-button>
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 批量编辑弹窗 -->
     <a-modal
@@ -354,21 +353,13 @@ const productColumns = [
 
 function handleView(record: any) {
   currentRecord.value = record
-  supplierProducts.value = record.products || mockProducts()
+  supplierProducts.value = record.products || []
   detailVisible.value = true
 }
 
 function handleViewOrders(record: any) {
   router.push({ path: '/purchase', query: { tab: 'orders', supplierId: record.id } })
   detailVisible.value = false
-}
-
-function mockProducts(): any[] {
-  return [
-    { id: 1, productCode: 'P001', productName: '物料A', spec: '规格1', price: 100, lastOrderDate: '2024-01-15' },
-    { id: 2, productCode: 'P002', productName: '物料B', spec: '规格2', price: 200, lastOrderDate: '2024-01-10' },
-    { id: 3, productCode: 'P003', productName: '物料C', spec: '规格3', price: 150, lastOrderDate: '2024-01-08' }
-  ]
 }
 
 function handleAdd() { router.push('/supplier/create') }
@@ -379,7 +370,7 @@ async function handleDelete(record: any) {
     title: '删除供应商', content: `确认删除供应商 "${record.supplierName}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[供应商] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -405,7 +396,7 @@ function handleToggleStatus(record: any, status: number) {
     title: `${statusText}供应商`, content: `${statusText}供应商 "${record.supplierName}"？`, okText: '确认', centered: true,
     async onOk() {
       try { await supplierApi.update(record.id, { status }); message.success(`${statusText}成功`); fetchData() }
-      catch { message.error(`${statusText}失败`) }
+      catch (e) { console.warn('[供应商] 状态变更失败', e); message.error(`${statusText}失败`) }
     }
   })
 }
@@ -495,30 +486,23 @@ async function fetchData() {
   try {
     const res = await supplierApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
+  } catch (e) {
+    console.warn('[供应商] 获取列表失败', e)
     message.error('获取供应商列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally { loading.value = false }
 }
-
-const mockData = (): any[] => [
-  { id: 1, supplierCode: 'SUP001', supplierName: '北京优质供应商', contactPerson: '张经理', contactPhone: '13800138001', supplierLevel: 'A', status: 1, createTime: '2024-01-10 10:00' },
-  { id: 2, supplierCode: 'SUP002', supplierName: '上海贸易公司', contactPerson: '李主管', contactPhone: '13800138002', supplierLevel: 'B', status: 1, createTime: '2024-01-12 11:00' },
-  { id: 3, supplierCode: 'SUP003', supplierName: '广州制造企业', contactPerson: '王总', contactPhone: '13800138003', supplierLevel: 'A', status: 1, createTime: '2024-01-15 09:00' },
-  { id: 4, supplierCode: 'SUP004', supplierName: '深圳电子公司', contactPerson: '赵经理', contactPhone: '13800138004', supplierLevel: 'C', status: 0, createTime: '2024-01-08 14:00' },
-  { id: 5, supplierCode: 'SUP005', supplierName: '杭州供应商', contactPerson: '孙经理', contactPhone: '13800138005', supplierLevel: 'B', status: 1, createTime: '2024-01-18 15:00' },
-  { id: 6, supplierCode: 'SUP006', supplierName: '成都材料厂', contactPerson: '周总', contactPhone: '13800138006', supplierLevel: 'A', status: 1, createTime: '2024-01-20 16:00' },
-  { id: 7, supplierCode: 'SUP007', supplierName: '武汉配件商', contactPerson: '吴经理', contactPhone: '13800138007', supplierLevel: 'B', status: 0, createTime: '2024-01-22 17:00' }
-]
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters); pagination.current = 1
   clearTimeout(debouncedFetch.value)
@@ -531,14 +515,20 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   fetchData()
+  refreshTimer = setInterval(() => fetchData(), 30000)
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('purchase:refresh', fetchData)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  clearTimeout(debouncedFetch.value)
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('purchase:refresh', fetchData)
 })
+
+defineExpose({ handleQuery: fetchData })
+
 </script>
 
 <style scoped>
@@ -639,12 +629,9 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+/* drawer 内容样式 */
+.detail-drawer-body {
+  padding: 0;
 }
 
 .list-update-timestamp {

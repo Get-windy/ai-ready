@@ -1,5 +1,31 @@
 <template>
-  <div class="purchase-exchange-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="purchase-exchange-header">
+        <div class="purchase-exchange-header__left">
+          <span class="purchase-exchange-header__breadcrumb">ERP / 采购管理 / 采购换货</span>
+          <h2 class="purchase-exchange-header__title">采购换货管理</h2>
+        </div>
+        <div class="purchase-exchange-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="fetchData">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -60,8 +86,7 @@
           </a-form-item>
           <a-form-item label="供应商">
             <a-select v-model:value="queryParams.supplierId" placeholder="请选择供应商" allow-clear style="width: 150px">
-              <a-select-option :value="1">供应商A</a-select-option>
-              <a-select-option :value="2">供应商B</a-select-option>
+              <a-select-option v-for="s in supplierOptions" :key="s.id" :value="s.id">{{ s.name }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="状态">
@@ -143,13 +168,14 @@
     <ExchangeApproveModal v-model:open="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
     <ExchangeDetailModal v-model:open="detailModalVisible" :record="currentRecord" />
     <ExchangeTrackModal v-model:open="trackModalVisible" :record="currentRecord" />
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, SyncOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import type { Dayjs } from 'dayjs'
 import { purchaseExchangeApi, type PurchaseExchange, ExchangeStatus } from '@/api/purchase-exchange'
 import ExchangeFormModal from './components/ExchangeFormModal.vue'
@@ -161,11 +187,19 @@ import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { RETURN_EXCHANGE_STATUS } from '@/utils/statusConfig'
 import { getStatusText } from '@/utils/statusConfig'
 import { exportCsv } from '@/utils/exportCsv'
+import { supplierApi } from '@/api/supplier'
 
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const dataSource = ref<PurchaseExchange[]>([])
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 const tableRef = ref()
+const supplierOptions = ref<{ id: number; name: string }[]>([])
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 统计数据
 const statistics = ref({
@@ -239,9 +273,12 @@ const fetchData = async () => {
     statistics.value.completedCount = dataSource.value.filter(r => r.status === ExchangeStatus.COMPLETED).length
     statistics.value.totalAmount = dataSource.value.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
   } catch (error) {
+    console.warn('[采购换货] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
@@ -298,6 +335,7 @@ const handleSubmit = async (record: PurchaseExchange) => {
     message.success('提交成功')
     fetchData()
   } catch (error) {
+    console.warn('[采购换货] 提交失败', error)
     message.error('提交失败')
   }
 }
@@ -318,6 +356,7 @@ const handleDelete = async (record: PurchaseExchange) => {
     message.success('删除成功')
     fetchData()
   } catch (error) {
+    console.warn('[采购换货] 删除失败', error)
     message.error('删除失败')
   }
 }
@@ -344,17 +383,87 @@ const handleApproveSuccess = () => {
 
 onMounted(() => {
   fetchData()
+  loadSuppliers()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+async function loadSuppliers() {
+  try {
+    const res = await supplierApi.page({ pageSize: 200, pageNum: 1 })
+    const pageData = (res as any).data ?? res
+    supplierOptions.value = (pageData.records || []).map((s: any) => ({ id: s.id, name: s.supplierName }))
+  } catch (e) {
+    console.warn('[采购换货] 加载供应商选项失败', e)
+    supplierOptions.value = []
+  }
+}
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.purchase-exchange-page {
-  padding: 16px;
-  height: 100%;
+.purchase-exchange-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.purchase-exchange-header__left {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  gap: 2px;
+}
+
+.purchase-exchange-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.purchase-exchange-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.purchase-exchange-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
 }
 
 .search-area {

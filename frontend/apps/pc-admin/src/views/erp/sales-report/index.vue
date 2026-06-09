@@ -7,6 +7,9 @@
           <span v-if="lastUpdateTime" class="update-time">
             数据更新: {{ lastUpdateTime }}
           </span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
         </span>
         <a-button size="small" @click="handleRefresh">
           <template #icon><ReloadOutlined /></template>
@@ -85,9 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { ReloadOutlined, DollarOutlined, ShoppingOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ReloadOutlined, SyncOutlined, DollarOutlined, ShoppingOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
+import { salesReportApi } from '@/api/sales-report'
 import SalesStatistics from './components/SalesStatistics.vue'
 import CustomerRanking from './components/CustomerRanking.vue'
 import ProductRanking from './components/ProductRanking.vue'
@@ -97,16 +101,32 @@ const activeTab = ref('statistics')
 const loading = ref(false)
 const lastUpdateTime = ref<string>('')
 
-// 统计数据（示例）
+// 统计数据
 const summary = ref({
-  monthAmount: 1250000,
-  monthOrders: 520,
-  activeCustomers: 85,
-  growthRate: 12.5
+  monthAmount: 0,
+  monthOrders: 0,
+  activeCustomers: 0,
+  growthRate: 0
 })
+
+const autoRefreshCountdown = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
+
+const loadData = async () => {
+  try {
+    const res = await salesReportApi.getStatistics()
+    if (res?.data) {
+      summary.value.monthAmount = res.data.totalSales ?? res.data.monthAmount ?? 0
+      summary.value.monthOrders = res.data.orderCount ?? res.data.monthOrders ?? 0
+    }
+  } catch (err) {
+    console.warn('[销售报表] 加载统计数据失败', err)
+  }
 }
 
 const statisticsRef = ref()
@@ -135,8 +155,24 @@ watch(activeTab, () => {
   lastUpdateTime.value = ''
 })
 
+defineExpose({ handleQuery: loadData })
+
 onMounted(() => {
+  loadData()
   lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
 </script>
 
@@ -158,6 +194,18 @@ onMounted(() => {
 
 .update-time {
   color: #999;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 /* 统计卡片样式 */

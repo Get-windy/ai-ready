@@ -625,6 +625,7 @@ const handleOk = async () => {
     visible.value = false
   } catch (error: any) {
     if (error?.errorFields) return
+    console.warn('[销售订单] 提交失败', error)
     const errMsg = error?.response?.data?.message || error?.message || '操作失败'
     message.error(errMsg)
   } finally {
@@ -664,26 +665,12 @@ const loadOptions = async () => {
     productList.value = Array.isArray(products) ? products : []
     warehouseList.value = Array.isArray(warehouses) ? warehouses : []
   } catch (error: any) {
-    console.warn('加载下拉选项失败，使用默认数据:', error?.message)
-    // 默认数据
-    customerList.value = [
-      { id: 1, name: '北京科技有限公司', address: '北京市朝阳区建国路88号', creditLevel: 'A' },
-      { id: 2, name: '上海贸易集团有限公司', address: '上海市浦东新区陆家嘴金融中心', creditLevel: 'B' },
-      { id: 3, name: '广州制造有限公司', address: '广州市天河区体育西路', creditLevel: 'A' }
-    ]
-    userList.value = [
-      { id: 1, name: '张三', department: '销售一部' },
-      { id: 2, name: '李四', department: '销售二部' }
-    ]
-    productList.value = [
-      { id: 1, code: 'P001', name: '高精度传感器', unit: '件', salePrice: 150, stockQuantity: 500 },
-      { id: 2, code: 'P002', name: '工业控制器', unit: '台', salePrice: 2800, stockQuantity: 120 },
-      { id: 3, code: 'P003', name: '连接线缆套装', unit: '套', salePrice: 85, stockQuantity: 1000 }
-    ]
-    warehouseList.value = [
-      { id: 1, name: '北京主仓库', address: '朝阳区' },
-      { id: 2, name: '上海分仓库', address: '浦东新区' }
-    ]
+    console.warn('[销售订单] 加载下拉选项失败', error)
+    // 使用空数组，避免页面报错
+    customerList.value = []
+    userList.value = []
+    productList.value = []
+    warehouseList.value = []
   } finally {
     optionsLoading.value = false
   }

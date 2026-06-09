@@ -272,7 +272,7 @@ const handleQuery = async () => {
       ]
       initChart()
     }
-  } catch {
+  } catch (err) {
     message.warning('加载统计数据失败')
   } finally {
     loading.value = false

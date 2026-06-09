@@ -517,17 +517,13 @@ let charts: echarts.ECharts[] = []
 const loadOptions = async () => {
   try {
     const whRes = await salesAnalysisApi.getWarehouses()
-    warehouses.value = whRes.data || [{ id: 1, name: '北京仓库' }, { id: 2, name: '上海仓库' }]
-    salespersons.value = [
-      { id: 1, name: '张三' },
-      { id: 2, name: '李四' },
-      { id: 3, name: '王五' },
-      { id: 4, name: '赵六' },
-      { id: 5, name: '钱七' }
-    ]
-  } catch {
-    warehouses.value = [{ id: 1, name: '北京仓库' }, { id: 2, name: '上海仓库' }]
-    salespersons.value = [{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
+    warehouses.value = whRes.data || []
+    const spRes = await salesAnalysisApi.getSalespersons?.() || { data: [] }
+    salespersons.value = spRes.data || []
+  } catch (err) {
+    console.warn('[销售分析报表] 加载筛选选项失败', err)
+    warehouses.value = []
+    salespersons.value = []
   }
 }
 
@@ -547,24 +543,9 @@ const loadSummary = async () => {
     const res = await salesAnalysisApi.getOverview(buildParams())
     if (res.data) {
       summary.value = res.data
-      // 模拟增长率
-      summary.value.totalGrowth = 15.2
-      summary.value.orderGrowth = 12.5
-      summary.value.avgGrowth = 8.3
-      summary.value.marginGrowth = 2.1
     }
-  } catch {
-    // 使用默认数据
-    summary.value = {
-      totalAmount: 2520000,
-      orderCount: 520,
-      avgOrderAmount: 4846,
-      grossMargin: 28.5,
-      totalGrowth: 15.2,
-      orderGrowth: 12.5,
-      avgGrowth: 8.3,
-      marginGrowth: 2.1
-    }
+  } catch (err) {
+    console.warn('[销售分析报表] 加载汇总数据失败', err)
   }
 }
 
@@ -573,57 +554,27 @@ const loadRankingData = async () => {
   const params = buildParams()
   try {
     const cr = await salesAnalysisApi.getCustomerRanking(params)
-    customerRankData.value = cr.data || mockCustomerRank()
-  } catch {
-    customerRankData.value = mockCustomerRank()
+    customerRankData.value = cr.data || []
+  } catch (err) {
+    console.warn('[销售分析报表] 加载客户排行失败', err)
+    customerRankData.value = []
   }
   try {
     const pr = await salesAnalysisApi.getProductRanking(params)
-    productRankData.value = pr.data || mockProductRank()
-  } catch {
-    productRankData.value = mockProductRank()
+    productRankData.value = pr.data || []
+  } catch (err) {
+    console.warn('[销售分析报表] 加载产品排行失败', err)
+    productRankData.value = []
   }
   try {
     const sr = await salesAnalysisApi.getSalespersonRanking(params)
-    salespersonRankData.value = sr.data || mockSalespersonRank()
-  } catch {
-    salespersonRankData.value = mockSalespersonRank()
+    salespersonRankData.value = sr.data || []
+  } catch (err) {
+    console.warn('[销售分析报表] 加载销售人员排行失败', err)
+    salespersonRankData.value = []
   }
-  regionData.value = mockRegionData()
+  regionData.value = []
 }
-
-// 模拟数据
-const mockCustomerRank = () => [
-  { rank: 1, name: '北京科技有限公司', orderCount: 85, totalAmount: 520000, growth: 18.5 },
-  { rank: 2, name: '上海贸易集团有限公司', orderCount: 72, totalAmount: 380000, growth: 12.3 },
-  { rank: 3, name: '广州制造有限公司', orderCount: 65, totalAmount: 280000, growth: 8.2 },
-  { rank: 4, name: '深圳创新科技有限公司', orderCount: 58, totalAmount: 220000, growth: 15.1 },
-  { rank: 5, name: '杭州互联网有限公司', orderCount: 52, totalAmount: 180000, growth: -2.5 }
-]
-
-const mockProductRank = () => [
-  { rank: 1, name: '高精度传感器', volume: 5200, totalAmount: 780000, margin: 35 },
-  { rank: 2, name: '工业控制器', volume: 1800, totalAmount: 5040000, margin: 28 },
-  { rank: 3, name: '连接线缆套装', volume: 8500, totalAmount: 722500, margin: 22 },
-  { rank: 4, name: '智能仪表盘', volume: 1200, totalAmount: 360000, margin: 32 },
-  { rank: 5, name: '液压阀门组件', volume: 3200, totalAmount: 256000, margin: 25 }
-]
-
-const mockSalespersonRank = () => [
-  { rank: 1, name: '张三', orderCount: 120, totalAmount: 520000, targetRate: 95 },
-  { rank: 2, name: '李四', orderCount: 95, totalAmount: 380000, targetRate: 88 },
-  { rank: 3, name: '王五', orderCount: 80, totalAmount: 280000, targetRate: 75 },
-  { rank: 4, name: '赵六', orderCount: 65, totalAmount: 180000, targetRate: 62 },
-  { rank: 5, name: '钱七', orderCount: 55, totalAmount: 150000, targetRate: 55 }
-]
-
-const mockRegionData = () => [
-  { name: '华北', orderCount: 180, totalAmount: 520000, growth: 12.5 },
-  { name: '华东', orderCount: 150, totalAmount: 380000, growth: 8.3 },
-  { name: '华南', orderCount: 120, totalAmount: 280000, growth: 15.2 },
-  { name: '西南', orderCount: 50, totalAmount: 180000, growth: -2.1 },
-  { name: '西北', orderCount: 40, totalAmount: 150000, growth: 5.8 }
-]
 
 // 加载所有数据
 const loadData = async () => {
@@ -678,6 +629,7 @@ const exportReport = async () => {
     window.URL.revokeObjectURL(url)
     message.success('报表导出成功')
   } catch (error: any) {
+    console.warn('[销售分析报表] 导出失败', error)
     message.error(error?.message || '导出失败')
   } finally {
     hide()

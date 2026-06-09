@@ -257,6 +257,7 @@ const fetchCustomerDetail = async () => {
     const res = await customerApi.getById(customerId)
     customer.value = res.data
   } catch (err: any) {
+    console.warn('[CRM客户详情] 获取客户详情失败', err)
     error.value = err?.message || '获取客户详情失败'
   } finally {
     loading.value = false
@@ -315,7 +316,8 @@ const handleFollowSubmit = async () => {
     message.success('跟进记录添加成功')
     followModalVisible.value = false
     activeTab.value = 'follows'
-  } catch {
+  } catch (err) {
+    console.warn('[CRM客户详情] 添加跟进记录失败', err)
     message.error('添加跟进记录失败')
   } finally {
     followModalLoading.value = false
@@ -328,7 +330,7 @@ const handleDelete = () => {
     async onOk() {
       if (customer.value) {
         try { await customerApi.delete(customer.value.id); message.success('删除成功'); router.push('/crm/customer') }
-        catch { message.error('删除失败') }
+        catch (err) { console.warn('[CRM客户详情] 删除客户失败', err); message.error('删除失败') }
       }
     }
   })
@@ -361,6 +363,7 @@ const handlePrintSuccess = () => message.success('打印成功')
 const handlePrintError = (err: any) => message.error(`打印失败: ${err?.message || '未知错误'}`)
 
 onMounted(() => fetchCustomerDetail())
+defineExpose({ handleQuery: fetchCustomerDetail })
 </script>
 
 <style scoped>

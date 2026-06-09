@@ -1,252 +1,276 @@
 <template>
-  <div class="disposal-list-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-draft">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ statusCounts.draft }}</div>
-          <div class="stat-card-label">待审批</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="disposal-page-header">
+        <div class="disposal-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+            <a-breadcrumb-item>资产处置</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="disposal-page-header-title">资产处置</h2>
         </div>
-        <ClockCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-approved">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ statusCounts.approved }}</div>
-          <div class="stat-card-label">已通过</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-amount">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(totalDisposalAmount) }}</div>
-          <div class="stat-card-label">处置金额合计</div>
-        </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-count">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">处置记录数</div>
-        </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :table-key="'fixed-asset-disposal-list'"
-      :filter-fields="filterFields"
-      :show-export="true"
-      :selectable="true"
-      add-text="新增处置"
-      @add="showCreateModal"
-      @edit="editRecord"
-      @delete="handleDelete"
-      @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @export="handleExport"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
-      </template>
-
-      <template #batch-actions>
-        <a-button size="small" type="primary" ghost @click="handleBatchApprove">
-          <template #icon><CheckCircleOutlined /></template>
-          批量审批
-        </a-button>
-      </template>
-
-      <template #empty>
-        <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的处置记录，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无处置记录，点击右上角「新增处置」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #disposalNoCell="{ record }">
-        <a @click="viewDetail(record)" class="disposal-no">{{ record.disposalNo }}</a>
-      </template>
-      <template #assetCodeCell="{ record }">
-        <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
-      </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="statusColorMap[record.status]">{{ statusMap[record.status] }}</a-tag>
-      </template>
-      <template #disposalTypeCell="{ record }">
-        <a-tag :color="typeColorMap[record.disposalType]">{{ typeMap[record.disposalType] || record.disposalType }}</a-tag>
-      </template>
-      <template #disposalAmountCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.disposalAmount) }}</span>
-      </template>
-      <template #netValueCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
-      </template>
-      <template #gainLossCell="{ record }">
-        <span :class="['amount-cell', record.gainLoss >= 0 ? 'success' : 'danger']">
-          {{ record.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(record.gainLoss)) }}
-        </span>
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看详情">
-            <a-button type="link" size="small" @click="viewDetail(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 'draft'" title="编辑">
-            <a-button type="link" size="small" @click="editRecord(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.status === 'draft'" key="approve">
-                  <CheckCircleOutlined /> 审批通过
-                </a-menu-item>
-                <a-menu-item v-if="record.status === 'draft'" key="reject">
-                  <CloseCircleOutlined /> 审批拒绝
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="print">
-                  <PrinterOutlined /> 打印
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </VxeTableList>
-
-    <!-- Create/Edit Modal -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="isEdit ? '编辑处置申请' : '新增处置申请'"
-      :width="700"
-      centered
-      :maskClosable="false"
-      :confirmLoading="modalLoading"
-      @ok="handleModalOk"
-      @cancel="modalVisible = false"
-    >
-      <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="资产编码" required>
-          <a-input v-model:value="formData.assetCode" placeholder="输入资产编码" />
-        </a-form-item>
-        <a-form-item label="资产名称">
-          <a-input v-model:value="formData.assetName" placeholder="资产名称" />
-        </a-form-item>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="处置类型">
-              <a-select v-model:value="formData.disposalType" placeholder="处置类型">
-                <a-select-option value="sale">出售</a-select-option>
-                <a-select-option value="scrap">报废</a-select-option>
-                <a-select-option value="donation">捐赠</a-select-option>
-                <a-select-option value="loss">盘亏</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="处置日期">
-              <a-date-picker v-model:value="formData.disposalDate" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="处置金额">
-              <a-input-number v-model:value="formData.disposalAmount" :precision="2" :min="0" style="width: 100%">
-                <template #addonBefore>¥</template>
-              </a-input-number>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="资产净值">
-              <a-input-number v-model:value="formData.netValue" :precision="2" :min="0" style="width: 100%">
-                <template #addonBefore>¥</template>
-              </a-input-number>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="处置原因">
-          <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入处置原因" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
-      title="处置详情"
-      width="700px"
-      centered
-      :footer="null"
-    >
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="处置单号">{{ currentRecord.disposalNo }}</a-descriptions-item>
-        <a-descriptions-item label="资产编码">
-          <a @click="handleViewAsset(currentRecord)">{{ currentRecord.assetCode }}</a>
-        </a-descriptions-item>
-        <a-descriptions-item label="资产名称">{{ currentRecord.assetName }}</a-descriptions-item>
-        <a-descriptions-item label="处置类型">
-          <a-tag :color="typeColorMap[currentRecord.disposalType]">{{ typeMap[currentRecord.disposalType] }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="处置日期">{{ currentRecord.disposalDate }}</a-descriptions-item>
-        <a-descriptions-item label="处置金额">
-          <span class="amount-cell">¥{{ formatAmount(currentRecord.disposalAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="资产净值">
-          <span class="amount-cell">¥{{ formatAmount(currentRecord.netValue) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="处置损益">
-          <span :class="['amount-cell', currentRecord.gainLoss >= 0 ? 'success' : 'danger']">
-            {{ currentRecord.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(currentRecord.gainLoss)) }}
+        <div class="disposal-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="statusColorMap[currentRecord.status]">{{ statusMap[currentRecord.status] }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="处置原因" :span="2">{{ currentRecord.reason || '-' }}</a-descriptions-item>
-      </a-descriptions>
-
-      <div class="detail-modal-footer">
-        <a-button v-if="currentRecord?.status === 'draft'" type="primary" @click="handleApprove(currentRecord)">审批通过</a-button>
-        <a-button v-if="currentRecord?.status === 'draft'" @click="handleReject(currentRecord)">审批拒绝</a-button>
-        <a-button @click="handlePrint(currentRecord)">
-          <template #icon><PrinterOutlined /></template>
-          打印
-        </a-button>
-        <a-button @click="detailVisible = false">关闭</a-button>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
       </div>
-    </a-modal>
-  </div>
+    </template>
+
+    <div class="disposal-list-page">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-draft">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ statusCounts.draft }}</div>
+            <div class="stat-card-label">待审批</div>
+          </div>
+          <ClockCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-approved">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ statusCounts.approved }}</div>
+            <div class="stat-card-label">已通过</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-amount">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(totalDisposalAmount) }}</div>
+            <div class="stat-card-label">处置金额合计</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-count">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">处置记录数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
+        </div>
+      </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :table-key="'fixed-asset-disposal-list'"
+        :filter-fields="filterFields"
+        :show-export="true"
+        :selectable="true"
+        add-text="新增处置"
+        @add="showCreateModal"
+        @edit="editRecord"
+        @delete="handleDelete"
+        @batch-delete="handleBatchDelete"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @export="handleExport"
+        @selection-change="handleSelectionChange"
+      >
+        <template #toolbar-actions>
+          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+          </span>
+        </template>
+
+        <template #batch-actions>
+          <a-button size="small" type="primary" ghost @click="handleBatchApprove">
+            <template #icon><CheckCircleOutlined /></template>
+            批量审批
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div class="table-empty">
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的处置记录，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无处置记录，点击右上角「新增处置」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #disposalNoCell="{ record }">
+          <a @click="viewDetail(record)" class="disposal-no">{{ record.disposalNo }}</a>
+        </template>
+        <template #assetCodeCell="{ record }">
+          <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="statusColorMap[record.status]">{{ statusMap[record.status] }}</a-tag>
+        </template>
+        <template #disposalTypeCell="{ record }">
+          <a-tag :color="typeColorMap[record.disposalType]">{{ typeMap[record.disposalType] || record.disposalType }}</a-tag>
+        </template>
+        <template #disposalAmountCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.disposalAmount) }}</span>
+        </template>
+        <template #netValueCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
+        </template>
+        <template #gainLossCell="{ record }">
+          <span :class="['amount-cell', record.gainLoss >= 0 ? 'success' : 'danger']">
+            {{ record.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(record.gainLoss)) }}
+          </span>
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="viewDetail(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="editRecord(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.status === 'draft'" key="approve">
+                    <CheckCircleOutlined /> 审批通过
+                  </a-menu-item>
+                  <a-menu-item v-if="record.status === 'draft'" key="reject">
+                    <CloseCircleOutlined /> 审批拒绝
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="print">
+                    <PrinterOutlined /> 打印
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </VxeTableList>
+
+      <!-- Create/Edit Modal -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="isEdit ? '编辑处置申请' : '新增处置申请'"
+        :width="700"
+        centered
+        :maskClosable="false"
+        :confirmLoading="modalLoading"
+        @ok="handleModalOk"
+        @cancel="modalVisible = false"
+      >
+        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+          <a-form-item label="资产编码" required>
+            <a-input v-model:value="formData.assetCode" placeholder="输入资产编码" />
+          </a-form-item>
+          <a-form-item label="资产名称">
+            <a-input v-model:value="formData.assetName" placeholder="资产名称" />
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="处置类型">
+                <a-select v-model:value="formData.disposalType" placeholder="处置类型">
+                  <a-select-option value="sale">出售</a-select-option>
+                  <a-select-option value="scrap">报废</a-select-option>
+                  <a-select-option value="donation">捐赠</a-select-option>
+                  <a-select-option value="loss">盘亏</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="处置日期">
+                <a-date-picker v-model:value="formData.disposalDate" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="处置金额">
+                <a-input-number v-model:value="formData.disposalAmount" :precision="2" :min="0" style="width: 100%">
+                  <template #addonBefore>¥</template>
+                </a-input-number>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="资产净值">
+                <a-input-number v-model:value="formData.netValue" :precision="2" :min="0" style="width: 100%">
+                  <template #addonBefore>¥</template>
+                </a-input-number>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="处置原因">
+            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入处置原因" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 详情弹窗 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="处置详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-descriptions bordered :column="2" v-if="currentRecord">
+          <a-descriptions-item label="处置单号">{{ currentRecord.disposalNo }}</a-descriptions-item>
+          <a-descriptions-item label="资产编码">
+            <a @click="handleViewAsset(currentRecord)">{{ currentRecord.assetCode }}</a>
+          </a-descriptions-item>
+          <a-descriptions-item label="资产名称">{{ currentRecord.assetName }}</a-descriptions-item>
+          <a-descriptions-item label="处置类型">
+            <a-tag :color="typeColorMap[currentRecord.disposalType]">{{ typeMap[currentRecord.disposalType] }}</a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="处置日期">{{ currentRecord.disposalDate }}</a-descriptions-item>
+          <a-descriptions-item label="处置金额">
+            <span class="amount-cell">¥{{ formatAmount(currentRecord.disposalAmount) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="资产净值">
+            <span class="amount-cell">¥{{ formatAmount(currentRecord.netValue) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="处置损益">
+            <span :class="['amount-cell', currentRecord.gainLoss >= 0 ? 'success' : 'danger']">
+              {{ currentRecord.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(currentRecord.gainLoss)) }}
+            </span>
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <a-tag :color="statusColorMap[currentRecord.status]">{{ statusMap[currentRecord.status] }}</a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="创建时间">{{ currentRecord.createTime || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="处置原因" :span="2">{{ currentRecord.reason || '-' }}</a-descriptions-item>
+        </a-descriptions>
+
+        <div class="detail-modal-footer">
+          <a-button v-if="currentRecord?.status === 'draft'" type="primary" @click="handleApprove(currentRecord)">审批通过</a-button>
+          <a-button v-if="currentRecord?.status === 'draft'" @click="handleReject(currentRecord)">审批拒绝</a-button>
+          <a-button @click="handlePrint(currentRecord)">
+            <template #icon><PrinterOutlined /></template>
+            打印
+          </a-button>
+          <a-button @click="detailVisible = false">关闭</a-button>
+        </div>
+      </a-drawer>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -255,11 +279,12 @@ import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined,
   CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, PrinterOutlined,
-  ClockCircleOutlined, DollarOutlined, FileTextOutlined
+  ClockCircleOutlined, DollarOutlined, FileTextOutlined, SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { disposalApi } from '@/api/fixed-asset'
+import { PageContainer } from '@/components'
 
 const emit = defineEmits(['update-count'])
 
@@ -274,6 +299,11 @@ const tableData = ref<any[]>([])
 const tableRef = ref()
 const lastUpdated = ref('')
 const selectedRowKeys = ref<number[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -368,6 +398,14 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('fixed-asset:refresh', fetchData)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 function fetchData() {
@@ -383,25 +421,22 @@ function fetchData() {
 
   disposalApi.getPage(params).then((res: any) => {
     if (res.data) {
-      tableData.value = res.data.content || res.data.records || mockData()
-      pagination.total = res.data.totalElements || res.data.total || mockData().length
+      tableData.value = res.data.content || res.data.records || []
+      pagination.total = res.data.totalElements || res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
   }).catch(() => {
-    tableData.value = mockData()
-    pagination.total = mockData().length
-    emit('update-count', pagination.total)
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[资产处置] 加载处置数据失败')
+    message.error('加载处置数据失败')
   }).finally(() => {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   })
 }
-
-const mockData = (): any[] => [
-  { id: 1, disposalNo: 'DIS202401001', assetId: 1, assetCode: 'FA001', assetName: '旧办公电脑', disposalType: 'scrap', disposalDate: '2024-01-20', disposalAmount: 200, netValue: 500, gainLoss: -300, status: 'approved', reason: '设备老化无法使用', createTime: '2024-01-15 10:00' },
-  { id: 2, disposalNo: 'DIS202401002', assetId: 2, assetCode: 'FA002', assetName: '损坏打印机', disposalType: 'sale', disposalDate: '2024-01-25', disposalAmount: 500, netValue: 300, gainLoss: 200, status: 'draft', reason: '更换新设备', createTime: '2024-01-18 11:00' },
-  { id: 3, disposalNo: 'DIS202401003', assetId: 3, assetCode: 'FA003', assetName: '闲置投影仪', disposalType: 'donation', disposalDate: '2024-02-01', disposalAmount: 0, netValue: 2000, gainLoss: -2000, status: 'completed', reason: '捐赠给学校', createTime: '2024-01-20 09:00' },
-]
 
 function handleSearch(keyword: string) {
   searchFilters.keyword = keyword || undefined
@@ -455,6 +490,7 @@ function handleModalOk() {
     modalVisible.value = false
     fetchData()
   }).catch((err: any) => {
+    console.warn('[资产处置] 操作失败', err)
     message.error(err.message || '操作失败')
   }).finally(() => {
     modalLoading.value = false
@@ -466,6 +502,7 @@ function handleDelete(id: number) {
     message.success('删除成功')
     fetchData()
   }).catch((err: any) => {
+    console.warn('[资产处置] 删除失败', err)
     message.error(err.message || '删除失败')
   })
 }
@@ -483,6 +520,7 @@ function handleBatchDelete() {
     okType: 'danger',
     centered: true,
     onOk: async () => {
+      console.warn('[资产处置] 模拟批量删除成功（无API调用）')
       message.success('批量删除成功')
       fetchData()
     }
@@ -502,6 +540,7 @@ function handleApprove(record: any) {
         fetchData()
         detailVisible.value = false
       } catch {
+        console.warn('[资产处置] 审批失败')
         message.error('审批失败')
       }
     }
@@ -522,6 +561,7 @@ function handleReject(record: any) {
         fetchData()
         detailVisible.value = false
       } catch {
+        console.warn('[资产处置] 拒绝失败')
         message.error('拒绝失败')
       }
     }
@@ -540,6 +580,7 @@ function handleBatchApprove() {
     okText: '确认',
     centered: true,
     onOk: async () => {
+      console.warn('[资产处置] 模拟批量审批成功（无API调用）')
       message.success(`成功审批 ${keys.length} 条处置申请`)
       fetchData()
     }
@@ -604,10 +645,52 @@ function handleKeydown(e: KeyboardEvent) {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('fixed-asset:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.disposal-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.disposal-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.disposal-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.disposal-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .disposal-list-page {
   height: 100%;
   display: flex;

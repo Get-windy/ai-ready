@@ -43,13 +43,13 @@ export interface StockAlertItem {
 
 export const dashboardApi = {
   /** 获取仪表盘 KPI 统计数据 */
-  getStats(): Promise<ApiResponse<DashboardStats>> {
-    return request.get('/dashboard/stats')
+  getStats(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<DashboardStats>> {
+    return request.get('/dashboard/stats', { params })
   },
 
   /** 获取销售趋势图数据 */
-  getTrend(): Promise<ApiResponse<TrendChartData>> {
-    return request.get('/dashboard/trend')
+  getTrend(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<TrendChartData>> {
+    return request.get('/dashboard/trend', { params })
   },
 
   /** 获取待办事项列表 */

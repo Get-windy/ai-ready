@@ -112,7 +112,7 @@
   </VxeTableList>
   </div>
 
-  <a-modal v-model:open="detailVisible" title="报价单详情" width="700px" :footer="null">
+  <a-drawer v-model:open="detailVisible" title="报价单详情" placement="right" width="80vw" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
       <a-descriptions-item label="报价单号">{{ currentRecord.quotationNo }}</a-descriptions-item>
       <a-descriptions-item label="客户">{{ currentRecord.customerName }}</a-descriptions-item>
@@ -123,8 +123,7 @@
       <a-descriptions-item label="更新时间">{{ currentRecord.updateTime || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-  </a-modal>
+  </a-drawer>
 
   <a-modal v-model:open="formVisible" :title="isEdit ? '编辑报价单' : '新建报价单'" width="800px" :confirm-loading="formSubmitting" @ok="handleFormSubmit" @cancel="formVisible = false">
     <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
@@ -262,7 +261,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch { message.error('获取报价单列表失败') }
+  } catch (err) { console.warn('[销售报价] 获取报价单列表', err); message.error('获取报价单列表失败') }
   finally { loading.value = false }
 }
 
@@ -298,7 +297,7 @@ function handleDelete(record: any) {
         await quotationApi.delete(record.id)
         message.success('删除成功')
         fetchData()
-      } catch { message.error('删除失败') }
+      } catch (err) { console.warn('[销售报价] 删除报价单', err); message.error('删除失败') }
     }
   })
 }
@@ -321,14 +320,14 @@ const handleFormSubmit = async () => {
     formVisible.value = false
     pagination.current = 1
     fetchData()
-  } catch { message.error(isEdit.value ? '编辑失败' : '创建失败') }
+  } catch (err) { console.warn('[销售报价] 保存报价单', err); message.error(isEdit.value ? '编辑失败' : '创建失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleSend(record: any) {
   Modal.confirm({
     title: '发送报价单', content: `发送报价单 "${record.quotationNo}" 给客户？`, okText: '确认发送', centered: true,
-    async onOk() { try { await quotationApi.send(record.id); message.success('发送成功'); fetchData() } catch { message.error('发送失败') } }
+    async onOk() { try { await quotationApi.send(record.id); message.success('发送成功'); fetchData() } catch (err) { console.warn('[销售报价] 发送报价单', err); message.error('发送失败') } }
   })
 }
 
@@ -337,7 +336,7 @@ function handleConvert(record: any) {
     title: '转销售订单', content: `将报价 "${record.quotationNo}" 转为销售订单？`, okText: '确认转换', centered: true,
     async onOk() {
       try { await quotationApi.convertToOrder(record.id); message.success('转订单成功'); router.push(`/sale/order/new`) }
-      catch { message.error('转换失败') }
+      catch (err) { console.warn('[销售报价] 转换销售订单', err); message.error('转换失败') }
     }
   })
 }
@@ -393,6 +392,7 @@ function handleRefreshEvent() {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -448,11 +448,6 @@ function handleKeydown(e: KeyboardEvent) {
   padding: 0 4px;
   font-size: 16px;
   vertical-align: middle;
-}
-
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
 }
 
 .form-items-toolbar {

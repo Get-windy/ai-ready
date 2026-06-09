@@ -494,6 +494,28 @@ public class PurchaseOrderServiceImpl extends ServiceImpl<PurchaseOrderMapper, P
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchApprove(List<Long> orderIds) {
+        for (Long orderId : orderIds) {
+            PurchaseOrder order = getById(orderId);
+            if (order == null) {
+                logger.warn("批量审批跳过不存在的订单: orderId={}", orderId);
+                continue;
+            }
+            if (order.getStatus() != 1) {
+                logger.warn("批量审批跳过非待审批订单: orderId={}, status={}", orderId, order.getStatus());
+                continue;
+            }
+            order.setStatus(2);
+            order.setApprovalUserId(StpUtil.getLoginIdAsLong());
+            order.setApprovalTime(LocalDateTime.now());
+            order.setUpdateTime(LocalDateTime.now());
+            updateById(order);
+            logger.info("批量审批通过采购订单: orderId={}", orderId);
+        }
+    }
+
     private String getStatusDescription(Integer status) {
         if (status == null) return "未知";
         switch (status) {

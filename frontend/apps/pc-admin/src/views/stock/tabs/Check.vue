@@ -107,7 +107,7 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="盘点单详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="盘点单详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="盘点单号">{{ currentRecord.checkNo }}</a-descriptions-item>
         <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
@@ -120,7 +120,7 @@
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
       <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建盘点弹窗 -->
     <a-modal v-model:open="addVisible" title="新建盘点单" width="900px" :confirm-loading="addSubmitting"
@@ -318,7 +318,7 @@ async function handleGenerateCheckList() {
     ]
     currentDraftCheckId = Date.now()
     message.success(`已生成 ${checkItems.value.length} 条盘点记录`)
-  } catch (err: any) { message.error(err?.message || '生成盘点清单失败') }
+  } catch (err: any) { console.warn('[库存盘点] 生成盘点清单失败', err); message.error(err?.message || '生成盘点清单失败') }
   finally { generatingList.value = false }
 }
 
@@ -327,22 +327,17 @@ async function fetchData() {
   try {
     const res = await stockCheckApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[库存盘点] 获取盘点列表失败', err)
+    tableData.value = []
+    pagination.total = 0
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, checkNo: 'CK-2024-001', warehouseName: '主仓库', checkDate: '2024-01-20', status: 2, createTime: '2024-01-19 10:00', checkerName: '张三', checkQuantity: 700, diffQuantity: 0, remark: '全量盘点' },
-  { id: 2, checkNo: 'CK-2024-002', warehouseName: '备品仓库', checkDate: '2024-02-01', status: 1, createTime: '2024-01-31 14:00', checkerName: '李四', checkQuantity: 1000, diffQuantity: -50, remark: '抽盘' },
-  { id: 3, checkNo: 'CK-2024-003', warehouseName: '成品仓库', checkDate: '2024-02-15', status: 0, createTime: '2024-02-14 09:00', checkerName: '王五', checkQuantity: 300, diffQuantity: 0, remark: '' },
-  { id: 4, checkNo: 'CK-2024-004', warehouseName: '半成品仓库', checkDate: '2024-03-01', status: 2, createTime: '2024-02-28 16:00', checkerName: '赵六', checkQuantity: 120, diffQuantity: 5, remark: '发现新增库存' },
-]
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() {
@@ -356,7 +351,7 @@ async function handleDelete(record: any) {
     title: '删除盘点单', content: `确认删除盘点单 "${record.checkNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await stockCheckApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[库存盘点] 删除盘点单失败', err); message.error('删除失败') }
     }
   })
 }
@@ -366,7 +361,7 @@ async function handleBatchDelete(ids: number[]) {
 }
 
 const handleAddSubmit = async () => {
-  try { await addFormRef.value?.validate() } catch { return }
+  try { await addFormRef.value?.validate() } catch (err) { console.warn('[库存盘点] 表单验证失败', err); return }
   if (checkItems.value.length === 0) { message.warning('请先生成盘点清单'); return }
   addSubmitting.value = true
   try {
@@ -380,12 +375,12 @@ const handleAddSubmit = async () => {
     addVisible.value = false
     currentDraftCheckId = null
     pagination.current = 1; fetchData()
-  } catch (err: any) { message.error(err?.message || '盘点单创建失败') }
+  } catch (err: any) { console.warn('[库存盘点] 创建盘点单失败', err); message.error(err?.message || '盘点单创建失败') }
   finally { addSubmitting.value = false }
 }
 const handleAddCancel = async () => {
   if (currentDraftCheckId) {
-    try { await stockCheckApi.cancel(currentDraftCheckId, '取消创建') } catch {}
+    try { await stockCheckApi.cancel(currentDraftCheckId, '取消创建') } catch (err) { console.warn('[库存盘点] 取消创建盘点单失败', err) }
     currentDraftCheckId = null
   }
   addVisible.value = false
@@ -397,7 +392,7 @@ function handleApprove(record: any) {
     okText: '确认审批', cancelText: '取消', centered: true,
     async onOk() {
       try { await stockCheckApi.create({ id: record.id, action: 'approve' } as any); message.success('盘点结果审批成功'); fetchData() }
-      catch (err: any) { message.error(err?.message || '审批失败') }
+      catch (err: any) { console.warn('[库存盘点] 审批盘点单失败', err); message.error(err?.message || '审批失败') }
     }
   })
 }
@@ -427,6 +422,7 @@ function handleExport() {
   a.download = `盘点单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[库存盘点] 导出盘点单（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -458,6 +454,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

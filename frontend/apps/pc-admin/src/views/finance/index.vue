@@ -1,18 +1,25 @@
 <template>
-  <PageContainer title="财务管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="finance-header">
+        <div class="finance-header-left">
+          <a-breadcrumb class="finance-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="finance-header-title">财务管理</h2>
+        </div>
+        <div class="finance-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="loadDashboard">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="loadDashboard">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <div class="finance-dashboard">
@@ -151,14 +158,17 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   FileTextOutlined, DollarOutlined, BarChartOutlined, CheckSquareOutlined,
-  FundOutlined, CreditCardOutlined, RiseOutlined, FallOutlined, ReloadOutlined
+  FundOutlined, CreditCardOutlined, RiseOutlined, FallOutlined, ReloadOutlined, SyncOutlined
 } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import { reportApi } from '@/api/finance'
 
 const router = useRouter()
 const loading = ref(false)
+const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 
 const dashboardData = reactive({
   totalAssets: 0,
@@ -169,10 +179,10 @@ const dashboardData = reactive({
 })
 
 const todoCounts = reactive({
-  unaudited: 5,
-  unposted: 3,
-  overdueReceivable: 2,
-  overduePayable: 1
+  unaudited: 0,
+  unposted: 0,
+  overdueReceivable: 0,
+  overduePayable: 0
 })
 
 function formatAmount(amount: number): string {
@@ -192,6 +202,7 @@ const navigateTo = (page: string) => {
 }
 
 const loadDashboard = async () => {
+  if (loading.value && !refreshLoading.value) return
   loading.value = true
   try {
     const res = await reportApi.getDashboard()
@@ -202,7 +213,6 @@ const loadDashboard = async () => {
       dashboardData.monthlyExpense = res.data.monthlyExpense || 0
       dashboardData.netProfit = (res.data.monthlyIncome || 0) - (res.data.monthlyExpense || 0)
 
-      // 更新待办数据
       if (res.data.todoCounts) {
         todoCounts.unaudited = res.data.todoCounts.unaudited || 0
         todoCounts.unposted = res.data.todoCounts.unposted || 0
@@ -210,38 +220,85 @@ const loadDashboard = async () => {
         todoCounts.overduePayable = res.data.todoCounts.overduePayable || 0
       }
     }
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
-    // 使用默认数据
-    dashboardData.totalAssets = 1250000.00
-    dashboardData.totalLiabilities = 350000.00
-    dashboardData.monthlyIncome = 280000.00
-    dashboardData.monthlyExpense = 180000.00
-    dashboardData.netProfit = 100000.00
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  } catch (err) {
+    console.warn('[财务管理] 加载仪表盘数据失败', err)
+    message.error('加载财务仪表盘数据失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
 
-// 定时刷新
-let refreshTimer: number | null = null
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   loadDashboard()
-  refreshTimer = window.setInterval(() => {
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
     loadDashboard()
-  }, 60000) // 60秒静默刷新
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: loadDashboard })
 </script>
 
 <style scoped>
+.finance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.finance-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.finance-breadcrumb {
+  font-size: 13px;
+}
+.finance-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.finance-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.finance-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .finance-dashboard {
   padding: 16px;
   display: flex;
@@ -249,18 +306,6 @@ onUnmounted(() => {
   gap: 16px;
   height: 100%;
   overflow-y: auto;
-}
-
-.data-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
-}
-
-.update-time {
-  color: #999;
 }
 
 /* KPI 卡片 */

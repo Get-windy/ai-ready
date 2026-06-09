@@ -211,9 +211,9 @@ const handleQuery = async () => {
   loading.value = true
   try {
     const res = await salesReportApi.getProductRanking(buildParams())
-    dataSource.value = res.data || mockData()
-  } catch {
-    dataSource.value = mockData()
+    dataSource.value = res.data || []
+  } catch (err) {
+    dataSource.value = []
   } finally {
     loading.value = false
     if (showChart.value) {
@@ -243,16 +243,6 @@ const handleExport = () => {
   window.URL.revokeObjectURL(url)
   message.success('导出成功')
 }
-
-const mockData = (): ProductRankItem[] => [
-  { id: 1, rank: 1, name: '高精度传感器', code: 'P001', totalAmount: 780000, volume: 5200, margin: 35 },
-  { id: 2, rank: 2, name: '工业控制器', code: 'P002', totalAmount: 5040000, volume: 1800, margin: 28 },
-  { id: 3, rank: 3, name: '连接线缆套装', code: 'P003', totalAmount: 722500, volume: 8500, margin: 22 },
-  { id: 4, rank: 4, name: '智能仪表盘', code: 'P004', totalAmount: 360000, volume: 1200, margin: 32 },
-  { id: 5, rank: 5, name: '液压阀门组件', code: 'P005', totalAmount: 256000, volume: 3200, margin: 25 },
-  { id: 6, rank: 6, name: '精密测量仪器', code: 'P006', totalAmount: 180000, volume: 800, margin: 38 },
-  { id: 7, rank: 7, name: '电动执行器', code: 'P007', totalAmount: 150000, volume: 600, margin: 30 }
-]
 
 const initChart = () => {
   if (!chartRef.value) return

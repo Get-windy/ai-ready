@@ -102,6 +102,13 @@ public interface PurchaseOrderService extends IService<PurchaseOrder> {
     List<Object> getOrderItems(Long orderId);
 
     /**
+     * 批量审批通过
+     *
+     * @param orderIds 订单ID列表
+     */
+    void batchApprove(List<Long> orderIds);
+
+    /**
      * 提交订单
      */
     PurchaseOrder submitOrder(Long orderId);

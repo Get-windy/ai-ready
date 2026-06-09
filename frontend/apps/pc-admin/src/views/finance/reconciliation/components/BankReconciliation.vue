@@ -184,6 +184,8 @@ setTimeout(() => {
   ]
   loading.value = false
 }, 500)
+
+defineExpose({})
 </script>
 
 <style scoped>

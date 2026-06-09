@@ -231,6 +231,7 @@ const loadSupplier = async () => {
     loadedSnapshot.value = JSON.stringify(form)
     formDirty.value = false
   } catch (err: any) {
+    console.warn('[供应商] 加载供应商信息失败', err)
     message.error(err?.message || '加载供应商信息失败')
   } finally {
     loading.value = false
@@ -246,7 +247,8 @@ const handleReset = () => {
 const handleSubmit = async () => {
   try {
     await formRef.value?.validate()
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 表单验证失败', err)
     return
   }
 
@@ -254,9 +256,11 @@ const handleSubmit = async () => {
   try {
     await supplierApi.update(supplierId!, { ...form })
     formDirty.value = false
+    console.warn('[供应商] 操作成功: 供应商更新成功')
     message.success('供应商更新成功')
     router.push(`/supplier/detail/${supplierId}`)
   } catch (err: any) {
+    console.warn('[供应商] 更新供应商失败', err)
     message.error(err?.response?.data?.message || err?.message || '更新失败，请稍后重试')
   } finally {
     saving.value = false
@@ -295,6 +299,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: loadSupplier })
 </script>
 
 <style scoped>

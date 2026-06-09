@@ -217,9 +217,9 @@ const handleQuery = async () => {
   loading.value = true
   try {
     const res = await salesReportApi.getCustomerRanking(buildParams())
-    dataSource.value = res.data || mockData()
-  } catch {
-    dataSource.value = mockData()
+    dataSource.value = res.data || []
+  } catch (err) {
+    dataSource.value = []
   } finally {
     loading.value = false
     if (showChart.value) {
@@ -253,17 +253,6 @@ const handleExport = () => {
 const handleViewCustomer = (record: CustomerRankItem) => {
   message.info(`查看客户 ${record.name} 详情`)
 }
-
-const mockData = (): CustomerRankItem[] => [
-  { id: 1, rank: 1, name: '北京科技有限公司', customerType: 'A', totalAmount: 520000, orderCount: 85, growth: 18.5 },
-  { id: 2, rank: 2, name: '上海贸易集团有限公司', customerType: 'A', totalAmount: 380000, orderCount: 72, growth: 12.3 },
-  { id: 3, rank: 3, name: '广州制造有限公司', customerType: 'B', totalAmount: 280000, orderCount: 65, growth: 8.2 },
-  { id: 4, rank: 4, name: '深圳创新科技有限公司', customerType: 'B', totalAmount: 220000, orderCount: 58, growth: 15.1 },
-  { id: 5, rank: 5, name: '杭州互联网有限公司', customerType: 'C', totalAmount: 180000, orderCount: 52, growth: -2.5 },
-  { id: 6, rank: 6, name: '成都科技发展有限公司', customerType: 'B', totalAmount: 150000, orderCount: 45, growth: 5.8 },
-  { id: 7, rank: 7, name: '武汉智能制造有限公司', customerType: 'C', totalAmount: 120000, orderCount: 38, growth: 3.2 },
-  { id: 8, rank: 8, name: '南京电子科技有限公司', customerType: 'C', totalAmount: 95000, orderCount: 32, growth: -1.8 }
-]
 
 const initChart = () => {
   if (!chartRef.value) return

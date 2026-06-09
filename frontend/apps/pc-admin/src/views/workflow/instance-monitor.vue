@@ -1,224 +1,250 @@
 <template>
-  <div class="workflow-monitor">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">实例总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="workflow-monitor-page-header">
+        <div class="workflow-monitor-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>流程实例监控</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="workflow-monitor-page-header-title">流程实例监控</h2>
         </div>
-        <BranchesOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-running">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ runningCount }}</div>
-          <div class="stat-card-label">运行中</div>
+        <div class="workflow-monitor-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleQuery">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <LoadingOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-completed">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ completedCount }}</div>
-          <div class="stat-card-label">已完成</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-stopped">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ stoppedCount }}</div>
-          <div class="stat-card-label">已终止</div>
-        </div>
-        <StopOutlined class="stat-card-icon" />
-      </div>
-    </div>
+    </template>
 
-    <a-card title="流程实例监控">
-      <!-- 查询表单 -->
-      <a-form
-        :model="queryForm"
-        layout="inline"
-        class="query-form"
-      >
-        <a-form-item label="流程名称">
-          <a-input
-            v-model:value="queryForm.processName"
-            placeholder="请输入流程名称"
-            allow-clear
-          />
-        </a-form-item>
-        <a-form-item label="流程状态">
-          <a-select
-            v-model:value="queryForm.status"
-            placeholder="请选择状态"
-            allow-clear
-            style="width: 120px"
-          >
-            <a-select-option value="running">
-              运行中
-            </a-select-option>
-            <a-select-option value="completed">
-              已完成
-            </a-select-option>
-            <a-select-option value="terminated">
-              已终止
-            </a-select-option>
-            <a-select-option value="suspended">
-              已挂起
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="开始时间">
-          <a-range-picker
-            v-model:value="queryForm.dateRange"
-            value-format="YYYY-MM-DD"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-button
-            type="primary"
-            @click="handleQuery"
-          >
-            查询
-          </a-button>
-          <a-button
-            style="margin-left: 8px"
-            @click="handleReset"
-          >
-            重置
-          </a-button>
-        </a-form-item>
-      </a-form>
+    <div class="workflow-monitor">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">实例总数</div>
+          </div>
+          <BranchesOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-running">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ runningCount }}</div>
+            <div class="stat-card-label">运行中</div>
+          </div>
+          <LoadingOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-completed">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ completedCount }}</div>
+            <div class="stat-card-label">已完成</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-stopped">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ stoppedCount }}</div>
+            <div class="stat-card-label">已终止</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
+      </div>
 
-      <!-- 数据表格 -->
-      <VxeTableList
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="instanceId"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @page-change="handlePageChange"
-      >
-        <template #statusCell="{ record }">
-          <a-tag :color="getStatusColor(record.status)">
-            {{ getStatusLabel(record.status) }}
-          </a-tag>
-        </template>
-        <template #action="{ record }">
-          <a-button
-            type="link"
-            size="small"
-            @click="handleViewDetail(record)"
-          >
-            查看详情
-          </a-button>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleViewFlowChart(record)"
-          >
-            流程图
-          </a-button>
-          <a-dropdown v-if="record.status === 'running'">
+      <a-card title="流程实例监控">
+        <!-- 查询表单 -->
+        <a-form
+          :model="queryForm"
+          layout="inline"
+          class="query-form"
+        >
+          <a-form-item label="流程名称">
+            <a-input
+              v-model:value="queryForm.processName"
+              placeholder="请输入流程名称"
+              allow-clear
+            />
+          </a-form-item>
+          <a-form-item label="流程状态">
+            <a-select
+              v-model:value="queryForm.status"
+              placeholder="请选择状态"
+              allow-clear
+              style="width: 120px"
+            >
+              <a-select-option value="running">
+                运行中
+              </a-select-option>
+              <a-select-option value="completed">
+                已完成
+              </a-select-option>
+              <a-select-option value="terminated">
+                已终止
+              </a-select-option>
+              <a-select-option value="suspended">
+                已挂起
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="开始时间">
+            <a-range-picker
+              v-model:value="queryForm.dateRange"
+              value-format="YYYY-MM-DD"
+            />
+          </a-form-item>
+          <a-form-item>
+            <a-button
+              type="primary"
+              @click="handleQuery"
+            >
+              查询
+            </a-button>
+            <a-button
+              style="margin-left: 8px"
+              @click="handleReset"
+            >
+              重置
+            </a-button>
+          </a-form-item>
+        </a-form>
+
+        <!-- 数据表格 -->
+        <VxeTableList
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="instanceId"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @page-change="handlePageChange"
+        >
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusLabel(record.status) }}
+            </a-tag>
+          </template>
+          <template #action="{ record }">
             <a-button
               type="link"
               size="small"
+              @click="handleViewDetail(record)"
             >
-              流程干预 <DownOutlined />
+              查看详情
             </a-button>
-            <template #overlay>
-              <a-menu @click="(e) => handleIntervention(e.key as string, record)">
-                <a-menu-item key="terminate">
-                  终止流程
-                </a-menu-item>
-                <a-menu-item key="suspend">
-                  挂起流程
-                </a-menu-item>
-                <a-menu-item key="resume">
-                  恢复流程
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </template>
-      </VxeTableList>
-    </a-card>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleViewFlowChart(record)"
+            >
+              流程图
+            </a-button>
+            <a-dropdown v-if="record.status === 'running'">
+              <a-button
+                type="link"
+                size="small"
+              >
+                流程干预 <DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu @click="(e) => handleIntervention(e.key as string, record)">
+                  <a-menu-item key="terminate">
+                    终止流程
+                  </a-menu-item>
+                  <a-menu-item key="suspend">
+                    挂起流程
+                  </a-menu-item>
+                  <a-menu-item key="resume">
+                    恢复流程
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </template>
+        </VxeTableList>
+      </a-card>
 
-    <!-- 详情对话框 -->
-    <a-modal
-      v-model:open="detailVisible"
-      title="流程实例详情"
-      :width="800"
-      :footer="null"
-    >
-      <a-descriptions
-        bordered
-        :column="2"
+      <!-- 详情对话框 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="流程实例详情"
+        placement="right"
+        width="80vw"
+        :footer="null"
       >
-        <a-descriptions-item label="实例ID">
-          {{ detailData.instanceId }}
-        </a-descriptions-item>
-        <a-descriptions-item label="流程名称">
-          {{ detailData.processName }}
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(detailData.status)">
-            {{ getStatusLabel(detailData.status) }}
-          </a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="发起人">
-          {{ detailData.initiator }}
-        </a-descriptions-item>
-        <a-descriptions-item label="开始时间">
-          {{ detailData.startTime }}
-        </a-descriptions-item>
-        <a-descriptions-item label="结束时间">
-          {{ detailData.endTime }}
-        </a-descriptions-item>
-        <a-descriptions-item
-          label="当前节点"
-          :span="2"
+        <a-descriptions
+          bordered
+          :column="2"
         >
-          {{ detailData.currentNode }}
-        </a-descriptions-item>
-        <a-descriptions-item
-          label="业务数据"
-          :span="2"
-        >
-          <pre>{{ detailData.businessData }}</pre>
-        </a-descriptions-item>
-      </a-descriptions>
-    </a-modal>
+          <a-descriptions-item label="实例ID">
+            {{ detailData.instanceId }}
+          </a-descriptions-item>
+          <a-descriptions-item label="流程名称">
+            {{ detailData.processName }}
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <a-tag :color="getStatusColor(detailData.status)">
+              {{ getStatusLabel(detailData.status) }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="发起人">
+            {{ detailData.initiator }}
+          </a-descriptions-item>
+          <a-descriptions-item label="开始时间">
+            {{ detailData.startTime }}
+          </a-descriptions-item>
+          <a-descriptions-item label="结束时间">
+            {{ detailData.endTime }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="当前节点"
+            :span="2"
+          >
+            {{ detailData.currentNode }}
+          </a-descriptions-item>
+          <a-descriptions-item
+            label="业务数据"
+            :span="2"
+          >
+            <pre>{{ detailData.businessData }}</pre>
+          </a-descriptions-item>
+        </a-descriptions>
+      </a-drawer>
 
-    <!-- 流程图对话框 -->
-    <a-modal
-      v-model:open="flowChartVisible"
-      title="流程图"
-      :width="1000"
-      :footer="null"
-    >
-      <div class="flow-chart-container">
-        <a-spin :spinning="flowChartLoading" tip="流程图加载中...">
-          <img v-if="flowChartImage" :src="flowChartImage" alt="流程图" style="max-width: 100%; max-height: 500px" />
-          <a-empty v-else-if="!flowChartLoading" :description="flowChartError || '流程图加载中...'" />
-        </a-spin>
-      </div>
-    </a-modal>
-  </div>
+      <!-- 流程图对话框 -->
+      <a-modal
+        v-model:open="flowChartVisible"
+        title="流程图"
+        :width="1000"
+        :footer="null"
+      >
+        <div class="flow-chart-container">
+          <a-spin :spinning="flowChartLoading" tip="流程图加载中...">
+            <img v-if="flowChartImage" :src="flowChartImage" alt="流程图" style="max-width: 100%; max-height: 500px" />
+            <a-empty v-else-if="!flowChartLoading" :description="flowChartError || '流程图加载中...'" />
+          </a-spin>
+        </div>
+      </a-modal>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
+import { PageContainer } from '@/components'
 
 // 查询表单
 const queryForm = reactive({
@@ -229,45 +255,16 @@ const queryForm = reactive({
 
 // 表格数据
 const tableData = ref<any[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const runningCount = computed(() => tableData.value.filter(r => r.status === 'running').length)
 const completedCount = computed(() => tableData.value.filter(r => r.status === 'completed').length)
 const stoppedCount = computed(() => tableData.value.filter(r => r.status === 'terminated' || r.status === 'suspended').length)
-
-// 模拟数据函数
-const getMockData = () => [
-  {
-    instanceId: 'INST-001',
-    processName: '请假审批流程',
-    status: 'running',
-    currentNode: '部门经理审批',
-    startTime: '2024-04-15 09:00:00',
-    endTime: '-',
-    duration: '2h 30m',
-    initiator: '张三'
-  },
-  {
-    instanceId: 'INST-002',
-    processName: '报销审批流程',
-    status: 'completed',
-    currentNode: '-',
-    startTime: '2024-04-14 14:00:00',
-    endTime: '2024-04-14 16:30:00',
-    duration: '2h 30m',
-    initiator: '李四'
-  },
-  {
-    instanceId: 'INST-003',
-    processName: '采购审批流程',
-    status: 'running',
-    currentNode: '财务审批',
-    startTime: '2024-04-15 10:00:00',
-    endTime: '-',
-    duration: '1h 15m',
-    initiator: '王五'
-  }
-]
 
 // 表格列定义
 const vxeColumns = [
@@ -307,43 +304,29 @@ const flowChartError = ref<string | null>(null)
 const handleQuery = async () => {
   loading.value = true
   try {
-    // 调用后端API获取数据
-    try {
-      const res = await request.get('/workflow/instance/page', {
-        params: {
-          processName: queryForm.processName || undefined,
-          status: queryForm.status,
-          startDate: queryForm.dateRange?.[0],
-          endDate: queryForm.dateRange?.[1],
-          pageNum: pagination.current,
-          pageSize: pagination.pageSize
-        }
-      })
-      // API 返回成功，使用真实数据（即使为空）
-      const records = res.data?.records || res.records || []
-      const total = res.data?.total || res.total || 0
-      if (records.length > 0) {
-        tableData.value = records
-        pagination.total = total
-      } else {
-        // 真实数据为空，使用模拟数据作为演示
-        console.info('[instance-monitor] API返回空数据，使用模拟数据演示')
-        tableData.value = getMockData()
-        pagination.total = 50
+    const res = await request.get('/workflow/instance/page', {
+      params: {
+        processName: queryForm.processName || undefined,
+        status: queryForm.status,
+        startDate: queryForm.dateRange?.[0],
+        endDate: queryForm.dateRange?.[1],
+        pageNum: pagination.current,
+        pageSize: pagination.pageSize
       }
-      return
-    } catch (err: any) {
-      // API 真正不可用时才显示警告
-      console.warn('[instance-monitor] 后端API不可用，使用模拟数据:', err?.message || '')
-    }
-
-    // 模拟数据（API不可用时的回退）
-    tableData.value = getMockData()
-    pagination.total = 50
-  } catch (error) {
+    })
+    const records = res.data?.records || res.records || []
+    const total = res.data?.total || res.total || 0
+    tableData.value = records
+    pagination.total = total
+  } catch (err: any) {
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[工作流] 查询流程实例失败', err)
     message.error('查询失败')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -390,7 +373,8 @@ const handleViewFlowChart = async (record: any) => {
     } else {
       flowChartError.value = '暂无可用的流程图'
     }
-  } catch {
+  } catch (err) {
+    console.warn('[工作流] 流程图加载失败', err)
     flowChartError.value = '流程图加载失败'
   } finally {
     flowChartLoading.value = false
@@ -413,9 +397,11 @@ const handleIntervention = async (command: string, record: any) => {
         await request.post(`/workflow/instance/${record.instanceId}/intervene`, {
           action: command
         })
+        console.warn('[工作流] 操作成功: 流程干预')
         message.success(`${actions[command]}成功`)
         handleQuery()
-      } catch {
+      } catch (err) {
+        console.warn('[工作流] 流程干预失败', err)
         message.error(`${actions[command]}失败`)
       }
     }
@@ -445,10 +431,65 @@ const getStatusLabel = (status: string) => {
 }
 
 // 初始加载
-handleQuery()
+onMounted(() => {
+  handleQuery()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    handleQuery()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery })
 </script>
 
 <style scoped>
+.workflow-monitor-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.workflow-monitor-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.workflow-monitor-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.workflow-monitor-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .workflow-monitor {
   height: 100%;
   display: flex;

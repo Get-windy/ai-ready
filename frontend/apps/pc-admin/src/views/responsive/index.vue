@@ -1,9 +1,32 @@
 <template>
-  <div class="responsive-test">
-    <a-page-header
-      title="响应式布局测试"
-      sub-title="测试不同终端的显示效果"
-    />
+  <PageContainer full-height>
+    <template #header>
+      <div class="responsive-header">
+        <div class="responsive-header__left">
+          <span class="responsive-header__breadcrumb">工具 / 响应式测试</span>
+          <h2 class="responsive-header__title">响应式布局测试</h2>
+        </div>
+        <div class="responsive-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="forceRefresh">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
+    <div class="responsive-test">
 
     <a-card
       title="当前屏幕信息"
@@ -178,12 +201,44 @@
       />
     </a-card>
   </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { PageContainer } from '@/components'
+import { ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { useResponsive } from '@/composables/useResponsiveState'
+
+const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    forceRefresh()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+function forceRefresh() {
+  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  refreshLoading.value = false
+}
 
 const { windowWidth, currentBreakpoint, isMobileView, isTabletView, isDesktopView } = useResponsive()
 
@@ -248,6 +303,58 @@ const tableData = Array.from({ length: 5 }, (_, i) => ({
 </script>
 
 <style scoped>
+.responsive-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.responsive-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.responsive-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.responsive-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.responsive-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
 .responsive-test {
   padding: 20px;
 }

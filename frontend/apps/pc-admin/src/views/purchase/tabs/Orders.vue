@@ -262,23 +262,16 @@ async function fetchData() {
       ...searchFilters
     })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
-  } catch {
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
+  } catch (e) {
+    console.warn('[采购订单] 获取列表失败', e)
     message.error('获取采购订单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally {
     loading.value = false
   }
 }
-
-const mockData = (): PurchaseOrder[] => [
-  { id: 1, orderNo: 'PO2024010001', supplierName: '北京供应商', orderDate: '2024-01-10', totalAmountWithTax: 58000, status: 2, purchaserName: '张三', createTime: '2024-01-10 10:00' },
-  { id: 2, orderNo: 'PO2024010002', supplierName: '上海贸易公司', orderDate: '2024-01-12', totalAmountWithTax: 32000, status: 1, purchaserName: '李四', createTime: '2024-01-12 11:00' },
-  { id: 3, orderNo: 'PO2024010003', supplierName: '广州制造企业', orderDate: '2024-01-15', totalAmountWithTax: 15000, status: 0, purchaserName: '王五', createTime: '2024-01-15 09:00' },
-  { id: 4, orderNo: 'PO2024010004', supplierName: '深圳电子公司', orderDate: '2024-01-08', totalAmountWithTax: 42000, status: 4, purchaserName: '张三', createTime: '2024-01-08 14:00' },
-  { id: 5, orderNo: 'PO2024010005', supplierName: '杭州供应商', orderDate: '2024-01-18', totalAmountWithTax: 8000, status: 3, purchaserName: '李四', createTime: '2024-01-18 15:00' }
-]
 
 function handleView(record: PurchaseOrder) {
   router.push(`/purchase/order/${record.id}`)
@@ -341,7 +334,7 @@ function handleSubmit(record: PurchaseOrder) {
     centered: true,
     onOk: async () => {
       try { await purchaseOrderApi.submit(record.id); message.success('提交成功'); fetchData() }
-      catch { message.error('提交失败') }
+      catch (e) { console.warn('[采购订单] 提交失败', e); message.error('提交失败') }
     }
   })
 }
@@ -354,7 +347,7 @@ function handleApprove(record: PurchaseOrder) {
     centered: true,
     onOk: async () => {
       try { await purchaseOrderApi.approve(record.id); message.success('审批成功'); fetchData() }
-      catch { message.error('审批失败') }
+      catch (e) { console.warn('[采购订单] 审批失败', e); message.error('审批失败') }
     }
   })
 }
@@ -367,7 +360,7 @@ function handleClose(record: PurchaseOrder) {
     centered: true,
     onOk: async () => {
       try { await purchaseOrderApi.close(record.id); message.success('已关闭'); fetchData() }
-      catch { message.error('关闭失败') }
+      catch (e) { console.warn('[采购订单] 关闭失败', e); message.error('关闭失败') }
     }
   })
 }
@@ -382,7 +375,7 @@ function handleDelete(record: PurchaseOrder) {
     centered: true,
     onOk: async () => {
       try { await purchaseOrderApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购订单] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -408,6 +401,7 @@ async function handleBatchDelete(ids: number[]) {
         tableRef.value?.clearSelection()
         fetchData()
       } catch (error: any) {
+        console.warn('[采购订单] 批量删除失败', error)
         message.error(error?.response?.data?.message || '批量删除失败')
       }
     }
@@ -431,7 +425,7 @@ function handleBatchApprove(selectedRows: any[]) {
     centered: true,
     onOk: async () => {
       try { await purchaseOrderApi.batchApprove(keys); message.success(`成功审批 ${keys.length} 条`); tableRef.value?.clearSelection(); fetchData() }
-      catch { message.error('批量审批失败') }
+      catch (e) { console.warn('[采购订单] 批量审批失败', e); message.error('批量审批失败') }
     }
   })
 }
@@ -448,25 +442,37 @@ function handleBatchClose(selectedRows: any[]) {
     okText: '确认',
     centered: true,
     onOk: async () => {
-      message.success(`成功关闭 ${keys.length} 条订单`)
-      tableRef.value?.clearSelection()
-      fetchData()
+      try {
+        await Promise.all(keys.map(id => purchaseOrderApi.close(id)))
+        message.success(`成功关闭 ${keys.length} 条订单`)
+        tableRef.value?.clearSelection()
+        fetchData()
+      } catch (e) {
+        console.warn('[采购订单] 批量关闭失败', e)
+        message.error('批量关闭失败')
+      }
     }
   })
+}
+
+function csvEscape(val: any): string {
+  const str = String(val ?? '')
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
 }
 
 function handleExport() {
   const headers = ['订单号', '供应商', '订单日期', '订单金额', '状态', '采购员', '创建时间']
   const rows = dataSource.value.map((r: any) => [
-    r.orderNo || '',
-    r.supplierName || '',
-    r.orderDate || '',
+    r.orderNo, r.supplierName, r.orderDate,
     (r.totalAmountWithTax || 0).toFixed(2),
     getStatusText(r.status),
-    r.purchaserName || r.buyerName || '',
-    r.createTime || ''
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    r.purchaserName || r.buyerName,
+    r.createTime
+  ].map(csvEscape))
+  const csv = [headers.map(csvEscape).join(','), ...rows.map(r => r.join(','))].join('\n')
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -490,6 +496,8 @@ function handlePageChange(page: number, size: number) {
 }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters)
   pagination.current = 1
@@ -507,11 +515,16 @@ function handleKeydown(e: KeyboardEvent) {
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

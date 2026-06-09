@@ -100,7 +100,7 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="入库单详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="入库单详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="入库单号">{{ currentRecord.inboundNo }}</a-descriptions-item>
         <a-descriptions-item label="入库类型">{{ currentRecord.inboundType }}</a-descriptions-item>
@@ -113,7 +113,7 @@
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
       <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建入库弹窗 -->
     <a-modal v-model:open="addVisible" title="新建入库单" width="800px" :confirm-loading="addSubmitting"
@@ -307,24 +307,19 @@ async function fetchData() {
   try {
     const res = await inboundApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
     emit('update-count', pagination.total)
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[库存入库] 获取入库单列表失败', err)
+    tableData.value = []
+    pagination.total = 0
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, inboundNo: 'IN-2024-001', inboundType: '采购入库', warehouseName: '主仓库', inboundDate: '2024-01-15', status: 2, createTime: '2024-01-14 10:00', sourceNo: 'PO-2024-001', handlerName: '张三' },
-  { id: 2, inboundNo: 'IN-2024-002', inboundType: '采购入库', warehouseName: '备品仓库', inboundDate: '2024-01-20', status: 1, createTime: '2024-01-19 14:30', sourceNo: 'PO-2024-002', handlerName: '李四' },
-  { id: 3, inboundNo: 'IN-2024-003', inboundType: '退货入库', warehouseName: '主仓库', inboundDate: '2024-02-01', status: 2, createTime: '2024-01-31 09:00', sourceNo: 'SO-2024-005', handlerName: '王五' },
-  { id: 4, inboundNo: 'IN-2024-004', inboundType: '调拨入库', warehouseName: '成品仓库', inboundDate: '2024-02-10', status: 0, createTime: '2024-02-09 16:00', sourceNo: 'TR-2024-001', handlerName: '赵六' },
-]
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() {
@@ -337,7 +332,7 @@ async function handleDelete(record: any) {
     title: '删除入库单', content: `确认删除入库单 "${record.inboundNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await inboundApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[库存入库] 删除入库单失败', err); message.error('删除失败') }
     }
   })
 }
@@ -347,7 +342,7 @@ async function handleBatchDelete(ids: number[]) {
 }
 
 const handleAddSubmit = async () => {
-  try { await addFormRef.value?.validate() } catch { return }
+  try { await addFormRef.value?.validate() } catch (err) { console.warn('[库存入库] 表单验证失败', err); return }
   if (addForm.items.length === 0) { message.warning('请至少添加一条入库明细'); return }
   addSubmitting.value = true
   try {
@@ -357,7 +352,7 @@ const handleAddSubmit = async () => {
       items: addForm.items.map(item => ({ productId: item.productId, expectedQty: item.expectedQty, actualQty: item.actualQty }))
     })
     message.success('入库单创建成功'); addVisible.value = false; pagination.current = 1; fetchData()
-  } catch (err: any) { message.error(err?.message || '创建失败') }
+  } catch (err: any) { console.warn('[库存入库] 创建入库单失败', err); message.error(err?.message || '创建失败') }
   finally { addSubmitting.value = false }
 }
 const handleAddCancel = () => { addVisible.value = false }
@@ -366,7 +361,7 @@ function handleApprove(record: any) {
   Modal.confirm({
     title: '确认审批', content: `确定要审批通过入库单 "${record.inboundNo}" 吗？`,
     okText: '确认通过', cancelText: '取消', centered: true,
-    async onOk() { try { await inboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { message.error(err?.message || '审批失败') } }
+    async onOk() { try { await inboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { console.warn('[库存入库] 审批入库单失败', err); message.error(err?.message || '审批失败') } }
   })
 }
 function handleBatchApprove() {
@@ -392,6 +387,7 @@ function handleExport() {
   a.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[库存入库] 导出入库单（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -423,6 +419,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

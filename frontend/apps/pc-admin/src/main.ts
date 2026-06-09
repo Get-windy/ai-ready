@@ -72,7 +72,7 @@ app.provide('featureFlagService', getFeatureFlagService())
 // 初始化错误上报器
 initErrorReporter(app, {
   enabled: true,
-  endpoint: '/api/log/error',
+  endpoint: '/api/error-report',
   batchSize: 5,
   flushInterval: 3000
 })

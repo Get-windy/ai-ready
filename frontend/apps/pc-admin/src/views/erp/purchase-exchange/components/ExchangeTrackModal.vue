@@ -1,8 +1,9 @@
 <template>
-  <a-modal
+  <a-drawer
     v-model:open="open"
     title="换货单跟踪"
-    width="800px"
+    placement="right"
+    width="80vw"
     :footer="null"
   >
     <div v-if="record" class="track-content">
@@ -82,7 +83,7 @@
         </VxeTableList>
       </div>
     </div>
-  </a-modal>
+  </a-drawer>
 </template>
 
 <script setup lang="ts">
@@ -262,21 +263,18 @@ const loadTrackData = async (exchangeId: number) => {
       timeline.value = res.data.timeline
     }
   } catch (error) {
-    // 如果API不存在，使用本地生成的时间线
+    console.warn('[采购换货] 跟踪API不可用，使用本地数据', error)
     if (props.record) {
       timeline.value = generateTimeline(props.record)
-      try {
-        // 加载明细
-        const itemsRes = await purchaseExchangeApi.getItems(exchangeId)
-        items.value = itemsRes.data || []
-        // 加载审批记录
-        const recordsRes = await purchaseExchangeApi.getApprovalRecords(exchangeId)
-        approvalRecords.value = recordsRes.data || []
-      } catch (innerError) {
-        // 忽略明细加载错误
-      }
     }
-    message.error('加载跟踪数据失败')
+    try {
+      const itemsRes = await purchaseExchangeApi.getItems(exchangeId)
+      items.value = itemsRes.data || []
+      const recordsRes = await purchaseExchangeApi.getApprovalRecords(exchangeId)
+      approvalRecords.value = recordsRes.data || []
+    } catch (innerError: any) {
+      console.warn('[采购换货] 加载明细或审批记录失败', innerError)
+    }
   } finally {
     loading.value = false
   }
@@ -295,7 +293,6 @@ watch(() => props.record, (record) => {
 
 <style scoped>
 .track-content {
-  max-height: 600px;
   overflow-y: auto;
 }
 

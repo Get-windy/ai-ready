@@ -1,114 +1,146 @@
 <template>
-  <div class="report-page">
-    <!-- KPI 卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-count">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ summary.totalBudgetCount || 0 }}</div>
-          <div class="stat-card-label">预算总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="report-page-header">
+        <div class="report-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>预算报表</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="report-page-header-title">预算报表</h2>
         </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-amount">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(summary.totalBudgetAmount) }}</div>
-          <div class="stat-card-label">预算总额</div>
+        <div class="report-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="loadAllData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <DollarOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-used">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(summary.totalUsedAmount) }}</div>
-          <div class="stat-card-label">已使用</div>
+    </template>
+
+    <div class="report-management">
+      <!-- KPI 卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-count">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ summary.totalBudgetCount || 0 }}</div>
+            <div class="stat-card-label">预算总数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
         </div>
-        <PieChartOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-rate">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ (summary.executionRate || 0).toFixed(2) }}%</div>
-          <div class="stat-card-label">整体执行率</div>
+        <div class="stat-card stat-amount">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(summary.totalBudgetAmount) }}</div>
+            <div class="stat-card-label">预算总额</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
         </div>
-        <PercentageOutlined class="stat-card-icon" />
+        <div class="stat-card stat-used">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(summary.totalUsedAmount) }}</div>
+            <div class="stat-card-label">已使用</div>
+          </div>
+          <PieChartOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-rate">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ (summary.executionRate || 0).toFixed(2) }}%</div>
+            <div class="stat-card-label">整体执行率</div>
+          </div>
+          <PercentageOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <a-card title="预算报表分析" class="filter-card">
+        <div class="search-area">
+          <a-form layout="inline">
+            <a-form-item label="年度">
+              <a-input-number v-model:value="fiscalYear" :min="2020" :max="2099" style="width: 120px" />
+            </a-form-item>
+            <a-form-item>
+              <a-button type="primary" @click="loadAllData">查询</a-button>
+            </a-form-item>
+          </a-form>
+        </div>
+      </a-card>
+
+      <a-row :gutter="[16, 16]" class="mt-2">
+        <!-- 部门预算分布 -->
+        <a-col :span="12">
+          <a-card title="部门预算分布" class="chart-card">
+            <div ref="deptChartRef" style="height: 350px"></div>
+          </a-card>
+        </a-col>
+        <!-- 科目预算分布 -->
+        <a-col :span="12">
+          <a-card title="科目预算分布" class="chart-card">
+            <div ref="subjectChartRef" style="height: 350px"></div>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="[16, 16]" class="mt-2">
+        <!-- 月度趋势 -->
+        <a-col :span="24">
+          <a-card title="月度预算使用趋势" class="chart-card">
+            <div ref="trendChartRef" style="height: 350px"></div>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="[16, 16]" class="mt-2">
+        <!-- 差异分析表 -->
+        <a-col :span="24">
+          <a-card title="预算差异分析" class="table-card">
+            <VxeTableList
+              :data-source="varianceData"
+              :columns="varianceVxeColumns"
+              :loading="varianceLoading"
+              :pagination="{ pageSize: 10 }"
+              row-key="budgetId"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #varianceRateCell="{ record }">
+                <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
+                  {{ (record.varianceRate || 0).toFixed(2) }}%
+                </span>
+              </template>
+            </VxeTableList>
+          </a-card>
+        </a-col>
+      </a-row>
     </div>
-
-    <a-card title="预算报表分析" class="filter-card">
-      <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="年度">
-            <a-input-number v-model:value="fiscalYear" :min="2020" :max="2099" style="width: 120px" />
-          </a-form-item>
-          <a-form-item>
-            <a-button type="primary" @click="loadAllData">查询</a-button>
-          </a-form-item>
-        </a-form>
-      </div>
-    </a-card>
-
-    <a-row :gutter="[16, 16]" class="mt-2">
-      <!-- 部门预算分布 -->
-      <a-col :span="12">
-        <a-card title="部门预算分布" class="chart-card">
-          <div ref="deptChartRef" style="height: 350px"></div>
-        </a-card>
-      </a-col>
-      <!-- 科目预算分布 -->
-      <a-col :span="12">
-        <a-card title="科目预算分布" class="chart-card">
-          <div ref="subjectChartRef" style="height: 350px"></div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-row :gutter="[16, 16]" class="mt-2">
-      <!-- 月度趋势 -->
-      <a-col :span="24">
-        <a-card title="月度预算使用趋势" class="chart-card">
-          <div ref="trendChartRef" style="height: 350px"></div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-row :gutter="[16, 16]" class="mt-2">
-      <!-- 差异分析表 -->
-      <a-col :span="24">
-        <a-card title="预算差异分析" class="table-card">
-          <VxeTableList
-            :data-source="varianceData"
-            :columns="varianceVxeColumns"
-            :loading="varianceLoading"
-            :pagination="{ pageSize: 10 }"
-            row-key="budgetId"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #varianceRateCell="{ record }">
-              <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
-                {{ (record.varianceRate || 0).toFixed(2) }}%
-              </span>
-            </template>
-          </VxeTableList>
-        </a-card>
-      </a-col>
-    </a-row>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { message } from 'ant-design-vue'
 import {
-  FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined
+  FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined,
+  SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { budgetReportApi } from '@/api/budget'
 import * as echarts from 'echarts'
 
 const fiscalYear = ref(new Date().getFullYear())
 const summary = ref<any>({})
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const deptChartRef = ref<HTMLDivElement>()
 const subjectChartRef = ref<HTMLDivElement>()
@@ -172,7 +204,10 @@ const loadAllData = async () => {
   try {
     const res = await budgetReportApi.executionSummary(fiscalYear.value)
     if (res.success) summary.value = res.data
-  } catch { summary.value = mockSummary() }
+  } catch {
+    console.warn('[预算报表] 加载汇总数据失败')
+    summary.value = {}
+  }
 
   // Department chart
   try {
@@ -187,10 +222,7 @@ const loadAllData = async () => {
       })
     }
   } catch {
-    deptChart?.setOption({
-      xAxis: { data: ['财务部', '市场部', '研发部', '人事部'] },
-      series: [{ name: '预算总额', type: 'bar', data: [500000, 300000, 800000, 200000] }, { name: '已使用', type: 'bar', data: [200000, 100000, 400000, 150000] }],
-    })
+    console.warn('[预算报表] 加载部门图表失败')
   }
 
   // Subject chart
@@ -208,19 +240,7 @@ const loadAllData = async () => {
       })
     }
   } catch {
-    subjectChart?.setOption({
-      series: [{
-        name: '科目预算',
-        type: 'pie',
-        radius: ['30%', '60%'],
-        data: [
-          { value: 300000, name: '办公费用' },
-          { value: 500000, name: '人力成本' },
-          { value: 200000, name: '设备采购' },
-          { value: 150000, name: '营销推广' },
-        ],
-      }],
-    })
+    console.warn('[预算报表] 加载科目图表失败')
   }
 
   // Trend
@@ -231,33 +251,28 @@ const loadAllData = async () => {
       trendChart?.setOption({ series: [{ data: amounts }] })
     }
   } catch {
-    trendChart?.setOption({ series: [{ data: [50000, 80000, 100000, 120000, 150000, 180000, 200000, 220000, 250000, 280000, 300000, 350000] }] })
+    console.warn('[预算报表] 加载趋势数据失败')
   }
 
   // Variance
   varianceLoading.value = true
   try {
     const res = await budgetReportApi.varianceAnalysis(fiscalYear.value)
-    if (res.success) varianceData.value = res.data || mockVarianceData()
+    if (res.success) varianceData.value = res.data || []
   } catch {
-    varianceData.value = mockVarianceData()
+    console.warn('[预算报表] 加载差异分析失败')
+    varianceData.value = []
   }
   varianceLoading.value = false
+  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  refreshLoading.value = false
 }
 
-const mockSummary = (): any => ({
-  totalBudgetCount: 10,
-  totalBudgetAmount: 1800000,
-  totalUsedAmount: 850000,
-  executionRate: 47.22,
-})
-
-const mockVarianceData = (): any[] => [
-  { budgetId: 1, budgetNo: 'BUD-2024-001', departmentName: '财务部', totalAmount: 500000, totalUsedAmount: 200000, totalRemainingAmount: 300000, executionRate: 40, variance: 0, varianceRate: 0 },
-  { budgetId: 2, budgetNo: 'BUD-2024-002', departmentName: '市场部', totalAmount: 300000, totalUsedAmount: 350000, totalRemainingAmount: -50000, executionRate: 116.67, variance: -50000, varianceRate: -16.67 },
-  { budgetId: 3, budgetNo: 'BUD-2024-003', departmentName: '研发部', totalAmount: 800000, totalUsedAmount: 200000, totalRemainingAmount: 600000, executionRate: 25, variance: 0, varianceRate: 0 },
-  { budgetId: 4, budgetNo: 'BUD-2024-004', departmentName: '人事部', totalAmount: 200000, totalUsedAmount: 180000, totalRemainingAmount: 20000, executionRate: 90, variance: 0, varianceRate: 0 },
-]
+const handleResize = () => {
+  deptChart?.resize()
+  subjectChart?.resize()
+  trendChart?.resize()
+}
 
 onMounted(() => {
   setTimeout(() => {
@@ -265,24 +280,68 @@ onMounted(() => {
     loadAllData()
   }, 100)
   window.addEventListener('resize', handleResize)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadAllData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
   window.removeEventListener('resize', handleResize)
   deptChart?.dispose()
   subjectChart?.dispose()
   trendChart?.dispose()
 })
 
-const handleResize = () => {
-  deptChart?.resize()
-  subjectChart?.resize()
-  trendChart?.resize()
-}
+defineExpose({ handleQuery: loadAllData })
 </script>
 
 <style scoped>
-.report-page {
+.report-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.report-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.report-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.report-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+.report-management {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -347,11 +406,6 @@ const handleResize = () => {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
-
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

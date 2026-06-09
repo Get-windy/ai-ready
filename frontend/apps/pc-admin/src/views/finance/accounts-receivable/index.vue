@@ -1,18 +1,26 @@
 <template>
-  <PageContainer title="应收账款" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="accounts-receivable-header">
+        <div class="accounts-receivable-header-left">
+          <a-breadcrumb class="accounts-receivable-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>应收账款</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="accounts-receivable-header-title">应收账款</h2>
+        </div>
+        <div class="accounts-receivable-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="fetchData">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <div class="accounts-receivable-page">
@@ -254,7 +262,7 @@ import dayjs from 'dayjs'
 import {
   EyeOutlined, DollarOutlined, BellOutlined, SearchOutlined, InboxOutlined,
   EllipsisOutlined, CheckCircleOutlined, ExclamationCircleOutlined, WarningOutlined,
-  FileTextOutlined, ReloadOutlined, HistoryOutlined
+  FileTextOutlined, ReloadOutlined, SyncOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
@@ -268,6 +276,8 @@ const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 const lastUpdateTime = ref('')
 const lastUpdated = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
 
 const queryParams = reactive({
   customerName: '',
@@ -363,7 +373,7 @@ const handleAdd = () => {
 
 const handleView = (record: any) => {
   currentRecord.value = record
-  paymentRecords.value = record.paymentHistory || mockPaymentHistory()
+  paymentRecords.value = record.paymentHistory || []
   detailVisible.value = true
 }
 
@@ -404,7 +414,8 @@ const handlePaymentConfirm = async () => {
     paymentModalVisible.value = false
     detailVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[应收账款] 收款失败', err)
     message.error('收款失败')
   } finally {
     paymentSubmitting.value = false
@@ -421,7 +432,8 @@ const handleReminder = (record: any) => {
       try {
         await receivableV1Api.reminder(record.id)
         message.success('催收提醒已发送')
-      } catch {
+      } catch (err) {
+        console.warn('[应收账款] 发送催收提醒失败', err)
         message.error('发送失败')
       }
     }
@@ -475,24 +487,13 @@ const handleExport = () => {
   a.download = `应收账款_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[应收账款] 导出成功', dataSource.value.length)
   message.success('导出成功')
 }
 
-const mockPaymentHistory = (): any[] => [
-  { id: 1, paymentDate: '2024-01-15', amount: 20000, paymentMethod: '银行转账', remark: '首批收款' }
-]
-
-const mockData = (): any[] => [
-  { id: 1, customerName: '北京客户A', customerId: 1, orderNo: 'SO2024010001', orderId: 1, amount: 85000, paidAmount: 35000, unpaidAmount: 50000, status: 1, dueDate: '2024-02-15', remark: '', createTime: '2024-01-15 10:00' },
-  { id: 2, customerName: '上海客户B', customerId: 2, orderNo: 'SO2024010002', orderId: 2, amount: 42000, paidAmount: 0, unpaidAmount: 42000, status: 0, dueDate: '2024-02-18', remark: '', createTime: '2024-01-18 11:00' },
-  { id: 3, customerName: '广州客户C', customerId: 3, orderNo: 'SO2024010003', orderId: 3, amount: 28000, paidAmount: 28000, unpaidAmount: 0, status: 2, dueDate: '2024-02-01', remark: '已结清', createTime: '2024-01-20 09:00' },
-  { id: 4, customerName: '深圳客户D', customerId: 4, orderNo: 'SO2024010004', orderId: 4, amount: 65000, paidAmount: 30000, unpaidAmount: 35000, status: 1, dueDate: '2024-01-25', remark: '', createTime: '2024-01-12 14:00' },
-  { id: 5, customerName: '杭州客户E', customerId: 5, orderNo: 'SO2024010005', orderId: 5, amount: 18000, paidAmount: 18000, unpaidAmount: 0, status: 2, dueDate: '2024-02-01', remark: '', createTime: '2024-01-22 15:00' },
-  { id: 6, customerName: '成都客户F', customerId: 6, orderNo: 'SO2024010006', orderId: 6, amount: 52000, paidAmount: 0, unpaidAmount: 52000, status: 0, dueDate: '2024-01-20', remark: '已逾期', createTime: '2024-01-10 16:00' }
-]
-
 const fetchData = async () => {
   loading.value = true
+  refreshLoading.value = true
   try {
     const res = await receivableV1Api.getPage({
       pageNum: pagination.current,
@@ -502,23 +503,20 @@ const fetchData = async () => {
       status: queryParams.status
     })
     if (res.data) {
-      dataSource.value = res.data.records || mockData()
-      pagination.total = res.data.total || mockData().length
+      dataSource.value = res.data.records || []
+      pagination.total = res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
       stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
       stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
+    console.warn('获取应收账款数据失败', err)
     message.error('获取数据失败')
-    dataSource.value = mockData()
-    pagination.total = mockData().length
-    stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
-    stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
-    stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -526,14 +524,30 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -543,6 +557,43 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
+
+.accounts-receivable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.accounts-receivable-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.accounts-receivable-breadcrumb {
+  font-size: 13px;
+}
+.accounts-receivable-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.accounts-receivable-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .data-status {

@@ -1,18 +1,25 @@
 <template>
-  <PageContainer title="供应商管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="supplier-page-header">
+        <div class="supplier-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>供应商管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="supplier-page-header-title">供应商管理</h2>
+        </div>
+        <div class="supplier-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
@@ -176,7 +183,7 @@
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="detailVisible" title="供应商详情" width="900px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="供应商详情" placement="right" width="80vw" :footer="null">
       <a-descriptions :column="2" bordered>
         <a-descriptions-item label="供应商名称">{{ supplierDetail.supplierName }}</a-descriptions-item>
         <a-descriptions-item label="供应商编码">{{ supplierDetail.supplierCode }}</a-descriptions-item>
@@ -208,7 +215,7 @@
         <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
         <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
       </VxeTableList>
-    </a-modal>
+    </a-drawer>
 
     <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
       <VxeTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
@@ -260,7 +267,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { PageContainer } from '@/components'
@@ -283,7 +290,10 @@ const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref<string>('')
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 状态统计
 const statusCounts = computed(() => {
@@ -307,7 +317,7 @@ const hasActiveFilters = computed(() => {
 // 数据源
 const tableDataSource = tableData
 
-const columns = [
+const vxeColumns = [
   { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', width: 180 },
   { title: '供应商编码', dataIndex: 'supplierCode', key: 'supplierCode', width: 120 },
   { title: '供应商类型', dataIndex: 'supplierTypeLabel', key: 'supplierTypeLabel', width: 120 },
@@ -384,28 +394,20 @@ const contactsVxeColumns = [
 
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
-
-// 自动刷新
-const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !modalVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
-}
 
 async function fetchData(silent = false) {
   if (!silent) loading.value = true
@@ -415,25 +417,22 @@ async function fetchData(silent = false) {
     if (activeTab.value === 'active') filters.cooperationStatus = 1
     else if (activeTab.value === 'inactive') filters.cooperationStatus = 2
     const res = await supplierApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters, ...filters })
-    tableData.value = (res as any).records?.map((r: any) => ({ ...r, supplierTypeLabel: supplierTypeMap[r.supplierType] || '未知' })) || mockData()
-    pagination.total = (res as any).total || mockData().length
+    tableData.value = (res as any).records?.map((r: any) => ({ ...r, supplierTypeLabel: supplierTypeMap[r.supplierType] || '未知' })) || []
+    pagination.total = (res as any).total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
-      message.error('获取数据失败')
+      message.error('获取供应商数据失败')
     }
-    tableData.value = mockData()
+    console.warn('[CRM供应商] 获取供应商列表失败', err)
+    tableData.value = []
   }
-  finally { if (!silent) loading.value = false }
+  finally {
+    if (!silent) loading.value = false
+    refreshLoading.value = false
+  }
 }
-
-const mockData = () => [
-  { id: 1, supplierName: '北京原材料公司', supplierCode: 'SUP001', supplierType: 1, supplierTypeLabel: '原材料供应商', supplierLevel: 'A', contactPerson: '张经理', contactPhone: '13800138001', cooperationStatus: 1, purchaseAmount: 580000, payableAmount: 38000 },
-  { id: 2, supplierName: '上海产品供应商', supplierCode: 'SUP002', supplierType: 2, supplierTypeLabel: '产品供应商', supplierLevel: 'B', contactPerson: '李主管', contactPhone: '13800138002', cooperationStatus: 1, purchaseAmount: 320000, payableAmount: 15000 },
-  { id: 3, supplierName: '广州服务公司', supplierCode: 'SUP003', supplierType: 3, supplierTypeLabel: '服务供应商', supplierLevel: 'A', contactPerson: '王主任', contactPhone: '13800138003', cooperationStatus: 1, purchaseAmount: 150000, payableAmount: 8000 },
-  { id: 4, supplierName: '深圳物流公司', supplierCode: 'SUP004', supplierType: 4, supplierTypeLabel: '物流供应商', supplierLevel: 'B', contactPerson: '赵总监', contactPhone: '13800138004', cooperationStatus: 2, purchaseAmount: 42000, payableAmount: 2000 }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -497,7 +496,7 @@ function handleContact(record: any) {
 }
 
 function handleDelete(record: any) {
-  Modal.confirm({ title: '确认删除', content: `确定要删除供应商"${record.supplierName}"吗？`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true, async onOk() { try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() } catch { message.error('删除失败') } } })
+  Modal.confirm({ title: '确认删除', content: `确定要删除供应商"${record.supplierName}"吗？`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true, async onOk() { try { await supplierApi.delete(record.id); message.success('删除成功'); fetchData() } catch (err) { console.warn('[CRM供应商] 删除供应商失败', err); message.error('删除失败') } } })
 }
 function handleEvaluateSubmit() {
   if (!evaluateForm.comment) { message.warning('请输入评价内容'); return }
@@ -509,12 +508,12 @@ function handleResetPortalPassword() { Modal.confirm({ title: '重置密码', co
 function handleOpenPortal() { window.open(portalInfo.portalUrl, '_blank'); message.success('正在打开供应商门户') }
 
 async function handleSubmit() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM供应商] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     if (formData.id) { await supplierApi.update(formData.id, formData as any) } else { await supplierApi.create(formData as any) }
     message.success('保存成功'); modalVisible.value = false; fetchData()
-  } catch (err: any) { message.error(err?.message || '保存失败') }
+  } catch (err: any) { console.warn('[CRM供应商] 保存供应商失败', err); message.error(err?.message || '保存失败') }
   finally { submitLoading.value = false }
 }
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
@@ -529,19 +528,46 @@ function handleSearch(keyword: string) { searchFilters.keyword = keyword || unde
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.data-status {
+.supplier-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.supplier-page-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
 }
-
+.supplier-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.supplier-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stats-cards {
@@ -655,10 +681,6 @@ function handleFilterChange(filters: Record<string, any>) { Object.assign(search
 .amount-cell.payable {
   font-weight: 600;
 }
-
-
-
-
 
 :deep(.ant-tabs) {
   margin: 0 24px;

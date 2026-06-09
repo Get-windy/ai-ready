@@ -74,12 +74,16 @@ const formatAmount = (val: number) => {
 }
 
 const handleApprove = (record: any) => {
+  console.warn('[付款审批] 审批通过', record)
   message.success(`审批通过: ${record.supplierName}`)
 }
 
 const handleReject = (record: any, reason: string) => {
+  console.warn('[付款审批] 已拒绝', { record, reason })
   message.success(`已拒绝: ${record.supplierName}，原因: ${reason}`)
 }
+
+defineExpose({})
 </script>
 
 <style scoped>

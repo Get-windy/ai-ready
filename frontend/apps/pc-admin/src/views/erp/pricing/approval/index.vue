@@ -1,5 +1,31 @@
 <template>
-  <div class="pricing-approval-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="approval-header">
+        <div class="approval-header__left">
+          <span class="approval-header__breadcrumb">ERP / 定价管理 / 审批</span>
+          <h2 class="approval-header__title">价格审批</h2>
+        </div>
+        <div class="approval-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="loadData">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -278,11 +304,11 @@
       </a-form>
     </a-modal>
 
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="审批详情"
-      width="700px"
-      :footer="null"
+      placement="right"
+      width="80vw"
     >
       <a-descriptions :column="2" bordered>
         <a-descriptions-item label="产品名称">{{ detailData.productName }}</a-descriptions-item>
@@ -304,14 +330,15 @@
         <a-descriptions-item label="申请原因" :span="2">{{ detailData.approvalReason }}</a-descriptions-item>
         <a-descriptions-item label="审批备注" :span="2">{{ detailData.approveRemark || '-' }}</a-descriptions-item>
       </a-descriptions>
-    </a-modal>
-  </div>
+    </a-drawer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
@@ -322,12 +349,18 @@ import { PRICE_APPROVAL_STATUS } from '@/utils/statusConfig'
 const userStore = useUserStore()
 const loading = ref(false)
 const submitLoading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const activeTab = ref('pending')
 const applyVisible = ref(false)
 const approveVisible = ref(false)
 const rejectVisible = ref(false)
 const detailVisible = ref(false)
 const applyFormRef = ref<FormInstance>()
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 响应式数据 ──────────────────────────────────────────
 
@@ -418,7 +451,9 @@ const loadStatistics = async () => {
   try {
     const res = await priceApprovalApi.getStatistics()
     if (res.data) statistics.value = res.data
-  } catch { /* 统计加载失败不影响列表 */ }
+  } catch {
+    console.warn('[价格审批] 统计加载失败，不影响列表')
+  }
 }
 
 const loadPendingList = async () => {
@@ -427,6 +462,7 @@ const loadPendingList = async () => {
     pendingList.value = res.data || []
     pagination.total = pendingList.value.length
   } catch (err: any) {
+    console.warn('[价格审批] 加载待审批列表失败', err)
     message.error('加载待审批列表失败: ' + (err?.message || ''))
   }
 }
@@ -435,14 +471,20 @@ const loadApprovedList = async () => {
   try {
     const res = await priceApprovalApi.getListByStatus('approved')
     approvedList.value = res.data || []
-  } catch { approvedList.value = [] }
+  } catch {
+    console.warn('[价格审批] 加载已通过列表失败')
+    approvedList.value = []
+  }
 }
 
 const loadRejectedList = async () => {
   try {
     const res = await priceApprovalApi.getListByStatus('rejected')
     rejectedList.value = res.data || []
-  } catch { rejectedList.value = [] }
+  } catch {
+    console.warn('[价格审批] 加载已拒绝列表失败')
+    rejectedList.value = []
+  }
 }
 
 const loadMyList = async () => {
@@ -451,13 +493,18 @@ const loadMyList = async () => {
   try {
     const res = await priceApprovalApi.getMyApprovals(uid)
     myList.value = res.data || []
-  } catch { myList.value = [] }
+  } catch {
+    console.warn('[价格审批] 加载我的申请列表失败')
+    myList.value = []
+  }
 }
 
 const loadData = async () => {
   loading.value = true
   await Promise.allSettled([loadStatistics(), loadPendingList(), loadApprovedList(), loadRejectedList(), loadMyList()])
   loading.value = false
+  refreshLoading.value = false
+  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
 }
 
 // Tab 切换时按需刷新
@@ -505,6 +552,7 @@ const handleApplySubmit = async () => {
     applyVisible.value = false
     loadData()
   } catch (err: any) {
+    console.warn('[价格审批] 提交申请失败', err)
     if (err?.message) message.error(err.message)
   } finally {
     submitLoading.value = false
@@ -525,6 +573,7 @@ const handleApproveConfirm = async () => {
     approveVisible.value = false
     loadData()
   } catch (err: any) {
+    console.warn('[价格审批] 审批失败', err)
     message.error('审批失败: ' + (err?.message || ''))
   }
 }
@@ -547,6 +596,7 @@ const handleRejectConfirm = async () => {
     rejectVisible.value = false
     loadData()
   } catch (err: any) {
+    console.warn('[价格审批] 拒绝审批失败', err)
     message.error('拒绝审批失败: ' + (err?.message || ''))
   }
 }
@@ -556,6 +606,7 @@ const handleView = async (record: PriceApproval) => {
     const res = await priceApprovalApi.getById(record.id)
     detailData.value = res.data || record
   } catch {
+    console.warn('[价格审批] 加载详情失败，使用本地数据')
     detailData.value = { ...record, approvalTypeLabel: getApprovalTypeText(record.approvalType) } as PriceApproval
   }
   detailVisible.value = true
@@ -574,10 +625,79 @@ const getApprovalTypeText = (type: string) => {
   }[type] || type
 }
 
-onMounted(() => loadData())
+onMounted(() => {
+  loadData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped lang="scss">
+.approval-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.approval-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.approval-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.approval-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.approval-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
 .pricing-approval-page {
   padding: 16px;
   height: 100%;

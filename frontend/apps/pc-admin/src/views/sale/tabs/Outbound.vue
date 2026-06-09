@@ -107,7 +107,7 @@
   </VxeTableList>
   </div>
 
-  <a-modal v-model:open="detailVisible" title="出库单详情" width="700px" :footer="null">
+  <a-drawer v-model:open="detailVisible" title="出库单详情" placement="right" width="80vw" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
       <a-descriptions-item label="出库单号">{{ currentRecord.outboundNo }}</a-descriptions-item>
       <a-descriptions-item label="销售订单">{{ currentRecord.orderNo }}</a-descriptions-item>
@@ -121,10 +121,7 @@
       <a-descriptions-item label="物流单号">{{ currentRecord.trackingNo || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div class="detail-modal-footer">
-      <a-button @click="detailVisible = false">关闭</a-button>
-    </div>
-  </a-modal>
+  </a-drawer>
 
   <a-modal v-model:open="formModalVisible" title="新建出库单" width="800px" centered
     :confirm-loading="formSubmitting" ok-text="确认创建" cancel-text="取消"
@@ -285,7 +282,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch { message.error('获取出库单列表失败') }
+  } catch (err) { console.warn('[销售出库] 获取出库单列表', err); message.error('获取出库单列表失败') }
   finally { loading.value = false }
 }
 
@@ -316,7 +313,7 @@ function handleDelete(record: any) {
         await outboundApi.delete(record.id)
         message.success('删除成功')
         fetchData()
-      } catch { message.error('删除失败') }
+      } catch (err) { console.warn('[销售出库] 删除出库单', err); message.error('删除失败') }
     }
   })
 }
@@ -342,14 +339,14 @@ const handleFormSubmit = async () => {
       items: formData.items.map(item => ({ productName: item.productName, quantity: item.quantity, unit: item.unit }))
     })
     message.success('新建出库单成功'); formModalVisible.value = false; pagination.current = 1; fetchData()
-  } catch { message.error('新建出库单失败') }
+  } catch (err) { console.warn('[销售出库] 新建出库单', err); message.error('新建出库单失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批出库单', content: `审批出库单 "${record.outboundNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await outboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await outboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err) { console.warn('[销售出库] 审批出库单', err); message.error('审批失败') } }
   })
 }
 
@@ -405,6 +402,7 @@ onUnmounted(() => {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -460,11 +458,6 @@ function handleKeydown(e: KeyboardEvent) {
   padding: 0 4px;
   font-size: 16px;
   vertical-align: middle;
-}
-
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
 }
 
 .form-items-toolbar {

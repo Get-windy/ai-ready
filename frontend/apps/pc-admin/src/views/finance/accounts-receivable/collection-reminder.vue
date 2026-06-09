@@ -311,6 +311,8 @@ const fetchData = async () => {
 }
 
 fetchData()
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

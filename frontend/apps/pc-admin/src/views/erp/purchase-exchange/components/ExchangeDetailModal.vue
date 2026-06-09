@@ -1,8 +1,9 @@
 <template>
-  <a-modal
+  <a-drawer
     v-model:open="open"
     title="换货单详情"
-    width="900px"
+    placement="right"
+    width="80vw"
     :footer="null"
   >
     <div v-if="record" class="detail-content">
@@ -60,7 +61,7 @@
         </a-timeline>
       </template>
     </div>
-  </a-modal>
+  </a-drawer>
 </template>
 
 <script setup lang="ts">
@@ -162,6 +163,7 @@ const loadDetail = async (exchangeId: number) => {
     const recordsRes = await purchaseExchangeApi.getApprovalRecords(exchangeId)
     approvalRecords.value = recordsRes.data || []
   } catch (error) {
+    console.warn('[采购换货] 加载详情失败', error)
     message.error('加载详情失败')
   } finally {
     loading.value = false
@@ -180,7 +182,6 @@ watch(() => props.record, (record) => {
 
 <style scoped>
 .detail-content {
-  max-height: 600px;
   overflow-y: auto;
 }
 

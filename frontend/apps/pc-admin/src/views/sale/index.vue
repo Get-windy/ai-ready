@@ -1,14 +1,19 @@
 <template>
+  <PageContainer full-height>
   <div class="sale-module">
     <!-- 顶部统计栏 -->
     <div class="sale-module-header">
       <div class="sale-module-header-left">
-        <h1 class="sale-module-title">{{ route.meta?.title || '销售管理' }}</h1>
+        <a-breadcrumb class="sale-breadcrumb">
+          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+          <a-breadcrumb-item>销售管理</a-breadcrumb-item>
+        </a-breadcrumb>
+        <h1 class="sale-module-title">销售管理</h1>
       </div>
       <!-- 统计卡片 -->
       <div class="sale-stat-cards">
         <!-- 加载态：骨架屏 -->
-        <template v-if="statsLoading">
+        <template v-if="statsLoading && !refreshLoading">
           <a-skeleton
             active
             :paragraph="{ rows: 0 }"
@@ -26,7 +31,7 @@
             :style="{ marginBottom: 0, padding: '4px 12px' }"
           >
             <template #action>
-              <a-button size="small" @click="fetchStats">重试</a-button>
+              <a-button size="small" @click="handleManualRefresh">重试</a-button>
             </template>
           </a-alert>
         </template>
@@ -57,6 +62,10 @@
             更新 {{ dayjs(lastStatsUpdate).format('HH:mm') }}
           </span>
         </template>
+        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <SyncOutlined /> {{ autoRefreshCountdown }}s
+        </span>
+        <a-button size="small" :loading="refreshLoading" @click="handleManualRefresh">刷新</a-button>
       </div>
     </div>
 
@@ -64,12 +73,17 @@
     <a-alert
       v-if="showFirstTimeGuide"
       type="info"
-      message="欢迎使用销售管理"
-      description="当前暂无销售数据。您可以通过「新建订单」开始第一笔销售，或参考帮助文档了解更多功能。"
       show-icon
       closable
-      :style="{ margin: '16px 16px 0' }"
+      class="first-time-guide"
     >
+      <template #icon><InboxOutlined /></template>
+      <template #message>
+        <span class="first-time-title">欢迎使用销售管理</span>
+      </template>
+      <template #description>
+        <p class="first-time-desc">当前暂无销售数据。您可以通过「新建订单」开始第一笔销售业务。</p>
+      </template>
       <template #action>
         <a-button size="small" type="primary" @click="handleFirstTimeCreate">新建订单</a-button>
       </template>
@@ -117,6 +131,7 @@
       </a-space>
     </div>
   </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -124,7 +139,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import {
-  FileTextOutlined, DollarOutlined, ClockCircleOutlined
+  FileTextOutlined, DollarOutlined, ClockCircleOutlined, SyncOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import OrdersTab from './tabs/Orders.vue'
 import QuotationTab from './tabs/Quotation.vue'
@@ -133,8 +148,10 @@ import ReturnTab from './tabs/Return.vue'
 import ExchangeTab from './tabs/Exchange.vue'
 import ReceiptTab from './tabs/Receipt.vue'
 import CustomersTab from './tabs/Customers.vue'
-import request from '@/utils/request'
+import { saleStatsApi, type SaleStats } from '@/api/erp'
+import { hasPermission } from '@/utils/permission'
 import { useIntervalRefresh } from '@/composables/useIntervalRefresh'
+import { PageContainer } from '@/components'
 
 const router = useRouter()
 const route = useRoute()
@@ -159,15 +176,17 @@ const allTabs: TabItem[] = [
 
 const allTabKeys = allTabs.map(t => t.key) as string[]
 
-// 显示所有 Tab（模块内权限由各 tab 内部自行控制）
-const visibleTabs = computed(() => allTabs)
+// 根据权限过滤 Tab
+const visibleTabs = computed(() => allTabs.filter(t => !t.permission || hasPermission(t.permission)))
 
 const activeTab = ref<string>('orders')
 
 const statsLoading = ref(false)
 const statsError = ref(false)
+const refreshLoading = ref(false)
 const lastStatsUpdate = ref<string | null>(null)
-const stats = reactive({
+const autoRefreshCountdown = ref(0)
+const stats = reactive<SaleStats>({
   monthOrderCount: 0,
   monthAmount: 0,
   pendingCount: 0
@@ -180,23 +199,29 @@ const showFirstTimeGuide = computed(() => {
 })
 
 async function fetchStats() {
-  if (statsLoading.value) return
+  if (statsLoading.value && !refreshLoading.value) return
   statsLoading.value = true
   statsError.value = false
   try {
-    const res = await request.get('/erp/sale/order/stats')
-    const data = (res as any).data ?? res
-    if (data) {
-      stats.monthOrderCount = data.monthOrderCount ?? 0
-      stats.monthAmount = data.monthAmount ?? 0
-      stats.pendingCount = data.pendingCount ?? 0
-    }
-  } catch {
+    const res = await saleStatsApi.get()
+    const data = res.data
+    stats.monthOrderCount = data?.monthOrderCount ?? 0
+    stats.monthAmount = data?.monthAmount ?? 0
+    stats.pendingCount = data?.pendingCount ?? 0
+  } catch (err) {
+    console.warn("[销售管理] 加载统计失败", err);
     statsError.value = true
   } finally {
     statsLoading.value = false
+    refreshLoading.value = false
     lastStatsUpdate.value = new Date().toISOString()
   }
+}
+
+async function handleManualRefresh() {
+  refreshLoading.value = true
+  await fetchStats()
+  window.dispatchEvent(new CustomEvent('sale:refresh'))
 }
 
 function formatCurrency(value: number) {
@@ -222,13 +247,16 @@ function handleFirstTimeCreate() {
 }
 
 // 30s 自动刷新统计
-const { start: startStatsRefresh, stop: stopStatsRefresh } = useIntervalRefresh(fetchStats, 30000)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+const { start: startStatsRefresh, stop: stopStatsRefresh } = useIntervalRefresh(() => {
+  fetchStats()
+  autoRefreshCountdown.value = 30
+}, 30000)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
-    fetchStats()
-    window.dispatchEvent(new CustomEvent('sale:refresh'))
+    handleManualRefresh()
   }
 }
 
@@ -245,7 +273,11 @@ function initActiveTab() {
 onMounted(() => {
   initActiveTab()
   fetchStats()
+  autoRefreshCountdown.value = 30
   startStatsRefresh()
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 
   window.addEventListener('popstate', handlePopState)
   document.addEventListener('keydown', handleKeydown)
@@ -253,6 +285,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopStatsRefresh()
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('keydown', handleKeydown)
 })
@@ -273,7 +306,7 @@ onUnmounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px 24px;
+  padding: 12px 24px;
   background-color: var(--color-bg-container, #fff);
   border-bottom: 1px solid var(--color-border-secondary, #e8e8e8);
 }
@@ -281,7 +314,40 @@ onUnmounted(() => {
 .sale-module-header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+.sale-breadcrumb {
+  font-size: 13px;
+}
+.sale-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+/* 首次使用引导 */
+.first-time-guide {
+  margin: 16px 16px 0;
+}
+.first-time-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.first-time-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #606266;
 }
 
 .sale-module-title {

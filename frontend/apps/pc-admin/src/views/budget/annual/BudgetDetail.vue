@@ -221,7 +221,9 @@ const loadData = async () => {
       budget.value = res.data
       budgetItems.value = res.data.items || []
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    console.warn('[预算详情] 加载预算详情失败')
+  }
 
   itemLoading.value = true
   try {
@@ -229,7 +231,9 @@ const loadData = async () => {
     if (res.success) {
       budgetItems.value = res.data || []
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    console.warn('[预算详情] 加载预算科目失败')
+  }
   itemLoading.value = false
 
   adjLoading.value = true
@@ -238,7 +242,9 @@ const loadData = async () => {
     if (res.success) {
       adjustments.value = res.data.records || []
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    console.warn('[预算详情] 加载调整记录失败')
+  }
   adjLoading.value = false
 }
 
@@ -252,6 +258,7 @@ const handleSubmit = async () => {
     message.success('已提交审批')
     loadData()
   } catch (e: any) {
+    console.warn('[预算详情] 提交失败', e)
     message.error(e?.response?.data?.message || '提交失败')
   }
 }
@@ -262,6 +269,7 @@ const handleApprove = async () => {
     message.success('审批通过')
     loadData()
   } catch (e: any) {
+    console.warn('[预算详情] 审批失败', e)
     message.error(e?.response?.data?.message || '审批失败')
   }
 }
@@ -272,6 +280,7 @@ const handleReject = async () => {
     message.success('已拒绝')
     loadData()
   } catch (e: any) {
+    console.warn('[预算详情] 拒绝失败', e)
     message.error(e?.response?.data?.message || '拒绝失败')
   }
 }
@@ -282,6 +291,7 @@ const handleClose = async () => {
     message.success('已关闭')
     loadData()
   } catch (e: any) {
+    console.warn('[预算详情] 关闭失败', e)
     message.error(e?.response?.data?.message || '关闭失败')
   }
 }
@@ -289,6 +299,8 @@ const handleClose = async () => {
 onMounted(() => {
   loadData()
 })
+
+defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped>

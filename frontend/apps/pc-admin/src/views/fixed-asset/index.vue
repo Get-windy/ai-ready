@@ -2,13 +2,16 @@
   <PageContainer title="固定资产管理" full-height>
     <template #headerExtra>
       <a-space :size="12">
+        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <SyncOutlined /> {{ autoRefreshCountdown }}s
+        </span>
         <span class="data-status">
           <a-badge :status="loading ? 'processing' : 'success'" />
           <span v-if="lastUpdateTime" class="update-time">
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" @click="handleRefresh">
+        <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -135,7 +138,7 @@ import DisposalList from './disposal/index.vue'
 import InventoryList from './inventory/index.vue'
 import ReportPage from './report/index.vue'
 import {
-  ReloadOutlined, FileTextOutlined, FolderOutlined, CalculatorOutlined,
+  ReloadOutlined, SyncOutlined, FileTextOutlined, FolderOutlined, CalculatorOutlined,
   SwapOutlined, DeleteOutlined, CheckSquareOutlined, BarChartOutlined
 } from '@ant-design/icons-vue'
 
@@ -144,8 +147,13 @@ const route = useRoute()
 
 const VALID_TABS = ['asset', 'category', 'depreciation', 'transfer', 'disposal', 'inventory', 'report'] as const
 const activeKey = ref<string>('asset')
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 const loading = ref(false)
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
 
 // Tab 引用
 const assetRef = ref()
@@ -169,6 +177,7 @@ function onTabChange(key: string) {
 
 function handleRefresh() {
   lastUpdateTime.value = ''
+  refreshLoading.value = true
   loading.value = true
 
   // 刷新当前 Tab
@@ -189,6 +198,7 @@ function handleRefresh() {
 
   setTimeout(() => {
     loading.value = false
+    refreshLoading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }, 500)
 }
@@ -242,12 +252,28 @@ onMounted(() => {
   lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   window.addEventListener('popstate', handlePopState)
   document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    handleRefresh()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
   window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function fetchData() {
+  handleRefresh()
+}
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -261,6 +287,18 @@ onUnmounted(() => {
 
 .update-time {
   color: #999;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .fixed-asset-module {

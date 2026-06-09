@@ -1,5 +1,26 @@
 <template>
-  <div class="erp-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="stock-page-header">
+        <div class="stock-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>库存管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="stock-page-title">库存管理</h2>
+        </div>
+        <div class="stock-page-header-right">
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="loading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -148,7 +169,7 @@
     </a-modal>
 
     <!-- 库存详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="库存详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="库存详情" placement="right" width="80vw">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="商品编码">{{ currentRecord.productCode }}</a-descriptions-item>
         <a-descriptions-item label="商品名称">{{ currentRecord.productName }}</a-descriptions-item>
@@ -163,16 +184,17 @@
         <a-descriptions-item label="最后入库">{{ currentRecord.lastInboundDate || '-' }}</a-descriptions-item>
         <a-descriptions-item label="最后出库">{{ currentRecord.lastOutboundDate || '-' }}</a-descriptions-item>
       </a-descriptions>
-    </a-modal>
-  </div>
+    </a-drawer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { stockApi } from '@/api/erp'
 import request from '@/utils/request'
 
@@ -192,6 +214,10 @@ const statistics = ref({
   overStockCount: 0,
   normalCount: 0
 })
+
+const autoRefreshCountdown = ref(0)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const tableRef = ref()
 
@@ -250,10 +276,16 @@ const fetchData = async () => {
     statistics.value.overStockCount = tableData.value.filter(r => r.quantity > (r.maxStock ?? 999999)).length
     statistics.value.normalCount = tableData.value.filter(r => r.quantity >= (r.minStock ?? 0) && r.quantity <= (r.maxStock ?? 999999)).length
   } catch (err: any) {
+    console.warn('[库存管理] 加载数据失败', err)
     message.error(err?.message || '加载库存数据失败')
   } finally {
     loading.value = false
   }
+}
+
+const handleRefresh = () => {
+  autoRefreshCountdown.value = 30
+  fetchData()
 }
 
 const handleSearch = () => { pagination.current = 1; fetchData() }
@@ -271,7 +303,7 @@ const handleStockLog = async (record: any) => {
     const res = await request.get(`/erp/stock/${record.id}/logs`)
     stockLogs.value = res?.data || []
     logModalVisible.value = true
-  } catch { message.warning('暂无库存流水数据') }
+  } catch (err) { console.warn('[库存管理] 获取库存流水失败', err); message.warning('暂无库存流水数据') }
 }
 
 const handleExport = async () => {
@@ -280,18 +312,70 @@ const handleExport = async () => {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = `库存_${new Date().toISOString().slice(0, 10)}.xlsx`; a.click()
     window.URL.revokeObjectURL(url); message.success('导出成功')
-  } catch { message.warning('导出失败') }
+  } catch (err) { console.warn('[库存管理] 导出失败', err); message.warning('导出失败') }
 }
 
-onMounted(() => { fetchData() })
+onMounted(() => {
+  fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+})
 </script>
 
 <style scoped>
-.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 .low-stock { color: #ff4d4f; font-weight: bold; }
 .over-stock { color: #fa8c16; font-weight: bold; }
+
+.stock-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.stock-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stock-page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.stock-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
 
 /* 统计卡片样式 */
 .summary-card {

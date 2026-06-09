@@ -115,7 +115,7 @@
     </template>
   </VxeTableList>
 
-  <a-modal v-model:open="detailVisible" title="换货单详情" width="700px" :footer="null">
+  <a-drawer v-model:open="detailVisible" title="换货单详情" placement="right" width="80vw" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
       <a-descriptions-item label="换货单号">{{ currentRecord.exchangeNo }}</a-descriptions-item>
       <a-descriptions-item label="关联订单">{{ currentRecord.orderNo }}</a-descriptions-item>
@@ -128,8 +128,7 @@
       <a-descriptions-item label="换货原因" :span="2">{{ currentRecord.reason || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-  </a-modal>
+  </a-drawer>
 
   <a-modal v-model:open="formModalVisible" :title="formMode === 'add' ? '新建换货单' : '编辑换货单'" width="700px" centered
     :confirm-loading="formSubmitting" ok-text="确认" cancel-text="取消"
@@ -252,7 +251,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch { message.error('获取换货单列表失败') }
+  } catch (err) { console.warn('[销售换货] 获取换货单列表', err); message.error('获取换货单列表失败') }
   finally { loading.value = false }
 }
 
@@ -285,7 +284,7 @@ function handleDelete(record: any) {
     okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     onOk: async () => {
       try { await saleExchangeApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[销售换货] 删除换货单', err); message.error('删除失败') }
     }
   })
 }
@@ -310,20 +309,20 @@ const handleFormSubmit = async () => {
     }
     message.success(formMode.value === 'add' ? '新建换货单成功' : '编辑换货单成功')
     formModalVisible.value = false; pagination.current = 1; fetchData()
-  } catch { message.error('操作失败') }
+  } catch (err) { console.warn('[销售换货] 保存换货单', err); message.error('操作失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleSubmit(record: any) {
   Modal.confirm({
     title: '提交换货单', content: `提交换货单 "${record.exchangeNo}" ？`, okText: '确认提交', centered: true,
-    async onOk() { try { await saleExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch { message.error('提交失败') } }
+    async onOk() { try { await saleExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch (err) { console.warn('[销售换货] 提交换货单', err); message.error('提交失败') } }
   })
 }
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批换货单', content: `审批换货单 "${record.exchangeNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await saleExchangeApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await saleExchangeApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err) { console.warn('[销售换货] 审批换货单', err); message.error('审批失败') } }
   })
 }
 function handleBatchApprove() {
@@ -378,6 +377,7 @@ onUnmounted(() => {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -430,7 +430,6 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
-.detail-modal-footer { text-align: right; margin-top: 16px; }
 .list-update-timestamp {
   font-size: 12px; color: var(--color-text-tertiary, #bbb);
   white-space: nowrap; cursor: help; margin-left: 8px;

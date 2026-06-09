@@ -158,6 +158,9 @@
           <div class="table-empty">
             <InboxOutlined class="table-empty-icon" />
             <p class="table-empty-text">暂无数据</p>
+            <a-button v-if="showAdd" type="link" size="small" @click="emit('add')" class="table-empty-action">
+              <PlusOutlined /> 立即创建
+            </a-button>
           </div>
         </slot>
       </template>
@@ -183,11 +186,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, type PropType } from 'vue'
 
-// ═══════════════════════════════════════════════════════════
-// 🐛 调试：追踪 VxeTableList 渲染链路
-const DEBUG_TAG = '[VxeTableList:DEBUG]'
-const debugLog = (...args: any[]) => console.log(DEBUG_TAG, ...args)
-// ═══════════════════════════════════════════════════════════
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -277,9 +275,6 @@ interface VxeColumnDef {
 const vxeColumns = computed<VxeColumnDef[]>(() => {
   const cols: VxeColumnDef[] = []
 
-  // 🐛 调试：检查输入列
-  debugLog('props.columns:', props.columns, 'isArray:', Array.isArray(props.columns), 'selectable:', props.selectable)
-
   // 选择列
   if (props.selectable) {
     cols.push({
@@ -325,13 +320,6 @@ const vxeColumns = computed<VxeColumnDef[]>(() => {
     cols.push(vxeCol)
   })
 
-  // 🐛 调试：输出最终列定义
-  debugLog('vxeColumns 产出:', cols.length, '列')
-  if (cols.length > 0) {
-    debugLog('  列 fields:', cols.map(c => c.field || c.type).join(', '))
-    debugLog('  列 titles:', cols.map(c => c.title || c.type).join(', '))
-  }
-
   return cols
 })
 
@@ -351,9 +339,6 @@ const tableData = computed(() => {
   const keyField = props.rowKey || 'id'
   const seen = new Map<string, boolean>()
   const deduped: any[] = []
-
-  // 🐛 调试
-  debugLog('tableData: dataSource 长度 =', props.dataSource?.length)
 
   for (const item of props.dataSource) {
     const key = item?.[keyField]
@@ -377,9 +362,6 @@ const tableData = computed(() => {
       __empty_row: true,
     })
   }
-
-  // 🐛 调试
-  debugLog('tableData: 最终行数 =', deduped.length, '(真实:', deduped.length - emptyCount, '填充:', emptyCount, ')')
 
   return deduped
 })
@@ -482,17 +464,11 @@ const containerRef = ref<HTMLDivElement | null>(null)
 let resizeObserver: ResizeObserver | null = null
 
 function updateTableHeight() {
-  // 🐛 调试
-  debugLog('updateTableHeight 开始执行')
-
   // 获取容器元素
   nextTick(() => {
     const container = containerRef.value
     if (!container) {
-      const fallback = Math.max(300, window.innerHeight - 300)
-      // 🐛 调试
-      debugLog('updateTableHeight: container 不存在，使用 fallback height =', fallback)
-      tableHeight.value = fallback
+      tableHeight.value = Math.max(300, window.innerHeight - 300)
       return
     }
 
@@ -510,9 +486,6 @@ function updateTableHeight() {
 
     const containerHeight = container.getBoundingClientRect().height
     tableHeight.value = Math.max(200, containerHeight - fixedHeight)
-
-    // 🐛 调试
-    debugLog('updateTableHeight: containerHeight =', containerHeight, 'fixedHeight =', fixedHeight, 'tableHeight =', tableHeight.value)
   })
 }
 
@@ -526,56 +499,7 @@ defineExpose({
 
 // ========== 生命周期 ==========
 onMounted(() => {
-  // 🐛 调试
-  debugLog('>>>> 组件挂载 <<<<')
-  debugLog('  props.columns:', props.columns)
-  debugLog('  props.dataSource:', props.dataSource)
-  debugLog('  props.rowKey:', props.rowKey)
-  debugLog('  tableRef.value 存在:', !!tableRef.value)
-  debugLog('  containerRef.value 存在:', !!containerRef.value)
-
   updateTableHeight()
-
-  // 🐛 调试（延迟检查 DOM + 样式）
-  setTimeout(() => {
-    if (containerRef.value) {
-      const vxeTableEl = containerRef.value.querySelector('.vxe-table')
-      const vxeHeaderWrapper = containerRef.value.querySelector('.vxe-table--header-wrapper')
-      const vxeHeader = containerRef.value.querySelector('.vxe-table--header')
-      const vxeBody = containerRef.value.querySelector('.vxe-table--body')
-      debugLog('  [延迟检查] .vxe-table 存在:', !!vxeTableEl)
-      debugLog('  [延迟检查] .vxe-header-wrapper 存在:', !!vxeHeaderWrapper)
-      debugLog('  [延迟检查] .vxe-header 存在:', !!vxeHeader)
-      debugLog('  [延迟检查] .vxe-body 存在:', !!vxeBody)
-      debugLog('  [延迟检查] container 高度:', containerRef.value.getBoundingClientRect().height)
-      debugLog('  [延迟检查] tableHeight:', tableHeight.value)
-
-      if (vxeTableEl) {
-        const cs = window.getComputedStyle(vxeTableEl)
-        debugLog('  [CSS] table display:', cs.display, 'visibility:', cs.visibility, 'opacity:', cs.opacity)
-        debugLog('  [CSS] table height:', cs.height, 'width:', cs.width)
-
-        if (vxeHeaderWrapper) {
-          const hws = window.getComputedStyle(vxeHeaderWrapper)
-          debugLog('  [CSS] header-wrapper display:', hws.display, 'height:', hws.height, 'overflow:', hws.overflow)
-          debugLog('  [HTML] header-wrapper innerHTML:', vxeHeaderWrapper.innerHTML.substring(0, 500))
-        } else {
-          debugLog('  [HTML] ⚠️ header-wrapper 不存在，vxe-table 完整 innerHTML:')
-          debugLog('  [HTML]', vxeTableEl.innerHTML.substring(0, 800))
-        }
-
-        if (vxeHeader) {
-          const hcs = window.getComputedStyle(vxeHeader)
-          debugLog('  [CSS] header display:', hcs.display, 'height:', hcs.height)
-          debugLog('  [HTML] header innerHTML:', vxeHeader.innerHTML.substring(0, 500))
-        }
-
-        if (vxeBody) {
-          debugLog('  [HTML] body innerHTML 前300字:', vxeBody.innerHTML.substring(0, 300))
-        }
-      }
-    }
-  }, 500)
 
   // 使用 ResizeObserver 精确监听容器尺寸变化
   if (containerRef.value) {
@@ -594,8 +518,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // 🐛 调试
-  debugLog('>>>> 组件卸载 <<<<')
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null
@@ -683,6 +605,10 @@ watch(() => props.pagination, (p) => {
 
 .table-empty-text {
   color: #999;
+  margin-top: 12px;
+}
+
+.table-empty-action {
   margin-top: 12px;
 }
 

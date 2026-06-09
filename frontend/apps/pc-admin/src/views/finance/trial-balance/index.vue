@@ -1,5 +1,28 @@
 <template>
-  <div class="trial-balance-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="trial-balance-header">
+        <div class="trial-balance-header-left">
+          <a-breadcrumb class="trial-balance-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>试算平衡表</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="trial-balance-header-title">试算平衡表</h2>
+        </div>
+        <div class="trial-balance-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <div class="trial-balance-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-subjects">
@@ -85,18 +108,23 @@
         </template>
       </VxeTableList>
     </a-card>
-  </div>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import dayjs from 'dayjs'
 import { accountingApi, type TrialBalanceItem } from '@/api/finance/accounting'
 
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const periodDate = ref(dayjs())
 const rawItems = ref<TrialBalanceItem[]>([])
 const totals = ref({
@@ -161,10 +189,12 @@ function formatAmount(amount: number): string {
 
 async function fetchData() {
   loading.value = true
+  refreshLoading.value = true
   try {
     const period = periodDate.value?.format('YYYY-MM')
     const res = await accountingApi.getTrialBalance({ accountingPeriod: period })
     rawItems.value = res.data?.items || []
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     totals.value = {
       totalOpeningDebit: res.data?.totalOpeningDebit || 0,
       totalOpeningCredit: res.data?.totalOpeningCredit || 0,
@@ -173,10 +203,12 @@ async function fetchData() {
       totalClosingDebit: res.data?.totalClosingDebit || 0,
       totalClosingCredit: res.data?.totalClosingCredit || 0
     }
-  } catch {
+  } catch (err) {
+    console.warn('获取试算平衡表失败', err)
     message.error('获取试算平衡表失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -184,12 +216,72 @@ function handleExport() {
   message.success('导出功能开发中')
 }
 
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.trial-balance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.trial-balance-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.trial-balance-breadcrumb {
+  font-size: 13px;
+}
+.trial-balance-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.trial-balance-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .trial-balance-page {
   padding: 16px;
   height: 100%;

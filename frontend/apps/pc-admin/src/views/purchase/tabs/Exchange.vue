@@ -126,14 +126,21 @@
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-modal
+    <!-- 详情全屏覆盖层 -->
+    <a-drawer
       v-model:open="detailVisible"
       title="换货单详情"
-      width="800px"
-      centered
-      :footer="null"
+      placement="right"
+      width="80vw"
+      class="exchange-detail-drawer"
     >
+      <template #extra>
+        <a-space>
+          <a-button v-if="currentRecord?.status === 2" type="primary" size="small" @click="handleConfirmExchange">确认换货完成</a-button>
+          <a-button size="small" @click="handlePrintDetail"><PrinterOutlined /> 打印</a-button>
+        </a-space>
+      </template>
+
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="换货单号">{{ currentRecord.exchangeNo }}</a-descriptions-item>
         <a-descriptions-item label="关联订单">
@@ -167,13 +174,7 @@
           :show-batch-delete="false"
         />
       </div>
-
-      <div class="detail-modal-footer">
-        <a-button v-if="currentRecord?.status === 2" type="primary" @click="handleConfirmExchange">确认换货完成</a-button>
-        <a-button @click="handlePrintDetail">打印</a-button>
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建/编辑换货弹窗 -->
     <a-modal
@@ -346,7 +347,7 @@ const detailItemColumns = [
 
 function handleView(record: any) {
   currentRecord.value = record
-  detailItems.value = record.items || mockDetailItems()
+  detailItems.value = record.items || []
   detailVisible.value = true
 }
 
@@ -370,16 +371,9 @@ function handleConfirmExchange() {
     centered: true,
     onOk: async () => {
       try { await purchaseExchangeApi.confirm(currentRecord.value?.id); message.success('换货已完成'); detailVisible.value = false; fetchData() }
-      catch { message.error('操作失败') }
+      catch (e) { console.warn('[采购换货] 确认失败', e); message.error('操作失败') }
     }
   })
-}
-
-function mockDetailItems(): any[] {
-  return [
-    { id: 1, outProductCode: 'M001', outProductName: '物料A（问题）', inProductCode: 'M001-1', inProductName: '物料A（新）', quantity: 10, remark: '' },
-    { id: 2, outProductCode: 'M002', outProductName: '物料B（问题）', inProductCode: 'M002-1', inProductName: '物料B（新）', quantity: 5, remark: '' }
-  ]
 }
 
 // ── 表单状态 ──────────────────────────────────────────
@@ -435,22 +429,15 @@ async function fetchData() {
   try {
     const res = await purchaseExchangeApi.page({ current: pagination.current, size: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
+  } catch (e) {
+    console.warn('[采购换货] 获取列表失败', e)
     message.error('获取换货单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally { loading.value = false }
 }
-
-const mockData = (): any[] => [
-  { id: 1, exchangeNo: 'EX2024010001', orderNo: 'PO2024010001', supplierName: '北京供应商', exchangeDate: '2024-01-15', status: 4, creatorName: '张三', createTime: '2024-01-15 10:00' },
-  { id: 2, exchangeNo: 'EX2024010002', orderNo: 'PO2024010002', supplierName: '上海贸易公司', exchangeDate: '2024-01-18', status: 1, creatorName: '李四', createTime: '2024-01-18 11:00' },
-  { id: 3, exchangeNo: 'EX2024010003', orderNo: 'PO2024010003', supplierName: '广州制造企业', exchangeDate: '2024-01-20', status: 0, creatorName: '王五', createTime: '2024-01-20 09:00' },
-  { id: 4, exchangeNo: 'EX2024010004', orderNo: 'PO2024010004', supplierName: '深圳电子公司', exchangeDate: '2024-01-12', status: 3, creatorName: '张三', createTime: '2024-01-12 14:00' },
-  { id: 5, exchangeNo: 'EX2024010005', orderNo: 'PO2024010005', supplierName: '杭州供应商', exchangeDate: '2024-01-22', status: 2, creatorName: '李四', createTime: '2024-01-22 15:00' }
-]
 
 function handleAdd() { formMode.value = 'add'; resetForm(); formModalVisible.value = true }
 
@@ -469,7 +456,7 @@ async function handleDelete(record: any) {
     title: '删除换货单', content: `确认删除换货单 "${record.exchangeNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await purchaseExchangeApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购换货] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -512,28 +499,28 @@ const handleFormSubmit = async () => {
       message.success('新建换货单成功')
     }
     formModalVisible.value = false; fetchData()
-  } catch { message.error(formMode.value === 'edit' ? '编辑失败' : '新建失败') }
+  } catch (e) { console.warn('[采购换货] 保存失败', e); message.error(formMode.value === 'edit' ? '编辑失败' : '新建失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleSubmit(record: any) {
   Modal.confirm({
     title: '提交换货单', content: `提交换货单 "${record.exchangeNo}" 进行审核？`, okText: '确认提交', centered: true,
-    async onOk() { try { await purchaseExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch { message.error('提交失败') } }
+    async onOk() { try { await purchaseExchangeApi.submit(record.id); message.success('提交成功'); fetchData() } catch (e) { console.warn('[采购换货] 提交失败', e); message.error('提交失败') } }
   })
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批换货单', content: `审批通过换货单 "${record.exchangeNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await purchaseExchangeApi.approve(record.id, { approved: true }); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await purchaseExchangeApi.approve(record.id, { approved: true }); message.success('审批成功'); fetchData() } catch (e) { console.warn('[采购换货] 审批失败', e); message.error('审批失败') } }
   })
 }
 
 function handleConfirm(record: any) {
   Modal.confirm({
     title: '确认换货', content: `确认换货单 "${record.exchangeNo}" 换货完成？`, okText: '确认', centered: true,
-    async onOk() { try { await purchaseExchangeApi.confirm(record.id); message.success('换货已完成'); fetchData() } catch { message.error('操作失败') } }
+    async onOk() { try { await purchaseExchangeApi.confirm(record.id); message.success('换货已完成'); fetchData() } catch (e) { console.warn('[采购换货] 确认失败', e); message.error('操作失败') } }
   })
 }
 
@@ -571,6 +558,8 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters); pagination.current = 1
   clearTimeout(debouncedFetch.value)
@@ -585,12 +574,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('purchase:refresh', fetchData)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('purchase:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -681,12 +675,10 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+/* 详情抽屉 */
+:deep(.exchange-detail-drawer .ant-drawer-body) {
+  padding: 16px 24px;
+  overflow-y: auto;
 }
 
 /* 表单物料区 */

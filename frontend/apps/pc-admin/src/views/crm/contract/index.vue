@@ -238,7 +238,7 @@
     </a-modal>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="合同详情" width="800px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="合同详情" placement="right" width="80vw" :footer="null">
       <a-descriptions :column="2" bordered size="small">
         <a-descriptions-item label="合同编号">
           <span class="contract-no">{{ contractDetail.contractNo }}</span>
@@ -276,7 +276,7 @@
           <a-button v-if="contractDetail.status >= 5" @click="handleRenewApply">续签申请</a-button>
         </a-space>
       </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 签订弹窗 -->
     <a-modal v-model:open="signModalVisible" title="合同签订" width="500px" :confirm-loading="signLoading" @ok="handleSignSubmit" @cancel="signModalVisible = false">
@@ -303,6 +303,7 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { PageContainer } from '@/components'
 import { contractApi } from '@/api/crm'
+import { customerApi } from '@/api/customer'
 import { exportCsv } from '@/utils/exportCsv'
 import {
   EyeOutlined,
@@ -429,13 +430,19 @@ const formRules = {
   endDate: [{ required: true, message: '请选择结束日期' }],
   contractAmount: [{ required: true, message: '请输入合同金额' }]
 }
-const customerList = ref([
-  { id: 1, name: '北京科技有限公司' },
-  { id: 2, name: '上海贸易公司' },
-  { id: 3, name: '广州制造企业' },
-  { id: 4, name: '深圳电子公司' },
-  { id: 5, name: '杭州互联网公司' }
-])
+const customerList = ref<{ id: number; name: string }[]>([])
+
+async function fetchCustomerList() {
+  try {
+    const res = await customerApi.getPage({ pageNum: 1, pageSize: 9999 })
+    const pageData = (res as any).data ?? res
+    const records = pageData?.records || []
+    customerList.value = records.map((r: any) => ({ id: r.id, name: r.name || '' }))
+  } catch {
+    customerList.value = []
+    console.warn('[合同管理] 加载客户列表失败')
+  }
+}
 const contractDetail = ref<any>({})
 const signForm = reactive({ contractId: undefined, contractName: '', signDate: undefined as any, signPerson: '' })
 
@@ -459,6 +466,7 @@ const stopAutoRefresh = () => {
 
 onMounted(() => {
   fetchData()
+  fetchCustomerList()
   startAutoRefresh()
 })
 
@@ -488,25 +496,19 @@ async function fetchData(silent = false) {
     }))
     pagination.total = result.total ?? result.data?.total ?? 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
       message.error('获取合同数据失败')
     }
-    tableData.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[CRM合同] 获取合同数据失败', err)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     if (!silent) loading.value = false
   }
 }
 
-const mockData = () => [
-  { id: 1, contractNo: 'CT2024010001', contractName: 'ERP系统销售合同', customerName: '北京科技有限公司', contractTypeLabel: '销售合同', contractAmount: 580000, startDate: '2024-01-01', endDate: '2024-12-31', status: 5, createTime: '2024-01-10 10:00', signDate: '2024-01-05', signPerson: '张三' },
-  { id: 2, contractNo: 'CT2024010002', contractName: '智能制造升级合同', customerName: '上海贸易公司', contractTypeLabel: '服务合同', contractAmount: 320000, startDate: '2024-02-01', endDate: '2025-01-31', status: 3, createTime: '2024-01-12 11:00' },
-  { id: 3, contractNo: 'CT2024010003', contractName: '数据分析平台合同', customerName: '广州制造企业', contractTypeLabel: '销售合同', contractAmount: 150000, startDate: '2024-03-01', endDate: '2024-08-31', status: 1, createTime: '2024-01-15 09:00' },
-  { id: 4, contractNo: 'CT2024010004', contractName: '云服务迁移合同', customerName: '深圳电子公司', contractTypeLabel: '服务合同', contractAmount: 420000, startDate: '2024-01-15', endDate: '2024-06-30', status: 7, createTime: '2024-01-08 14:00', signDate: '2024-01-10', signPerson: '李四' },
-  { id: 5, contractNo: 'CT2024010005', contractName: '办公设备采购合同', customerName: '杭州互联网公司', contractTypeLabel: '采购合同', contractAmount: 80000, startDate: '2024-01-01', endDate: '2024-01-31', status: 0, createTime: '2024-01-18 15:00' }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -556,7 +558,7 @@ function handleApprove(record: any) {
     centered: true,
     onOk: async () => {
       try { await contractApi.approve(record.id); message.success('审批成功'); fetchData() }
-      catch { message.error('审批失败') }
+      catch (err) { console.warn('[CRM合同] 审批失败', err); message.error('审批失败') }
     }
   })
 }
@@ -578,7 +580,8 @@ async function handleSignSubmit() {
     message.success(`合同"${signForm.contractName}"签订成功`)
     signModalVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM合同] 签订失败', err)
     message.error('签订失败')
   } finally {
     signLoading.value = false
@@ -606,7 +609,7 @@ function handleActionMenuClick(key: string, record: any) {
         centered: true,
         onOk: async () => {
           try { await contractApi.terminate(record.id, '手动终止'); message.success('合同已终止'); fetchData() }
-          catch { message.error('终止失败') }
+          catch (err) { console.warn('[CRM合同] 终止失败', err); message.error('终止失败') }
         }
       })
       break
@@ -620,7 +623,7 @@ function handleActionMenuClick(key: string, record: any) {
         centered: true,
         onOk: async () => {
           try { await contractApi.terminate(record.id, '删除'); message.success('删除成功'); fetchData() }
-          catch { message.error('删除失败') }
+          catch (err) { console.warn('[CRM合同] 删除失败', err); message.error('删除失败') }
         }
       })
       break
@@ -642,7 +645,7 @@ function handleRenewApply() {
 }
 
 async function handleSubmit() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM合同] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     const data = { ...formData }
@@ -654,7 +657,8 @@ async function handleSubmit() {
     message.success('保存成功')
     modalVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM合同] 保存失败', err)
     message.error('保存失败')
   } finally {
     submitLoading.value = false
@@ -693,6 +697,7 @@ function handleFilterChange(filters: Record<string, any>) {
 function handleSelectionChange(rows: any[], ids: any[]) {
   selectedRowKeys.value = ids
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

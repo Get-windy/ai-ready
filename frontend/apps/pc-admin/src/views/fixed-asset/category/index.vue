@@ -1,109 +1,135 @@
 <template>
-  <div class="category-list-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ treeData.length || 0 }}</div>
-          <div class="stat-card-label">分类总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="category-page-header">
+        <div class="category-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+            <a-breadcrumb-item>分类管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="category-page-header-title">分类管理</h2>
         </div>
-        <FolderOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-root">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ rootCount }}</div>
-          <div class="stat-card-label">根分类数</div>
+        <div class="category-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <ApartmentOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-depth">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ maxDepth }}</div>
-          <div class="stat-card-label">最大层级</div>
+    </template>
+
+    <div class="category-list-page">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ treeData.length || 0 }}</div>
+            <div class="stat-card-label">分类总数</div>
+          </div>
+          <FolderOutlined class="stat-card-icon" />
         </div>
-        <ClusterOutlined class="stat-card-icon" />
+        <div class="stat-card stat-root">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ rootCount }}</div>
+            <div class="stat-card-label">根分类数</div>
+          </div>
+          <ApartmentOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-depth">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ maxDepth }}</div>
+            <div class="stat-card-label">最大层级</div>
+          </div>
+          <ClusterOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <a-row :gutter="16" class="category-content">
+        <a-col :span="10">
+          <a-card title="分类树" class="category-card">
+            <template #extra>
+              <a-button type="primary" size="small" @click="showAddRootModal">添加根分类</a-button>
+            </template>
+            <a-tree
+              v-if="treeData.length > 0"
+              :tree-data="treeData"
+              :default-expand-all="true"
+              @select="onSelect"
+            />
+            <a-empty v-else description="暂无分类数据" />
+          </a-card>
+        </a-col>
+        <a-col :span="14">
+          <a-card :title="selectedCategory ? '分类详情' : '选择分类'" class="category-card">
+            <template v-if="selectedCategory">
+              <a-descriptions :column="1" bordered :label-style="{ fontWeight: 'bold' }">
+                <a-descriptions-item label="分类编码">{{ selectedCategory.categoryCode }}</a-descriptions-item>
+                <a-descriptions-item label="分类名称">{{ selectedCategory.categoryName }}</a-descriptions-item>
+                <a-descriptions-item label="排序">{{ selectedCategory.sortOrder }}</a-descriptions-item>
+                <a-descriptions-item label="默认折旧方法">{{ methodMap[selectedCategory.defaultDepreciationMethod] }}</a-descriptions-item>
+                <a-descriptions-item label="默认使用年限(月)">{{ selectedCategory.defaultUsefulLife }}</a-descriptions-item>
+                <a-descriptions-item label="描述">{{ selectedCategory.description }}</a-descriptions-item>
+              </a-descriptions>
+              <a-space style="margin-top: 16px">
+                <a-button type="primary" @click="showEditModal">编辑</a-button>
+                <a-button @click="showAddChildModal">添加子分类</a-button>
+                <a-popconfirm title="确认删除?" @confirm="handleDelete">
+                  <a-button danger>删除</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+            <a-empty v-else description="请在左侧选择一个分类" />
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <!-- Category Form Modal -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="modalTitle"
+        @ok="handleModalOk"
+        :confirmLoading="modalLoading"
+      >
+        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+          <a-form-item label="分类编码">
+            <a-input v-model:value="formData.categoryCode" placeholder="分类编码" />
+          </a-form-item>
+          <a-form-item label="分类名称" required>
+            <a-input v-model:value="formData.categoryName" placeholder="分类名称" />
+          </a-form-item>
+          <a-form-item label="排序">
+            <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" />
+          </a-form-item>
+          <a-form-item label="默认折旧方法">
+            <a-select v-model:value="formData.defaultDepreciationMethod" placeholder="选择折旧方法">
+              <a-select-option value="straight_line">直线法</a-select-option>
+              <a-select-option value="double_declining">双倍余额递减法</a-select-option>
+              <a-select-option value="sum_of_years">年数总和法</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="默认使用年限(月)">
+            <a-input-number v-model:value="formData.defaultUsefulLife" :min="1" style="width: 100%" />
+          </a-form-item>
+          <a-form-item label="描述">
+            <a-textarea v-model:value="formData.description" :rows="2" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
     </div>
-
-    <a-row :gutter="16" class="category-content">
-      <a-col :span="10">
-        <a-card title="分类树" class="category-card">
-          <template #extra>
-            <a-button type="primary" size="small" @click="showAddRootModal">添加根分类</a-button>
-          </template>
-          <a-tree
-            v-if="treeData.length > 0"
-            :tree-data="treeData"
-            :default-expand-all="true"
-            @select="onSelect"
-          />
-          <a-empty v-else description="暂无分类数据" />
-        </a-card>
-      </a-col>
-      <a-col :span="14">
-        <a-card :title="selectedCategory ? '分类详情' : '选择分类'" class="category-card">
-          <template v-if="selectedCategory">
-            <a-descriptions :column="1" bordered :label-style="{ fontWeight: 'bold' }">
-              <a-descriptions-item label="分类编码">{{ selectedCategory.categoryCode }}</a-descriptions-item>
-              <a-descriptions-item label="分类名称">{{ selectedCategory.categoryName }}</a-descriptions-item>
-              <a-descriptions-item label="排序">{{ selectedCategory.sortOrder }}</a-descriptions-item>
-              <a-descriptions-item label="默认折旧方法">{{ methodMap[selectedCategory.defaultDepreciationMethod] }}</a-descriptions-item>
-              <a-descriptions-item label="默认使用年限(月)">{{ selectedCategory.defaultUsefulLife }}</a-descriptions-item>
-              <a-descriptions-item label="描述">{{ selectedCategory.description }}</a-descriptions-item>
-            </a-descriptions>
-            <a-space style="margin-top: 16px">
-              <a-button type="primary" @click="showEditModal">编辑</a-button>
-              <a-button @click="showAddChildModal">添加子分类</a-button>
-              <a-popconfirm title="确认删除?" @confirm="handleDelete">
-                <a-button danger>删除</a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-          <a-empty v-else description="请在左侧选择一个分类" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- Category Form Modal -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      @ok="handleModalOk"
-      :confirmLoading="modalLoading"
-    >
-      <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="分类编码">
-          <a-input v-model:value="formData.categoryCode" placeholder="分类编码" />
-        </a-form-item>
-        <a-form-item label="分类名称" required>
-          <a-input v-model:value="formData.categoryName" placeholder="分类名称" />
-        </a-form-item>
-        <a-form-item label="排序">
-          <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="默认折旧方法">
-          <a-select v-model:value="formData.defaultDepreciationMethod" placeholder="选择折旧方法">
-            <a-select-option value="straight_line">直线法</a-select-option>
-            <a-select-option value="double_declining">双倍余额递减法</a-select-option>
-            <a-select-option value="sum_of_years">年数总和法</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="默认使用年限(月)">
-          <a-input-number v-model:value="formData.defaultUsefulLife" :min="1" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="描述">
-          <a-textarea v-model:value="formData.description" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { fixedAssetCategoryApi } from '@/api/fixed-asset'
 import { message } from 'ant-design-vue'
-import { FolderOutlined, ApartmentOutlined, ClusterOutlined } from '@ant-design/icons-vue'
+import { FolderOutlined, ApartmentOutlined, ClusterOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 
 interface Category {
   id: number
@@ -124,6 +150,11 @@ const modalLoading = ref(false)
 const isEdit = ref(false)
 const isAddChild = ref(false)
 const editId = ref<number | null>(null)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const rootCount = computed(() => {
@@ -166,11 +197,33 @@ const modalTitle = computed(() => {
 
 onMounted(() => {
   fetchTree()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchTree()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchTree })
+
 function fetchTree() {
+  refreshLoading.value = true
   fixedAssetCategoryApi.getTree().then((res: any) => {
     treeData.value = res.data || []
+  }).catch(() => {
+    console.warn('[分类管理] 加载分类树失败')
+    message.error('加载分类树失败')
+  }).finally(() => {
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   })
 }
 
@@ -179,6 +232,9 @@ function onSelect(keys: any[], info: any) {
     const id = Number(keys[0])
     fixedAssetCategoryApi.getById(id).then((res: any) => {
       selectedCategory.value = res.data
+    }).catch(() => {
+      console.warn('[分类管理] 加载分类详情失败')
+      message.error('加载分类详情失败')
     })
   }
 }
@@ -237,6 +293,7 @@ function handleModalOk() {
     fetchTree()
     selectedCategory.value = null
   }).catch((err: any) => {
+    console.warn('[分类管理] 操作失败', err)
     message.error(err.message || '操作失败')
   }).finally(() => {
     modalLoading.value = false
@@ -250,12 +307,51 @@ function handleDelete() {
     selectedCategory.value = null
     fetchTree()
   }).catch((err: any) => {
+    console.warn('[分类管理] 删除失败', err)
     message.error(err.message || '删除失败')
   })
 }
 </script>
 
 <style scoped>
+.category-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.category-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.category-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.category-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .category-list-page {
   height: 100%;
   display: flex;

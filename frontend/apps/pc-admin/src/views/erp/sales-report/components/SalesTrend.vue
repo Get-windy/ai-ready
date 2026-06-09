@@ -234,14 +234,14 @@ const handleQuery = async () => {
     if (res.data) {
       const d = res.data
       stats.currentPeriod = d.reduce((s: number, v: any) => s + v.sales, 0)
-      trendData.value = mockData()
+      trendData.value = []
       initChart()
     } else {
-      trendData.value = mockData()
+      trendData.value = []
       initChart()
     }
-  } catch {
-    trendData.value = mockData()
+  } catch (err) {
+    trendData.value = []
     initChart()
   } finally {
     loading.value = false
@@ -270,15 +270,6 @@ const handleExport = () => {
   window.URL.revokeObjectURL(url)
   message.success('导出成功')
 }
-
-const mockData = () => [
-  { period: '2024-01', currentSales: 120000, lastSales: 100000, growth: 20.0, orderCount: 45 },
-  { period: '2024-02', currentSales: 150000, lastSales: 130000, growth: 15.4, orderCount: 52 },
-  { period: '2024-03', currentSales: 180000, lastSales: 160000, growth: 12.5, orderCount: 68 },
-  { period: '2024-04', currentSales: 200000, lastSales: 175000, growth: 14.3, orderCount: 75 },
-  { period: '2024-05', currentSales: 220000, lastSales: 190000, growth: 15.8, orderCount: 82 },
-  { period: '2024-06', currentSales: 250000, lastSales: 210000, growth: 19.0, orderCount: 90 }
-]
 
 const initChart = () => {
   nextTick(() => {

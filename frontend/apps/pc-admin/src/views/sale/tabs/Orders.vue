@@ -323,7 +323,7 @@ async function fetchData() {
     }
   } catch (error) {
     // 🐛 调试
-    console.error(DEBUG_TAG, 'fetchData 失败:', error)
+    console.warn('[销售订单] 获取列表失败', error)
     message.error('获取销售订单列表失败')
     dataSource.value = []
   } finally {
@@ -397,7 +397,8 @@ async function handleDelete(record: SaleOrder) {
         await saleOrderApi.delete(record.id)
         message.success('删除成功')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 删除失败', err)
         message.error('删除失败')
       }
     }
@@ -419,7 +420,8 @@ async function handleBatchDelete(ids: number[]) {
         message.success(`成功删除 ${ids.length} 条记录`)
         tableRef.value?.clearSelection()
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 批量删除失败', err)
         message.error('批量删除失败')
       }
     }
@@ -453,7 +455,8 @@ async function handleBatchApprove(selectedRows: any[]) {
         message.success(`成功审批 ${validRows.length} 条订单`)
         tableRef.value?.clearSelection()
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 批量审批失败', err)
         message.error('批量审批失败')
       } finally {
         batchApproving.value = false
@@ -471,7 +474,8 @@ async function handleBatchPrint(selectedRows: any[]) {
   try {
     await saleOrderApi.batchPrint(selectedRows.map(r => r.id))
     message.success(`打印任务已提交 (${selectedRows.length} 条)`)
-  } catch {
+  } catch (err) {
+    console.warn('[销售订单] 批量打印失败', err)
     message.error('批量打印失败')
   } finally {
     batchPrinting.value = false
@@ -490,7 +494,8 @@ function handleSubmit(record: SaleOrder) {
         await saleOrderApi.submit(record.id)
         message.success('提交成功')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 提交失败', err)
         message.error('提交失败')
       }
     }
@@ -509,7 +514,8 @@ function handleApprove(record: SaleOrder) {
         await saleOrderApi.approve(record.id)
         message.success('审批成功')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 审批失败', err)
         message.error('审批失败')
       }
     }
@@ -527,7 +533,8 @@ function handlePrint(record: SaleOrder) {
       try {
         await saleOrderApi.print(record.id)
         message.success('打印任务已提交')
-      } catch {
+      } catch (err) {
+        console.warn('[销售订单] 打印失败', err)
         message.error('打印失败')
       }
     }
@@ -612,6 +619,8 @@ function handleKeydown(e: KeyboardEvent) {
     handleAdd()
   }
 }
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

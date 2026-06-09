@@ -6,6 +6,8 @@ import cn.aiedge.erp.purchase.entity.PurchaseOrder;
 import cn.aiedge.erp.purchase.entity.PurchaseOrderItem;
 import cn.aiedge.erp.purchase.mapper.PurchaseOrderItemMapper;
 import cn.aiedge.erp.purchase.service.PurchaseOrderService;
+import java.time.LocalDate;
+import java.util.Map;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -86,6 +88,17 @@ public class PurchaseOrderController {
     public ApiResponse<Void> approve(@PathVariable Long id) {
         purchaseOrderService.approve(id);
         return ApiResponse.ok("审批通过", null);
+    }
+
+    /**
+     * 批量审批通过
+     */
+    @Operation(summary = "批量审批通过")
+    @PostMapping("/batch-approve")
+    @SaCheckPermission("purchase:order:approve")
+    public ApiResponse<Void> batchApprove(@RequestBody List<Long> ids) {
+        purchaseOrderService.batchApprove(ids);
+        return ApiResponse.ok("批量审批通过", null);
     }
 
     /**
@@ -174,5 +187,17 @@ public class PurchaseOrderController {
             @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
         List<PurchaseOrder> list = purchaseOrderService.exportOrders(tenantId, orderNo, supplierId, status);
         return ApiResponse.ok(list);
+    }
+
+    /**
+     * 获取采购统计概览
+     */
+    @Operation(summary = "获取采购统计概览")
+    @GetMapping("/stats")
+    public ApiResponse<Map<String, Object>> getPurchaseStats(
+            @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId) {
+        LocalDate now = LocalDate.now();
+        Map<String, Object> stats = purchaseOrderService.getPurchaseStatistics(tenantId, now.withDayOfMonth(1), now);
+        return ApiResponse.ok(stats);
     }
 }

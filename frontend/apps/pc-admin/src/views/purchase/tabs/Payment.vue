@@ -123,14 +123,21 @@
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-modal
+    <!-- 详情全屏覆盖层 -->
+    <a-drawer
       v-model:open="detailVisible"
       title="付款单详情"
-      width="700px"
-      centered
-      :footer="null"
+      placement="right"
+      width="80vw"
+      class="payment-detail-drawer"
     >
+      <template #extra>
+        <a-space>
+          <a-button v-if="currentRecord?.status === 1" type="primary" size="small" @click="handleApprove(currentRecord)">审批通过</a-button>
+          <a-button size="small" @click="handlePrintDetail"><PrinterOutlined /> 打印</a-button>
+        </a-space>
+      </template>
+
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="付款单号">{{ currentRecord.paymentNo }}</a-descriptions-item>
         <a-descriptions-item label="采购订单">
@@ -150,13 +157,7 @@
         <a-descriptions-item label="经办人">{{ currentRecord.operatorName || '-' }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-
-      <div class="detail-modal-footer">
-        <a-button v-if="currentRecord?.status === 1" type="primary" @click="handleApprove(currentRecord)">审批通过</a-button>
-        <a-button @click="handlePrintDetail">打印</a-button>
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建付款弹窗 -->
     <a-modal
@@ -405,22 +406,15 @@ async function fetchData() {
   try {
     const res = await paymentApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
+  } catch (e) {
+    console.warn('[采购付款] 获取列表失败', e)
     message.error('获取付款单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally { loading.value = false }
 }
-
-const mockData = (): any[] => [
-  { id: 1, paymentNo: 'PAY2024010001', orderNo: 'PO2024010001', supplierName: '北京供应商', paymentDate: '2024-01-15', paymentAmount: 58000, paymentMethod: 1, status: 2, operatorName: '张三', createTime: '2024-01-15 10:00' },
-  { id: 2, paymentNo: 'PAY2024010002', orderNo: 'PO2024010002', supplierName: '上海贸易公司', paymentDate: '2024-01-18', paymentAmount: 32000, paymentMethod: 1, status: 1, operatorName: '李四', createTime: '2024-01-18 11:00' },
-  { id: 3, paymentNo: 'PAY2024010003', orderNo: 'PO2024010003', supplierName: '广州制造企业', paymentDate: '2024-01-20', paymentAmount: 15000, paymentMethod: 2, status: 0, operatorName: '王五', createTime: '2024-01-20 09:00' },
-  { id: 4, paymentNo: 'PAY2024010004', orderNo: 'PO2024010004', supplierName: '深圳电子公司', paymentDate: '2024-01-12', paymentAmount: 42000, paymentMethod: 3, status: 3, operatorName: '张三', createTime: '2024-01-12 14:00' },
-  { id: 5, paymentNo: 'PAY2024010005', orderNo: 'PO2024010005', supplierName: '杭州供应商', paymentDate: '2024-01-22', paymentAmount: 8000, paymentMethod: 4, status: 1, operatorName: '李四', createTime: '2024-01-22 15:00' }
-]
 
 function handleAdd() {
   formData.orderNo = ''; formData.paymentAmount = undefined; formData.paymentMethod = 1
@@ -433,7 +427,7 @@ async function handleDelete(record: any) {
     title: '删除付款单', content: `确认删除付款单 "${record.paymentNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await paymentApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购付款] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -466,14 +460,14 @@ const handleFormSubmit = async () => {
       paymentDate: formData.paymentDate, remark: formData.remark
     })
     message.success('新建付款单成功'); formModalVisible.value = false; fetchData()
-  } catch { message.error('新建付款单失败') }
+  } catch (e) { console.warn('[采购付款] 新建失败', e); message.error('新建付款单失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批付款单', content: `审批通过付款单 "${record.paymentNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await paymentApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await paymentApi.approve(record.id); message.success('审批成功'); fetchData() } catch (e) { console.warn('[采购付款] 审批失败', e); message.error('审批失败') } }
   })
 }
 
@@ -516,6 +510,7 @@ const handlePrintCheckAll = (e: any) => {
 const handlePrintAll = () => {
   const toPrint = printItems.value.filter((item: any) => item.checked)
   if (toPrint.length === 0) { message.warning('请选择要打印的付款单'); return }
+  console.warn('[采购付款] 模拟打印任务（无后端接口）', toPrint);
   message.success(`正在发送 ${toPrint.length} 个付款单的打印任务...`)
   batchPrintModalVisible.value = false
 }
@@ -533,6 +528,8 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters); pagination.current = 1
   clearTimeout(debouncedFetch.value)
@@ -547,12 +544,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('purchase:refresh', fetchData)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('purchase:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -641,13 +643,10 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
-/* 详情弹窗 */
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+/* 详情抽屉 */
+:deep(.payment-detail-drawer .ant-drawer-body) {
+  padding: 16px 24px;
+  overflow-y: auto;
 }
 
 /* 批量打印 */

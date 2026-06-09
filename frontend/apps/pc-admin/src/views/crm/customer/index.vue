@@ -451,8 +451,9 @@ const fetchKanbanData = async () => {
     const res = await customerApi.getPage({ tenantId: userStore.tenantId, pageNum: 1, pageSize: 9999 })
     const pageData = (res as any).data
     kanbanData.value = pageData?.records || []
-  } catch {
-    kanbanData.value = dataSource.value.slice()
+  } catch (err) {
+    console.warn('[CRM客户] 加载看板数据失败', err)
+    kanbanData.value = []
   } finally {
     kanbanLoading = false
   }
@@ -537,13 +538,14 @@ async function fetchData(silent = false) {
     dataSource.value = pageData?.records || []
     pagination.total = pageData?.total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
       message.error('加载客户列表失败')
     }
-    dataSource.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[CRM客户] 加载客户列表失败', err)
+    dataSource.value = []
+    pagination.total = 0
   } finally {
     if (!silent) loading.value = false
   }
@@ -663,7 +665,7 @@ function handleActionMenuClick(key: string, record: any) {
 }
 
 async function handleModalOk() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM客户] 表单验证失败', err); return }
   modalLoading.value = true
   try {
     if (isEdit.value) {
@@ -676,7 +678,8 @@ async function handleModalOk() {
     modalVisible.value = false
     kanbanData.value = []
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM客户] 保存客户失败', err)
     message.error(isEdit.value ? '更新失败' : '创建失败')
   } finally {
     modalLoading.value = false
@@ -694,7 +697,8 @@ async function handleDelete(record: any) {
         message.success('删除成功')
         kanbanData.value = []
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[CRM客户] 删除客户失败', err)
         message.error('删除失败')
       }
     }
@@ -714,7 +718,8 @@ async function handleFollowModalOk() {
     })
     message.success('跟进记录添加成功')
     followModalVisible.value = false
-  } catch {
+  } catch (err) {
+    console.warn('[CRM客户] 添加跟进记录失败', err)
     message.error('添加失败')
   } finally {
     followModalLoading.value = false
@@ -779,7 +784,8 @@ async function handleImportConfirm() {
     importVisible.value = false
     kanbanData.value = []
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM客户] 导入客户失败', err)
     message.error('导入失败，请检查文件格式')
   } finally {
     importLoading.value = false
@@ -796,16 +802,6 @@ function handleExport() {
   exportCsv(headers, rows, '客户数据')
 }
 
-// Mock数据
-const mockData = () => [
-  { id: 1, name: '北京科技有限公司', code: 'C001', contactPerson: '张总', phone: '13800138001', level: 1, industry: 'IT', status: 0, createTime: '2024-01-10 10:00:00' },
-  { id: 2, name: '上海贸易集团', code: 'C002', contactPerson: '李经理', phone: '13800138002', level: 2, industry: '制造业', status: 0, createTime: '2024-01-11 11:00:00' },
-  { id: 3, name: '广州制造公司', code: 'C003', contactPerson: '王主任', phone: '13800138003', level: 2, industry: '制造业', status: 0, createTime: '2024-01-12 09:00:00' },
-  { id: 4, name: '深圳创新科技', code: 'C004', contactPerson: '赵总监', phone: '13800138004', level: 3, industry: 'IT', status: 0, createTime: '2024-01-13 14:00:00' },
-  { id: 5, name: '杭州互联网公司', code: 'C005', contactPerson: '孙经理', phone: '13800138005', level: 3, industry: 'IT', status: 1, createTime: '2024-01-14 15:00:00' },
-  { id: 6, name: '成都科技发展', code: 'C006', contactPerson: '周总', phone: '13800138006', level: 4, industry: '金融', status: 0, createTime: '2024-01-15 16:00:00' }
-]
-
 // 监听视图切换
 watch(currentView, (val) => {
   if (val === 'kanban') {
@@ -821,6 +817,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoRefresh()
 })
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

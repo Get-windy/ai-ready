@@ -11,6 +11,9 @@
             </span>
             <span v-if="hasError" class="error-text">数据加载异常</span>
           </span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-tooltip title="自动刷新 (每30秒)">
             <a-switch v-model:checked="autoRefresh" size="small" />
           </a-tooltip>
@@ -139,10 +142,11 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="销售订单详情"
-      :width="800"
+      placement="right"
+      width="80vw"
       :footer="null"
       destroy-on-close
     >
@@ -200,7 +204,7 @@
         </template>
       </VxeTableList>
       <a-empty v-else description="暂无订单明细" />
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建/编辑表单弹窗 -->
     <a-modal
@@ -298,7 +302,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ReloadOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import { salesOrderApi, OrderStatus, type SalesOrder } from '@/api/order'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -319,7 +323,9 @@ const tableData = ref<SalesOrder[]>([])
 const tableRef = ref()
 const lastUpdateTime = ref<string>('')
 const autoRefresh = ref(false)
+const autoRefreshCountdown = ref(0)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const draftCount = computed(() => tableData.value.filter(r => r.status === OrderStatus.DRAFT).length)
@@ -470,6 +476,7 @@ const fetchData = async () => {
     }
   } catch (error: any) {
     hasError.value = true
+    console.warn('[销售订单] 获取列表失败', error)
     message.error(error?.response?.data?.message || '获取数据失败')
   } finally {
     loading.value = false
@@ -479,8 +486,8 @@ const fetchData = async () => {
 // 错误处理
 const handleError = (error: Error) => {
   hasError.value = true
+  console.warn('[销售订单] 页面错误', error)
   message.error(`页面错误: ${error.message}`)
-  console.error('Page error:', error)
 }
 
 // 离开拦截（表单未保存时提醒）
@@ -506,21 +513,23 @@ onBeforeRouteLeave((to, from, next) => {
 // 自动刷新
 watch(autoRefresh, (enabled) => {
   if (enabled) {
+    autoRefreshCountdown.value = 30
     refreshTimer = setInterval(() => {
       fetchData()
+      autoRefreshCountdown.value = 30
     }, 30000) // 每30秒刷新
+    countdownTimer = setInterval(() => {
+      if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+    }, 1000)
   } else {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      refreshTimer = null
-    }
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   }
 })
 
 onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
 
 // ── 事件处理 ────────────────────────────────────────
@@ -578,6 +587,7 @@ const handleView = async (record: SalesOrder) => {
       detailVisible.value = true
     }
   } catch (error: any) {
+    console.warn('[销售订单] 获取详情失败', error)
     message.error(error?.response?.data?.message || '获取详情失败')
   }
 }
@@ -618,6 +628,7 @@ const handleDelete = async (record: SalesOrder) => {
     message.success('删除成功')
     fetchData()
   } catch (error: any) {
+    console.warn('[销售订单] 删除失败', error)
     message.error(error?.response?.data?.message || '删除失败')
   }
 }
@@ -628,6 +639,7 @@ const handleSubmit = async (record: SalesOrder) => {
     message.success('提交成功，等待审批')
     fetchData()
   } catch (error: any) {
+    console.warn('[销售订单] 提交失败', error)
     message.error(error?.response?.data?.message || '提交失败')
   }
 }
@@ -644,6 +656,7 @@ const handleApprove = async (record: SalesOrder) => {
         message.success('审批通过')
         fetchData()
       } catch (error: any) {
+        console.warn('[销售订单] 审批失败', error)
         message.error(error?.response?.data?.message || '审批失败')
       }
     },
@@ -659,6 +672,7 @@ const handleApprove = async (record: SalesOrder) => {
             message.success('已拒绝')
             fetchData()
           } catch (error: any) {
+            console.warn('[销售订单] 拒绝失败', error)
             message.error(error?.response?.data?.message || '操作失败')
           }
         }
@@ -673,6 +687,7 @@ const handleCancel = async (record: SalesOrder) => {
     message.success('订单已取消')
     fetchData()
   } catch (error: any) {
+    console.warn('[销售订单] 取消失败', error)
     message.error(error?.response?.data?.message || '取消失败')
   }
 }
@@ -693,6 +708,7 @@ const handleBatchDelete = async (ids: number[]) => {
         tableRef.value?.clearSelection()
         fetchData()
       } catch (error: any) {
+        console.warn('[销售订单] 批量删除失败', error)
         message.error(error?.response?.data?.message || '批量删除失败')
       }
     }
@@ -722,6 +738,7 @@ const handleBatchEditSubmit = async () => {
     tableRef.value?.clearSelection()
     fetchData()
   } catch (error: any) {
+    console.warn('[销售订单] 批量修改失败', error)
     message.error(error?.response?.data?.message || '批量修改失败')
   } finally {
     batchEditLoading.value = false
@@ -756,6 +773,7 @@ const handleExport = async () => {
       message.success('导出成功')
     }
   } catch (error: any) {
+    console.warn('[销售订单] 导出失败', error)
     message.error(error?.response?.data?.message || '导出失败')
   } finally {
     hide()
@@ -779,6 +797,7 @@ const handleFormSubmit = async () => {
     fetchData()
   } catch (error: any) {
     if (error?.errorFields) return // 表单校验错误
+    console.warn('[销售订单] 表单提交失败', error)
     message.error(error?.response?.data?.message || '操作失败')
   } finally {
     formLoading.value = false
@@ -799,24 +818,31 @@ const filterCustomerOption = (input: string, option: any) => {
 
 onMounted(() => {
   fetchData()
-  // 加载客户选项（实际项目中从 API 获取）
-  customerOptions.value = [
-    { id: 1, name: '北京科技有限公司' },
-    { id: 2, name: '上海贸易有限公司' },
-    { id: 3, name: '广州制造有限公司' }
-  ]
+  // 加载客户选项
+  loadCustomerOptions()
   // 更新搜索栏选项
-  searchFields[1].options = customerOptions.value.map(c => ({ label: c.name, value: c.id }))
   searchFields[2].options = Object.entries(SALES_ORDER_STATUS).map(([k, v]) => ({
     label: v.text,
     value: Number(k)
   }))
-  filterFields[1].options = customerOptions.value.map(c => ({ label: c.name, value: c.id }))
   filterFields[2].options = Object.entries(SALES_ORDER_STATUS).map(([k, v]) => ({
     label: v.text,
     value: Number(k)
   }))
 })
+
+async function loadCustomerOptions() {
+  try {
+    const { customerApi } = await import('@/api/customer')
+    const res = await customerApi.getOptions()
+    customerOptions.value = (res.data || res || []).map((c: any) => ({ id: c.id, name: c.name }))
+  } catch (e) {
+    console.warn('[销售订单] 加载客户选项失败', e)
+    customerOptions.value = []
+  }
+  searchFields[1].options = customerOptions.value.map(c => ({ label: c.name, value: c.id }))
+  filterFields[1].options = customerOptions.value.map(c => ({ label: c.name, value: c.id }))
+}
 </script>
 
 <style scoped>
@@ -857,6 +883,18 @@ onMounted(() => {
 .stat-card-icon {
   font-size: 28px;
   color: rgba(0, 0, 0, 0.15);
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .currency-value {

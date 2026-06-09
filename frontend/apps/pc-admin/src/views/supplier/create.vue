@@ -239,8 +239,8 @@ const handleReset = () => {
 const handleSubmit = async () => {
   try {
     await formRef.value?.validate()
-  } catch {
-    // scroll-to-first-error 自动滚动到第一个错误字段
+  } catch (err) {
+    console.warn('[供应商] 表单验证失败', err)
     return
   }
 
@@ -252,9 +252,11 @@ const handleSubmit = async () => {
   try {
     await supplierApi.create({ ...form })
     formDirty.value = false
+    console.warn('[供应商] 操作成功: 供应商创建成功')
     message.success('供应商创建成功')
     router.push('/supplier')
   } catch (err: any) {
+    console.warn('[供应商] 创建供应商失败', err)
     message.error(err?.response?.data?.message || err?.message || '创建失败，请稍后重试')
   } finally {
     saving.value = false

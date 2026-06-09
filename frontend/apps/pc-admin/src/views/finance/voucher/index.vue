@@ -1,18 +1,26 @@
 <template>
-  <PageContainer title="凭证管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="voucher-header">
+        <div class="voucher-header-left">
+          <a-breadcrumb class="voucher-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>凭证管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="voucher-header-title">凭证管理</h2>
+        </div>
+        <div class="voucher-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="fetchData">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <div class="finance-voucher-page">
@@ -342,7 +350,7 @@ import type { FormInstance } from 'ant-design-vue'
 import {
   SearchOutlined, PlusOutlined, DeleteOutlined, EyeOutlined,
   CheckCircleOutlined, SendOutlined, RollbackOutlined, EllipsisOutlined,
-  InboxOutlined, PrinterOutlined, EditOutlined, DollarOutlined, ReloadOutlined
+  InboxOutlined, PrinterOutlined, EditOutlined, DollarOutlined, ReloadOutlined, SyncOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -386,6 +394,8 @@ const reverseReason = ref('')
 const addFormRef = ref<FormInstance>()
 const lastUpdateTime = ref('')
 const lastUpdated = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
 
 const searchForm = reactive({
   fiscalYear: dayjs().year(),
@@ -503,6 +513,7 @@ function formatAmount(val: number): string {
 
 const fetchData = async () => {
   loading.value = true
+  refreshLoading.value = true
   try {
     const params: Record<string, any> = {
       pageNum: pagination.current,
@@ -515,27 +526,19 @@ const fetchData = async () => {
 
     const res = await voucherApi.getPage(params)
     if (res.data) {
-      tableData.value = res.data.records || res.data.list || mockData()
-      pagination.total = res.data.total || mockData().length
+      tableData.value = res.data.records || res.data.list || []
+      pagination.total = res.data.total || 0
       lastUpdated.value = new Date().toISOString()
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
+    console.warn('加载凭证数据失败', err)
     message.error('加载凭证数据失败')
-    tableData.value = mockData()
-    pagination.total = mockData().length
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
-
-const mockData = (): Voucher[] => [
-  { id: 1, voucherNo: 'V2024010001', voucherDate: '2024-01-10', fiscalYear: 2024, fiscalPeriod: 1, status: 2, debitTotal: 50000, creditTotal: 50000, createdBy: '张三', summary: '采购入库' },
-  { id: 2, voucherNo: 'V2024010002', voucherDate: '2024-01-15', fiscalYear: 2024, fiscalPeriod: 1, status: 1, debitTotal: 32000, creditTotal: 32000, createdBy: '李四', summary: '销售收款' },
-  { id: 3, voucherNo: 'V2024010003', voucherDate: '2024-01-20', fiscalYear: 2024, fiscalPeriod: 1, status: 0, debitTotal: 15000, creditTotal: 15000, createdBy: '王五', summary: '费用报销' },
-  { id: 4, voucherNo: 'V2024010004', voucherDate: '2024-01-12', fiscalYear: 2024, fiscalPeriod: 1, status: 3, debitTotal: 8000, creditTotal: 8000, createdBy: '张三', summary: '已冲销凭证' },
-  { id: 5, voucherNo: 'V2024010005', voucherDate: '2024-01-22', fiscalYear: 2024, fiscalPeriod: 1, status: 2, debitTotal: 28000, creditTotal: 28000, createdBy: '李四', summary: '工资发放' }
-]
 
 const handlePageChange = (page: number, pageSize: number) => {
   pagination.current = page
@@ -593,7 +596,7 @@ const getTotalCredit = () => {
 }
 
 const handleAddModalOk = async () => {
-  try { await addFormRef.value?.validate() } catch { return }
+  try { await addFormRef.value?.validate() } catch (err) { console.warn('[凭证管理] 表单校验失败', err); return }
   if (addForm.entries.length === 0) { message.warning('请至少添加一条分录'); return }
   const debit = addForm.entries.reduce((s, e) => s + (e.debitAmount || 0), 0)
   const credit = addForm.entries.reduce((s, e) => s + (e.creditAmount || 0), 0)
@@ -614,7 +617,8 @@ const handleAddModalOk = async () => {
     message.success('凭证创建成功')
     addModalVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[凭证管理] 创建凭证失败', err)
     message.error('创建凭证失败')
   } finally {
     addModalLoading.value = false
@@ -638,7 +642,8 @@ const handleAudit = async (record: Voucher) => {
         message.success('审核成功')
         detailVisible.value = false
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[凭证管理] 审核失败', err)
         message.error('审核失败')
       }
     }
@@ -657,7 +662,8 @@ const handlePost = async (record: Voucher) => {
         message.success('过账成功')
         detailVisible.value = false
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[凭证管理] 过账失败', err)
         message.error('过账失败')
       }
     }
@@ -682,7 +688,8 @@ const handleReverseConfirm = async () => {
     reverseModalVisible.value = false
     detailVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[凭证管理] 冲销失败', err)
     message.error('冲销失败')
   } finally {
     reverseLoading.value = false
@@ -696,15 +703,9 @@ const handleView = async (record: Voucher) => {
       currentVoucher.value = res.data
       detailVisible.value = true
     }
-  } catch {
-    currentVoucher.value = {
-      ...record,
-      entries: [
-        { id: 1, summary: record.summary, subjectName: '银行存款', debitAmount: record.debitTotal, creditAmount: 0 },
-        { id: 2, summary: record.summary, subjectName: '主营业务收入', debitAmount: 0, creditAmount: record.creditTotal }
-      ]
-    }
-    detailVisible.value = true
+  } catch (err) {
+    console.warn('获取凭证详情失败', err)
+    message.error('获取凭证详情失败')
   }
 }
 
@@ -735,6 +736,7 @@ const handleExport = () => {
   a.download = `凭证列表_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[凭证管理] 导出成功', tableData.value.length)
   message.success('导出成功')
 }
 
@@ -742,14 +744,30 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -759,6 +777,43 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
+
+.voucher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.voucher-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.voucher-breadcrumb {
+  font-size: 13px;
+}
+.voucher-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.voucher-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .data-status {

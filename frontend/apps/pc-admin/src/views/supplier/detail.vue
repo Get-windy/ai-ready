@@ -291,6 +291,7 @@ const loadSupplierDetail = async () => {
     if (isNaN(id)) { error.value = '无效的供应商ID'; return }
     supplier.value = await supplierApi.getById(id)
   } catch (err: any) {
+    console.warn('[供应商] 获取详情失败', err)
     error.value = err?.message || '获取供应商详情失败'
   } finally {
     loading.value = false
@@ -302,7 +303,7 @@ const loadPerformances = async () => {
     const id = Number(route.params.id)
     if (isNaN(id)) return
     performances.value = (await supplierApi.getPerformanceHistory(id)) || []
-  } catch { performances.value = [] }
+  } catch (err) { console.warn('[供应商] 加载绩效记录失败', err); performances.value = [] }
 }
 
 const loadInquiries = async () => {
@@ -310,7 +311,7 @@ const loadInquiries = async () => {
     const id = Number(route.params.id)
     if (isNaN(id)) return
     inquiries.value = (await supplierApi.getInquiries(id)) || []
-  } catch { inquiries.value = [] }
+  } catch (err) { console.warn('[供应商] 加载询价记录失败', err); inquiries.value = [] }
 }
 
 const loadPointsRecords = async () => {
@@ -318,7 +319,7 @@ const loadPointsRecords = async () => {
     const id = Number(route.params.id)
     if (isNaN(id)) return
     pointsRecords.value = (await supplierApi.getPointsRecords(id)) || []
-  } catch { pointsRecords.value = [] }
+  } catch (err) { console.warn('[供应商] 加载积分记录失败', err); pointsRecords.value = [] }
 }
 
 // ── 操作 ──────────────────────────────────────────────
@@ -333,7 +334,8 @@ const handlePrev = async () => {
   try {
     await supplierApi.getById(prevId)
     router.push(`/supplier/detail/${prevId}`)
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 上一条记录不存在', err)
     message.warning('已是第一条')
   }
 }
@@ -343,7 +345,8 @@ const handleNext = async () => {
   try {
     await supplierApi.getById(nextId)
     router.push(`/supplier/detail/${nextId}`)
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 下一条记录不存在', err)
     message.warning('已是最后一条')
   }
 }
@@ -372,11 +375,13 @@ const handleAddPointsOk = async () => {
       reason: addPointsForm.value.reason,
       date: addPointsForm.value.date
     })
+    console.warn('[供应商] 操作成功: 增加积分')
     message.success(`成功增加 ${addPointsForm.value.points} 积分`)
     addPointsVisible.value = false
     loadSupplierDetail()
     loadPointsRecords()
   } catch (err: any) {
+    console.warn('[供应商] 增加积分失败', err)
     message.error(err?.message || '增加积分失败')
   } finally {
     addPointsSubmitting.value = false
@@ -409,11 +414,13 @@ const handleConsumePointsOk = async () => {
       reason: consumePointsForm.value.reason,
       date: consumePointsForm.value.date
     })
+    console.warn('[供应商] 操作成功: 消费积分')
     message.success(`成功消费 ${consumePointsForm.value.points} 积分`)
     consumePointsVisible.value = false
     loadSupplierDetail()
     loadPointsRecords()
   } catch (err: any) {
+    console.warn('[供应商] 积分消费失败', err)
     message.error(err?.message || '积分消费失败')
   } finally {
     consumePointsSubmitting.value = false
@@ -453,4 +460,6 @@ onMounted(() => {
   loadInquiries()
   loadPointsRecords()
 })
+
+defineExpose({ handleQuery: loadSupplierDetail })
 </script>

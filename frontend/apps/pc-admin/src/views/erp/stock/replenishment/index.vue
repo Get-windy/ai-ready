@@ -1,5 +1,26 @@
 <template>
-  <div class="replenishment-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="replenishment-page-header">
+        <div class="replenishment-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>智能补货</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="replenishment-page-title">智能补货建议</h2>
+        </div>
+        <div class="replenishment-page-header-right">
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="loading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -186,10 +207,11 @@
       </a-tabs>
     </a-card>
 
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="补货建议详情"
-      width="700px"
+      placement="right"
+      width="80vw"
       :footer="null"
     >
       <a-descriptions :column="2" bordered>
@@ -217,7 +239,7 @@
 
       <a-divider>销售趋势分析</a-divider>
       <div ref="salesTrendChartRef" class="chart-container"></div>
-    </a-modal>
+    </a-drawer>
 
     <a-modal
       v-model:open="ignoreVisible"
@@ -299,18 +321,23 @@
       <a-divider>优先级分布</a-divider>
       <div ref="priorityChartRef" class="chart-container"></div>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
 
 const loading = ref(false)
+const autoRefreshCountdown = ref(0)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 const activeTab = ref('pending')
 const detailVisible = ref(false)
 const ignoreVisible = ref(false)
@@ -373,37 +400,50 @@ const suggestionDetail = ref<any>({})
 const ignoreData = ref<any>({})
 const createOrderData = ref<any>({})
 const report = ref<any>({
-  totalSuggestions: 15,
-  highPriorityCount: 5,
-  mediumPriorityCount: 7,
-  lowPriorityCount: 3,
-  totalShortageQty: 850,
-  totalSuggestedQty: 1200,
-  estimatedCost: 125000
+  totalSuggestions: 0,
+  highPriorityCount: 0,
+  mediumPriorityCount: 0,
+  lowPriorityCount: 0,
+  totalShortageQty: 0,
+  totalSuggestedQty: 0,
+  estimatedCost: 0
 })
 
 const ignoreReason = ref('')
 const selectedSupplierId = ref<number>()
 
-const supplierList = ref([
-  { id: 1, name: '北京办公用品有限公司' },
-  { id: 2, name: '上海电子设备公司' },
-  { id: 3, name: '广州物流运输公司' }
-])
+const supplierList = ref<any[]>([])
 
 const salesTrendChartRef = ref<HTMLElement>()
 const priorityChartRef = ref<HTMLElement>()
 let salesTrendChart: echarts.ECharts | null = null
 let priorityChart: echarts.ECharts | null = null
 
+const handleRefresh = () => {
+  autoRefreshCountdown.value = 30
+  loadSuggestions()
+}
+
 onMounted(() => {
   loadSuggestions()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadSuggestions()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   salesTrendChart?.dispose()
   priorityChart?.dispose()
 })
+
+defineExpose({ handleQuery: loadSuggestions })
 
 const loadSuggestions = async () => {
   loading.value = true
@@ -418,22 +458,12 @@ const loadSuggestions = async () => {
     statistics.value.processedCount = processedSuggestions.value.length
     statistics.value.estimatedCost = pendingSuggestions.value.reduce((sum, s) => sum + (s.suggestedQty * s.avgPrice || 0), 0)
   } catch (err: any) {
+    console.warn('[智能补货] 获取补货建议失败', err)
     message.error('获取补货建议失败: ' + (err?.message || ''))
-    // Mock 数据
-    pendingSuggestions.value = mockSuggestions()
-    statistics.value.pendingCount = pendingSuggestions.value.length
-    statistics.value.highPriorityCount = pendingSuggestions.value.filter(s => s.priority >= 80).length
-    statistics.value.estimatedCost = pendingSuggestions.value.reduce((sum, s) => sum + (s.suggestedQty * 100 || 0), 0)
   } finally {
     loading.value = false
   }
 }
-
-const mockSuggestions = () => [
-  { id: 1, productName: '工业传感器', productCode: 'P001', currentQty: 50, safetyStock: 100, shortageQty: 50, avgDailySales: 5, daysOfStock: 10, leadTime: 7, suggestedQty: 150, priority: 85, estimatedArrival: '2024-02-01' },
-  { id: 2, productName: '智能控制器', productCode: 'P002', currentQty: 30, safetyStock: 80, shortageQty: 50, avgDailySales: 8, daysOfStock: 4, leadTime: 5, suggestedQty: 200, priority: 90, estimatedArrival: '2024-01-28' },
-  { id: 3, productName: '连接线缆套装', productCode: 'P003', currentQty: 100, safetyStock: 150, shortageQty: 50, avgDailySales: 10, daysOfStock: 10, leadTime: 3, suggestedQty: 100, priority: 60, estimatedArrival: '2024-01-25' }
-]
 
 const generateSuggestions = async () => {
   loading.value = true
@@ -489,14 +519,20 @@ const handleIgnore = (record: any) => {
   ignoreVisible.value = true
 }
 
-const confirmIgnore = () => {
+const confirmIgnore = async () => {
   if (!ignoreReason.value.trim()) {
     message.warning('请输入忽略原因')
     return
   }
-  message.success('建议已忽略')
-  ignoreVisible.value = false
-  loadSuggestions()
+  try {
+    await replenishmentApi.ignore(ignoreData.value.id, ignoreReason.value)
+    message.success('建议已忽略')
+    ignoreVisible.value = false
+    loadSuggestions()
+  } catch (err: any) {
+    console.warn('[智能补货] 忽略建议失败', err)
+    message.error('忽略失败: ' + (err?.message || ''))
+  }
 }
 
 const handleCreateOrder = (record: any) => {
@@ -505,14 +541,20 @@ const handleCreateOrder = (record: any) => {
   createOrderVisible.value = true
 }
 
-const confirmCreateOrder = () => {
+const confirmCreateOrder = async () => {
   if (!selectedSupplierId.value) {
     message.warning('请选择供应商')
     return
   }
-  message.success('采购订单已创建')
-  createOrderVisible.value = false
-  loadSuggestions()
+  try {
+    await replenishmentApi.createOrder(createOrderData.value.id, selectedSupplierId.value)
+    message.success('采购订单已创建')
+    createOrderVisible.value = false
+    loadSuggestions()
+  } catch (err: any) {
+    console.warn('[智能补货] 创建采购订单失败', err)
+    message.error('创建采购订单失败: ' + (err?.message || ''))
+  }
 }
 
 const goPurchaseOrder = (orderId: number) => {
@@ -522,26 +564,20 @@ const goPurchaseOrder = (orderId: number) => {
 const initSalesTrendChart = () => {
   if (!salesTrendChartRef.value) return
   salesTrendChart = echarts.init(salesTrendChartRef.value)
-  const option = {
+  console.warn('[智能补货] 销售趋势图表数据待接入API')
+  salesTrendChart.setOption({
     tooltip: { trigger: 'axis' },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] },
+    xAxis: { type: 'category', data: [] },
     yAxis: { type: 'value' },
-    series: [{
-      name: '销量',
-      type: 'line',
-      data: [3, 4, 2, 5, 3, 1, 2],
-      smooth: true,
-      areaStyle: { color: 'rgba(24, 144, 255, 0.2)' }
-    }]
-  }
-  salesTrendChart.setOption(option)
+    series: [{ name: '销量', type: 'line', data: [], smooth: true }]
+  })
 }
 
 const initPriorityChart = () => {
   if (!priorityChartRef.value) return
   priorityChart = echarts.init(priorityChartRef.value)
-  const option = {
+  priorityChart.setOption({
     tooltip: { trigger: 'item' },
     legend: { orient: 'vertical', left: 'left' },
     series: [{
@@ -554,19 +590,47 @@ const initPriorityChart = () => {
         { name: '低优先级', value: report.value.lowPriorityCount, itemStyle: { color: '#52c41a' } }
       ]
     }]
-  }
-  priorityChart.setOption(option)
+  })
 }
 </script>
 
 <style scoped lang="scss">
-.replenishment-page {
-  padding: 16px;
-  height: 100%;
+.replenishment-page-header {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.replenishment-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.replenishment-page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.replenishment-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 /* 统计卡片样式 */

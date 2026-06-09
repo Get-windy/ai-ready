@@ -469,7 +469,7 @@ const fetchAvailableUsers = async () => {
       availableUsers.value = res.data.filter(u => !currentDeptUserIds.includes(u.id))
     }
   } catch (error) {
-    console.error('鍔犺浇鍙敤鐢ㄦ埛澶辫触:', error)
+    console.warn('[系统管理] 加载可用用户失败', error)
   }
 }
 
@@ -481,7 +481,7 @@ const fetchPositionList = async () => {
       positionList.value = res.data
     }
   } catch (error) {
-    console.error('鍔犺浇宀椾綅鍒楄〃澶辫触:', error)
+    console.warn('[系统管理] 加载岗位列表失败', error)
   }
 }
 
@@ -493,7 +493,7 @@ const fetchDepartmentTree = async () => {
       departmentTreeData.value = res.data
     }
   } catch (error) {
-    console.error('鍔犺浇閮ㄩ棬鏍戝け璐�:', error)
+    console.warn('[系统管理] 加载部门树失败', error)
   }
 }
 
@@ -680,6 +680,8 @@ onMounted(() => {
   fetchPositionList()
   fetchDepartmentTree()
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

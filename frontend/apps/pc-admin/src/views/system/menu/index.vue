@@ -1,36 +1,59 @@
 <template>
-  <div class="menu-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ menuCount }}</div>
-          <div class="stat-card-label">菜单总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="menu-page-header">
+        <div class="menu-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>菜单管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="menu-page-header-title">菜单管理</h2>
         </div>
-        <AppstoreOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-enabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ enabledCount }}</div>
-          <div class="stat-card-label">启用菜单</div>
+        <div class="menu-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="loadMenuTree">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-disabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ disabledCount }}</div>
-          <div class="stat-card-label">禁用菜单</div>
+    </template>
+
+    <div class="menu-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ menuCount }}</div>
+            <div class="stat-card-label">菜单总数</div>
+          </div>
+          <AppstoreOutlined class="stat-card-icon" />
         </div>
-        <StopOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-button">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ buttonCount }}</div>
-          <div class="stat-card-label">按钮数量</div>
+        <div class="stat-card stat-enabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ enabledCount }}</div>
+            <div class="stat-card-label">启用菜单</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <ControlOutlined class="stat-card-icon" />
+        <div class="stat-card stat-disabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ disabledCount }}</div>
+            <div class="stat-card-label">禁用菜单</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-button">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ buttonCount }}</div>
+            <div class="stat-card-label">按钮数量</div>
+          </div>
+          <ControlOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
     <VxeTableList
       ref="tableRef"
@@ -229,10 +252,11 @@
       </a-form>
     </a-modal>
   </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, Rule } from 'ant-design-vue'
 import {
@@ -243,12 +267,24 @@ import {
   AppstoreOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  ControlOutlined
+  ControlOutlined,
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
 import { useSubmitLock } from '@/composables'
+import { useUserStore } from '@/stores/user'
+import * as Icons from '@ant-design/icons-vue'
+
+const userStore = useUserStore()
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 查询表单
 const queryForm = reactive<MenuQuery>({
@@ -307,7 +343,8 @@ const filterFields: FilterField[] = [
 
 // 将图标字符串转为组件
 const iconComponent = (iconName: string) => {
-  return h('span', { class: 'menu-icon-placeholder' }, iconName.charAt(0).toUpperCase())
+  if (!iconName) return null
+  return (Icons as any)[iconName] || null
 }
 
 // 表单数据
@@ -345,9 +382,6 @@ const currentMenu = ref<MenuInfo | null>(null)
 const selectedRoles = ref<number[]>([])
 const roleList = ref<any[]>([])
 
-// 当前操作员ID
-const operatorId = 1
-
 // 筛选变化
 const handleFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) {
@@ -367,42 +401,20 @@ const loadMenuTree = async () => {
       menuTree.value = res.data || []
     } else {
       message.error(res.message || '获取菜单列表失败')
-      menuTree.value = mockMenuData()
+      menuTree.value = []
     }
   } catch (error) {
-    console.error('获取菜单列表失败:', error)
-    menuTree.value = mockMenuData()
+    console.warn('[系统管理] 获取菜单列表失败', error)
+    message.error('获取菜单列表失败')
+    menuTree.value = []
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
-// Mock数据
-const mockMenuData = (): MenuInfo[] => [
-  {
-    id: 1, parentId: 0, menuName: '系统管理', menuCode: 'system', menuType: 0,
-    icon: 'AppstoreOutlined', path: '/system', component: '', sortOrder: 1, status: 1, visible: 1,
-    children: [
-      { id: 11, parentId: 1, menuName: '用户管理', menuCode: 'system:user', menuType: 1, icon: 'UserOutlined', path: '/system/user', component: 'system/user/index', sortOrder: 1, status: 1, visible: 1, children: [
-        { id: 111, parentId: 11, menuName: '查询', menuCode: 'system:user:list', menuType: 2, status: 1 },
-        { id: 112, parentId: 11, menuName: '新增', menuCode: 'system:user:add', menuType: 2, status: 1 },
-        { id: 113, parentId: 11, menuName: '编辑', menuCode: 'system:user:edit', menuType: 2, status: 1 },
-        { id: 114, parentId: 11, menuName: '删除', menuCode: 'system:user:delete', menuType: 2, status: 1 },
-      ]},
-      { id: 12, parentId: 1, menuName: '角色管理', menuCode: 'system:role', menuType: 1, icon: 'SafetyOutlined', path: '/system/role', component: 'system/role/index', sortOrder: 2, status: 1, visible: 1, children: [] },
-      { id: 13, parentId: 1, menuName: '菜单管理', menuCode: 'system:menu', menuType: 1, icon: 'MenuOutlined', path: '/system/menu', component: 'system/menu/index', sortOrder: 3, status: 0, visible: 1, children: [] },
-      { id: 14, parentId: 1, menuName: '字典管理', menuCode: 'system:dict', menuType: 1, icon: 'BookOutlined', path: '/system/dict', component: 'system/dict/index', sortOrder: 4, status: 1, visible: 1, children: [] },
-    ]
-  },
-  {
-    id: 2, parentId: 0, menuName: '预算管理', menuCode: 'budget', menuType: 0,
-    icon: 'DollarOutlined', path: '/budget', component: '', sortOrder: 2, status: 1, visible: 1,
-    children: [
-      { id: 21, parentId: 2, menuName: '年度预算', menuCode: 'budget:annual', menuType: 1, icon: 'CalendarOutlined', path: '/budget/annual', component: 'budget/annual/index', sortOrder: 1, status: 1, visible: 1, children: [] },
-      { id: 22, parentId: 2, menuName: '预算调整', menuCode: 'budget:adjustment', menuType: 1, icon: 'EditOutlined', path: '/budget/adjustment', component: 'budget/adjustment/index', sortOrder: 2, status: 1, visible: 1, children: [] },
-    ]
-  },
-]
+// Mock数据 - removed, all data comes from API
 
 // 搜索
 const handleSearch = () => {
@@ -465,7 +477,7 @@ const handleDelete = async (row: MenuInfo) => {
     cancelText: '取消',
     okType: 'danger',
     onOk: async () => {
-      const res = await menuApi.delete(row.id, operatorId)
+      const res = await menuApi.delete(row.id, userStore.userId)
       if (res.code === 200) {
         message.success('删除成功')
         loadMenuTree()
@@ -487,7 +499,7 @@ const handleSubmit = async () => {
     const result = await withSubmitLock(async () => {
       let res
       if (formData.id) {
-        res = await menuApi.update(formData, operatorId)
+        res = await menuApi.update(formData, userStore.userId)
       } else {
         const saveData: MenuSaveRequest = {
           parentId: formData.parentId,
@@ -505,7 +517,7 @@ const handleSubmit = async () => {
           external: formData.external,
           remark: formData.remark
         }
-        res = await menuApi.create(saveData, operatorId)
+        res = await menuApi.create(saveData, userStore.userId)
       }
 
       if (res.code === 200) {
@@ -519,7 +531,7 @@ const handleSubmit = async () => {
     void result
   } catch (error: any) {
     if (error) {
-      console.error('提交表单失败:', error)
+      console.warn('[系统管理] 提交表单失败', error)
       message.error(error?.message || '提交失败')
     }
   }
@@ -528,7 +540,7 @@ const handleSubmit = async () => {
 // 状态变更
 const handleStatusChange = async (row: MenuInfo, status: number) => {
   try {
-    const res = await menuApi.updateStatus(row.id, status, operatorId)
+    const res = await menuApi.updateStatus(row.id, status, userStore.userId)
     if (res.code === 200) {
       message.success('状态更新成功')
     } else {
@@ -536,7 +548,7 @@ const handleStatusChange = async (row: MenuInfo, status: number) => {
       row.status = status === 1 ? 0 : 1
     }
   } catch (error) {
-    console.error('更新状态失败:', error)
+    console.warn('[系统管理] 更新状态失败', error)
     message.error('状态更新失败')
     row.status = status === 1 ? 0 : 1
   }
@@ -554,7 +566,7 @@ const handleAssignRole = async (row: MenuInfo) => {
       roleList.value = res.data || []
     }
   } catch (error) {
-    console.error('获取角色列表失败:', error)
+    console.warn('[系统管理] 获取角色列表失败', error)
   }
 
   try {
@@ -563,23 +575,23 @@ const handleAssignRole = async (row: MenuInfo) => {
       // 根据实际API返回调整
     }
   } catch (error) {
-    console.error('获取菜单角色失败:', error)
+    console.warn('[系统管理] 获取菜单角色失败', error)
   }
 }
 
 // 提交角色分配
 const handleRoleSubmit = async () => {
   if (!currentMenu.value) return
-
   try {
     const result = await withRoleSubmitLock(async () => {
+      await roleApi.assignMenus(currentMenu.value.id, selectedRoles.value)
       message.success('角色分配成功')
       roleDialogVisible.value = false
     })
     void result
   } catch (error: any) {
     if (error) {
-      console.error('分配角色失败:', error)
+      console.warn('[系统管理] 分配角色失败', error)
       message.error(error?.message || '分配角色失败')
     }
   }
@@ -608,10 +620,63 @@ const resetForm = () => {
 // 初始化
 onMounted(() => {
   loadMenuTree()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadMenuTree()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadMenuTree })
 </script>
 
 <style scoped>
+.menu-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.menu-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.menu-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.menu-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .menu-management {
   height: 100%;
   display: flex;
@@ -663,18 +728,6 @@ onMounted(() => {
 .menu-icon {
   margin-right: 8px;
   font-size: 16px;
-}
-
-.menu-icon-placeholder {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  font-size: 12px;
-  line-height: 16px;
-  text-align: center;
-  background-color: #f0f0f0;
-  border-radius: 2px;
 }
 
 

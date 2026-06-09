@@ -1,23 +1,46 @@
 <template>
-  <PageContainer title="采购管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
+  <PageContainer full-height>
+    <template #header>
+      <div class="purchase-header">
+        <div class="purchase-header-left">
+          <a-breadcrumb class="purchase-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>采购管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="purchase-header-title">采购管理</h2>
+        </div>
+        <div class="purchase-header-right">
           <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+            更新于 {{ lastUpdateTime }}
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <div class="purchase-tabs-wrapper">
       <!-- 统计卡片 -->
-      <div class="stat-cards" style="margin-bottom: 16px;">
+      <template v-if="loading && !refreshLoading">
+        <div class="stat-cards" style="margin-bottom: 16px;">
+          <a-card v-for="i in 4" :key="i" :bordered="false" class="stat-skeleton">
+            <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" style="min-height: 80px;" />
+          </a-card>
+        </div>
+      </template>
+      <template v-else-if="statsError">
+        <a-alert type="warning" message="统计数据加载失败" show-icon closable style="margin-bottom: 16px;">
+          <template #action>
+            <a-button size="small" @click="handleRefresh">重试</a-button>
+          </template>
+        </a-alert>
+      </template>
+      <div v-else class="stat-cards" style="margin-bottom: 16px;">
         <div class="stat-card stat-blue">
           <div class="stat-card-icon"><FileTextOutlined /></div>
           <div class="stat-card-content">
@@ -55,42 +78,15 @@
         animated
         @change="handleTabChange"
       >
-        <a-tab-pane key="orders">
+        <a-tab-pane v-for="tab in visibleTabs" :key="tab.key">
           <template #tab>
-            <span><FileTextOutlined /> 采购订单</span>
-            <a-badge :count="orderCount" :overflow-count="99" :number-style="{ backgroundColor: '#1890ff' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="inquiry">
-          <template #tab>
-            <span><SearchOutlined /> 询价单</span>
-            <a-badge :count="inquiryCount" :overflow-count="99" :number-style="{ backgroundColor: '#faad14' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="inbound">
-          <template #tab>
-            <span><ImportOutlined /> 入库单</span>
-            <a-badge :count="inboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#52c41a' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="return">
-          <template #tab>
-            <span><RollbackOutlined /> 退货单</span>
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="exchange">
-          <template #tab>
-            <span><SwapOutlined /> 换货单</span>
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="payment">
-          <template #tab>
-            <span><DollarOutlined /> 付款单</span>
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="suppliers">
-          <template #tab>
-            <span><TeamOutlined /> 供应商</span>
+            <span v-if="tab.key === 'orders'"><FileTextOutlined /> 采购订单<a-badge :count="orderCount" :overflow-count="99" :number-style="{ backgroundColor: '#1890ff' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'inquiry'"><SearchOutlined /> 询价单<a-badge :count="inquiryCount" :overflow-count="99" :number-style="{ backgroundColor: '#faad14' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'inbound'"><ImportOutlined /> 入库单<a-badge :count="inboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#52c41a' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'return'"><RollbackOutlined /> 退货单</span>
+            <span v-else-if="tab.key === 'exchange'"><SwapOutlined /> 换货单</span>
+            <span v-else-if="tab.key === 'payment'"><DollarOutlined /> 付款单</span>
+            <span v-else-if="tab.key === 'suppliers'"><TeamOutlined /> 供应商</span>
           </template>
         </a-tab-pane>
       </a-tabs>
@@ -123,8 +119,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import OrdersTab from './tabs/Orders.vue'
@@ -135,15 +132,12 @@ import ExchangeTab from './tabs/Exchange.vue'
 import PaymentTab from './tabs/Payment.vue'
 import SuppliersTab from './tabs/Suppliers.vue'
 import {
-  ReloadOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  ImportOutlined,
-  RollbackOutlined,
-  SwapOutlined,
-  DollarOutlined,
-  TeamOutlined
+  ReloadOutlined, FileTextOutlined, SearchOutlined,
+  ImportOutlined, RollbackOutlined, SwapOutlined,
+  DollarOutlined, TeamOutlined, SyncOutlined
 } from '@ant-design/icons-vue'
+import { purchaseStatsApi } from '@/api/erp'
+import { hasPermission } from '@/utils/permission'
 
 const router = useRouter()
 const route = useRoute()
@@ -151,7 +145,10 @@ const route = useRoute()
 const VALID_TABS = ['orders', 'inquiry', 'inbound', 'return', 'exchange', 'payment', 'suppliers'] as const
 const activeTab = ref<string>('orders')
 const loading = ref(false)
+const statsError = ref(false)
+const refreshLoading = ref(false)
 const lastUpdateTime = ref<string>('')
+const autoRefreshCountdown = ref(0)
 
 // Tab 引用
 const ordersRef = ref()
@@ -162,21 +159,56 @@ const exchangeRef = ref()
 const paymentRef = ref()
 const suppliersRef = ref()
 
-// Tab 统计数据
-const orderCount = ref(15)
-const inquiryCount = ref(8)
-const inboundCount = ref(12)
-const paymentCount = ref(5)
+// Tab 统计数据（从 API 获取）
+const orderCount = ref(0)
+const inquiryCount = ref(0)
+const inboundCount = ref(0)
+const paymentCount = ref(0)
+
+// Tab 权限过滤
+interface TabDef { key: string; label: string; permission: string }
+const allTabs: TabDef[] = [
+  { key: 'orders', label: '采购订单', permission: 'purchase:order:list' },
+  { key: 'inquiry', label: '询价单', permission: 'purchase:inquiry:list' },
+  { key: 'inbound', label: '入库单', permission: 'purchase:inbound:list' },
+  { key: 'return', label: '退货单', permission: 'purchase:return:list' },
+  { key: 'exchange', label: '换货单', permission: 'purchase:exchange:list' },
+  { key: 'payment', label: '付款单', permission: 'purchase:payment:list' },
+  { key: 'suppliers', label: '供应商', permission: 'supplier:list' },
+]
+const visibleTabs = computed(() => allTabs.filter(t => !t.permission || hasPermission(t.permission)))
+
+/** 加载采购统计 */
+async function fetchStats() {
+  if (loading.value && !refreshLoading.value) return
+  loading.value = true
+  statsError.value = false
+  try {
+    const res = await purchaseStatsApi.get()
+    const data = res.data
+    orderCount.value = data?.totalOrders ?? data?.monthOrderCount ?? 0
+    inquiryCount.value = data?.pendingInquiryCount ?? 0
+    inboundCount.value = data?.pendingInboundCount ?? 0
+    paymentCount.value = data?.pendingPaymentCount ?? 0
+  } catch (err) {
+    statsError.value = true
+    console.warn('[采购] 加载统计数据失败', err)
+    message.error('加载统计数据失败')
+  } finally {
+    loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  }
+}
 
 function handleTabChange(key: string) {
   router.replace({ query: { ...route.query, tab: key } })
-  lastUpdateTime.value = ''
+  // 切换 Tab 时更新数据时间戳
+  lastUpdateTime.value = dayjs().format('HH:mm:ss')
 }
 
 function handleRefresh() {
-  lastUpdateTime.value = ''
-  loading.value = true
-
+  refreshLoading.value = true
   // 刷新当前 Tab
   const refMap: Record<string, any> = {
     orders: ordersRef.value,
@@ -187,16 +219,11 @@ function handleRefresh() {
     payment: paymentRef.value,
     suppliers: suppliersRef.value
   }
-
   const currentRef = refMap[activeTab.value]
   if (currentRef?.handleQuery) {
     currentRef.handleQuery()
   }
-
-  setTimeout(() => {
-    loading.value = false
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  }, 500)
+  fetchStats()
 }
 
 function handlePopState() {
@@ -231,30 +258,81 @@ function initActiveTab() {
   }
 }
 
+// 自动刷新
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   initActiveTab()
-  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  fetchStats()
+  autoRefreshCountdown.value = 30
+  autoRefreshTimer = setInterval(() => {
+    fetchStats()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+
   window.addEventListener('popstate', handlePopState)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer) }
+  if (countdownTimer) { clearInterval(countdownTimer) }
   window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: handleRefresh })
 </script>
 
 <style scoped>
-.data-status {
+.purchase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.purchase-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
+}
+.purchase-breadcrumb {
+  font-size: 13px;
+}
+.purchase-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.purchase-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.purchase-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .purchase-tabs-wrapper {
@@ -267,6 +345,15 @@ onUnmounted(() => {
   overflow: hidden;
   padding: 16px;
   height: 100%;
+}
+
+/* 统计卡片骨架 */
+.stat-skeleton {
+  flex: 1;
+  border-radius: 8px;
+}
+.stat-skeleton :deep(.ant-card-body) {
+  padding: 12px 16px;
 }
 
 /* 统计卡片 */
@@ -324,8 +411,15 @@ onUnmounted(() => {
 
 :deep(.purchase-tabs.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab) {
   border-bottom: none;
-  padding: 8px 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  height: 32px;
   transition: all 0.2s;
+}
+
+:deep(.purchase-tabs.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab .ant-badge) {
+  font-size: 11px;
 }
 
 :deep(.purchase-tabs.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active) {

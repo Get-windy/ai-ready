@@ -165,6 +165,11 @@ export const purchaseExchangeApi = {
     return request.post(`/erp/purchase/exchange/${id}/complete`)
   },
 
+  // 确认换货（别名）
+  confirm(id: number): Promise<ApiResponse<void>> {
+    return this.complete(id)
+  },
+
   // 获取审批记录
   getApprovalRecords(exchangeId: number): Promise<ApiResponse<ExchangeApprovalRecord[]>> {
     return request.get(`/erp/purchase/exchange/${exchangeId}/approval-records`)

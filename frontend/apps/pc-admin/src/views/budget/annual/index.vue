@@ -1,229 +1,253 @@
 <template>
-  <div class="annual-budget-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-draft">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ draftCount }}</div>
-          <div class="stat-card-label">草稿</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="annual-page-header">
+        <div class="annual-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>年度预算</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="annual-page-header-title">年度预算</h2>
         </div>
-        <FileOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-pending">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pendingCount }}</div>
-          <div class="stat-card-label">待审批</div>
+        <div class="annual-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="loadData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <ClockCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-executing">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ executingCount }}</div>
-          <div class="stat-card-label">执行中</div>
-        </div>
-        <PlayCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-amount">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(totalBudget) }}</div>
-          <div class="stat-card-label">预算总额</div>
-        </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-    </div>
+    </template>
 
-    <a-card title="年度预算管理" class="table-card">
-      <div class="search-area">
-        <a-form layout="inline" :model="queryParams">
-          <a-form-item label="关键词">
-            <a-input v-model:value="queryParams.keyword" placeholder="预算单号/部门" allow-clear style="width: 180px" />
-          </a-form-item>
-          <a-form-item label="年度">
-            <a-input-number v-model:value="queryParams.fiscalYear" :min="2020" :max="2099" placeholder="年度" style="width: 120px" />
-          </a-form-item>
-          <a-form-item label="部门">
-            <a-input v-model:value="queryParams.departmentId" placeholder="部门ID" allow-clear style="width: 120px" />
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select v-model:value="queryParams.status" placeholder="请选择" allow-clear style="width: 130px">
-              <a-select-option value="draft">草稿</a-select-option>
-              <a-select-option value="submitted">待审批</a-select-option>
-              <a-select-option value="approved">已审批</a-select-option>
-              <a-select-option value="rejected">已拒绝</a-select-option>
-              <a-select-option value="executing">执行中</a-select-option>
-              <a-select-option value="closed">已关闭</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item>
+    <div class="annual-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-draft">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ draftCount }}</div>
+            <div class="stat-card-label">草稿</div>
+          </div>
+          <FileOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-pending">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pendingCount }}</div>
+            <div class="stat-card-label">待审批</div>
+          </div>
+          <ClockCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-executing">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ executingCount }}</div>
+            <div class="stat-card-label">执行中</div>
+          </div>
+          <PlayCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-amount">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(totalBudget) }}</div>
+            <div class="stat-card-label">预算总额</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
+        </div>
+      </div>
+
+      <a-card title="年度预算管理" class="table-card">
+        <div class="search-area">
+          <a-form layout="inline" :model="queryParams">
+            <a-form-item label="关键词">
+              <a-input v-model:value="queryParams.keyword" placeholder="预算单号/部门" allow-clear style="width: 180px" />
+            </a-form-item>
+            <a-form-item label="年度">
+              <a-input-number v-model:value="queryParams.fiscalYear" :min="2020" :max="2099" placeholder="年度" style="width: 120px" />
+            </a-form-item>
+            <a-form-item label="部门">
+              <a-input v-model:value="queryParams.departmentId" placeholder="部门ID" allow-clear style="width: 120px" />
+            </a-form-item>
+            <a-form-item label="状态">
+              <a-select v-model:value="queryParams.status" placeholder="请选择" allow-clear style="width: 130px">
+                <a-select-option value="draft">草稿</a-select-option>
+                <a-select-option value="submitted">待审批</a-select-option>
+                <a-select-option value="approved">已审批</a-select-option>
+                <a-select-option value="rejected">已拒绝</a-select-option>
+                <a-select-option value="executing">执行中</a-select-option>
+                <a-select-option value="closed">已关闭</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item>
+              <a-space>
+                <a-button type="primary" @click="handleSearch">查询</a-button>
+                <a-button @click="handleReset">重置</a-button>
+              </a-space>
+            </a-form-item>
+          </a-form>
+        </div>
+
+        <div class="action-area">
+          <a-space>
+            <a-button type="primary" @click="handleAdd">
+              <template #icon><PlusOutlined /></template>
+              新建预算
+            </a-button>
+            <a-button @click="handleCreateFromTemplate">
+              <template #icon><CopyOutlined /></template>
+              从模板创建
+            </a-button>
+          </a-space>
+        </div>
+
+        <VxeTableList
+          :columns="vxeColumns"
+          :data-source="tableData"
+          :loading="loading"
+          :pagination="pagination"
+          row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @page-change="handlePageChange"
+        >
+          <template #statusCell="{ record }">
+            <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+          </template>
+          <template #totalAmountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+          </template>
+          <template #totalUsedAmountCell="{ record }">
+            <span class="amount-cell used">¥{{ formatAmount(record.totalUsedAmount) }}</span>
+          </template>
+          <template #executionRateCell="{ record }">
+            <span class="rate-cell">{{ record.executionRate?.toFixed(2) ?? '0.00' }}%</span>
+          </template>
+          <template #action="{ record }">
             <a-space>
-              <a-button type="primary" @click="handleSearch">查询</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a @click="handleView(record)">查看</a>
+              <a v-if="record.status === 'draft'" @click="handleEdit(record)">编辑</a>
+              <a v-if="record.status === 'draft'" @click="handleSubmit(record)">提交</a>
+              <a v-if="record.status === 'submitted'" @click="handleApprove(record)">通过</a>
+              <a v-if="record.status === 'submitted'" @click="handleReject(record)">拒绝</a>
+              <a v-if="record.status === 'approved'" @click="handleStartExec(record)">执行</a>
+              <a v-if="record.status === 'executing'" @click="handleClose(record)">关闭</a>
+              <a-popconfirm v-if="record.status === 'draft'" title="确定删除此预算？" @confirm="handleDelete(record)">
+                <a class="danger">删除</a>
+              </a-popconfirm>
             </a-space>
+          </template>
+        </VxeTableList>
+      </a-card>
+
+      <!-- 新建/编辑弹窗 -->
+      <a-modal
+        v-model:open="formVisible"
+        :title="isEdit ? '编辑年度预算' : '新建年度预算'"
+        :width="1000"
+        :confirm-loading="submitLoading"
+        @ok="handleFormSubmit"
+      >
+        <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item label="预算单号" name="budgetNo">
+                <a-input v-model:value="formData.budgetNo" placeholder="自动生成" :disabled="isEdit" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="年度" name="fiscalYear">
+                <a-input-number v-model:value="formData.fiscalYear" :min="2020" :max="2099" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="部门" name="departmentName">
+                <a-input v-model:value="formData.departmentName" placeholder="部门名称" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item label="部门ID" name="departmentId">
+                <a-input v-model:value="formData.departmentId" placeholder="部门ID" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="模板名称" name="templateName">
+                <a-input v-model:value="formData.templateName" placeholder="关联模板" :disabled="!!formData.templateId" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="备注" name="remark">
+                <a-input v-model:value="formData.remark" placeholder="备注" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="描述" name="description">
+            <a-textarea v-model:value="formData.description" :rows="2" placeholder="描述" />
           </a-form-item>
         </a-form>
-      </div>
 
-      <div class="action-area">
-        <a-space>
-          <a-button type="primary" @click="handleAdd">
-            <template #icon><PlusOutlined /></template>
-            新建预算
-          </a-button>
-          <a-button @click="handleCreateFromTemplate">
-            <template #icon><CopyOutlined /></template>
-            从模板创建
-          </a-button>
-        </a-space>
-      </div>
-
-      <VxeTableList
-        :columns="vxeColumns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="pagination"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @page-change="handlePageChange"
-      >
-        <template #statusCell="{ record }">
-          <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-        </template>
-        <template #totalAmountCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-        </template>
-        <template #totalUsedAmountCell="{ record }">
-          <span class="amount-cell used">¥{{ formatAmount(record.totalUsedAmount) }}</span>
-        </template>
-        <template #executionRateCell="{ record }">
-          <span class="rate-cell">{{ record.executionRate?.toFixed(2) ?? '0.00' }}%</span>
-        </template>
-        <template #action="{ record }">
-          <a-space>
-            <a @click="handleView(record)">查看</a>
-            <a v-if="record.status === 'draft'" @click="handleEdit(record)">编辑</a>
-            <a v-if="record.status === 'draft'" @click="handleSubmit(record)">提交</a>
-            <a v-if="record.status === 'submitted'" @click="handleApprove(record)">通过</a>
-            <a v-if="record.status === 'submitted'" @click="handleReject(record)">拒绝</a>
-            <a v-if="record.status === 'approved'" @click="handleStartExec(record)">执行</a>
-            <a v-if="record.status === 'executing'" @click="handleClose(record)">关闭</a>
-            <a-popconfirm v-if="record.status === 'draft'" title="确定删除此预算？" @confirm="handleDelete(record)">
+        <a-divider>预算科目</a-divider>
+        <a-button type="dashed" @click="addItem" style="width: 100%; margin-bottom: 12px">
+          <template #icon><PlusOutlined /></template>添加科目
+        </a-button>
+        <VxeTableList
+          :data-source="formData.items"
+          :columns="itemVxeColumns"
+          :pagination="false"
+          row-key="rowKey"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+        >
+          <template #subjectCodeCell="{ record }">
+            <a-input v-model:value="record.subjectCode" placeholder="科目编码" />
+          </template>
+          <template #subjectNameCell="{ record }">
+            <a-input v-model:value="record.subjectName" placeholder="科目名称" />
+          </template>
+          <template #budgetAmountCell="{ record }">
+            <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" />
+          </template>
+          <template #action="{ index }">
+            <a-popconfirm title="确定删除？" @confirm="removeItem(index)">
               <a class="danger">删除</a>
             </a-popconfirm>
-          </a-space>
-        </template>
-      </VxeTableList>
-    </a-card>
+          </template>
+        </VxeTableList>
+      </a-modal>
 
-    <!-- 新建/编辑弹窗 -->
-    <a-modal
-      v-model:open="formVisible"
-      :title="isEdit ? '编辑年度预算' : '新建年度预算'"
-      :width="1000"
-      :confirm-loading="submitLoading"
-      @ok="handleFormSubmit"
-    >
-      <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="预算单号" name="budgetNo">
-              <a-input v-model:value="formData.budgetNo" placeholder="自动生成" :disabled="isEdit" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="年度" name="fiscalYear">
-              <a-input-number v-model:value="formData.fiscalYear" :min="2020" :max="2099" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="部门" name="departmentName">
-              <a-input v-model:value="formData.departmentName" placeholder="部门名称" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="部门ID" name="departmentId">
-              <a-input v-model:value="formData.departmentId" placeholder="部门ID" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="模板名称" name="templateName">
-              <a-input v-model:value="formData.templateName" placeholder="关联模板" :disabled="!!formData.templateId" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="备注" name="remark">
-              <a-input v-model:value="formData.remark" placeholder="备注" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="formData.description" :rows="2" placeholder="描述" />
-        </a-form-item>
-      </a-form>
-
-      <a-divider>预算科目</a-divider>
-      <a-button type="dashed" @click="addItem" style="width: 100%; margin-bottom: 12px">
-        <template #icon><PlusOutlined /></template>添加科目
-      </a-button>
-      <VxeTableList
-        :data-source="formData.items"
-        :columns="itemVxeColumns"
-        :pagination="false"
-        row-key="rowKey"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
+      <!-- 从模板创建 -->
+      <a-modal
+        v-model:open="templateModalVisible"
+        title="从模板创建年度预算"
+        :width="600"
+        @ok="handleTemplateSelectOk"
+        :confirm-loading="templateLoading"
       >
-        <template #subjectCodeCell="{ record }">
-          <a-input v-model:value="record.subjectCode" placeholder="科目编码" />
-        </template>
-        <template #subjectNameCell="{ record }">
-          <a-input v-model:value="record.subjectName" placeholder="科目名称" />
-        </template>
-        <template #budgetAmountCell="{ record }">
-          <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" />
-        </template>
-        <template #action="{ index }">
-          <a-popconfirm title="确定删除？" @confirm="removeItem(index)">
-            <a class="danger">删除</a>
-          </a-popconfirm>
-        </template>
-      </VxeTableList>
-    </a-modal>
-
-    <!-- 从模板创建 -->
-    <a-modal
-      v-model:open="templateModalVisible"
-      title="从模板创建年度预算"
-      :width="600"
-      @ok="handleTemplateSelectOk"
-      :confirm-loading="templateLoading"
-    >
-      <VxeTableList
-        :data-source="templateList"
-        :columns="templateVxeColumns"
-        :pagination="false"
-        :loading="templateLoading"
-        row-key="id"
-        :show-toolbar="false"
-        selectable
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-        @selection-change="(_: any, keys: any[]) => { templateSelectedKeys = keys }"
-      />
-    </a-modal>
-  </div>
+        <VxeTableList
+          :data-source="templateList"
+          :columns="templateVxeColumns"
+          :pagination="false"
+          :loading="templateLoading"
+          row-key="id"
+          :show-toolbar="false"
+          selectable
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @selection-change="(_: any, keys: any[]) => { templateSelectedKeys = keys }"
+        />
+      </a-modal>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -231,9 +255,10 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined, CopyOutlined, FileOutlined, ClockCircleOutlined,
-  PlayCircleOutlined, DollarOutlined
+  PlayCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { annualBudgetApi, budgetTemplateApi, type AnnualBudget, type BudgetItem } from '@/api/budget'
 
 const queryParams = reactive({
@@ -248,6 +273,11 @@ const queryParams = reactive({
 const tableData = ref<AnnualBudget[]>([])
 const loading = ref(false)
 const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` })
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const draftCount = computed(() => tableData.value.filter(r => r.status === 'draft').length)
@@ -358,23 +388,19 @@ const loadData = async () => {
       pageSize: pagination.pageSize,
     })
     if (res.success) {
-      tableData.value = res.data.records || mockData()
-      pagination.total = res.data.total || mockData().length
+      tableData.value = res.data.records || []
+      pagination.total = res.data.total || 0
     }
   } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[年度预算] 加载数据失败')
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
-
-const mockData = (): AnnualBudget[] => [
-  { id: 1, budgetNo: 'BUD-2024-001', fiscalYear: 2024, departmentName: '财务部', totalAmount: 500000, totalUsedAmount: 200000, executionRate: 40, status: 'executing', createdAt: '2024-01-01 10:00' },
-  { id: 2, budgetNo: 'BUD-2024-002', fiscalYear: 2024, departmentName: '市场部', totalAmount: 300000, totalUsedAmount: 50000, executionRate: 16.67, status: 'submitted', createdAt: '2024-01-15 14:00' },
-  { id: 3, budgetNo: 'BUD-2024-003', fiscalYear: 2024, departmentName: '研发部', totalAmount: 800000, totalUsedAmount: 0, executionRate: 0, status: 'draft', createdAt: '2024-02-01 09:00' },
-  { id: 4, budgetNo: 'BUD-2024-004', fiscalYear: 2024, departmentName: '人事部', totalAmount: 200000, totalUsedAmount: 200000, executionRate: 100, status: 'closed', createdAt: '2024-02-10 16:00' },
-]
 
 const handleSearch = () => { pagination.current = 1; loadData() }
 const handleReset = () => {
@@ -431,7 +457,9 @@ const handleEdit = async (record: AnnualBudget) => {
       isEdit.value = true
       formVisible.value = true
     }
-  } catch (_) { /* ignore */ }
+  } catch {
+    console.warn('[年度预算] 获取详情失败')
+  }
 }
 
 const handleView = (record: AnnualBudget) => {
@@ -442,6 +470,7 @@ const handleFormSubmit = async () => {
   try {
     await formRef.value?.validate()
   } catch {
+    console.warn('[年度预算] 表单验证失败')
     return
   }
   submitLoading.value = true
@@ -459,6 +488,7 @@ const handleFormSubmit = async () => {
     formVisible.value = false
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 操作失败', e)
     message.error(e?.response?.data?.message || '操作失败')
   } finally {
     submitLoading.value = false
@@ -471,6 +501,7 @@ const handleSubmit = async (record: AnnualBudget) => {
     message.success('已提交审批')
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 提交失败', e)
     message.error(e?.response?.data?.message || '提交失败')
   }
 }
@@ -481,6 +512,7 @@ const handleApprove = async (record: AnnualBudget) => {
     message.success('审批通过')
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 审批失败', e)
     message.error(e?.response?.data?.message || '审批失败')
   }
 }
@@ -491,6 +523,7 @@ const handleReject = async (record: AnnualBudget) => {
     message.success('已拒绝')
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 拒绝失败', e)
     message.error(e?.response?.data?.message || '拒绝失败')
   }
 }
@@ -505,6 +538,7 @@ const handleClose = async (record: AnnualBudget) => {
     message.success('已关闭')
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 关闭失败', e)
     message.error(e?.response?.data?.message || '关闭失败')
   }
 }
@@ -515,6 +549,7 @@ const handleDelete = async (record: AnnualBudget) => {
     message.success('删除成功')
     loadData()
   } catch (e: any) {
+    console.warn('[年度预算] 删除失败', e)
     message.error(e?.response?.data?.message || '删除失败')
   }
 }
@@ -538,21 +573,17 @@ const handleCreateFromTemplate = async () => {
   try {
     const res = await budgetTemplateApi.listByYear(new Date().getFullYear())
     if (res.success) {
-      templateList.value = res.data || mockTemplateData()
+      templateList.value = res.data || []
     }
     templateModalVisible.value = true
   } catch {
-    templateList.value = mockTemplateData()
+    console.warn('[年度预算] 加载模板列表失败')
+    templateList.value = []
     templateModalVisible.value = true
   } finally {
     templateLoading.value = false
   }
 }
-
-const mockTemplateData = (): any[] => [
-  { id: 1, templateCode: 'TPL-001', templateName: '标准预算模板', fiscalYear: 2024, totalAmount: 1000000 },
-  { id: 2, templateCode: 'TPL-002', templateName: '部门预算模板', fiscalYear: 2024, totalAmount: 500000 },
-]
 
 const handleTemplateSelectOk = async () => {
   if (templateSelectedKeys.value.length === 0) {
@@ -586,20 +617,71 @@ const handleTemplateSelectOk = async () => {
       formVisible.value = true
     }
   } catch (e: any) {
+    console.warn('[年度预算] 获取模板失败', e)
     message.error(e?.response?.data?.message || '获取模板失败')
   }
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
-}
+onMounted(() => {
+  loadData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
 
-onMounted(() => { loadData(); document.addEventListener('keydown', handleKeydown) })
-onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped>
-.annual-budget-page {
+.annual-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.annual-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.annual-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.annual-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+.annual-management {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -670,10 +752,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

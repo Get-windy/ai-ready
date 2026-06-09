@@ -1,18 +1,25 @@
 <template>
-  <PageContainer title="报价管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="quotation-page-header">
+        <div class="quotation-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>报价管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="quotation-page-header-title">报价管理</h2>
+        </div>
+        <div class="quotation-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
@@ -272,7 +279,7 @@
     </a-modal>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="报价详情" width="900px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="报价详情" placement="right" width="80vw" :footer="null">
       <a-descriptions :column="2" bordered size="small">
         <a-descriptions-item label="报价单号">
           <span class="quotation-no">{{ quotationDetail.quotationNo }}</span>
@@ -311,7 +318,7 @@
           <a-button v-if="quotationDetail.status === 'draft'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
         </a-space>
       </div>
-    </a-modal>
+    </a-drawer>
   </PageContainer>
 </template>
 
@@ -334,6 +341,7 @@ import {
   CopyOutlined,
   FileProtectOutlined,
   ReloadOutlined,
+  SyncOutlined,
   SearchOutlined,
   InboxOutlined,
   MoreOutlined,
@@ -357,7 +365,10 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref<string>('')
 const selectedRowKeys = ref<number[]>([])
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const vxeColumns = computed(() => [
   { field: 'quotationNo', title: '报价单号', width: 150, formatter: ({ row }: any) => row.quotationNo || '' },
@@ -487,29 +498,21 @@ function generateQuotationNo() {
   formData.quotationNo = `QT${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
 }
 
-// 自动刷新
-const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !modalVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
-}
-
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 
 async function fetchData(silent = false) {
@@ -517,27 +520,21 @@ async function fetchData(silent = false) {
   hasError.value = false
   try {
     const res = await quotationApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
-    tableData.value = (res as any).records || mockData()
-    pagination.total = (res as any).total || mockData().length
+    tableData.value = (res as any).records || []
+    pagination.total = (res as any).total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
-      message.error('获取数据失败')
+      message.error('获取报价数据失败')
     }
-    tableData.value = mockData()
+    console.warn('[CRM报价] 获取报价列表失败', err)
+    tableData.value = []
   } finally {
     if (!silent) loading.value = false
+    refreshLoading.value = false
   }
 }
-
-const mockData = () => [
-  { id: 1, quotationNo: 'QT2024010001', quotationName: '企业信息化建设报价', customerName: '北京科技有限公司', quotationDate: '2024-01-10', validDays: 30, totalAmount: 580000, status: 'accepted', createTime: '2024-01-10 10:00' },
-  { id: 2, quotationNo: 'QT2024010002', quotationName: '智能制造升级方案', customerName: '上海贸易公司', quotationDate: '2024-01-12', validDays: 30, totalAmount: 320000, status: 'sent', createTime: '2024-01-12 11:00' },
-  { id: 3, quotationNo: 'QT2024010003', quotationName: '数据分析平台报价', customerName: '广州制造企业', quotationDate: '2024-01-15', validDays: 30, totalAmount: 150000, status: 'draft', createTime: '2024-01-15 09:00' },
-  { id: 4, quotationNo: 'QT2024010004', quotationName: '云服务迁移报价', customerName: '深圳电子公司', quotationDate: '2024-01-08', validDays: 30, totalAmount: 420000, status: 'rejected', createTime: '2024-01-08 14:00' },
-  { id: 5, quotationNo: 'QT2024010005', quotationName: '办公设备采购报价', customerName: '杭州互联网公司', quotationDate: '2024-01-18', validDays: 30, totalAmount: 80000, status: 'expired', createTime: '2024-01-18 15:00' }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -589,7 +586,7 @@ function handleResetFilters() {
 
 async function handleSend(record: any) {
   try { await quotationApi.send(record.id); message.success('报价已发送'); fetchData() }
-  catch { message.error('发送失败') }
+  catch (err) { console.warn('[CRM报价] 发送报价失败', err); message.error('发送失败') }
 }
 
 function handleConvert(record: any) {
@@ -601,7 +598,7 @@ function handleConvert(record: any) {
     centered: true,
     onOk: async () => {
       try { await quotationApi.convertToOrder(record.id); message.success('报价已成功转为订单'); fetchData() }
-      catch { message.error('转换失败') }
+      catch (err) { console.warn('[CRM报价] 转换订单失败', err); message.error('转换失败') }
     }
   })
 }
@@ -644,7 +641,7 @@ function handleActionMenuClick(key: string, record: any) {
         centered: true,
         onOk: async () => {
           try { await quotationApi.delete(record.id); message.success('删除成功'); fetchData() }
-          catch { message.error('删除失败') }
+          catch (err) { console.warn('[CRM报价] 删除报价失败', err); message.error('删除失败') }
         }
       })
       break
@@ -672,7 +669,7 @@ function handleSendFromDetail() {
 }
 
 async function handleSubmit() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM报价] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     const payload = {
@@ -683,7 +680,7 @@ async function handleSubmit() {
     message.success('保存成功')
     modalVisible.value = false
     fetchData()
-  } catch (err: any) { message.error(err?.message || '保存失败') }
+  } catch (err: any) { console.warn('[CRM报价] 保存报价失败', err); message.error(err?.message || '保存失败') }
   finally { submitLoading.value = false }
 }
 
@@ -718,19 +715,46 @@ function handleFilterChange(filters: Record<string, any>) {
 function handleSelectionChange(rows: any[], ids: any[]) {
   selectedRowKeys.value = ids
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.data-status {
+.quotation-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.quotation-page-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
 }
-
+.quotation-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.quotation-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stats-cards {
@@ -889,8 +913,4 @@ function handleSelectionChange(rows: any[], ids: any[]) {
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
 }
-
-
-
-
 </style>

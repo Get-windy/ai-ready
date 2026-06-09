@@ -1,5 +1,31 @@
 <template>
-  <div class="pricing-tiers">
+  <PageContainer full-height>
+    <template #header>
+      <div class="tiers-header">
+        <div class="tiers-header__left">
+          <span class="tiers-header__breadcrumb">ERP / 定价管理 / 价格层级</span>
+          <h2 class="tiers-header__title">价格层级配置</h2>
+        </div>
+        <div class="tiers-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="fetchTiers">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -152,14 +178,15 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -189,11 +216,17 @@ const customerLevels = ['strategic', 'core', 'normal', 'new']
 const pricingModeCount = computed(() => new Set(tiers.value.map(t => t.pricingMode)).size)
 
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const tiers = ref<PriceTier[]>([])
 const modalVisible = ref(false)
 const modalLoading = ref(false)
 const editingTier = ref<PriceTier | null>(null)
 const formRef = ref<FormInstance>()
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const activeTierCount = computed(() => tiers.value.filter(t => t.status === 'active').length)
 const inactiveTierCount = computed(() => tiers.value.filter(t => t.status !== 'active').length)
@@ -246,8 +279,14 @@ async function fetchTiers() {
   try {
     const res = await request.get('/erp/pricing/tiers/list')
     tiers.value = res?.data || []
-  } catch { message.error('获取价层列表失败') }
-  finally { loading.value = false }
+  } catch (err) {
+    console.warn('[价格层级] 获取价层列表失败', err)
+    message.error('获取价层列表失败')
+  } finally {
+    loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  }
 }
 
 function showAddModal() {
@@ -277,6 +316,7 @@ async function handleModalOk() {
     await fetchTiers()
   } catch (error: any) {
     if (error?.errorFields) return
+    console.warn('[价格层级] 保存价层失败', error)
     message.error(error?.message || '操作失败')
   } finally { modalLoading.value = false }
 }
@@ -288,7 +328,10 @@ async function deleteTier(tier: PriceTier) {
     await request.delete(`/erp/pricing/tiers/${tier.tierId}`)
     message.success('删除成功')
     await fetchTiers()
-  } catch { message.error('删除失败') }
+  } catch {
+    console.warn('[价格层级] 删除失败')
+    message.error('删除失败')
+  }
 }
 
 async function toggleStatus(tier: PriceTier) {
@@ -297,14 +340,84 @@ async function toggleStatus(tier: PriceTier) {
     await request.put(`/erp/pricing/tiers/${tier.tierId}/status`, { status: newStatus })
     message.success(newStatus === 'active' ? '已启用' : '已禁用')
     await fetchTiers()
-  } catch { message.error('操作失败') }
+  } catch {
+    console.warn('[价格层级] 状态切换失败')
+    message.error('操作失败')
+  }
 }
 
-onMounted(() => { fetchTiers() })
+onMounted(() => {
+  fetchTiers()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchTiers()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchTiers })
 </script>
 
 <style scoped>
-.pricing-tiers { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.tiers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.tiers-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tiers-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.tiers-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.tiers-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
 
 /* 统计卡片样式 */
 .summary-card {

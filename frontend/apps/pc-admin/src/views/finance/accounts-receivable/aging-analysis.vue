@@ -321,6 +321,8 @@ onUnmounted(() => {
     chart = null
   }
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

@@ -1,150 +1,175 @@
 <template>
-  <div class="finance-receivable-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
-          <div class="stat-card-label">应收总额</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="receivable-page-header">
+        <div class="receivable-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>应收账款</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="receivable-page-header-title">应收账款</h2>
         </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-written-off">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.writtenOffAmount) }}</div>
-          <div class="stat-card-label">已核销</div>
+        <div class="receivable-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-balance">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(stats.balanceAmount) }}</div>
-          <div class="stat-card-label">未核销</div>
+    </template>
+
+    <div class="finance-receivable-page">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(stats.totalAmount) }}</div>
+            <div class="stat-card-label">应收总额</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
         </div>
-        <ExclamationCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-overdue">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(overdueAmount) }}</div>
-          <div class="stat-card-label">逾期金额</div>
+        <div class="stat-card stat-written-off">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(stats.writtenOffAmount) }}</div>
+            <div class="stat-card-label">已核销</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <WarningOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-count">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">应收笔数</div>
+        <div class="stat-card stat-balance">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(stats.balanceAmount) }}</div>
+            <div class="stat-card-label">未核销</div>
+          </div>
+          <ExclamationCircleOutlined class="stat-card-icon" />
         </div>
-        <FileTextOutlined class="stat-card-icon" />
+        <div class="stat-card stat-overdue">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(overdueAmount) }}</div>
+            <div class="stat-card-label">逾期金额</div>
+          </div>
+          <WarningOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-count">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">应收笔数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <a-tabs v-model:activeKey="activeTab">
+        <!-- 列表标签 -->
+        <a-tab-pane key="list" tab="应收列表">
+          <VxeTableList
+            ref="tableRef"
+            :columns="columns"
+            :data-source="tableData"
+            :loading="loading"
+            :pagination="pagination"
+            :row-key="'id'"
+            :filter-fields="filterFields"
+            :show-search="false"
+            :show-export="false"
+            :show-add="false"
+            :show-edit="false"
+            :show-delete="false"
+            :selectable="true"
+            @refresh="fetchData"
+            @page-change="handlePageChange"
+            @filter-change="handleFilterChange"
+            @selection-change="handleSelectionChange"
+          >
+            <template #toolbar-actions>
+              <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+                更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+              </span>
+            </template>
+
+            <template #empty>
+              <div class="table-empty">
+                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+                <InboxOutlined v-else class="table-empty-icon" />
+                <p v-if="hasActiveFilters" class="table-empty-text">
+                  没有符合条件的应收记录，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p v-else class="table-empty-text">
+                  暂无应收账款数据
+                </p>
+              </div>
+            </template>
+
+            <template #action="{ record }">
+              <a-space :size="0" class="action-cell-inner">
+                <a-tooltip :title="record.status === 2 || record.status === 3 ? '' : '核销'">
+                  <a-button type="link" size="small" :disabled="record.status === 2 || record.status === 3" @click="handleWriteOff(record)">
+                    <template #icon><CheckCircleOutlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-dropdown trigger="click">
+                  <a-button type="link" size="small" class="action-more-btn">
+                    <template #icon><EllipsisOutlined /></template>
+                  </a-button>
+                  <template #overlay>
+                    <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                      <a-menu-item key="badDebt" :disabled="record.status === 2 || record.status === 3" danger>
+                        <DeleteOutlined /> 坏账标记
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+            </template>
+          </VxeTableList>
+        </a-tab-pane>
+
+        <!-- 账龄分析标签 -->
+        <a-tab-pane key="aging" tab="账龄分析">
+          <div ref="agingChartRef" style="height: 400px"></div>
+        </a-tab-pane>
+      </a-tabs>
+
+      <!-- 核销弹窗 -->
+      <a-modal
+        v-model:open="writeOffVisible"
+        title="应收账款核销"
+        :confirm-loading="writeOffLoading"
+        @ok="handleWriteOffConfirm"
+        @cancel="handleWriteOffCancel"
+      >
+        <a-descriptions v-if="writeOffTarget" :column="1" bordered size="small">
+          <a-descriptions-item label="客户">{{ writeOffTarget.customerName }}</a-descriptions-item>
+          <a-descriptions-item label="来源单号">{{ writeOffTarget.sourceNo }}</a-descriptions-item>
+          <a-descriptions-item label="应收总额">
+            {{ formatAmount(writeOffTarget.amount) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="已核销金额">
+            {{ formatAmount(writeOffTarget.writtenOff) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="剩余金额">
+            {{ formatAmount(writeOffTarget.balance) }}
+          </a-descriptions-item>
+        </a-descriptions>
+        <a-form layout="vertical" style="margin-top: 16px">
+          <a-form-item label="核销金额" required>
+            <a-input-number
+              v-model:value="writeOffAmount"
+              :min="0.01"
+              :max="writeOffTarget?.balance || 0"
+              :precision="2"
+              style="width: 100%"
+              placeholder="请输入核销金额"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
     </div>
-
-    <a-tabs v-model:activeKey="activeTab">
-      <!-- 列表标签 -->
-      <a-tab-pane key="list" tab="应收列表">
-        <VxeTableList
-          ref="tableRef"
-          :columns="columns"
-          :data-source="tableData"
-          :loading="loading"
-          :pagination="pagination"
-          :row-key="'id'"
-          :filter-fields="filterFields"
-          :show-search="false"
-          :show-export="false"
-          :show-add="false"
-          :show-edit="false"
-          :show-delete="false"
-          :selectable="true"
-          @refresh="fetchData"
-          @page-change="handlePageChange"
-          @filter-change="handleFilterChange"
-          @selection-change="handleSelectionChange"
-        >
-          <template #toolbar-actions>
-            <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-              更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-            </span>
-          </template>
-
-          <template #empty>
-            <div class="table-empty">
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的应收记录，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无应收账款数据
-              </p>
-            </div>
-          </template>
-
-          <template #action="{ record }">
-            <a-space :size="0" class="action-cell-inner">
-              <a-tooltip :title="record.status === 2 || record.status === 3 ? '' : '核销'">
-                <a-button type="link" size="small" :disabled="record.status === 2 || record.status === 3" @click="handleWriteOff(record)">
-                  <template #icon><CheckCircleOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><EllipsisOutlined /></template>
-                </a-button>
-                <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                    <a-menu-item key="badDebt" :disabled="record.status === 2 || record.status === 3" danger>
-                      <DeleteOutlined /> 坏账标记
-                    </a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
-        </VxeTableList>
-      </a-tab-pane>
-
-      <!-- 账龄分析标签 -->
-      <a-tab-pane key="aging" tab="账龄分析">
-        <div ref="agingChartRef" style="height: 400px"></div>
-      </a-tab-pane>
-    </a-tabs>
-
-    <!-- 核销弹窗 -->
-    <a-modal
-      v-model:open="writeOffVisible"
-      title="应收账款核销"
-      :confirm-loading="writeOffLoading"
-      @ok="handleWriteOffConfirm"
-      @cancel="handleWriteOffCancel"
-    >
-      <a-descriptions v-if="writeOffTarget" :column="1" bordered size="small">
-        <a-descriptions-item label="客户">{{ writeOffTarget.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="来源单号">{{ writeOffTarget.sourceNo }}</a-descriptions-item>
-        <a-descriptions-item label="应收总额">
-          {{ formatAmount(writeOffTarget.amount) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="已核销金额">
-          {{ formatAmount(writeOffTarget.writtenOff) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="剩余金额">
-          {{ formatAmount(writeOffTarget.balance) }}
-        </a-descriptions-item>
-      </a-descriptions>
-      <a-form layout="vertical" style="margin-top: 16px">
-        <a-form-item label="核销金额" required>
-          <a-input-number
-            v-model:value="writeOffAmount"
-            :min="0.01"
-            :max="writeOffTarget?.balance || 0"
-            :precision="2"
-            style="width: 100%"
-            placeholder="请输入核销金额"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -153,17 +178,24 @@ import { message, Modal } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, DeleteOutlined, EllipsisOutlined, InboxOutlined,
-  DollarOutlined, ExclamationCircleOutlined, WarningOutlined, FileTextOutlined
+  DollarOutlined, ExclamationCircleOutlined, WarningOutlined, FileTextOutlined,
+  SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { receivableApi } from '@/api/finance'
 
 const tableRef = ref()
 const activeTab = ref('list')
 const loading = ref(false)
+const refreshLoading = ref(false)
 const tableData = ref<any[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const searchForm = reactive({
   customerName: '',
@@ -224,11 +256,11 @@ const statusLabelMap: Record<number, string> = {
 const columns = computed(() => [
   { title: '来源单号', field: 'sourceNo', width: 150 },
   { title: '客户', field: 'customerName', width: 150 },
-  { title: '总额', field: 'amount', width: 120, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
-  { title: '已核销', field: 'writtenOff', width: 120, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
-  { title: '余额', field: 'balance', width: 120, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '总额', field: 'amount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '已核销', field: 'writtenOff', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '余额', field: 'balance', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '到期日', field: 'dueDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => statusLabelMap[cellValue] || '未知' },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => statusLabelMap[cellValue] || '未知' },
   { title: '操作', type: 'action', width: 160, fixed: 'right' }
 ])
 
@@ -244,6 +276,7 @@ let agingChart: echarts.ECharts | null = null
 
 const fetchData = async () => {
   loading.value = true
+  refreshLoading.value = true
   try {
     const params: any = {
       pageNum: pagination.current,
@@ -262,16 +295,15 @@ const fetchData = async () => {
       stats.writtenOffAmount = tableData.value.reduce((sum, item) => sum + item.writtenOff, 0)
       stats.balanceAmount = tableData.value.reduce((sum, item) => sum + item.balance, 0)
     }
-  } catch {
+  } catch (err) {
+    console.warn('[应收账款] 获取数据失败', err)
     message.error('获取应收账款数据失败')
-    // Mock data
-    tableData.value = mockData()
-    pagination.total = mockData().length
-    stats.totalAmount = tableData.value.reduce((sum, item) => sum + item.amount, 0)
-    stats.writtenOffAmount = tableData.value.reduce((sum, item) => sum + item.writtenOff, 0)
-    stats.balanceAmount = tableData.value.reduce((sum, item) => sum + item.balance, 0)
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
@@ -281,8 +313,8 @@ const fetchAgingData = async () => {
     if (res.data) {
       initAgingChart(res.data)
     }
-  } catch {
-    // Silently handle
+  } catch (err) {
+    console.warn('[应收账款] 获取账龄分析失败', err)
   }
 }
 
@@ -346,7 +378,6 @@ const handleFilterChange = (filters: Record<string, any>) => {
 
 const handleSelectionChange = (rows: any[], ids: any[]) => {
   // 可以在这里处理选中行的逻辑，例如批量操作
-  console.log('Selected rows:', rows.length)
 }
 
 const handleWriteOff = (record: any) => {
@@ -370,7 +401,8 @@ const handleWriteOffConfirm = async () => {
     message.success('核销成功')
     writeOffVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[应收账款] 核销失败', err)
     message.error('核销失败')
   } finally {
     writeOffLoading.value = false
@@ -390,7 +422,8 @@ const handleMarkBadDebt = (record: any) => {
         await receivableApi.markBadDebt(record.id)
         message.success('已标记为坏账')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[应收账款] 标记坏账失败', err)
         message.error('操作失败')
       }
     }
@@ -416,28 +449,10 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); }
 }
 
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
-
-const mockData = () => [
-  { id: 1, sourceNo: 'AR2024010001', customerName: '北京客户A', amount: 85000, writtenOff: 35000, balance: 50000, dueDate: '2024-02-15', status: 1 },
-  { id: 2, sourceNo: 'AR2024010002', customerName: '上海客户B', amount: 42000, writtenOff: 0, balance: 42000, dueDate: '2024-02-18', status: 0 },
-  { id: 3, sourceNo: 'AR2024010003', customerName: '广州客户C', amount: 28000, writtenOff: 28000, balance: 0, dueDate: '2024-02-01', status: 2 },
-  { id: 4, sourceNo: 'AR2024010004', customerName: '深圳客户D', amount: 65000, writtenOff: 30000, balance: 35000, dueDate: '2024-01-25', status: 1 },
-  { id: 5, sourceNo: 'AR2024010005', customerName: '杭州客户E', amount: 18000, writtenOff: 18000, balance: 0, dueDate: '2024-02-01', status: 2 },
-  { id: 6, sourceNo: 'AR2024010006', customerName: '成都客户F', amount: 52000, writtenOff: 0, balance: 52000, dueDate: '2024-01-20', status: 0 }
-]
-
 const formatAmount = (val: number) => {
   if (val === undefined || val === null) return '0.00'
   return '¥' + Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-
-onMounted(() => {
-  fetchData()
-  document.addEventListener('keydown', handleKeydown)
-})
 
 // Watch for tab change to init chart
 watch(activeTab, (val) => {
@@ -447,9 +462,68 @@ watch(activeTab, (val) => {
     })
   }
 })
+
+onMounted(() => {
+  fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.receivable-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.receivable-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.receivable-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.receivable-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .finance-receivable-page {
   padding: 16px;
   height: 100%;
@@ -520,7 +594,6 @@ watch(activeTab, (val) => {
   margin-top: 12px;
 }
 
-
 .text-danger {
   color: #ff4d4f;
   font-weight: 600;
@@ -549,10 +622,6 @@ watch(activeTab, (val) => {
 .action-more-btn {
   padding: 0 4px;
 }
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

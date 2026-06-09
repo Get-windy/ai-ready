@@ -105,13 +105,27 @@
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-modal
+    <!-- 详情全屏覆盖层 -->
+    <a-drawer
       v-model:open="detailVisible"
       title="询价单详情"
-      width="700px"
-      :footer="null"
+      placement="right"
+      width="80vw"
+      class="inquiry-detail-drawer"
     >
+      <template #extra>
+        <a-space>
+          <a-button v-if="currentRecord?.status === 0" type="primary" size="small" @click="handleSendFromDetail">
+            <template #icon><SendOutlined /></template>
+            发送询价
+          </a-button>
+          <a-button v-if="currentRecord?.status === 0" size="small" @click="handleEditFromDetail">
+            <template #icon><EditOutlined /></template>
+            编辑
+          </a-button>
+        </a-space>
+      </template>
+
       <a-descriptions bordered :column="2" size="small" v-if="currentRecord">
         <a-descriptions-item label="询价单号">
           <span class="inquiry-no">{{ currentRecord.inquiryNo }}</span>
@@ -139,18 +153,7 @@
         :show-export="false"
         :show-batch-delete="false"
       />
-
-      <div class="detail-modal-footer">
-        <a-space>
-          <a-button v-if="currentRecord?.status === 0" type="primary" @click="handleSendFromDetail">
-            <template #icon><SendOutlined /></template>
-            发送询价
-          </a-button>
-          <a-button v-if="currentRecord?.status === 0" @click="handleEditFromDetail">编辑</a-button>
-          <a-button @click="detailVisible = false">关闭</a-button>
-        </a-space>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建/编辑询价弹窗 -->
     <a-modal
@@ -256,6 +259,7 @@ import {
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inquiryApi } from '@/api/erp'
+import { supplierApi } from '@/api/supplier'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -317,12 +321,6 @@ const itemDetailColumns = [
 ]
 
 const detailItems = ref<any[]>([])
-
-const mockDetailItems = () => [
-  { productName: '工业传感器', specification: 'P001-A', quantity: 100, unit: '个' },
-  { productName: '智能控制器', specification: 'P002-B', quantity: 50, unit: '台' },
-  { productName: '连接线缆', specification: 'P003-C', quantity: 200, unit: '米' }
-]
 
 // 表单弹窗
 const formModalVisible = ref(false)
@@ -390,13 +388,15 @@ const resetForm = () => {
 }
 
 async function loadSuppliers() {
-  supplierList.value = [
-    { id: 1, name: '北京供应商' },
-    { id: 2, name: '上海供应商' },
-    { id: 3, name: '广州供应商' },
-    { id: 4, name: '深圳供应商' },
-    { id: 5, name: '杭州供应商' }
-  ]
+  try {
+    const res = await supplierApi.page({ pageSize: 200, pageNum: 1 })
+    const data = (res as any).data ?? res
+    supplierList.value = (data.records || []).map((s: any) => ({ id: s.id, name: s.supplierName }))
+  } catch (e) {
+    console.warn('[采购询价] 加载供应商列表失败', e)
+    message.error('加载供应商列表失败')
+    supplierList.value = []
+  }
 }
 
 async function fetchData() {
@@ -409,27 +409,20 @@ async function fetchData() {
       ...searchFilters
     })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
-  } catch {
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
+  } catch (e) {
+    console.warn('[采购询价] 获取列表失败', e)
     message.error('获取询价单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally {
     loading.value = false
   }
 }
 
-const mockData = () => [
-  { id: 1, inquiryNo: 'IN2024010001', supplierName: '北京供应商', inquiryDate: '2024-01-10', status: 2, creatorName: '张三', createTime: '2024-01-10 10:00' },
-  { id: 2, inquiryNo: 'IN2024010002', supplierName: '上海供应商', inquiryDate: '2024-01-12', status: 1, creatorName: '李四', createTime: '2024-01-12 11:00' },
-  { id: 3, inquiryNo: 'IN2024010003', supplierName: '广州供应商', inquiryDate: '2024-01-15', status: 0, creatorName: '王五', createTime: '2024-01-15 09:00' },
-  { id: 4, inquiryNo: 'IN2024010004', supplierName: '深圳供应商', inquiryDate: '2024-01-08', status: 2, creatorName: '张三', createTime: '2024-01-08 14:00' },
-  { id: 5, inquiryNo: 'IN2024010005', supplierName: '杭州供应商', inquiryDate: '2024-01-18', status: 1, creatorName: '李四', createTime: '2024-01-18 15:00' }
-]
-
 function handleView(record: any) {
-  currentRecord.value = { ...record, items: mockDetailItems() }
-  detailItems.value = currentRecord.value.items || mockDetailItems()
+  currentRecord.value = { ...record, items: record.items || [] }
+  detailItems.value = currentRecord.value.items || []
   detailVisible.value = true
 }
 
@@ -446,7 +439,7 @@ function handleEdit(record: any) {
   formData.supplierId = record.supplierId
   formData.inquiryDate = record.inquiryDate
   formData.remark = record.remark || ''
-  formData.items = (record.items || mockDetailItems()).map((item: any) => ({
+  formData.items = (record.items || []).map((item: any) => ({
     tempKey: genTempKey(),
     productName: item.productName || '',
     specification: item.specification || '',
@@ -481,7 +474,7 @@ function handleDelete(record: any) {
     centered: true,
     onOk: async () => {
       try { await inquiryApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购询价] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -530,7 +523,8 @@ const handleFormSubmit = async () => {
     }
     formModalVisible.value = false
     fetchData()
-  } catch {
+  } catch (e) {
+    console.warn('[采购询价] 保存失败', e)
     message.error(formMode.value === 'edit' ? '编辑失败' : '新建失败')
   } finally {
     formSubmitting.value = false
@@ -546,22 +540,27 @@ function handleSend(record: any) {
     centered: true,
     onOk: async () => {
       try { await inquiryApi.send(record.id); message.success('发送成功'); fetchData() }
-      catch { message.error('发送失败') }
+      catch (e) { console.warn('[采购询价] 发送失败', e); message.error('发送失败') }
     }
   })
+}
+
+function csvEscape(val: any): string {
+  const str = String(val ?? '')
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
 }
 
 function handleExport() {
   const headers = ['询价单号', '供应商', '询价日期', '状态', '创建人', '创建时间']
   const rows = dataSource.value.map((row: any) => [
-    row.inquiryNo || '',
-    row.supplierName || '',
-    row.inquiryDate || '',
+    row.inquiryNo, row.supplierName, row.inquiryDate,
     getStatusText(row.status),
-    row.creatorName || '',
-    row.createTime || ''
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    row.creatorName, row.createTime
+  ].map(csvEscape))
+  const csv = [headers.map(csvEscape).join(','), ...rows.map(r => r.join(','))].join('\n')
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -569,7 +568,7 @@ function handleExport() {
   a.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  message.success('导出成功')
+  console.warn('[采购询价] 导出成功（前端CSV导出，无后端接口）'); message.success('导出成功')
 }
 
 function handleBatchSend() {
@@ -584,8 +583,14 @@ function handleBatchSend() {
     okText: '确认',
     centered: true,
     onOk: async () => {
-      message.success(`成功发送 ${keys.length} 个询价单`)
-      fetchData()
+      try {
+        await Promise.all(keys.map(k => inquiryApi.send(k)))
+        message.success(`成功发送 ${keys.length} 个询价单`)
+        fetchData()
+      } catch (e) {
+        console.warn('[采购询价] 批量发送失败', e)
+        message.error('批量发送失败')
+      }
     }
   })
 }
@@ -603,6 +608,8 @@ function handlePageChange(page: number, size: number) {
 }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters)
   pagination.current = 1
@@ -621,11 +628,16 @@ onMounted(() => {
   fetchData()
   loadSuppliers()
   document.addEventListener('keydown', handleKeydown)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -706,17 +718,11 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
-.detail-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+/* 详情抽屉 */
+:deep(.inquiry-detail-drawer .ant-drawer-body) {
+  padding: 16px 24px;
+  overflow-y: auto;
 }
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

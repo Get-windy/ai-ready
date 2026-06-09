@@ -1,18 +1,25 @@
 <template>
-  <PageContainer title="发票管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="invoice-page-header">
+        <div class="invoice-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>发票管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="invoice-page-header-title">发票管理</h2>
+        </div>
+        <div class="invoice-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
@@ -163,7 +170,7 @@
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="detailVisible" title="发票详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="发票详情" placement="right" width="80vw" :footer="null">
       <a-descriptions :column="2" bordered>
         <a-descriptions-item label="发票号码">{{ invoiceDetail.invoiceNo }}</a-descriptions-item>
         <a-descriptions-item label="发票类型"><a-tag :color="getInvoiceTypeColor(invoiceDetail.invoiceType)">{{ invoiceDetail.invoiceTypeLabel }}</a-tag></a-descriptions-item>
@@ -178,17 +185,17 @@
         <a-descriptions-item label="关联订单" :span="2"><a-space><a-tag v-for="o in invoiceDetail.relatedOrders" :key="o">{{ o }}</a-tag></a-space></a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ invoiceDetail.remark }}</a-descriptions-item>
       </a-descriptions>
-    </a-modal>
+    </a-drawer>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined, ReloadOutlined, SearchOutlined, InboxOutlined, FileTextOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, FileTextOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import { PageContainer } from '@/components'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import type { FormInstance } from 'ant-design-vue'
 import { invoiceApi } from '@/api/crm'
@@ -208,7 +215,10 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref<string>('')
 const selectedRowKeys = ref<number[]>([])
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 状态统计
 const statusCounts = computed(() => {
@@ -282,29 +292,21 @@ const invoiceDetail = ref<any>({})
 const formTaxAmount = computed(() => { const amt = formData.amount || 0; const rate = parseFloat(formData.taxRate) / 100; return amt * rate })
 const formTotalAmount = computed(() => { const amt = formData.amount || 0; return amt + formTaxAmount.value })
 
-// 自动刷新
-const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !modalVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
-}
-
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 
 async function fetchData(silent = false) {
@@ -319,23 +321,20 @@ async function fetchData(silent = false) {
     tableData.value = (result.content || result.records || result.data?.records || []) as any[]
     pagination.total = result.totalElements ?? result.total ?? result.data?.total ?? 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
       message.error('获取发票数据失败')
     }
-    tableData.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[CRM发票] 获取发票列表失败', err)
+    tableData.value = []
+    pagination.total = 0
   }
-  finally { if (!silent) loading.value = false }
+  finally {
+    if (!silent) loading.value = false
+    refreshLoading.value = false
+  }
 }
-
-const mockData = () => [
-  { id: 1, invoiceNo: 'INV2024010001', invoiceType: 'special', invoiceTypeLabel: '增值税专用发票', customerName: '北京科技有限公司', invoiceDate: '2024-01-10', amount: 50000, taxAmount: 6500, totalAmount: 56500, status: 'issued', issuer: '张三' },
-  { id: 2, invoiceNo: 'INV2024010002', invoiceType: 'normal', invoiceTypeLabel: '增值税普通发票', customerName: '上海贸易公司', invoiceDate: '2024-01-12', amount: 28000, taxAmount: 2800, totalAmount: 30800, status: 'sent', issuer: '李四' },
-  { id: 3, invoiceNo: 'INV2024010003', invoiceType: 'electronic', invoiceTypeLabel: '电子发票', customerName: '广州制造企业', invoiceDate: '2024-01-15', amount: 15000, taxAmount: 900, totalAmount: 15900, status: 'received', issuer: '王五' },
-  { id: 4, invoiceNo: 'INV2024010004', invoiceType: 'special', invoiceTypeLabel: '增值税专用发票', customerName: '深圳电子公司', invoiceDate: '2024-01-08', amount: 42000, taxAmount: 5460, totalAmount: 47460, status: 'draft', issuer: '赵六' }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -355,28 +354,28 @@ function handleEdit(record: any) { modalTitle.value = '编辑发票'; Object.ass
 function handleAdd() { modalTitle.value = '新建发票'; modalVisible.value = true }
 async function handleIssue(record: any) {
   try { await invoiceApi.updateStatus(record.id, 'ISSUED'); message.success('发票已开具'); fetchData() }
-  catch { message.error('开票失败') }
+  catch (err) { console.warn('[CRM发票] 开发票失败', err); message.error('开票失败') }
 }
 async function handleSend(record: any) {
   try { await invoiceApi.sendInvoice(record.id, 'EMAIL'); message.success('发票已发送'); fetchData() }
-  catch { message.error('发送失败') }
+  catch (err) { console.warn('[CRM发票] 发送发票失败', err); message.error('发送失败') }
 }
 function handlePrintSuccess(record: any) { message.success(`发票 ${record.invoiceNo} 打印成功`) }
 function handlePrintError(error: any) { message.error(`打印失败: ${error.message || '未知错误'}`) }
 function handleCancelConfirm(record: any) {
   Modal.confirm({ title: '确认作废', content: `确定要作废发票 "${record.invoiceNo}" 吗？`, okText: '确认作废', okType: 'danger', cancelText: '取消', centered: true, async onOk() {
     try { await invoiceApi.voidInvoice(record.id, '作废'); message.success('发票已作废'); fetchData() }
-    catch { message.error('作废失败') }
+    catch (err) { console.warn('[CRM发票] 作废发票失败', err); message.error('作废失败') }
   }})
 }
 
 async function handleSubmit() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM发票] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     await invoiceApi.create(formData)
     message.success('保存成功'); modalVisible.value = false; fetchData()
-  } catch { message.error('保存失败') }
+  } catch (err) { console.warn('[CRM发票] 保存发票失败', err); message.error('保存失败') }
   finally { submitLoading.value = false }
 }
 function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
@@ -392,19 +391,45 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 function handleSelectionChange(rows: any[], ids: any[]) { selectedRowKeys.value = ids }
+defineExpose({ handleQuery: fetchData })
 </script>
-
 <style scoped>
-.data-status {
+.invoice-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.invoice-page-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
 }
-
+.invoice-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.invoice-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stats-cards {
@@ -519,10 +544,6 @@ function handleSelectionChange(rows: any[], ids: any[]) { selectedRowKeys.value 
 .amount-cell.total {
   font-weight: 600;
 }
-
-
-
-
 
 :deep(.ant-tabs) {
   margin: 0 24px;

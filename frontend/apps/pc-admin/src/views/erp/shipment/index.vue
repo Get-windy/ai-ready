@@ -1,5 +1,32 @@
 <template>
-  <div class="shipment-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="shipment-page-header">
+        <div class="shipment-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>发货管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="shipment-page-title">发货管理</h2>
+        </div>
+        <div class="shipment-page-header-right">
+          <span class="data-status">
+            <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
+            <span v-if="lastUpdateTime" class="update-time">
+              数据更新: {{ lastUpdateTime }}
+            </span>
+          </span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="loading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -47,22 +74,6 @@
         </div>
       </a-col>
     </a-row>
-
-    <PageContainer title="发货管理" full-height style="flex: 1; overflow: hidden;">
-      <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
-          </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
-    </template>
 
     <ErrorBoundary @reset="fetchData">
       <VxeTableList
@@ -165,12 +176,12 @@
     </ErrorBoundary>
 
     <!-- 详情弹窗 -->
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="出库单详情"
-      width="800px"
+      placement="right"
+      width="80vw"
       :footer="null"
-      class="detail-modal"
     >
       <template #extra>
         <a-button size="small" @click="handlePrintFromDetail">
@@ -228,11 +239,7 @@
           </template>
         </VxeTableList>
       </div>
-
-      <div class="detail-modal-footer">
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 物流单号填写弹窗 -->
     <a-modal
@@ -257,7 +264,6 @@
       </a-form>
     </a-modal>
   </PageContainer>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -284,7 +290,8 @@ import {
   PrinterOutlined,
   NumberOutlined,
   FileTextOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 
 interface ShipmentItem {
@@ -319,9 +326,11 @@ const trackingVisible = ref(false)
 const currentRecord = ref<Shipment | null>(null)
 const tableRef = ref()
 const lastUpdateTime = ref<string>('')
-const autoRefreshTimer = ref<number | null>(null)
+const autoRefreshCountdown = ref(0)
 const selectedRows = ref<Shipment[]>([])
 const selectedIds = ref<number[]>([])
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const searchFilters = reactive<Record<string, any>>({})
 const trackingForm = reactive({
@@ -351,7 +360,7 @@ const hasActiveFilters = computed(() => {
 
 // 详情明细
 const currentRecordItems = computed(() => {
-  return currentRecord.value?.items || mockDetailItems()
+  return currentRecord.value?.items || []
 })
 
 const vxeColumns = computed(() => [
@@ -389,12 +398,6 @@ const filterFields = [
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
-
-const mockDetailItems = (): ShipmentItem[] => [
-  { id: 1, productName: '工业传感器', productCode: 'P001', quantity: 50, unitPrice: 800, amount: 40000 },
-  { id: 2, productName: '智能控制器', productCode: 'P002', quantity: 30, unitPrice: 1200, amount: 36000 },
-  { id: 3, productName: '连接线缆套装', productCode: 'P003', quantity: 100, unitPrice: 85, amount: 8500 }
-]
 
 const handleRefresh = async () => {
   lastUpdateTime.value = ''
@@ -446,7 +449,8 @@ const handleApprove = (record: Shipment) => {
         await request.put(`/erp/sale/outbound/${record.id}/approve`)
         message.success('审核成功')
         fetchData()
-      } catch {
+      } catch (error) {
+        console.warn('[发货管理] 审核失败', error)
         message.error('审核失败')
       }
     }
@@ -464,7 +468,8 @@ const handleShip = (record: Shipment) => {
         await request.put(`/erp/sale/outbound/${record.id}/ship`)
         message.success('出库成功')
         fetchData()
-      } catch {
+      } catch (error) {
+        console.warn('[发货管理] 出库失败', error)
         message.error('出库失败')
       }
     }
@@ -488,7 +493,8 @@ const handleDelete = async (record: Shipment) => {
     await request.delete(`/erp/sale/outbound/${record.id}`)
     message.success('删除成功')
     fetchData()
-  } catch {
+  } catch (error) {
+    console.warn('[发货管理] 删除失败', error)
     message.error('删除失败')
   }
 }
@@ -528,7 +534,8 @@ const handleSaveTracking = async () => {
       trackingVisible.value = false
       fetchData()
     }
-  } catch {
+  } catch (error) {
+    console.warn('[发货管理] 保存物流信息失败', error)
     message.error('保存失败')
   }
 }
@@ -559,24 +566,6 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-window.addEventListener('keydown', handleKeydown)
-
-// 自动刷新 (60秒)
-const startAutoRefresh = () => {
-  autoRefreshTimer.value = window.setInterval(() => {
-    if (!loading.value && !detailVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer.value) {
-    clearInterval(autoRefreshTimer.value)
-    autoRefreshTimer.value = null
-  }
-}
-
 const fetchData = async (silent = false) => {
   if (!silent) loading.value = true
   hasError.value = false
@@ -591,46 +580,79 @@ const fetchData = async (silent = false) => {
       dataSource.value = res.data.records
       pagination.total = res.data.total || 0
     } else {
-      dataSource.value = mockData()
-      pagination.total = mockData().length
+      dataSource.value = []
+      pagination.total = 0
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   } catch (error) {
+    console.warn('[发货管理] 获取数据失败', error)
     if (!silent) {
       hasError.value = true
       message.error('获取数据失败')
     }
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally {
     if (!silent) loading.value = false
   }
 }
 
-const mockData = (): Shipment[] => [
-  { id: 1, shipmentNo: 'CK2024010001', orderNo: 'SO2024010001', customerName: '北京科技有限公司', warehouseName: '北京仓库', totalAmount: 85000, status: 0, shipmentDate: '2024-01-15', operator: '张三' },
-  { id: 2, shipmentNo: 'CK2024010002', orderNo: 'SO2024010002', customerName: '上海贸易集团', warehouseName: '上海仓库', totalAmount: 120000, status: 1, shipmentDate: '2024-01-16', operator: '李四' },
-  { id: 3, shipmentNo: 'CK2024010003', orderNo: 'SO2024010003', customerName: '广州制造公司', warehouseName: '广州仓库', totalAmount: 95000, status: 2, shipmentDate: '2024-01-17', operator: '王五', trackingNo: 'SF1234567890' },
-  { id: 4, shipmentNo: 'CK2024010004', orderNo: 'SO2024010004', customerName: '深圳创新科技', warehouseName: '深圳仓库', totalAmount: 68000, status: 3, shipmentDate: '2024-01-18', operator: '赵六', trackingNo: 'JD9876543210' },
-  { id: 5, shipmentNo: 'CK2024010005', orderNo: 'SO2024010005', customerName: '杭州互联网公司', warehouseName: '杭州仓库', totalAmount: 156000, status: 0, shipmentDate: '2024-01-19', operator: '张三' }
-]
-
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData(true)
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  stopAutoRefresh()
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
 </script>
 
 <style scoped>
-.shipment-page {
-  padding: 16px;
-  height: 100%;
+.shipment-page-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.shipment-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shipment-page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.shipment-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 /* 统计卡片样式 */
@@ -788,12 +810,6 @@ onUnmounted(() => {
   margin-bottom: 12px;
 }
 
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-}
 
 
 

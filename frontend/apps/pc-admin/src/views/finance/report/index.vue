@@ -1,5 +1,28 @@
 <template>
-  <div class="finance-report-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="report-page-header">
+        <div class="report-page-header-left">
+          <a-breadcrumb class="report-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>财务报表</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="report-page-header-title">财务报表</h2>
+        </div>
+        <div class="report-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleGenerate">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <div class="finance-report-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-trial" :class="{ 'stat-success': trialBalanceBalanced === true, 'stat-error': trialBalanceBalanced === false }">
@@ -143,24 +166,29 @@
         />
       </a-tab-pane>
     </a-tabs>
-  </div>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined,
-  SyncOutlined, RiseOutlined, FallOutlined, DollarOutlined
+  SyncOutlined, RiseOutlined, FallOutlined, DollarOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { reportApi } from '@/api/finance'
 
 const activeTab = ref('trial-balance')
 const filterYear = ref(dayjs().year())
 const filterPeriod = ref(dayjs().month() + 1)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 
 // 试算平衡表
 const trialBalanceData = ref<any[]>([])
@@ -215,7 +243,10 @@ const handleTabChange = (key: string) => {
 }
 
 const handleGenerate = () => {
+  refreshLoading.value = true
   loadReport(activeTab.value)
+  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  setTimeout(() => { refreshLoading.value = false }, 500)
 }
 
 const loadReport = async (tab: string) => {
@@ -263,7 +294,8 @@ const loadTrialBalance = async (period: string) => {
         Math.abs(totalPeriodDebit - totalPeriodCredit) < 0.01 &&
         Math.abs(totalCloseDebit - totalCloseCredit) < 0.01
     }
-  } catch {
+  } catch (err) {
+    console.warn('[财务报表] 获取试算平衡表失败', err)
     message.error('获取试算平衡表失败')
     trialBalanceBalanced.value = null
   } finally {
@@ -292,7 +324,8 @@ const loadBalanceSheet = async (period: string) => {
 
       balanceSheetBalanced.value = Math.abs(assets - (liabilities + equity)) < 0.01
     }
-  } catch {
+  } catch (err) {
+    console.warn('[财务报表] 获取资产负债表失败', err)
     message.error('获取资产负债表失败')
   } finally {
     bsLoading.value = false
@@ -316,7 +349,8 @@ const loadIncomeStatement = async (period: string) => {
         }
       }
     }
-  } catch {
+  } catch (err) {
+    console.warn('[财务报表] 获取利润表失败', err)
     message.error('获取利润表失败')
   } finally {
     isLoading.value = false
@@ -328,12 +362,76 @@ const formatAmount = (val: number) => {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const handleSelectionChange = (keys: any[]) => {
+  // 选中行处理，预留
+}
+
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   loadReport(activeTab.value)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadReport(activeTab.value)
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadReport })
 </script>
 
 <style scoped>
+.report-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.report-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.report-breadcrumb {
+  font-size: 13px;
+}
+.report-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.report-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .finance-report-page {
   padding: 16px;
   height: 100%;

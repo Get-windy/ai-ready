@@ -13,7 +13,7 @@
         <div class="login-header">
           <div class="logo">
             <div class="logo-icon" aria-hidden="true">
-              🚀
+              <span class="logo-initials">AR</span>
             </div>
             <h1>企智连·AI-Ready</h1>
           </div>
@@ -232,7 +232,7 @@ const fetchCaptcha = async () => {
       captchaKey.value = res.data.uuid
     }
   } catch (error) {
-    console.error('获取验证码失败:', error)
+    console.warn('[登录] 获取验证码失败', error)
     message.warning('获取验证码失败，请刷新重试')
   }
 }
@@ -292,7 +292,7 @@ const handleSubmit = async () => {
       refreshCaptcha()
     }
   } catch (error: any) {
-    console.error('登录失败:', error)
+    console.warn('[登录] 登录失败', error)
     const errorMsg = error?.message || error?.response?.data?.message || '登录失败，请稍后重试'
     message.error(errorMsg)
     refreshCaptcha()
@@ -452,6 +452,22 @@ onMounted(async () => {
   font-size: 48px;
   margin-bottom: 12px;
   animation: bounce 2s infinite;
+  display: flex;
+  justify-content: center;
+}
+
+.logo-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 @keyframes bounce {

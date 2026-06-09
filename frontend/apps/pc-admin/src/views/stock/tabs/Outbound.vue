@@ -100,7 +100,7 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="出库单详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="出库单详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="出库单号">{{ currentRecord.outboundNo }}</a-descriptions-item>
         <a-descriptions-item label="出库类型">{{ currentRecord.outboundType }}</a-descriptions-item>
@@ -113,7 +113,7 @@
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
       <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建出库弹窗 -->
     <a-modal v-model:open="addVisible" title="新建出库单" width="800px" :confirm-loading="addSubmitting"
@@ -329,24 +329,19 @@ async function fetchData() {
   try {
     const res = await outboundApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
     emit('update-count', pagination.total)
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[库存出库] 获取出库单列表失败', err)
+    tableData.value = []
+    pagination.total = 0
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, outboundNo: 'OUT-2024-001', outboundType: '销售出库', warehouseName: '主仓库', outboundDate: '2024-01-18', status: 2, createTime: '2024-01-17 14:00', targetNo: 'SO-2024-001', handlerName: '张三' },
-  { id: 2, outboundNo: 'OUT-2024-002', outboundType: '销售出库', warehouseName: '成品仓库', outboundDate: '2024-01-25', status: 1, createTime: '2024-01-24 10:30', targetNo: 'SO-2024-002', handlerName: '李四' },
-  { id: 3, outboundNo: 'OUT-2024-003', outboundType: '调拨出库', warehouseName: '主仓库', outboundDate: '2024-02-05', status: 2, createTime: '2024-02-04 09:00', targetNo: 'TR-2024-002', handlerName: '王五' },
-  { id: 4, outboundNo: 'OUT-2024-004', outboundType: '退货出库', warehouseName: '备品仓库', outboundDate: '2024-02-12', status: 0, createTime: '2024-02-11 16:00', targetNo: 'RT-2024-001', handlerName: '赵六' },
-]
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() {
@@ -360,7 +355,7 @@ async function handleDelete(record: any) {
     title: '删除出库单', content: `确认删除出库单 "${record.outboundNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await outboundApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[库存出库] 删除出库单失败', err); message.error('删除失败') }
     }
   })
 }
@@ -370,7 +365,7 @@ async function handleBatchDelete(ids: number[]) {
 }
 
 const handleAddSubmit = async () => {
-  try { await addFormRef.value?.validate() } catch { return }
+  try { await addFormRef.value?.validate() } catch (err) { console.warn('[库存出库] 表单验证失败', err); return }
   if (addForm.items.length === 0) { message.warning('请至少添加一条出库明细'); return }
   const overStockItem = addForm.items.find(item => item.quantity > item.availableQty)
   if (overStockItem) { message.warning(`产品 "${overStockItem.productName}" 的出库数量超过可用库存`); return }
@@ -383,7 +378,7 @@ const handleAddSubmit = async () => {
       items: addForm.items.map(item => ({ productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice }))
     })
     message.success('出库单创建成功'); addVisible.value = false; pagination.current = 1; fetchData()
-  } catch (err: any) { message.error(err?.message || '创建失败') }
+  } catch (err: any) { console.warn('[库存出库] 创建出库单失败', err); message.error(err?.message || '创建失败') }
   finally { addSubmitting.value = false }
 }
 const handleAddCancel = () => { addVisible.value = false }
@@ -392,7 +387,7 @@ function handleApprove(record: any) {
   Modal.confirm({
     title: '确认审批', content: `确定要审批通过出库单 "${record.outboundNo}" 吗？`,
     okText: '确认通过', cancelText: '取消', centered: true,
-    async onOk() { try { await outboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { message.error(err?.message || '审批失败') } }
+    async onOk() { try { await outboundApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { console.warn('[库存出库] 审批出库单失败', err); message.error(err?.message || '审批失败') } }
   })
 }
 function handleBatchApprove() {
@@ -418,6 +413,7 @@ function handleExport() {
   a.download = `出库单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[库存出库] 导出出库单（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -449,6 +445,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

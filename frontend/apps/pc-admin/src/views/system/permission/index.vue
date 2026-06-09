@@ -1,328 +1,352 @@
 <template>
-  <div class="permission-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ permissionCount }}</div>
-          <div class="stat-card-label">权限总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="permission-page-header">
+        <div class="permission-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>权限管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="permission-page-header-title">权限管理</h2>
         </div>
-        <SafetyOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-menu">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ menuCount }}</div>
-          <div class="stat-card-label">菜单权限</div>
-        </div>
-        <MenuOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-button">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ buttonCount }}</div>
-          <div class="stat-card-label">按钮权限</div>
-        </div>
-        <ControlOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-api">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ apiCount }}</div>
-          <div class="stat-card-label">API权限</div>
-        </div>
-        <ApiOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="null as any"
-      row-key="id"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :show-add="false"
-      :show-edit="false"
-      :show-delete="false"
-      :show-batch-delete="false"
-      :selectable="false"
-      @refresh="fetchData"
-      @filter-change="handleFilterChange"
-    >
-      <template #toolbar-actions>
-        <a-button type="primary" @click="handleAdd(null)">
-          <template #icon><PlusOutlined /></template>
-          新增顶级权限
-        </a-button>
-        <a-button @click="handleExpandAll">
-          <template #icon><ExpandOutlined /></template>
-          展开/折叠
-        </a-button>
-      </template>
-
-      <template #permissionNameCell="{ record }">
-        <a-space>
-          <component
-            :is="getIcon(record.icon)"
-            v-if="record.icon"
-          />
-          <span>{{ record.permissionName }}</span>
-          <a-tag
-            v-if="record.permissionType === 0"
-            color="blue"
-          >
-            目录
-          </a-tag>
-          <a-tag
-            v-else-if="record.permissionType === 1"
-            color="green"
-          >
-            菜单
-          </a-tag>
-          <a-tag
-            v-else-if="record.permissionType === 2"
-            color="orange"
-          >
-            按钮
-          </a-tag>
-          <a-tag
-            v-else-if="record.permissionType === 3"
-            color="purple"
-          >
-            API
-          </a-tag>
-        </a-space>
-      </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="record.status === 0 ? 'success' : 'error'">
-          {{ record.status === 0 ? '启用' : '停用' }}
-        </a-tag>
-      </template>
-      <template #visibleCell="{ record }">
-        <a-tag :color="record.visible === 1 ? 'success' : 'default'">
-          {{ record.visible === 1 ? '显示' : '隐藏' }}
-        </a-tag>
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleAdd(record)"
-          >
-            新增子权限
+        <div class="permission-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
           </a-button>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleEdit(record)"
-          >
-            编辑
-          </a-button>
-          <a-button
-            type="link"
-            size="small"
-            danger
-            @click="handleDeleteConfirm(record)"
-          >
-            删除
-          </a-button>
-        </a-space>
-      </template>
-    </VxeTableList>
+        </div>
+      </div>
+    </template>
 
-    <!-- 权限表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      :confirm-loading="modalLoading"
-      width="700px"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules"
-        :label-col="{ span: 5 }"
-        :wrapper-col="{ span: 17 }"
+    <div class="permission-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ permissionCount }}</div>
+            <div class="stat-card-label">权限总数</div>
+          </div>
+          <SafetyOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-menu">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ menuCount }}</div>
+            <div class="stat-card-label">菜单权限</div>
+          </div>
+          <MenuOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-button">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ buttonCount }}</div>
+            <div class="stat-card-label">按钮权限</div>
+          </div>
+          <ControlOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-api">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ apiCount }}</div>
+            <div class="stat-card-label">API权限</div>
+          </div>
+          <ApiOutlined class="stat-card-icon" />
+        </div>
+      </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="null as any"
+        row-key="id"
+        :filter-fields="filterFields"
+        :show-search="false"
+        :show-add="false"
+        :show-edit="false"
+        :show-delete="false"
+        :show-batch-delete="false"
+        :selectable="false"
+        @refresh="fetchData"
+        @filter-change="handleFilterChange"
       >
-        <a-form-item
-          v-if="!isTopLevel"
-          label="父级权限"
-          name="parentId"
-        >
-          <a-tree-select
-            v-model:value="formState.parentId"
-            :tree-data="parentTreeData"
-            placeholder="请选择父级权限"
-            :field-names="{ label: 'permissionName', value: 'id' }"
-            tree-default-expand-all
-          />
-        </a-form-item>
+        <template #toolbar-actions>
+          <a-button type="primary" @click="handleAdd(null)">
+            <template #icon><PlusOutlined /></template>
+            新增顶级权限
+          </a-button>
+          <a-button @click="handleExpandAll">
+            <template #icon><ExpandOutlined /></template>
+            展开/折叠
+          </a-button>
+        </template>
 
-        <a-form-item
-          label="权限名称"
-          name="permissionName"
-        >
-          <a-input
-            v-model:value="formState.permissionName"
-            placeholder="请输入权限名称"
-          />
-        </a-form-item>
-
-        <a-form-item
-          label="权限编码"
-          name="permissionCode"
-        >
-          <a-input
-            v-model:value="formState.permissionCode"
-            placeholder="请输入权限编码，如：system:user:list"
-          />
-        </a-form-item>
-
-        <a-form-item
-          label="权限类型"
-          name="permissionType"
-        >
-          <a-select
-            v-model:value="formState.permissionType"
-            placeholder="请选择权限类型"
-          >
-            <a-select-option :value="0">
+        <template #permissionNameCell="{ record }">
+          <a-space>
+            <component
+              :is="getIcon(record.icon)"
+              v-if="record.icon"
+            />
+            <span>{{ record.permissionName }}</span>
+            <a-tag
+              v-if="record.permissionType === 0"
+              color="blue"
+            >
               目录
-            </a-select-option>
-            <a-select-option :value="1">
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 1"
+              color="green"
+            >
               菜单
-            </a-select-option>
-            <a-select-option :value="2">
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 2"
+              color="orange"
+            >
               按钮
-            </a-select-option>
-            <a-select-option :value="3">
+            </a-tag>
+            <a-tag
+              v-else-if="record.permissionType === 3"
+              color="purple"
+            >
               API
-            </a-select-option>
-          </a-select>
-        </a-form-item>
+            </a-tag>
+          </a-space>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '启用' : '停用' }}
+          </a-tag>
+        </template>
+        <template #visibleCell="{ record }">
+          <a-tag :color="record.visible === 1 ? 'success' : 'default'">
+            {{ record.visible === 1 ? '显示' : '隐藏' }}
+          </a-tag>
+        </template>
 
-        <a-form-item
-          v-if="formState.permissionType <= 1"
-          label="路由路径"
-          name="path"
-        >
-          <a-input
-            v-model:value="formState.path"
-            placeholder="请输入路由路径，如：/system/user"
-          />
-        </a-form-item>
+        <template #action="{ record }">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleAdd(record)"
+            >
+              新增子权限
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              编辑
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              danger
+              @click="handleDeleteConfirm(record)"
+            >
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
 
-        <a-form-item
-          v-if="formState.permissionType <= 1"
-          label="组件路径"
-          name="component"
+      <!-- 权限表单弹窗 -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="modalTitle"
+        :confirm-loading="modalLoading"
+        width="700px"
+        @ok="handleModalOk"
+        @cancel="handleModalCancel"
+      >
+        <a-form
+          ref="formRef"
+          :model="formState"
+          :rules="formRules"
+          :label-col="{ span: 5 }"
+          :wrapper-col="{ span: 17 }"
         >
-          <a-input
-            v-model:value="formState.component"
-            placeholder="请输入组件路径，如：@/views/system/user/index"
-          />
-        </a-form-item>
-
-        <a-form-item
-          v-if="formState.permissionType === 3"
-          label="API路径"
-          name="apiPath"
-        >
-          <a-input
-            v-model:value="formState.apiPath"
-            placeholder="请输入API路径，如：/api/user/list"
-          />
-        </a-form-item>
-
-        <a-form-item
-          v-if="formState.permissionType === 3"
-          label="请求方法"
-          name="method"
-        >
-          <a-select
-            v-model:value="formState.method"
-            placeholder="请选择请求方法"
+          <a-form-item
+            v-if="!isTopLevel"
+            label="父级权限"
+            name="parentId"
           >
-            <a-select-option value="GET">
-              GET
-            </a-select-option>
-            <a-select-option value="POST">
-              POST
-            </a-select-option>
-            <a-select-option value="PUT">
-              PUT
-            </a-select-option>
-            <a-select-option value="DELETE">
-              DELETE
-            </a-select-option>
-            <a-select-option value="PATCH">
-              PATCH
-            </a-select-option>
-          </a-select>
-        </a-form-item>
+            <a-tree-select
+              v-model:value="formState.parentId"
+              :tree-data="parentTreeData"
+              placeholder="请选择父级权限"
+              :field-names="{ label: 'permissionName', value: 'id' }"
+              tree-default-expand-all
+            />
+          </a-form-item>
 
-        <a-form-item
-          v-if="formState.permissionType <= 1"
-          label="图标"
-          name="icon"
-        >
-          <a-input
-            v-model:value="formState.icon"
-            placeholder="请输入图标名称，如：UserOutlined"
-          />
-        </a-form-item>
+          <a-form-item
+            label="权限名称"
+            name="permissionName"
+          >
+            <a-input
+              v-model:value="formState.permissionName"
+              placeholder="请输入权限名称"
+            />
+          </a-form-item>
 
-        <a-form-item
-          v-if="formState.permissionType <= 1"
-          label="是否显示"
-          name="visible"
-        >
-          <a-radio-group v-model:value="formState.visible">
-            <a-radio :value="1">
-              显示
-            </a-radio>
-            <a-radio :value="0">
-              隐藏
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
+          <a-form-item
+            label="权限编码"
+            name="permissionCode"
+          >
+            <a-input
+              v-model:value="formState.permissionCode"
+              placeholder="请输入权限编码，如：system:user:list"
+            />
+          </a-form-item>
 
-        <a-form-item
-          label="排序"
-          name="sort"
-        >
-          <a-input-number
-            v-model:value="formState.sort"
-            :min="0"
-            :max="9999"
-            style="width: 100%"
-          />
-        </a-form-item>
+          <a-form-item
+            label="权限类型"
+            name="permissionType"
+          >
+            <a-select
+              v-model:value="formState.permissionType"
+              placeholder="请选择权限类型"
+            >
+              <a-select-option :value="0">
+                目录
+              </a-select-option>
+              <a-select-option :value="1">
+                菜单
+              </a-select-option>
+              <a-select-option :value="2">
+                按钮
+              </a-select-option>
+              <a-select-option :value="3">
+                API
+              </a-select-option>
+            </a-select>
+          </a-form-item>
 
-        <a-form-item
-          label="状态"
-          name="status"
-        >
-          <a-radio-group v-model:value="formState.status">
-            <a-radio :value="0">
-              启用
-            </a-radio>
-            <a-radio :value="1">
-              停用
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+          <a-form-item
+            v-if="formState.permissionType <= 1"
+            label="路由路径"
+            name="path"
+          >
+            <a-input
+              v-model:value="formState.path"
+              placeholder="请输入路由路径，如：/system/user"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formState.permissionType <= 1"
+            label="组件路径"
+            name="component"
+          >
+            <a-input
+              v-model:value="formState.component"
+              placeholder="请输入组件路径，如：@/views/system/user/index"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formState.permissionType === 3"
+            label="API路径"
+            name="apiPath"
+          >
+            <a-input
+              v-model:value="formState.apiPath"
+              placeholder="请输入API路径，如：/api/user/list"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formState.permissionType === 3"
+            label="请求方法"
+            name="method"
+          >
+            <a-select
+              v-model:value="formState.method"
+              placeholder="请选择请求方法"
+            >
+              <a-select-option value="GET">
+                GET
+              </a-select-option>
+              <a-select-option value="POST">
+                POST
+              </a-select-option>
+              <a-select-option value="PUT">
+                PUT
+              </a-select-option>
+              <a-select-option value="DELETE">
+                DELETE
+              </a-select-option>
+              <a-select-option value="PATCH">
+                PATCH
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+
+          <a-form-item
+            v-if="formState.permissionType <= 1"
+            label="图标"
+            name="icon"
+          >
+            <a-input
+              v-model:value="formState.icon"
+              placeholder="请输入图标名称，如：UserOutlined"
+            />
+          </a-form-item>
+
+          <a-form-item
+            v-if="formState.permissionType <= 1"
+            label="是否显示"
+            name="visible"
+          >
+            <a-radio-group v-model:value="formState.visible">
+              <a-radio :value="1">
+                显示
+              </a-radio>
+              <a-radio :value="0">
+                隐藏
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+
+          <a-form-item
+            label="排序"
+            name="sort"
+          >
+            <a-input-number
+              v-model:value="formState.sort"
+              :min="0"
+              :max="9999"
+              style="width: 100%"
+            />
+          </a-form-item>
+
+          <a-form-item
+            label="状态"
+            name="status"
+          >
+            <a-radio-group v-model:value="formState.status">
+              <a-radio :value="0">
+                启用
+              </a-radio>
+              <a-radio :value="1">
+                停用
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -335,11 +359,14 @@ import {
   ApiOutlined,
   SafetyOutlined,
   MenuOutlined,
-  ControlOutlined
+  ControlOutlined,
+  SyncOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { useUserStore } from '@/stores/user'
+import { PageContainer } from '@/components'
 
 // 搜索表单
 const userStore = useUserStore()
@@ -353,6 +380,11 @@ const searchForm = reactive({
 const tableData = ref<PermissionInfo[]>([])
 const loading = ref(false)
 const expandedKeys = ref<number[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const flattenPermissions = (tree: PermissionInfo[]): PermissionInfo[] => {
@@ -467,9 +499,13 @@ const fetchData = async () => {
       expandedKeys.value = res.data.filter(item => item.permissionType === 0).map(item => item.id)
     }
   } catch (error) {
+    tableData.value = []
+    console.warn('[权限管理] 加载权限数据失败')
     message.error('加载数据失败')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -481,6 +517,7 @@ const loadParentTree = async () => {
       parentTreeData.value = res.data
     }
   } catch (error) {
+    console.warn('[权限管理] 加载父级权限失败')
     message.error('加载父级权限失败')
   }
 }
@@ -626,10 +663,63 @@ const handleDeleteConfirm = (record: PermissionInfo) => {
 onMounted(() => {
   fetchData()
   loadParentTree()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.permission-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.permission-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.permission-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.permission-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .permission-management {
   height: 100%;
   display: flex;

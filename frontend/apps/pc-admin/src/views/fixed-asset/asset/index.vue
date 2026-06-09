@@ -1,367 +1,391 @@
 <template>
-  <div class="asset-list-page">
-    <!-- Statistics Cards -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ statistics.totalCount || 0 }}</div>
-          <div class="stat-card-label">资产总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="asset-page-header">
+        <div class="asset-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+            <a-breadcrumb-item>资产管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="asset-page-header-title">资产管理</h2>
         </div>
-        <FileTextOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-active">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ statistics.activeCount || 0 }}</div>
-          <div class="stat-card-label">已启用</div>
+        <div class="asset-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-original">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(statistics.totalOriginalValue) }}</div>
-          <div class="stat-card-label">资产原值</div>
+    </template>
+
+    <div class="asset-list-page">
+      <!-- Statistics Cards -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ statistics.totalCount || 0 }}</div>
+            <div class="stat-card-label">资产总数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
         </div>
-        <DollarOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-net">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(statistics.totalNetValue) }}</div>
-          <div class="stat-card-label">资产净值</div>
+        <div class="stat-card stat-active">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ statistics.activeCount || 0 }}</div>
+            <div class="stat-card-label">已启用</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <CalculatorOutlined class="stat-card-icon" />
+        <div class="stat-card stat-original">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(statistics.totalOriginalValue) }}</div>
+            <div class="stat-card-label">资产原值</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-net">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(statistics.totalNetValue) }}</div>
+            <div class="stat-card-label">资产净值</div>
+          </div>
+          <CalculatorOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :table-key="'fixed-asset-asset-list'"
+        :filter-fields="filterFields"
+        :show-export="true"
+        :selectable="true"
+        add-text="新增资产"
+        @add="showCreateModal"
+        @edit="editAsset"
+        @delete="handleDeleteWithConfirm"
+        @batch-delete="handleBatchDelete"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @export="handleExport"
+        @selection-change="handleSelectionChange"
+      >
+        <template #toolbar-actions>
+          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+          </span>
+        </template>
+
+        <template #batch-actions>
+          <a-button size="small" type="primary" ghost @click="handleBatchDepreciate">
+            <template #icon><CalculatorOutlined /></template>
+            批量折旧
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div class="table-empty">
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的资产，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无资产数据，点击右上角「新增资产」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #assetCodeCell="{ record }">
+          <a @click="viewDetail(record)" class="asset-code">{{ record.assetCode }}</a>
+        </template>
+        <template #assetNameCell="{ record }">
+          <a @click="viewDetail(record)" class="asset-name">{{ record.assetName }}</a>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
+        </template>
+        <template #useStatusCell="{ record }">
+          <a-tag :color="useStatusColorMap[record.useStatus] || 'default'">{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
+        </template>
+        <template #originalValueCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.originalValue) }}</span>
+        </template>
+        <template #netValueCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
+        </template>
+        <template #monthlyDepreciationCell="{ record }">
+          <span class="amount-cell depreciation">¥{{ formatAmount(record.monthlyDepreciation) }}</span>
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="viewDetail(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="editAsset(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.status === 'draft'" key="activate">
+                    <CheckCircleOutlined /> 启用
+                  </a-menu-item>
+                  <a-menu-item key="depreciate">
+                    <CalculatorOutlined /> 折旧计提
+                  </a-menu-item>
+                  <a-menu-item key="transfer">
+                    <SwapOutlined /> 资产转移
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="print">
+                    <PrinterOutlined /> 打印
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </VxeTableList>
+
+      <!-- Create/Edit Modal -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="isEdit ? '编辑资产' : '新增资产'"
+        :width="800"
+        centered
+        :maskClosable="false"
+        :confirmLoading="modalLoading"
+        @ok="handleModalOk"
+        @cancel="modalVisible = false"
+      >
+        <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="资产编码">
+                <a-input v-model:value="formData.assetCode" placeholder="自动生成可不填" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="资产名称" required>
+                <a-input v-model:value="formData.assetName" placeholder="请输入资产名称" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="分类">
+                <a-select v-model:value="formData.categoryId" placeholder="选择分类" allow-clear>
+                  <a-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.categoryName }}</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="购置日期">
+                <a-date-picker v-model:value="formData.purchaseDate" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="原值">
+                <a-input-number v-model:value="formData.originalValue" :precision="2" style="width: 100%" :min="0">
+                  <template #addonBefore>¥</template>
+                </a-input-number>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="净值">
+                <a-input-number v-model:value="formData.netValue" :precision="2" style="width: 100%" :min="0">
+                  <template #addonBefore>¥</template>
+                </a-input-number>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="折旧方法">
+                <a-select v-model:value="formData.depreciationMethod" placeholder="选择折旧方法">
+                  <a-select-option value="straight_line">直线法</a-select-option>
+                  <a-select-option value="double_declining">双倍余额递减法</a-select-option>
+                  <a-select-option value="sum_of_years">年数总和法</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="使用年限(月)">
+                <a-input-number v-model:value="formData.usefulLife" :min="1" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="残值">
+                <a-input-number v-model:value="formData.salvageValue" :precision="2" style="width: 100%" :min="0">
+                  <template #addonBefore>¥</template>
+                </a-input-number>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="残值率(%)">
+                <a-input-number v-model:value="formData.salvageRate" :precision="2" style="width: 100%" :min="0" :max="100" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="使用部门">
+                <a-input v-model:value="formData.departmentName" placeholder="部门名称" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="保管人">
+                <a-input v-model:value="formData.custodianName" placeholder="保管人姓名" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="存放地点">
+                <a-input v-model:value="formData.location" placeholder="存放地点" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="状态">
+                <a-select v-model:value="formData.status" placeholder="选择状态">
+                  <a-select-option value="draft">草稿</a-select-option>
+                  <a-select-option value="active">已启用</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="规格型号">
+                <a-input v-model:value="formData.specification" placeholder="规格型号" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="品牌">
+                <a-input v-model:value="formData.brand" placeholder="品牌" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="供应商">
+                <a-input v-model:value="formData.supplierName" placeholder="供应商" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="发票号">
+                <a-input v-model:value="formData.invoiceNo" placeholder="发票号" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="使用状态">
+                <a-select v-model:value="formData.useStatus" placeholder="使用状态">
+                  <a-select-option value="in_use">使用中</a-select-option>
+                  <a-select-option value="idle">闲置</a-select-option>
+                  <a-select-option value="maintenance">维修中</a-select-option>
+                  <a-select-option value="disposed">已处置</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="保修到期">
+                <a-date-picker v-model:value="formData.warrantyEndDate" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="备注" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-textarea v-model:value="formData.remark" :rows="2" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 详情弹窗 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="资产详情"
+        placement="right"
+        width="80vw"
+      >
+        <a-descriptions bordered :column="2" v-if="currentAsset">
+          <a-descriptions-item label="资产编码">{{ currentAsset.assetCode }}</a-descriptions-item>
+          <a-descriptions-item label="资产名称">{{ currentAsset.assetName }}</a-descriptions-item>
+          <a-descriptions-item label="分类">{{ currentAsset.categoryName }}</a-descriptions-item>
+          <a-descriptions-item label="购置日期">{{ currentAsset.purchaseDate }}</a-descriptions-item>
+          <a-descriptions-item label="资产原值">
+            <span class="amount-cell">¥{{ formatAmount(currentAsset.originalValue) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="资产净值">
+            <span class="amount-cell">¥{{ formatAmount(currentAsset.netValue) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="累计折旧">
+            <span class="amount-cell depreciation">¥{{ formatAmount(currentAsset.accumulatedDepreciation) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="月折旧额">
+            <span class="amount-cell depreciation">¥{{ formatAmount(currentAsset.monthlyDepreciation) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="折旧方法">{{ depreciationMethodMap[currentAsset.depreciationMethod] }}</a-descriptions-item>
+          <a-descriptions-item label="使用年限">{{ currentAsset.usefulLife }}月</a-descriptions-item>
+          <a-descriptions-item label="残值">¥{{ formatAmount(currentAsset.salvageValue) }}</a-descriptions-item>
+          <a-descriptions-item label="残值率">{{ currentAsset.salvageRate }}%</a-descriptions-item>
+          <a-descriptions-item label="使用部门">{{ currentAsset.departmentName }}</a-descriptions-item>
+          <a-descriptions-item label="保管人">{{ currentAsset.custodianName }}</a-descriptions-item>
+          <a-descriptions-item label="存放地点">{{ currentAsset.location }}</a-descriptions-item>
+          <a-descriptions-item label="规格型号">{{ currentAsset.specification || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="品牌">{{ currentAsset.brand || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="供应商">{{ currentAsset.supplierName || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="发票号">{{ currentAsset.invoiceNo || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="使用状态">
+            <a-tag :color="useStatusColorMap[currentAsset.useStatus]">{{ useStatusMap[currentAsset.useStatus] }}</a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <a-tag :color="statusColorMap[currentAsset.status]">{{ statusMap[currentAsset.status] }}</a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="保修到期">{{ currentAsset.warrantyEndDate || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="备注" :span="2">{{ currentAsset.remark || '-' }}</a-descriptions-item>
+        </a-descriptions>
+
+        <div class="detail-modal-footer">
+          <a-button v-if="currentAsset?.status === 'draft'" type="primary" @click="handleActivate(currentAsset)">启用</a-button>
+          <a-button @click="handleDepreciate(currentAsset)">
+            <template #icon><CalculatorOutlined /></template>
+            折旧计提
+          </a-button>
+          <a-button @click="handlePrint(currentAsset)">
+            <template #icon><PrinterOutlined /></template>
+            打印
+          </a-button>
+          <a-button @click="detailVisible = false">关闭</a-button>
+        </div>
+      </a-drawer>
     </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :table-key="'fixed-asset-asset-list'"
-      :filter-fields="filterFields"
-      :show-export="true"
-      :selectable="true"
-      add-text="新增资产"
-      @add="showCreateModal"
-      @edit="editAsset"
-      @delete="handleDeleteWithConfirm"
-      @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @export="handleExport"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
-      </template>
-
-      <template #batch-actions>
-        <a-button size="small" type="primary" ghost @click="handleBatchDepreciate">
-          <template #icon><CalculatorOutlined /></template>
-          批量折旧
-        </a-button>
-      </template>
-
-      <template #empty>
-        <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的资产，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无资产数据，点击右上角「新增资产」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #assetCodeCell="{ record }">
-        <a @click="viewDetail(record)" class="asset-code">{{ record.assetCode }}</a>
-      </template>
-      <template #assetNameCell="{ record }">
-        <a @click="viewDetail(record)" class="asset-name">{{ record.assetName }}</a>
-      </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
-      </template>
-      <template #useStatusCell="{ record }">
-        <a-tag :color="useStatusColorMap[record.useStatus] || 'default'">{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
-      </template>
-      <template #originalValueCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.originalValue) }}</span>
-      </template>
-      <template #netValueCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
-      </template>
-      <template #monthlyDepreciationCell="{ record }">
-        <span class="amount-cell depreciation">¥{{ formatAmount(record.monthlyDepreciation) }}</span>
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="4">
-          <a-tooltip title="查看详情">
-            <a-button type="link" size="small" @click="viewDetail(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 'draft'" title="编辑">
-            <a-button type="link" size="small" @click="editAsset(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.status === 'draft'" key="activate">
-                  <CheckCircleOutlined /> 启用
-                </a-menu-item>
-                <a-menu-item key="depreciate">
-                  <CalculatorOutlined /> 折旧计提
-                </a-menu-item>
-                <a-menu-item key="transfer">
-                  <SwapOutlined /> 资产转移
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="print">
-                  <PrinterOutlined /> 打印
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </VxeTableList>
-
-    <!-- Create/Edit Modal -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="isEdit ? '编辑资产' : '新增资产'"
-      :width="800"
-      centered
-      :maskClosable="false"
-      :confirmLoading="modalLoading"
-      @ok="handleModalOk"
-      @cancel="modalVisible = false"
-    >
-      <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="资产编码">
-              <a-input v-model:value="formData.assetCode" placeholder="自动生成可不填" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="资产名称" required>
-              <a-input v-model:value="formData.assetName" placeholder="请输入资产名称" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="分类">
-              <a-select v-model:value="formData.categoryId" placeholder="选择分类" allow-clear>
-                <a-select-option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.categoryName }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="购置日期">
-              <a-date-picker v-model:value="formData.purchaseDate" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="原值">
-              <a-input-number v-model:value="formData.originalValue" :precision="2" style="width: 100%" :min="0">
-                <template #addonBefore>¥</template>
-              </a-input-number>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="净值">
-              <a-input-number v-model:value="formData.netValue" :precision="2" style="width: 100%" :min="0">
-                <template #addonBefore>¥</template>
-              </a-input-number>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="折旧方法">
-              <a-select v-model:value="formData.depreciationMethod" placeholder="选择折旧方法">
-                <a-select-option value="straight_line">直线法</a-select-option>
-                <a-select-option value="double_declining">双倍余额递减法</a-select-option>
-                <a-select-option value="sum_of_years">年数总和法</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="使用年限(月)">
-              <a-input-number v-model:value="formData.usefulLife" :min="1" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="残值">
-              <a-input-number v-model:value="formData.salvageValue" :precision="2" style="width: 100%" :min="0">
-                <template #addonBefore>¥</template>
-              </a-input-number>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="残值率(%)">
-              <a-input-number v-model:value="formData.salvageRate" :precision="2" style="width: 100%" :min="0" :max="100" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="使用部门">
-              <a-input v-model:value="formData.departmentName" placeholder="部门名称" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="保管人">
-              <a-input v-model:value="formData.custodianName" placeholder="保管人姓名" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="存放地点">
-              <a-input v-model:value="formData.location" placeholder="存放地点" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="状态">
-              <a-select v-model:value="formData.status" placeholder="选择状态">
-                <a-select-option value="draft">草稿</a-select-option>
-                <a-select-option value="active">已启用</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="规格型号">
-              <a-input v-model:value="formData.specification" placeholder="规格型号" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="品牌">
-              <a-input v-model:value="formData.brand" placeholder="品牌" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="供应商">
-              <a-input v-model:value="formData.supplierName" placeholder="供应商" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="发票号">
-              <a-input v-model:value="formData.invoiceNo" placeholder="发票号" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="使用状态">
-              <a-select v-model:value="formData.useStatus" placeholder="使用状态">
-                <a-select-option value="in_use">使用中</a-select-option>
-                <a-select-option value="idle">闲置</a-select-option>
-                <a-select-option value="maintenance">维修中</a-select-option>
-                <a-select-option value="disposed">已处置</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="保修到期">
-              <a-date-picker v-model:value="formData.warrantyEndDate" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="备注" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
-          <a-textarea v-model:value="formData.remark" :rows="2" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 详情弹窗 -->
-    <a-modal
-      v-model:open="detailVisible"
-      title="资产详情"
-      width="800px"
-      centered
-      :footer="null"
-    >
-      <a-descriptions bordered :column="2" v-if="currentAsset">
-        <a-descriptions-item label="资产编码">{{ currentAsset.assetCode }}</a-descriptions-item>
-        <a-descriptions-item label="资产名称">{{ currentAsset.assetName }}</a-descriptions-item>
-        <a-descriptions-item label="分类">{{ currentAsset.categoryName }}</a-descriptions-item>
-        <a-descriptions-item label="购置日期">{{ currentAsset.purchaseDate }}</a-descriptions-item>
-        <a-descriptions-item label="资产原值">
-          <span class="amount-cell">¥{{ formatAmount(currentAsset.originalValue) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="资产净值">
-          <span class="amount-cell">¥{{ formatAmount(currentAsset.netValue) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="累计折旧">
-          <span class="amount-cell depreciation">¥{{ formatAmount(currentAsset.accumulatedDepreciation) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="月折旧额">
-          <span class="amount-cell depreciation">¥{{ formatAmount(currentAsset.monthlyDepreciation) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="折旧方法">{{ depreciationMethodMap[currentAsset.depreciationMethod] }}</a-descriptions-item>
-        <a-descriptions-item label="使用年限">{{ currentAsset.usefulLife }}月</a-descriptions-item>
-        <a-descriptions-item label="残值">¥{{ formatAmount(currentAsset.salvageValue) }}</a-descriptions-item>
-        <a-descriptions-item label="残值率">{{ currentAsset.salvageRate }}%</a-descriptions-item>
-        <a-descriptions-item label="使用部门">{{ currentAsset.departmentName }}</a-descriptions-item>
-        <a-descriptions-item label="保管人">{{ currentAsset.custodianName }}</a-descriptions-item>
-        <a-descriptions-item label="存放地点">{{ currentAsset.location }}</a-descriptions-item>
-        <a-descriptions-item label="规格型号">{{ currentAsset.specification || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="品牌">{{ currentAsset.brand || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ currentAsset.supplierName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="发票号">{{ currentAsset.invoiceNo || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="使用状态">
-          <a-tag :color="useStatusColorMap[currentAsset.useStatus]">{{ useStatusMap[currentAsset.useStatus] }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="statusColorMap[currentAsset.status]">{{ statusMap[currentAsset.status] }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="保修到期">{{ currentAsset.warrantyEndDate || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentAsset.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-
-      <div class="detail-modal-footer">
-        <a-button v-if="currentAsset?.status === 'draft'" type="primary" @click="handleActivate(currentAsset)">启用</a-button>
-        <a-button @click="handleDepreciate(currentAsset)">
-          <template #icon><CalculatorOutlined /></template>
-          折旧计提
-        </a-button>
-        <a-button @click="handlePrint(currentAsset)">
-          <template #icon><PrinterOutlined /></template>
-          打印
-        </a-button>
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -370,11 +394,12 @@ import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined,
   CheckCircleOutlined, CalculatorOutlined, SwapOutlined, PrinterOutlined,
-  DeleteOutlined, FileTextOutlined, DollarOutlined
+  DeleteOutlined, FileTextOutlined, DollarOutlined, SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { fixedAssetApi, fixedAssetCategoryApi } from '@/api/fixed-asset'
+import { PageContainer } from '@/components'
 
 const emit = defineEmits(['update-count'])
 
@@ -424,6 +449,11 @@ const selectedRowKeys = ref<number[]>([])
 const statistics = ref<any>({})
 const tableRef = ref()
 const lastUpdated = ref('')
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -528,6 +558,14 @@ onMounted(() => {
   fetchCategories()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('fixed-asset:refresh', fetchData)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 function fetchData() {
@@ -539,35 +577,33 @@ function fetchData() {
   }
   fixedAssetApi.getPage(params).then((res: any) => {
     if (res.data) {
-      tableData.value = res.data.content || res.data.records || mockData()
-      pagination.total = res.data.totalElements || res.data.total || mockData().length
+      tableData.value = res.data.content || res.data.records || []
+      pagination.total = res.data.totalElements || res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
   }).catch(() => {
-    tableData.value = mockData()
-    pagination.total = mockData().length
-    emit('update-count', pagination.total)
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[资产管理] 加载资产数据失败')
+    message.error('加载资产数据失败')
   }).finally(() => {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   })
 }
-
-const mockData = (): FixedAssetRecord[] => [
-  { id: 1, assetCode: 'FA001', assetName: '办公电脑', categoryId: 1, categoryName: '电子设备', purchaseDate: '2024-01-10', originalValue: 5000, netValue: 4500, depreciationMethod: 'straight_line', usefulLife: 36, salvageValue: 500, salvageRate: 10, monthlyDepreciation: 125, accumulatedDepreciation: 500, status: 'active', useStatus: 'in_use', location: '办公室A', departmentName: 'IT部', custodianName: '张三', specification: 'i5/16G/512G', brand: '联想', supplierName: '供应商A', invoiceNo: 'INV001', warrantyEndDate: '2027-01-10', remark: '' },
-  { id: 2, assetCode: 'FA002', assetName: '打印机', categoryId: 2, categoryName: '办公设备', purchaseDate: '2024-01-15', originalValue: 2000, netValue: 1800, depreciationMethod: 'straight_line', usefulLife: 24, salvageValue: 200, salvageRate: 10, monthlyDepreciation: 75, accumulatedDepreciation: 200, status: 'active', useStatus: 'in_use', location: '办公室B', departmentName: '行政部', custodianName: '李四', specification: '彩色打印', brand: '惠普', supplierName: '供应商B', invoiceNo: 'INV002', warrantyEndDate: '2026-01-15', remark: '' },
-  { id: 3, assetCode: 'FA003', assetName: '会议室投影仪', categoryId: 2, categoryName: '办公设备', purchaseDate: '2024-02-01', originalValue: 8000, netValue: 8000, depreciationMethod: 'straight_line', usefulLife: 48, salvageValue: 800, salvageRate: 10, monthlyDepreciation: 150, accumulatedDepreciation: 0, status: 'draft', useStatus: 'idle', location: '会议室', departmentName: '行政部', custodianName: '王五', specification: '高清', brand: '索尼', supplierName: '供应商C', invoiceNo: 'INV003', warrantyEndDate: '2028-02-01', remark: '' },
-]
 
 function fetchStatistics() {
   fixedAssetApi.getStatistics().then((res: any) => {
     if (res.data) {
       statistics.value = res.data
     } else {
-      statistics.value = { totalCount: mockData().length, activeCount: 2, totalOriginalValue: 15000, totalNetValue: 14300 }
+      statistics.value = { totalCount: 0, activeCount: 0, totalOriginalValue: 0, totalNetValue: 0 }
     }
   }).catch(() => {
-    statistics.value = { totalCount: mockData().length, activeCount: 2, totalOriginalValue: 15000, totalNetValue: 14300 }
+    statistics.value = { totalCount: 0, activeCount: 0, totalOriginalValue: 0, totalNetValue: 0 }
+    console.warn('[资产管理] 加载统计数据失败')
   })
 }
 
@@ -576,10 +612,11 @@ function fetchCategories() {
     if (res.data) {
       categories.value = res.data
     } else {
-      categories.value = [{ id: 1, categoryName: '电子设备' }, { id: 2, categoryName: '办公设备' }]
+      categories.value = []
     }
   }).catch(() => {
-    categories.value = [{ id: 1, categoryName: '电子设备' }, { id: 2, categoryName: '办公设备' }]
+    categories.value = []
+    console.warn('[资产管理] 加载分类数据失败')
   })
 }
 
@@ -639,6 +676,7 @@ function handleModalOk() {
     fetchData()
     fetchStatistics()
   }).catch((err: any) => {
+    console.warn('[资产管理] 操作失败', err)
     message.error(err.message || '操作失败')
   }).finally(() => {
     modalLoading.value = false
@@ -651,6 +689,7 @@ function handleDelete(id: number) {
     fetchData()
     fetchStatistics()
   }).catch((err: any) => {
+    console.warn('[资产管理] 删除失败', err)
     message.error(err.message || '删除失败')
   })
 }
@@ -679,6 +718,7 @@ function handleBatchDelete() {
     okType: 'danger',
     centered: true,
     onOk: async () => {
+      console.warn('[资产管理] 模拟批量删除成功（无API调用）')
       message.success('批量删除成功')
       fetchData()
     }
@@ -698,6 +738,7 @@ function handleDepreciate(record: FixedAssetRecord) {
         fetchData()
         fetchStatistics()
       } catch {
+        console.warn('[资产管理] 折旧计提失败')
         message.error('折旧计提失败')
       }
     }
@@ -716,6 +757,7 @@ function handleBatchDepreciate() {
     okText: '确认',
     centered: true,
     onOk: async () => {
+      console.warn('[资产管理] 模拟批量折旧计提完成（无API调用）')
       message.success('批量折旧计提完成')
       fetchData()
       fetchStatistics()
@@ -737,6 +779,7 @@ function handleActivate(record: FixedAssetRecord) {
         fetchStatistics()
         detailVisible.value = false
       } catch {
+        console.warn('[资产管理] 启用失败')
         message.error('启用失败')
       }
     }
@@ -789,10 +832,52 @@ function handleKeydown(e: KeyboardEvent) {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('fixed-asset:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.asset-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.asset-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.asset-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.asset-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .asset-list-page {
   height: 100%;
   display: flex;

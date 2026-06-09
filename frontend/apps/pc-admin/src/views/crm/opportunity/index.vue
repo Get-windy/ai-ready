@@ -1,23 +1,30 @@
 <template>
-  <PageContainer title="商机管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="opportunity-page-header">
+        <div class="opportunity-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>商机管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="opportunity-page-header-title">商机管理</h2>
+        </div>
+        <div class="opportunity-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-radio-group v-model:value="activeTab" button-style="solid" size="small">
-          <a-radio-button value="pipeline"><AppstoreOutlined /> 管道</a-radio-button>
-          <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
-          <a-radio-button value="statistics"><BarChartOutlined /> 统计</a-radio-button>
-        </a-radio-group>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-radio-group v-model:value="activeTab" button-style="solid" size="small">
+            <a-radio-button value="pipeline"><AppstoreOutlined /> 管道</a-radio-button>
+            <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
+            <a-radio-button value="statistics"><BarChartOutlined /> 统计</a-radio-button>
+          </a-radio-group>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
@@ -361,7 +368,7 @@
     </a-modal>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="商机详情" width="900px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="商机详情" placement="right" width="80vw" :footer="null">
       <a-descriptions :column="2" bordered size="small">
         <a-descriptions-item label="商机名称">
           <span class="opp-name">{{ opportunityDetail.name }}</span>
@@ -406,7 +413,7 @@
           <a-tag :color="getQuotationStatusColor(record.status)">{{ record.statusLabel }}</a-tag>
         </template>
       </VxeTableList>
-    </a-modal>
+    </a-drawer>
 
     <!-- 移动阶段弹窗 -->
     <a-modal v-model:open="moveVisible" title="移动商机阶段" width="500px" :confirm-loading="moveLoading" @ok="handleMoveConfirm">
@@ -457,7 +464,8 @@ import {
   CheckCircleOutlined,
   TeamOutlined,
   UserOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 
 // 使用 FundOutlined 代替 PercentageOutlined
@@ -480,7 +488,10 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdateTime = ref<string>('')
 const filterExpanded = ref<string[]>([])
 const selectedRowKeys = ref<number[]>([])
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const searchForm = reactive({
   name: '',
@@ -596,7 +607,7 @@ const userList = ref([
   { id: 3, name: '王五' }
 ])
 const opportunityDetail = ref<any>({})
-const statistics = ref({ total: 25, totalAmount: 1580000, wonAmount: 520000, winRate: 32 })
+const statistics = ref({ total: 0, totalAmount: 0, wonAmount: 0, winRate: 0 })
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchForm).some(v => v !== undefined && v !== null && v !== '')
@@ -628,29 +639,21 @@ function getStageOpportunities(stage: string) { return tableData.value.filter(o 
 function getStageCount(stage: string) { return getStageOpportunities(stage).length }
 function getStageAmount(stage: string) { return getStageOpportunities(stage).reduce((s, o) => s + (o.expectedAmount || 0), 0) }
 
-// 自动刷新
-const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !modalVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
-}
-
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
   stageChart?.dispose()
   trendChart?.dispose()
 })
@@ -667,30 +670,24 @@ async function fetchData(silent = false) {
     if (searchForm.stage) params.opportunityStage = pipelineStages.findIndex((s: any) => s.key === searchForm.stage)
     const res = await opportunityApi.page(params)
     const result = res as any
-    tableData.value = result.records || result.data?.records || mockData()
-    pagination.total = result.total ?? result.data?.total ?? mockData().length
+    tableData.value = result.records || result.data?.records || []
+    pagination.total = result.total ?? result.data?.total ?? 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     if (activeTab.value === 'statistics') {
       initCharts()
     }
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
       message.error('获取商机数据失败')
     }
-    tableData.value = mockData()
+    console.warn('[CRM商机] 获取商机列表失败', err)
+    tableData.value = []
   } finally {
     if (!silent) loading.value = false
+    refreshLoading.value = false
   }
 }
-
-const mockData = () => [
-  { id: 1, name: '大型ERP系统项目', customerName: '北京科技有限公司', stage: 'negotiation', stageLabel: '商务谈判', expectedAmount: 580000, winProbability: 75, priority: 'high', ownerName: '张三', expectedCloseDate: '2024-02-15', createTime: '2024-01-10' },
-  { id: 2, name: '智能制造升级方案', customerName: '上海贸易公司', stage: 'proposal', stageLabel: '方案报价', expectedAmount: 320000, winProbability: 50, priority: 'medium', ownerName: '李四', expectedCloseDate: '2024-03-01', createTime: '2024-01-12' },
-  { id: 3, name: '数据分析平台', customerName: '广州制造企业', stage: 'qualification', stageLabel: '资格确认', expectedAmount: 150000, winProbability: 30, priority: 'medium', ownerName: '王五', expectedCloseDate: '2024-03-20', createTime: '2024-01-15' },
-  { id: 4, name: '云服务迁移项目', customerName: '深圳电子公司', stage: 'closing', stageLabel: '成交阶段', expectedAmount: 420000, winProbability: 90, priority: 'high', ownerName: '张三', expectedCloseDate: '2024-02-01', createTime: '2024-01-08' },
-  { id: 5, name: '自动化生产线改造', customerName: '杭州互联网公司', stage: 'lead', stageLabel: '线索', expectedAmount: 280000, winProbability: 20, priority: 'low', ownerName: '李四', expectedCloseDate: '2024-04-01', createTime: '2024-01-18' }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -735,8 +732,8 @@ function initTrendChart() {
     xAxis: { type: 'category', data: ['1月', '2月', '3月', '4月', '5月', '6月'] },
     yAxis: { type: 'value', name: '金额(万)', axisLabel: { formatter: (v: number) => `${v / 10000}` } },
     series: [
-      { name: '预计金额', type: 'line', data: [280000, 320000, 380000, 420000, 480000, 520000], smooth: true, itemStyle: { color: '#1890ff' } },
-      { name: '成交金额', type: 'line', data: [120000, 150000, 180000, 200000, 220000, 250000], smooth: true, itemStyle: { color: '#52c41a' } }
+      { name: '预计金额', type: 'line', data: [], smooth: true, itemStyle: { color: '#1890ff' } },
+      { name: '成交金额', type: 'line', data: [], smooth: true, itemStyle: { color: '#52c41a' } }
     ]
   })
 }
@@ -830,7 +827,7 @@ function handleActionMenuClick(key: string, record: any) {
 }
 
 async function handleSubmit() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM商机] 表单验证失败', err); return }
   submitLoading.value = true
   setTimeout(() => {
     message.success('保存成功')
@@ -845,19 +842,46 @@ function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value 
 function handleExport() {
   message.info('导出商机数据')
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.data-status {
+.opportunity-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.opportunity-page-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
 }
-
+.opportunity-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.opportunity-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stats-cards {
@@ -1140,8 +1164,4 @@ function handleExport() {
   color: #909399;
   margin-top: 4px;
 }
-
-
-
-
 </style>

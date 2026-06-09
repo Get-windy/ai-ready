@@ -1,23 +1,37 @@
 <template>
-  <PageContainer title="库存管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="stock-header">
+        <div class="stock-header-left">
+          <a-breadcrumb class="stock-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>库存管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="stock-header-title">库存管理</h2>
+        </div>
+        <div class="stock-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <div class="stock-module">
       <!-- 统计卡片 -->
-      <div class="stat-cards" style="margin-bottom: 16px;">
+      <template v-if="loading">
+        <div class="stat-cards" style="margin-bottom: 16px;">
+          <a-card v-for="i in 4" :key="i" :bordered="false" class="stat-skeleton">
+            <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" />
+          </a-card>
+        </div>
+      </template>
+      <div v-else class="stat-cards" style="margin-bottom: 16px;">
         <div class="stat-card stat-blue">
           <div class="stat-card-icon"><DatabaseOutlined /></div>
           <div class="stat-card-content">
@@ -55,38 +69,14 @@
         animated
         @change="handleTabChange"
       >
-        <a-tab-pane key="stock">
+        <a-tab-pane v-for="tab in visibleTabs" :key="tab.key">
           <template #tab>
-            <span><DatabaseOutlined /> 库存查询</span>
-            <a-badge :count="stockCount" :overflow-count="99" :number-style="{ backgroundColor: '#1890ff' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="inbound">
-          <template #tab>
-            <span><LoginOutlined /> 入库管理</span>
-            <a-badge :count="inboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#52c41a' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="outbound">
-          <template #tab>
-            <span><LogoutOutlined /> 出库管理</span>
-            <a-badge :count="outboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#faad14' }" style="margin-left: 8px" />
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="check">
-          <template #tab>
-            <span><CheckSquareOutlined /> 库存盘点</span>
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="transfer">
-          <template #tab>
-            <span><SwapOutlined /> 库存调拨</span>
-          </template>
-        </a-tab-pane>
-        <a-tab-pane key="batch">
-          <template #tab>
-            <span><TagOutlined /> 批次管理</span>
-            <a-badge :count="batchCount" :overflow-count="99" :number-style="{ backgroundColor: '#722ed1' }" style="margin-left: 8px" />
+            <span v-if="tab.key === 'stock'"><DatabaseOutlined /> 库存查询<a-badge :count="stockCount" :overflow-count="99" :number-style="{ backgroundColor: '#1890ff' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'inbound'"><LoginOutlined /> 入库管理<a-badge :count="inboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#52c41a' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'outbound'"><LogoutOutlined /> 出库管理<a-badge :count="outboundCount" :overflow-count="99" :number-style="{ backgroundColor: '#faad14' }" style="margin-left: 8px" /></span>
+            <span v-else-if="tab.key === 'check'"><CheckSquareOutlined /> 库存盘点</span>
+            <span v-else-if="tab.key === 'transfer'"><SwapOutlined /> 库存调拨</span>
+            <span v-else-if="tab.key === 'batch'"><TagOutlined /> 批次管理<a-badge :count="batchCount" :overflow-count="99" :number-style="{ backgroundColor: '#722ed1' }" style="margin-left: 8px" /></span>
           </template>
         </a-tab-pane>
       </a-tabs>
@@ -118,8 +108,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import StockTab from './tabs/Stock.vue'
@@ -130,8 +121,9 @@ import TransferTab from './tabs/Transfer.vue'
 import BatchTab from './tabs/Batch.vue'
 import {
   ReloadOutlined, DatabaseOutlined, LoginOutlined, LogoutOutlined,
-  CheckSquareOutlined, SwapOutlined, TagOutlined
+  CheckSquareOutlined, SwapOutlined, TagOutlined, SyncOutlined
 } from '@ant-design/icons-vue'
+import { hasPermission } from '@/utils/permission'
 
 const router = useRouter()
 const route = useRoute()
@@ -139,7 +131,9 @@ const route = useRoute()
 const VALID_TABS = ['stock', 'inbound', 'outbound', 'check', 'transfer', 'batch'] as const
 const activeTab = ref<string>('stock')
 const loading = ref(false)
+const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 
 // Tab 引用
 const stockRef = ref()
@@ -149,20 +143,30 @@ const checkRef = ref()
 const transferRef = ref()
 const batchRef = ref()
 
-// Tab 统计数据
+// Tab 统计数据（由子组件通过事件更新）
 const stockCount = ref(0)
 const inboundCount = ref(0)
 const outboundCount = ref(0)
 const batchCount = ref(0)
 
+// Tab 权限过滤
+interface TabDef { key: string; label: string; permission: string }
+const allTabs: TabDef[] = [
+  { key: 'stock', label: '库存查询', permission: 'stock:list' },
+  { key: 'inbound', label: '入库管理', permission: 'stock:inbound:list' },
+  { key: 'outbound', label: '出库管理', permission: 'stock:outbound:list' },
+  { key: 'check', label: '库存盘点', permission: 'stock:check:list' },
+  { key: 'transfer', label: '库存调拨', permission: 'stock:transfer:list' },
+  { key: 'batch', label: '批次管理', permission: 'stock:batch:list' },
+]
+const visibleTabs = computed(() => allTabs.filter(t => !t.permission || hasPermission(t.permission)))
+
 function handleTabChange(key: string) {
   router.replace({ query: { ...route.query, tab: key } })
-  lastUpdateTime.value = ''
 }
 
 function handleRefresh() {
-  lastUpdateTime.value = ''
-  loading.value = true
+  refreshLoading.value = true
 
   // 刷新当前 Tab
   const refMap: Record<string, any> = {
@@ -179,10 +183,8 @@ function handleRefresh() {
     currentRef.fetchData()
   }
 
-  setTimeout(() => {
-    loading.value = false
-    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  }, 500)
+  lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  refreshLoading.value = false
 }
 
 function updateStockCount(count: number) {
@@ -233,30 +235,79 @@ function initActiveTab() {
   }
 }
 
+// 自动刷新
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   initActiveTab()
-  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  autoRefreshCountdown.value = 30
+  autoRefreshTimer = setInterval(() => {
+    lastUpdateTime.value = dayjs().format('HH:mm:ss')
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+
   window.addEventListener('popstate', handlePopState)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer) }
+  if (countdownTimer) { clearInterval(countdownTimer) }
   window.removeEventListener('popstate', handlePopState)
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <style scoped>
-.data-status {
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.stock-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
+}
+.stock-breadcrumb {
+  font-size: 13px;
+}
+.stock-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.stock-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.stock-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stock-module {
@@ -269,6 +320,15 @@ onUnmounted(() => {
   overflow: hidden;
   padding: 16px;
   height: 100%;
+}
+
+/* 统计卡片骨架 */
+.stat-skeleton {
+  flex: 1;
+  border-radius: 8px;
+}
+.stat-skeleton :deep(.ant-card-body) {
+  padding: 12px 16px;
 }
 
 /* 统计卡片 */

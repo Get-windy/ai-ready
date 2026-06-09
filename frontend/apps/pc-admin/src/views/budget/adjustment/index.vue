@@ -1,174 +1,192 @@
 <template>
-  <div class="adjustment-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-draft">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ draftCount }}</div>
-          <div class="stat-card-label">草稿</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="adjustment-page-header">
+        <div class="adjustment-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>预算调整</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="adjustment-page-header-title">预算调整</h2>
         </div>
-        <FileOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-pending">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pendingCount }}</div>
-          <div class="stat-card-label">待审批</div>
+        <div class="adjustment-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="loadData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <ClockCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-approved">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ approvedCount }}</div>
-          <div class="stat-card-label">已通过</div>
+    </template>
+
+    <div class="adjustment-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-draft">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ draftCount }}</div>
+            <div class="stat-card-label">草稿</div>
+          </div>
+          <FileOutlined class="stat-card-icon" />
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-amount">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
-          <div class="stat-card-label">调整总额</div>
+        <div class="stat-card stat-pending">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pendingCount }}</div>
+            <div class="stat-card-label">待审批</div>
+          </div>
+          <ClockCircleOutlined class="stat-card-icon" />
         </div>
-        <DollarOutlined class="stat-card-icon" />
+        <div class="stat-card stat-approved">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ approvedCount }}</div>
+            <div class="stat-card-label">已通过</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-amount">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(totalAmount) }}</div>
+            <div class="stat-card-label">调整总额</div>
+          </div>
+          <DollarOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :selectable="true"
+        add-text="新建调整"
+        @add="handleAdd"
+        @refresh="loadData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="handleSelectionChange"
+      >
+        <template #empty>
+          <div class="table-empty">
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的调整记录，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无预算调整记录，点击「新建调整」开始创建
+            </p>
+          </div>
+        </template>
+
+        <template #action="{ record }">
+          <a-space :size="0" class="action-cell-inner">
+            <a-tooltip title="查看">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><EllipsisOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item v-if="record.status === 'draft'" key="submit">
+                    <CheckCircleOutlined /> 提交
+                  </a-menu-item>
+                  <a-menu-item v-if="record.status === 'submitted'" key="approve">
+                    <AuditOutlined /> 通过
+                  </a-menu-item>
+                  <a-menu-item v-if="record.status === 'submitted'" key="reject">
+                    <CloseCircleOutlined /> 拒绝
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </VxeTableList>
+
+      <!-- 新建/编辑弹窗 -->
+      <a-modal
+        v-model:open="formVisible"
+        :title="isEdit ? '编辑预算调整' : '新建预算调整'"
+        :width="600"
+        :confirm-loading="submitLoading"
+        @ok="handleFormSubmit"
+      >
+        <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="预算ID" name="budgetId">
+                <a-input-number v-model:value="formData.budgetId" :min="1" style="width: 100%" placeholder="请输入预算ID" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="调整类型" name="adjustmentType">
+                <a-select v-model:value="formData.adjustmentType" placeholder="请选择">
+                  <a-select-option value="increase">增加</a-select-option>
+                  <a-select-option value="decrease">减少</a-select-option>
+                  <a-select-option value="transfer">调剂</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="金额" name="amount">
+                <a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="申请日期">
+                <a-date-picker v-model:value="formData.applyDate" style="width: 100%" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-form-item label="源科目ID" v-if="formData.adjustmentType === 'decrease' || formData.adjustmentType === 'transfer'">
+            <a-input-number v-model:value="formData.sourceSubjectId" :min="0" style="width: 100%" placeholder="减少/调出科目ID" />
+          </a-form-item>
+          <a-form-item label="目标科目ID" v-if="formData.adjustmentType === 'increase' || formData.adjustmentType === 'transfer'">
+            <a-input-number v-model:value="formData.targetSubjectId" :min="0" style="width: 100%" placeholder="增加/调入科目ID" />
+          </a-form-item>
+          <a-form-item label="调整原因" name="reason">
+            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入调整原因" />
+          </a-form-item>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item label="申请人">
+                <a-input v-model:value="formData.applicantName" placeholder="申请人" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+      </a-modal>
     </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :selectable="true"
-      add-text="新建调整"
-      @add="handleAdd"
-      @refresh="loadData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
-      </template>
-
-      <template #empty>
-        <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的调整记录，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无预算调整记录，点击「新建调整」开始创建
-          </p>
-        </div>
-      </template>
-
-      <template #action="{ record }">
-        <a-space :size="0" class="action-cell-inner">
-          <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip v-if="record.status === 'draft'" title="编辑">
-            <a-button type="link" size="small" @click="handleEdit(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-dropdown trigger="click">
-            <a-button type="link" size="small" class="action-more-btn">
-              <template #icon><EllipsisOutlined /></template>
-            </a-button>
-            <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.status === 'draft'" key="submit">
-                  <CheckCircleOutlined /> 提交
-                </a-menu-item>
-                <a-menu-item v-if="record.status === 'submitted'" key="approve">
-                  <AuditOutlined /> 通过
-                </a-menu-item>
-                <a-menu-item v-if="record.status === 'submitted'" key="reject">
-                  <CloseCircleOutlined /> 拒绝
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </VxeTableList>
-
-    <!-- 新建/编辑弹窗 -->
-    <a-modal
-      v-model:open="formVisible"
-      :title="isEdit ? '编辑预算调整' : '新建预算调整'"
-      :width="600"
-      :confirm-loading="submitLoading"
-      @ok="handleFormSubmit"
-    >
-      <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="预算ID" name="budgetId">
-              <a-input-number v-model:value="formData.budgetId" :min="1" style="width: 100%" placeholder="请输入预算ID" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="调整类型" name="adjustmentType">
-              <a-select v-model:value="formData.adjustmentType" placeholder="请选择">
-                <a-select-option value="increase">增加</a-select-option>
-                <a-select-option value="decrease">减少</a-select-option>
-                <a-select-option value="transfer">调剂</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="金额" name="amount">
-              <a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="申请日期">
-              <a-date-picker v-model:value="formData.applyDate" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="源科目ID" v-if="formData.adjustmentType === 'decrease' || formData.adjustmentType === 'transfer'">
-          <a-input-number v-model:value="formData.sourceSubjectId" :min="0" style="width: 100%" placeholder="减少/调出科目ID" />
-        </a-form-item>
-        <a-form-item label="目标科目ID" v-if="formData.adjustmentType === 'increase' || formData.adjustmentType === 'transfer'">
-          <a-input-number v-model:value="formData.targetSubjectId" :min="0" style="width: 100%" placeholder="增加/调入科目ID" />
-        </a-form-item>
-        <a-form-item label="调整原因" name="reason">
-          <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入调整原因" />
-        </a-form-item>
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="申请人">
-              <a-input v-model:value="formData.applicantName" placeholder="申请人" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import {
   EyeOutlined, EditOutlined, EllipsisOutlined, CheckCircleOutlined, AuditOutlined, CloseCircleOutlined, SearchOutlined, InboxOutlined,
-  FileOutlined, ClockCircleOutlined, DollarOutlined
+  FileOutlined, ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { budgetAdjustmentApi, type BudgetAdjustment } from '@/api/budget'
 
 const searchFilters = reactive<Record<string, any>>({})
@@ -177,7 +195,11 @@ const tableData = ref<BudgetAdjustment[]>([])
 const loading = ref(false)
 const tableRef = ref()
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
-const lastUpdated = ref('')
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 const selectedRows = ref<BudgetAdjustment[]>([])
 const selectedIds = ref<number[]>([])
 
@@ -287,24 +309,19 @@ const loadData = async () => {
       pageSize: pagination.pageSize,
     })
     if (res.success) {
-      tableData.value = res.data.records || mockData()
-      pagination.total = res.data.total || mockData().length
+      tableData.value = res.data.records || []
+      pagination.total = res.data.total || 0
     }
-    lastUpdated.value = new Date().toISOString()
   } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[预算调整] 加载数据失败')
+    tableData.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
-
-const mockData = (): BudgetAdjustment[] => [
-  { id: 1, adjustmentNo: 'ADJ-2024-001', budgetId: 1, adjustmentType: 'increase', amount: 50000, status: 'approved', reason: '项目追加', applicantName: '张三', applyDate: '2024-01-15' },
-  { id: 2, adjustmentNo: 'ADJ-2024-002', budgetId: 2, adjustmentType: 'decrease', amount: 30000, status: 'submitted', reason: '预算缩减', applicantName: '李四', applyDate: '2024-02-01' },
-  { id: 3, adjustmentNo: 'ADJ-2024-003', budgetId: 1, adjustmentType: 'transfer', amount: 20000, status: 'draft', reason: '科目调剂', applicantName: '王五', applyDate: '2024-02-10' },
-  { id: 4, adjustmentNo: 'ADJ-2024-004', budgetId: 3, adjustmentType: 'increase', amount: 100000, status: 'rejected', reason: '预算追加', applicantName: '赵六', applyDate: '2024-02-15' },
-]
 
 const handleSearch = () => { pagination.current = 1; loadData() }
 
@@ -364,7 +381,9 @@ const handleEdit = async (record: BudgetAdjustment) => {
       isEdit.value = true
       formVisible.value = true
     }
-  } catch (_) { /* ignore */ }
+  } catch {
+    console.warn('[预算调整] 获取详情失败')
+  }
 }
 
 const handleView = (record: BudgetAdjustment) => {
@@ -375,6 +394,7 @@ const handleFormSubmit = async () => {
   try {
     await formRef.value?.validate()
   } catch {
+    console.warn('[预算调整] 表单验证失败')
     return
   }
   submitLoading.value = true
@@ -389,6 +409,7 @@ const handleFormSubmit = async () => {
     formVisible.value = false
     loadData()
   } catch (e: any) {
+    console.warn('[预算调整] 操作失败', e)
     message.error(e?.response?.data?.message || '操作失败')
   } finally {
     submitLoading.value = false
@@ -401,6 +422,7 @@ const handleSubmit = async (record: BudgetAdjustment) => {
     message.success('已提交审批')
     loadData()
   } catch (e: any) {
+    console.warn('[预算调整] 提交失败', e)
     message.error(e?.response?.data?.message || '提交失败')
   }
 }
@@ -411,6 +433,7 @@ const handleApprove = async (record: BudgetAdjustment) => {
     message.success('审批通过')
     loadData()
   } catch (e: any) {
+    console.warn('[预算调整] 审批失败', e)
     message.error(e?.response?.data?.message || '审批失败')
   }
 }
@@ -421,6 +444,7 @@ const handleReject = async (record: BudgetAdjustment) => {
     message.success('已拒绝')
     loadData()
   } catch (e: any) {
+    console.warn('[预算调整] 拒绝失败', e)
     message.error(e?.response?.data?.message || '拒绝失败')
   }
 }
@@ -439,16 +463,66 @@ function handleActionMenuClick(key: string, record: BudgetAdjustment) {
   }
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
-}
+onMounted(() => {
+  loadData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
 
-onMounted(() => { loadData(); document.addEventListener('keydown', handleKeydown) })
-onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadData })
 </script>
 
 <style scoped>
-.adjustment-page {
+.adjustment-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.adjustment-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.adjustment-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.adjustment-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+.adjustment-management {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -523,20 +597,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   color: #f5222d;
   font-weight: 500;
 }
-
-.list-update-timestamp {
-  font-size: 12px;
-  color: var(--color-text-tertiary, #bbb);
-  white-space: nowrap;
-  cursor: help;
-  margin-left: 8px;
-  line-height: 32px;
-  vertical-align: middle;
-}
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

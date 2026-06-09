@@ -1,145 +1,170 @@
 <template>
-  <div class="config-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">配置总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="config-page-header">
+        <div class="config-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>系统配置</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="config-page-header-title">系统配置</h2>
         </div>
-        <SettingOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-groups">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ groupCount }}</div>
-          <div class="stat-card-label">分组数量</div>
+        <div class="config-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <FolderOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-sensitive">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ sensitiveCount }}</div>
-          <div class="stat-card-label">敏感配置</div>
+    </template>
+
+    <div class="config-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">配置总数</div>
+          </div>
+          <SettingOutlined class="stat-card-icon" />
         </div>
-        <LockOutlined class="stat-card-icon" />
+        <div class="stat-card stat-groups">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ groupCount }}</div>
+            <div class="stat-card-label">分组数量</div>
+          </div>
+          <FolderOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-sensitive">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ sensitiveCount }}</div>
+            <div class="stat-card-label">敏感配置</div>
+          </div>
+          <LockOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :row-key="'id'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :selectable="true"
-      add-text="新增配置"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @delete="handleDeleteConfirm"
-      @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
-    >
-      <template #toolbar-actions>
-        <a-button @click="handleRefreshCache">
-          <template #icon><SyncOutlined /></template>
-          刷新缓存
-        </a-button>
-      </template>
-
-      <template #groupNameCell="{ record }">
-        <a-tag color="blue">{{ record.groupName }}</a-tag>
-      </template>
-      <template #configValueCell="{ record }">
-        <span
-          class="config-value"
-          :class="{ sensitive: isSensitiveKey(record.configKey) }"
-        >
-          {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
-        </span>
-        <a-tooltip title="复制" v-if="!isSensitiveKey(record.configKey)">
-          <a-button
-            type="link"
-            size="small"
-            :style="{ padding: '0 4px' }"
-            @click="handleCopy(record.configValue)"
-          >
-            <CopyOutlined />
-          </a-button>
-        </a-tooltip>
-      </template>
-
-      <template #action="{ record }">
-        <a-space>
-          <a-button type="link" size="small" @click="handleEdit(record)">
-            编辑
-          </a-button>
-          <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
-            删除
-          </a-button>
-        </a-space>
-      </template>
-    </VxeTableList>
-
-    <!-- 配置表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      :confirm-loading="modalLoading"
-      width="550px"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :row-key="'id'"
+        :filter-fields="filterFields"
+        :show-search="false"
+        :selectable="true"
+        add-text="新增配置"
+        @add="handleAdd"
+        @edit="handleEdit"
+        @delete="handleDeleteConfirm"
+        @batch-delete="handleBatchDelete"
+        @refresh="fetchData"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
       >
-        <a-form-item label="配置键" name="configKey">
-          <a-input
-            v-model:value="formState.configKey"
-            placeholder="请输入配置键，如 sys.upload.path"
-            :disabled="isEdit"
-          />
-        </a-form-item>
-        <a-form-item label="配置值" name="configValue">
-          <a-textarea
-            v-model:value="formState.configValue"
-            placeholder="请输入配置值"
-            :rows="4"
-          />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea
-            v-model:value="formState.description"
-            placeholder="请输入配置描述"
-            :rows="2"
-          />
-        </a-form-item>
-        <a-form-item label="分组" name="groupName">
-          <a-input
-            v-model:value="formState.groupName"
-            placeholder="请输入分组名称，如 SYS/UPLOAD/EMAIL"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+        <template #toolbar-actions>
+          <a-button @click="handleRefreshCache">
+            <template #icon><SyncOutlined /></template>
+            刷新缓存
+          </a-button>
+        </template>
+
+        <template #groupNameCell="{ record }">
+          <a-tag color="blue">{{ record.groupName }}</a-tag>
+        </template>
+        <template #configValueCell="{ record }">
+          <span
+            class="config-value"
+            :class="{ sensitive: isSensitiveKey(record.configKey) }"
+          >
+            {{ isSensitiveKey(record.configKey) ? '******' : record.configValue }}
+          </span>
+          <a-tooltip title="复制" v-if="!isSensitiveKey(record.configKey)">
+            <a-button
+              type="link"
+              size="small"
+              :style="{ padding: '0 4px' }"
+              @click="handleCopy(record.configValue)"
+            >
+              <CopyOutlined />
+            </a-button>
+          </a-tooltip>
+        </template>
+
+        <template #action="{ record }">
+          <a-space>
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              编辑
+            </a-button>
+            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+              删除
+            </a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
+
+      <!-- 配置表单弹窗 -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="modalTitle"
+        :confirm-loading="modalLoading"
+        width="550px"
+        @ok="handleModalOk"
+        @cancel="handleModalCancel"
+      >
+        <a-form
+          ref="formRef"
+          :model="formState"
+          :rules="formRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="配置键" name="configKey">
+            <a-input
+              v-model:value="formState.configKey"
+              placeholder="请输入配置键，如 sys.upload.path"
+              :disabled="isEdit"
+            />
+          </a-form-item>
+          <a-form-item label="配置值" name="configValue">
+            <a-textarea
+              v-model:value="formState.configValue"
+              placeholder="请输入配置值"
+              :rows="4"
+            />
+          </a-form-item>
+          <a-form-item label="描述" name="description">
+            <a-textarea
+              v-model:value="formState.description"
+              placeholder="请输入配置描述"
+              :rows="2"
+            />
+          </a-form-item>
+          <a-form-item label="分组" name="groupName">
+            <a-input
+              v-model:value="formState.groupName"
+              placeholder="请输入分组名称，如 SYS/UPLOAD/EMAIL"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   SyncOutlined,
+  ReloadOutlined,
   CopyOutlined,
   SettingOutlined,
   FolderOutlined,
@@ -147,6 +172,7 @@ import {
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { configApi, type ConfigInfo } from '@/api/config'
+import { PageContainer } from '@/components'
 
 // 搜索表单
 const searchForm = reactive({
@@ -160,6 +186,11 @@ const groupOptions = ref<string[]>([])
 const tableData = ref<ConfigInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const groupCount = computed(() => new Set(tableData.value.map(c => c.groupName)).size)
@@ -229,9 +260,14 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[系统配置] 加载配置数据失败')
     message.error('加载配置失败')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -241,8 +277,9 @@ const fetchGroups = async () => {
     if (res.data) {
       groupOptions.value = res.data
     }
-  } catch {
-    // 忽略
+  } catch (err) {
+    console.warn('[系统管理] 加载分组列表失败', err)
+    message.error('加载分组失败')
   }
 }
 
@@ -309,7 +346,8 @@ const handleDeleteConfirm = (record: ConfigInfo) => {
         await configApi.delete(record.id)
         message.success('删除成功')
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[系统管理] 删除配置失败', err)
         message.error('删除失败')
       }
     }
@@ -329,7 +367,8 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
         message.success('批量删除成功')
         selectedRowKeys.value = []
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[系统管理] 批量删除失败', err)
         message.error('批量删除失败')
       }
     }
@@ -341,8 +380,9 @@ const handleRefreshCache = async () => {
   try {
     await configApi.refreshCache()
     message.success('缓存刷新成功')
-  } catch {
-    message.error('缓存刷新失败')
+  } catch (err) {
+    console.warn('[系统管理] 刷新缓存失败', err)
+    message.error('刷新缓存失败')
   }
 }
 
@@ -392,10 +432,63 @@ const handleModalCancel = () => {
 onMounted(() => {
   fetchData()
   fetchGroups()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.config-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.config-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.config-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.config-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .config-management {
   height: 100%;
   display: flex;

@@ -1,16 +1,39 @@
 <template>
-  <div class="performance-page">
-    <a-page-header
-      title="供应商绩效评估"
-      @back="handleBack"
-    >
-      <template #extra>
-        <a-button type="primary" @click="handleEvaluate">
-          <template #icon><PlusOutlined /></template>
-          新增评估
-        </a-button>
-      </template>
-    </a-page-header>
+  <PageContainer full-height>
+    <template #header>
+      <div class="performance-header">
+        <div class="performance-header__left">
+          <a-button type="text" class="performance-header__back" @click="handleBack">
+            <template #icon><LeftOutlined /></template>
+          </a-button>
+          <div class="performance-header__titles">
+            <span class="performance-header__breadcrumb">供应商 / 绩效评估</span>
+            <h2 class="performance-header__title">供应商绩效评估</h2>
+          </div>
+        </div>
+        <div class="performance-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="loadPerformances">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+            <a-button type="primary" @click="handleEvaluate">
+              <template #icon><PlusOutlined /></template>
+              新增评估
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
 
     <!-- 统计卡片 -->
     <div class="stat-cards">
@@ -134,13 +157,14 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined, ReloadOutlined, SyncOutlined, LeftOutlined } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -154,7 +178,7 @@ const supplierId = (route.params.id as string) || (route.query.id as string) || 
 const supplierIdNum = computed(() => { const n = Number(supplierId); return isNaN(n) ? null : n })
 
 if (!supplierId) {
-  console.warn('[供应商绩效] 缺少供应商ID参数，将返回列表')
+  console.warn('[供应商] 缺少供应商ID参数，将返回列表')
   router.replace('/supplier/index')
 }
 
@@ -176,8 +200,14 @@ const supplier = ref<{ supplierCode: string; supplierName: string; supplierLevel
 const performances = ref<PerformanceRecord[]>([])
 const loading = ref(false)
 const submitLoading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const showEvaluateModal = ref(false)
 const formRef = ref<FormInstance>()
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const periodTypeOptions = [
   { value: 1, label: '月度' },
@@ -252,7 +282,22 @@ const getLevelColor = (level: string) => {
 
 onMounted(async () => {
   await Promise.allSettled([loadSupplier(), loadPerformances()])
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadPerformances()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: loadPerformances })
 
 const loadSupplier = async () => {
   try {
@@ -260,7 +305,8 @@ const loadSupplier = async () => {
     if (id === null) return
     const res = await supplierApi.getById(id)
     supplier.value = res as any
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 加载供应商信息失败', err)
     supplier.value = { supplierCode: '-', supplierName: '-', supplierLevel: '-', comprehensiveScore: 0 }
   }
 }
@@ -273,10 +319,13 @@ const loadPerformances = async () => {
     const res = await supplierApi.getPerformanceHistory(id)
     performances.value = (res as any)?.data || (res as any) || []
   } catch (err: any) {
+    console.warn('[供应商] 获取绩效记录失败', err)
     message.error(err?.message || '获取绩效记录失败')
     performances.value = []
   } finally {
     loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
@@ -311,11 +360,13 @@ const submitEvaluate = async () => {
       serviceScore: evaluateForm.value.serviceScore,
       comprehensiveScore: comprehensive
     })
+    console.warn('[供应商] 操作成功: 绩效评估提交成功')
     message.success('绩效评估提交成功')
     showEvaluateModal.value = false
     await loadPerformances()
   } catch (err: any) {
-    if (err?.errorFields) return
+    if (err?.errorFields) { console.warn('[供应商] 表单验证失败', err); return }
+    console.warn('[供应商] 提交绩效评估失败', err)
     message.error(err?.message || '提交失败')
   } finally {
     submitLoading.value = false
@@ -329,11 +380,68 @@ const handleBack = () => {
 </script>
 
 <style scoped>
-.performance-page {
-  height: 100%;
+.performance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.performance-header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.performance-header__back {
+  color: #303133;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+.performance-header__titles {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  gap: 2px;
+}
+
+.performance-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.performance-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.performance-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
 }
 
 /* 统计卡片 */

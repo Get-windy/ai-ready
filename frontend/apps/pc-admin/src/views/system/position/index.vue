@@ -1,408 +1,432 @@
 <template>
-  <div class="position-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">岗位总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="position-page-header">
+        <div class="position-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>岗位管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="position-page-header-title">岗位管理</h2>
         </div>
-        <SolutionOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-active">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ activeCount }}</div>
-          <div class="stat-card-label">正常岗位</div>
-        </div>
-        <CheckCircleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-disabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ disabledCount }}</div>
-          <div class="stat-card-label">停用岗位</div>
-        </div>
-        <StopOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-categories">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ categoryList.length }}</div>
-          <div class="stat-card-label">分类数量</div>
-        </div>
-        <AppstoreOutlined class="stat-card-icon" />
-      </div>
-    </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="columns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="pagination"
-      :table-key="'system-position-list'"
-      :filter-fields="filterFields"
-      :show-search="false"
-      :show-toolbar="false"
-      :selectable="true"
-      :show-add="false"
-      :show-export="false"
-      :show-batch-delete="false"
-      add-text="新增岗位"
-      @add="handleAdd"
-      @edit="handleEdit"
-      @delete="handleDelete"
-      @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
-    >
-      <template #toolbar-actions>
-        <a-button @click="handleCategoryManage">
-          <template #icon><AppstoreOutlined /></template>
-          分类管理
-        </a-button>
-      </template>
-
-      <template #levelCell="{ record }">
-        <a-tag :color="getLevelColor(record.level)">
-          {{ getLevelName(record.level) }}
-        </a-tag>
-      </template>
-
-      <template #statusCell="{ record }">
-        <a-tag :color="record.status === 0 ? 'success' : 'error'">
-          {{ record.status === 0 ? '正常' : '停用' }}
-        </a-tag>
-      </template>
-
-      <template #actionCell="{ record }">
-        <a-space>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleEdit(record)"
-          >
-            编辑
+        <div class="position-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
           </a-button>
-          <a-button
-            type="link"
-            size="small"
-            @click="handleAssignDepartment(record)"
-          >
-            部门关联
+        </div>
+      </div>
+    </template>
+
+    <div class="position-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">岗位总数</div>
+          </div>
+          <SolutionOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-active">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ activeCount }}</div>
+            <div class="stat-card-label">正常岗位</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-disabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ disabledCount }}</div>
+            <div class="stat-card-label">停用岗位</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-categories">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ categoryList.length }}</div>
+            <div class="stat-card-label">分类数量</div>
+          </div>
+          <AppstoreOutlined class="stat-card-icon" />
+        </div>
+      </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="columns"
+        :data-source="tableData"
+        :loading="loading"
+        :pagination="pagination"
+        :table-key="'system-position-list'"
+        :filter-fields="filterFields"
+        :show-search="false"
+        :show-toolbar="false"
+        :selectable="true"
+        :show-add="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        add-text="新增岗位"
+        @add="handleAdd"
+        @edit="handleEdit"
+        @delete="handleDelete"
+        @batch-delete="handleBatchDelete"
+        @refresh="fetchData"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+      >
+        <template #toolbar-actions>
+          <a-button @click="handleCategoryManage">
+            <template #icon><AppstoreOutlined /></template>
+            分类管理
           </a-button>
-          <a-dropdown>
+        </template>
+
+        <template #levelCell="{ record }">
+          <a-tag :color="getLevelColor(record.level)">
+            {{ getLevelName(record.level) }}
+          </a-tag>
+        </template>
+
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">
+            {{ record.status === 0 ? '正常' : '停用' }}
+          </a-tag>
+        </template>
+
+        <template #actionCell="{ record }">
+          <a-space>
             <a-button
               type="link"
               size="small"
+              @click="handleEdit(record)"
             >
-              更多<DownOutlined />
+              编辑
             </a-button>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item @click="handleToggleStatus(record)">
-                  <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item
-                  danger
-                  @click="handleDelete(record)"
-                >
-                  <DeleteOutlined /> 删除
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
-        </a-space>
-      </template>
-    </VxeTableList>
-
-    <!-- 岗位表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      :confirm-loading="submittingLoading"
-      width="600px"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-      >
-        <a-form-item
-          label="岗位名称"
-          name="positionName"
-        >
-          <a-input
-            v-model:value="formState.positionName"
-            placeholder="请输入岗位名称"
-          />
-        </a-form-item>
-        <a-form-item
-          label="岗位编码"
-          name="positionCode"
-        >
-          <a-input
-            v-model:value="formState.positionCode"
-            placeholder="请输入岗位编码"
-            :disabled="isEdit"
-          />
-        </a-form-item>
-        <a-form-item
-          label="岗位分类"
-          name="categoryId"
-        >
-          <a-select
-            v-model:value="formState.categoryId"
-            placeholder="请选择岗位分类"
-            allow-clear
-          >
-            <a-select-option
-              v-for="cat in categoryList"
-              :key="cat.id"
-              :value="cat.id"
+            <a-button
+              type="link"
+              size="small"
+              @click="handleAssignDepartment(record)"
             >
-              {{ cat.categoryName }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item
-          label="岗位级别"
-          name="level"
-        >
-          <a-select
-            v-model:value="formState.level"
-            placeholder="请选择岗位级别"
-          >
-            <a-select-option :value="1">
-              初级
-            </a-select-option>
-            <a-select-option :value="2">
-              中级
-            </a-select-option>
-            <a-select-option :value="3">
-              高级
-            </a-select-option>
-            <a-select-option :value="4">
-              专家
-            </a-select-option>
-            <a-select-option :value="5">
-              首席
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item
-          label="排序"
-          name="sort"
-        >
-          <a-input-number
-            v-model:value="formState.sort"
-            :min="0"
-            :max="9999"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item
-          label="描述"
-          name="description"
-        >
-          <a-textarea
-            v-model:value="formState.description"
-            :rows="4"
-            placeholder="请输入岗位描述"
-          />
-        </a-form-item>
-        <a-form-item
-          label="状态"
-          name="status"
-        >
-          <a-radio-group v-model:value="formState.status">
-            <a-radio :value="0">
-              正常
-            </a-radio>
-            <a-radio :value="1">
-              停用
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 分类管理弹窗 -->
-    <a-modal
-      v-model:open="categoryModalVisible"
-      title="岗位分类管理"
-      :footer="null"
-      width="800px"
-    >
-      <div class="category-management">
-        <div class="category-header">
-          <a-button
-            type="primary"
-            size="small"
-            @click="handleAddCategory"
-          >
-            <template #icon>
-              <PlusOutlined />
-            </template>
-            新增分类
-          </a-button>
-        </div>
-        <VxeTableList
-          :data-source="categoryData"
-          :loading="categoryLoading"
-          :pagination="{ pageSize: 10 }"
-          row-key="id"
-          :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
-          :show-export="false" :show-batch-delete="false"
-          :columns="categoryColumns"
-        >
-          <template #statusCell="{ record }">
-            <a-tag :color="record.status === 0 ? 'success' : 'error'">
-              {{ record.status === 0 ? '正常' : '停用' }}
-            </a-tag>
-          </template>
-          <template #actionCell="{ record }">
-            <a-space>
+              部门关联
+            </a-button>
+            <a-dropdown>
               <a-button
                 type="link"
                 size="small"
-                @click="handleEditCategory(record)"
               >
-                编辑
+                更多<DownOutlined />
               </a-button>
-              <a-button
-                type="link"
-                size="small"
-                danger
-                @click="handleDeleteCategory(record)"
-              >
-                删除
-              </a-button>
-            </a-space>
-          </template>
-        </VxeTableList>
-      </div>
-    </a-modal>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleToggleStatus(record)">
+                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item
+                    danger
+                    @click="handleDelete(record)"
+                  >
+                    <DeleteOutlined /> 删除
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
+        </template>
+      </VxeTableList>
 
-    <!-- 分类表单弹窗 -->
-    <a-modal
-      v-model:open="categoryFormModalVisible"
-      :title="categoryFormTitle"
-      :confirm-loading="categoryFormModalLoading"
-      @ok="handleCategoryFormModalOk"
-      @cancel="handleCategoryFormModalCancel"
-    >
-      <a-form
-        ref="categoryFormRef"
-        :model="categoryFormState"
-        :rules="categoryFormRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
+      <!-- 岗位表单弹窗 -->
+      <a-modal
+        v-model:open="modalVisible"
+        :title="modalTitle"
+        :confirm-loading="submittingLoading"
+        width="600px"
+        @ok="handleModalOk"
+        @cancel="handleModalCancel"
       >
-        <a-form-item
-          label="分类名称"
-          name="categoryName"
-        >
-          <a-input
-            v-model:value="categoryFormState.categoryName"
-            placeholder="请输入分类名称"
-          />
-        </a-form-item>
-        <a-form-item
-          label="分类编码"
-          name="categoryCode"
-        >
-          <a-input
-            v-model:value="categoryFormState.categoryCode"
-            placeholder="请输入分类编码"
-            :disabled="isCategoryEdit"
-          />
-        </a-form-item>
-        <a-form-item
-          label="排序"
-          name="sort"
-        >
-          <a-input-number
-            v-model:value="categoryFormState.sort"
-            :min="0"
-            :max="9999"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item
-          label="描述"
-          name="description"
-        >
-          <a-textarea
-            v-model:value="categoryFormState.description"
-            :rows="3"
-            placeholder="请输入分类描述"
-          />
-        </a-form-item>
-        <a-form-item
-          label="状态"
-          name="status"
-        >
-          <a-radio-group v-model:value="categoryFormState.status">
-            <a-radio :value="0">
-              正常
-            </a-radio>
-            <a-radio :value="1">
-              停用
-            </a-radio>
-          </a-radio-group>
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 部门关联弹窗 -->
-    <a-modal
-      v-model:open="departmentModalVisible"
-      title="岗位与部门关联"
-      :confirm-loading="departmentModalLoading"
-      width="600px"
-      @ok="handleDepartmentModalOk"
-    >
-      <div class="department-modal-content">
-        <p>当前岗位: <strong>{{ currentPositionName }}</strong></p>
         <a-form
+          ref="formRef"
+          :model="formState"
+          :rules="formRules"
           :label-col="{ span: 6 }"
           :wrapper-col="{ span: 16 }"
         >
-          <a-form-item label="所属部门">
+          <a-form-item
+            label="岗位名称"
+            name="positionName"
+          >
+            <a-input
+              v-model:value="formState.positionName"
+              placeholder="请输入岗位名称"
+            />
+          </a-form-item>
+          <a-form-item
+            label="岗位编码"
+            name="positionCode"
+          >
+            <a-input
+              v-model:value="formState.positionCode"
+              placeholder="请输入岗位编码"
+              :disabled="isEdit"
+            />
+          </a-form-item>
+          <a-form-item
+            label="岗位分类"
+            name="categoryId"
+          >
             <a-select
-              v-model:value="targetDepartmentId"
-              placeholder="请选择部门"
+              v-model:value="formState.categoryId"
+              placeholder="请选择岗位分类"
               allow-clear
             >
               <a-select-option
-                v-for="dept in departmentList"
-                :key="dept.id"
-                :value="dept.id"
+                v-for="cat in categoryList"
+                :key="cat.id"
+                :value="cat.id"
               >
-                {{ dept.departmentName }}
+                {{ cat.categoryName }}
               </a-select-option>
             </a-select>
           </a-form-item>
+          <a-form-item
+            label="岗位级别"
+            name="level"
+          >
+            <a-select
+              v-model:value="formState.level"
+              placeholder="请选择岗位级别"
+            >
+              <a-select-option :value="1">
+                初级
+              </a-select-option>
+              <a-select-option :value="2">
+                中级
+              </a-select-option>
+              <a-select-option :value="3">
+                高级
+              </a-select-option>
+              <a-select-option :value="4">
+                专家
+              </a-select-option>
+              <a-select-option :value="5">
+                首席
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item
+            label="排序"
+            name="sort"
+          >
+            <a-input-number
+              v-model:value="formState.sort"
+              :min="0"
+              :max="9999"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item
+            label="描述"
+            name="description"
+          >
+            <a-textarea
+              v-model:value="formState.description"
+              :rows="4"
+              placeholder="请输入岗位描述"
+            />
+          </a-form-item>
+          <a-form-item
+            label="状态"
+            name="status"
+          >
+            <a-radio-group v-model:value="formState.status">
+              <a-radio :value="0">
+                正常
+              </a-radio>
+              <a-radio :value="1">
+                停用
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
         </a-form>
-        <a-alert
-          message="提示"
-          description="选择部门后，该岗位将关联到对应部门。一个岗位可以关联多个部门。"
-          type="info"
-          show-icon
-        />
-      </div>
-    </a-modal>
-  </div>
+      </a-modal>
+
+      <!-- 分类管理弹窗 -->
+      <a-modal
+        v-model:open="categoryModalVisible"
+        title="岗位分类管理"
+        :footer="null"
+        width="800px"
+      >
+        <div class="category-management">
+          <div class="category-header">
+            <a-button
+              type="primary"
+              size="small"
+              @click="handleAddCategory"
+            >
+              <template #icon>
+                <PlusOutlined />
+              </template>
+              新增分类
+            </a-button>
+          </div>
+          <VxeTableList
+            :data-source="categoryData"
+            :loading="categoryLoading"
+            :pagination="{ pageSize: 10 }"
+            row-key="id"
+            :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+            :show-export="false" :show-batch-delete="false"
+            :columns="categoryColumns"
+          >
+            <template #statusCell="{ record }">
+              <a-tag :color="record.status === 0 ? 'success' : 'error'">
+                {{ record.status === 0 ? '正常' : '停用' }}
+              </a-tag>
+            </template>
+            <template #actionCell="{ record }">
+              <a-space>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleEditCategory(record)"
+                >
+                  编辑
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  danger
+                  @click="handleDeleteCategory(record)"
+                >
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </VxeTableList>
+        </div>
+      </a-modal>
+
+      <!-- 分类表单弹窗 -->
+      <a-modal
+        v-model:open="categoryFormModalVisible"
+        :title="categoryFormTitle"
+        :confirm-loading="categoryFormModalLoading"
+        @ok="handleCategoryFormModalOk"
+        @cancel="handleCategoryFormModalCancel"
+      >
+        <a-form
+          ref="categoryFormRef"
+          :model="categoryFormState"
+          :rules="categoryFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item
+            label="分类名称"
+            name="categoryName"
+          >
+            <a-input
+              v-model:value="categoryFormState.categoryName"
+              placeholder="请输入分类名称"
+            />
+          </a-form-item>
+          <a-form-item
+            label="分类编码"
+            name="categoryCode"
+          >
+            <a-input
+              v-model:value="categoryFormState.categoryCode"
+              placeholder="请输入分类编码"
+              :disabled="isCategoryEdit"
+            />
+          </a-form-item>
+          <a-form-item
+            label="排序"
+            name="sort"
+          >
+            <a-input-number
+              v-model:value="categoryFormState.sort"
+              :min="0"
+              :max="9999"
+              style="width: 100%"
+            />
+          </a-form-item>
+          <a-form-item
+            label="描述"
+            name="description"
+          >
+            <a-textarea
+              v-model:value="categoryFormState.description"
+              :rows="3"
+              placeholder="请输入分类描述"
+            />
+          </a-form-item>
+          <a-form-item
+            label="状态"
+            name="status"
+          >
+            <a-radio-group v-model:value="categoryFormState.status">
+              <a-radio :value="0">
+                正常
+              </a-radio>
+              <a-radio :value="1">
+                停用
+              </a-radio>
+            </a-radio-group>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- 部门关联弹窗 -->
+      <a-modal
+        v-model:open="departmentModalVisible"
+        title="岗位与部门关联"
+        :confirm-loading="departmentModalLoading"
+        width="600px"
+        @ok="handleDepartmentModalOk"
+      >
+        <div class="department-modal-content">
+          <p>当前岗位: <strong>{{ currentPositionName }}</strong></p>
+          <a-form
+            :label-col="{ span: 6 }"
+            :wrapper-col="{ span: 16 }"
+          >
+            <a-form-item label="所属部门">
+              <a-select
+                v-model:value="targetDepartmentId"
+                placeholder="请选择部门"
+                allow-clear
+              >
+                <a-select-option
+                  v-for="dept in departmentList"
+                  :key="dept.id"
+                  :value="dept.id"
+                >
+                  {{ dept.departmentName }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-form>
+          <a-alert
+            message="提示"
+            description="选择部门后，该岗位将关联到对应部门。一个岗位可以关联多个部门。"
+            type="info"
+            show-icon
+          />
+        </div>
+      </a-modal>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -412,13 +436,16 @@ import {
   AppstoreOutlined,
   PlusOutlined,
   SolutionOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  SyncOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
+import { PageContainer } from '@/components'
 
 // 搜索表单
 const userStore = useUserStore()
@@ -435,6 +462,11 @@ const searchForm = reactive<PositionQuery>({
 const tableData = ref<PositionInfo[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
@@ -558,9 +590,14 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[岗位管理] 加载岗位数据失败')
     message.error('加载数据失败')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -572,7 +609,7 @@ const fetchCategoryList = async () => {
       categoryList.value = res.data
     }
   } catch (error) {
-    console.error('加载岗位分类失败:', error)
+    console.warn('[岗位管理] 加载岗位分类失败')
   }
 }
 
@@ -584,7 +621,7 @@ const fetchDepartmentList = async () => {
       departmentList.value = res.data
     }
   } catch (error) {
-    console.error('加载部门列表失败:', error)
+    console.warn('[岗位管理] 加载部门列表失败')
   }
 }
 
@@ -691,9 +728,14 @@ const handleDelete = (record: PositionInfo) => {
     title: '确认删除',
     content: `确定要删除岗位 "${record.positionName}" 吗？`,
     async onOk() {
-      await positionApi.delete(record.id)
-      message.success('删除成功')
-      fetchData()
+      try {
+        await positionApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch (err) {
+        console.warn('[系统管理] 删除岗位失败', err)
+        message.error('删除失败')
+      }
     }
   })
 }
@@ -724,9 +766,14 @@ const handleBatchDelete = (deleteKeys?: number[]) => {
 // 切换状态
 const handleToggleStatus = async (record: PositionInfo) => {
   const newStatus = record.status === 0 ? 1 : 0
-  await positionApi.updateStatus(record.id, newStatus)
-  message.success('状态更新成功')
-  fetchData()
+  try {
+    await positionApi.updateStatus(record.id, newStatus)
+    message.success('状态更新成功')
+    fetchData()
+  } catch (err) {
+    console.warn('[系统管理] 更新岗位状态失败', err)
+    message.error('状态更新失败')
+  }
 }
 
 // 分类管理
@@ -803,10 +850,15 @@ const handleDeleteCategory = (record: PositionCategory) => {
     title: '确认删除',
     content: `确定要删除分类 "${record.categoryName}" 吗？`,
     async onOk() {
-      await positionApi.deleteCategory(record.id)
-      message.success('删除成功')
-      fetchCategoryData()
-      fetchCategoryList()
+      try {
+        await positionApi.deleteCategory(record.id)
+        message.success('删除成功')
+        fetchCategoryData()
+        fetchCategoryList()
+      } catch (err) {
+        console.warn('[系统管理] 删除岗位分类失败', err)
+        message.error('删除失败')
+      }
     }
   })
 }
@@ -850,10 +902,63 @@ onMounted(() => {
   fetchData()
   fetchCategoryList()
   fetchDepartmentList()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.position-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.position-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.position-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.position-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .position-management {
   height: 100%;
   display: flex;

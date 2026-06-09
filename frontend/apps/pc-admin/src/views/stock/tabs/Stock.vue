@@ -222,25 +222,19 @@ async function fetchData() {
   try {
     const res = await stockApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
     emit('update-count', pagination.total)
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[库存管理] 获取库存列表失败', err)
+    tableData.value = []
+    pagination.total = 0
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, productCode: 'PROD-001', productName: '螺丝螺母套装', specification: 'M8x20', warehouseName: '主仓库', quantity: 500, availableQuantity: 450, frozenQuantity: 50, unit: '套' },
-  { id: 2, productCode: 'PROD-002', productName: '不锈钢板材', specification: '2mm', warehouseName: '主仓库', quantity: 200, availableQuantity: 180, frozenQuantity: 20, unit: '张' },
-  { id: 3, productCode: 'PROD-003', productName: '电子元件A型', specification: 'E-A01', warehouseName: '备品仓库', quantity: 1000, availableQuantity: 800, frozenQuantity: 200, unit: '个' },
-  { id: 4, productCode: 'PROD-004', productName: '包装箱(大)', specification: '600x400', warehouseName: '成品仓库', quantity: 300, availableQuantity: 250, frozenQuantity: 50, unit: '个' },
-  { id: 5, productCode: 'PROD-005', productName: '电机驱动器', specification: 'DC-24V', warehouseName: '半成品仓库', quantity: 120, availableQuantity: 100, frozenQuantity: 20, unit: '台' },
-]
 
 function handleView(record: any) {
   router.push(`/stock/detail/${record.id}`)
@@ -298,7 +292,7 @@ function handleCheck(record: any) {
   checkVisible.value = true
 }
 async function handleCheckSubmit() {
-  try { await checkFormRef.value?.validate() } catch { return }
+  try { await checkFormRef.value?.validate() } catch (err) { console.warn('[库存管理] 表单验证失败', err); return }
   checkSubmitting.value = true
   try {
     await stockCheckApi.create({
@@ -310,7 +304,7 @@ async function handleCheckSubmit() {
     message.success('盘点单创建成功')
     checkVisible.value = false
     fetchData()
-  } catch (err: any) { message.error(err?.message || '盘点提交失败') }
+  } catch (err: any) { console.warn('[库存管理] 提交盘点失败', err); message.error(err?.message || '盘点提交失败') }
   finally { checkSubmitting.value = false }
 }
 function handleCheckCancel() { checkVisible.value = false }
@@ -330,6 +324,7 @@ function handleExport() {
   a.download = `库存报表_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[库存管理] 导出库存报表（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -355,6 +350,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

@@ -9,6 +9,9 @@ spring:
     url: jdbc:postgresql://localhost:5432/ai_ready?useUnicode=true&characterEncoding=utf8
     username: postgres
     password: postgres
+  sql:
+    init:
+      mode: always
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai

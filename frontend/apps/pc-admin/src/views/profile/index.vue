@@ -1,189 +1,221 @@
 <template>
-  <div class="profile-page">
-    <a-row :gutter="16">
-      <!-- 左侧：用户信息卡片 -->
-      <a-col :xs="24" :lg="8">
-        <a-card :bordered="false" class="profile-card">
-          <div class="profile-header">
-            <a-avatar :src="userInfo.avatar" :size="80">
-              {{ userInfo.nickname?.charAt(0) || userInfo.username?.charAt(0) }}
-            </a-avatar>
-            <h2 class="profile-name">{{ userInfo.nickname || userInfo.username }}</h2>
-            <p class="profile-username">@{{ userInfo.username }}</p>
-          </div>
-
-          <a-divider />
-
-          <a-descriptions :column="1" size="small" :colon="false" class="profile-desc">
-            <a-descriptions-item label="角色">
-              <a-tag v-for="role in userInfo.roleNames" :key="role" color="blue">
-                {{ role }}
-              </a-tag>
-              <span v-if="!userInfo.roleNames?.length" style="color: #999">未分配</span>
-            </a-descriptions-item>
-            <a-descriptions-item label="部门">
-              {{ userInfo.deptName || '未分配' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="手机">
-              {{ userInfo.phone || '未设置' }}
-            </a-descriptions-item>
-            <a-descriptions-item label="邮箱">
-              {{ userInfo.email || '未设置' }}
-            </a-descriptions-item>
-          </a-descriptions>
-
-          <a-divider />
-
-          <a-button block @click="showEditProfile = true">
-            <template #icon><EditOutlined /></template>
-            编辑资料
+  <PageContainer full-height>
+    <template #header>
+      <div class="profile-page-header">
+        <div class="profile-page-header-left">
+          <a-breadcrumb class="profile-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>个人设置</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="profile-page-header-title">个人设置</h2>
+        </div>
+        <div class="profile-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchProfile">
+            <template #icon><ReloadOutlined /></template>
+            刷新
           </a-button>
-        </a-card>
-      </a-col>
+        </div>
+      </div>
+    </template>
 
-      <!-- 右侧：设置区域 -->
-      <a-col :xs="24" :lg="16">
-        <!-- 修改密码 -->
-        <a-card :bordered="false" class="setting-card" title="修改密码">
-          <a-form
-            ref="passwordFormRef"
-            :model="passwordForm"
-            :rules="passwordRules"
-            :label-col="{ span: 6 }"
-            :wrapper-col="{ span: 14 }"
-          >
-            <a-form-item label="当前密码" name="oldPassword">
-              <a-input-password
-                v-model:value="passwordForm.oldPassword"
-                placeholder="请输入当前密码"
-              />
-            </a-form-item>
-            <a-form-item label="新密码" name="newPassword">
-              <a-input-password
-                v-model:value="passwordForm.newPassword"
-                placeholder="请输入新密码"
-              />
-            </a-form-item>
-            <a-form-item label="确认密码" name="confirmPassword">
-              <a-input-password
-                v-model:value="passwordForm.confirmPassword"
-                placeholder="请再次输入新密码"
-              />
-            </a-form-item>
-            <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-              <a-button type="primary" :loading="passwordLoading" @click="handleChangePassword">
-                修改密码
-              </a-button>
-            </a-form-item>
-          </a-form>
-        </a-card>
+    <div v-if="profileLoading && !userInfo.username" class="profile-loading">
+      <a-skeleton active :paragraph="{ rows: 4 }" />
+    </div>
+    <a-result v-else-if="profileError" status="warning" title="加载个人信息失败">
+      <template #extra>
+        <a-button type="primary" @click="fetchProfile">重试</a-button>
+      </template>
+    </a-result>
+    <div v-else class="profile-page">
+      <a-row :gutter="16">
+        <!-- 左侧：用户信息卡片 -->
+        <a-col :xs="24" :lg="8">
+          <a-card :bordered="false" class="profile-card">
+            <div class="profile-header">
+              <a-avatar :src="userInfo.avatar" :size="80">
+                {{ userInfo.nickname?.charAt(0) || userInfo.username?.charAt(0) }}
+              </a-avatar>
+              <h2 class="profile-name">{{ userInfo.nickname || userInfo.username }}</h2>
+              <p class="profile-username">@{{ userInfo.username }}</p>
+            </div>
 
-        <!-- 个人偏好 -->
-        <a-card :bordered="false" class="setting-card" title="个人偏好">
-          <a-form
-            :model="preferenceForm"
-            :label-col="{ span: 6 }"
-            :wrapper-col="{ span: 14 }"
-          >
-            <a-form-item label="语言">
-              <a-select
-                v-model:value="preferenceForm.language"
-                style="width: 100%"
-                @change="handlePreferenceChange"
-              >
-                <a-select-option value="zh-CN">简体中文</a-select-option>
-                <a-select-option value="en-US">English</a-select-option>
-              </a-select>
-            </a-form-item>
-            <a-form-item label="主题">
-              <a-radio-group
-                v-model:value="preferenceForm.theme"
-                @change="handlePreferenceChange"
-              >
-                <a-radio-button value="light">
-                  <BulbOutlined /> 浅色
-                </a-radio-button>
-                <a-radio-button value="dark">
-                  <BulbFilled /> 深色
-                </a-radio-button>
-              </a-radio-group>
-            </a-form-item>
-            <a-form-item label="布局模式">
-              <a-radio-group
-                v-model:value="preferenceForm.layoutMode"
-                @change="handlePreferenceChange"
-              >
-                <a-radio-button value="side">侧边栏</a-radio-button>
-                <a-radio-button value="top">顶部导航</a-radio-button>
-                <a-radio-button value="mix">混合模式</a-radio-button>
-              </a-radio-group>
-            </a-form-item>
-            <a-form-item label="标签页">
-              <a-switch
-                v-model:checked="preferenceForm.tagsView"
-                checked-children="开"
-                un-checked-children="关"
-                @change="handlePreferenceChange"
-              />
-              <span style="margin-left: 8px; color: #999; font-size: 12px">
-                开启后显示标签导航
-              </span>
-            </a-form-item>
-            <a-form-item label="固定头部">
-              <a-switch
-                v-model:checked="preferenceForm.fixedHeader"
-                checked-children="开"
-                un-checked-children="关"
-                @change="handlePreferenceChange"
-              />
-              <span style="margin-left: 8px; color: #999; font-size: 12px">
-                开启后页面头部将在滚动时固定
-              </span>
-            </a-form-item>
-            <a-form-item label="侧边栏Logo">
-              <a-switch
-                v-model:checked="preferenceForm.sidebarLogo"
-                checked-children="开"
-                un-checked-children="关"
-                @change="handlePreferenceChange"
-              />
-              <span style="margin-left: 8px; color: #999; font-size: 12px">
-                关闭后隐藏侧边栏Logo
-              </span>
-            </a-form-item>
-            <a-form-item label="主题色">
-              <a-space>
-                <div
-                  v-for="color in presetColors"
-                  :key="color"
-                  class="color-block"
-                  :class="{ active: preferenceForm.primaryColor === color }"
-                  :style="{ backgroundColor: color }"
-                  @click="selectPrimaryColor(color)"
+            <a-divider />
+
+            <a-descriptions :column="1" size="small" :colon="false" class="profile-desc">
+              <a-descriptions-item label="角色">
+                <a-tag v-for="role in userInfo.roleNames" :key="role" color="blue">
+                  {{ role }}
+                </a-tag>
+                <span v-if="!userInfo.roleNames?.length" style="color: #999">未分配</span>
+              </a-descriptions-item>
+              <a-descriptions-item label="部门">
+                {{ userInfo.deptName || '未分配' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="手机">
+                {{ userInfo.phone || '未设置' }}
+              </a-descriptions-item>
+              <a-descriptions-item label="邮箱">
+                {{ userInfo.email || '未设置' }}
+              </a-descriptions-item>
+            </a-descriptions>
+
+            <a-divider />
+
+            <a-button block @click="showEditProfile = true">
+              <template #icon><EditOutlined /></template>
+              编辑资料
+            </a-button>
+          </a-card>
+        </a-col>
+
+        <!-- 右侧：设置区域 -->
+        <a-col :xs="24" :lg="16">
+          <!-- 修改密码 -->
+          <a-card :bordered="false" class="setting-card" title="修改密码">
+            <a-form
+              ref="passwordFormRef"
+              :model="passwordForm"
+              :rules="passwordRules"
+              :label-col="{ span: 6 }"
+              :wrapper-col="{ span: 14 }"
+            >
+              <a-form-item label="当前密码" name="oldPassword">
+                <a-input-password
+                  v-model:value="passwordForm.oldPassword"
+                  placeholder="请输入当前密码"
                 />
-                <a-input
-                  v-model:value="preferenceForm.primaryColor"
-                  style="width: 100px"
-                  size="small"
+              </a-form-item>
+              <a-form-item label="新密码" name="newPassword">
+                <a-input-password
+                  v-model:value="passwordForm.newPassword"
+                  placeholder="请输入新密码"
+                />
+              </a-form-item>
+              <a-form-item label="确认密码" name="confirmPassword">
+                <a-input-password
+                  v-model:value="passwordForm.confirmPassword"
+                  placeholder="请再次输入新密码"
+                />
+              </a-form-item>
+              <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+                <a-button type="primary" :loading="passwordLoading" @click="handleChangePassword">
+                  修改密码
+                </a-button>
+              </a-form-item>
+            </a-form>
+          </a-card>
+
+          <!-- 个人偏好 -->
+          <a-card :bordered="false" class="setting-card" title="个人偏好">
+            <a-form
+              :model="preferenceForm"
+              :label-col="{ span: 6 }"
+              :wrapper-col="{ span: 14 }"
+            >
+              <a-form-item label="语言">
+                <a-select
+                  v-model:value="preferenceForm.language"
+                  style="width: 100%"
+                  @change="handlePreferenceChange"
+                >
+                  <a-select-option value="zh-CN">简体中文</a-select-option>
+                  <a-select-option value="en-US">English</a-select-option>
+                </a-select>
+              </a-form-item>
+              <a-form-item label="主题">
+                <a-radio-group
+                  v-model:value="preferenceForm.theme"
+                  @change="handlePreferenceChange"
+                >
+                  <a-radio-button value="light">
+                    <BulbOutlined /> 浅色
+                  </a-radio-button>
+                  <a-radio-button value="dark">
+                    <BulbFilled /> 深色
+                  </a-radio-button>
+                </a-radio-group>
+              </a-form-item>
+              <a-form-item label="布局模式">
+                <a-radio-group
+                  v-model:value="preferenceForm.layoutMode"
+                  @change="handlePreferenceChange"
+                >
+                  <a-radio-button value="side">侧边栏</a-radio-button>
+                  <a-radio-button value="top">顶部导航</a-radio-button>
+                  <a-radio-button value="mix">混合模式</a-radio-button>
+                </a-radio-group>
+              </a-form-item>
+              <a-form-item label="标签页">
+                <a-switch
+                  v-model:checked="preferenceForm.tagsView"
+                  checked-children="开"
+                  un-checked-children="关"
                   @change="handlePreferenceChange"
                 />
-              </a-space>
-            </a-form-item>
-            <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-              <a-button type="primary" :loading="preferenceLoading" @click="handleSavePreferences">
-                保存偏好设置
-              </a-button>
-            </a-form-item>
-          </a-form>
-        </a-card>
-      </a-col>
-    </a-row>
+                <span style="margin-left: 8px; color: #999; font-size: 12px">
+                  开启后显示标签导航
+                </span>
+              </a-form-item>
+              <a-form-item label="固定头部">
+                <a-switch
+                  v-model:checked="preferenceForm.fixedHeader"
+                  checked-children="开"
+                  un-checked-children="关"
+                  @change="handlePreferenceChange"
+                />
+                <span style="margin-left: 8px; color: #999; font-size: 12px">
+                  开启后页面头部将在滚动时固定
+                </span>
+              </a-form-item>
+              <a-form-item label="侧边栏Logo">
+                <a-switch
+                  v-model:checked="preferenceForm.sidebarLogo"
+                  checked-children="开"
+                  un-checked-children="关"
+                  @change="handlePreferenceChange"
+                />
+                <span style="margin-left: 8px; color: #999; font-size: 12px">
+                  关闭后隐藏侧边栏Logo
+                </span>
+              </a-form-item>
+              <a-form-item label="主题色">
+                <a-space>
+                  <div
+                    v-for="color in presetColors"
+                    :key="color"
+                    class="color-block"
+                    :class="{ active: preferenceForm.primaryColor === color }"
+                    :style="{ backgroundColor: color }"
+                    @click="selectPrimaryColor(color)"
+                  />
+                  <a-input
+                    v-model:value="preferenceForm.primaryColor"
+                    style="width: 100px"
+                    size="small"
+                    @change="handlePreferenceChange"
+                  />
+                </a-space>
+              </a-form-item>
+              <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
+                <a-button type="primary" :loading="preferenceLoading" @click="handleSavePreferences">
+                  保存偏好设置
+                </a-button>
+              </a-form-item>
+            </a-form>
+          </a-card>
+        </a-col>
+      </a-row>
+    </div>
 
     <!-- 编辑个人资料弹窗 -->
     <a-modal
       v-model:open="showEditProfile"
       title="编辑个人资料"
-      :confirm-loading="profileLoading"
+      :confirm-loading="profileSaving"
       width="500px"
       @ok="handleSaveProfile"
     >
@@ -226,22 +258,28 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import type { FormInstance, UploadProps } from 'ant-design-vue'
 import {
   EditOutlined,
   PlusOutlined,
   BulbOutlined,
-  BulbFilled
+  BulbFilled,
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { profileApi, type ProfileInfo, type PreferenceSettings } from '@/api/profile'
 
+// ══════════════════════════════════════════════════════════
 // 用户信息
+// ══════════════════════════════════════════════════════════
 const userInfo = reactive<ProfileInfo>({
   id: 0,
   username: '',
@@ -254,7 +292,18 @@ const userInfo = reactive<ProfileInfo>({
   deptName: ''
 })
 
-// ==================== 修改密码 ====================
+// ══════════════════════════════════════════════════════════
+// 页面状态
+// ══════════════════════════════════════════════════════════
+const profileLoading = ref(false)
+const profileError = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+
+// ══════════════════════════════════════════════════════════
+// 修改密码
+// ══════════════════════════════════════════════════════════
 const passwordFormRef = ref<FormInstance>()
 const passwordLoading = ref(false)
 
@@ -292,14 +341,17 @@ const handleChangePassword = async () => {
     passwordForm.oldPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
-  } catch (error) {
-    message.error('修改密码失败')
+  } catch (err) {
+    console.warn('[个人中心] 修改密码失败', err);
+      message.error('修改密码失败')
   } finally {
     passwordLoading.value = false
   }
 }
 
-// ==================== 偏好设置 ====================
+// ══════════════════════════════════════════════════════════
+// 偏好设置
+// ══════════════════════════════════════════════════════════
 const preferenceLoading = ref(false)
 
 const preferenceForm = reactive<PreferenceSettings>({
@@ -323,7 +375,6 @@ const selectPrimaryColor = (color: string) => {
 }
 
 const handlePreferenceChange = () => {
-  // 立即应用本地主题（颜色等）
   if (preferenceForm.theme === 'dark') {
     document.documentElement.classList.add('dark')
   } else {
@@ -336,16 +387,19 @@ const handleSavePreferences = async () => {
   try {
     await profileApi.updatePreferences({ ...preferenceForm })
     message.success('偏好设置保存成功')
-  } catch {
+  } catch (err) {
+    console.warn('[个人中心] 保存偏好设置失败', err)
     message.error('保存失败')
   } finally {
     preferenceLoading.value = false
   }
 }
 
-// ==================== 编辑个人资料 ====================
+// ══════════════════════════════════════════════════════════
+// 编辑个人资料
+// ══════════════════════════════════════════════════════════
 const showEditProfile = ref(false)
-const profileLoading = ref(false)
+const profileSaving = ref(false)
 const profileFormRef = ref<FormInstance>()
 const avatarFileList = ref<any[]>([])
 
@@ -364,21 +418,16 @@ const profileFormRules = {
 const handleSaveProfile = async () => {
   try {
     await profileFormRef.value?.validate()
-    profileLoading.value = true
-
-    const data = { ...profileForm }
-
-    await profileApi.updateProfile(data)
+    profileSaving.value = true
+    await profileApi.updateProfile({ ...profileForm })
     message.success('个人资料更新成功')
-
-    // 刷新用户信息
     await fetchProfile()
-
     showEditProfile.value = false
-  } catch (error) {
+  } catch (err) {
+    console.warn('[个人中心] 更新个人资料失败', err)
     message.error('保存失败')
   } finally {
-    profileLoading.value = false
+    profileSaving.value = false
   }
 }
 
@@ -389,7 +438,8 @@ const handleBeforeUpload: UploadProps['beforeUpload'] = async (file) => {
       userInfo.avatar = res.data
       message.success('头像上传成功')
     }
-  } catch {
+  } catch (err) {
+    console.warn('[个人中心] 头像上传失败', err)
     message.error('头像上传失败')
   }
   return false
@@ -399,8 +449,12 @@ const handleAvatarRemove = () => {
   userInfo.avatar = ''
 }
 
-// ==================== 数据加载 ====================
+// ══════════════════════════════════════════════════════════
+// 数据加载
+// ══════════════════════════════════════════════════════════
 const fetchProfile = async () => {
+  profileLoading.value = true
+  profileError.value = false
   try {
     const res = await profileApi.getProfile()
     if (res.data) {
@@ -412,8 +466,14 @@ const fetchProfile = async () => {
         gender: res.data.gender
       })
     }
-  } catch {
+    lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  } catch (err) {
+    console.warn('[个人中心] 加载个人信息失败', err)
+    profileError.value = true
     message.error('加载个人信息失败')
+  } finally {
+    profileLoading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -424,18 +484,87 @@ const fetchPreferences = async () => {
       Object.assign(preferenceForm, res.data)
       handlePreferenceChange()
     }
-  } catch {
+  } catch (err) {
+    console.warn('[个人中心] 加载偏好设置失败', err)
     // 使用默认设置
   }
 }
 
+// ── 自动刷新 ────────────────────────────────────────────
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchProfile()
   fetchPreferences()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchProfile()
+    fetchPreferences()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchProfile })
 </script>
 
 <style scoped>
+.profile-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.profile-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.profile-breadcrumb {
+  font-size: 13px;
+}
+.profile-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.profile-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.profile-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+.profile-loading {
+  padding: 48px;
+}
+
 .profile-page {
   padding: 0;
 }

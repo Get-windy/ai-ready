@@ -1,5 +1,26 @@
 <template>
-  <div class="return-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="return-page-header">
+        <div class="return-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>退货管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="return-page-title">退货管理</h2>
+        </div>
+        <div class="return-page-header-right">
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="loading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -123,10 +144,11 @@
       </template>
     </VxeTableList>
 
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="退货单详情"
-      width="700px"
+      placement="right"
+      width="80vw"
       :footer="null"
     >
       <a-descriptions bordered :column="2" v-if="currentRecord">
@@ -142,18 +164,16 @@
         <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-      <div class="detail-modal-footer">
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
-  </div>
+    </a-drawer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
+import { PageContainer } from '@/components'
 import { RETURN_STATUS } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'
 import { saleReturnApi } from '@/api/erp'
@@ -169,7 +189,9 @@ import {
   InboxOutlined,
   FileTextOutlined,
   ClockCircleOutlined,
-  DollarOutlined
+  DollarOutlined,
+  SyncOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 
 interface ReturnOrder {
@@ -186,6 +208,10 @@ interface ReturnOrder {
 }
 
 const loading = ref(false)
+const autoRefreshCountdown = ref(0)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 const dataSource = ref<ReturnOrder[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<ReturnOrder | null>(null)
@@ -244,6 +270,11 @@ const filterFields = [
   ]},
 ]
 
+const handleRefresh = () => {
+  autoRefreshCountdown.value = 30
+  fetchData()
+}
+
 const handleSearch = () => {
   pagination.current = 1
   fetchData()
@@ -277,16 +308,37 @@ const handleView = (record: ReturnOrder) => {
   detailVisible.value = true
 }
 
-const handleApprove = (record: ReturnOrder) => {
-  message.success(`审核退货单: ${record.returnNo}`)
+const handleApprove = async (record: ReturnOrder) => {
+  try {
+    await saleReturnApi.approve(record.id)
+    message.success(`审核退货单成功: ${record.returnNo}`)
+    fetchData()
+  } catch (e) {
+    console.warn('[退货管理] 审核失败', e)
+    message.error('审核失败')
+  }
 }
 
-const handleReceive = (record: ReturnOrder) => {
-  message.success(`入库完成: ${record.returnNo}`)
+const handleReceive = async (record: ReturnOrder) => {
+  try {
+    await saleReturnApi.receive(record.id)
+    message.success(`入库完成: ${record.returnNo}`)
+    fetchData()
+  } catch (e) {
+    console.warn('[退货管理] 入库失败', e)
+    message.error('入库失败')
+  }
 }
 
-const handleRefund = (record: ReturnOrder) => {
-  message.success(`退款完成: ${record.returnNo}`)
+const handleRefund = async (record: ReturnOrder) => {
+  try {
+    await saleReturnApi.refund(record.id)
+    message.success(`退款完成: ${record.returnNo}`)
+    fetchData()
+  } catch (e) {
+    console.warn('[退货管理] 退款失败', e)
+    message.error('退款失败')
+  }
 }
 
 const handleDelete = async (record: ReturnOrder) => {
@@ -295,6 +347,7 @@ const handleDelete = async (record: ReturnOrder) => {
     message.success('删除成功')
     fetchData()
   } catch (error) {
+    console.warn('[退货管理] 删除失败', error)
     message.error('删除失败')
   }
 }
@@ -328,9 +381,10 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-window.addEventListener('keydown', handleKeydown)
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
 
 const fetchData = async () => {
@@ -356,23 +410,64 @@ const fetchData = async () => {
     }
     lastUpdated.value = new Date().toISOString()
   } catch (error) {
+    console.warn('[退货管理] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
     loading.value = false
   }
 }
 
-fetchData()
+onMounted(() => {
+  fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+  window.addEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped>
-.return-page {
-  padding: 16px;
-  height: 100%;
+.return-page-header {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.return-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.return-page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.return-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .list-update-timestamp {
@@ -400,11 +495,6 @@ fetchData()
 
 .action-more-btn {
   padding: 0 4px;
-}
-
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
 }
 
 /* 统计卡片样式 */

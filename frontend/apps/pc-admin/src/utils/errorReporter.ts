@@ -222,6 +222,8 @@ async function flushErrors() {
     })
     console.debug(`[ErrorReporter] Reported ${errors.length} errors`)
   } catch (err: any) {
+    console.warn('[ErrorReporter] 上报错误失败', err?.message || err)
+
     // 401 说明用户未登录，降级为静默，不重复入队（避免无限循环）
     if (err?.response?.status === 401 || err?.status === 401) {
       console.debug('[ErrorReporter] Skipped (not authenticated)')
@@ -325,8 +327,21 @@ window.addEventListener('beforeunload', () => {
   flushErrorsSync()
 })
 
+/**
+ * 销毁错误上报器（清理定时器）
+ */
+export function destroyErrorReporter() {
+  if (flushTimer) {
+    clearInterval(flushTimer)
+    flushTimer = null
+  }
+  errorQueue = []
+  console.log('[ErrorReporter] Destroyed')
+}
+
 export default {
   initErrorReporter,
+  destroyErrorReporter,
   reportError,
   flushErrorsSync,
   formatError,

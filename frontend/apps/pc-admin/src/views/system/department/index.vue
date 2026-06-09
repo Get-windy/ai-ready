@@ -1,36 +1,59 @@
 <template>
-  <div class="department-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ departmentCount }}</div>
-          <div class="stat-card-label">部门总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="dept-page-header">
+        <div class="dept-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>部门管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="dept-page-header-title">部门管理</h2>
         </div>
-        <ApartmentOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-active">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ activeCount }}</div>
-          <div class="stat-card-label">正常部门</div>
+        <div class="dept-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchTreeData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-disabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ disabledCount }}</div>
-          <div class="stat-card-label">停用部门</div>
+    </template>
+
+    <div class="department-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ departmentCount }}</div>
+            <div class="stat-card-label">部门总数</div>
+          </div>
+          <ApartmentOutlined class="stat-card-icon" />
         </div>
-        <StopOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-leaders">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ leaderCount }}</div>
-          <div class="stat-card-label">有负责人</div>
+        <div class="stat-card stat-active">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ activeCount }}</div>
+            <div class="stat-card-label">正常部门</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
         </div>
-        <UserOutlined class="stat-card-icon" />
+        <div class="stat-card stat-disabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ disabledCount }}</div>
+            <div class="stat-card-label">停用部门</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-leaders">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ leaderCount }}</div>
+            <div class="stat-card-label">有负责人</div>
+          </div>
+          <UserOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
     <!-- 顶部工具栏 -->
     <a-card
@@ -291,10 +314,11 @@
       </template>
     </a-dropdown>
   </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -312,8 +336,11 @@ import {
   DragOutlined,
   ApartmentOutlined,
   CheckCircleOutlined,
-  UserOutlined
+  UserOutlined,
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { userApi, type UserInfo } from '@/api/user'
 import { useSubmitLock } from '@/composables'
@@ -321,6 +348,13 @@ import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const router = useRouter()
+
+// 自动刷新
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -432,9 +466,12 @@ const fetchTreeData = async () => {
       expandedKeys.value = getAllNodeIds(res.data)
     }
   } catch (error) {
+    console.warn('[部门管理] 加载部门数据失败', error)
     message.error('加载部门数据失败')
   } finally {
     treeLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -461,7 +498,7 @@ const fetchParentTreeData = async () => {
       parentTreeData.value = res.data
     }
   } catch (error) {
-    console.error('加载父部门数据失败:', error)
+    console.warn('[系统管理] 加载父部门数据失败', error)
   }
 }
 
@@ -473,7 +510,7 @@ const fetchLeaderList = async () => {
       leaderList.value = res.data
     }
   } catch (error) {
-    console.error('加载负责人列表失败:', error)
+    console.warn('[系统管理] 加载负责人列表失败', error)
   }
 }
 
@@ -680,10 +717,64 @@ onMounted(() => {
   fetchTreeData()
   fetchParentTreeData()
   fetchLeaderList()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchTreeData()
+    fetchParentTreeData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchTreeData })
 </script>
 
 <style scoped>
+.dept-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.dept-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dept-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.dept-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .department-management {
   padding: 16px;
   height: 100%;

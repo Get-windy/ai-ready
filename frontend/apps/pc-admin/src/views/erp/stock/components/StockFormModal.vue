@@ -248,7 +248,7 @@ const handleOk = async () => {
     emit('success')
     visible.value = false
   } catch (error) {
-    console.error('表单验证失败:', error)
+    console.warn('[库存] 表单验证失败', error)
   } finally {
     loading.value = false
   }
@@ -266,7 +266,7 @@ const loadOptions = async () => {
     ])
     userList.value = Array.isArray(users) ? users : []
     productList.value = Array.isArray(products) ? products : []
-  } catch {
+  } catch (err) {
     // 默认空列表
   }
 }

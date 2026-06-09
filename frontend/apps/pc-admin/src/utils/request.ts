@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { useUserStore } from '@/stores/user'
 import { refreshTokenAndRetry, getToken, isTokenExpired, clearTokenVerifyCache } from './tokenRefresher'
 import { trackApiCall, addSentryBreadcrumb } from './performanceMonitor'
+import { reportError } from './errorReporter'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 
@@ -204,7 +205,17 @@ service.interceptors.response.use(
   async (error) => {
     const config = error.config as ExtendedAxiosRequestConfig
     const url = `${config?.baseURL || ''}${config?.url || ''}`
-    console.log(`${R} ❌ ${config?.method?.toUpperCase() || '?'} ${url} → status=${error.response?.status || '网络错误'}`, error.message)
+    console.warn(`[API] ${config?.method?.toUpperCase() || '?'} ${url} → ${error.response?.status || '网络错误'}`, error.message)
+
+    // 通过错误上报系统记录
+    reportError({
+      type: 'ajax',
+      error: error.message || 'API请求失败',
+      timestamp: new Date().toISOString(),
+      url,
+      stack: error.stack,
+      extra: { status: error.response?.status, method: config?.method }
+    })
 
     // 请求失败：结束进度条
     NProgress.done()
@@ -288,7 +299,7 @@ service.interceptors.response.use(
 
 /** 清除登录状态并跳转登录页 */
 export function handleUnauthorized() {
-  console.log(`${R} 🔴 handleUnauthorized() - 清除登录状态并跳转登录页`)
+  console.warn('[Auth] handleUnauthorized - 清除登录状态并跳转登录页')
   clearTokenVerifyCache() // 清除 token 验证缓存，防止使用过期缓存
   try {
     const userStore = useUserStore()

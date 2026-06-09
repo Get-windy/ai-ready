@@ -107,7 +107,7 @@
   </VxeTableList>
   </div>
 
-  <a-modal v-model:open="detailVisible" title="收款单详情" width="700px" :footer="null">
+  <a-drawer v-model:open="detailVisible" title="收款单详情" placement="right" width="80vw" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
       <a-descriptions-item label="收款单号">{{ currentRecord.receiptNo }}</a-descriptions-item>
       <a-descriptions-item label="销售订单">{{ currentRecord.orderNo }}</a-descriptions-item>
@@ -120,8 +120,7 @@
       <a-descriptions-item label="收款账户">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-  </a-modal>
+  </a-drawer>
 
   <a-modal v-model:open="receiptFormVisible" title="新建收款单" width="600px" centered
     :confirm-loading="receiptFormSubmitting" ok-text="确认创建" cancel-text="取消"
@@ -254,7 +253,7 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch { message.error('获取收款单列表失败') }
+  } catch (err) { console.warn('[销售收款] 获取收款单列表', err); message.error('获取收款单列表失败') }
   finally { loading.value = false }
 }
 
@@ -280,7 +279,7 @@ function handleDelete(record: any) {
     okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     onOk: async () => {
       try { await receiptApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[销售收款] 删除收款单', err); message.error('删除失败') }
     }
   })
 }
@@ -305,14 +304,14 @@ const handleReceiptFormSubmit = async () => {
       receiptDate: receiptFormData.receiptDate, bankAccount: receiptFormData.bankAccount, remark: receiptFormData.remark
     })
     message.success('新建收款单成功'); receiptFormVisible.value = false; pagination.current = 1; fetchData()
-  } catch { message.error('新建收款单失败') }
+  } catch (err) { console.warn('[销售收款] 新建收款单', err); message.error('新建收款单失败') }
   finally { receiptFormSubmitting.value = false }
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批收款单', content: `审批收款单 "${record.receiptNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await receiptApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await receiptApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err) { console.warn('[销售收款] 审批收款单', err); message.error('审批失败') } }
   })
 }
 
@@ -368,6 +367,7 @@ onUnmounted(() => {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -420,7 +420,6 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
-.detail-modal-footer { text-align: right; margin-top: 16px; }
 .list-update-timestamp {
   font-size: 12px; color: var(--color-text-tertiary, #bbb);
   white-space: nowrap; cursor: help; margin-left: 8px;

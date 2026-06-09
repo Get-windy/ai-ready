@@ -261,7 +261,8 @@ const handleAudit = () => {
         await voucherApi.audit(voucher.value.id)
         message.success('审核成功')
         fetchVoucher()
-      } catch {
+      } catch (err) {
+        console.warn('[凭证详情] 审核失败', err)
         message.error('审核失败')
       } finally {
         auditing.value = false
@@ -280,7 +281,8 @@ const handlePost = () => {
         await voucherApi.post(voucher.value.id)
         message.success('过账成功')
         fetchVoucher()
-      } catch {
+      } catch (err) {
+        console.warn('[凭证详情] 过账失败', err)
         message.error('过账失败')
       } finally {
         posting.value = false
@@ -305,7 +307,8 @@ const handleReverseConfirm = async () => {
     message.success('冲销成功')
     reverseModalVisible.value = false
     fetchVoucher()
-  } catch {
+  } catch (err) {
+    console.warn('[凭证详情] 冲销失败', err)
     message.error('冲销失败')
   } finally {
     reverseLoading.value = false
@@ -320,6 +323,8 @@ const formatAmount = (val: number) => {
 onMounted(() => {
   fetchVoucher()
 })
+
+defineExpose({ handleQuery: fetchVoucher })
 </script>
 
 <style scoped>

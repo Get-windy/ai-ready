@@ -1,9 +1,17 @@
 <template>
   <ErrorBoundary>
   <PageContainer full-height>
-    <!-- 操作栏 -->
-    <template #headerExtra>
-      <a-space>
+    <template #header>
+      <div class="supplier-header">
+        <div class="supplier-header-left">
+          <a-breadcrumb class="supplier-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>供应商管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="supplier-header-title">供应商管理</h2>
+        </div>
+        <div class="supplier-header-right">
+          <a-space>
         <a-button v-permission.disabled="'supplier:add'" type="primary" @click="handleCreate" title="快捷键 Ctrl+N">
           <template #icon><PlusOutlined /></template>
           新增供应商
@@ -17,7 +25,9 @@
             <span :class="{ 'countdown-warning': autoRefreshCountdown <= 5 }"> · {{ autoRefreshCountdown }}s 后刷新</span>
           </template>
         </span>
-      </a-space>
+	      </a-space>
+        </div>
+      </div>
     </template>
 
     <!-- 搜索 -->
@@ -498,6 +508,7 @@ const fetchData = async () => {
     lastUpdated.value = new Date().toISOString()
     autoRefreshCountdown.value = 60
   } catch (err: any) {
+    console.warn('[供应商] 获取数据失败', err)
     fetchError.value = true
     message.error(err?.message || '获取数据失败')
   } finally {
@@ -518,8 +529,8 @@ const fetchStatistics = async () => {
         portalActivatedCount: (res as any).portalActivatedCount ?? (res as any).data?.portalActivatedCount ?? 0,
       })
     }
-  } catch {
-    // 统计数据非关键数据，失败不阻塞
+  } catch (err) {
+    console.warn('[供应商] 加载统计数据失败', err)
   } finally {
     statLoading.value = false
   }
@@ -561,11 +572,13 @@ const handleActivatePortal = async (record: Supplier) => {
   portalLoading.value = true
   try {
     await supplierApi.activatePortal(record.id, record.supplierCode)
+    console.warn('[供应商] 操作成功: 门户激活成功')
     message.success('门户激活成功')
     portalModalVisible.value = false
     fetchData()
     fetchStatistics()
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 门户激活失败', err)
     message.error('激活失败')
   } finally {
     portalLoading.value = false
@@ -576,11 +589,13 @@ const handleDisablePortal = async (record: Supplier) => {
   portalLoading.value = true
   try {
     await supplierApi.disablePortal(record.id, '管理员禁用')
+    console.warn('[供应商] 操作成功: 门户已禁用')
     message.success('门户已禁用')
     portalModalVisible.value = false
     fetchData()
     fetchStatistics()
-  } catch {
+  } catch (err) {
+    console.warn('[供应商] 门户禁用失败', err)
     message.error('禁用失败')
   } finally {
     portalLoading.value = false
@@ -595,10 +610,11 @@ const handleDelete = (record: Supplier) => {
     async onOk() {
       try {
         await supplierApi.delete(record.id)
+        console.warn('[供应商] 操作成功: 删除成功')
         message.success('删除成功')
         fetchData()
         fetchStatistics()
-      } catch { message.error('删除失败') }
+      } catch (err) { console.warn('[供应商] 删除失败', err); message.error('删除失败') }
     }
   })
 }
@@ -618,13 +634,14 @@ const handleBatchDelete = () => {
         for (const row of selectedRows.value) {
           await supplierApi.delete(row.id)
         }
+        console.warn('[供应商] 操作成功: 批量删除')
         message.success(`成功删除 ${selectedRows.value.length} 个供应商`)
         selectedRows.value = []
         selectedRowKeys.value = []
         tableRef.value?.clearSelection()
         fetchData()
         fetchStatistics()
-      } catch { message.error('批量删除失败') }
+      } catch (err) { console.warn('[供应商] 批量删除失败', err); message.error('批量删除失败') }
     }
   })
 }
@@ -703,11 +720,13 @@ const handleImportConfirm = async () => {
       throw new Error('文件中未找到有效的供应商数据')
     }
     await supplierApi.importSuppliers(supplierList)
+    console.warn('[供应商] 操作成功: 导入数据')
     message.success(`成功导入 ${supplierList.length} 条供应商数据`)
     importVisible.value = false
     fetchData()
     fetchStatistics()
   } catch (err: any) {
+    console.warn('[供应商] 导入失败', err)
     message.error(err?.message || '导入失败，请检查文件格式')
   } finally {
     importLoading.value = false
@@ -790,6 +809,8 @@ onUnmounted(() => {
   handleSearchInput.cancel()
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -866,6 +887,35 @@ onUnmounted(() => {
 .stat-card--purple .stat-card-value { color: #722ed1; }
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
+
+.supplier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.supplier-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.supplier-breadcrumb {
+  font-size: 13px;
+}
+.supplier-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.supplier-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.supplier-header-right {
+  display: flex;
+  align-items: center;
+}
+
 .list-update-timestamp {
   font-size: 12px; color: #bbb;
   white-space: nowrap; cursor: help;

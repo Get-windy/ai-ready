@@ -115,7 +115,7 @@ const handleSubmit = async () => {
     emit('success')
     resetForm()
   } catch (error) {
-    console.error('审批失败', error)
+    console.warn('[采购换货] 审批失败', error)
     message.error('审批失败')
   } finally {
     submitting.value = false

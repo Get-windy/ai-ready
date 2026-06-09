@@ -245,7 +245,7 @@ try {
     listIds.value = JSON.parse(stored)
     totalCount.value = listIds.value.length
   }
-} catch { /* ignore */ }
+} catch (err) { console.warn("[销售订单详情] 列表ID加载失败", err) }
 
 const breadcrumbItems = computed(() => [
   { text: '销售管理', path: '/sale' },

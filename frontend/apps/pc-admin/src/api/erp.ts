@@ -50,6 +50,7 @@ export const inboundApi = {
   create(data: any) { return request.post('/erp/purchase/inbound', data) },
   delete(id: number) { return request.delete(`/erp/purchase/inbound/${id}`) },
   approve(id: number) { return request.post(`/erp/purchase/inbound/${id}/approve`) },
+  confirmWarehouse(id: number) { return request.post(`/erp/purchase/inbound/${id}/warehouse-confirm`) },
 }
 
 // ── 采购退货 ──────────────────────────────────────────
@@ -64,6 +65,8 @@ export const purchaseReturnApi = {
   getById(id: number) { return request.get(`/erp/purchase/return/${id}`) },
   create(data: any) { return request.post('/erp/purchase/return', data) },
   delete(id: number) { return request.delete(`/erp/purchase/return/${id}`) },
+  approve(id: number) { return request.post(`/erp/purchase/return/${id}/approve`) },
+  reject(id: number, reason?: string) { return request.post(`/erp/purchase/return/${id}/reject`, null, { params: { reason } }) },
 }
 
 // ── 付款管理 ──────────────────────────────────────────
@@ -109,6 +112,8 @@ export const saleReturnApi = {
   create(data: any) { return request.post('/erp/sale/return', data) },
   delete(id: number) { return request.delete(`/erp/sale/return/${id}`) },
   approve(id: number) { return request.post(`/erp/sale/return/${id}/approve`) },
+  receive(id: number) { return request.post(`/erp/sale/return/${id}/receive`) },
+  refund(id: number) { return request.post(`/erp/sale/return/${id}/refund`) },
 }
 
 // ── 销售收款 ──────────────────────────────────────────
@@ -283,6 +288,20 @@ export interface SaleOrder {
   totalAmount: number; totalAmountWithTax: number; status: number
   salesmanName: string; remark?: string; createTime: string; updateTime?: string
 }
+
+/** 销售首页统计 */
+export interface SaleStats {
+  monthOrderCount: number
+  monthAmount: number
+  pendingCount: number
+}
+
+export const saleStatsApi = {
+  get(): Promise<ApiResponse<SaleStats>> {
+    return request.get('/erp/sale/order/stats')
+  }
+}
+
 export const saleOrderApi = {
   getPage(params: any): Promise<PageResult<SaleOrder>> {
     return request.get('/erp/sale/order/page', params)
@@ -321,4 +340,21 @@ export const purchaseOrderApi = {
   close(id: number) { return request.post(`/erp/purchase/order/${id}/close`) },
   print(id: number) { return request.get(`/erp/purchase/order/${id}/print`) },
   export(params: any) { return request.get('/erp/purchase/order/export', params) },
+}
+
+/** 采购首页统计 */
+export interface PurchaseStats {
+  totalOrders?: number
+  totalAmount?: number
+  monthOrderCount?: number
+  pendingInquiryCount?: number
+  pendingInboundCount?: number
+  pendingPaymentCount?: number
+  [key: string]: any
+}
+
+export const purchaseStatsApi = {
+  get(): Promise<ApiResponse<PurchaseStats>> {
+    return request.get('/erp/purchase/order/stats')
+  }
 }

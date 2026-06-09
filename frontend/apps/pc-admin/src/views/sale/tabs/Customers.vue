@@ -307,7 +307,7 @@ async function fetchData() {
     dataSource.value = pageData?.records || []
     pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch { message.error('获取客户列表失败') }
+  } catch (err) { console.warn('[销售客户] 获取客户列表', err); message.error('获取客户列表失败') }
   finally { loading.value = false }
 }
 
@@ -352,7 +352,7 @@ async function handleDelete(record: any) {
     title: '删除客户', content: `确认删除客户 "${record.name}"？`, okText: '确认删除', cancelText: '取消', centered: true,
     async onOk() {
       try { await customerApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[销售客户] 删除客户', err); message.error('删除失败') }
     }
   })
 }
@@ -362,7 +362,7 @@ async function handleBatchDelete(ids: number[]) {
     title: '批量删除', content: `确认删除选中的 ${ids.length} 个客户？`, okText: '确认删除', cancelText: '取消', centered: true,
     async onOk() {
       try { await customerApi.batchDelete(ids); message.success('批量删除成功'); fetchData() }
-      catch { message.error('批量删除失败') }
+      catch (err) { console.warn('[销售客户] 批量删除客户', err); message.error('批量删除失败') }
     }
   })
 }
@@ -398,8 +398,8 @@ const handleFormSubmit = async () => {
     formModalVisible.value = false
     pagination.current = 1
     fetchData()
-  } catch {
-    message.error(formMode.value === 'add' ? '新建客户失败' : '编辑客户失败')
+  } catch (err) {
+    console.warn('[销售客户] 保存客户', err); message.error(formMode.value === 'add' ? '新建客户失败' : '编辑客户失败')
   } finally {
     formSubmitting.value = false
   }
@@ -445,6 +445,7 @@ onUnmounted(() => {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

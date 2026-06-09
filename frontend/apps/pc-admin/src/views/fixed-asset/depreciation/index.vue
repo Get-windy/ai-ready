@@ -1,95 +1,120 @@
 <template>
-  <div class="depreciation-list-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(totalDepreciation) }}</div>
-          <div class="stat-card-label">累计折旧总额</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="depreciation-page-header">
+        <div class="depreciation-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>固定资产</a-breadcrumb-item>
+            <a-breadcrumb-item>折旧记录</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="depreciation-page-header-title">折旧记录</h2>
         </div>
-        <CalculatorOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-period">
-        <div class="stat-card-body">
-          <div class="stat-card-value">¥{{ formatAmount(periodDepreciation) }}</div>
-          <div class="stat-card-label">本期折旧额</div>
+        <div class="depreciation-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CalendarOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-count">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">折旧记录数</div>
+    </template>
+
+    <div class="depreciation-list-page">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(totalDepreciation) }}</div>
+            <div class="stat-card-label">累计折旧总额</div>
+          </div>
+          <CalculatorOutlined class="stat-card-icon" />
         </div>
-        <FileTextOutlined class="stat-card-icon" />
+        <div class="stat-card stat-period">
+          <div class="stat-card-body">
+            <div class="stat-card-value">¥{{ formatAmount(periodDepreciation) }}</div>
+            <div class="stat-card-label">本期折旧额</div>
+          </div>
+          <CalendarOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-count">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">折旧记录数</div>
+          </div>
+          <FileTextOutlined class="stat-card-icon" />
+        </div>
       </div>
+
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableDataSource"
+        :loading="loading"
+        :pagination="pagination"
+        :table-key="'fixed-asset-depreciation-list'"
+        :filter-fields="filterFields"
+        :show-export="true"
+        :selectable="true"
+        @refresh="fetchData"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+        @filter-change="handleFilterChange"
+        @export="handleExport"
+        @selection-change="handleSelectionChange"
+      >
+        <template #toolbar-actions>
+          <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
+            更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+          </span>
+          <a-button type="primary" ghost @click="handleBatchCalculate">
+            <template #icon><CalculatorOutlined /></template>
+            批量计提折旧
+          </a-button>
+        </template>
+
+        <template #empty>
+          <div class="table-empty">
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的折旧记录，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无折旧记录，点击「批量计提折旧」开始计提
+            </p>
+          </div>
+        </template>
+
+        <template #assetCodeCell="{ record }">
+          <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
+        </template>
+        <template #assetNameCell="{ record }">
+          <a @click="handleViewAsset(record)" class="asset-name">{{ record.assetName }}</a>
+        </template>
+        <template #periodAmountCell="{ record }">
+          <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
+        </template>
+        <template #accumulatedDepreciationCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
+        </template>
+        <template #netValueCell="{ record }">
+          <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
+        </template>
+        <template #assetOriginalValueCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
+            {{ record.status === 'completed' ? '已完成' : '待处理' }}
+          </a-tag>
+        </template>
+      </VxeTableList>
     </div>
-
-    <VxeTableList
-      ref="tableRef"
-      :columns="vxeColumns"
-      :data-source="tableDataSource"
-      :loading="loading"
-      :pagination="pagination"
-      :table-key="'fixed-asset-depreciation-list'"
-      :filter-fields="filterFields"
-      :show-export="true"
-      :selectable="true"
-      @refresh="fetchData"
-      @search="handleSearch"
-      @page-change="handlePageChange"
-      @filter-change="handleFilterChange"
-      @export="handleExport"
-      @selection-change="handleSelectionChange"
-    >
-      <template #toolbar-actions>
-        <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
-        </span>
-        <a-button type="primary" ghost @click="handleBatchCalculate">
-          <template #icon><CalculatorOutlined /></template>
-          批量计提折旧
-        </a-button>
-      </template>
-
-      <template #empty>
-        <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的折旧记录，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无折旧记录，点击「批量计提折旧」开始计提
-          </p>
-        </div>
-      </template>
-
-      <template #assetCodeCell="{ record }">
-        <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
-      </template>
-      <template #assetNameCell="{ record }">
-        <a @click="handleViewAsset(record)" class="asset-name">{{ record.assetName }}</a>
-      </template>
-      <template #periodAmountCell="{ record }">
-        <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
-      </template>
-      <template #accumulatedDepreciationCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
-      </template>
-      <template #netValueCell="{ record }">
-        <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
-      </template>
-      <template #assetOriginalValueCell="{ record }">
-        <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
-      </template>
-      <template #statusCell="{ record }">
-        <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
-          {{ record.status === 'completed' ? '已完成' : '待处理' }}
-        </a-tag>
-      </template>
-    </VxeTableList>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -97,11 +122,12 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, CalculatorOutlined, CalendarOutlined,
-  FileTextOutlined
+  FileTextOutlined, SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { depreciationApi } from '@/api/fixed-asset'
+import { PageContainer } from '@/components'
 
 const emit = defineEmits(['update-count'])
 
@@ -110,6 +136,11 @@ const tableData = ref<any[]>([])
 const tableRef = ref()
 const lastUpdated = ref('')
 const selectedRowKeys = ref<number[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -168,6 +199,14 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('fixed-asset:refresh', fetchData)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 function fetchData() {
@@ -182,26 +221,22 @@ function fetchData() {
 
   depreciationApi.getPage(params).then((res: any) => {
     if (res.data) {
-      tableData.value = res.data.content || res.data.records || mockData()
-      pagination.total = res.data.totalElements || res.data.total || mockData().length
+      tableData.value = res.data.content || res.data.records || []
+      pagination.total = res.data.totalElements || res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
   }).catch(() => {
-    tableData.value = mockData()
-    pagination.total = mockData().length
-    emit('update-count', pagination.total)
+    tableData.value = []
+    pagination.total = 0
+    console.warn('[折旧记录] 加载折旧数据失败')
+    message.error('加载折旧数据失败')
   }).finally(() => {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   })
 }
-
-const mockData = (): any[] => [
-  { id: 1, assetId: 1, assetCode: 'FA001', assetName: '办公电脑', period: '2024-01', depreciationDate: '2024-01-31', periodAmount: 125, accumulatedDepreciation: 500, netValue: 4500, assetOriginalValue: 5000, status: 'completed' },
-  { id: 2, assetId: 2, assetCode: 'FA002', assetName: '打印机', period: '2024-01', depreciationDate: '2024-01-31', periodAmount: 75, accumulatedDepreciation: 200, netValue: 1800, assetOriginalValue: 2000, status: 'completed' },
-  { id: 3, assetId: 1, assetCode: 'FA001', assetName: '办公电脑', period: '2024-02', depreciationDate: '2024-02-28', periodAmount: 125, accumulatedDepreciation: 625, netValue: 4375, assetOriginalValue: 5000, status: 'completed' },
-  { id: 4, assetId: 2, assetCode: 'FA002', assetName: '打印机', period: '2024-02', depreciationDate: '2024-02-28', periodAmount: 75, accumulatedDepreciation: 275, netValue: 1725, assetOriginalValue: 2000, status: 'completed' },
-]
 
 function handleSearch(keyword: string) {
   searchFilters.keyword = keyword || undefined
@@ -233,6 +268,7 @@ function handleBatchCalculate() {
         message.success('批量折旧计提完成')
         fetchData()
       } catch {
+        console.warn('[折旧记录] 批量折旧失败')
         message.error('批量折旧失败')
       }
     }
@@ -275,10 +311,52 @@ function handleKeydown(e: KeyboardEvent) {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('fixed-asset:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.depreciation-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.depreciation-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.depreciation-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.depreciation-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .depreciation-list-page {
   height: 100%;
   display: flex;

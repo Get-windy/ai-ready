@@ -1,5 +1,28 @@
 <template>
-  <div class="finance-subject-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="subject-page-header">
+        <div class="subject-page-header-left">
+          <a-breadcrumb class="subject-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>科目管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="subject-page-header-title">科目管理</h2>
+        </div>
+        <div class="subject-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <div class="finance-subject-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-total">
@@ -192,17 +215,19 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
+  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, SyncOutlined,
   FileTextOutlined, FundOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined
 } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { accountSubjectApi } from '@/api/finance'
 
 interface SubjectNode {
@@ -222,6 +247,9 @@ interface SubjectNode {
 }
 
 const treeLoading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const searchKeyword = ref('')
 const subjectTree = ref<SubjectNode[]>([])
 const selectedSubject = ref<SubjectNode | null>(null)
@@ -352,6 +380,7 @@ const handleTypeTabChange = () => {
 
 const fetchTree = async () => {
   treeLoading.value = true
+  refreshLoading.value = true
   try {
     const res = await accountSubjectApi.getTree()
     const data = res.data || []
@@ -374,10 +403,13 @@ const fetchTree = async () => {
       }))
     }
     subjectTree.value = normalize(data)
-  } catch {
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  } catch (err) {
+    console.warn('获取科目树失败', err)
     message.error('获取科目树失败')
   } finally {
     treeLoading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -455,7 +487,8 @@ const handleDelete = async (subject: SubjectNode) => {
     selectedSubject.value = null
     selectedKeys.value = []
     await fetchTree()
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 删除科目失败', err)
     message.error('删除失败')
   }
 }
@@ -465,7 +498,8 @@ const handleToggleEnabled = async (subject: SubjectNode) => {
     await accountSubjectApi.toggleEnabled(subject.id)
     subject.enabled = !subject.enabled
     message.success(subject.enabled ? '科目已启用' : '科目已禁用')
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 切换启用状态失败', err)
     message.error('操作失败')
   }
 }
@@ -473,7 +507,8 @@ const handleToggleEnabled = async (subject: SubjectNode) => {
 const handleFormSubmit = async () => {
   try {
     await formRef.value?.validate()
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 表单校验失败', err)
     return
   }
   formSubmitting.value = true
@@ -502,7 +537,8 @@ const handleFormSubmit = async () => {
     }
     formVisible.value = false
     await fetchTree()
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 提交表单失败', err)
     message.error(isEditing.value ? '更新失败' : '创建失败')
   } finally {
     formSubmitting.value = false
@@ -513,12 +549,72 @@ const handleFormCancel = () => {
   formVisible.value = false
 }
 
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchTree()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchTree()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchTree })
 </script>
 
 <style scoped>
+.subject-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.subject-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.subject-breadcrumb {
+  font-size: 13px;
+}
+.subject-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.subject-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .finance-subject-page {
   padding: 16px;
   height: 100%;

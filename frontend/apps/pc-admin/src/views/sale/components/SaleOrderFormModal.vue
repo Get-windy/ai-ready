@@ -455,7 +455,7 @@ async function loadOptions() {
       console.warn('基础选项数据存在空数据，请检查后端配置')
     }
   } catch (error: any) {
-    console.error('加载下拉选项失败:', error?.message)
+    console.warn('[销售订单] 加载下拉选项失败:', error?.message)
     message.error('加载基础数据失败，请检查网络或联系管理员')
   } finally {
     loadingOptions.value = false

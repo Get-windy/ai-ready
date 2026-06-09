@@ -90,6 +90,8 @@ const handleGenerate = async () => {
 const handleExport = () => {
   message.info('导出功能开发中')
 }
+
+defineExpose({})
 </script>
 
 <style scoped>

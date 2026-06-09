@@ -104,13 +104,24 @@
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-modal
+    <!-- 详情全屏覆盖层 -->
+    <a-drawer
       v-model:open="detailVisible"
       title="入库单详情"
-      width="800px"
-      :footer="null"
+      placement="right"
+      width="80vw"
+      class="inbound-detail-drawer"
     >
+      <template #extra>
+        <a-space>
+          <a-button size="small" @click="handlePrint"><PrinterOutlined /> 打印</a-button>
+          <a-button v-if="currentRecord?.status === 1" type="primary" size="small" @click="handleConfirmFromDetail">
+            <template #icon><ImportOutlined /></template>
+            确认入库
+          </a-button>
+        </a-space>
+      </template>
+
       <a-descriptions bordered :column="2" size="small" v-if="currentRecord">
         <a-descriptions-item label="入库单号">
           <span class="inbound-no">{{ currentRecord.inboundNo }}</span>
@@ -147,18 +158,7 @@
           <span class="amount-cell">¥{{ formatAmount(record.actualQty * record.unitPrice) }}</span>
         </template>
       </VxeTableList>
-
-      <div class="detail-modal-footer">
-        <a-space>
-          <a-button type="primary" @click="handlePrint"><PrinterOutlined /> 打印</a-button>
-          <a-button v-if="currentRecord?.status === 1" type="primary" @click="handleConfirmFromDetail">
-            <template #icon><ImportOutlined /></template>
-            确认入库
-          </a-button>
-          <a-button @click="detailVisible = false">关闭</a-button>
-        </a-space>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建入库弹窗 -->
     <a-modal
@@ -267,6 +267,7 @@ import {
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inboundApi } from '@/api/erp'
+import { optionsApi } from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -337,12 +338,6 @@ const detailItemColumns = [
   { title: '金额', field: 'amount', width: 120, align: 'right', slotName: 'amountCell' }
 ]
 
-const mockDetailItems = () => [
-  { productName: '工业传感器', expectedQty: 100, actualQty: 100, unitPrice: 800 },
-  { productName: '智能控制器', expectedQty: 50, actualQty: 48, unitPrice: 1200 },
-  { productName: '连接线缆', expectedQty: 200, actualQty: 200, unitPrice: 50 }
-]
-
 // 表单状态
 const formModalVisible = ref(false)
 const formSubmitting = ref(false)
@@ -384,12 +379,15 @@ const inboundItemColumns = [
 ]
 
 async function loadWarehouses() {
-  warehouseList.value = [
-    { id: 1, name: '主仓库' },
-    { id: 2, name: '备品仓库' },
-    { id: 3, name: '原料仓库' },
-    { id: 4, name: '成品仓库' }
-  ]
+  try {
+    const res = await optionsApi.getWarehouses()
+    const list = (res as any).data ?? res
+    warehouseList.value = (Array.isArray(list) ? list : []).map((w: any) => ({ id: w.id ?? w.value, name: w.name ?? w.label }))
+  } catch (e) {
+    console.warn('[采购入库] 加载仓库列表失败', e)
+    message.error('加载仓库列表失败')
+    warehouseList.value = []
+  }
 }
 
 const handleAddInboundItem = () => {
@@ -423,27 +421,20 @@ async function fetchData() {
       ...searchFilters
     })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
-  } catch {
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
+  } catch (e) {
+    console.warn('[采购入库] 获取列表失败', e)
     message.error('获取入库单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally {
     loading.value = false
   }
 }
 
-const mockData = () => [
-  { id: 1, inboundNo: 'IB2024010001', orderNo: 'PO2024010001', supplierName: '北京供应商', inboundDate: '2024-01-10', totalAmount: 80000, status: 2, creatorName: '张三', createTime: '2024-01-10 10:00', warehouseName: '主仓库' },
-  { id: 2, inboundNo: 'IB2024010002', orderNo: 'PO2024010002', supplierName: '上海供应商', inboundDate: '2024-01-12', totalAmount: 60000, status: 1, creatorName: '李四', createTime: '2024-01-12 11:00', warehouseName: '备品仓库' },
-  { id: 3, inboundNo: 'IB2024010003', orderNo: 'PO2024010003', supplierName: '广州供应商', inboundDate: '2024-01-15', totalAmount: 15000, status: 0, creatorName: '王五', createTime: '2024-01-15 09:00', warehouseName: '原料仓库' },
-  { id: 4, inboundNo: 'IB2024010004', orderNo: 'PO2024010004', supplierName: '深圳供应商', inboundDate: '2024-01-08', totalAmount: 42000, status: 2, creatorName: '张三', createTime: '2024-01-08 14:00', warehouseName: '主仓库' },
-  { id: 5, inboundNo: 'IB2024010005', orderNo: 'PO2024010005', supplierName: '杭州供应商', inboundDate: '2024-01-18', totalAmount: 8000, status: 1, creatorName: '李四', createTime: '2024-01-18 15:00', warehouseName: '成品仓库' }
-]
-
 function handleView(record: any) {
-  currentRecord.value = { ...record, items: mockDetailItems() }
-  detailItems.value = currentRecord.value.items || mockDetailItems()
+  currentRecord.value = { ...record, items: record.items || [] }
+  detailItems.value = currentRecord.value.items || []
   detailVisible.value = true
 }
 
@@ -472,7 +463,7 @@ function handleDelete(record: any) {
     centered: true,
     onOk: async () => {
       try { await inboundApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购入库] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -514,7 +505,8 @@ const handleFormSubmit = async () => {
     message.success('新建入库单成功')
     formModalVisible.value = false
     fetchData()
-  } catch {
+  } catch (e) {
+    console.warn('[采购入库] 新建失败', e)
     message.error('新建入库单失败')
   } finally {
     formSubmitting.value = false
@@ -529,7 +521,7 @@ function handleApprove(record: any) {
     centered: true,
     onOk: async () => {
       try { await inboundApi.approve(record.id); message.success('审批成功'); fetchData() }
-      catch { message.error('审批失败') }
+      catch (e) { console.warn('[采购入库] 审批失败', e); message.error('审批失败') }
     }
   })
 }
@@ -541,8 +533,14 @@ function handleConfirm(record: any) {
     okText: '确认入库',
     centered: true,
     onOk: async () => {
-      message.success('入库确认成功')
-      fetchData()
+      try {
+        await inboundApi.confirmWarehouse(record.id)
+        message.success('入库确认成功')
+        fetchData()
+      } catch (e) {
+        console.warn('[采购入库] 入库确认失败', e)
+        message.error('入库确认失败')
+      }
     }
   })
 }
@@ -572,25 +570,35 @@ function handleBatchApprove() {
     okText: '确认',
     centered: true,
     onOk: async () => {
-      message.success(`成功审批 ${keys.length} 条入库单`)
-      fetchData()
+      try {
+        await Promise.all(keys.map(id => inboundApi.approve(id)))
+        message.success(`成功审批 ${keys.length} 条入库单`)
+        fetchData()
+      } catch (e) {
+        console.warn('[采购入库] 批量审批失败', e)
+        message.error('批量审批失败')
+      }
     }
   })
+}
+
+function csvEscape(val: any): string {
+  const str = String(val ?? '')
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
 }
 
 function handleExport() {
   const headers = ['入库单号', '关联订单', '供应商', '入库日期', '金额', '状态', '创建人', '创建时间']
   const rows = dataSource.value.map((row: any) => [
-    row.inboundNo || '',
-    row.orderNo || '',
-    row.supplierName || '',
-    row.inboundDate || '',
+    row.inboundNo, row.orderNo, row.supplierName, row.inboundDate,
     (row.totalAmount || 0).toFixed(2),
     getStatusText(row.status),
-    row.creatorName || '',
-    row.createTime || ''
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    row.creatorName, row.createTime
+  ].map(csvEscape))
+  const csv = [headers.map(csvEscape).join(','), ...rows.map(r => r.join(','))].join('\n')
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -598,7 +606,7 @@ function handleExport() {
   a.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  message.success('导出成功')
+  console.warn('[采购入库] 导出成功（前端CSV导出，无后端接口）'); message.success('导出成功')
 }
 
 function handleSearch(keyword: string) {
@@ -614,6 +622,8 @@ function handlePageChange(page: number, size: number) {
 }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters)
   pagination.current = 1
@@ -632,11 +642,16 @@ onMounted(() => {
   fetchData()
   loadWarehouses()
   document.addEventListener('keydown', handleKeydown)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -728,17 +743,11 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
-.detail-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+/* 详情抽屉 */
+:deep(.inbound-detail-drawer .ant-drawer-body) {
+  padding: 16px 24px;
+  overflow-y: auto;
 }
-
-
-
-
 
 /* 响应式 */
 @media (max-width: 768px) {

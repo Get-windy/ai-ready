@@ -1,5 +1,28 @@
 <template>
-  <div class="account-subject-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="account-subject-page-header">
+        <div class="account-subject-page-header-left">
+          <a-breadcrumb class="account-subject-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>科目管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="account-subject-page-header-title">科目管理</h2>
+        </div>
+        <div class="account-subject-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <div class="account-subject-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-total">
@@ -211,11 +234,12 @@
         </a-form-item>
       </a-form>
     </a-modal>
-  </div>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -223,6 +247,7 @@ import {
   DeleteOutlined,
   FileTextOutlined,
   ReloadOutlined,
+  SyncOutlined,
   BankOutlined,
   DollarOutlined,
   GoldOutlined,
@@ -231,9 +256,13 @@ import {
   CheckCircleOutlined,
   DashboardOutlined
 } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 import { accountingApi, type AccountSubject, type AccountSubjectSave } from '@/api/finance/accounting'
 
 const treeLoading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const searchKeyword = ref('')
 const subjectTree = ref<AccountSubject[]>([])
 const selectedSubject = ref<AccountSubject | null>(null)
@@ -317,13 +346,17 @@ function getSubjectTypeIcon(type?: number) {
 
 async function fetchTree() {
   treeLoading.value = true
+  refreshLoading.value = true
   try {
     const res = await accountingApi.getSubjectTree()
     subjectTree.value = res.data || []
-  } catch {
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  } catch (err) {
+    console.warn('获取科目树失败', err)
     message.error('获取科目树失败')
   } finally {
     treeLoading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -409,7 +442,8 @@ async function handleDelete(subject: AccountSubject) {
     message.success('科目已删除')
     selectedSubject.value = null
     await fetchTree()
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 删除科目失败', err)
     message.error('删除失败')
   }
 }
@@ -417,7 +451,8 @@ async function handleDelete(subject: AccountSubject) {
 async function handleFormSubmit() {
   try {
     await formRef.value?.validate()
-  } catch {
+  } catch (err) {
+    console.warn('[科目管理] 表单校验失败', err)
     return
   }
   formSubmitting.value = true
@@ -456,12 +491,72 @@ function handleFormCancel() {
   formVisible.value = false
 }
 
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchTree()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchTree()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchTree })
 </script>
 
 <style scoped>
+.account-subject-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.account-subject-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.account-subject-breadcrumb {
+  font-size: 13px;
+}
+.account-subject-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.account-subject-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .account-subject-page {
   height: 100%;
   display: flex;

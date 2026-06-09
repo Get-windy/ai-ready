@@ -100,7 +100,7 @@
     </VxeTableList>
 
     <!-- 详情弹窗 -->
-    <a-modal v-model:open="detailVisible" title="调拨单详情" width="700px" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="调拨单详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="调拨单号">{{ currentRecord.transferNo }}</a-descriptions-item>
         <a-descriptions-item label="调出仓库">{{ currentRecord.fromWarehouse }}</a-descriptions-item>
@@ -113,7 +113,7 @@
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
       <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建调拨弹窗 -->
     <a-modal v-model:open="addVisible" title="新建调拨单" width="800px" :confirm-loading="addSubmitting"
@@ -309,22 +309,17 @@ async function fetchData() {
   try {
     const res = await stockTransferApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, ...searchFilters })
     const pageData = (res as any).data ?? res
-    tableData.value = pageData?.records || mockData()
-    pagination.total = pageData?.totalElements ?? pageData?.total ?? mockData().length
+    tableData.value = pageData?.records || []
+    pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
+  } catch (err) {
+    console.warn('[库存调拨] 获取调拨单列表失败', err)
+    tableData.value = []
+    pagination.total = 0
   }
   finally { loading.value = false }
 }
 
-const mockData = (): any[] => [
-  { id: 1, transferNo: 'TR-2024-001', fromWarehouse: '主仓库', toWarehouse: '成品仓库', transferDate: '2024-01-25', status: 2, createTime: '2024-01-24 10:00', quantity: 100, handlerName: '张三', remark: '生产需要' },
-  { id: 2, transferNo: 'TR-2024-002', fromWarehouse: '备品仓库', toWarehouse: '主仓库', transferDate: '2024-02-01', status: 1, createTime: '2024-01-31 14:00', quantity: 50, handlerName: '李四', remark: '补充库存' },
-  { id: 3, transferNo: 'TR-2024-003', fromWarehouse: '半成品仓库', toWarehouse: '成品仓库', transferDate: '2024-02-10', status: 2, createTime: '2024-02-09 09:00', quantity: 200, handlerName: '王五', remark: '组装完成' },
-  { id: 4, transferNo: 'TR-2024-004', fromWarehouse: '主仓库', toWarehouse: '备品仓库', transferDate: '2024-02-15', status: 0, createTime: '2024-02-14 16:00', quantity: 30, handlerName: '赵六', remark: '' },
-]
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() {
@@ -337,7 +332,7 @@ async function handleDelete(record: any) {
     title: '删除调拨单', content: `确认删除调拨单 "${record.transferNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await stockTransferApi.create({ id: record.id, action: 'delete' } as any); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (err) { console.warn('[库存调拨] 删除调拨单失败', err); message.error('删除失败') }
     }
   })
 }
@@ -347,7 +342,7 @@ async function handleBatchDelete(ids: number[]) {
 }
 
 const handleAddSubmit = async () => {
-  try { await addFormRef.value?.validate() } catch { return }
+  try { await addFormRef.value?.validate() } catch (err) { console.warn('[库存调拨] 表单验证失败', err); return }
   if (addForm.items.length === 0) { message.warning('请至少添加一条调拨明细'); return }
   const overStockItem = addForm.items.find(item => item.quantity > item.availableQty)
   if (overStockItem) { message.warning(`产品 "${overStockItem.productName}" 的调拨数量超过可用库存`); return }
@@ -360,7 +355,7 @@ const handleAddSubmit = async () => {
       items: addForm.items.map(item => ({ productId: item.productId, quantity: item.quantity }))
     })
     message.success('调拨单创建成功'); addVisible.value = false; pagination.current = 1; fetchData()
-  } catch (err: any) { message.error(err?.message || '创建失败') }
+  } catch (err: any) { console.warn('[库存调拨] 创建调拨单失败', err); message.error(err?.message || '创建失败') }
   finally { addSubmitting.value = false }
 }
 const handleAddCancel = () => { addVisible.value = false }
@@ -369,7 +364,7 @@ function handleApprove(record: any) {
   Modal.confirm({
     title: '确认审批', content: `确定要审批通过调拨单 "${record.transferNo}" 吗？审批通过后将自动生成对应的出库单和入库单。`,
     okText: '确认通过', cancelText: '取消', centered: true,
-    async onOk() { try { await stockTransferApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { message.error(err?.message || '审批失败') } }
+    async onOk() { try { await stockTransferApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err: any) { console.warn('[库存调拨] 审批调拨单失败', err); message.error(err?.message || '审批失败') } }
   })
 }
 function handleBatchApprove() {
@@ -395,6 +390,7 @@ function handleExport() {
   a.download = `调拨单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
+  console.warn('[库存调拨] 导出调拨单（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -426,6 +422,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

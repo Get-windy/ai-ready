@@ -1,170 +1,203 @@
 <template>
-  <div class="workflow-analysis">
-    <!-- 统计卡片 -->
-    <a-row :gutter="16">
-      <a-col
-        v-for="card in statisticCards"
-        :key="card.title"
-        :span="6"
+  <PageContainer full-height>
+    <template #header>
+      <div class="workflow-analysis-page-header">
+        <div class="workflow-analysis-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>流程分析</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="workflow-analysis-page-header-title">流程分析</h2>
+        </div>
+        <div class="workflow-analysis-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+
+    <div class="workflow-analysis">
+      <!-- 统计卡片 -->
+      <a-row :gutter="16">
+        <a-col
+          v-for="card in statisticCards"
+          :key="card.title"
+          :span="6"
+        >
+          <a-card>
+            <a-statistic
+              :title="card.title"
+              :value="card.value"
+            >
+              <template #suffix>
+                <span class="suffix">{{ card.suffix }}</span>
+              </template>
+            </a-statistic>
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-row
+        :gutter="16"
+        style="margin-top: 16px"
       >
-        <a-card>
-          <a-statistic
-            :title="card.title"
-            :value="card.value"
-          >
-            <template #suffix>
-              <span class="suffix">{{ card.suffix }}</span>
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-row
-      :gutter="16"
-      style="margin-top: 16px"
-    >
-      <!-- 流程耗时统计 -->
-      <a-col :span="12">
-        <a-card>
-          <template #title>
-            <div class="card-header">
-              <span>流程耗时统计</span>
-              <a-button
-                type="link"
-                @click="handleRefresh"
-              >
-                刷新
-              </a-button>
-            </div>
-          </template>
-          <VxeTableList
-            :columns="processDurationVxeColumns"
-            :data-source="processDurationData"
-            :pagination="false"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          />
-        </a-card>
-      </a-col>
-
-      <!-- 节点耗时分析 -->
-      <a-col :span="12">
-        <a-card>
-          <template #title>
-            <div class="card-header">
-              <span>节点耗时分析</span>
-              <a-select
-                v-model:value="selectedProcess"
-                placeholder="选择流程"
-                size="small"
-                style="width: 200px"
-              >
-                <a-select-option
-                  v-for="item in processOptions"
-                  :key="item.value"
-                  :value="item.value"
+        <!-- 流程耗时统计 -->
+        <a-col :span="12">
+          <a-card>
+            <template #title>
+              <div class="card-header">
+                <span>流程耗时统计</span>
+                <a-button
+                  type="link"
+                  @click="handleRefresh"
                 >
-                  {{ item.label }}
-                </a-select-option>
-              </a-select>
-            </div>
-          </template>
-          <VxeTableList
-            :columns="nodeDurationVxeColumns"
-            :data-source="nodeDurationData"
-            :pagination="false"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-row
-      :gutter="16"
-      style="margin-top: 16px"
-    >
-      <!-- 审批效率报表 -->
-      <a-col :span="24">
-        <a-card>
-          <template #title>
-            <div class="card-header">
-              <span>审批效率报表</span>
-              <a-range-picker
-                v-model:value="reportDateRange"
-                value-format="YYYY-MM-DD"
-                size="small"
-                @change="handleReportDateChange"
-              />
-            </div>
-          </template>
-          <VxeTableList
-            :columns="efficiencyVxeColumns"
-            :data-source="efficiencyData"
-            :pagination="false"
-            :show-toolbar="false"
-            :selectable="false"
-            :show-add="false"
-            :show-search="false"
-            :show-export="false"
-            :show-batch-delete="false"
-          >
-            <template #completionRateCell="{ record }">
-              <a-progress
-                :percent="record.completionRate"
-                :stroke-color="getProgressColor(record.completionRate)"
-              />
+                  刷新
+                </a-button>
+              </div>
             </template>
-            <template #efficiencyCell="{ record }">
-              <a-rate
-                v-model:value="record.efficiency"
-                disabled
-              />
+            <VxeTableList
+              :columns="processDurationVxeColumns"
+              :data-source="processDurationData"
+              :pagination="false"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            />
+          </a-card>
+        </a-col>
+
+        <!-- 节点耗时分析 -->
+        <a-col :span="12">
+          <a-card>
+            <template #title>
+              <div class="card-header">
+                <span>节点耗时分析</span>
+                <a-select
+                  v-model:value="selectedProcess"
+                  placeholder="选择流程"
+                  size="small"
+                  style="width: 200px"
+                >
+                  <a-select-option
+                    v-for="item in processOptions"
+                    :key="item.value"
+                    :value="item.value"
+                  >
+                    {{ item.label }}
+                  </a-select-option>
+                </a-select>
+              </div>
             </template>
-          </VxeTableList>
-        </a-card>
-      </a-col>
-    </a-row>
+            <VxeTableList
+              :columns="nodeDurationVxeColumns"
+              :data-source="nodeDurationData"
+              :pagination="false"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            />
+          </a-card>
+        </a-col>
+      </a-row>
 
-    <a-row
-      :gutter="16"
-      style="margin-top: 16px"
-    >
-      <!-- 流程趋势图 -->
-      <a-col :span="12">
-        <a-card title="流程实例趋势">
-          <div class="chart-container">
-            <a-empty description="图表组件开发中..." />
-          </div>
-        </a-card>
-      </a-col>
+      <a-row
+        :gutter="16"
+        style="margin-top: 16px"
+      >
+        <!-- 审批效率报表 -->
+        <a-col :span="24">
+          <a-card>
+            <template #title>
+              <div class="card-header">
+                <span>审批效率报表</span>
+                <a-range-picker
+                  v-model:value="reportDateRange"
+                  value-format="YYYY-MM-DD"
+                  size="small"
+                  @change="handleReportDateChange"
+                />
+              </div>
+            </template>
+            <VxeTableList
+              :columns="efficiencyVxeColumns"
+              :data-source="efficiencyData"
+              :pagination="false"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #completionRateCell="{ record }">
+                <a-progress
+                  :percent="record.completionRate"
+                  :stroke-color="getProgressColor(record.completionRate)"
+                />
+              </template>
+              <template #efficiencyCell="{ record }">
+                <a-rate
+                  v-model:value="record.efficiency"
+                  disabled
+                />
+              </template>
+            </VxeTableList>
+          </a-card>
+        </a-col>
+      </a-row>
 
-      <!-- 节点分布图 -->
-      <a-col :span="12">
-        <a-card title="节点任务分布">
-          <div class="chart-container">
-            <a-empty description="图表组件开发中..." />
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
-  </div>
+      <a-row
+        :gutter="16"
+        style="margin-top: 16px"
+      >
+        <!-- 流程趋势图 -->
+        <a-col :span="12">
+          <a-card title="流程实例趋势">
+            <div class="chart-container">
+              <a-empty description="图表组件开发中..." />
+            </div>
+          </a-card>
+        </a-col>
+
+        <!-- 节点分布图 -->
+        <a-col :span="12">
+          <a-card title="节点任务分布">
+            <div class="chart-container">
+              <a-empty description="图表组件开发中..." />
+            </div>
+          </a-card>
+        </a-col>
+      </a-row>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
+import { SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
+import { PageContainer } from '@/components'
+
+// ── 自动刷新 ────────────────────────────────────────────
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 统计卡片数据
 const statisticCards = ref([
@@ -335,9 +368,14 @@ const handleRefresh = async () => {
         nodeDurationData.value = res.data.nodeDuration
       }
     }
+    console.warn('[工作流] 操作成功: 数据刷新成功')
     message.success('数据刷新成功')
-  } catch {
+  } catch (err) {
+    console.warn('[工作流] 刷新数据失败', err)
     message.error('刷新数据失败')
+  } finally {
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -353,8 +391,10 @@ const handleReportDateChange = async () => {
     if (res.data?.records?.length) {
       efficiencyData.value = res.data.records
     }
+    console.warn('[工作流] 操作成功: 报表数据加载成功')
     message.success('报表数据加载成功')
-  } catch {
+  } catch (err) {
+    console.warn('[工作流] 加载报表数据失败', err)
     message.error('加载报表数据失败')
   }
 }
@@ -365,9 +405,65 @@ const getProgressColor = (percentage: number) => {
   if (percentage >= 90) return '#faad14'
   return '#f5222d'
 }
+
+onMounted(() => {
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    handleRefresh()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: handleRefresh })
 </script>
 
 <style scoped>
+.workflow-analysis-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.workflow-analysis-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.workflow-analysis-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.workflow-analysis-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .workflow-analysis {
   height: 100%;
   display: flex;
@@ -400,7 +496,6 @@ const getProgressColor = (percentage: number) => {
   background: #f5f5f5;
   border-radius: 4px;
 }
-
 
 
 

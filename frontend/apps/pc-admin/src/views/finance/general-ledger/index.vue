@@ -1,5 +1,28 @@
 <template>
-  <div class="general-ledger-page">
+  <PageContainer full-height>
+    <template #header>
+      <div class="general-ledger-header">
+        <div class="general-ledger-header-left">
+          <a-breadcrumb class="general-ledger-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>财务管理</a-breadcrumb-item>
+            <a-breadcrumb-item>总账</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="general-ledger-header-title">总账</h2>
+        </div>
+        <div class="general-ledger-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <div class="general-ledger-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-records">
@@ -92,19 +115,24 @@
       贷方 {{ summaryData.totalCredit.toFixed(2) }} |
       余额 {{ summaryData.balance.toFixed(2) }}
     </div>
-  </div>
+    </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined } from '@ant-design/icons-vue'
+import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import { accountingApi, type LedgerRecord, type AccountSubject } from '@/api/finance/accounting'
 
 const tableRef = ref()
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const subjectLoading = ref(false)
 const ledgerData = ref<LedgerRecord[]>([])
 const periodDate = ref(dayjs())
@@ -149,6 +177,7 @@ function formatAmount(amount: number): string {
 
 async function fetchData() {
   loading.value = true
+  refreshLoading.value = true
   try {
     const period = periodDate.value?.format('YYYY-MM')
     const res = await accountingApi.queryGeneralLedger({
@@ -159,10 +188,13 @@ async function fetchData() {
     })
     ledgerData.value = res.data?.records || []
     pagination.total = res.data?.total || 0
-  } catch {
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  } catch (err) {
+    console.warn('获取总账数据失败', err)
     message.error('获取总账数据失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -172,8 +204,8 @@ async function handleSubjectSearch(value: string) {
   try {
     const res = await accountingApi.querySubjects({ subjectName: value, current: 1, size: 20 })
     subjectOptions.value = res.data?.records || []
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('获取科目搜索列表失败', err)
   } finally {
     subjectLoading.value = false
   }
@@ -195,16 +227,78 @@ function viewVoucher(record: LedgerRecord) {
   message.info(`凭证: ${record.voucherNo}`)
 }
 
-onMounted(async () => {
-  try {
-    const res = await accountingApi.getDetailSubjects()
-    subjectOptions.value = res.data || []
-  } catch { /* ignore */ }
+// 定时刷新（30s）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
   fetchData()
+  // 加载科目选项
+  accountingApi.getDetailSubjects().then(res => {
+    subjectOptions.value = res.data || []
+  }).catch(err => {
+    console.warn('获取科目选项失败', err)
+  })
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.general-ledger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.general-ledger-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.general-ledger-breadcrumb {
+  font-size: 13px;
+}
+.general-ledger-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.general-ledger-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .general-ledger-page {
   padding: 16px;
   height: 100%;

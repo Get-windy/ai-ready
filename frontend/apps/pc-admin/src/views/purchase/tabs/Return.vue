@@ -122,14 +122,18 @@
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-modal
+    <!-- 详情全屏覆盖层 -->
+    <a-drawer
       v-model:open="detailVisible"
       title="退货单详情"
-      width="800px"
-      centered
-      :footer="null"
+      placement="right"
+      width="80vw"
+      class="return-detail-drawer"
     >
+      <template #extra>
+        <a-button size="small" @click="handlePrintDetail"><PrinterOutlined /> 打印</a-button>
+      </template>
+
       <a-descriptions bordered :column="2" v-if="currentRecord">
         <a-descriptions-item label="退货单号">{{ currentRecord.returnNo }}</a-descriptions-item>
         <a-descriptions-item label="采购订单">
@@ -172,12 +176,7 @@
           </template>
         </VxeTableList>
       </div>
-
-      <div class="detail-modal-footer">
-        <a-button @click="handlePrintDetail">打印</a-button>
-        <a-button type="primary" @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
+    </a-drawer>
 
     <!-- 新建退货弹窗 -->
     <a-modal
@@ -372,7 +371,7 @@ const detailItemColumns = [
 
 function handleView(record: any) {
   currentRecord.value = record
-  detailItems.value = record.items || mockDetailItems()
+  detailItems.value = record.items || []
   detailVisible.value = true
 }
 
@@ -386,13 +385,6 @@ function handleViewOrder(record: any) {
 
 function handlePrintDetail() {
   message.info(`打印退货单: ${currentRecord.value?.returnNo}`)
-}
-
-function mockDetailItems(): any[] {
-  return [
-    { id: 1, productCode: 'M001', productName: '物料A', spec: '规格1', quantity: 10, unitPrice: 100, amount: 1000, remark: '' },
-    { id: 2, productCode: 'M002', productName: '物料B', spec: '规格2', quantity: 5, unitPrice: 200, amount: 1000, remark: '' }
-  ]
 }
 
 // ── 表单状态 ──────────────────────────────────────────
@@ -443,22 +435,15 @@ async function fetchData() {
   try {
     const res = await purchaseReturnApi.page({ pageNum: pagination.current, pageSize: pagination.pageSize, tenantId: userStore.tenantId, ...searchFilters })
     const pageData = (res as any).data ?? res
-    dataSource.value = pageData.records || mockData()
-    pagination.total = pageData.total || mockData().length
+    dataSource.value = pageData.records || []
+    pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch {
+  } catch (e) {
+    console.warn('[采购退货] 获取列表失败', e)
     message.error('获取退货单列表失败')
-    dataSource.value = mockData()
+    dataSource.value = []
   } finally { loading.value = false }
 }
-
-const mockData = (): any[] => [
-  { id: 1, returnNo: 'RT2024010001', orderNo: 'PO2024010001', supplierName: '北京供应商', returnDate: '2024-01-15', totalAmount: 5000, status: 2, refundType: 1, createTime: '2024-01-15 10:00' },
-  { id: 2, returnNo: 'RT2024010002', orderNo: 'PO2024010002', supplierName: '上海贸易公司', returnDate: '2024-01-18', totalAmount: 3200, status: 1, refundType: 2, createTime: '2024-01-18 11:00' },
-  { id: 3, returnNo: 'RT2024010003', orderNo: 'PO2024010003', supplierName: '广州制造企业', returnDate: '2024-01-20', totalAmount: 1500, status: 0, refundType: 1, createTime: '2024-01-20 09:00' },
-  { id: 4, returnNo: 'RT2024010004', orderNo: 'PO2024010004', supplierName: '深圳电子公司', returnDate: '2024-01-12', totalAmount: 8000, status: 3, refundType: 3, createTime: '2024-01-12 14:00' },
-  { id: 5, returnNo: 'RT2024010005', orderNo: 'PO2024010005', supplierName: '杭州供应商', returnDate: '2024-01-22', totalAmount: 2000, status: 1, refundType: 1, createTime: '2024-01-22 15:00' }
-]
 
 function handleAdd() {
   formData.orderNo = ''; formData.reason = undefined; formData.refundType = 1
@@ -471,7 +456,7 @@ async function handleDelete(record: any) {
     title: '删除退货单', content: `确认删除退货单 "${record.returnNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
       try { await purchaseReturnApi.delete(record.id); message.success('删除成功'); fetchData() }
-      catch { message.error('删除失败') }
+      catch (e) { console.warn('[采购退货] 删除失败', e); message.error('删除失败') }
     }
   })
 }
@@ -506,26 +491,26 @@ const handleFormSubmit = async () => {
       items: formData.items.map(item => ({ productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice }))
     })
     message.success('新建退货单成功'); formModalVisible.value = false; fetchData()
-  } catch { message.error('新建退货单失败') }
+  } catch (e) { console.warn('[采购退货] 新建失败', e); message.error('新建退货单失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批退货单', content: `审批通过退货单 "${record.returnNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await purchaseReturnApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await purchaseReturnApi.approve(record.id); message.success('审批成功'); fetchData() } catch (e) { console.warn('[采购退货] 审批失败', e); message.error('审批失败') } }
   })
 }
 
 function handleReject(record: any) {
   Modal.confirm({
     title: '拒绝退货单', content: `拒绝退货单 "${record.returnNo}" ？`, okText: '确认拒绝', okType: 'danger', centered: true,
-    async onOk() { try { await purchaseReturnApi.reject(record.id); message.success('已拒绝'); fetchData() } catch { message.error('操作失败') } }
+    async onOk() { try { await purchaseReturnApi.reject(record.id); message.success('已拒绝'); fetchData() } catch (e) { console.warn('[采购退货] 拒绝失败', e); message.error('操作失败') } }
   })
 }
 
 function handleBatchApprove() {
-  const keys = tableRef.value?.selectedRowKeys || []
+  const keys = selectedRowKeys.value
   if (!validateSelection(keys, '审批')) return
   Modal.confirm({
     title: '批量审批', content: `审批选中的 ${keys.length} 条记录？`, okText: '确认', centered: true,
@@ -558,6 +543,8 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 
 const debouncedFetch = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters); pagination.current = 1
   clearTimeout(debouncedFetch.value)
@@ -572,12 +559,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('purchase:refresh', fetchData)
+  refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('purchase:refresh', fetchData)
+  if (refreshTimer) clearInterval(refreshTimer)
+  clearTimeout(debouncedFetch.value)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -677,12 +669,10 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+/* 详情抽屉 */
+:deep(.return-detail-drawer .ant-drawer-body) {
+  padding: 16px 24px;
+  overflow-y: auto;
 }
 
 /* 表单物料区 */

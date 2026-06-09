@@ -160,6 +160,7 @@ const inboundForm = ref({
 const currentIndex = ref(1)
 const totalCount = ref(1)
 const activeTab = ref('basic')
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const breadcrumbItems = computed(() => [
   { text: '采购管理', path: '/purchase' },
@@ -254,6 +255,7 @@ const fetchOrderDetail = async () => {
     const res = await purchaseOrderApi.getById(Number(orderId))
     order.value = res.data
   } catch (error) {
+    console.warn('[采购订单详情] 获取失败', error)
     message.error('获取订单详情失败')
   }
 }
@@ -273,7 +275,8 @@ const handlePrev = async () => {
   try {
     await purchaseOrderApi.get(prevId)
     router.push(`/purchase/order/${prevId}`)
-  } catch {
+  } catch (e) {
+    console.warn('[采购订单详情] 上一条失败', e)
     message.warning('已是第一条')
   }
 }
@@ -283,7 +286,8 @@ const handleNext = async () => {
   try {
     await purchaseOrderApi.get(nextId)
     router.push(`/purchase/order/${nextId}`)
-  } catch {
+  } catch (e) {
+    console.warn('[采购订单详情] 下一条失败', e)
     message.warning('已是最后一条')
   }
 }
@@ -310,6 +314,7 @@ const handleSubmit = async () => {
     message.success('提交成功')
     fetchOrderDetail()
   } catch (error) {
+    console.warn('[采购订单详情] 提交失败', error)
     message.error('提交失败')
   }
 }
@@ -320,6 +325,7 @@ const handleApprove = async () => {
     message.success('审批成功')
     fetchOrderDetail()
   } catch (error) {
+    console.warn('[采购订单详情] 审批失败', error)
     message.error('审批失败')
   }
 }
@@ -365,6 +371,7 @@ const handleInboundOk = async () => {
       fetchOrderDetail()
     }
   } catch (err: any) {
+    console.warn('[采购订单详情] 创建入库单失败', err)
     message.error(err?.message || '创建入库单失败')
   } finally {
     inboundSubmitting.value = false
@@ -387,6 +394,7 @@ const handleCopy = async () => {
       router.push(`/purchase/order/${newId}`)
     }
   } catch (err: any) {
+    console.warn('[采购订单详情] 复制失败', err)
     message.error(err?.message || '复制失败')
   }
 }
@@ -397,6 +405,7 @@ const handleDelete = async () => {
     message.success('删除成功')
     router.push('/purchase?tab=orders')
   } catch (error) {
+    console.warn('[采购订单详情] 删除失败', error)
     message.error('删除失败')
   }
 }
@@ -415,10 +424,12 @@ const handlePrintError = (error: any) => {
 
 onMounted(() => {
   fetchOrderDetail()
+  refreshTimer = setInterval(() => fetchOrderDetail(), 30000)
   window.addEventListener('purchase:refresh', fetchOrderDetail)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   window.removeEventListener('purchase:refresh', fetchOrderDetail)
 })
 </script>

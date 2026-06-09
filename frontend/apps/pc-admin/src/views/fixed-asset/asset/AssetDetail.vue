@@ -121,13 +121,16 @@ const disposalVxeColumns = [
   { field: 'status', title: '状态', width: 80 },
 ]
 
+function fetchData() {
+  if (!assetId.value) return
+  fetchAssetDetail()
+  fetchDepreciationHistory()
+  fetchTransferHistory()
+  fetchDisposalHistory()
+}
+
 onMounted(() => {
-  if (assetId.value) {
-    fetchAssetDetail()
-    fetchDepreciationHistory()
-    fetchTransferHistory()
-    fetchDisposalHistory()
-  }
+  fetchData()
 })
 
 function fetchAssetDetail() {
@@ -171,6 +174,7 @@ function handleDepreciate() {
     fetchAssetDetail()
     fetchDepreciationHistory()
   }).catch((err: any) => {
+    console.warn('[资产详情] 折旧失败', err)
     message.error(err.message || '折旧失败')
   })
 }
@@ -178,6 +182,8 @@ function handleDepreciate() {
 function goBack() {
   router.back()
 }
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>

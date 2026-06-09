@@ -71,6 +71,8 @@ setTimeout(() => {
   pagination.total = 1
   loading.value = false
 }, 500)
+
+defineExpose({})
 </script>
 
 <style scoped>

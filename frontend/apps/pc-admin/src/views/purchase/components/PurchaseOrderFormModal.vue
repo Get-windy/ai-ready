@@ -380,6 +380,7 @@ async function handleOk() {
     emit('success')
     updateOpen(false)
   } catch (error: any) {
+    console.warn('[采购订单] 保存失败', error?.response?.data || error)
     const errMsg = error?.response?.data?.message || error?.message || '操作失败'
     message.error(errMsg)
   } finally {
@@ -412,22 +413,14 @@ async function loadOptions() {
     userOptions.value = extractArray(users)
     productOptions.value = extractArray(products)
     if (supplierOptions.value.length === 0 || userOptions.value.length === 0 || productOptions.value.length === 0) {
-      console.warn('部分下拉数据为空，使用默认数据填充')
-      throw new Error('空数据')
+      console.warn('[采购订单] 部分下拉数据为空，请检查后端接口')
     }
   } catch (error: any) {
-    console.warn('加载下拉选项失败，使用默认数据:', error?.message)
-    supplierOptions.value = [
-      { id: 1, name: '供应商A' }, { id: 2, name: '供应商B' }, { id: 3, name: '供应商C' }
-    ]
-    userOptions.value = [
-      { id: 1, name: '张三' }, { id: 2, name: '李四' }, { id: 3, name: '王五' }
-    ]
-    productOptions.value = [
-      { id: 1, code: 'P001', name: '商品A', unit: '件', purchasePrice: 100 },
-      { id: 2, code: 'P002', name: '商品B', unit: '箱', purchasePrice: 200 },
-      { id: 3, code: 'P003', name: '商品C', unit: '个', purchasePrice: 50 }
-    ]
+    console.warn('[采购订单] 加载下拉选项失败，请检查后端接口:', error?.message)
+    // 使用空数组，让用户自行判断是否后端故障
+    if (supplierOptions.value.length === 0) supplierOptions.value = []
+    if (userOptions.value.length === 0) userOptions.value = []
+    if (productOptions.value.length === 0) productOptions.value = []
   } finally {
     loadingOptions.value = false
   }

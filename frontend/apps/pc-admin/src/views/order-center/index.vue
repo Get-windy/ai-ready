@@ -1,5 +1,27 @@
 <template>
-  <ModuleLayout
+  <PageContainer full-height>
+    <template #header>
+      <div class="order-page-header">
+        <div class="order-page-header-left">
+          <a-breadcrumb class="order-page-breadcrumb">
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>订单中心</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="order-page-header-title">订单中心</h2>
+        </div>
+        <div class="order-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="() => fetchData()">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
+    </template>
+    <ModuleLayout
     :breadcrumb-items="breadcrumbItems"
     :selected-count="selectedRowKeys.length"
     :current-page="pagination.current"
@@ -17,10 +39,8 @@
     @clear-selection="handleClearSelection"
     @retry="handleRetry"
   >
-    <!-- ── 面包屑 ─────────────────────────────── -->
     <template #breadcrumb>
       <div class="order-breadcrumb">
-        <span class="order-breadcrumb-title">订单中心</span>
         <span class="order-breadcrumb-subtitle">统一管理采购与销售订单</span>
       </div>
     </template>
@@ -116,18 +136,9 @@
           </template>
         </a-dropdown>
 
-        <!-- 数据更新时间 -->
-        <div class="update-time-bar">
-          <a-tooltip :title="loading ? '加载中...' : '刷新数据'">
-            <ReloadOutlined
-              :class="['refresh-btn', { spinning: loading }]"
-              @click="fetchData"
-            />
-          </a-tooltip>
-          <span class="update-time-text">
-            数据更新：{{ lastUpdateTime || '--' }}
-          </span>
-        </div>
+        <span class="update-time-text">
+          数据更新：{{ lastUpdateTime || '--' }}
+        </span>
       </a-space>
     </template>
 
@@ -409,6 +420,7 @@
 
   <!-- 回到顶部 -->
   <a-back-top :visibility-height="400" />
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
@@ -416,6 +428,7 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
+import { PageContainer } from '@/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   EyeOutlined,
@@ -430,7 +443,8 @@ import {
   FileTextOutlined,
   ShoppingCartOutlined,
   RocketOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import { ModuleLayout } from '@ai-ready/components'
 import { purchaseOrderApi } from '@/api/purchase'
@@ -487,6 +501,8 @@ const error = ref<string | null>(null)
 const dataSource = ref<UnifiedOrder[]>([])
 const selectedRowKeys = ref<(string | number)[]>([])
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
 const searchKeyword = ref('')
 const batchDeleting = ref(false)
 const batchExporting = ref(false)
@@ -842,12 +858,6 @@ async function fetchData(append = false) {
 
     dataSource.value = allOrders
     pagination.current = params.current
-    // 混合查询时取两个接口总数之和（后端统一后改用单一接口）
-    if (filterTab.value === 'all') {
-      pagination.total = totalCount
-    } else {
-      pagination.total = totalCount
-    }
     lastUpdateTime.value = formatTimestamp(new Date())
   } catch (err: any) {
     error.value = err?.message || '获取数据失败，请稍后重试'
@@ -948,7 +958,8 @@ async function handleCopyOrderNo(record: any) {
   try {
     await navigator.clipboard.writeText(record.orderNo)
     message.success(`已复制订单号: ${record.orderNo}`)
-  } catch {
+  } catch (err) {
+    console.warn('[订单中心] 复制订单号失败', err)
     const ta = document.createElement('textarea')
     ta.value = record.orderNo
     ta.style.position = 'fixed'
@@ -993,7 +1004,8 @@ function handleQuickSubmit(record: any) {
         }
         message.success(`订单 ${record.orderNo} 已提交审批`)
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[订单中心] 提交审批失败', err)
         message.error('提交失败')
       }
     }
@@ -1017,7 +1029,8 @@ function handleQuickApprove(record: any) {
         }
         message.success(`订单 ${record.orderNo} 已审批通过`)
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[订单中心] 审批失败', err)
         message.error('审批失败')
       }
     }
@@ -1042,7 +1055,8 @@ function handleQuickCancel(record: any) {
         }
         message.success(`订单 ${record.orderNo} 已取消`)
         fetchData()
-      } catch {
+      } catch (err) {
+        console.warn('[订单中心] 取消失败', err)
         message.error('取消失败')
       }
     }
@@ -1086,7 +1100,8 @@ async function handleBatchDelete() {
         try {
           await purchaseOrderApi.delete(id)
           succeeded++
-        } catch {
+        } catch (err) {
+          console.warn('[订单中心] 批量删除采购订单失败', err)
           failed++
         }
         message.open({ content: `正在删除 ${succeeded + failed}/${total}...`, key: msgKey })
@@ -1097,7 +1112,8 @@ async function handleBatchDelete() {
         try {
           await salesOrderApi.batchDelete(salesIds)
           succeeded += salesIds.length
-        } catch {
+        } catch (err) {
+          console.warn('[订单中心] 批量删除销售订单失败', err)
           failed += salesIds.length
         }
         message.open({ content: `正在删除 ${succeeded + failed}/${total}...`, key: msgKey })
@@ -1148,7 +1164,8 @@ async function handleBatchExport() {
           await salesOrderApi.export({ ids: salesIds } as any)
         }
         message.success({ content: '导出任务已提交', key: 'batch-export' })
-      } catch {
+      } catch (err) {
+        console.warn('[订单中心] 批量导出失败', err)
         message.error({ content: '导出失败', key: 'batch-export' })
       } finally {
         batchExporting.value = false
@@ -1176,10 +1193,22 @@ function handleColumnCheckChange(key: string, e: any) {
   }
 }
 
+// ── 自动刷新 ──────────────────────────────────────────────
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 // ── 生命周期 ──────────────────────────────────────────────
 
 onMounted(() => {
   fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
   nextTick(() => {
     updateScrollY()
     resizeObserver = new ResizeObserver(() => updateScrollY())
@@ -1191,10 +1220,59 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (resizeObserver) resizeObserver.disconnect()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+/* ── 页面头 ─────────────────────────────── */
+.order-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.order-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.order-page-breadcrumb {
+  font-size: 13px;
+}
+.order-page-breadcrumb :deep(li) {
+  font-size: 13px;
+}
+.order-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.order-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 /* ── 面包屑 ─────────────────────────────── */
 .order-breadcrumb {
   display: flex;

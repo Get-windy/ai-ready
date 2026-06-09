@@ -1,18 +1,25 @@
 <template>
-  <PageContainer title="线索管理" full-height>
-    <template #headerExtra>
-      <a-space :size="12">
-        <span class="data-status">
-          <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
-          <span v-if="lastUpdateTime" class="update-time">
-            数据更新: {{ lastUpdateTime }}
+  <PageContainer full-height>
+    <template #header>
+      <div class="lead-page-header">
+        <div class="lead-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>线索管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="lead-page-header-title">线索管理</h2>
+        </div>
+        <div class="lead-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-        </span>
-        <a-button size="small" @click="handleRefresh">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-      </a-space>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </div>
+      </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
@@ -322,7 +329,10 @@ const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdateTime = ref<string>('')
 const selectedRowKeys = ref<number[]>([])
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 状态统计
 const statusCounts = computed(() => {
@@ -386,22 +396,6 @@ function getAvatarColor(status: number): string {
   return statusColorMap[status] || '#999'
 }
 
-// 自动刷新
-const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !modalVisible.value) {
-      fetchData(true)
-    }
-  }, 60000)
-}
-
-const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
-}
-
 // 数据加载
 async function fetchData(silent = false) {
   if (!silent) loading.value = true
@@ -418,25 +412,19 @@ async function fetchData(silent = false) {
     dataSource.value = (result.records || result.data?.records || []) as Lead[]
     pagination.total = result.total ?? result.data?.total ?? 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-  } catch {
+  } catch (err) {
     if (!silent) {
       hasError.value = true
       message.error('获取线索数据失败')
     }
-    dataSource.value = mockData()
-    pagination.total = mockData().length
+    console.warn('[CRM线索] 获取线索列表失败', err)
+    dataSource.value = []
+    pagination.total = 0
   } finally {
     if (!silent) loading.value = false
+    refreshLoading.value = false
   }
 }
-
-const mockData = (): Lead[] => [
-  { id: 1, name: '张总咨询', companyName: '北京科技有限公司', contactName: '张总', phone: '010-88888888', mobile: '13800138001', source: 'website', status: 0, score: 85, createdAt: '2024-01-10 10:00' },
-  { id: 2, name: '产品咨询', companyName: '上海贸易集团', contactName: '李经理', phone: '021-66666666', source: 'weixin', status: 1, score: 72, createdAt: '2024-01-11 11:00' },
-  { id: 3, name: '方案需求', companyName: '广州制造公司', contactName: '王主任', phone: '020-55555555', mobile: '13800138003', source: 'email', status: 1, score: 90, createdAt: '2024-01-12 09:00' },
-  { id: 4, name: '采购询价', companyName: '深圳创新科技', contactName: '赵总监', phone: '0755-44444444', source: 'phone', status: 2, score: 65, createdAt: '2024-01-13 14:00' },
-  { id: 5, name: '技术支持', companyName: '杭州互联网公司', contactName: '孙经理', phone: '0571-33333333', source: 'social', status: 0, score: 45, createdAt: '2024-01-14 15:00' }
-]
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
@@ -477,7 +465,7 @@ function handleActionMenuClick(key: string, record: Lead) {
         content: `确定要删除线索"${record.name}"吗？`,
         onOk: async () => {
           try { await leadApi.delete(record.id); message.success('删除成功'); fetchData() }
-          catch { message.error('删除失败') }
+          catch (err) { console.warn('[CRM线索] 删除线索失败', err); message.error('删除失败') }
         }
       })
       break
@@ -486,7 +474,7 @@ function handleActionMenuClick(key: string, record: Lead) {
 
 async function handleDelete(record: Lead) {
   try { await leadApi.delete(record.id); message.success('删除成功'); fetchData() }
-  catch { message.error('删除失败') }
+  catch (err) { console.warn('[CRM线索] 删除线索失败', err); message.error('删除失败') }
 }
 
 async function handleAssign(record: Lead) {
@@ -584,7 +572,7 @@ const formRules = {
 }
 
 async function handleModalOk() {
-  try { await formRef.value?.validate() } catch { return }
+  try { await formRef.value?.validate() } catch (err) { console.warn('[CRM线索] 表单验证失败', err); return }
   modalLoading.value = true
   try {
     if (isEdit.value) {
@@ -596,7 +584,8 @@ async function handleModalOk() {
     }
     modalVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM线索] 保存线索失败', err)
     message.error(isEdit.value ? '更新失败' : '创建失败')
   } finally {
     modalLoading.value = false
@@ -626,7 +615,8 @@ async function handleAssignConfirm() {
     assignVisible.value = false
     selectedRowKeys.value = []
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM线索] 分配线索失败', err)
     message.error('分配失败')
   } finally {
     assignLoading.value = false
@@ -645,7 +635,8 @@ async function handleConvertConfirm() {
     message.success('转化成功')
     convertVisible.value = false
     fetchData()
-  } catch {
+  } catch (err) {
+    console.warn('[CRM线索] 转化线索失败', err)
     message.error('转化失败')
   } finally {
     convertLoading.value = false
@@ -654,25 +645,60 @@ async function handleConvertConfirm() {
 
 onMounted(() => {
   fetchData()
-  startAutoRefresh()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
-  stopAutoRefresh()
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-.data-status {
+.lead-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.lead-page-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: 12px;
 }
-
+.lead-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.lead-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .update-time {
+  font-size: 12px;
   color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
 }
 
 .stats-cards {
@@ -789,8 +815,4 @@ onUnmounted(() => {
 .action-more-btn {
   padding: 0 4px;
 }
-
-
-
-
 </style>

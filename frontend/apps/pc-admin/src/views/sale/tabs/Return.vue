@@ -106,7 +106,7 @@
     </template>
   </VxeTableList>
 
-  <a-modal v-model:open="detailVisible" title="退货单详情" width="700px" :footer="null">
+  <a-drawer v-model:open="detailVisible" title="退货单详情" placement="right" width="80vw" :footer="null">
     <a-descriptions bordered :column="2" v-if="currentRecord">
       <a-descriptions-item label="退货单号">{{ currentRecord.returnNo }}</a-descriptions-item>
       <a-descriptions-item label="销售订单">{{ currentRecord.orderNo }}</a-descriptions-item>
@@ -119,8 +119,7 @@
       <a-descriptions-item label="退货原因" :span="2">{{ currentRecord.reason || '-' }}</a-descriptions-item>
       <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
     </a-descriptions>
-    <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
-  </a-modal>
+  </a-drawer>
 
   <a-modal v-model:open="formModalVisible" title="新建退货单" width="800px" centered
     :confirm-loading="formSubmitting" ok-text="确认创建" cancel-text="取消"
@@ -268,7 +267,7 @@ async function fetchData() {
     }
     lastUpdated.value = new Date().toISOString()
   } catch (err: any) {
-    console.warn('[Return] API不可用，使用mock数据:', err?.message || '')
+    console.warn('[销售退货] API不可用，使用mock数据:', err?.message || '')
     dataSource.value = mockReturnData()
     pagination.total = 50
   }
@@ -312,7 +311,7 @@ function handleDelete(record: any) {
         await saleReturnApi.delete(record.id)
         message.success('删除成功')
         fetchData()
-      } catch { message.error('删除失败') }
+      } catch (err) { console.warn('[销售退货] 删除退货单', err); message.error('删除失败') }
     }
   })
 }
@@ -337,14 +336,14 @@ const handleFormSubmit = async () => {
       items: formData.items.map(item => ({ productName: item.productName, quantity: item.quantity, unitPrice: item.unitPrice }))
     })
     message.success('新建退货单成功'); formModalVisible.value = false; pagination.current = 1; fetchData()
-  } catch { message.error('新建退货单失败') }
+  } catch (err) { console.warn('[销售退货] 新建退货单', err); message.error('新建退货单失败') }
   finally { formSubmitting.value = false }
 }
 
 function handleApprove(record: any) {
   Modal.confirm({
     title: '审批退货单', content: `审批退货单 "${record.returnNo}" ？`, okText: '确认审批', centered: true,
-    async onOk() { try { await saleReturnApi.approve(record.id); message.success('审批成功'); fetchData() } catch { message.error('审批失败') } }
+    async onOk() { try { await saleReturnApi.approve(record.id); message.success('审批成功'); fetchData() } catch (err) { console.warn('[销售退货] 审批退货单', err); message.error('审批失败') } }
   })
 }
 
@@ -400,6 +399,7 @@ onUnmounted(() => {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -452,7 +452,6 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
-.detail-modal-footer { text-align: right; margin-top: 16px; }
 .form-items-toolbar { margin-bottom: 8px; }
 .list-update-timestamp {
   font-size: 12px; color: var(--color-text-tertiary, #bbb);

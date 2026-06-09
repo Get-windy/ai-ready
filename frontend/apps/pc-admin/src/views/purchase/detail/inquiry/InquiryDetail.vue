@@ -98,6 +98,7 @@ import { inquiryApi, type PurchaseInquiry } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 const router = useRouter(); const route = useRoute()
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 const inquiry = ref<PurchaseInquiry | null>(null)
 const loading = ref(false); const error = ref<string | null>(null); const activeTab = ref('basic')
 const isEditing = ref(false)
@@ -145,7 +146,7 @@ const getStatusType = (s?: number): any => ({ 0: 'default', 1: 'info', 2: 'succe
 const fetchDetail = async () => {
   loading.value = true; error.value = null
   try { inquiry.value = await inquiryApi.getById(Number(route.params.id)) as any }
-  catch (err: any) { error.value = err?.message || '获取详情失败' }
+  catch (err: any) { console.warn('[询价详情] 获取失败', err); error.value = err?.message || '获取详情失败' }
   finally { loading.value = false }
 }
 
@@ -172,18 +173,21 @@ const handleSave = async () => {
     isEditing.value = false
     fetchDetail()
   } catch (err: any) {
+    console.warn('[询价详情] 保存失败', err)
     message.error(err?.message || '保存失败')
   }
 }
 const handleSend = async () => {
   try { await inquiryApi.send(inquiry.value!.id); message.success('发送成功'); fetchDetail() }
-  catch { message.error('发送失败') }
+  catch (e) { console.warn('[询价详情] 发送失败', e); message.error('发送失败') }
 }
 onMounted(() => {
   fetchDetail()
+  refreshTimer = setInterval(() => fetchDetail(), 30000)
   window.addEventListener('purchase:refresh', fetchDetail)
 })
 onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   window.removeEventListener('purchase:refresh', fetchDetail)
 })
 </script>

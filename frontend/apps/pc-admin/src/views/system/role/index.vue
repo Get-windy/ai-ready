@@ -1,29 +1,52 @@
 <template>
-  <div class="role-management">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">角色总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="role-page-header">
+        <div class="role-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>角色管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="role-page-header-title">角色管理</h2>
         </div>
-        <SafetyOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-active">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ activeCount }}</div>
-          <div class="stat-card-label">启用角色</div>
+        <div class="role-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <CheckCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-disabled">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ disabledCount }}</div>
-          <div class="stat-card-label">停用角色</div>
+    </template>
+
+    <div class="role-management">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">角色总数</div>
+          </div>
+          <SafetyOutlined class="stat-card-icon" />
         </div>
-        <StopOutlined class="stat-card-icon" />
+        <div class="stat-card stat-active">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ activeCount }}</div>
+            <div class="stat-card-label">启用角色</div>
+          </div>
+          <CheckCircleOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-disabled">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ disabledCount }}</div>
+            <div class="stat-card-label">停用角色</div>
+          </div>
+          <StopOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
     <VxeTableList
       ref="tableRef"
@@ -107,19 +130,27 @@
       <a-tree v-model:checked-keys="checkedMenuKeys" :tree-data="menuTree" checkable :default-expand-all="true" :selectable="false" />
     </a-modal>
   </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { SafetyOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons-vue'
+import { SafetyOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import { roleApi, type RoleInfo } from '@/api/role'
+import menuApi from '@/api/menu'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 
 const userStore = useUserStore()
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 const searchForm = reactive({ roleName: '', roleCode: '', status: undefined as number | undefined })
 
 const tableData = ref<RoleInfo[]>([])
@@ -178,18 +209,16 @@ const fetchData = async () => {
   try {
     const res = await roleApi.getPage({ tenantId: userStore.tenantId, ...searchForm, current: pagination.current, size: pagination.pageSize })
     if (res.data) { tableData.value = res.data.records; pagination.total = res.data.total }
-  } catch {
-    tableData.value = mockData()
-    pagination.total = mockData().length
-  } finally { loading.value = false }
+  } catch (err) {
+    console.warn('[系统管理] 加载角色数据失败', err)
+    tableData.value = []
+    pagination.total = 0
+  } finally {
+    loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
+  }
 }
-
-const mockData = (): RoleInfo[] => [
-  { id: 1, roleName: '超级管理员', roleCode: 'super_admin', roleType: 0, sort: 1, status: 0, createTime: '2024-01-01', remark: '系统超级管理员' },
-  { id: 2, roleName: '普通管理员', roleCode: 'admin', roleType: 1, sort: 2, status: 0, createTime: '2024-01-15', remark: '普通管理员角色' },
-  { id: 3, roleName: '财务角色', roleCode: 'finance', roleType: 1, sort: 3, status: 0, createTime: '2024-02-01', remark: '财务部门角色' },
-  { id: 4, roleName: '人事角色', roleCode: 'hr', roleType: 1, sort: 4, status: 1, createTime: '2024-02-10', remark: '人事部门角色' },
-]
 
 const handleFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) Object.assign(searchForm, { roleName: '', roleCode: '', status: undefined })
@@ -238,17 +267,29 @@ const handleDeleteConfirm = (record: RoleInfo) => {
 
 const handleStatusChange = async (record: RoleInfo, checked: boolean) => {
   const newStatus = checked ? 0 : 1
-  try { await roleApi.updateStatus(record.id, newStatus); message.success('状态更新成功'); fetchData() } catch { message.error('状态更新失败') }
+  try { await roleApi.updateStatus(record.id, newStatus); message.success('状态更新成功'); fetchData() } catch (err) { console.warn('[系统管理] 更新角色状态失败', err); message.error('状态更新失败') }
 }
 
 const handlePermission = async (record: RoleInfo) => {
   currentRoleId.value = record.id
-  permissionTree.value = [
-    { title: '系统管理', key: 1, children: [{ title: '用户管理', key: 11 }, { title: '角色管理', key: 12 }, { title: '菜单管理', key: 13 }, { title: '部门管理', key: 14 }] },
-    { title: '业务管理', key: 2, children: [{ title: '客户管理', key: 21 }, { title: '订单管理', key: 22 }, { title: '产品管理', key: 23 }] }
-  ]
-  try { const res = await roleApi.getPermissions(record.id); checkedPermissionKeys.value = res.data || [] } catch { checkedPermissionKeys.value = [] }
+  try {
+    const menuRes = await menuApi.getTree({})
+    permissionTree.value = menuRes.data ? buildPermissionTree(menuRes.data) : []
+  } catch (err) {
+    permissionTree.value = []
+    console.warn('[系统管理] 加载权限树失败', err)
+    message.error('加载权限树失败')
+  }
+  try { const res = await roleApi.getPermissions(record.id); checkedPermissionKeys.value = res.data || [] } catch (err) { console.warn('[系统管理] 获取权限列表失败', err); checkedPermissionKeys.value = [] }
   permissionModalVisible.value = true
+}
+
+const buildPermissionTree = (menus: any[]): any[] => {
+  return menus.map((m: any) => ({
+    title: m.menuName,
+    key: m.id,
+    children: m.children?.length ? buildPermissionTree(m.children) : undefined
+  }))
 }
 
 const handlePermissionOk = async () => {
@@ -258,12 +299,15 @@ const handlePermissionOk = async () => {
 
 const handleMenu = async (record: RoleInfo) => {
   currentRoleId.value = record.id
-  menuTree.value = [
-    { title: '首页', key: 1 },
-    { title: '系统管理', key: 2, children: [{ title: '用户管理', key: 21 }, { title: '角色管理', key: 22 }, { title: '菜单管理', key: 23 }] },
-    { title: '业务管理', key: 3, children: [{ title: '客户管理', key: 31 }, { title: '订单管理', key: 32 }] }
-  ]
-  checkedMenuKeys.value = []
+  try {
+    const menuRes = await menuApi.getTree({})
+    menuTree.value = menuRes.data ? buildPermissionTree(menuRes.data) : []
+  } catch (err) {
+    menuTree.value = []
+    console.warn('[系统管理] 加载菜单树失败', err)
+    message.error('加载菜单树失败')
+  }
+  try { const res = await roleApi.getMenus(record.id); checkedMenuKeys.value = res.data || [] } catch (err) { console.warn('[系统管理] 获取菜单列表失败', err); checkedMenuKeys.value = [] }
   menuModalVisible.value = true
 }
 
@@ -275,10 +319,65 @@ const handleMenuOk = async () => {
 const getRoleTypeColor = (type: number) => type === 0 ? 'blue' : 'green'
 const getRoleTypeName = (type: number) => type === 0 ? '系统' : '自定义'
 
-onMounted(() => { fetchData() })
+onMounted(() => {
+  fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+.role-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.role-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.role-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.role-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .role-management {
   height: 100%;
   display: flex;

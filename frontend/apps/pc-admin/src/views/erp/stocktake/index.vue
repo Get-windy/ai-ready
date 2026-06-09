@@ -1,5 +1,31 @@
 <template>
-  <div class="stocktake-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <PageContainer full-height>
+    <template #header>
+      <div class="stocktake-header">
+        <div class="stocktake-header__left">
+          <span class="stocktake-header__breadcrumb">ERP / 库存管理 / 库存盘点</span>
+          <h2 class="stocktake-header__title">库存盘点</h2>
+        </div>
+        <div class="stocktake-header__right">
+          <a-space :size="12">
+            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+              <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="data-status">
+              <a-badge :status="loading ? 'processing' : 'success'" />
+              <span v-if="lastUpdateTime" class="update-time">
+                数据更新: {{ lastUpdateTime }}
+              </span>
+            </span>
+            <a-button size="small" :loading="refreshLoading" @click="fetchData">
+              <template #icon><ReloadOutlined /></template>
+              刷新
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </template>
+
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -116,10 +142,11 @@
       </template>
     </VxeTableList>
 
-    <a-modal
+    <a-drawer
       v-model:open="detailVisible"
       title="盘点单详情"
-      width="700px"
+      placement="right"
+      width="80vw"
       :footer="null"
     >
       <a-descriptions bordered :column="2" v-if="currentRecord">
@@ -139,15 +166,12 @@
         <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
         <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
       </a-descriptions>
-      <div class="detail-modal-footer">
-        <a-button @click="detailVisible = false">关闭</a-button>
-      </div>
-    </a-modal>
-  </div>
+    </a-drawer>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -165,8 +189,11 @@ import {
   SearchOutlined,
   InboxOutlined,
   FileTextOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  SyncOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
+import { PageContainer } from '@/components'
 
 interface Stocktake {
   id: number
@@ -183,6 +210,9 @@ interface Stocktake {
 
 const userStore = useUserStore()
 const loading = ref(false)
+const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const dataSource = ref<Stocktake[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<Stocktake | null>(null)
@@ -190,6 +220,9 @@ const tableRef = ref()
 const lastUpdated = ref(new Date().toISOString())
 const selectedRows = ref<Stocktake[]>([])
 const selectedIds = ref<number[]>([])
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 统计数据
 const statistics = ref({
@@ -229,18 +262,27 @@ const vxeColumns = computed(() => [
   { type: 'action', title: '操作', width: 200, fixed: 'right' },
 ])
 
-const filterFields = [
+const warehouseOptions = ref<{ label: string; value: number }[]>([])
+
+const filterFields = computed(() => [
   { key: 'stocktakeNo', label: '盘点单号', type: 'input' as const, placeholder: '请输入盘点单号' },
-  { key: 'warehouseId', label: '仓库', type: 'select' as const, options: [
-    { label: '主仓库', value: 1 },
-    { label: '分仓库', value: 2 },
-  ]},
+  { key: 'warehouseId', label: '仓库', type: 'select' as const, options: warehouseOptions.value },
   { key: 'status', label: '状态', type: 'select' as const, options: [
     { label: '待审核', value: 0 },
     { label: '盘点中', value: 1 },
     { label: '已完成', value: 2 },
   ]},
-]
+])
+
+const loadWarehouses = async () => {
+  try {
+    const res = await request.get('/erp/warehouse/list')
+    const list = res?.data || []
+    warehouseOptions.value = list.map((w: any) => ({ label: w.name, value: w.id }))
+  } catch (err) {
+    console.warn('[库存盘点] 加载仓库列表失败', err)
+  }
+}
 
 const handleSearch = () => {
   pagination.current = 1
@@ -270,12 +312,26 @@ const handleView = (record: Stocktake) => {
   detailVisible.value = true
 }
 
-const handleStart = (record: Stocktake) => {
-  message.success(`开始盘点: ${record.stocktakeNo}`)
+const handleStart = async (record: Stocktake) => {
+  try {
+    await stockCheckApi.startCheck(record.id)
+    message.success(`开始盘点: ${record.stocktakeNo}`)
+    fetchData()
+  } catch (err) {
+    console.warn('[库存盘点] 开始盘点失败', err)
+    message.error('开始盘点失败')
+  }
 }
 
-const handleComplete = (record: Stocktake) => {
-  message.success(`盘点完成: ${record.stocktakeNo}`)
+const handleComplete = async (record: Stocktake) => {
+  try {
+    await stockCheckApi.completeCheck(record.id)
+    message.success(`盘点完成: ${record.stocktakeNo}`)
+    fetchData()
+  } catch (err) {
+    console.warn('[库存盘点] 完成盘点失败', err)
+    message.error('完成盘点失败')
+  }
 }
 
 const handleDelete = async (record: Stocktake) => {
@@ -284,6 +340,7 @@ const handleDelete = async (record: Stocktake) => {
     message.success('删除成功')
     fetchData()
   } catch (error) {
+    console.warn('[库存盘点] 删除失败', error)
     message.error('删除失败')
   }
 }
@@ -318,10 +375,27 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
-window.addEventListener('keydown', handleKeydown)
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  loadWarehouses()
+  fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+})
+
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+defineExpose({ handleQuery: fetchData })
 
 const fetchData = async () => {
   loading.value = true
@@ -358,16 +432,69 @@ const fetchData = async () => {
     }
     lastUpdated.value = new Date().toISOString()
   } catch (error) {
+    console.warn('[库存盘点] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
     loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
-
-fetchData()
 </script>
 
 <style scoped>
+.stocktake-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.stocktake-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stocktake-header__breadcrumb {
+  font-size: 12px;
+  color: #999;
+}
+
+.stocktake-header__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.stocktake-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+.data-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
 .stocktake-page {
   padding: 16px;
   height: 100%;
@@ -402,11 +529,6 @@ fetchData()
 
 .action-more-btn {
   padding: 0 4px;
-}
-
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
 }
 
 .positive {

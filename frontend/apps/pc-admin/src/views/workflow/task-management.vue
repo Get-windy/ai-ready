@@ -1,36 +1,59 @@
 <template>
-  <div class="workflow-tasks">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card stat-total">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ pagination.total }}</div>
-          <div class="stat-card-label">任务总数</div>
+  <PageContainer full-height>
+    <template #header>
+      <div class="workflow-page-header">
+        <div class="workflow-page-header-left">
+          <a-breadcrumb>
+            <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
+            <a-breadcrumb-item>任务管理</a-breadcrumb-item>
+          </a-breadcrumb>
+          <h2 class="workflow-page-header-title">任务管理</h2>
         </div>
-        <ScheduleOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-todo">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ todoCount }}</div>
-          <div class="stat-card-label">待办任务</div>
+        <div class="workflow-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="handleQuery">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </div>
-        <ClockCircleOutlined class="stat-card-icon" />
       </div>
-      <div class="stat-card stat-high">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ highPriorityCount }}</div>
-          <div class="stat-card-label">高优先级</div>
+    </template>
+
+    <div class="workflow-tasks">
+      <!-- 统计卡片 -->
+      <div class="stat-cards">
+        <div class="stat-card stat-total">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ pagination.total }}</div>
+            <div class="stat-card-label">任务总数</div>
+          </div>
+          <ScheduleOutlined class="stat-card-icon" />
         </div>
-        <FireOutlined class="stat-card-icon" />
-      </div>
-      <div class="stat-card stat-overdue">
-        <div class="stat-card-body">
-          <div class="stat-card-value">{{ overdueCount }}</div>
-          <div class="stat-card-label">超时任务</div>
+        <div class="stat-card stat-todo">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ todoCount }}</div>
+            <div class="stat-card-label">待办任务</div>
+          </div>
+          <ClockCircleOutlined class="stat-card-icon" />
         </div>
-        <WarningOutlined class="stat-card-icon" />
+        <div class="stat-card stat-high">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ highPriorityCount }}</div>
+            <div class="stat-card-label">高优先级</div>
+          </div>
+          <FireOutlined class="stat-card-icon" />
+        </div>
+        <div class="stat-card stat-overdue">
+          <div class="stat-card-body">
+            <div class="stat-card-value">{{ overdueCount }}</div>
+            <div class="stat-card-label">超时任务</div>
+          </div>
+          <WarningOutlined class="stat-card-icon" />
+        </div>
       </div>
-    </div>
 
     <a-card>
       <template #title>
@@ -132,7 +155,7 @@
     </a-card>
 
     <!-- 详情对话框 -->
-    <a-modal v-model:open="detailVisible" title="任务详情" :width="800" :footer="null">
+    <a-drawer v-model:open="detailVisible" title="任务详情" placement="right" width="80vw" :footer="null">
       <a-descriptions bordered :column="2">
         <a-descriptions-item label="任务ID">{{ detailData.taskId }}</a-descriptions-item>
         <a-descriptions-item label="任务名称">{{ detailData.taskName }}</a-descriptions-item>
@@ -149,7 +172,7 @@
           <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
         </a-descriptions-item>
       </a-descriptions>
-    </a-modal>
+    </a-drawer>
 
     <!-- 审批对话框 -->
     <a-modal v-model:open="approveVisible" title="审批" :width="600" @ok="handleConfirmApprove" @cancel="handleCancelApprove">
@@ -177,10 +200,10 @@
     <a-modal v-model:open="transferVisible" :title="transferDialogTitle" :width="500" @ok="handleConfirmTransfer" @cancel="handleCancelTransfer">
       <a-form :model="transferForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
         <a-form-item label="目标用户">
-          <a-select v-model:value="transferForm.targetUser" placeholder="请选择用户" show-search>
-            <a-select-option value="user001">张三</a-select-option>
-            <a-select-option value="user002">李四</a-select-option>
-            <a-select-option value="user003">王五</a-select-option>
+          <a-select v-model:value="transferForm.targetUser" placeholder="请选择用户" show-search :filter-option="filterUserOption">
+            <a-select-option v-for="u in userList" :key="u.id" :value="u.id">
+              {{ u.nickname || u.username }}
+            </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="备注">
@@ -189,15 +212,25 @@
       </a-form>
     </a-modal>
   </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer } from '@/components'
 import request from '@/utils/request'
+import { userApi } from '@/api/user'
+
+// 自动刷新
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 当前标签页
 const activeTab = ref('todo')
@@ -267,6 +300,25 @@ const transferForm = reactive({
 })
 const currentTransferTaskId = ref<string | null>(null)
 
+// 用户列表（用于转办/委托）
+const userList = ref<{ id: string; username: string; nickname: string }[]>([])
+
+const fetchUserList = async () => {
+  try {
+    const res = await userApi.getList({ pageSize: 1000 })
+    const data = (res as any).data
+    userList.value = (data?.records || data || []).map((u: any) => ({ id: u.id, username: u.username, nickname: u.nickname }))
+  } catch (err) {
+    userList.value = []
+    console.warn('[工作流] 加载用户列表失败', err)
+  }
+}
+
+const filterUserOption = (input: string, option: any) => {
+  const label = option.children?.toString() || ''
+  return label.toLowerCase().includes(input.toLowerCase())
+}
+
 // 切换标签页
 const handleTabChange = () => {
   pagination.current = 1
@@ -294,9 +346,12 @@ const handleQuery = async () => {
   } catch (error: any) {
     tableData.value = []
     pagination.total = 0
+    console.warn('[工作流] 获取任务列表失败', error)
     message.error(error?.response?.data?.message || '获取工作流数据失败，请稍后重试')
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -335,11 +390,7 @@ const handleApprove = (record: any) => {
 // 确认审批
 const handleConfirmApprove = async () => {
   if (!currentApproveTaskId.value) return
-  const actionLabels: Record<string, string> = {
-    approve: '同意',
-    reject: '拒绝',
-    return: '退回'
-  }
+  const actionLabels: Record<string, string> = { approve: '同意', reject: '拒绝', return: '退回' }
   Modal.confirm({
     title: '确认审批',
     content: `确定要${actionLabels[approveForm.approval] || '审批'}该任务吗？`,
@@ -351,11 +402,13 @@ const handleConfirmApprove = async () => {
           comment: approveForm.comment,
           returnNode: approveForm.approval === 'return' ? approveForm.returnNode : undefined
         })
+        console.warn('[工作流] 操作成功: 审批成功')
         message.success('审批成功')
         approveVisible.value = false
         currentApproveTaskId.value = null
         handleQuery()
-      } catch {
+      } catch (err) {
+        console.warn('[工作流] 审批失败', err)
         message.error('审批失败')
       }
     }
@@ -395,11 +448,13 @@ const handleConfirmTransfer = async () => {
           targetUser: transferForm.targetUser,
           comment: transferForm.comment
         })
+        console.warn('[工作流] 操作成功: 转办/委托成功')
         message.success(`${actionLabel}成功`)
         transferVisible.value = false
         currentTransferTaskId.value = null
         handleQuery()
-      } catch {
+      } catch (err) {
+        console.warn('[工作流] 转办/委托失败', err)
         message.error(`${actionLabel}失败`)
       }
     }
@@ -434,10 +489,64 @@ const getPriorityLabel = (priority: string) => {
 // 初始加载
 onMounted(() => {
   handleQuery()
+  fetchUserList()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    handleQuery()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+defineExpose({ handleQuery })
 </script>
 
 <style scoped>
+.workflow-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.workflow-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.workflow-page-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+.workflow-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 .workflow-tasks {
   height: 100%;
   display: flex;

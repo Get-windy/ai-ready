@@ -48,6 +48,14 @@ public class PurchaseInquiryController {
     }
 
     /**
+     * 发送询价单（API 别名，与 publish 相同）
+     */
+    @PostMapping("/{id}/send")
+    public ResponseEntity<PurchaseInquiry> sendInquiry(@PathVariable Long id) {
+        return publishInquiry(id);
+    }
+
+    /**
      * 关闭询价单
      */
     @PostMapping("/{id}/close")
