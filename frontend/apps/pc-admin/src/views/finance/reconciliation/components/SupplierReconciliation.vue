@@ -40,36 +40,38 @@
       </a-form>
     </div>
 
-    <a-table
+    <VxeTableList
       :columns="columns"
-      :data-source="tableData"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="false"
       row-key="id"
-      :bordered="true"
+      :show-toolbar="false"
+      :selectable="false"
+      :show-add="false"
+      :show-search="false"
+      :show-export="false"
+      :show-batch-delete="false"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'systemAmount'">
-          <span v-if="record.supplierName">¥{{ record.systemAmount?.toFixed(2) }}</span>
-        </template>
-        <template v-else-if="column.key === 'supplierAmount'">
-          <span v-if="record.supplierName">¥{{ record.supplierAmount?.toFixed(2) }}</span>
-        </template>
-        <template v-else-if="column.key === 'difference'">
-          <span v-if="record.supplierName" :style="{ color: record.difference !== 0 ? '#f5222d' : '#52c41a' }">
-            ¥{{ record.difference?.toFixed(2) }}
-          </span>
-        </template>
+      <template #systemAmountCell="{ record }">
+        <span>¥{{ record.systemAmount?.toFixed(2) }}</span>
       </template>
-    </a-table>
+      <template #supplierAmountCell="{ record }">
+        <span>¥{{ record.supplierAmount?.toFixed(2) }}</span>
+      </template>
+      <template #differenceCell="{ record }">
+        <span :style="{ color: record.difference !== 0 ? '#f5222d' : '#52c41a' }">
+          ¥{{ record.difference?.toFixed(2) }}
+        </span>
+      </template>
+    </VxeTableList>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
-
-const MIN_TABLE_ROWS = 20
 
 interface SupplierRecord {
   id: number
@@ -95,28 +97,12 @@ const queryParams = reactive({
 })
 
 const columns = [
-  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo' },
-  { title: '系统金额', key: 'systemAmount' },
-  { title: '供应商金额', key: 'supplierAmount' },
-  { title: '差异', key: 'difference' }
+  { field: 'supplierName', title: '供应商名称' },
+  { field: 'orderNo', title: '订单号' },
+  { field: 'systemAmount', title: '系统金额', slotName: 'systemAmountCell' },
+  { field: 'supplierAmount', title: '供应商金额', slotName: 'supplierAmountCell' },
+  { field: 'difference', title: '差异', slotName: 'differenceCell' }
 ]
-
-// 表格空行填充
-const tableData = computed(() => {
-  const data = [...dataSource.value]
-  while (data.length < MIN_TABLE_ROWS) {
-    data.push({
-      id: -(data.length + 1),
-      supplierName: '',
-      orderNo: '',
-      systemAmount: 0,
-      supplierAmount: 0,
-      difference: 0
-    } as SupplierRecord)
-  }
-  return data
-})
 
 const handleSearch = () => {
   message.info('查询供应商对账记录')
@@ -178,12 +164,5 @@ setTimeout(() => {
 }
 
 /* 网格边框样式 */
-:deep(.ant-table-thead > tr > th) {
-  border: 2px solid #f0f0f0;
-  background: #fafafa;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border: 1px solid #f0f0f0;
-}
 </style>

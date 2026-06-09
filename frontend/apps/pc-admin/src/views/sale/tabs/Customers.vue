@@ -213,16 +213,7 @@ const activeCount = computed(() => dataSource.value.filter(r => r.status === 1).
 const inactiveCount = computed(() => dataSource.value.filter(r => r.status === 0).length)
 const aLevelCount = computed(() => dataSource.value.filter(r => r.level === 1).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}`, code: '', name: '', contactPerson: '', phone: '', level: 3, status: 1, createTime: '' })
-  }
-  return data
-})
+const tableDataSource = dataSource
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -461,6 +452,8 @@ function handleKeydown(e: KeyboardEvent) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
   padding: 16px;
 }
 
@@ -503,7 +496,6 @@ function handleKeydown(e: KeyboardEvent) {
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
 
 .list-update-timestamp {
   font-size: 12px; color: var(--color-text-tertiary, #bbb);
@@ -511,29 +503,9 @@ function handleKeydown(e: KeyboardEvent) {
   line-height: 32px; vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

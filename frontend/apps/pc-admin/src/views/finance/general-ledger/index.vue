@@ -210,6 +210,8 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */

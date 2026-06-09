@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
       :row-key="'id'"
@@ -69,10 +69,6 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
           <a-space :size="0" class="action-cell-inner">
             <a-tooltip title="查看">
               <a-button type="link" size="small" @click="handleView(record)">
@@ -101,7 +97,6 @@
               </template>
             </a-dropdown>
           </a-space>
-        </template>
       </template>
     </VxeTableList>
 
@@ -140,33 +135,36 @@
       <a-button type="dashed" @click="addItem" style="width: 100%; margin-bottom: 12px">
         <template #icon><PlusOutlined /></template>添加科目
       </a-button>
-      <a-table
+      <VxeTableList
         :data-source="formData.items"
-        :columns="itemColumns"
+        :columns="itemVxeColumns"
         :pagination="false"
         row-key="rowKey"
-        size="small"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'subjectCode'">
-            <a-input v-model:value="record.subjectCode" placeholder="科目编码" />
-          </template>
-          <template v-else-if="column.key === 'subjectName'">
-            <a-input v-model:value="record.subjectName" placeholder="科目名称" />
-          </template>
-          <template v-else-if="column.key === 'budgetAmount'">
-            <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'sortOrder'">
-            <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 60px" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-popconfirm title="确定删除？" @confirm="removeItem(index)">
-              <a class="danger">删除</a>
-            </a-popconfirm>
-          </template>
+        <template #subjectCodeCell="{ record }">
+          <a-input v-model:value="record.subjectCode" placeholder="科目编码" />
         </template>
-      </a-table>
+        <template #subjectNameCell="{ record }">
+          <a-input v-model:value="record.subjectName" placeholder="科目名称" />
+        </template>
+        <template #budgetAmountCell="{ record }">
+          <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" />
+        </template>
+        <template #sortOrderCell="{ record }">
+          <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 60px" />
+        </template>
+        <template #action="{ index }">
+          <a-popconfirm title="确定删除？" @confirm="removeItem(index)">
+            <a class="danger">删除</a>
+          </a-popconfirm>
+        </template>
+      </VxeTableList>
     </a-modal>
   </div>
 </template>
@@ -202,16 +200,6 @@ const publishedCount = computed(() => tableData.value.filter(r => r.status === '
 const archivedCount = computed(() => tableData.value.filter(r => r.status === 'archived').length)
 const totalAmount = computed(() => tableData.value.reduce((s, r) => s + (r.totalAmount || 0), 0))
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
 
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
@@ -237,12 +225,12 @@ const filterFields = [
   ]},
 ]
 
-const itemColumns = [
-  { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode' },
-  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName' },
-  { title: '预算金额', dataIndex: 'budgetAmount', key: 'budgetAmount' },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
-  { title: '操作', key: 'action', width: 60 },
+const itemVxeColumns = [
+  { field: 'subjectCode', title: '科目编码', slotName: 'subjectCodeCell' },
+  { field: 'subjectName', title: '科目名称', slotName: 'subjectNameCell' },
+  { field: 'budgetAmount', title: '预算金额', slotName: 'budgetAmountCell' },
+  { field: 'sortOrder', title: '排序', width: 80, slotName: 'sortOrderCell' },
+  { field: 'action', title: '操作', width: 60, type: 'action' }
 ]
 
 const formVisible = ref(false)
@@ -476,6 +464,8 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -535,7 +525,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   margin-top: 12px;
 }
 
-.empty-placeholder { color: transparent; }
 .danger { color: #ff4d4f; }
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .action-cell-inner { flex-wrap: nowrap; }
@@ -557,29 +546,9 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

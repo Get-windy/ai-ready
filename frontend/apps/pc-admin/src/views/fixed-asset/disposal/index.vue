@@ -80,33 +80,28 @@
         </div>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'disposalNo'">
-          <a @click="viewDetail(record)" class="disposal-no">{{ record.disposalNo }}</a>
-        </template>
-        <template v-else-if="column.field === 'assetCode'">
-          <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="statusColorMap[record.status]">{{ statusMap[record.status] }}</a-tag>
-        </template>
-        <template v-else-if="column.field === 'disposalType'">
-          <a-tag :color="typeColorMap[record.disposalType]">{{ typeMap[record.disposalType] || record.disposalType }}</a-tag>
-        </template>
-        <template v-else-if="column.field === 'disposalAmount'">
-          <span class="amount-cell">¥{{ formatAmount(record.disposalAmount) }}</span>
-        </template>
-        <template v-else-if="column.field === 'netValue'">
-          <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
-        </template>
-        <template v-else-if="column.field === 'gainLoss'">
-          <span :class="['amount-cell', record.gainLoss >= 0 ? 'success' : 'danger']">
-            {{ record.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(record.gainLoss)) }}
-          </span>
-        </template>
+      <template #disposalNoCell="{ record }">
+        <a @click="viewDetail(record)" class="disposal-no">{{ record.disposalNo }}</a>
+      </template>
+      <template #assetCodeCell="{ record }">
+        <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
+      </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="statusColorMap[record.status]">{{ statusMap[record.status] }}</a-tag>
+      </template>
+      <template #disposalTypeCell="{ record }">
+        <a-tag :color="typeColorMap[record.disposalType]">{{ typeMap[record.disposalType] || record.disposalType }}</a-tag>
+      </template>
+      <template #disposalAmountCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.disposalAmount) }}</span>
+      </template>
+      <template #netValueCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
+      </template>
+      <template #gainLossCell="{ record }">
+        <span :class="['amount-cell', record.gainLoss >= 0 ? 'success' : 'danger']">
+          {{ record.gainLoss >= 0 ? '+' : '' }}¥{{ formatAmount(Math.abs(record.gainLoss)) }}
+        </span>
       </template>
 
       <template #action="{ record }">
@@ -319,27 +314,19 @@ const totalDisposalAmount = computed(() => {
     .reduce((sum, r) => sum + (r.disposalAmount || 0), 0)
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 const vxeColumns = computed(() => [
-  { field: 'disposalNo', title: '处置单号', width: 150 },
-  { field: 'assetCode', title: '资产编码', width: 120 },
+  { field: 'disposalNo', title: '处置单号', width: 150, slotName: 'disposalNoCell' },
+  { field: 'assetCode', title: '资产编码', width: 120, slotName: 'assetCodeCell' },
   { field: 'assetName', title: '资产名称', width: 160 },
-  { field: 'disposalType', title: '处置类型', width: 80, align: 'center' },
+  { field: 'disposalType', title: '处置类型', width: 80, align: 'center', slotName: 'disposalTypeCell' },
   { field: 'disposalDate', title: '处置日期', width: 110 },
-  { field: 'disposalAmount', title: '处置金额', width: 120, align: 'right' },
-  { field: 'netValue', title: '净值', width: 120, align: 'right' },
-  { field: 'gainLoss', title: '处置损益', width: 120, align: 'right' },
-  { field: 'status', title: '状态', width: 80, align: 'center' },
+  { field: 'disposalAmount', title: '处置金额', width: 120, align: 'right', slotName: 'disposalAmountCell' },
+  { field: 'netValue', title: '净值', width: 120, align: 'right', slotName: 'netValueCell' },
+  { field: 'gainLoss', title: '处置损益', width: 120, align: 'right', slotName: 'gainLossCell' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
   { type: 'action', title: '操作', width: 160, fixed: 'right' },
 ])
 
@@ -625,6 +612,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -686,10 +675,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .disposal-no, .asset-code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -732,29 +717,9 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

@@ -71,8 +71,6 @@ declare module 'vue' {
     ASubMenu: typeof import('ant-design-vue/es')['SubMenu']
     ASwitch: typeof import('ant-design-vue/es')['Switch']
     ATable: typeof import('ant-design-vue/es')['Table']
-    ATableSummaryCell: typeof import('ant-design-vue/es')['TableSummaryCell']
-    ATableSummaryRow: typeof import('ant-design-vue/es')['TableSummaryRow']
     ATabPane: typeof import('ant-design-vue/es')['TabPane']
     ATabs: typeof import('ant-design-vue/es')['Tabs']
     ATag: typeof import('ant-design-vue/es')['Tag']

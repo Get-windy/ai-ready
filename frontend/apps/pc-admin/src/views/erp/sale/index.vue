@@ -176,27 +176,29 @@
 
       <!-- 订单明细 -->
       <a-divider>订单明细</a-divider>
-      <a-table
+      <VxeTableList
         v-if="currentRecord.details && currentRecord.details.length > 0"
         :columns="detailColumns"
         :data-source="currentRecord.details"
         :pagination="false"
-        size="small"
-        bordered
         row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'unitPrice'">
-            <span class="currency-value">¥{{ record.unitPrice?.toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">
-            <span class="currency-value">¥{{ record.totalAmount?.toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'taxAmount'">
-            <span class="currency-value">¥{{ record.taxAmount?.toFixed(2) }}</span>
-          </template>
+        <template #unitPriceCell="{ record }">
+          <span class="currency-value">¥{{ record.unitPrice?.toFixed(2) }}</span>
         </template>
-      </a-table>
+        <template #totalAmountCell="{ record }">
+          <span class="currency-value">¥{{ record.totalAmount?.toFixed(2) }}</span>
+        </template>
+        <template #taxAmountCell="{ record }">
+          <span class="currency-value">¥{{ record.taxAmount?.toFixed(2) }}</span>
+        </template>
+      </VxeTableList>
       <a-empty v-else description="暂无订单明细" />
     </a-modal>
 
@@ -402,15 +404,15 @@ const vxeColumns = computed(() => [
 // ── 订单明细列配置 ────────────────────────────────────────
 
 const detailColumns = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName', width: 180 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' },
-  { title: '单价', key: 'unitPrice', width: 100, align: 'right' },
-  { title: '折扣', dataIndex: 'discount', key: 'discount', width: 80, align: 'right' },
-  { title: '税率', dataIndex: 'taxRate', key: 'taxRate', width: 80, align: 'right' },
-  { title: '税额', key: 'taxAmount', width: 100, align: 'right' },
-  { title: '金额', key: 'totalAmount', width: 120, align: 'right' },
-  { title: '备注', dataIndex: 'remark', key: 'remark', width: 150 }
+  { title: '产品编码', field: 'productCode', width: 120 },
+  { title: '产品名称', field: 'productName', width: 180 },
+  { title: '数量', field: 'quantity', width: 80, align: 'right' },
+  { title: '单价', field: 'unitPrice', width: 100, align: 'right', slotName: 'unitPriceCell' },
+  { title: '折扣', field: 'discount', width: 80, align: 'right' },
+  { title: '税率', field: 'taxRate', width: 80, align: 'right' },
+  { title: '税额', field: 'taxAmount', width: 100, align: 'right', slotName: 'taxAmountCell' },
+  { title: '金额', field: 'totalAmount', width: 120, align: 'right', slotName: 'totalAmountCell' },
+  { title: '备注', field: 'remark', width: 150 }
 ]
 
 // ── 汇总数据 ────────────────────────────────────────
@@ -879,39 +881,9 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
-
-.empty-placeholder {
-  color: transparent;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

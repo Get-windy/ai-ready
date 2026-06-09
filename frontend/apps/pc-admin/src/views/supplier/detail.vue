@@ -86,66 +86,72 @@
 
     <!-- 绩效记录 Tab -->
     <template #tab-performance>
-      <a-table
-        :columns="performanceColumns"
+      <VxeTableList
+        :columns="performanceVxeColumns"
         :data-source="performances"
-        row-key="id"
         :pagination="{ pageSize: 10 }"
-        size="small"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'comprehensiveScore'">
-            <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 12px" />
-          </template>
+        <template #comprehensiveScoreCell="{ record }">
+          <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 12px" />
         </template>
-      </a-table>
-      <a-empty v-if="performances.length === 0" description="暂无绩效评估记录" />
+      </VxeTableList>
     </template>
 
     <!-- 询价报价 Tab -->
     <template #tab-inquiry>
-      <a-table
-        :columns="inquiryColumns"
+      <VxeTableList
+        :columns="inquiryVxeColumns"
         :data-source="inquiries"
-        row-key="id"
         :pagination="{ pageSize: 10 }"
-        size="small"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'quotationStatus'">
-            <a-tag :color="getQuotationStatusColor(record.quotationStatus)">
-              {{ getQuotationStatusLabel(record.quotationStatus) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'quotationAmount'">
-            ¥{{ record.quotationAmount?.toFixed(2) || '-' }}
-          </template>
+        <template #quotationStatusCell="{ record }">
+          <a-tag :color="getQuotationStatusColor(record.quotationStatus)">
+            {{ getQuotationStatusLabel(record.quotationStatus) }}
+          </a-tag>
         </template>
-      </a-table>
-      <a-empty v-if="inquiries.length === 0" description="暂无询价记录" />
+        <template #quotationAmountCell="{ record }">
+          ¥{{ record.quotationAmount?.toFixed(2) || '-' }}
+        </template>
+      </VxeTableList>
     </template>
 
     <!-- 积分记录 Tab -->
     <template #tab-points>
-      <a-table
-        :columns="pointsColumns"
+      <VxeTableList
+        :columns="pointsVxeColumns"
         :data-source="pointsRecords"
-        row-key="id"
         :pagination="{ pageSize: 10 }"
-        size="small"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'changeAmount'">
-            <span :style="{ color: record.changeAmount > 0 ? '#07c160' : '#ff4d4f', fontWeight: 600 }">
-              {{ record.changeAmount > 0 ? '+' : '' }}{{ record.changeAmount }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'balance'">
-            <span style="font-weight: 600">{{ record.balance }}</span>
-          </template>
+        <template #changeAmountCell="{ record }">
+          <span :style="{ color: record.changeAmount > 0 ? '#07c160' : '#ff4d4f', fontWeight: 600 }">
+            {{ record.changeAmount > 0 ? '+' : '' }}{{ record.changeAmount }}
+          </span>
         </template>
-      </a-table>
-      <a-empty v-if="pointsRecords.length === 0" description="暂无积分记录" />
+        <template #balanceCell="{ record }">
+          <span style="font-weight: 600">{{ record.balance }}</span>
+        </template>
+      </VxeTableList>
     </template>
   </DetailLayout>
 
@@ -199,6 +205,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { supplierApi, type Supplier } from '@/api/supplier'
 
@@ -250,30 +257,30 @@ const activityLogs = computed(() => {
   return logs
 })
 
-const performanceColumns = [
-  { title: '评估周期', dataIndex: 'period', key: 'period', width: 120 },
-  { title: '质量评分', dataIndex: 'qualityScore', key: 'qualityScore', width: 80 },
-  { title: '交付评分', dataIndex: 'deliveryScore', key: 'deliveryScore', width: 80 },
-  { title: '价格评分', dataIndex: 'priceScore', key: 'priceScore', width: 80 },
-  { title: '服务评分', dataIndex: 'serviceScore', key: 'serviceScore', width: 80 },
-  { title: '综合评分', key: 'comprehensiveScore', width: 120 },
-  { title: '评估时间', dataIndex: 'evaluateTime', key: 'evaluateTime', width: 140 },
-  { title: '评估人', dataIndex: 'evaluator', key: 'evaluator', width: 100 }
+const performanceVxeColumns = [
+  { field: 'period', title: '评估周期', width: 120 },
+  { field: 'qualityScore', title: '质量评分', width: 80 },
+  { field: 'deliveryScore', title: '交付评分', width: 80 },
+  { field: 'priceScore', title: '价格评分', width: 80 },
+  { field: 'serviceScore', title: '服务评分', width: 80 },
+  { field: 'comprehensiveScore', title: '综合评分', width: 120, slotName: 'comprehensiveScoreCell' },
+  { field: 'evaluateTime', title: '评估时间', width: 140 },
+  { field: 'evaluator', title: '评估人', width: 100 }
 ]
 
-const inquiryColumns = [
-  { title: '询价单号', dataIndex: 'inquiryNo', key: 'inquiryNo', width: 160 },
-  { title: '询价标题', dataIndex: 'inquiryTitle', key: 'inquiryTitle' },
-  { title: '报价金额', key: 'quotationAmount', width: 120 },
-  { title: '报价状态', key: 'quotationStatus', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 150 }
+const inquiryVxeColumns = [
+  { field: 'inquiryNo', title: '询价单号', width: 160 },
+  { field: 'inquiryTitle', title: '询价标题' },
+  { field: 'quotationAmount', title: '报价金额', width: 120, slotName: 'quotationAmountCell' },
+  { field: 'quotationStatus', title: '报价状态', width: 100, slotName: 'quotationStatusCell' },
+  { field: 'createTime', title: '创建时间', width: 150 }
 ]
 
-const pointsColumns = [
-  { title: '变动金额', key: 'changeAmount', width: 100 },
-  { title: '余额', key: 'balance', width: 80 },
-  { title: '来源/用途', dataIndex: 'description', key: 'description' },
-  { title: '时间', dataIndex: 'createTime', key: 'createTime', width: 150 }
+const pointsVxeColumns = [
+  { field: 'changeAmount', title: '变动金额', width: 100, slotName: 'changeAmountCell' },
+  { field: 'balance', title: '余额', width: 80, slotName: 'balanceCell' },
+  { field: 'description', title: '来源/用途' },
+  { field: 'createTime', title: '时间', width: 150 }
 ]
 
 // ── 数据加载 ──────────────────────────────────────────

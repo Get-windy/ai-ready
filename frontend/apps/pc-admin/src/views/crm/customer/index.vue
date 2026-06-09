@@ -122,42 +122,37 @@
           </template>
 
           <template #action="{ record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else>
-              <a-space :size="4">
-                <a-tooltip title="查看详情">
-                  <a-button type="link" size="small" @click="handleView(record)">
-                    <template #icon><EyeOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="编辑">
-                  <a-button type="link" size="small" @click="handleEdit(record)">
-                    <template #icon><EditOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="跟进">
-                  <a-button type="link" size="small" @click="handleFollow(record)">
-                    <template #icon><MessageOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-dropdown trigger="click">
-                  <a-button type="link" size="small" class="action-more-btn">
-                    <template #icon><MoreOutlined /></template>
-                  </a-button>
-                  <template #overlay>
-                    <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                      <a-menu-item key="follows"><HistoryOutlined /> 跟进记录</a-menu-item>
-                      <a-menu-item key="orders"><FileTextOutlined /> 订单记录</a-menu-item>
-                      <a-menu-item key="contracts"><SolutionOutlined /> 合同记录</a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </a-space>
-            </template>
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button type="link" size="small" @click="handleEdit(record)">
+                  <template #icon><EditOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="跟进">
+                <a-button type="link" size="small" @click="handleFollow(record)">
+                  <template #icon><MessageOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button type="link" size="small" class="action-more-btn">
+                  <template #icon><MoreOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                    <a-menu-item key="follows"><HistoryOutlined /> 跟进记录</a-menu-item>
+                    <a-menu-item key="orders"><FileTextOutlined /> 订单记录</a-menu-item>
+                    <a-menu-item key="contracts"><SolutionOutlined /> 合同记录</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
           </template>
         </VxeTableList>
       </template>
@@ -359,16 +354,24 @@
         </a-button>
       </a-upload>
       <a-divider>字段映射</a-divider>
-      <a-table :columns="importMappingColumns" :data-source="importFieldMapping" :pagination="false" size="small" bordered>
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'csvField'">
-            <a-input v-model:value="importFieldMapping[index].csvField" placeholder="CSV列名" size="small" />
-          </template>
-          <template v-if="column.key === 'required'">
-            <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
-          </template>
+      <VxeTableList
+        :columns="importMappingVxeColumns"
+        :data-source="importFieldMapping"
+        :pagination="false"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #csvFieldCell="{ record }">
+          <a-input v-model:value="record.csvField" placeholder="CSV列名" size="small" />
         </template>
-      </a-table>
+        <template #requiredCell="{ record }">
+          <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
+        </template>
+      </VxeTableList>
     </a-modal>
   </PageContainer>
 </template>
@@ -437,16 +440,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = dataSource
 
 // 切到看板视图时加载全部客户数据用于看板展示
 const fetchKanbanData = async () => {
@@ -744,10 +739,10 @@ function handleBatchAssign() {
 const importVisible = ref(false)
 const importLoading = ref(false)
 const importFileList = ref<any[]>([])
-const importMappingColumns = [
-  { title: '系统字段', dataIndex: 'label', width: 120 },
-  { title: 'CSV列名', key: 'csvField', dataIndex: 'csvField' },
-  { title: '必填', key: 'required', dataIndex: 'required', width: 60, align: 'center' }
+const importMappingVxeColumns = [
+  { field: 'label', title: '系统字段', width: 120 },
+  { field: 'csvField', title: 'CSV列名', slotName: 'csvFieldCell' },
+  { field: 'required', title: '必填', width: 60, align: 'center', slotName: 'requiredCell' }
 ]
 const importFieldMapping = reactive([
   { csvField: '', systemField: 'name', required: true, label: '客户名称' },
@@ -944,9 +939,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .action-more-btn {
   padding: 0 4px;
@@ -1057,27 +1049,7 @@ onUnmounted(() => {
   border-top: 1px solid #f0f0f0;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 </style>

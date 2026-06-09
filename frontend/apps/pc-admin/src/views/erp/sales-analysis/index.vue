@@ -202,36 +202,35 @@
           </a-row>
           <a-card title="客户销售排行 TOP10" size="small" style="margin-top: 16px">
             <div class="ranking-table-container">
-              <a-table
-                :columns="customerRankColumns"
-                :data-source="customerRankTableData"
+              <VxeTableList
+                :columns="customerRankVxeColumns"
+                :data-source="customerRankData"
                 :pagination="false"
-                size="small"
-                bordered
                 row-key="rank"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
               >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="record.__empty_row">
-                    <span class="empty-placeholder">&nbsp;</span>
-                  </template>
-                  <template v-else-if="column.key === 'rank'">
-                    <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                      {{ record.rank }}
-                    </a-tag>
-                    <span v-else>{{ record.rank }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'totalAmount'">
-                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'growth'">
-                    <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                      <ArrowUpOutlined v-if="record.growth > 0" />
-                      <ArrowDownOutlined v-if="record.growth < 0" />
-                      {{ Math.abs(record.growth) }}%
-                    </span>
-                  </template>
+                <template #rankCell="{ record }">
+                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
+                    {{ record.rank }}
+                  </a-tag>
+                  <span v-else>{{ record.rank }}</span>
                 </template>
-              </a-table>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                </template>
+                <template #growthCell="{ record }">
+                  <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+                    <ArrowUpOutlined v-if="record.growth > 0" />
+                    <ArrowDownOutlined v-if="record.growth < 0" />
+                    {{ Math.abs(record.growth) }}%
+                  </span>
+                </template>
+              </VxeTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -256,38 +255,37 @@
           </a-row>
           <a-card title="产品销售排行 TOP10" size="small" style="margin-top: 16px">
             <div class="ranking-table-container">
-              <a-table
-                :columns="productRankColumns"
-                :data-source="productRankTableData"
+              <VxeTableList
+                :columns="productRankVxeColumns"
+                :data-source="productRankData"
                 :pagination="false"
-                size="small"
-                bordered
                 row-key="rank"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
               >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="record.__empty_row">
-                    <span class="empty-placeholder">&nbsp;</span>
-                  </template>
-                  <template v-else-if="column.key === 'rank'">
-                    <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                      {{ record.rank }}
-                    </a-tag>
-                    <span v-else>{{ record.rank }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'totalAmount'">
-                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'margin'">
-                    <a-progress
-                      :percent="record.margin"
-                      :stroke-color="getMarginColor(record.margin)"
-                      size="small"
-                      :show-info="true"
-                      :format="(p: number) => `${p}%`"
-                    />
-                  </template>
+                <template #rankCell="{ record }">
+                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
+                    {{ record.rank }}
+                  </a-tag>
+                  <span v-else>{{ record.rank }}</span>
                 </template>
-              </a-table>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                </template>
+                <template #marginCell="{ record }">
+                  <a-progress
+                    :percent="record.margin"
+                    :stroke-color="getMarginColor(record.margin)"
+                    size="small"
+                    :show-info="true"
+                    :format="(p: number) => `${p}%`"
+                  />
+                </template>
+              </VxeTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -307,38 +305,37 @@
           </a-row>
           <a-card title="销售人员业绩排行" size="small" style="margin-top: 16px">
             <div class="ranking-table-container">
-              <a-table
-                :columns="salespersonRankColumns"
-                :data-source="salespersonRankTableData"
+              <VxeTableList
+                :columns="salespersonRankVxeColumns"
+                :data-source="salespersonRankData"
                 :pagination="false"
-                size="small"
-                bordered
                 row-key="rank"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
               >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="record.__empty_row">
-                    <span class="empty-placeholder">&nbsp;</span>
-                  </template>
-                  <template v-else-if="column.key === 'rank'">
-                    <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
-                      {{ record.rank }}
-                    </a-tag>
-                    <span v-else>{{ record.rank }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'totalAmount'">
-                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'targetRate'">
-                    <a-progress
-                      :percent="record.targetRate"
-                      :stroke-color="getTargetColor(record.targetRate)"
-                      size="small"
-                      :show-info="true"
-                      :format="(p: number) => `${p}%`"
-                    />
-                  </template>
+                <template #rankCell="{ record }">
+                  <a-tag v-if="record.rank <= 3" :color="getRankColor(record.rank)">
+                    {{ record.rank }}
+                  </a-tag>
+                  <span v-else>{{ record.rank }}</span>
                 </template>
-              </a-table>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+                </template>
+                <template #targetRateCell="{ record }">
+                  <a-progress
+                    :percent="record.targetRate"
+                    :stroke-color="getTargetColor(record.targetRate)"
+                    size="small"
+                    :show-info="true"
+                    :format="(p: number) => `${p}%`"
+                  />
+                </template>
+              </VxeTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -358,30 +355,29 @@
           </a-row>
           <a-card title="区域销售明细" size="small" style="margin-top: 16px">
             <div class="ranking-table-container">
-              <a-table
-                :columns="regionColumns"
-                :data-source="regionTableData"
+              <VxeTableList
+                :columns="regionVxeColumns"
+                :data-source="regionData"
                 :pagination="false"
-                size="small"
-                bordered
                 row-key="name"
+                :show-toolbar="false"
+                :selectable="false"
+                :show-add="false"
+                :show-search="false"
+                :show-export="false"
+                :show-batch-delete="false"
               >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="record.__empty_row">
-                    <span class="empty-placeholder">&nbsp;</span>
-                  </template>
-                  <template v-else-if="column.key === 'totalAmount'">
-                    <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-                  </template>
-                  <template v-else-if="column.key === 'growth'">
-                    <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                      <ArrowUpOutlined v-if="record.growth > 0" />
-                      <ArrowDownOutlined v-if="record.growth < 0" />
-                      {{ Math.abs(record.growth) }}%
-                    </span>
-                  </template>
+                <template #totalAmountCell="{ record }">
+                  <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
                 </template>
-              </a-table>
+                <template #growthCell="{ record }">
+                  <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+                    <ArrowUpOutlined v-if="record.growth > 0" />
+                    <ArrowDownOutlined v-if="record.growth < 0" />
+                    {{ Math.abs(record.growth) }}%
+                  </span>
+                </template>
+              </VxeTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -425,6 +421,7 @@ import {
   ArrowDownOutlined
 } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { salesAnalysisApi, type SalesOverview, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
 
 const activeTab = ref('overview')
@@ -456,36 +453,36 @@ const summary = ref<SalesOverview & {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 // 表格列配置
-const customerRankColumns = [
-  { title: '排名', key: 'rank', width: 80, align: 'center' },
-  { title: '客户名称', dataIndex: 'name', width: 180 },
-  { title: '订单数', dataIndex: 'orderCount', width: 100, align: 'right' },
-  { title: '销售总额', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '同比增长', key: 'growth', width: 100, align: 'right' }
-]
+const customerRankVxeColumns = computed(() => [
+  { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
+  { field: 'name', title: '客户名称', width: 180 },
+  { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
+  { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' },
+])
 
-const productRankColumns = [
-  { title: '排名', key: 'rank', width: 80, align: 'center' },
-  { title: '产品名称', dataIndex: 'name', width: 180 },
-  { title: '销量', dataIndex: 'volume', width: 100, align: 'right' },
-  { title: '销售总额', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '毛利率', key: 'margin', width: 150 }
-]
+const productRankVxeColumns = computed(() => [
+  { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
+  { field: 'name', title: '产品名称', width: 180 },
+  { field: 'volume', title: '销量', width: 100, align: 'right' },
+  { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'margin', title: '毛利率', width: 150, slotName: 'marginCell' },
+])
 
-const salespersonRankColumns = [
-  { title: '排名', key: 'rank', width: 80, align: 'center' },
-  { title: '销售人员', dataIndex: 'name', width: 140 },
-  { title: '订单数', dataIndex: 'orderCount', width: 100, align: 'right' },
-  { title: '销售总额', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '目标达成率', key: 'targetRate', width: 150 }
-]
+const salespersonRankVxeColumns = computed(() => [
+  { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
+  { field: 'name', title: '销售人员', width: 140 },
+  { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
+  { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'targetRate', title: '目标达成率', width: 150, slotName: 'targetRateCell' },
+])
 
-const regionColumns = [
-  { title: '区域', dataIndex: 'name', width: 120 },
-  { title: '订单数', dataIndex: 'orderCount', width: 100, align: 'right' },
-  { title: '销售总额', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '同比增长', key: 'growth', width: 100, align: 'right' }
-]
+const regionVxeColumns = computed(() => [
+  { field: 'name', title: '区域', width: 120 },
+  { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
+  { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' },
+])
 
 // 数据源
 const customerRankData = ref<CustomerRankItem[]>([])
@@ -493,21 +490,7 @@ const productRankData = ref<ProductRankItem[]>([])
 const salespersonRankData = ref<any[]>([])
 const regionData = ref<any[]>([])
 
-// 空行填充（保持约10行显示）
-const MIN_TABLE_ROWS = 10
-const fillEmptyRows = (data: any[], count: number) => {
-  const result = [...data]
-  const emptyCount = Math.max(0, count - result.length)
-  for (let i = 0; i < emptyCount; i++) {
-    result.push({ __empty_row: true, rank: `__empty_${i}` })
-  }
-  return result
-}
 
-const customerRankTableData = computed(() => fillEmptyRows(customerRankData.value, MIN_TABLE_ROWS))
-const productRankTableData = computed(() => fillEmptyRows(productRankData.value, MIN_TABLE_ROWS))
-const salespersonRankTableData = computed(() => fillEmptyRows(salespersonRankData.value, MIN_TABLE_ROWS))
-const regionTableData = computed(() => fillEmptyRows(regionData.value, 8))
 
 // 图表引用
 const trendChartRef = ref<HTMLElement>()
@@ -1202,35 +1185,11 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
+
 
 /* 金额单元格 */
 .amount-cell {
@@ -1268,7 +1227,4 @@ onUnmounted(() => {
   color: #999;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 </style>

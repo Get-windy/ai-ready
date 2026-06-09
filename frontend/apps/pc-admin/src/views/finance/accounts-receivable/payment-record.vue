@@ -112,44 +112,46 @@
 
     <!-- 数据表格 -->
     <div class="table-area">
-      <a-table
-        :columns="columns"
-        :data-source="tableDataSource"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
-        @change="handleTableChange"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'paymentMethod'">
-            <a-tag>{{ getPaymentMethodText(record.paymentMethod) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleView(record)"
-              >
-                查看
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handlePrint(record)"
-              >
-                打印
-              </a-button>
-            </a-space>
-          </template>
+        <template #amountCell="{ record }">
+          <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
         </template>
-      </a-table>
+        <template #paymentMethodCell="{ record }">
+          <a-tag>{{ getPaymentMethodText(record.paymentMethod) }}</a-tag>
+        </template>
+        <template #action="{ record }">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleView(record)"
+            >
+              查看
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="handlePrint(record)"
+            >
+              打印
+            </a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
     </div>
 
     <a-modal
@@ -181,6 +183,7 @@
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ExportOutlined, DollarOutlined, CalendarOutlined, FileTextOutlined, LineChartOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 
 interface PaymentRecord {
@@ -198,6 +201,7 @@ const loading = ref(false)
 const tableData = ref<PaymentRecord[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<PaymentRecord | null>(null)
+const tableRef = ref()
 
 const queryParams = reactive({
   customerName: '',
@@ -225,66 +229,18 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
-  }
-  return data
-})
 
-const columns = [
-  {
-    title: '客户名称',
-    dataIndex: 'customerName',
-    key: 'customerName',
-    width: 150
-  },
-  {
-    title: '订单号',
-    dataIndex: 'orderNo',
-    key: 'orderNo',
-    width: 150
-  },
-  {
-    title: '收款金额',
-    key: 'amount',
-    width: 120,
-    align: 'right' as const
-  },
-  {
-    title: '收款方式',
-    key: 'paymentMethod',
-    width: 100
-  },
-  {
-    title: '收款日期',
-    dataIndex: 'paymentDate',
-    key: 'paymentDate',
-    width: 120
-  },
-  {
-    title: '操作人',
-    dataIndex: 'operator',
-    key: 'operator',
-    width: 100
-  },
-  {
-    title: '备注',
-    dataIndex: 'remark',
-    key: 'remark',
-    ellipsis: true
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 150,
-    fixed: 'right' as const
-  }
-]
+
+const vxeColumns = computed(() => [
+  { field: 'customerName', title: '客户名称', width: 150 },
+  { field: 'orderNo', title: '订单号', width: 150 },
+  { field: 'amount', title: '收款金额', width: 120, align: 'right', slotName: 'amountCell' },
+  { field: 'paymentMethod', title: '收款方式', width: 100, slotName: 'paymentMethodCell' },
+  { field: 'paymentDate', title: '收款日期', width: 120 },
+  { field: 'operator', title: '操作人', width: 100 },
+  { field: 'remark', title: '备注', width: 150 },
+  { field: 'action', title: '操作', width: 150, fixed: 'right', type: 'action' },
+])
 
 const getPaymentMethodText = (method: string) => {
   const methods: Record<string, string> = {
@@ -330,9 +286,9 @@ const handleExport = () => {
   message.info('导出收款记录')
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   fetchData()
 }
 
@@ -376,6 +332,8 @@ fetchData()
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -439,39 +397,15 @@ fetchData()
   overflow: hidden;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

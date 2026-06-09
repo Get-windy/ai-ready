@@ -72,34 +72,43 @@
         </a-button>
       </div>
 
-      <a-table :columns="itemColumns" :data-source="formData.items" :pagination="false" size="small" bordered row-key="id">
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productId'">
-            <a-select v-model:value="record.productId" placeholder="请选择商品" show-search :filter-option="filterOption" style="width: 100%" @change="(val) => handleProductChange(val, index)">
-              <a-select-option v-for="product in productList" :key="product.id" :value="product.id">
-                {{ product.name }} ({{ product.code }})
-              </a-select-option>
-            </a-select>
-          </template>
-          <template v-else-if="column.key === 'batchNo'">
-            <a-input v-model:value="record.batchNo" placeholder="批次号" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'unitPrice'">
-            <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-text">¥{{ (record.quantity * record.unitPrice).toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-popconfirm title="确定删除？" @confirm="handleDeleteItem(index)">
-              <a class="danger">删除</a>
-            </a-popconfirm>
-          </template>
+      <VxeTableList
+        :columns="itemVxeColumns"
+        :data-source="formData.items"
+        :pagination="false"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #productIdCell="{ record, index }">
+          <a-select v-model:value="record.productId" placeholder="请选择商品" show-search :filter-option="filterOption" style="width: 100%" @change="(val) => handleProductChange(val, index)">
+            <a-select-option v-for="product in productList" :key="product.id" :value="product.id">
+              {{ product.name }} ({{ product.code }})
+            </a-select-option>
+          </a-select>
         </template>
-      </a-table>
+        <template #batchNoCell="{ record }">
+          <a-input v-model:value="record.batchNo" placeholder="批次号" style="width: 100%" />
+        </template>
+        <template #quantityCell="{ record }">
+          <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" />
+        </template>
+        <template #unitPriceCell="{ record }">
+          <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" />
+        </template>
+        <template #amountCell="{ record }">
+          <span class="amount-text">¥{{ (record.quantity * record.unitPrice).toFixed(2) }}</span>
+        </template>
+        <template #action="{ index }">
+          <a-popconfirm title="确定删除？" @confirm="handleDeleteItem(index)">
+            <a class="danger">删除</a>
+          </a-popconfirm>
+        </template>
+      </VxeTableList>
 
       <div class="amount-summary">
         <a-row :gutter="16">
@@ -115,6 +124,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -188,7 +198,7 @@ const itemColumns = [
   { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '操作', key: 'action', width: 80, fixed: 'right' }
+  { title: '操作', type: 'action', width: 80, fixed: 'right' }
 ]
 
 const warehouseList = ref<any[]>([])

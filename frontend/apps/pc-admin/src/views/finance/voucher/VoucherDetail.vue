@@ -91,34 +91,30 @@
 
     <!-- 分录明细 Tab -->
     <template #tab-entries>
-      <a-table
-        :columns="columns"
+      <VxeTableList
+        :columns="entryVxeColumns"
         :data-source="voucher?.entries || []"
         :pagination="false"
-        size="small"
-        bordered
         row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'debitAmount'">
-            {{ formatAmount(record.debitAmount) }}
-          </template>
-          <template v-else-if="column.key === 'creditAmount'">
-            {{ formatAmount(record.creditAmount) }}
-          </template>
+        <template #debitAmountCell="{ record }">
+          {{ formatAmount(record.debitAmount) }}
         </template>
-        <template #summary>
-          <a-table-summary-row>
-            <a-table-summary-cell :index="0" :col-span="2">合计</a-table-summary-cell>
-            <a-table-summary-cell :index="2">
-              <strong>{{ formatAmount(voucher?.debitTotal) }}</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="3">
-              <strong>{{ formatAmount(voucher?.creditTotal) }}</strong>
-            </a-table-summary-cell>
-          </a-table-summary-row>
+        <template #creditAmountCell="{ record }">
+          {{ formatAmount(record.creditAmount) }}
         </template>
-      </a-table>
+      </VxeTableList>
+      <div v-if="voucher" class="voucher-summary">
+        <span class="voucher-summary-label">合计：</span>
+        <span>借方：<strong>{{ formatAmount(voucher?.debitTotal) }}</strong></span>
+        <span>贷方：<strong>{{ formatAmount(voucher?.creditTotal) }}</strong></span>
+      </div>
     </template>
   </DetailLayout>
 
@@ -146,8 +142,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import type { TableProps } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { voucherApi } from '@/api/finance'
 
 const route = useRoute()
@@ -211,11 +207,11 @@ const getStatusType = (status?: number): 'success' | 'warning' | 'danger' | 'inf
   return status !== undefined ? (types[status] || 'default') : 'default'
 }
 
-const columns: TableProps['columns'] = [
-  { title: '摘要', dataIndex: 'summary', key: 'summary' },
-  { title: '会计科目', dataIndex: 'subjectName', key: 'subjectName' },
-  { title: '借方金额', key: 'debitAmount', align: 'right', width: 150 },
-  { title: '贷方金额', key: 'creditAmount', align: 'right', width: 150 }
+const entryVxeColumns = [
+  { field: 'summary', title: '摘要' },
+  { field: 'subjectName', title: '会计科目' },
+  { field: 'debitAmount', title: '借方金额', align: 'right', width: 150, slotName: 'debitAmountCell' },
+  { field: 'creditAmount', title: '贷方金额', align: 'right', width: 150, slotName: 'creditAmountCell' }
 ]
 
 const fetchVoucher = async () => {
@@ -325,3 +321,19 @@ onMounted(() => {
   fetchVoucher()
 })
 </script>
+
+<style scoped>
+.voucher-summary {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  text-align: right;
+}
+.voucher-summary span {
+  margin-right: 24px;
+}
+.voucher-summary-label {
+  font-weight: 500;
+}
+</style>

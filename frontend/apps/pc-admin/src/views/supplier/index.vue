@@ -122,7 +122,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :show-search="false"
@@ -146,38 +146,23 @@
       </template>
 
       <template #supplierLevel="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <a-tag v-else :color="getLevelColor(record.supplierLevel)">{{ record.supplierLevel }}级</a-tag>
+        <a-tag :color="getLevelColor(record.supplierLevel)">{{ record.supplierLevel }}级</a-tag>
       </template>
       <template #cooperationStatus="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <a-tag v-else :color="getStatusColor(record.cooperationStatus)">
+        <a-tag :color="getStatusColor(record.cooperationStatus)">
           {{ getStatusLabel(record.cooperationStatus) }}
         </a-tag>
       </template>
       <template #portalStatus="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <a-tag v-else :color="record.portalStatus === 1 ? 'purple' : 'default'">
+        <a-tag :color="record.portalStatus === 1 ? 'purple' : 'default'">
           {{ getPortalStatusLabel(record.portalStatus) }}
         </a-tag>
       </template>
       <template #comprehensiveScore="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <a-rate v-else :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 14px" />
+        <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 14px" />
       </template>
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <a-space v-else :size="0" class="action-cell-inner">
+        <a-space :size="0" class="action-cell-inner">
           <a-tooltip title="详情">
             <a-button type="link" size="small" @click="handleDetail(record)">
               <template #icon><ProfileOutlined /></template>
@@ -245,21 +230,24 @@
     </a-upload-dragger>
 
     <a-divider>字段映射</a-divider>
-    <a-table
+    <VxeTableList
       :columns="importMappingColumns"
       :data-source="importMapping"
       :pagination="false"
-      size="small"
+      :show-toolbar="false"
+      :selectable="false"
+      :show-add="false"
+      :show-search="false"
+      :show-export="false"
+      :show-batch-delete="false"
     >
-      <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'csvField'">
-          <a-input v-model:value="importMapping[index].csvField" placeholder="请输入CSV文件中的列名" size="small" />
-        </template>
-        <template v-if="column.key === 'required'">
-          <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
-        </template>
+      <template #csvFieldCell="{ record, rowIndex }">
+        <a-input v-model:value="importMapping[rowIndex].csvField" placeholder="请输入CSV文件中的列名" size="small" />
       </template>
-    </a-table>
+      <template #requiredCell="{ record }">
+        <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
+      </template>
+    </VxeTableList>
   </a-modal>
 </template>
 
@@ -291,16 +279,7 @@ const hasActiveFilters = computed(() => {
   return Object.values(filters).some(v => v !== undefined && v !== null && v !== '') || !!searchKeyword.value
 })
 
-// 空行填充 - 确保表格最少显示20行
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 表格数据 ──
 
 const filters = reactive<Record<string, any>>({})
 
@@ -428,9 +407,9 @@ const uploadUrl = '/api/upload'
 const uploadHeaders = {}
 
 const importMappingColumns = [
-  { title: '系统字段', dataIndex: 'label', width: 120 },
-  { title: 'CSV列名', key: 'csvField', dataIndex: 'csvField' },
-  { title: '必填', key: 'required', dataIndex: 'required', width: 60 }
+  { title: '系统字段', field: 'label', width: 120 },
+  { title: 'CSV列名', field: 'csvField', slotName: 'csvFieldCell' },
+  { title: '必填', field: 'required', width: 60, slotName: 'requiredCell' }
 ]
 
 const importMapping = reactive([
@@ -618,31 +597,8 @@ onUnmounted(() => {
 .action-cell-inner { flex-wrap: nowrap; }
 
 /* 空行占位符 */
-.empty-placeholder {
-  color: transparent;
-}
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 2px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #d9d9d9 !important;
-  background: #fafafa !important;
-  padding: 12px 16px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 2px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e8e8e8 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 12px 16px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e8e8e8 !important;
-}
 </style>

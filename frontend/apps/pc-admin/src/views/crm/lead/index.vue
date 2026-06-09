@@ -124,46 +124,41 @@
         </template>
 
         <template #action="{ record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else>
-            <a-space :size="4">
-              <a-tooltip title="查看详情">
-                <a-button type="link" size="small" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="编辑">
-                <a-button type="link" size="small" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="分配">
-                <a-button type="link" size="small" @click="handleAssign(record)">
-                  <template #icon><TeamOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status < 2" title="转化为客户">
-                <a-button type="link" size="small" @click="handleConvert(record)">
-                  <template #icon><SwapRightOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><MoreOutlined /></template>
-                </a-button>
-                <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                    <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
-                    <a-menu-item key="history"><HistoryOutlined /> 跟进记录</a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip title="分配">
+              <a-button type="link" size="small" @click="handleAssign(record)">
+                <template #icon><TeamOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status < 2" title="转化为客户">
+              <a-button type="link" size="small" @click="handleConvert(record)">
+                <template #icon><SwapRightOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><MoreOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
+                  <a-menu-item key="history"><HistoryOutlined /> 跟进记录</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="delete" danger><DeleteOutlined /> 删除</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
         </template>
       </VxeTableList>
     </ErrorBoundary>
@@ -342,16 +337,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = dataSource
 
 const vxeColumns = computed(() => [
   { field: 'name', title: '线索名称', width: 180, fixed: 'left', formatter: ({ row }: any) => row.name || '' },
@@ -798,35 +785,12 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .action-more-btn {
   padding: 0 4px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 </style>

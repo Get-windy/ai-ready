@@ -72,60 +72,52 @@
         </a-space>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'userInfo'">
-          <a-space>
-            <a-avatar
-              :src="record.avatar"
-              :size="32"
-            >
-              {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
-            </a-avatar>
-            <div>
-              <div class="user-name">
-                {{ record.username }}
-              </div>
-              <div class="user-nickname">
-                {{ record.nickname }}
-              </div>
+      <template #userInfoCell="{ record }">
+        <a-space>
+          <a-avatar
+            :src="record.avatar"
+            :size="32"
+          >
+            {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
+          </a-avatar>
+          <div>
+            <div class="user-name">
+              {{ record.username }}
             </div>
-          </a-space>
-        </template>
-
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '姝ｅ父' : '鍋滅敤' }}
-          </a-tag>
-        </template>
-
-        <template v-else-if="column.key === 'position'">
-          {{ record.positionName || '-' }}
-        </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleTransferSingle(record as UserInfo)"
-            >
-              璋冨姩
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              danger
-              @click="handleRemove(record as UserInfo)"
-            >
-              绉婚櫎
-            </a-button>
-          </a-space>
-        </template>
+            <div class="user-nickname">
+              {{ record.nickname }}
+            </div>
+          </div>
+        </a-space>
       </template>
-    </TableList>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 0 ? 'success' : 'error'">
+          {{ record.status === 0 ? '姝ｅ父' : '鍋滅敤' }}
+        </a-tag>
+      </template>
+      <template #positionCell="{ record }">
+        {{ record.positionName || '-' }}
+      </template>
+      <template #action="{ record }">
+        <a-space>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleTransferSingle(record as UserInfo)"
+          >
+            璋冨姩
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            danger
+            @click="handleRemove(record as UserInfo)"
+          >
+            绉婚櫎
+          </a-button>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 娣诲姞浜哄憳寮圭獥 -->
     <a-modal
@@ -359,16 +351,8 @@ const selectedRowKeys = ref<number[]>([])
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 // 鍒嗛〉閰嶇疆
 const pagination = reactive({
@@ -381,14 +365,14 @@ const pagination = reactive({
 })
 
 // 琛ㄦ牸鍒楀畾涔�
-const columns: any[] = [
-  { title: '鐢ㄦ埛淇℃伅', key: 'userInfo', width: 200 },
+const vxeColumns: any[] = [
+  { title: '鐢ㄦ埛淇℃伅', key: 'userInfo', width: 200, slotName: 'userInfoCell' },
   { title: '鎵嬫満鍙�', dataIndex: 'phone', width: 120 },
   { title: '閭', dataIndex: 'email', width: 180, ellipsis: true },
-  { title: '宀椾綅', key: 'position', width: 150 },
-  { title: '鐘舵€�', key: 'status', width: 80 },
+  { title: '宀椾綅', key: 'position', width: 150, slotName: 'positionCell' },
+  { title: '鐘舵€�', key: 'status', width: 80, slotName: 'statusCell' },
   { title: '鍒涘缓鏃堕棿', dataIndex: 'createTime', width: 160 },
-  { title: '鎿嶄綔', key: 'action', width: 150, fixed: 'right' }
+  { type: 'action', title: '鎿嶄綔', width: 150, fixed: 'right' }
 ]
 
 // 绛涢€夊瓧娈�
@@ -704,6 +688,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -745,7 +731,6 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
 
 .user-name {
   font-weight: 500;
@@ -760,29 +745,9 @@ onMounted(() => {
   padding: 16px 0;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

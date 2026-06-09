@@ -1,5 +1,5 @@
 <template>
-  <div class="vxe-table-list-container">
+  <div ref="containerRef" class="vxe-table-list-container">
     <!-- 顶部工具栏 -->
     <div v-if="showToolbar" class="table-toolbar">
       <div class="toolbar-left">
@@ -116,10 +116,10 @@
       :footer-config="{ show: showSummary, footerMethod: footerMethod }"
       :scroll-y="{ enabled: true, gt: 20 }"
       :scroll-x="{ enabled: true, gt: 10 }"
-      border="inner"
+      border="none"
       stripe
-      show-header-overflow="tooltip"
-      show-overflow="tooltip"
+      show-header-overflow="title"
+      show-overflow="title"
       empty-text="暂无数据"
       @checkbox-change="handleCheckboxChange"
       @checkbox-all="handleCheckboxAll"
@@ -265,7 +265,7 @@ const vxeColumns = computed<VxeColumnPropTypes[]>(() => {
       sortable: col.sortable || false,
       fixed: col.fixed,
       align: col.align || 'left',
-      showOverflow: 'tooltip',
+      showOverflow: 'title',
     }
 
     // 如果列定义中有 formatter 函数，使用它
@@ -300,7 +300,7 @@ const customSlotColumns = computed(() => {
 
 // ========== 数据处理 ==========
 const tableData = computed(() => {
-  // 空行填充
+  // 空行填充（最少 20 行以保证表格视觉完整）
   const data = [...props.dataSource]
   const minRows = 20
   const emptyCount = Math.max(0, minRows - data.length)
@@ -407,9 +407,33 @@ function clearSelection() {
 }
 
 // ========== 高度计算 ==========
+const containerRef = ref<HTMLDivElement | null>(null)
+let resizeObserver: ResizeObserver | null = null
+
 function updateTableHeight() {
-  // 默认高度，可根据容器调整
-  tableHeight.value = Math.max(300, window.innerHeight - 300)
+  // 获取容器元素
+  nextTick(() => {
+    const container = containerRef.value
+    if (!container) {
+      tableHeight.value = Math.max(300, window.innerHeight - 300)
+      return
+    }
+
+    // 计算容器内各固定元素的高度
+    const toolbar = container.querySelector('.table-toolbar')
+    const filter = container.querySelector('.filter-panel')
+    const batch = container.querySelector('.batch-bar')
+    const pagination = container.querySelector('.table-pagination')
+
+    let fixedHeight = 0
+    if (toolbar) fixedHeight += toolbar.getBoundingClientRect().height
+    if (filter) fixedHeight += filter.getBoundingClientRect().height
+    if (batch) fixedHeight += batch.getBoundingClientRect().height
+    if (pagination) fixedHeight += pagination.getBoundingClientRect().height
+
+    const containerHeight = container.getBoundingClientRect().height
+    tableHeight.value = Math.max(200, containerHeight - fixedHeight)
+  })
 }
 
 // ========== 暴露方法 ==========
@@ -423,7 +447,14 @@ defineExpose({
 // ========== 生命周期 ==========
 onMounted(() => {
   updateTableHeight()
-  window.addEventListener('resize', updateTableHeight)
+
+  // 使用 ResizeObserver 精确监听容器尺寸变化
+  if (containerRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      updateTableHeight()
+    })
+    resizeObserver.observe(containerRef.value)
+  }
 
   // 初始化筛选字段
   props.filterFields.forEach((f: any) => {
@@ -434,7 +465,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateTableHeight)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 // 监听分页变化
@@ -453,6 +487,7 @@ watch(() => props.pagination, (p) => {
   flex-direction: column;
   height: 100%;
   background: #fff;
+  overflow: hidden;
 }
 
 .table-toolbar {
@@ -520,27 +555,105 @@ watch(() => props.pagination, (p) => {
   margin-top: 12px;
 }
 
-/* vxe-table 样式覆盖 */
+/* ── vxe-table 生产级样式覆盖 ────────────────────── */
 :deep(.vxe-table) {
   font-size: 13px;
+  line-height: 1.5;
+  color: #333;
 }
 
+/* 表头样式：深色边框 + 背景 */
 :deep(.vxe-table--header .vxe-header--column) {
-  background: #fafafa;
-  font-weight: 600;
+  background: #fafafa !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+  padding: 8px 12px !important;
+  border-top: 1px solid #d9d9d9 !important;
+  border-right: 1px solid #d9d9d9 !important;
   border-bottom: 2px solid #b0b0b0 !important;
 }
 
+:deep(.vxe-table--header .vxe-header--column:first-child) {
+  border-left: 1px solid #d9d9d9 !important;
+}
+
+/* 表体单元格：完整网格边框 */
 :deep(.vxe-table--body .vxe-body--row) {
   height: 42px;
 }
 
 :deep(.vxe-table--body .vxe-body--column) {
-  border-right: 1px solid #e8e8e8 !important;
+  padding: 8px 12px !important;
+  border-right: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e8e8e8 !important;
 }
 
-:deep(.vxe-table--footer .vxe-footer--column) {
-  background: #f5f5f5;
-  font-weight: 600;
+:deep(.vxe-table--body .vxe-body--column:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
 }
+
+/* 末行底部边框 */
+:deep(.vxe-table--body .vxe-body--row:last-child .vxe-body--column) {
+  border-bottom: 1px solid #d9d9d9 !important;
+}
+
+/* 固定列分隔线（阴影） */
+:deep(.vxe-table--fixed-left-wrapper::after) {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  pointer-events: none;
+  z-index: 10;
+}
+
+:deep(.vxe-table--fixed-right-wrapper::before) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  background: linear-gradient(270deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 固定列表头与表体对齐 */
+:deep(.vxe-table--fixed-left-wrapper .vxe-header--column),
+:deep(.vxe-table--fixed-right-wrapper .vxe-header--column) {
+  border-bottom: 2px solid #b0b0b0 !important;
+}
+
+/* 斑马纹行 */
+:deep(.vxe-table--body .vxe-body--row--stripe) {
+  background: #fafafa;
+}
+
+/* 悬停高亮 */
+:deep(.vxe-table--body .vxe-body--row--hover) {
+  background: #e6f7ff !important;
+}
+
+/* 选中行 */
+:deep(.vxe-table--body .vxe-body--row--checked) {
+  background: #bae7ff !important;
+}
+
+/* 汇总行 */
+:deep(.vxe-table--footer .vxe-footer--column) {
+  background: #f5f5f5 !important;
+  font-weight: 600 !important;
+  padding: 8px 12px !important;
+  border-top: 2px solid #d9d9d9 !important;
+  border-right: 1px solid #e0e0e0 !important;
+}
+
+:deep(.vxe-table--footer .vxe-footer--column:first-child) {
+  border-left: 1px solid #e0e0e0 !important;
+}
+
 </style>

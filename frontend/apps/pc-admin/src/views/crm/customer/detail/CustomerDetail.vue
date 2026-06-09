@@ -81,13 +81,13 @@
     <template #tab-related>
       <a-tabs default-active-key="quotations" size="small">
         <a-tab-pane key="quotations" tab="报价单">
-          <a-table :columns="quotationColumns" :data-source="quotations" row-key="id" :pagination="false" size="small" />
+          <VxeTableList :columns="quotationVxeColumns" :data-source="quotations" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="contracts" tab="合同">
-          <a-table :columns="contractColumns" :data-source="contracts" row-key="id" :pagination="false" size="small" />
+          <VxeTableList :columns="contractVxeColumns" :data-source="contracts" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="orders" tab="订单">
-          <a-table :columns="orderColumns" :data-source="orders" row-key="id" :pagination="false" size="small" />
+          <VxeTableList :columns="orderVxeColumns" :data-source="orders" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
       </a-tabs>
     </template>
@@ -148,6 +148,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { customerApi, type CustomerInfo } from '@/api/customer'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
@@ -188,25 +189,25 @@ const tabs = [
   { key: 'follows', label: '跟进记录', count: follows.value.length }
 ]
 
-const quotationColumns = [
-  { title: '报价单号', dataIndex: 'quotationNo', width: 160 },
-  { title: '金额', dataIndex: 'totalAmount', width: 100 },
-  { title: '日期', dataIndex: 'createTime', width: 140 },
-  { title: '状态', dataIndex: 'status', width: 80 }
+const quotationVxeColumns = [
+  { field: 'quotationNo', title: '报价单号', width: 160 },
+  { field: 'totalAmount', title: '金额', width: 100 },
+  { field: 'createTime', title: '日期', width: 140 },
+  { field: 'status', title: '状态', width: 80 }
 ]
 
-const contractColumns = [
-  { title: '合同号', dataIndex: 'contractNo', width: 160 },
-  { title: '金额', dataIndex: 'totalAmount', width: 100 },
-  { title: '日期', dataIndex: 'createTime', width: 140 },
-  { title: '状态', dataIndex: 'status', width: 80 }
+const contractVxeColumns = [
+  { field: 'contractNo', title: '合同号', width: 160 },
+  { field: 'totalAmount', title: '金额', width: 100 },
+  { field: 'createTime', title: '日期', width: 140 },
+  { field: 'status', title: '状态', width: 80 }
 ]
 
-const orderColumns = [
-  { title: '订单号', dataIndex: 'orderNo', width: 160 },
-  { title: '金额', dataIndex: 'totalAmount', width: 100 },
-  { title: '日期', dataIndex: 'createTime', width: 140 },
-  { title: '状态', dataIndex: 'status', width: 80 }
+const orderVxeColumns = [
+  { field: 'orderNo', title: '订单号', width: 160 },
+  { field: 'totalAmount', title: '金额', width: 100 },
+  { field: 'createTime', title: '日期', width: 140 },
+  { field: 'status', title: '状态', width: 80 }
 ]
 
 const relatedDocuments = computed(() => {

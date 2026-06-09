@@ -77,23 +77,19 @@
       <!-- 科目明细 -->
       <a-col :span="24">
         <a-card title="预算科目明细">
-          <a-table
+          <VxeTableList
             :data-source="budgetItems"
-            :columns="itemColumns"
+            :columns="itemVxeColumns"
             :loading="itemLoading"
             :pagination="false"
             row-key="id"
-            size="small"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'budgetAmount' || column.key === 'usedAmount' || column.key === 'remainingAmount' || column.key === 'frozenAmount'">
-                ¥{{ record[column.key]?.toFixed(2) ?? '0.00' }}
-              </template>
-              <template v-else-if="column.key === 'executionRate'">
-                {{ record.executionRate?.toFixed(2) ?? '0.00' }}%
-              </template>
-            </template>
-          </a-table>
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          />
         </a-card>
       </a-col>
     </a-row>
@@ -126,28 +122,31 @@
       <!-- 调整历史 -->
       <a-col :span="12">
         <a-card title="调整历史">
-          <a-table
+          <VxeTableList
             :data-source="adjustments"
-            :columns="adjustColumns"
+            :columns="adjustVxeColumns"
             :loading="adjLoading"
             :pagination="false"
             row-key="id"
-            size="small"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'adjustmentType'">
-                <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
-                  {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
-                </a-tag>
-              </template>
-              <template v-else-if="column.key === 'amount'">
-                ¥{{ record.amount?.toFixed(2) }}
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <a-tag :color="adjStatusColor(record.status)">{{ adjStatusText(record.status) }}</a-tag>
-              </template>
+            <template #adjustmentTypeCell="{ record }">
+              <a-tag :color="record.adjustmentType === 'increase' ? 'green' : record.adjustmentType === 'decrease' ? 'red' : 'blue'">
+                {{ record.adjustmentType === 'increase' ? '增加' : record.adjustmentType === 'decrease' ? '减少' : '调剂' }}
+              </a-tag>
             </template>
-          </a-table>
+            <template #amountCell="{ record }">
+              ¥{{ record.amount?.toFixed(2) }}
+            </template>
+            <template #statusCell="{ record }">
+              <a-tag :color="adjStatusColor(record.status)">{{ adjStatusText(record.status) }}</a-tag>
+            </template>
+          </VxeTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -159,6 +158,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { annualBudgetApi, budgetItemApi, budgetAdjustmentApi, budgetReportApi } from '@/api/budget'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { FundOutlined, ShoppingOutlined, WalletOutlined, LineChartOutlined } from '@ant-design/icons-vue'
 
 const route = useRoute()
@@ -176,22 +176,25 @@ function formatAmount(amount: number | undefined): string {
   return (amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 }
 
-const itemColumns = [
-  { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode' },
-  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName' },
-  { title: '预算金额', dataIndex: 'budgetAmount', key: 'budgetAmount', align: 'right' as const },
-  { title: '已使用', dataIndex: 'usedAmount', key: 'usedAmount', align: 'right' as const },
-  { title: '剩余', dataIndex: 'remainingAmount', key: 'remainingAmount', align: 'right' as const },
-  { title: '冻结', dataIndex: 'frozenAmount', key: 'frozenAmount', align: 'right' as const },
-  { title: '执行率', dataIndex: 'executionRate', key: 'executionRate', align: 'right' as const, width: 80 },
+const amountFmt = ({ cellValue }: any) => `¥${(cellValue ?? 0).toFixed(2)}`
+const rateFmt = ({ cellValue }: any) => `${(cellValue ?? 0).toFixed(2)}%`
+
+const itemVxeColumns = [
+  { field: 'subjectCode', title: '科目编码' },
+  { field: 'subjectName', title: '科目名称' },
+  { field: 'budgetAmount', title: '预算金额', align: 'right', formatter: amountFmt },
+  { field: 'usedAmount', title: '已使用', align: 'right', formatter: amountFmt },
+  { field: 'remainingAmount', title: '剩余', align: 'right', formatter: amountFmt },
+  { field: 'frozenAmount', title: '冻结', align: 'right', formatter: amountFmt },
+  { field: 'executionRate', title: '执行率', align: 'right', width: 80, formatter: rateFmt },
 ]
 
-const adjustColumns = [
-  { title: '调整单号', dataIndex: 'adjustmentNo', key: 'adjustmentNo' },
-  { title: '类型', dataIndex: 'adjustmentType', key: 'adjustmentType', width: 70 },
-  { title: '金额', dataIndex: 'amount', key: 'amount', align: 'right' as const },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 70 },
-  { title: '原因', dataIndex: 'reason', key: 'reason', ellipsis: true },
+const adjustVxeColumns = [
+  { field: 'adjustmentNo', title: '调整单号' },
+  { field: 'adjustmentType', title: '类型', width: 70, slotName: 'adjustmentTypeCell' },
+  { field: 'amount', title: '金额', align: 'right', slotName: 'amountCell' },
+  { field: 'status', title: '状态', width: 70, slotName: 'statusCell' },
+  { field: 'reason', title: '原因', ellipsis: true },
 ]
 
 const statusColor = (s: string) => {

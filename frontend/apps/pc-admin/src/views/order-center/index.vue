@@ -262,98 +262,92 @@
         ref="tableContainerRef"
         class="table-container"
       >
-        <a-table
+        <VxeTableList
           :columns="displayColumns"
           :data-source="displayData"
           row-key="id"
           :pagination="false"
-          :loading="false"
-          :row-selection="rowSelection"
-          :scroll="{ x: 1400, y: scrollY }"
-          :custom-row="customRow"
-          :show-sorter-tooltip="false"
-          size="middle"
-          class="order-table"
-          @change="handleTableChange"
+          :loading="loading"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'orderType'">
-              <a-tag :color="record.orderType === 'purchase' ? 'blue' : 'green'" class="type-tag">
-                {{ record.orderType === 'purchase' ? '采购' : '销售' }}
-              </a-tag>
-            </template>
-
-            <template v-else-if="column.key === 'orderStatus'">
-              <span class="status-badge">
-                <span
-                  class="status-dot"
-                  :style="{ backgroundColor: STATUS_COLORS[record.orderStatus] || '#999' }"
-                />
-                <span>{{ getStatusText(record.orderStatus) }}</span>
-              </span>
-            </template>
-
-            <template v-else-if="column.key === 'totalAmount'">
-              <span class="currency-value">
-                ¥{{ (record.totalAmount || 0).toFixed(2) }}
-              </span>
-            </template>
-
-            <template v-else-if="column.key === 'partyName'">
-              <span class="party-name" :title="record.customerName || record.supplierName || '-'">
-                {{ record.customerName || record.supplierName || '-' }}
-              </span>
-            </template>
-
-            <template v-else-if="column.key === 'action'">
-              <a-space :size="0" class="action-cell">
-                <!-- 查看 -->
-                <a-tooltip title="查看详情">
-                  <a-button type="link" size="small" class="action-btn" @click="handleView(record)">
-                    <template #icon><EyeOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-
-                <a-divider type="vertical" class="action-divider" />
-
-                <!-- 复制订单号 -->
-                <a-tooltip title="复制订单号">
-                  <a-button type="link" size="small" class="action-btn" @click="handleCopyOrderNo(record)">
-                    <template #icon><CopyOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-
-                <!-- 快捷状态操作 -->
-                <template v-if="record.orderStatus === 0">
-                  <a-divider type="vertical" class="action-divider" />
-                  <a-tooltip title="提交审批">
-                    <a-button type="link" size="small" class="action-btn action-btn--submit" @click="handleQuickSubmit(record)">
-                      提交
-                    </a-button>
-                  </a-tooltip>
-                </template>
-
-                <template v-else-if="record.orderStatus === 1">
-                  <a-divider type="vertical" class="action-divider" />
-                  <a-tooltip title="审批通过">
-                    <a-button type="link" size="small" class="action-btn action-btn--approve" @click="handleQuickApprove(record)">
-                      审批
-                    </a-button>
-                  </a-tooltip>
-                </template>
-
-                <template v-else-if="record.orderStatus === 2 || record.orderStatus === 4">
-                  <a-divider type="vertical" class="action-divider" />
-                  <a-tooltip title="取消订单">
-                    <a-button type="link" size="small" class="action-btn action-btn--cancel" @click="handleQuickCancel(record)">
-                      取消
-                    </a-button>
-                  </a-tooltip>
-                </template>
-              </a-space>
-            </template>
+          <template #orderTypeCell="{ record }">
+            <a-tag :color="record.orderType === 'purchase' ? 'blue' : 'green'" class="type-tag">
+              {{ record.orderType === 'purchase' ? '采购' : '销售' }}
+            </a-tag>
           </template>
-        </a-table>
+
+          <template #orderStatusCell="{ record }">
+            <span class="status-badge">
+              <span
+                class="status-dot"
+                :style="{ backgroundColor: STATUS_COLORS[record.orderStatus] || '#999' }"
+              />
+              <span>{{ getStatusText(record.orderStatus) }}</span>
+            </span>
+          </template>
+
+          <template #totalAmountCell="{ record }">
+            <span class="currency-value">
+              ¥{{ (record.totalAmount || 0).toFixed(2) }}
+            </span>
+          </template>
+
+          <template #partyNameCell="{ record }">
+            <span class="party-name" :title="record.customerName || record.supplierName || '-'">
+              {{ record.customerName || record.supplierName || '-' }}
+            </span>
+          </template>
+
+          <template #action="{ record }">
+            <a-space :size="0" class="action-cell">
+              <a-tooltip title="查看详情">
+                <a-button type="link" size="small" class="action-btn" @click="handleView(record)">
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
+
+              <a-divider type="vertical" class="action-divider" />
+
+              <a-tooltip title="复制订单号">
+                <a-button type="link" size="small" class="action-btn" @click="handleCopyOrderNo(record)">
+                  <template #icon><CopyOutlined /></template>
+                </a-button>
+              </a-tooltip>
+
+              <template v-if="record.orderStatus === 0">
+                <a-divider type="vertical" class="action-divider" />
+                <a-tooltip title="提交审批">
+                  <a-button type="link" size="small" class="action-btn action-btn--submit" @click="handleQuickSubmit(record)">
+                    提交
+                  </a-button>
+                </a-tooltip>
+              </template>
+
+              <template v-else-if="record.orderStatus === 1">
+                <a-divider type="vertical" class="action-divider" />
+                <a-tooltip title="审批通过">
+                  <a-button type="link" size="small" class="action-btn action-btn--approve" @click="handleQuickApprove(record)">
+                    审批
+                  </a-button>
+                </a-tooltip>
+              </template>
+
+              <template v-else-if="record.orderStatus === 2 || record.orderStatus === 4">
+                <a-divider type="vertical" class="action-divider" />
+                <a-tooltip title="取消订单">
+                  <a-button type="link" size="small" class="action-btn action-btn--cancel" @click="handleQuickCancel(record)">
+                    取消
+                  </a-button>
+                </a-tooltip>
+              </template>
+            </a-space>
+          </template>
+        </VxeTableList>
 
         <!-- 分页 -->
         <div class="pagination-wrapper">
@@ -422,6 +416,7 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   EyeOutlined,
   CopyOutlined,
@@ -443,8 +438,6 @@ import { salesOrderApi } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 
 // ── 常量 ──────────────────────────────────────────────────
-
-const MIN_TABLE_ROWS = 20
 
 const STATUS_COLORS: Record<number, string> = {
   0: '#999999',
@@ -590,23 +583,23 @@ const createTypeModalVisible = ref(false)
 
 interface ColumnDef {
   title: string
-  dataIndex?: string
+  field?: string
   key: string
   width?: number
-  sorter?: boolean
   align?: 'left' | 'right' | 'center'
   ellipsis?: boolean
   fixed?: 'left' | 'right'
+  slotName?: string
 }
 
 const columnDefs: ColumnDef[] = [
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 180, sorter: true, fixed: 'left', ellipsis: true },
-  { title: '类型', key: 'orderType', width: 80 },
-  { title: '往来单位', key: 'partyName', width: 160, ellipsis: true },
-  { title: '金额', key: 'totalAmount', width: 130, sorter: true, align: 'right' },
-  { title: '状态', key: 'orderStatus', width: 110, sorter: true },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170, sorter: true },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' }
+  { title: '订单号', field: 'orderNo', key: 'orderNo', width: 180, fixed: 'left', ellipsis: true },
+  { title: '类型', field: 'orderType', key: 'orderType', width: 80, slotName: 'orderTypeCell' },
+  { title: '往来单位', field: 'partyName', key: 'partyName', width: 160, ellipsis: true, slotName: 'partyNameCell' },
+  { title: '金额', field: 'totalAmount', key: 'totalAmount', width: 130, align: 'right', slotName: 'totalAmountCell' },
+  { title: '状态', field: 'orderStatus', key: 'orderStatus', width: 110, slotName: 'orderStatusCell' },
+  { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
+  { type: 'action', title: '操作', width: 220, fixed: 'right' }
 ]
 
 const displayColumns = computed(() =>
@@ -701,24 +694,10 @@ const sortedOrders = computed(() => {
   return data
 })
 
-/** 分页数据（含空行填充） */
+/** 分页数据 */
 const displayData = computed(() => {
   const start = (pagination.current - 1) * pagination.pageSize
-  const pageData = sortedOrders.value.slice(start, start + pagination.pageSize)
-  // 空行填充：确保表格始终显示 MIN_TABLE_ROWS 行
-  if (pageData.length < MIN_TABLE_ROWS && pageData.length > 0) {
-    const emptyRows = Array.from({ length: MIN_TABLE_ROWS - pageData.length }, (_, i) => ({
-      id: `empty-${i}`,
-      orderNo: '',
-      orderType: 'purchase' as const,
-      orderStatus: -1,
-      totalAmount: 0,
-      createTime: '',
-      isEmpty: true
-    }))
-    return [...pageData, ...emptyRows] as UnifiedOrder[]
-  }
-  return pageData
+  return sortedOrders.value.slice(start, start + pagination.pageSize)
 })
 
 const filteredTotal = computed(() => sortedOrders.value.length)
@@ -755,35 +734,7 @@ const emptyContextText = computed(() =>
     : '暂无订单数据'
 )
 
-// ── 行选择 ──────────────────────────────────────────────
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: (string | number)[]) => {
-    selectedRowKeys.value = keys
-  },
-  preserveSelectedRowKeys: true,        // 跨页保留选中行
-  onSelectAll: (selected: boolean, _selectedRows: any[], changeRows: any[]) => {
-    if (selected && changeRows.length > 20) {
-      Modal.confirm({
-        title: `选中全部 ${changeRows.length} 条记录？`,
-        content: `即将选中当前筛选条件下的全部 ${changeRows.length} 条订单`,
-        okText: '确认选中',
-        cancelText: '取消',
-        centered: true,
-        onOk: () => {
-          selectedRowKeys.value = changeRows.map((r: any) => r.id)
-        }
-      })
-      // 返回 false 阻止默认选中，由确认后手动设置
-      return false
-    }
-    if (!selected) {
-      selectedRowKeys.value = []
-    }
-    return true
-  }
-}))
+// ── 行选择（VxeTableList 暂不支持自定义行选择，保留状态供批量操作使用）
 
 // ── 自适应滚动高度 ──────────────────────────────────────
 
@@ -1222,13 +1173,6 @@ function handleColumnCheckChange(key: string, e: any) {
   }
 }
 
-function customRow(record: any) {
-  return {
-    class: 'order-data-row',
-    onDblclick: () => handleView(record)
-  }
-}
-
 // ── 生命周期 ──────────────────────────────────────────────
 
 onMounted(() => {
@@ -1458,19 +1402,6 @@ onUnmounted(() => {
 }
 
 /* ── 订单表格 ───────────────────────────── */
-.order-table :deep(.ant-table-thead > tr > th) {
-  background: #fafafa;
-  font-weight: 600;
-  font-size: 13px;
-  color: #333;
-  padding: 10px 12px;
-  border-bottom: 2px solid #e8e8e8;
-}
-.order-table :deep(.ant-table-tbody > tr > td) {
-  padding: 10px 12px;
-  font-size: 13px;
-  transition: background-color 0.15s;
-}
 
 /* 行悬浮高亮 + 阴影 */
 .order-data-row {

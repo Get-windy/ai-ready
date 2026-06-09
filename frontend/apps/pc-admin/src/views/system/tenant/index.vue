@@ -52,15 +52,10 @@
       @filter-change="handleFilterChange"
       @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '正常' : '停用' }}
-          </a-tag>
-        </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 0 ? 'success' : 'error'">
+          {{ record.status === 0 ? '正常' : '停用' }}
+        </a-tag>
       </template>
 
       <template #action="{ record }">
@@ -355,16 +350,8 @@ const activeCount = computed(() => tableData.value.filter(r => r.status === 0).l
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 const totalUsers = computed(() => tableData.value.reduce((s, r) => s + (r.maxUsers || 0), 0))
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 // ── 分页配置 ──────────────────────────────────────────────
 const pagination = reactive({
@@ -382,7 +369,7 @@ const vxeColumns = computed(() => [
   { field: 'tenantName', title: '租户名称', width: 200 },
   { field: 'contactName', title: '联系人' },
   { field: 'contactPhone', title: '联系电话', width: 130 },
-  { field: 'status', title: '状态', width: 80 },
+  { field: 'status', title: '状态', width: 80, slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 170 },
   { type: 'action', title: '操作', width: 180, fixed: 'right' }
 ])
@@ -664,6 +651,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -705,8 +694,6 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
-
 .color-preview {
   display: inline-block;
   width: 20px;
@@ -717,29 +704,9 @@ onMounted(() => {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

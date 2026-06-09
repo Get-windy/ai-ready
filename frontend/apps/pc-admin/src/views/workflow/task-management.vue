@@ -94,37 +94,41 @@
       </a-form>
 
       <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
+      <VxeTableList
+        :columns="vxeColumns"
         :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
         row-key="taskId"
-        @change="handleTableChange"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'priority'">
-            <a-tag :color="getPriorityColor(record.priority)">
-              {{ getPriorityLabel(record.priority) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
-            <a-button v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
-            <a-dropdown v-if="activeTab === 'todo'">
-              <a-button type="link" size="small">
-                转办/委托 <DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e) => handleTransfer(e.key as string, record)">
-                  <a-menu-item key="transfer">转办</a-menu-item>
-                  <a-menu-item key="delegate">委托</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </template>
+        <template #priorityCell="{ record }">
+          <a-tag :color="getPriorityColor(record.priority)">
+            {{ getPriorityLabel(record.priority) }}
+          </a-tag>
         </template>
-      </a-table>
+        <template #action="{ record }">
+          <a-button type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
+          <a-button v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
+          <a-dropdown v-if="activeTab === 'todo'">
+            <a-button type="link" size="small">
+              转办/委托 <DownOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu @click="(e) => handleTransfer(e.key as string, record)">
+                <a-menu-item key="transfer">转办</a-menu-item>
+                <a-menu-item key="delegate">委托</a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <!-- 详情对话框 -->
@@ -191,8 +195,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import type { TableProps } from 'ant-design-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 
 // 当前标签页
@@ -215,15 +219,15 @@ const highPriorityCount = computed(() => tableData.value.filter(r => r.priority 
 const overdueCount = computed(() => tableData.value.filter(r => r.dueTime && new Date(r.dueTime) < new Date()).length)
 
 // 表格列定义
-const columns = [
-  { title: '任务ID', dataIndex: 'taskId', key: 'taskId', width: 180 },
-  { title: '任务名称', dataIndex: 'taskName', key: 'taskName', minWidth: 150 },
-  { title: '流程名称', dataIndex: 'processName', key: 'processName', minWidth: 120 },
-  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 80 },
-  { title: '处理人', dataIndex: 'assignee', key: 'assignee', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '截止时间', dataIndex: 'dueTime', key: 'dueTime', width: 180 },
-  { title: '操作', key: 'action', width: 300, fixed: 'right' as const }
+const vxeColumns = [
+  { field: 'taskId', title: '任务ID', width: 180 },
+  { field: 'taskName', title: '任务名称', minWidth: 150 },
+  { field: 'processName', title: '流程名称', minWidth: 120 },
+  { field: 'priority', title: '优先级', width: 80, slotName: 'priorityCell' },
+  { field: 'assignee', title: '处理人', width: 100 },
+  { field: 'createTime', title: '创建时间', width: 180 },
+  { field: 'dueTime', title: '截止时间', width: 180 },
+  { field: 'action', title: '操作', width: 300, fixed: 'right', type: 'action' }
 ]
 
 const loading = ref(false)
@@ -307,9 +311,9 @@ const handleReset = () => {
 }
 
 // 表格变化
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   handleQuery()
 }
 
@@ -493,29 +497,9 @@ pre {
   overflow: auto;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

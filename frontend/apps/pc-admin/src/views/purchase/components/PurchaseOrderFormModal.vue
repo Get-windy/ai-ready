@@ -123,48 +123,57 @@
         </a-button>
       </div>
 
-      <a-table :columns="itemColumns" :data-source="formData.items" :pagination="false" size="small" bordered row-key="id">
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productId'">
-            <a-select
-              v-model:value="record.productId"
-              placeholder="请选择商品"
-              show-search
-              :filter-option="filterOption"
-              style="width: 100%"
-              :loading="loadingOptions"
-              @change="(val: number) => handleProductChange(val, index)"
-            >
-              <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
-                {{ p.name }} ({{ p.code || p.productCode }})
-              </a-select-option>
-            </a-select>
-          </template>
-          <template v-else-if="column.key === 'productCode'">
-            {{ record.productCode }}
-          </template>
-          <template v-else-if="column.key === 'quantity'">
-            <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'unitPrice'">
-            <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" />
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-text">¥{{ ((record.quantity || 0) * (record.unitPrice || 0)).toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'unit'">
-            {{ record.unit }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleCopyItem(index)">复制</a>
-              <a-popconfirm title="确定删除？" @confirm="handleDeleteItem(index)">
-                <a class="danger">删除</a>
-              </a-popconfirm>
-            </a-space>
-          </template>
+      <VxeTableList
+        :columns="itemVxeColumns"
+        :data-source="formData.items"
+        :pagination="false"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #productIdCell="{ record, index }">
+          <a-select
+            v-model:value="record.productId"
+            placeholder="请选择商品"
+            show-search
+            :filter-option="filterOption"
+            style="width: 100%"
+            :loading="loadingOptions"
+            @change="(val: number) => handleProductChange(val, index)"
+          >
+            <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
+              {{ p.name }} ({{ p.code || p.productCode }})
+            </a-select-option>
+          </a-select>
         </template>
-      </a-table>
+        <template #productCodeCell="{ record }">
+          {{ record.productCode }}
+        </template>
+        <template #quantityCell="{ record }">
+          <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" />
+        </template>
+        <template #unitPriceCell="{ record }">
+          <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" />
+        </template>
+        <template #amountCell="{ record }">
+          <span class="amount-text">¥{{ ((record.quantity || 0) * (record.unitPrice || 0)).toFixed(2) }}</span>
+        </template>
+        <template #unitCell="{ record }">
+          {{ record.unit }}
+        </template>
+        <template #action="{ index }">
+          <a-space>
+            <a @click="handleCopyItem(index)">复制</a>
+            <a-popconfirm title="确定删除？" @confirm="handleDeleteItem(index)">
+              <a class="danger">删除</a>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </VxeTableList>
 
       <div class="amount-summary">
         <a-row :gutter="16">
@@ -195,6 +204,7 @@ defineOptions({ name: 'PurchaseOrderFormModal' })
 
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PlusOutlined, ImportOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -255,7 +265,7 @@ const itemColumns = [
   { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '操作', key: 'action', width: 100, fixed: 'right' }
+  { title: '操作', type: 'action', width: 100, fixed: 'right' }
 ]
 
 const supplierOptions = ref<any[]>([])

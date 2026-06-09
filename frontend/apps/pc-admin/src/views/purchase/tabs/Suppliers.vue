@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'purchase-supplier-list'"
@@ -89,49 +89,44 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item key="viewOrders">
-                    <FileTextOutlined /> 查看订单
-                  </a-menu-item>
-                  <a-menu-item key="viewProducts">
-                    <AppstoreOutlined /> 合作产品
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item v-if="record.status === 1" key="disable">
-                    <StopOutlined /> 停用
-                  </a-menu-item>
-                  <a-menu-item v-else key="enable">
-                    <CheckCircleOutlined /> 启用
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="delete" danger>
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+        <a-space :size="4">
+          <a-tooltip title="查看详情">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip title="编辑">
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item key="viewOrders">
+                  <FileTextOutlined /> 查看订单
+                </a-menu-item>
+                <a-menu-item key="viewProducts">
+                  <AppstoreOutlined /> 合作产品
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item v-if="record.status === 1" key="disable">
+                  <StopOutlined /> 停用
+                </a-menu-item>
+                <a-menu-item v-else key="enable">
+                  <CheckCircleOutlined /> 启用
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="delete" danger>
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </template>
     </VxeTableList>
 
@@ -168,22 +163,22 @@
       <!-- 合作产品列表 -->
       <div class="detail-products-section">
         <div class="detail-products-title">合作产品</div>
-        <a-table
+        <VxeTableList
           :columns="productColumns"
           :data-source="supplierProducts"
           :pagination="false"
-          size="small"
           row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else-if="column.key === 'price'">
-              <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
-            </template>
+          <template #priceCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
           </template>
-        </a-table>
+        </VxeTableList>
       </div>
 
       <div class="detail-modal-footer">
@@ -344,28 +339,17 @@ function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
 // ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 const supplierProducts = ref<any[]>([])
 
 const productColumns = [
-  { title: '产品编码', dataIndex: 'productCode', width: 120 },
-  { title: '产品名称', dataIndex: 'productName', width: 150 },
-  { title: '规格型号', dataIndex: 'spec', width: 100 },
-  { title: '供应价', key: 'price', dataIndex: 'price', width: 100, align: 'right' },
-  { title: '最近采购', dataIndex: 'lastOrderDate', width: 100 }
+  { title: '产品编码', field: 'productCode', width: 120 },
+  { title: '产品名称', field: 'productName', width: 150 },
+  { title: '规格型号', field: 'spec', width: 100 },
+  { title: '供应价', field: 'price', width: 100, align: 'right', slotName: 'priceCell' },
+  { title: '最近采购', field: 'lastOrderDate', width: 100 }
 ]
 
 function handleView(record: any) {
@@ -562,6 +546,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -624,10 +610,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .supplier-code, .supplier-name {
   font-weight: 500;
 }
@@ -671,29 +653,9 @@ onUnmounted(() => {
   line-height: 32px; vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

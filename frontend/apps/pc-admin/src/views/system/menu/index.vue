@@ -57,30 +57,28 @@
         </a-button>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.field === 'menuName'">
-          <component
-            v-if="record.icon"
-            :is="iconComponent(record.icon)"
-            class="menu-icon"
-          />
-          <span>{{ record.menuName }}</span>
-        </template>
-        <template v-else-if="column.field === 'menuType'">
-          <a-tag v-if="record.menuType === 0">目录</a-tag>
-          <a-tag v-else-if="record.menuType === 1" color="green">菜单</a-tag>
-          <a-tag v-else-if="record.menuType === 2" color="orange">按钮</a-tag>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-switch
-            :checked="record.status === 1"
-            @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
-          />
-        </template>
-        <template v-else-if="column.field === 'visible'">
-          <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
-          <a-tag v-else>隐藏</a-tag>
-        </template>
+      <template #menuNameCell="{ record }">
+        <component
+          v-if="record.icon"
+          :is="iconComponent(record.icon)"
+          class="menu-icon"
+        />
+        <span>{{ record.menuName }}</span>
+      </template>
+      <template #menuTypeCell="{ record }">
+        <a-tag v-if="record.menuType === 0">目录</a-tag>
+        <a-tag v-else-if="record.menuType === 1" color="green">菜单</a-tag>
+        <a-tag v-else-if="record.menuType === 2" color="orange">按钮</a-tag>
+      </template>
+      <template #statusCell="{ record }">
+        <a-switch
+          :checked="record.status === 1"
+          @change="(checked: boolean) => handleStatusChange(record, checked ? 1 : 0)"
+        />
+      </template>
+      <template #visibleCell="{ record }">
+        <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
+        <a-tag v-else>隐藏</a-tag>
       </template>
 
       <template #action="{ record }">
@@ -288,13 +286,13 @@ const formRef = ref<FormInstance>()
 
 // 表格列配置
 const vxeColumns = computed(() => [
-  { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip' },
+  { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip', slotName: 'menuNameCell' },
   { field: 'menuCode', title: '权限标识', width: 180, showOverflow: 'tooltip' },
   { field: 'path', title: '路由路径', width: 180, showOverflow: 'tooltip' },
-  { field: 'menuType', title: '类型', width: 100, align: 'center' },
+  { field: 'menuType', title: '类型', width: 100, align: 'center', slotName: 'menuTypeCell' },
   { field: 'sortOrder', title: '排序', width: 80, align: 'center' },
-  { field: 'status', title: '状态', width: 100, align: 'center' },
-  { field: 'visible', title: '显示', width: 80, align: 'center' },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
+  { field: 'visible', title: '显示', width: 80, align: 'center', slotName: 'visibleCell' },
   { type: 'action', title: '操作', width: 280, fixed: 'right' }
 ])
 
@@ -619,6 +617,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -677,29 +677,9 @@ onMounted(() => {
   border-radius: 2px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

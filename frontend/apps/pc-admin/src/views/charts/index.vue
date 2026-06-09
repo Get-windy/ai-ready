@@ -96,62 +96,60 @@
     <a-row :gutter="16" class="rank-row">
       <a-col :xs="24" :md="12">
         <a-card :bordered="false" title="客户排行 TOP10" class="rank-card">
-          <a-table
-            :columns="customerRankCols"
-            :data-source="displayCustomerRankData"
+          <VxeTableList
+            :columns="customerRankVxeCols"
+            :data-source="customerRankData"
             :pagination="false"
             :loading="rankLoading"
-            size="small"
             row-key="rank"
-            class="rank-table"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'rank'">
-                <a-tag :color="index < 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
-              </template>
-              <template v-else-if="column.key === 'growth'">
-                <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#f5222d' }">
-                  {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
-                </span>
-              </template>
-              <template v-else-if="column.key === 'totalAmount'">
-                ¥{{ record.totalAmount.toFixed(2) }}
-              </template>
+            <template #rankCell="{ record }">
+              <a-tag :color="record.rank <= 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
             </template>
-          </a-table>
+            <template #growthCell="{ record }">
+              <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#f5222d' }">
+                {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
+              </span>
+            </template>
+            <template #totalAmountCell="{ record }">
+              ¥{{ record.totalAmount.toFixed(2) }}
+            </template>
+          </VxeTableList>
         </a-card>
       </a-col>
       <a-col :xs="24" :md="12">
         <a-card :bordered="false" title="产品排行 TOP10" class="rank-card">
-          <a-table
-            :columns="productRankCols"
-            :data-source="displayProductRankData"
+          <VxeTableList
+            :columns="productRankVxeCols"
+            :data-source="productRankData"
             :pagination="false"
             :loading="rankLoading"
-            size="small"
             row-key="rank"
-            class="rank-table"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'rank'">
-                <a-tag :color="index < 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
-              </template>
-              <template v-else-if="column.key === 'margin'">
-                <span :style="{ color: record.margin >= 0.2 ? '#52c41a' : '#faad14' }">
-                  {{ (record.margin * 100).toFixed(1) }}%
-                </span>
-              </template>
-              <template v-else-if="column.key === 'totalAmount'">
-                ¥{{ record.totalAmount.toFixed(2) }}
-              </template>
+            <template #rankCell="{ record }">
+              <a-tag :color="record.rank <= 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
             </template>
-          </a-table>
+            <template #marginCell="{ record }">
+              <span :style="{ color: record.margin >= 0.2 ? '#52c41a' : '#faad14' }">
+                {{ (record.margin * 100).toFixed(1) }}%
+              </span>
+            </template>
+            <template #totalAmountCell="{ record }">
+              ¥{{ record.totalAmount.toFixed(2) }}
+            </template>
+          </VxeTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -162,10 +160,8 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { DollarOutlined, FileTextOutlined, BarChartOutlined, PercentageOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type ChannelDistribution, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
-
-// ── 常量 ────────────────────────────────
-const MIN_TABLE_ROWS = 20
 
 // ── 筛选 ──
 const dateRange = ref<any[]>([])
@@ -191,20 +187,20 @@ const customerRankData = ref<CustomerRankItem[]>([])
 const productRankData = ref<ProductRankItem[]>([])
 const rankLoading = ref(false)
 
-const customerRankCols = [
-  { title: '排名', key: 'rank', width: 60 },
-  { title: '客户名称', dataIndex: 'name', ellipsis: true },
-  { title: '订单数', dataIndex: 'orderCount', width: 80 },
-  { title: '销售额', key: 'totalAmount', width: 130, align: 'right' as const },
-  { title: '增长率', key: 'growth', width: 100, align: 'right' as const }
+const customerRankVxeCols = [
+  { field: 'rank', title: '排名', width: 60, slotName: 'rankCell' },
+  { field: 'name', title: '客户名称', width: 150 },
+  { field: 'orderCount', title: '订单数', width: 80 },
+  { field: 'totalAmount', title: '销售额', width: 130, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'growth', title: '增长率', width: 100, align: 'right', slotName: 'growthCell' },
 ]
 
-const productRankCols = [
-  { title: '排名', key: 'rank', width: 60 },
-  { title: '产品名称', dataIndex: 'name', ellipsis: true },
-  { title: '销量', dataIndex: 'volume', width: 80 },
-  { title: '销售额', key: 'totalAmount', width: 130, align: 'right' as const },
-  { title: '利润率', key: 'margin', width: 90, align: 'right' as const }
+const productRankVxeCols = [
+  { field: 'rank', title: '排名', width: 60, slotName: 'rankCell' },
+  { field: 'name', title: '产品名称', width: 150 },
+  { field: 'volume', title: '销量', width: 80 },
+  { field: 'totalAmount', title: '销售额', width: 130, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'margin', title: '利润率', width: 90, align: 'right', slotName: 'marginCell' },
 ]
 
 const loading = ref(false)
@@ -214,24 +210,7 @@ function formatAmount(value: number): string {
   return `¥${value.toFixed(2)}`
 }
 
-// ── 排行榜空行填充 ────────────────────────────────
-const displayCustomerRankData = computed(() => {
-  const data = [...customerRankData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ rank: 0, name: '', orderCount: 0, totalAmount: 0, growth: 0, __empty_row: true })
-  }
-  return data
-})
 
-const displayProductRankData = computed(() => {
-  const data = [...productRankData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ rank: 0, name: '', volume: 0, totalAmount: 0, margin: 0, __empty_row: true })
-  }
-  return data
-})
 
 // ── 筛选参数 ──
 function buildParams() {
@@ -525,31 +504,8 @@ onBeforeUnmount(() => {
 }
 
 /* ── 空行占位符 ──────────────────────────────── */
-.empty-placeholder {
-  color: transparent;
-}
-
 /* ── 表格网格边框 ──────────────────────────────── */
-.rank-table :deep(.ant-table-thead > tr > th) {
-  border-top: 2px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #d9d9d9 !important;
-  background: #fafafa !important;
-  padding: 12px 16px !important;
-  font-weight: 600 !important;
-}
 
-.rank-table :deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 2px solid #d9d9d9 !important;
-}
 
-.rank-table :deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e8e8e8 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 12px 16px !important;
-}
 
-.rank-table :deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e8e8e8 !important;
-}
 </style>

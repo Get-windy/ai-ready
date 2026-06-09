@@ -87,44 +87,45 @@
       </div>
 
       <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
-        :data-source="tableDataSource"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
-        style="flex: 1; overflow: auto;"
-        @change="handleTableChange"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <StatusTag :status="record.status" :map="INBOUND_STATUS" />
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">
-            ¥{{ record.totalAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a v-if="record.status === 0" @click="handleApprove(record)">审核</a>
-              <a v-if="record.status === 1" @click="handleExecuteInbound(record)">入库</a>
-              <PrintButton
-                v-if="record.status >= 2"
-                templateType="stock_in"
-                :businessId="record.id"
-                businessType="stock_in"
-                buttonText="打印"
-                buttonSize="small"
-                @print-success="() => message.success(`入库单 ${record.inboundNo} 打印成功`)"
-                @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
-              />
-            </a-space>
-          </template>
+        <template #statusCell="{ record }">
+          <StatusTag :status="record.status" :map="INBOUND_STATUS" />
         </template>
-      </a-table>
+        <template #totalAmountCell="{ record }">
+          ¥{{ record.totalAmount?.toFixed(2) }}
+        </template>
+        <template #action="{ record }">
+          <a-space>
+            <a @click="handleView(record)">查看</a>
+            <a v-if="record.status === 0" @click="handleApprove(record)">审核</a>
+            <a v-if="record.status === 1" @click="handleExecuteInbound(record)">入库</a>
+            <PrintButton
+              v-if="record.status >= 2"
+              templateType="stock_in"
+              :businessId="record.id"
+              businessType="stock_in"
+              buttonText="打印"
+              buttonSize="small"
+              @print-success="() => message.success(`入库单 ${record.inboundNo} 打印成功`)"
+              @print-error="(e: any) => message.error(`打印失败: ${e.message || '未知错误'}`)"
+            />
+          </a-space>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <!-- 详情弹窗 -->
@@ -151,6 +152,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
 import { INBOUND_STATUS } from '@/utils/statusConfig'
@@ -159,6 +161,7 @@ const loading = ref(false)
 const tableData = ref<any[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const tableRef = ref()
 
 // 统计数据
 const statistics = ref({
@@ -166,17 +169,6 @@ const statistics = ref({
   pendingCount: 0,
   completedCount: 0,
   totalAmount: 0
-})
-
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
 })
 
 const formatAmount = (amount: number) => {
@@ -195,17 +187,17 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const columns = [
-  { title: '入库单号', dataIndex: 'inboundNo', key: 'inboundNo', width: 150 },
-  { title: '采购订单', dataIndex: 'purchaseOrderNo', key: 'purchaseOrderNo', width: 150 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName', width: 150 },
-  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName', width: 120 },
-  { title: '入库金额', key: 'totalAmount', width: 120 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '入库日期', dataIndex: 'inboundDate', key: 'inboundDate', width: 120 },
-  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 100 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'inboundNo', title: '入库单号', width: 150 },
+  { field: 'purchaseOrderNo', title: '采购订单', width: 150 },
+  { field: 'supplierName', title: '供应商', width: 150 },
+  { field: 'warehouseName', title: '仓库', width: 120 },
+  { field: 'totalAmount', title: '入库金额', width: 120, slotName: 'totalAmountCell' },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'inboundDate', title: '入库日期', width: 120 },
+  { field: 'operator', title: '操作人', width: 100 },
+  { field: 'action', title: '操作', width: 220, fixed: 'right', type: 'action' },
+])
 
 const fetchData = async () => {
   loading.value = true
@@ -227,7 +219,7 @@ const fetchData = async () => {
 
 const handleSearch = () => { pagination.current = 1; fetchData() }
 const handleReset = () => { Object.assign(searchParams, { inboundNo: '', purchaseOrderNo: '', status: undefined }); handleSearch() }
-const handleTableChange = (pag: any) => { pagination.current = pag.current; fetchData() }
+const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
 
 const handleCreate = () => message.info('新建入库单功能开发中')
 const handleView = (record: any) => { currentRecord.value = record; detailVisible.value = true }
@@ -252,7 +244,7 @@ onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
-.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; }
+.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 
@@ -311,37 +303,5 @@ onMounted(() => { fetchData() })
   color: #faad14;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 </style>

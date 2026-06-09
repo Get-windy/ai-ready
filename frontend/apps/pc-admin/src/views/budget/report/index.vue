@@ -73,31 +73,25 @@
       <!-- 差异分析表 -->
       <a-col :span="24">
         <a-card title="预算差异分析" class="table-card">
-          <a-table
-            :data-source="varianceTableDataSource"
-            :columns="varianceColumns"
+          <VxeTableList
+            :data-source="varianceData"
+            :columns="varianceVxeColumns"
             :loading="varianceLoading"
             :pagination="{ pageSize: 10 }"
             row-key="budgetId"
-            size="small"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'totalAmount' || column.key === 'totalUsedAmount' || column.key === 'totalRemainingAmount' || column.key === 'variance'">
-                <span class="amount-cell">¥{{ formatAmount(record[column.key]) }}</span>
-              </template>
-              <template v-else-if="column.key === 'executionRate'">
-                <span class="rate-cell">{{ (record[column.key] || 0).toFixed(2) }}%</span>
-              </template>
-              <template v-else-if="column.key === 'varianceRate'">
-                <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
-                  {{ (record.varianceRate || 0).toFixed(2) }}%
-                </span>
-              </template>
+            <template #varianceRateCell="{ record }">
+              <span :style="{ color: record.varianceRate > 0 ? '#ff4d4f' : record.varianceRate < 0 ? '#52c41a' : undefined }">
+                {{ (record.varianceRate || 0).toFixed(2) }}%
+              </span>
             </template>
-          </a-table>
+          </VxeTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -109,6 +103,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined
 } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { budgetReportApi } from '@/api/budget'
 import * as echarts from 'echarts'
 
@@ -126,30 +121,18 @@ let trendChart: echarts.ECharts | null = null
 const varianceData = ref<any[]>([])
 const varianceLoading = ref(false)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const varianceTableDataSource = computed(() => {
-  const data = [...varianceData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, budgetId: `__empty_${i}` })
-  }
-  return data
-})
 
-function formatAmount(amount: number): string {
-  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
-}
+const amountFmt = ({ cellValue }: any) => `¥${(cellValue ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
 
-const varianceColumns = [
-  { title: '预算单号', dataIndex: 'budgetNo', key: 'budgetNo', width: 150 },
-  { title: '部门', dataIndex: 'departmentName', key: 'departmentName', width: 120 },
-  { title: '预算金额', key: 'totalAmount', width: 130, align: 'right' as const },
-  { title: '已使用', key: 'totalUsedAmount', width: 130, align: 'right' as const },
-  { title: '剩余', key: 'totalRemainingAmount', width: 130, align: 'right' as const },
-  { title: '执行率', key: 'executionRate', width: 80, align: 'right' as const },
-  { title: '差异金额', key: 'variance', width: 130, align: 'right' as const },
-  { title: '差异率', key: 'varianceRate', width: 80, align: 'right' as const },
+const varianceVxeColumns = [
+  { field: 'budgetNo', title: '预算单号', width: 150 },
+  { field: 'departmentName', title: '部门', width: 120 },
+  { field: 'totalAmount', title: '预算金额', width: 130, align: 'right', formatter: amountFmt },
+  { field: 'totalUsedAmount', title: '已使用', width: 130, align: 'right', formatter: amountFmt },
+  { field: 'totalRemainingAmount', title: '剩余', width: 130, align: 'right', formatter: amountFmt },
+  { field: 'executionRate', title: '执行率', width: 80, align: 'right', formatter: ({ cellValue }: any) => `${(cellValue || 0).toFixed(2)}%` },
+  { field: 'variance', title: '差异金额', width: 130, align: 'right', formatter: amountFmt },
+  { field: 'varianceRate', title: '差异率', width: 80, align: 'right', slotName: 'varianceRateCell' },
 ]
 
 const initCharts = () => {
@@ -365,31 +348,10 @@ const handleResize = () => {
   font-variant-numeric: tabular-nums;
 }
 
-.empty-placeholder { color: transparent; }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

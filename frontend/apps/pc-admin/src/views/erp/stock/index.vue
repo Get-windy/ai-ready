@@ -94,49 +94,57 @@
         </a-space>
       </div>
 
-      <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
-        :data-source="tableDataSource"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
-        style="flex: 1; overflow: auto;"
-        @change="handleTableChange"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'quantity'">
-            <span :class="getStockClass(record)">
-              {{ record.quantity }} {{ record.unit }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'warningStatus'">
-            <a-tag v-if="record.quantity < (record.minStock ?? 0)" color="red">低库存</a-tag>
-            <a-tag v-else-if="record.quantity > (record.maxStock ?? 999999)" color="orange">超储</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="handleView(record)">查看</a>
-              <a @click="handleStockLog(record)">库存明细</a>
-            </a-space>
-          </template>
+        <template #quantityCell="{ record }">
+          <span :class="getStockClass(record)">
+            {{ record.quantity }} {{ record.unit }}
+          </span>
         </template>
-      </a-table>
+        <template #warningStatusCell="{ record }">
+          <a-tag v-if="record.quantity < (record.minStock ?? 0)" color="red">低库存</a-tag>
+          <a-tag v-else-if="record.quantity > (record.maxStock ?? 999999)" color="orange">超储</a-tag>
+          <a-tag v-else color="green">正常</a-tag>
+        </template>
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+            <a-button type="link" size="small" @click="handleStockLog(record)">库存明细</a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <!-- 库存明细弹窗 -->
     <a-modal v-model:open="logModalVisible" title="库存明细" :footer="null" width="800px">
-      <a-table :columns="logColumns" :data-source="stockLogs" size="small" :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'type'">
-            <a-tag :color="record.type === 'in' ? 'green' : 'red'">{{ record.type === 'in' ? '入库' : '出库' }}</a-tag>
-          </template>
+      <VxeTableList
+        :columns="logVxeColumns"
+        :data-source="stockLogs"
+        :show-toolbar="false"
+        :selectable="false"
+        :pagination="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      >
+        <template #typeCell="{ record }">
+          <a-tag :color="record.type === 'in' ? 'green' : 'red'">{{ record.type === 'in' ? '入库' : '出库' }}</a-tag>
         </template>
-      </a-table>
+      </VxeTableList>
     </a-modal>
 
     <!-- 库存详情弹窗 -->
@@ -164,6 +172,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { stockApi } from '@/api/erp'
 import request from '@/utils/request'
 
@@ -184,16 +193,7 @@ const statistics = ref({
   normalCount: 0
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+const tableRef = ref()
 
 const searchParams = reactive({
   productCode: '',
@@ -207,27 +207,27 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const columns = [
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
-  { title: '商品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '规格', dataIndex: 'specification', key: 'specification', width: 80 },
-  { title: '库存数量', dataIndex: 'quantity', key: 'quantity', width: 120 },
-  { title: '最低库存', dataIndex: 'minStock', key: 'minStock', width: 100 },
-  { title: '最高库存', dataIndex: 'maxStock', key: 'maxStock', width: 100 },
-  { title: '预警', key: 'warningStatus', width: 80 },
-  { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
-  { title: '最后入库', dataIndex: 'lastInboundDate', key: 'lastInboundDate', width: 110 },
-  { title: '最后出库', dataIndex: 'lastOutboundDate', key: 'lastOutboundDate', width: 110 },
-  { title: '操作', key: 'action', fixed: 'right', width: 130 }
-]
+const vxeColumns = computed(() => [
+  { field: 'productCode', title: '商品编码', width: 130 },
+  { field: 'productName', title: '商品名称', width: 150 },
+  { field: 'specification', title: '规格', width: 100 },
+  { field: 'quantity', title: '库存数量', width: 110, slotName: 'quantityCell' },
+  { field: 'minStock', title: '最低库存', width: 90, align: 'center' },
+  { field: 'maxStock', title: '最高库存', width: 90, align: 'center' },
+  { field: 'warningStatus', title: '预警', width: 80, align: 'center', slotName: 'warningStatusCell' },
+  { field: 'warehouseName', title: '仓库', width: 120 },
+  { field: 'lastInboundDate', title: '最后入库', width: 110 },
+  { field: 'lastOutboundDate', title: '最后出库', width: 110 },
+  { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
+])
 
-const logColumns = [
-  { title: '类型', dataIndex: 'type', key: 'type', width: 80 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
-  { title: '关联单号', dataIndex: 'orderNo', key: 'orderNo' },
-  { title: '时间', dataIndex: 'time', key: 'time' },
-  { title: '操作人', dataIndex: 'operator', key: 'operator' }
-]
+const logVxeColumns = computed(() => [
+  { field: 'type', title: '类型', width: 80, slotName: 'typeCell' },
+  { field: 'quantity', title: '数量', width: 80 },
+  { field: 'orderNo', title: '关联单号', width: 160 },
+  { field: 'time', title: '时间', width: 160 },
+  { field: 'operator', title: '操作人', width: 100 },
+])
 
 const getStockClass = (record: any) => ({
   'low-stock': record.quantity < (record.minStock ?? 0),
@@ -258,7 +258,7 @@ const fetchData = async () => {
 
 const handleSearch = () => { pagination.current = 1; fetchData() }
 const handleReset = () => { Object.assign(searchParams, { productCode: '', productName: '', warehouseId: undefined }); handleSearch() }
-const handleTableChange = (pag: any) => { pagination.current = pag.current; fetchData() }
+const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
 
 const handleInbound = () => router.push('/erp/stock-in')
 const handleOutbound = () => router.push('/erp/outbound')
@@ -287,7 +287,7 @@ onMounted(() => { fetchData() })
 </script>
 
 <style scoped>
-.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; }
+.erp-page { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .search-area { margin-bottom: 16px; }
 .action-area { margin-bottom: 16px; }
 .low-stock { color: #ff4d4f; font-weight: bold; }
@@ -348,37 +348,4 @@ onMounted(() => { fetchData() })
   color: #f5222d;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 </style>

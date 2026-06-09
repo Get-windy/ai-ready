@@ -26,20 +26,23 @@
       <!-- 换货明细 -->
       <a-divider />
       <h4>换货明细</h4>
-      <a-table
-        :columns="itemColumns"
+      <VxeTableList
+        :columns="itemVxeColumns"
         :data-source="items"
         :loading="loading"
         :pagination="false"
         row-key="id"
-        size="small"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'subtotal'">
-            ¥{{ (record.exchangeQuantity * record.exchangePrice).toFixed(2) }}
-          </template>
+        <template #subtotalCell="{ record }">
+          ¥{{ (record.exchangeQuantity * record.exchangePrice).toFixed(2) }}
         </template>
-      </a-table>
+      </VxeTableList>
 
       <!-- 审批记录 -->
       <template v-if="approvalRecords.length > 0">
@@ -63,6 +66,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   purchaseExchangeApi,
   type PurchaseExchange,
@@ -90,15 +94,15 @@ const open = computed({
   set: (val) => emit('update:open', val)
 })
 
-const itemColumns = [
-  { title: '商品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode' },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
-  { title: '原数量', dataIndex: 'originalQuantity', key: 'originalQuantity', width: 100 },
-  { title: '换货数量', dataIndex: 'exchangeQuantity', key: 'exchangeQuantity', width: 100 },
-  { title: '原单价', dataIndex: 'originalPrice', key: 'originalPrice', width: 100 },
-  { title: '换货单价', dataIndex: 'exchangePrice', key: 'exchangePrice', width: 100 },
-  { title: '小计', key: 'subtotal', width: 100 }
+const itemVxeColumns = [
+  { field: 'productName', title: '商品名称' },
+  { field: 'productCode', title: '商品编码' },
+  { field: 'unit', title: '单位', width: 80 },
+  { field: 'originalQuantity', title: '原数量', width: 100 },
+  { field: 'exchangeQuantity', title: '换货数量', width: 100 },
+  { field: 'originalPrice', title: '原单价', width: 100 },
+  { field: 'exchangePrice', title: '换货单价', width: 100 },
+  { field: 'subtotal', title: '小计', width: 100, slotName: 'subtotalCell' }
 ]
 
 const getStatusColor = (status: ExchangeStatus): string => {

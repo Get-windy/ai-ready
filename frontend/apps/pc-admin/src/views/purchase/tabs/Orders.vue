@@ -251,16 +251,7 @@ const totalAmount = computed(() => {
   return dataSource.value.reduce((s, r) => s + (r.totalAmountWithTax || 0), 0)
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+const tableDataSource = dataSource
 
 async function fetchData() {
   loading.value = true
@@ -402,6 +393,27 @@ function handleSelectionChange(rows: any[], ids: any[]) {
   selectedRowKeys.value = ids
 }
 
+async function handleBatchDelete(ids: number[]) {
+  Modal.confirm({
+    title: '批量删除',
+    content: `确认删除选中的 ${ids.length} 条采购订单？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    centered: true,
+    onOk: async () => {
+      try {
+        await purchaseOrderApi.batchDelete(ids)
+        message.success(`成功删除 ${ids.length} 条订单`)
+        tableRef.value?.clearSelection()
+        fetchData()
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || '批量删除失败')
+      }
+    }
+  })
+}
+
 function handleImport() {
   message.info('导入功能开发中')
 }
@@ -507,6 +519,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -569,9 +583,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .order-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
@@ -587,30 +598,6 @@ onUnmounted(() => {
 
 .action-more-btn {
   padding: 0 4px;
-}
-
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
 }
 
 /* 响应式 */

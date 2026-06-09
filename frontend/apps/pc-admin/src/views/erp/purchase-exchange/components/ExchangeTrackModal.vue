@@ -43,13 +43,18 @@
       <!-- 换货明细 -->
       <div class="items-section">
         <h4>换货明细</h4>
-        <a-table
-          :columns="itemColumns"
+        <VxeTableList
+          :columns="itemVxeColumns"
           :data-source="items"
           :loading="loading"
           :pagination="false"
           row-key="id"
-          size="small"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         />
       </div>
 
@@ -58,20 +63,23 @@
       <!-- 审批记录 -->
       <div class="approval-section">
         <h4>审批记录</h4>
-        <a-table
-          :columns="approvalColumns"
+        <VxeTableList
+          :columns="approvalVxeColumns"
           :data-source="approvalRecords"
           :loading="loading"
           :pagination="false"
           row-key="id"
-          size="small"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'action'">
-              <a-tag :color="getActionColor(record.action)">{{ record.actionName }}</a-tag>
-            </template>
+          <template #action="{ record }">
+            <a-tag :color="getActionColor(record.action)">{{ record.actionName }}</a-tag>
           </template>
-        </a-table>
+        </VxeTableList>
       </div>
     </div>
   </a-modal>
@@ -80,6 +88,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   purchaseExchangeApi,
   type PurchaseExchange,
@@ -115,27 +124,20 @@ const open = computed({
   set: (val) => emit('update:open', val)
 })
 
-const itemColumns = [
-  { title: '商品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode' },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
-  { title: '换货数量', dataIndex: 'exchangeQuantity', key: 'exchangeQuantity', width: 100 },
-  { title: '换货单价', dataIndex: 'exchangePrice', key: 'exchangePrice', width: 100 },
-  {
-    title: '小计',
-    key: 'subtotal',
-    width: 100,
-    customRender: ({ record }: { record: PurchaseExchangeItem }) => {
-      return `¥${(record.exchangeQuantity * record.exchangePrice).toFixed(2)}`
-    }
-  }
+const itemVxeColumns = [
+  { field: 'productName', title: '商品名称' },
+  { field: 'productCode', title: '商品编码' },
+  { field: 'unit', title: '单位', width: 80 },
+  { field: 'exchangeQuantity', title: '换货数量', width: 100 },
+  { field: 'exchangePrice', title: '换货单价', width: 100 },
+  { field: 'subtotal', title: '小计', width: 100, formatter: ({ record }: any) => `¥${((record.exchangeQuantity || 0) * (record.exchangePrice || 0)).toFixed(2)}` }
 ]
 
-const approvalColumns = [
-  { title: '操作', key: 'action', width: 100 },
-  { title: '操作人', dataIndex: 'operatorName', key: 'operatorName', width: 100 },
-  { title: '时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '备注', dataIndex: 'remark', key: 'remark' }
+const approvalVxeColumns = [
+  { field: 'action', title: '操作', width: 100, type: 'action' },
+  { field: 'operatorName', title: '操作人', width: 100 },
+  { field: 'createTime', title: '时间', width: 180 },
+  { field: 'remark', title: '备注' }
 ]
 
 const getStatusColor = (status: ExchangeStatus): string => {

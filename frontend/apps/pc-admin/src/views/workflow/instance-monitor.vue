@@ -90,59 +90,63 @@
       </a-form>
 
       <!-- 数据表格 -->
-      <a-table
-        :columns="columns"
+      <VxeTableList
+        :columns="vxeColumns"
         :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
         row-key="instanceId"
-        @change="handleTableChange"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusLabel(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button
-              type="link"
-              size="small"
-              @click="handleViewDetail(record)"
-            >
-              查看详情
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleViewFlowChart(record)"
-            >
-              流程图
-            </a-button>
-            <a-dropdown v-if="record.status === 'running'">
-              <a-button
-                type="link"
-                size="small"
-              >
-                流程干预 <DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu @click="(e) => handleIntervention(e.key as string, record)">
-                  <a-menu-item key="terminate">
-                    终止流程
-                  </a-menu-item>
-                  <a-menu-item key="suspend">
-                    挂起流程
-                  </a-menu-item>
-                  <a-menu-item key="resume">
-                    恢复流程
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="getStatusColor(record.status)">
+            {{ getStatusLabel(record.status) }}
+          </a-tag>
         </template>
-      </a-table>
+        <template #action="{ record }">
+          <a-button
+            type="link"
+            size="small"
+            @click="handleViewDetail(record)"
+          >
+            查看详情
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleViewFlowChart(record)"
+          >
+            流程图
+          </a-button>
+          <a-dropdown v-if="record.status === 'running'">
+            <a-button
+              type="link"
+              size="small"
+            >
+              流程干预 <DownOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu @click="(e) => handleIntervention(e.key as string, record)">
+                <a-menu-item key="terminate">
+                  终止流程
+                </a-menu-item>
+                <a-menu-item key="suspend">
+                  挂起流程
+                </a-menu-item>
+                <a-menu-item key="resume">
+                  恢复流程
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <!-- 详情对话框 -->
@@ -213,7 +217,7 @@ import { ref, reactive, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
-import type { TableProps } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 
 // 查询表单
@@ -266,15 +270,15 @@ const getMockData = () => [
 ]
 
 // 表格列定义
-const columns = [
-  { title: '实例ID', dataIndex: 'instanceId', key: 'instanceId', width: 180 },
-  { title: '流程名称', dataIndex: 'processName', key: 'processName', minWidth: 150 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '当前节点', dataIndex: 'currentNode', key: 'currentNode', minWidth: 120 },
-  { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 180 },
-  { title: '结束时间', dataIndex: 'endTime', key: 'endTime', width: 180 },
-  { title: '耗时', dataIndex: 'duration', key: 'duration', width: 100 },
-  { title: '操作', key: 'action', width: 280, fixed: 'right' as const }
+const vxeColumns = [
+  { field: 'instanceId', title: '实例ID', width: 180 },
+  { field: 'processName', title: '流程名称', minWidth: 150 },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'currentNode', title: '当前节点', minWidth: 120 },
+  { field: 'startTime', title: '开始时间', width: 180 },
+  { field: 'endTime', title: '结束时间', width: 180 },
+  { field: 'duration', title: '耗时', width: 100 },
+  { field: 'action', title: '操作', width: 280, fixed: 'right', type: 'action' }
 ]
 
 const loading = ref(false)
@@ -353,9 +357,9 @@ const handleReset = () => {
 }
 
 // 表格变化
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 10
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   handleQuery()
 }
 
@@ -513,29 +517,9 @@ pre {
   overflow: auto;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

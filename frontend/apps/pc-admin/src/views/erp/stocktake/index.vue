@@ -84,40 +84,35 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space>
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="开始盘点">
-              <a-button type="link" size="small" @click="handleStart(record)">
-                <template #icon><FormOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="完成盘点">
-              <a-button type="link" size="small" @click="handleComplete(record)">
-                <template #icon><CheckOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item key="delete">
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+        <a-space>
+          <a-tooltip title="查看">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 0" title="开始盘点">
+            <a-button type="link" size="small" @click="handleStart(record)">
+              <template #icon><FormOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 1" title="完成盘点">
+            <a-button type="link" size="small" @click="handleComplete(record)">
+              <template #icon><CheckOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item key="delete">
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </template>
     </VxeTableList>
 
@@ -216,16 +211,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = dataSource
 
 const vxeColumns = computed(() => [
   { field: 'stocktakeNo', title: '盘点单号', width: 150 },
@@ -386,6 +373,8 @@ fetchData()
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .list-update-timestamp {
@@ -485,37 +474,10 @@ fetchData()
   color: #faad14;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 </style>

@@ -32,15 +32,20 @@
       </div>
     </div>
 
-    <TableList
+    <VxeTableList
       ref="tableRef"
       :columns="columns"
-      :data-source="tableDataSource"
+      :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
       :table-key="'system-position-list'"
       :filter-fields="filterFields"
       :show-search="false"
+      :show-toolbar="false"
+      :selectable="true"
+      :show-add="false"
+      :show-export="false"
+      :show-batch-delete="false"
       add-text="新增岗位"
       @add="handleAdd"
       @edit="handleEdit"
@@ -58,64 +63,59 @@
         </a-button>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.key === 'level'">
-          <a-tag :color="getLevelColor(record.level)">
-            {{ getLevelName(record.level) }}
-          </a-tag>
-        </template>
-
-        <template v-else-if="column.key === 'status'">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '正常' : '停用' }}
-          </a-tag>
-        </template>
-
-        <template v-else-if="column.key === 'action'">
-          <a-space>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleEdit(record)"
-            >
-              编辑
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleAssignDepartment(record)"
-            >
-              部门关联
-            </a-button>
-            <a-dropdown>
-              <a-button
-                type="link"
-                size="small"
-              >
-                更多<DownOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="handleToggleStatus(record)">
-                    <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item
-                    danger
-                    @click="handleDelete(record)"
-                  >
-                    <DeleteOutlined /> 删除
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+      <template #levelCell="{ record }">
+        <a-tag :color="getLevelColor(record.level)">
+          {{ getLevelName(record.level) }}
+        </a-tag>
       </template>
-    </TableList>
+
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 0 ? 'success' : 'error'">
+          {{ record.status === 0 ? '正常' : '停用' }}
+        </a-tag>
+      </template>
+
+      <template #actionCell="{ record }">
+        <a-space>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleEdit(record)"
+          >
+            编辑
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleAssignDepartment(record)"
+          >
+            部门关联
+          </a-button>
+          <a-dropdown>
+            <a-button
+              type="link"
+              size="small"
+            >
+              更多<DownOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="handleToggleStatus(record)">
+                  <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item
+                  danger
+                  @click="handleDelete(record)"
+                >
+                  <DeleteOutlined /> 删除
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
+      </template>
+    </VxeTableList>
 
     <!-- 岗位表单弹窗 -->
     <a-modal
@@ -252,41 +252,40 @@
             新增分类
           </a-button>
         </div>
-        <a-table
-          :columns="categoryColumns"
+        <VxeTableList
           :data-source="categoryData"
           :loading="categoryLoading"
           :pagination="{ pageSize: 10 }"
           row-key="id"
-          size="small"
+          :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+          :show-export="false" :show-batch-delete="false"
+          :columns="categoryColumns"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="record.status === 0 ? 'success' : 'error'">
-                {{ record.status === 0 ? '正常' : '停用' }}
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-space>
-                <a-button
-                  type="link"
-                  size="small"
-                  @click="handleEditCategory(record)"
-                >
-                  编辑
-                </a-button>
-                <a-button
-                  type="link"
-                  size="small"
-                  danger
-                  @click="handleDeleteCategory(record)"
-                >
-                  删除
-                </a-button>
-              </a-space>
-            </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+              {{ record.status === 0 ? '正常' : '停用' }}
+            </a-tag>
           </template>
-        </a-table>
+          <template #actionCell="{ record }">
+            <a-space>
+              <a-button
+                type="link"
+                size="small"
+                @click="handleEditCategory(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                danger
+                @click="handleDeleteCategory(record)"
+              >
+                删除
+              </a-button>
+            </a-space>
+          </template>
+        </VxeTableList>
       </div>
     </a-modal>
 
@@ -441,16 +440,7 @@ const selectedRowKeys = ref<number[]>([])
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+
 
 // 分页配置
 const pagination = reactive({
@@ -464,16 +454,16 @@ const pagination = reactive({
 
 // 表格列定义
 const columns: any[] = [
-  { title: '岗位编码', dataIndex: 'positionCode', width: 150 },
-  { title: '岗位名称', dataIndex: 'positionName', width: 150 },
-  { title: '岗位分类', dataIndex: 'categoryName', width: 120 },
-  { title: '所属部门', dataIndex: 'departmentName', width: 150 },
-  { title: '岗位级别', key: 'level', width: 100 },
-  { title: '排序', dataIndex: 'sort', width: 80 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '描述', dataIndex: 'description', ellipsis: true },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' }
+  { title: '岗位编码', field: 'positionCode', width: 150 },
+  { title: '岗位名称', field: 'positionName', width: 150 },
+  { title: '岗位分类', field: 'categoryName', width: 120 },
+  { title: '所属部门', field: 'departmentName', width: 150 },
+  { title: '岗位级别', field: 'level', width: 100, slotName: 'levelCell' },
+  { title: '排序', field: 'sort', width: 80 },
+  { title: '状态', field: 'status', width: 80, slotName: 'statusCell' },
+  { title: '描述', field: 'description', ellipsis: true },
+  { title: '创建时间', field: 'createTime', width: 160 },
+  { title: '操作', field: 'action', width: 180, fixed: 'right', slotName: 'actionCell' }
 ]
 
 // 筛选字段
@@ -516,13 +506,13 @@ const categoryModalVisible = ref(false)
 const categoryLoading = ref(false)
 const categoryData = ref<PositionCategory[]>([])
 const categoryColumns: any[] = [
-  { title: '分类编码', dataIndex: 'categoryCode', width: 150 },
-  { title: '分类名称', dataIndex: 'categoryName', width: 150 },
-  { title: '排序', dataIndex: 'sort', width: 80 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '描述', dataIndex: 'description', ellipsis: true },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 120, fixed: 'right' }
+  { title: '分类编码', field: 'categoryCode', width: 150 },
+  { title: '分类名称', field: 'categoryName', width: 150 },
+  { title: '排序', field: 'sort', width: 80 },
+  { title: '状态', field: 'status', width: 80, slotName: 'statusCell' },
+  { title: '描述', field: 'description', ellipsis: true },
+  { title: '创建时间', field: 'createTime', width: 160 },
+  { title: '操作', field: 'action', width: 120, fixed: 'right', slotName: 'actionCell' }
 ]
 
 const categoryFormModalVisible = ref(false)
@@ -869,6 +859,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -910,11 +902,6 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
-
-.category-management {
-  padding: 16px 0;
-}
 
 .category-header {
   margin-bottom: 16px;
@@ -929,29 +916,9 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

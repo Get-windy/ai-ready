@@ -94,44 +94,43 @@
 
       <!-- 表格模式 -->
       <div v-else class="table-container">
-        <a-table
-          :columns="columns"
-          :data-source="tableDataSource"
+        <VxeTableList
+          :columns="vxeColumns"
+          :data-source="dataSource"
           :loading="loading"
           :pagination="false"
-          size="small"
-          bordered
           row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else-if="column.key === 'rank'">
-              <a-tag :color="getRankColor(record.rank)" size="small">
-                TOP {{ record.rank }}
-              </a-tag>
-            </template>
-            <template v-else-if="column.key === 'name'">
-              <a @click="handleViewCustomer(record)">{{ record.name }}</a>
-            </template>
-            <template v-else-if="column.key === 'totalAmount'">
-              <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-            </template>
-            <template v-else-if="column.key === 'growth'">
-              <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                <ArrowUpOutlined v-if="record.growth > 0" />
-                <ArrowDownOutlined v-if="record.growth < 0" />
-                {{ Math.abs(record.growth) }}%
-              </span>
-            </template>
-            <template v-else-if="column.key === 'customerType'">
-              <a-tag :color="getCustomerTypeColor(record.customerType)">
-                {{ record.customerType }}类
-              </a-tag>
-            </template>
+          <template #rankCell="{ record }">
+            <a-tag :color="getRankColor(record.rank)" size="small">
+              TOP {{ record.rank }}
+            </a-tag>
           </template>
-        </a-table>
+          <template #nameCell="{ record }">
+            <a @click="handleViewCustomer(record)">{{ record.name }}</a>
+          </template>
+          <template #totalAmountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+          </template>
+          <template #growthCell="{ record }">
+            <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+              <ArrowUpOutlined v-if="record.growth > 0" />
+              <ArrowDownOutlined v-if="record.growth < 0" />
+              {{ Math.abs(record.growth) }}%
+            </span>
+          </template>
+          <template #customerTypeCell="{ record }">
+            <a-tag :color="getCustomerTypeColor(record.customerType)">
+              {{ record.customerType }}类
+            </a-tag>
+          </template>
+        </VxeTableList>
       </div>
     </a-card>
   </div>
@@ -140,6 +139,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import * as echarts from 'echarts'
 import {
   ExportOutlined,
@@ -162,17 +162,14 @@ const queryParams = reactive({
   rankLimit: 10
 })
 
-const columns = [
-  { title: '排名', key: 'rank', width: 80, align: 'center' },
-  { title: '客户名称', key: 'name', width: 180 },
-  { title: '客户类型', key: 'customerType', width: 100, align: 'center' },
-  { title: '销售总额', key: 'totalAmount', width: 140, align: 'right' },
-  { title: '订单数量', dataIndex: 'orderCount', width: 100, align: 'right' },
-  { title: '同比增长', key: 'growth', width: 100, align: 'right' }
+const vxeColumns = [
+  { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
+  { field: 'name', title: '客户名称', width: 180, slotName: 'nameCell' },
+  { field: 'customerType', title: '客户类型', width: 100, align: 'center', slotName: 'customerTypeCell' },
+  { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'orderCount', title: '订单数量', width: 100, align: 'right' },
+  { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' }
 ]
-
-// 空行填充
-const MIN_TABLE_ROWS = 20
 
 // 统计数据
 const summary = computed(() => {
@@ -184,14 +181,8 @@ const summary = computed(() => {
   return { totalCustomers, totalAmount, avgOrders, avgGrowth }
 })
 
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 统计数据修正 - 使用 dataSource
+
 
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
@@ -369,29 +360,9 @@ defineExpose({ handleQuery })
   height: 350px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 2px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
@@ -414,7 +385,4 @@ defineExpose({ handleQuery })
   color: #f5222d;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 </style>

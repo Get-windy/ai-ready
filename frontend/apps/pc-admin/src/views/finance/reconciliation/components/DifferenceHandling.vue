@@ -20,51 +20,53 @@
       </div>
     </div>
 
-    <a-table
+    <VxeTableList
       :columns="columns"
-      :data-source="tableData"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       row-key="id"
-      :bordered="true"
+      :show-toolbar="false"
+      :selectable="false"
+      :show-add="false"
+      :show-search="false"
+      :show-export="false"
+      :show-batch-delete="false"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'amount'">
-          <span v-if="record.type">¥{{ record.amount?.toFixed(2) }}</span>
-        </template>
-        <template v-else-if="column.key === 'status'">
-          <a-tag v-if="record.type" :color="getStatusColor(record.status)">
-            {{ getStatusText(record.status) }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'action'">
-          <a-space v-if="record.type">
-            <a-button
-              type="link"
-              size="small"
-              @click="handleAdjust(record)"
-            >
-              调整
-            </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handleIgnore(record)"
-            >
-              忽略
-            </a-button>
-          </a-space>
-        </template>
+      <template #amountCell="{ record }">
+        <span>¥{{ record.amount?.toFixed(2) }}</span>
       </template>
-    </a-table>
+      <template #statusCell="{ record }">
+        <a-tag :color="getStatusColor(record.status)">
+          {{ getStatusText(record.status) }}
+        </a-tag>
+      </template>
+      <template #actionCell="{ record }">
+        <a-space>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleAdjust(record)"
+          >
+            调整
+          </a-button>
+          <a-button
+            type="link"
+            size="small"
+            @click="handleIgnore(record)"
+          >
+            忽略
+          </a-button>
+        </a-space>
+      </template>
+    </VxeTableList>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
-
-const MIN_TABLE_ROWS = 20
 
 interface DifferenceRecord {
   id: number
@@ -87,32 +89,16 @@ const summaryData = reactive({
 const pagination = reactive({
   current: 1,
   pageSize: 10,
-  total: 0,
-  showSizeChanger: true
+  total: 0
 })
 
 const columns = [
-  { title: '差异类型', dataIndex: 'type', key: 'type' },
-  { title: '描述', dataIndex: 'description', key: 'description' },
-  { title: '金额', key: 'amount' },
-  { title: '状态', key: 'status' },
-  { title: '操作', key: 'action', width: 150 }
+  { field: 'type', title: '差异类型' },
+  { field: 'description', title: '描述' },
+  { field: 'amount', title: '金额', slotName: 'amountCell' },
+  { field: 'status', title: '状态', slotName: 'statusCell' },
+  { field: 'action', title: '操作', width: 150, slotName: 'actionCell' }
 ]
-
-// 表格空行填充
-const tableData = computed(() => {
-  const data = [...dataSource.value]
-  while (data.length < MIN_TABLE_ROWS) {
-    data.push({
-      id: -(data.length + 1),
-      type: '',
-      description: '',
-      amount: 0,
-      status: 0
-    } as DifferenceRecord)
-  }
-  return data
-})
 
 const getStatusColor = (status: number) => {
   const colors: Record<number, string> = {
@@ -191,12 +177,5 @@ setTimeout(() => {
 }
 
 /* 网格边框样式 */
-:deep(.ant-table-thead > tr > th) {
-  border: 2px solid #f0f0f0;
-  background: #fafafa;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border: 1px solid #f0f0f0;
-}
 </style>

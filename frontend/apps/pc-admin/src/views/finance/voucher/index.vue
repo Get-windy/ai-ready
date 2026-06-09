@@ -58,7 +58,7 @@
           <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
       :filter-fields="filterFields"
@@ -182,62 +182,57 @@
             添加分录行
           </a-button>
 
-          <a-table
+          <VxeTableList
             :columns="entryColumns"
-            :data-source="formTableItems"
+            :data-source="addForm.entries"
             :pagination="false"
             row-key="tempId"
-            size="small"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'summary'">
-                <a-input v-model:value="record.summary" placeholder="摘要" size="small" />
-              </template>
-              <template v-else-if="column.key === 'subject'">
-                <a-input v-model:value="record.subjectName" placeholder="科目名称" size="small" />
-              </template>
-              <template v-else-if="column.key === 'debitAmount'">
-                <a-input-number
-                  v-model:value="record.debitAmount"
-                  :min="0"
-                  :precision="2"
-                  style="width: 100%"
-                  size="small"
-                  placeholder="0.00"
-                />
-              </template>
-              <template v-else-if="column.key === 'creditAmount'">
-                <a-input-number
-                  v-model:value="record.creditAmount"
-                  :min="0"
-                  :precision="2"
-                  style="width: 100%"
-                  size="small"
-                  placeholder="0.00"
-                />
-              </template>
-              <template v-else-if="column.key === 'action'">
-                <a-button type="link" size="small" danger @click="handleRemoveEntry(index)">
-                  <DeleteOutlined />
-                </a-button>
-              </template>
+            <template #summaryCell="{ record }">
+              <a-input v-model:value="record.summary" placeholder="摘要" size="small" />
             </template>
-            <template #summary>
-              <a-table-summary-row>
-                <a-table-summary-cell :index="0" :col-span="2">合计</a-table-summary-cell>
-                <a-table-summary-cell :index="2">
-                  <strong class="amount-cell debit">¥{{ getTotalDebit() }}</strong>
-                </a-table-summary-cell>
-                <a-table-summary-cell :index="3">
-                  <strong class="amount-cell credit">¥{{ getTotalCredit() }}</strong>
-                </a-table-summary-cell>
-                <a-table-summary-cell :index="4" />
-              </a-table-summary-row>
+            <template #subjectCell="{ record }">
+              <a-input v-model:value="record.subjectName" placeholder="科目名称" size="small" />
             </template>
-          </a-table>
+            <template #debitAmountCell="{ record }">
+              <a-input-number
+                v-model:value="record.debitAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                size="small"
+                placeholder="0.00"
+              />
+            </template>
+            <template #creditAmountCell="{ record }">
+              <a-input-number
+                v-model:value="record.creditAmount"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                size="small"
+                placeholder="0.00"
+              />
+            </template>
+            <template #actionCell="{ record, rowIndex }">
+              <a-button type="link" size="small" danger @click="handleRemoveEntry(rowIndex)">
+                <DeleteOutlined />
+              </a-button>
+            </template>
+            <template #footer>
+              <div class="voucher-summary-row">
+                <span class="voucher-summary-label">合计</span>
+                <span class="amount-cell debit">¥{{ getTotalDebit() }}</span>
+                <span class="amount-cell credit">¥{{ getTotalCredit() }}</span>
+              </div>
+            </template>
+          </VxeTableList>
         </div>
       </a-modal>
 
@@ -271,33 +266,32 @@
 
           <a-divider>分录明细</a-divider>
 
-          <a-table
+          <VxeTableList
             :columns="entryViewColumns"
             :data-source="currentVoucher.entries || []"
             :pagination="false"
-            size="small"
             row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'debitAmount'">
-                <span class="amount-cell debit">¥{{ formatAmount(record.debitAmount) }}</span>
-              </template>
-              <template v-else-if="column.key === 'creditAmount'">
-                <span class="amount-cell credit">¥{{ formatAmount(record.creditAmount) }}</span>
-              </template>
+            <template #debitAmountCell="{ record }">
+              <span class="amount-cell debit">¥{{ formatAmount(record.debitAmount) }}</span>
             </template>
-            <template #summary>
-              <a-table-summary-row>
-                <a-table-summary-cell :index="0" :col-span="2">合计</a-table-summary-cell>
-                <a-table-summary-cell :index="2">
-                  <strong class="amount-cell debit">¥{{ formatAmount(currentVoucher.debitTotal) }}</strong>
-                </a-table-summary-cell>
-                <a-table-summary-cell :index="3">
-                  <strong class="amount-cell credit">¥{{ formatAmount(currentVoucher.creditTotal) }}</strong>
-                </a-table-summary-cell>
-              </a-table-summary-row>
+            <template #creditAmountCell="{ record }">
+              <span class="amount-cell credit">¥{{ formatAmount(record.creditAmount) }}</span>
             </template>
-          </a-table>
+            <template #footer>
+              <div class="voucher-summary-row voucher-summary-row-view">
+                <span class="voucher-summary-label">合计</span>
+                <span class="amount-cell debit">¥{{ formatAmount(currentVoucher.debitTotal) }}</span>
+                <span class="amount-cell credit">¥{{ formatAmount(currentVoucher.creditTotal) }}</span>
+              </div>
+            </template>
+          </VxeTableList>
 
           <div class="detail-modal-footer">
             <a-button v-if="currentVoucher.status === 0" type="primary" @click="handleAudit(currentVoucher)">
@@ -426,28 +420,6 @@ const totalDebit = computed(() => {
   return tableData.value.filter(r => r.status === 2).reduce((sum, r) => sum + r.debitTotal, 0)
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
-  }
-  return data
-})
-
-// 表单空行填充
-const MIN_FORM_ROWS = 8
-const formTableItems = computed(() => {
-  const data = [...addForm.entries]
-  const emptyCount = Math.max(0, MIN_FORM_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, tempId: `__empty_form_${i}` } as any)
-  }
-  return data
-})
-
 const filterFields = [
   { key: 'fiscalYear', label: '年度', type: 'input' as const, placeholder: '年度', defaultValue: dayjs().year() },
   { key: 'fiscalPeriod', label: '期间', type: 'select' as const, options: Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 })), placeholder: '期间' },
@@ -499,18 +471,18 @@ const vxeColumns = computed(() => [
 ])
 
 const entryColumns = [
-  { title: '摘要', key: 'summary', width: 180 },
-  { title: '会计科目', key: 'subject', width: 180 },
-  { title: '借方金额', key: 'debitAmount', width: 130 },
-  { title: '贷方金额', key: 'creditAmount', width: 130 },
-  { title: '操作', key: 'action', width: 60 }
+  { title: '摘要', field: 'summary', width: 180, slotName: 'summaryCell' },
+  { title: '会计科目', field: 'subject', width: 180, slotName: 'subjectCell' },
+  { title: '借方金额', field: 'debitAmount', width: 130, slotName: 'debitAmountCell' },
+  { title: '贷方金额', field: 'creditAmount', width: 130, slotName: 'creditAmountCell' },
+  { title: '操作', field: 'action', width: 60, slotName: 'actionCell' }
 ]
 
 const entryViewColumns = [
-  { title: '摘要', dataIndex: 'summary' },
-  { title: '会计科目', dataIndex: 'subjectName' },
-  { title: '借方金额', key: 'debitAmount', width: 130, align: 'right' },
-  { title: '贷方金额', key: 'creditAmount', width: 130, align: 'right' }
+  { title: '摘要', field: 'summary' },
+  { title: '会计科目', field: 'subjectName' },
+  { title: '借方金额', field: 'debitAmount', width: 130, align: 'right', slotName: 'debitAmountCell' },
+  { title: '贷方金额', field: 'creditAmount', width: 130, align: 'right', slotName: 'creditAmountCell' }
 ]
 
 let entryTempIdCounter = 0
@@ -785,6 +757,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .data-status {
@@ -859,8 +833,22 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
+.voucher-summary-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.voucher-summary-row.voucher-summary-row-view {
+  padding: 4px 16px;
+}
+
+.voucher-summary-label {
+  margin-right: 8px;
+  color: #333;
 }
 
 .voucher-no {
@@ -909,29 +897,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

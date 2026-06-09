@@ -82,27 +82,30 @@
     <!-- 账龄明细表 -->
     <div class="table-area">
       <a-card title="账龄明细">
-        <a-table
-          :columns="columns"
-          :data-source="tableDataSource"
+        <VxeTableList
+          ref="tableRef"
+          :columns="vxeColumns"
+          :data-source="tableData"
           :loading="loading"
           :pagination="pagination"
           row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          @page-change="handlePageChange"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else-if="column.key === 'totalAmount'">
-              <span class="amount-cell">¥{{ record.totalAmount?.toFixed(2) }}</span>
-            </template>
-            <template v-else-if="column.key === 'agingDays'">
-              <a-tag :color="getAgingColor(record.agingDays)">
-                {{ record.agingDays }}天
-              </a-tag>
-            </template>
+          <template #totalAmountCell="{ record }">
+            <span class="amount-cell">¥{{ record.totalAmount?.toFixed(2) }}</span>
           </template>
-        </a-table>
+          <template #agingDaysCell="{ record }">
+            <a-tag :color="getAgingColor(record.agingDays)">
+              {{ record.agingDays }}天
+            </a-tag>
+          </template>
+        </VxeTableList>
       </a-card>
     </div>
   </div>
@@ -112,6 +115,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { ClockCircleOutlined, WarningOutlined, ExclamationCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import * as echarts from 'echarts'
 import request from '@/utils/request'
 
@@ -127,6 +131,7 @@ interface AgingData {
 const chartRef = ref<HTMLElement>()
 const loading = ref(false)
 const tableData = ref<AgingData[]>([])
+const tableRef = ref()
 
 const queryParams = reactive({
   customerName: '',
@@ -149,48 +154,14 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
-  }
-  return data
-})
 
-const columns = [
-  {
-    title: '客户名称',
-    dataIndex: 'customerName',
-    key: 'customerName',
-    width: 150
-  },
-  {
-    title: '订单号',
-    dataIndex: 'orderNo',
-    key: 'orderNo',
-    width: 150
-  },
-  {
-    title: '应收金额',
-    key: 'totalAmount',
-    width: 120,
-    align: 'right' as const
-  },
-  {
-    title: '到期日期',
-    dataIndex: 'dueDate',
-    key: 'dueDate',
-    width: 120
-  },
-  {
-    title: '账龄天数',
-    key: 'agingDays',
-    width: 100
-  }
-]
+const vxeColumns = computed(() => [
+  { field: 'customerName', title: '客户名称', width: 150 },
+  { field: 'orderNo', title: '订单号', width: 150 },
+  { field: 'totalAmount', title: '应收金额', width: 120, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'dueDate', title: '到期日期', width: 120 },
+  { field: 'agingDays', title: '账龄天数', width: 100, slotName: 'agingDaysCell' },
+])
 
 const getAgingColor = (days: number) => {
   if (days <= 30) return 'green'
@@ -299,6 +270,12 @@ const handleReset = () => {
   handleSearch()
 }
 
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
+  fetchData()
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
@@ -353,6 +330,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -414,39 +393,15 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

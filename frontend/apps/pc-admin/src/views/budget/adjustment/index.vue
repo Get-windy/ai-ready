@@ -69,41 +69,36 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="0" class="action-cell-inner">
-            <a-tooltip title="查看">
-              <a-button type="link" size="small" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="submit">
-                    <CheckCircleOutlined /> 提交
-                  </a-menu-item>
-                  <a-menu-item v-if="record.status === 'submitted'" key="approve">
-                    <AuditOutlined /> 通过
-                  </a-menu-item>
-                  <a-menu-item v-if="record.status === 'submitted'" key="reject">
-                    <CloseCircleOutlined /> 拒绝
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+        <a-space :size="0" class="action-cell-inner">
+          <a-tooltip title="查看">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 'draft'" title="编辑">
+            <a-button type="link" size="small" @click="handleEdit(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item v-if="record.status === 'draft'" key="submit">
+                  <CheckCircleOutlined /> 提交
+                </a-menu-item>
+                <a-menu-item v-if="record.status === 'submitted'" key="approve">
+                  <AuditOutlined /> 通过
+                </a-menu-item>
+                <a-menu-item v-if="record.status === 'submitted'" key="reject">
+                  <CloseCircleOutlined /> 拒绝
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </template>
     </VxeTableList>
 
@@ -196,16 +191,8 @@ const pendingCount = computed(() => tableData.value.filter(r => r.status === 'su
 const approvedCount = computed(() => tableData.value.filter(r => r.status === 'approved').length)
 const totalAmount = computed(() => tableData.value.reduce((s, r) => s + (r.amount || 0), 0))
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
@@ -466,6 +453,8 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -525,7 +514,6 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   margin-top: 12px;
 }
 
-.empty-placeholder { color: transparent; }
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .action-cell-inner { flex-wrap: nowrap; }
 
@@ -546,29 +534,9 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

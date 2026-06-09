@@ -114,27 +114,22 @@
         </template>
 
         <template #action="{ record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else>
-            <a-space :size="4">
-              <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-              <a-tooltip title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-              <a-tooltip title="产品"><a-button type="link" size="small" @click="handleProducts(record)"><template #icon><ShoppingOutlined /></template></a-button></a-tooltip>
-              <a-tooltip title="评估"><a-button type="link" size="small" @click="handleEvaluate(record)"><template #icon><StarOutlined /></template></a-button></a-tooltip>
-              <a-dropdown>
-                <a-button type="link" size="small" @click.prevent><template #icon><MoreOutlined /></template></a-button>
-                <template #overlay>
-                  <a-menu>
-                    <a-menu-item @click="handlePortal(record)">供应商门户</a-menu-item>
-                    <a-menu-item @click="handleContact(record)">联系记录</a-menu-item>
-                    <a-menu-item @click="handleDelete(record)" v-if="record.cooperationStatus === 2">删除</a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
+          <a-space :size="4">
+            <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="产品"><a-button type="link" size="small" @click="handleProducts(record)"><template #icon><ShoppingOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="评估"><a-button type="link" size="small" @click="handleEvaluate(record)"><template #icon><StarOutlined /></template></a-button></a-tooltip>
+            <a-dropdown>
+              <a-button type="link" size="small" @click.prevent><template #icon><MoreOutlined /></template></a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handlePortal(record)">供应商门户</a-menu-item>
+                  <a-menu-item @click="handleContact(record)">联系记录</a-menu-item>
+                  <a-menu-item @click="handleDelete(record)" v-if="record.cooperationStatus === 2">删除</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
         </template>
       </VxeTableList>
     </ErrorBoundary>
@@ -209,21 +204,17 @@
         <a-col :span="6"><a-statistic title="综合评分" :value="supplierDetail.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
       </a-row>
       <a-divider>最近采购订单</a-divider>
-      <a-table :columns="orderColumns" :data-source="supplierDetail.recentOrders" :pagination="false" size="small">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'amount'"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
-          <template v-if="column.key === 'status'"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
-        </template>
-      </a-table>
+      <VxeTableList :columns="orderVxeColumns" :data-source="supplierDetail.recentOrders" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
+        <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
+      </VxeTableList>
     </a-modal>
 
     <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
-      <a-table :columns="productsColumns" :data-source="productsData" :pagination="false" row-key="id" size="small">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'price'"><span class="amount">¥{{ formatAmount(record.price) }}</span></template>
-          <template v-if="column.key === 'status'"><a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">{{ record.status }}</a-tag></template>
-        </template>
-      </a-table>
+      <VxeTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <template #priceCell="{ record }"><span class="amount">¥{{ formatAmount(record.price) }}</span></template>
+        <template #statusCell="{ record }"><a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">{{ record.status }}</a-tag></template>
+      </VxeTableList>
     </a-modal>
 
     <a-modal v-model:open="evaluateModalVisible" title="供应商评估" width="600px" @ok="handleEvaluateSubmit">
@@ -259,11 +250,9 @@
     </a-modal>
 
     <a-modal v-model:open="contactsModalVisible" :title="contactsModalTitle" width="700px" :footer="null">
-      <a-table :columns="contactsColumns" :data-source="contactsData" :pagination="false" row-key="id" size="small">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'isPrimary'"><a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">{{ record.isPrimary }}</a-tag></template>
-        </template>
-      </a-table>
+      <VxeTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <template #isPrimaryCell="{ record }"><a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">{{ record.isPrimary }}</a-tag></template>
+      </VxeTableList>
     </a-modal>
   </PageContainer>
 </template>
@@ -315,16 +304,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = tableData
 
 const columns = [
   { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', width: 180 },
@@ -365,11 +346,11 @@ const summaryData = computed(() => {
   return [{ label: '本页数量', value: tableData.value.length, type: 'default' as const }]
 })
 
-const orderColumns = [
-  { title: '订单编号', dataIndex: 'orderNo', width: 150 },
-  { title: '订单金额', key: 'amount', dataIndex: 'amount', width: 120 },
-  { title: '下单日期', dataIndex: 'orderDate', width: 100 },
-  { title: '状态', key: 'status', dataIndex: 'status', width: 100 }
+const orderVxeColumns = [
+  { field: 'orderNo', title: '订单编号', width: 150 },
+  { field: 'amount', title: '订单金额', width: 120, slotName: 'amountCell' },
+  { field: 'orderDate', title: '下单日期', width: 100 },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' }
 ]
 
 const formData = reactive({ id: undefined, supplierName: '', supplierCode: '', supplierType: 1, supplierLevel: 'B', contactPerson: '', contactPhone: '', email: '', address: '', bankInfo: '', cooperationStatus: 1, remark: '' })
@@ -380,10 +361,10 @@ const supplierDetail = ref<any>({})
 const productsModalVisible = ref(false)
 const productsModalTitle = ref('')
 const productsData = ref<any[]>([])
-const productsColumns = [
-  { title: '产品编码', dataIndex: 'productCode', width: 120 }, { title: '产品名称', dataIndex: 'productName', width: 150 },
-  { title: '规格型号', dataIndex: 'spec', width: 120 }, { title: '单价', dataIndex: 'price', width: 100 },
-  { title: '单位', dataIndex: 'unit', width: 80 }, { title: '供应状态', key: 'status', dataIndex: 'status', width: 100 }
+const productsVxeColumns = [
+  { field: 'productCode', title: '产品编码', width: 120 }, { field: 'productName', title: '产品名称', width: 150 },
+  { field: 'spec', title: '规格型号', width: 120 }, { field: 'price', title: '单价', width: 100, slotName: 'priceCell' },
+  { field: 'unit', title: '单位', width: 80 }, { field: 'status', title: '供应状态', width: 100, slotName: 'statusCell' }
 ]
 
 const evaluateModalVisible = ref(false)
@@ -395,10 +376,10 @@ const portalInfo = reactive({ supplierName: '', portalUrl: '', account: '', pass
 const contactsModalVisible = ref(false)
 const contactsModalTitle = ref('')
 const contactsData = ref<any[]>([])
-const contactsColumns = [
-  { title: '姓名', dataIndex: 'name', width: 100 }, { title: '职位', dataIndex: 'role', width: 120 },
-  { title: '电话', dataIndex: 'phone', width: 120 }, { title: '邮箱', dataIndex: 'email', width: 180 },
-  { title: '是否主要联系人', key: 'isPrimary', dataIndex: 'isPrimary', width: 120 }
+const contactsVxeColumns = [
+  { field: 'name', title: '姓名', width: 100 }, { field: 'role', title: '职位', width: 120 },
+  { field: 'phone', title: '电话', width: 120 }, { field: 'email', title: '邮箱', width: 180 },
+  { field: 'isPrimary', title: '是否主要联系人', width: 120, slotName: 'isPrimaryCell' }
 ]
 
 onMounted(() => {
@@ -659,9 +640,6 @@ function handleFilterChange(filters: Record<string, any>) { Object.assign(search
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .supplier-name {
   font-weight: 500;
@@ -678,29 +656,9 @@ function handleFilterChange(filters: Record<string, any>) { Object.assign(search
   font-weight: 600;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 :deep(.ant-tabs) {
   margin: 0 24px;

@@ -68,126 +68,120 @@
 
       <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待处理">
-          <a-table
-            :columns="columns"
-            :data-source="pendingTableData"
+          <VxeTableList
+            ref="pendingTableRef"
+            :columns="pendingVxeColumns"
+            :data-source="pendingSuggestions"
             :loading="loading"
             :pagination="pagination"
             row-key="id"
-            style="flex: 1; overflow: auto;"
-            @change="handleTableChange"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            @page-change="handlePageChange"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'product'">
-                <div class="product-info">
-                  <span class="product-name">{{ record.productName }}</span>
-                  <span class="product-code">{{ record.productCode }}</span>
-                </div>
-              </template>
-              <template v-if="column.key === 'stock'">
-                <div class="stock-info">
-                  <div class="stock-row">
-                    <span class="stock-label">当前库存:</span>
-                    <span class="stock-value">{{ record.currentQty }}</span>
-                  </div>
-                  <div class="stock-row">
-                    <span class="stock-label">安全库存:</span>
-                    <span class="stock-value">{{ record.safetyStock }}</span>
-                  </div>
-                  <div class="stock-row danger">
-                    <span class="stock-label">缺口:</span>
-                    <span class="stock-value shortage">{{ record.shortageQty }}</span>
-                  </div>
-                </div>
-              </template>
-              <template v-if="column.key === 'analysis'">
-                <div class="analysis-info">
-                  <div class="analysis-row">
-                    <span class="analysis-label">日均销量:</span>
-                    <span class="analysis-value">{{ record.avgDailySales }}件</span>
-                  </div>
-                  <div class="analysis-row">
-                    <span class="analysis-label">库存天数:</span>
-                    <span class="analysis-value" :class="{ danger: record.daysOfStock <= 3 }">{{ record.daysOfStock }}天</span>
-                  </div>
-                  <div class="analysis-row">
-                    <span class="analysis-label">采购周期:</span>
-                    <span class="analysis-value">{{ record.leadTime }}天</span>
-                  </div>
-                </div>
-              </template>
-              <template v-if="column.key === 'suggestedQty'">
-                <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
-              </template>
-              <template v-if="column.key === 'priority'">
-                <a-progress 
-                  :percent="record.priority" 
-                  :stroke-color="getPriorityColor(record.priority)"
-                  :show-info="true"
-                  size="small"
-                />
-              </template>
-              <template v-if="column.key === 'estimatedArrival'">
-                <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
-              </template>
-              <template v-if="column.key === 'action'">
-                <a-space>
-                  <a-button size="small" type="primary" @click="handleCreateOrder(record)">
-                    创建采购单
-                  </a-button>
-                  <a-button size="small" @click="handleIgnore(record)">
-                    忽略
-                  </a-button>
-                  <a @click="handleViewDetail(record)">详情</a>
-                </a-space>
-              </template>
+            <template #productCell="{ record }">
+              <div class="product-info">
+                <span class="product-name">{{ record.productName }}</span>
+                <span class="product-code">{{ record.productCode }}</span>
+              </div>
             </template>
-          </a-table>
+            <template #stockCell="{ record }">
+              <div class="stock-info">
+                <div class="stock-row">
+                  <span class="stock-label">当前库存:</span>
+                  <span class="stock-value">{{ record.currentQty }}</span>
+                </div>
+                <div class="stock-row">
+                  <span class="stock-label">安全库存:</span>
+                  <span class="stock-value">{{ record.safetyStock }}</span>
+                </div>
+                <div class="stock-row danger">
+                  <span class="stock-label">缺口:</span>
+                  <span class="stock-value shortage">{{ record.shortageQty }}</span>
+                </div>
+              </div>
+            </template>
+            <template #analysisCell="{ record }">
+              <div class="analysis-info">
+                <div class="analysis-row">
+                  <span class="analysis-label">日均销量:</span>
+                  <span class="analysis-value">{{ record.avgDailySales }}件</span>
+                </div>
+                <div class="analysis-row">
+                  <span class="analysis-label">库存天数:</span>
+                  <span class="analysis-value" :class="{ danger: record.daysOfStock <= 3 }">{{ record.daysOfStock }}天</span>
+                </div>
+                <div class="analysis-row">
+                  <span class="analysis-label">采购周期:</span>
+                  <span class="analysis-value">{{ record.leadTime }}天</span>
+                </div>
+              </div>
+            </template>
+            <template #suggestedQtyCell="{ record }">
+              <span class="suggested-qty">建议采购 {{ record.suggestedQty }} 件</span>
+            </template>
+            <template #priorityCell="{ record }">
+              <a-progress :percent="record.priority" :stroke-color="getPriorityColor(record.priority)" :show-info="true" size="small" />
+            </template>
+            <template #estimatedArrivalCell="{ record }">
+              <span class="arrival-date">{{ formatDate(record.estimatedArrival) }}</span>
+            </template>
+            <template #action="{ record }">
+              <a-space>
+                <a-button size="small" type="primary" @click="handleCreateOrder(record)">创建采购单</a-button>
+                <a-button size="small" @click="handleIgnore(record)">忽略</a-button>
+                <a @click="handleViewDetail(record)">详情</a>
+              </a-space>
+            </template>
+          </VxeTableList>
         </a-tab-pane>
         <a-tab-pane key="processed" tab="已处理">
-          <a-table
-            :columns="processedColumns"
-            :data-source="processedTableData"
+          <VxeTableList
+            :columns="processedVxeColumns"
+            :data-source="processedSuggestions"
             :loading="loading"
             :pagination="false"
             row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <a-tag color="green">已生成采购单</a-tag>
-              </template>
-              <template v-else-if="column.key === 'purchaseOrder'">
-                <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
-              </template>
+            <template #statusCell="{ record }">
+              <a-tag color="green">已生成采购单</a-tag>
             </template>
-          </a-table>
+            <template #purchaseOrderCell="{ record }">
+              <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
+            </template>
+          </VxeTableList>
         </a-tab-pane>
         <a-tab-pane key="ignored" tab="已忽略">
-          <a-table
-            :columns="ignoredColumns"
-            :data-source="ignoredTableData"
+          <VxeTableList
+            :columns="ignoredVxeColumns"
+            :data-source="ignoredSuggestions"
             :loading="loading"
             :pagination="false"
             row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <a-tag color="default">已忽略</a-tag>
-              </template>
-              <template v-else-if="column.key === 'ignoreReason'">
-                <span class="ignore-reason">{{ record.ignoreReason }}</span>
-              </template>
+            <template #statusCell="{ record }">
+              <a-tag color="default">已忽略</a-tag>
             </template>
-          </a-table>
+            <template #ignoreReasonCell="{ record }">
+              <span class="ignore-reason">{{ record.ignoreReason }}</span>
+            </template>
+          </VxeTableList>
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -312,7 +306,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
-import type { TableProps } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
 
@@ -322,6 +316,7 @@ const detailVisible = ref(false)
 const ignoreVisible = ref(false)
 const createOrderVisible = ref(false)
 const reportVisible = ref(false)
+const pendingTableRef = ref()
 
 // 统计数据
 const statistics = ref({
@@ -344,50 +339,35 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const columns = [
-  { title: '产品信息', key: 'product', width: 180 },
-  { title: '库存状态', key: 'stock', width: 150 },
-  { title: '销售分析', key: 'analysis', width: 150 },
-  { title: '建议采购量', key: 'suggestedQty', width: 120 },
-  { title: '优先级', key: 'priority', width: 120 },
-  { title: '预计到货', key: 'estimatedArrival', width: 120 },
-  { title: '操作', key: 'action', fixed: 'right', width: 200 }
-]
+const pendingVxeColumns = computed(() => [
+  { field: 'productName', title: '产品信息', width: 180, slotName: 'productCell' },
+  { field: 'stock', title: '库存状态', width: 150, slotName: 'stockCell' },
+  { field: 'analysis', title: '销售分析', width: 150, slotName: 'analysisCell' },
+  { field: 'suggestedQty', title: '建议采购量', width: 120, slotName: 'suggestedQtyCell' },
+  { field: 'priority', title: '优先级', width: 120, slotName: 'priorityCell' },
+  { field: 'estimatedArrival', title: '预计到货', width: 120, slotName: 'estimatedArrivalCell' },
+  { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
+])
 
-const processedColumns = [
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '建议采购量', dataIndex: 'suggestedQty', width: 120 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '采购订单', key: 'purchaseOrder', width: 150 },
-  { title: '处理时间', dataIndex: 'processTime', width: 150 }
-]
+const processedVxeColumns = computed(() => [
+  { field: 'productName', title: '产品名称', width: 180 },
+  { field: 'suggestedQty', title: '建议采购量', width: 120 },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'purchaseOrder', title: '采购订单', width: 150, slotName: 'purchaseOrderCell' },
+  { field: 'processTime', title: '处理时间', width: 150 },
+])
 
-const ignoredColumns = [
-  { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '建议采购量', dataIndex: 'suggestedQty', width: 120 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '忽略原因', key: 'ignoreReason', width: 200 },
-  { title: '处理时间', dataIndex: 'processTime', width: 150 }
-]
+const ignoredVxeColumns = computed(() => [
+  { field: 'productName', title: '产品名称', width: 180 },
+  { field: 'suggestedQty', title: '建议采购量', width: 120 },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'ignoreReason', title: '忽略原因', width: 200, slotName: 'ignoreReasonCell' },
+  { field: 'processTime', title: '处理时间', width: 150 },
+])
 
 const pendingSuggestions = ref<any[]>([])
 const processedSuggestions = ref<any[]>([])
 const ignoredSuggestions = ref<any[]>([])
-
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const fillEmptyRows = (data: any[]) => {
-  const result = [...data]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - result.length)
-  for (let i = 0; i < emptyCount; i++) {
-    result.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return result
-}
-
-const pendingTableData = computed(() => fillEmptyRows(pendingSuggestions.value))
-const processedTableData = computed(() => fillEmptyRows(processedSuggestions.value))
-const ignoredTableData = computed(() => fillEmptyRows(ignoredSuggestions.value))
 
 const suggestionDetail = ref<any>({})
 const ignoreData = ref<any>({})
@@ -491,9 +471,9 @@ const filterOption = (input: string, option: any) => {
   return option.name.toLowerCase().indexOf(input.toLowerCase()) >= 0
 }
 
-const handleTableChange: TableProps['onChange'] = (pag) => {
-  pagination.current = pag.current || 1
-  pagination.pageSize = pag.pageSize || 20
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   loadSuggestions()
 }
 
@@ -585,6 +565,8 @@ const initPriorityChart = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片样式 */
@@ -640,10 +622,6 @@ const initPriorityChart = () => {
 
 .summary-value.warning {
   color: #f5222d;
-}
-
-.empty-placeholder {
-  color: transparent;
 }
 
 .page-header {
@@ -745,33 +723,8 @@ const initPriorityChart = () => {
   height: 250px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 </style>

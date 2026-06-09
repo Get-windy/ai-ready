@@ -99,57 +99,59 @@
 
     <!-- 数据表格 -->
     <div class="table-area">
-      <a-table
-        :columns="columns"
-        :data-source="tableDataSource"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
-        :row-selection="rowSelection"
         row-key="id"
-        @change="handleTableChange"
+        :selectable="true"
+        :show-toolbar="false"
+        :show-search="false"
+        :show-add="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
+        @selection-change="handleSelectionChange"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
-          </template>
-          <template v-else-if="column.key === 'overdueDays'">
-            <a-tag color="red">
-              {{ record.overdueDays }}天
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'nextReminderDate'">
-            <span :class="{ 'urgent': isUrgent(record.nextReminderDate) }">
-              {{ record.nextReminderDate }}
-            </span>
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleRemind(record)"
-              >
-                发送提醒
-              </a-button>
-              <a-button
-                type="link"
-                size="small"
-                @click="handleEdit(record)"
-              >
-                设置
-              </a-button>
-            </a-space>
-          </template>
+        <template #amountCell="{ record }">
+          <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
         </template>
-      </a-table>
+        <template #overdueDaysCell="{ record }">
+          <a-tag color="red">
+            {{ record.overdueDays }}天
+          </a-tag>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="getStatusColor(record.status)">
+            {{ getStatusText(record.status) }}
+          </a-tag>
+        </template>
+        <template #nextReminderDateCell="{ record }">
+          <span :class="{ 'urgent': isUrgent(record.nextReminderDate) }">
+            {{ record.nextReminderDate }}
+          </span>
+        </template>
+        <template #action="{ record }">
+          <a-space>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleRemind(record)"
+            >
+              发送提醒
+            </a-button>
+            <a-button
+              type="link"
+              size="small"
+              @click="handleEdit(record)"
+            >
+              设置
+            </a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
     </div>
   </div>
 </template>
@@ -158,6 +160,7 @@
 import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { BellOutlined, ExportOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 
 interface CollectionReminder {
@@ -175,6 +178,7 @@ interface CollectionReminder {
 const loading = ref(false)
 const tableData = ref<CollectionReminder[]>([])
 const selectedRowKeys = ref<number[]>([])
+const tableRef = ref()
 
 const queryParams = reactive({
   customerName: '',
@@ -197,77 +201,19 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
-  }
-  return data
-})
 
-const columns = [
-  {
-    title: '客户名称',
-    dataIndex: 'customerName',
-    key: 'customerName',
-    width: 150
-  },
-  {
-    title: '订单号',
-    dataIndex: 'orderNo',
-    key: 'orderNo',
-    width: 150
-  },
-  {
-    title: '应收金额',
-    key: 'amount',
-    width: 120,
-    align: 'right' as const
-  },
-  {
-    title: '逾期天数',
-    key: 'overdueDays',
-    width: 100
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100
-  },
-  {
-    title: '上次提醒',
-    dataIndex: 'lastReminderDate',
-    key: 'lastReminderDate',
-    width: 120
-  },
-  {
-    title: '下次提醒',
-    key: 'nextReminderDate',
-    width: 120
-  },
-  {
-    title: '提醒次数',
-    dataIndex: 'reminderCount',
-    key: 'reminderCount',
-    width: 100
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 200,
-    fixed: 'right' as const
-  }
-]
 
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedRowKeys.value,
-  onChange: (keys: number[]) => {
-    selectedRowKeys.value = keys
-  }
-}))
+const vxeColumns = computed(() => [
+  { field: 'customerName', title: '客户名称', width: 150 },
+  { field: 'orderNo', title: '订单号', width: 150 },
+  { field: 'amount', title: '应收金额', width: 120, align: 'right', slotName: 'amountCell' },
+  { field: 'overdueDays', title: '逾期天数', width: 100, slotName: 'overdueDaysCell' },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'lastReminderDate', title: '上次提醒', width: 120 },
+  { field: 'nextReminderDate', title: '下次提醒', width: 120, slotName: 'nextReminderDateCell' },
+  { field: 'reminderCount', title: '提醒次数', width: 100 },
+  { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
+])
 
 const getStatusColor = (status: number) => {
   const colors: Record<number, string> = {
@@ -330,10 +276,14 @@ const handleExport = () => {
   message.info('导出催收列表')
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   fetchData()
+}
+
+const handleSelectionChange = (rows: any[], ids: any[]) => {
+  selectedRowKeys.value = ids
 }
 
 const fetchData = async () => {
@@ -370,6 +320,8 @@ fetchData()
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -433,10 +385,6 @@ fetchData()
   overflow: hidden;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
@@ -448,29 +396,9 @@ fetchData()
   font-weight: bold;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

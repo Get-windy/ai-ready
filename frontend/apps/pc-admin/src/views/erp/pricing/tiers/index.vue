@@ -1,5 +1,5 @@
 <template>
-  <div class="pricing-tiers" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <div class="pricing-tiers">
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -55,50 +55,50 @@
         </a-button>
       </template>
 
-      <!-- 价层列表 -->
-      <a-table
-        :columns="columns"
-        :data-source="tableDataSource"
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="tiers"
         :loading="loading"
-        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
+        :pagination="{ pageSize: 10, total: tiers.length, showSizeChanger: true, showQuickJumper: true }"
         row-key="tierId"
-        style="flex: 1; overflow: auto;"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <StatusTag :status="record.status" :map="TIER_STATUS_MAP" />
-          </template>
-          <template v-else-if="column.key === 'pricingMode'">
-            <a-tag>{{ pricingModeLabel(record.pricingMode) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'customerLevel'">
-            {{ levelLabel(record.customerLevel) || '-' }}
-          </template>
-          <template v-else-if="column.key === 'priceInfo'">
-            <template v-if="record.pricingMode === 'factor'">×{{ record.priceFactor }}</template>
-            <template v-else-if="record.pricingMode === 'discount'">{{ record.discountRate }}%</template>
-            <template v-else-if="record.pricingMode === 'fixed'">¥{{ record.tierPrice }}</template>
-            <template v-else>-</template>
-          </template>
-          <template v-else-if="column.key === 'quantityRange'">
-            {{ record.minQuantity || 0 }} - {{ record.maxQuantity || '∞' }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a @click="editTier(record)">编辑</a>
-              <a-popconfirm title="确定要删除此价层吗？" @confirm="deleteTier(record)">
-                <a class="danger">删除</a>
-              </a-popconfirm>
-              <a @click="toggleStatus(record)">
-                {{ record.status === 'active' ? '禁用' : '启用' }}
-              </a>
-            </a-space>
-          </template>
+        <template #statusCell="{ record }">
+          <StatusTag :status="record.status" :map="TIER_STATUS_MAP" />
         </template>
-      </a-table>
+        <template #pricingModeCell="{ record }">
+          <a-tag>{{ pricingModeLabel(record.pricingMode) }}</a-tag>
+        </template>
+        <template #customerLevelCell="{ record }">
+          {{ levelLabel(record.customerLevel) || '-' }}
+        </template>
+        <template #priceInfoCell="{ record }">
+          <template v-if="record.pricingMode === 'factor'">×{{ record.priceFactor }}</template>
+          <template v-else-if="record.pricingMode === 'discount'">{{ record.discountRate }}%</template>
+          <template v-else-if="record.pricingMode === 'fixed'">¥{{ record.tierPrice }}</template>
+          <template v-else>-</template>
+        </template>
+        <template #quantityRangeCell="{ record }">
+          {{ record.minQuantity || 0 }} - {{ record.maxQuantity || '∞' }}
+        </template>
+        <template #action="{ record }">
+          <a-space :size="4">
+            <a-button type="link" size="small" @click="editTier(record)">编辑</a-button>
+            <a-popconfirm title="确定要删除此价层吗？" @confirm="deleteTier(record)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
+            <a-button type="link" size="small" @click="toggleStatus(record)">
+              {{ record.status === 'active' ? '禁用' : '启用' }}
+            </a-button>
+          </a-space>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -160,6 +160,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { requiredRule, requiredSelectRule } from '@/utils/formRules'
@@ -197,28 +198,19 @@ const formRef = ref<FormInstance>()
 const activeTierCount = computed(() => tiers.value.filter(t => t.status === 'active').length)
 const inactiveTierCount = computed(() => tiers.value.filter(t => t.status !== 'active').length)
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tiers.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, tierId: `__empty_${i}` } as PriceTier)
-  }
-  return data
-})
+const tableRef = ref()
 
-const columns = [
-  { title: '层级名称', dataIndex: 'tierName', key: 'tierName' },
-  { title: '层级编码', dataIndex: 'tierCode', key: 'tierCode' },
-  { title: '客户等级', key: 'customerLevel' },
-  { title: '定价模式', key: 'pricingMode' },
-  { title: '价格系数/折扣', key: 'priceInfo' },
-  { title: '数量范围', key: 'quantityRange' },
-  { title: '优先级', dataIndex: 'priority', key: 'priority' },
-  { title: '状态', key: 'status' },
-  { title: '操作', key: 'action' }
-]
+const vxeColumns = computed(() => [
+  { field: 'tierName', title: '层级名称', width: 130 },
+  { field: 'tierCode', title: '层级编码', width: 120 },
+  { field: 'customerLevel', title: '客户等级', width: 110, slotName: 'customerLevelCell' },
+  { field: 'pricingMode', title: '定价模式', width: 100, slotName: 'pricingModeCell' },
+  { field: 'priceInfo', title: '价格系数/折扣', width: 130, slotName: 'priceInfoCell' },
+  { field: 'quantityRange', title: '数量范围', width: 120, slotName: 'quantityRangeCell' },
+  { field: 'priority', title: '优先级', width: 80, align: 'center' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
+  { field: 'action', title: '操作', width: 180, fixed: 'right', type: 'action' },
+])
 
 const formRules: Record<string, any> = {
   tierName: [requiredRule('层级名称')],
@@ -312,8 +304,7 @@ onMounted(() => { fetchTiers() })
 </script>
 
 <style scoped>
-.pricing-tiers { padding: 16px; height: 100%; display: flex; flex-direction: column; }
-.danger { color: #ff4d4f; }
+.pricing-tiers { padding: 16px; height: 100%; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
 /* 统计卡片样式 */
 .summary-card {
@@ -368,39 +359,5 @@ onMounted(() => { fetchTiers() })
 
 .summary-value.warning {
   color: #f5222d;
-}
-
-.empty-placeholder {
-  color: transparent;
-}
-
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
 }
 </style>

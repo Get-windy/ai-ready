@@ -1,5 +1,5 @@
 <template>
-  <div class="pricing-approval-page" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+  <div class="pricing-approval-page">
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px;">
       <a-col :span="6">
@@ -58,99 +58,116 @@
 
       <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待审批">
-          <a-table
-            :columns="columns"
-            :data-source="pendingTableData"
+          <VxeTableList
+            ref="pendingTableRef"
+            :columns="pendingVxeColumns"
+            :data-source="pendingList"
             :loading="loading"
             :pagination="pagination"
-            row-key="id"
-            style="flex: 1; overflow: auto;"
+            show-toolbar
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+            :selectable="false"
+            @refresh="loadData"
+            @page-change="handlePageChange"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'priceChange'">
-                <div class="price-change">
-                  <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
-                  <span class="new-price">新价: ¥{{ record.newPrice }}</span>
-                  <span class="change" :class="record.priceChangeType">
-                    {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
-                  </span>
-                </div>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-              </template>
-              <template v-else-if="column.key === 'action'">
-                <a-space>
-                  <a-button size="small" type="primary" @click="handleApprove(record)">通过</a-button>
-                  <a-button size="small" danger @click="handleReject(record)">拒绝</a-button>
-                  <a @click="handleView(record)">详情</a>
-                </a-space>
-              </template>
+            <template #priceChange="{ record }">
+              <div class="price-change">
+                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                <span class="change" :class="record.priceChangeType">
+                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                </span>
+              </div>
             </template>
-          </a-table>
+            <template #statusCell="{ record }">
+              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
+            </template>
+            <template #action="{ record }">
+              <a-space :size="4">
+                <a-button size="small" type="primary" @click="handleApprove(record)">通过</a-button>
+                <a-button size="small" danger @click="handleReject(record)">拒绝</a-button>
+                <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
+              </a-space>
+            </template>
+          </VxeTableList>
         </a-tab-pane>
         <a-tab-pane key="approved" tab="已通过">
-          <a-table
-            :columns="processedColumns"
-            :data-source="approvedTableData"
+          <VxeTableList
+            :columns="processedVxeColumns"
+            :data-source="approvedList"
             :loading="loading"
+            :show-toolbar="false"
+            :selectable="false"
             :pagination="false"
-            row-key="id"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-              </template>
-              <template v-else-if="column.key === 'approver'">
-                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-              </template>
+            <template #priceChange="{ record }">
+              <div class="price-change">
+                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                <span class="change" :class="record.priceChangeType">
+                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                </span>
+              </div>
             </template>
-          </a-table>
+            <template #statusCell="{ record }">
+              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
+            </template>
+            <template #approverCell="{ record }">
+              {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+            </template>
+          </VxeTableList>
         </a-tab-pane>
         <a-tab-pane key="rejected" tab="已拒绝">
-          <a-table
-            :columns="processedColumns"
-            :data-source="rejectedTableData"
+          <VxeTableList
+            :columns="processedVxeColumns"
+            :data-source="rejectedList"
             :loading="loading"
+            :show-toolbar="false"
+            :selectable="false"
             :pagination="false"
-            row-key="id"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-              </template>
-              <template v-else-if="column.key === 'approver'">
-                {{ record.approverName }} / {{ formatDate(record.approveTime) }}
-              </template>
+            <template #priceChange="{ record }">
+              <div class="price-change">
+                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                <span class="change" :class="record.priceChangeType">
+                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                </span>
+              </div>
             </template>
-          </a-table>
+            <template #statusCell="{ record }">
+              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
+            </template>
+            <template #approverCell="{ record }">
+              {{ record.approverName }} / {{ formatDate(record.approveTime) }}
+            </template>
+          </VxeTableList>
         </a-tab-pane>
         <a-tab-pane key="my" tab="我的申请">
-          <a-table
-            :columns="myColumns"
-            :data-source="myTableData"
+          <VxeTableList
+            :columns="myVxeColumns"
+            :data-source="myList"
             :loading="loading"
+            :show-toolbar="false"
+            :selectable="false"
             :pagination="false"
-            row-key="id"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="record.__empty_row">
-                <span class="empty-placeholder">&nbsp;</span>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
-              </template>
+            <template #priceChange="{ record }">
+              <div class="price-change">
+                <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
+                <span class="new-price">新价: ¥{{ record.newPrice }}</span>
+                <span class="change" :class="record.priceChangeType">
+                  {{ record.priceChangeType === 'increase' ? '+' : '-' }}¥{{ record.priceChange }}
+                </span>
+              </div>
             </template>
-          </a-table>
+            <template #statusCell="{ record }">
+              <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
+            </template>
+          </VxeTableList>
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -296,6 +313,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
 import { useUserStore } from '@/stores/user'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -319,22 +337,6 @@ const pendingList = ref<PriceApproval[]>([])
 const approvedList = ref<PriceApproval[]>([])
 const rejectedList = ref<PriceApproval[]>([])
 const myList = ref<PriceApproval[]>([])
-
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const fillEmptyRows = (data: PriceApproval[]) => {
-  const result = [...data]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - result.length)
-  for (let i = 0; i < emptyCount; i++) {
-    result.push({ __empty_row: true, id: `__empty_${i}` } as PriceApproval)
-  }
-  return result
-}
-
-const pendingTableData = computed(() => fillEmptyRows(pendingList.value))
-const approvedTableData = computed(() => fillEmptyRows(approvedList.value))
-const rejectedTableData = computed(() => fillEmptyRows(rejectedList.value))
-const myTableData = computed(() => fillEmptyRows(myList.value))
 
 const productList = ref<{ id: number; name: string; code: string; basePrice: number }[]>([])
 const customerList = ref<{ id: number; name: string }[]>([])
@@ -379,34 +381,36 @@ const detailData = ref<PriceApproval>({} as PriceApproval)
 
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
-// ── 列定义 ──────────────────────────────────────────────
+const pendingTableRef = ref()
 
-const columns = [
-  { title: '产品', dataIndex: 'productName', width: 150 },
-  { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '价格变更', key: 'priceChange', width: 180 },
-  { title: '审批类型', dataIndex: 'approvalTypeLabel', width: 100 },
-  { title: '申请人', dataIndex: 'applicantName', width: 100 },
-  { title: '申请时间', dataIndex: 'applyTime', width: 150 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 180 }
-]
+// ── VxeTableList 列定义 ──────────────────────────────────
 
-const processedColumns = [
-  { title: '产品', dataIndex: 'productName', width: 150 },
-  { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '价格变更', key: 'priceChange', width: 180 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '审批人', key: 'approver', width: 150 }
-]
+const pendingVxeColumns = computed(() => [
+  { field: 'productName', title: '产品', width: 150 },
+  { field: 'customerName', title: '客户', width: 120 },
+  { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
+  { field: 'approvalTypeLabel', title: '审批类型', width: 100 },
+  { field: 'applicantName', title: '申请人', width: 100 },
+  { field: 'applyTime', title: '申请时间', width: 160 },
+  { field: 'status', title: '状态', width: 90, align: 'center', slotName: 'statusCell' },
+  { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
+])
 
-const myColumns = [
-  { title: '产品', dataIndex: 'productName', width: 150 },
-  { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '价格变更', key: 'priceChange', width: 180 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '申请时间', dataIndex: 'applyTime', width: 150 }
-]
+const processedVxeColumns = computed(() => [
+  { field: 'productName', title: '产品', width: 150 },
+  { field: 'customerName', title: '客户', width: 120 },
+  { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
+  { field: 'status', title: '状态', width: 90, align: 'center', slotName: 'statusCell' },
+  { field: 'approver', title: '审批人', width: 160, slotName: 'approverCell' },
+])
+
+const myVxeColumns = computed(() => [
+  { field: 'productName', title: '产品', width: 150 },
+  { field: 'customerName', title: '客户', width: 120 },
+  { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
+  { field: 'status', title: '状态', width: 90, align: 'center', slotName: 'statusCell' },
+  { field: 'applyTime', title: '申请时间', width: 160 },
+])
 
 // ── 数据加载 ────────────────────────────────────────────
 
@@ -463,6 +467,12 @@ watch(activeTab, (tab) => {
   else if (tab === 'rejected') loadRejectedList()
   else if (tab === 'my') loadMyList()
 })
+
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
+  loadPendingList()
+}
 
 // ── 操作 ────────────────────────────────────────────────
 
@@ -573,6 +583,8 @@ onMounted(() => loadData())
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片样式 */
@@ -630,9 +642,6 @@ onMounted(() => loadData())
   color: #faad14;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .price-change {
   .old-price {
@@ -674,35 +683,5 @@ onMounted(() => loadData())
 .decrease {
   color: #3f8600;
   font-weight: 500;
-}
-
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
 }
 </style>

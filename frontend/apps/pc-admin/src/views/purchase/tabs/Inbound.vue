@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'purchase-inbound-list'"
@@ -72,40 +72,35 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="4">
-            <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 0" title="审批">
-              <a-button type="link" size="small" @click="handleApprove(record)">
-                <template #icon><CheckCircleOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-tooltip v-if="record.status === 1" title="确认入库">
-              <a-button type="link" size="small" @click="handleConfirm(record)">
-                <template #icon><ImportOutlined /></template>
-              </a-button>
-            </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item key="print"><PrinterOutlined /> 打印</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="delete" v-if="record.status === 0" danger><DeleteOutlined /> 删除</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </a-space>
-        </template>
+        <a-space :size="4">
+          <a-tooltip title="查看详情">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 0" title="审批">
+            <a-button type="link" size="small" @click="handleApprove(record)">
+              <template #icon><CheckCircleOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.status === 1" title="确认入库">
+            <a-button type="link" size="small" @click="handleConfirm(record)">
+              <template #icon><ImportOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-dropdown trigger="click">
+            <a-button type="link" size="small" class="action-more-btn">
+              <template #icon><EllipsisOutlined /></template>
+            </a-button>
+            <template #overlay>
+              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu-item key="print"><PrinterOutlined /> 打印</a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="delete" v-if="record.status === 0" danger><DeleteOutlined /> 删除</a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </a-space>
       </template>
     </VxeTableList>
 
@@ -137,22 +132,21 @@
       </a-descriptions>
 
       <a-divider>入库明细</a-divider>
-      <a-table
+      <VxeTableList
         :columns="detailItemColumns"
-        :data-source="currentRecordItems"
+        :data-source="detailItems"
         :pagination="false"
-        size="small"
-        bordered
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-cell">¥{{ formatAmount(record.actualQty * record.unitPrice) }}</span>
-          </template>
+        <template #amountCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.actualQty * record.unitPrice) }}</span>
         </template>
-      </a-table>
+      </VxeTableList>
 
       <div class="detail-modal-footer">
         <a-space>
@@ -215,32 +209,34 @@
         </a-row>
 
         <a-divider>入库物料明细</a-divider>
-        <a-table
+        <VxeTableList
           :columns="inboundItemColumns"
           :data-source="formData.items"
           :pagination="false"
-          size="small"
-          bordered
           row-key="tempKey"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
-            </template>
-            <template v-else-if="column.key === 'expectedQty'">
-              <a-input-number v-model:value="record.expectedQty" :min="0" size="small" style="width: 100%" disabled />
-            </template>
-            <template v-else-if="column.key === 'actualQty'">
-              <a-input-number v-model:value="record.actualQty" :min="0" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'unitPrice'">
-              <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="handleRemoveInboundItem(index)">删除</a-button>
-            </template>
+          <template #productNameCell="{ record }">
+            <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
           </template>
-        </a-table>
+          <template #expectedQtyCell="{ record }">
+            <a-input-number v-model:value="record.expectedQty" :min="0" size="small" style="width: 100%" disabled />
+          </template>
+          <template #actualQtyCell="{ record }">
+            <a-input-number v-model:value="record.actualQty" :min="0" size="small" style="width: 100%" />
+          </template>
+          <template #unitPriceCell="{ record }">
+            <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" />
+          </template>
+          <template #actionCell="{ record, rowIndex }">
+            <a-button type="link" danger size="small" @click="handleRemoveInboundItem(rowIndex)">删除</a-button>
+          </template>
+        </VxeTableList>
         <a-button type="dashed" block @click="handleAddInboundItem" style="margin-top: 12px">
           <template #icon><PlusOutlined /></template>
           添加物料
@@ -296,17 +292,6 @@ const totalAmount = computed(() => {
   return dataSource.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
 const vxeColumns = computed(() => [
   { title: '入库单号', field: 'inboundNo', width: 160 },
   { title: '关联订单', field: 'orderNo', width: 160 },
@@ -342,24 +327,15 @@ function formatAmount(amount: number): string {
 // 详情弹窗
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
-const detailItemColumns = [
-  { title: '物料名称', dataIndex: 'productName', width: 150 },
-  { title: '应入库数量', dataIndex: 'expectedQty', width: 100, align: 'right' },
-  { title: '实际入库数量', dataIndex: 'actualQty', width: 120, align: 'right' },
-  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', key: 'amount', width: 120, align: 'right' }
-]
+const detailItems = ref<any[]>([])
 
-const currentRecordItems = computed(() => {
-  const items = currentRecord.value?.items || mockDetailItems()
-  const MIN_ROWS = 5
-  const data = [...items]
-  const emptyCount = Math.max(0, MIN_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, tempKey: `__empty_${i}` })
-  }
-  return data
-})
+const detailItemColumns = [
+  { title: '物料名称', field: 'productName', width: 150 },
+  { title: '应入库数量', field: 'expectedQty', width: 100, align: 'right' },
+  { title: '实际入库数量', field: 'actualQty', width: 120, align: 'right' },
+  { title: '单价', field: 'unitPrice', width: 100, align: 'right' },
+  { title: '金额', field: 'amount', width: 120, align: 'right', slotName: 'amountCell' }
+]
 
 const mockDetailItems = () => [
   { productName: '工业传感器', expectedQty: 100, actualQty: 100, unitPrice: 800 },
@@ -400,11 +376,11 @@ const formRules = {
 }
 
 const inboundItemColumns = [
-  { title: '物料名称', key: 'productName', width: 150 },
-  { title: '应入库数量', key: 'expectedQty', width: 100, align: 'right' },
-  { title: '实际入库数量', key: 'actualQty', width: 120, align: 'right' },
-  { title: '单价', key: 'unitPrice', width: 100, align: 'right' },
-  { title: '操作', key: 'action', width: 60, align: 'center' }
+  { title: '物料名称', field: 'productName', width: 150, slotName: 'productNameCell' },
+  { title: '应入库数量', field: 'expectedQty', width: 100, align: 'right', slotName: 'expectedQtyCell' },
+  { title: '实际入库数量', field: 'actualQty', width: 120, align: 'right', slotName: 'actualQtyCell' },
+  { title: '单价', field: 'unitPrice', width: 100, align: 'right', slotName: 'unitPriceCell' },
+  { title: '操作', field: 'action', width: 60, align: 'center', slotName: 'actionCell' }
 ]
 
 async function loadWarehouses() {
@@ -467,6 +443,7 @@ const mockData = () => [
 
 function handleView(record: any) {
   currentRecord.value = { ...record, items: mockDetailItems() }
+  detailItems.value = currentRecord.value.items || mockDetailItems()
   detailVisible.value = true
 }
 
@@ -667,6 +644,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -729,10 +708,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .inbound-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
   font-weight: 500;
@@ -761,29 +736,9 @@ onUnmounted(() => {
   border-top: 1px solid #f0f0f0;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

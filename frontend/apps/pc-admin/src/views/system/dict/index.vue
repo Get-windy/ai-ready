@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="typeTableDataSource"
+      :data-source="typeTableData"
       :loading="typeLoading"
       :pagination="typePagination"
       :row-key="'id'"
@@ -59,15 +59,10 @@
         </a-button>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 'ENABLED' ? 'success' : 'error'">
-            {{ record.status === 'ENABLED' ? '启用' : '停用' }}
-          </a-tag>
-        </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 'ENABLED' ? 'success' : 'error'">
+          {{ record.status === 'ENABLED' ? '启用' : '停用' }}
+        </a-tag>
       </template>
 
       <template #action="{ record }">
@@ -90,33 +85,32 @@
               新增字典项
             </a-button>
           </div>
-          <a-table
-            :columns="itemColumns"
+          <VxeTableList
             :data-source="dictItemMap[record.id] || []"
             :loading="itemLoadingMap[record.id]"
             :pagination="false"
             row-key="id"
-            size="small"
+            :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+            :show-export="false" :show-batch-delete="false"
+            :columns="itemColumns"
           >
-            <template #bodyCell="{ column: itemCol, record: itemRecord }">
-              <template v-if="itemCol.key === 'status'">
-                <a-tag :color="itemRecord.status === 'ENABLED' ? 'success' : 'error'">
-                  {{ itemRecord.status === 'ENABLED' ? '启用' : '停用' }}
-                </a-tag>
-              </template>
-
-              <template v-else-if="itemCol.key === 'action'">
-                <a-space>
-                  <a-button type="link" size="small" @click="handleEditItem(record, itemRecord)">
-                    编辑
-                  </a-button>
-                  <a-button type="link" size="small" danger @click="handleDeleteItemConfirm(record, itemRecord)">
-                    删除
-                  </a-button>
-                </a-space>
-              </template>
+            <template #statusCell="{ record: itemRecord }">
+              <a-tag :color="itemRecord.status === 'ENABLED' ? 'success' : 'error'">
+                {{ itemRecord.status === 'ENABLED' ? '启用' : '停用' }}
+              </a-tag>
             </template>
-          </a-table>
+
+            <template #actionCell="{ record: itemRecord }">
+              <a-space>
+                <a-button type="link" size="small" @click="handleEditItem(record, itemRecord)">
+                  编辑
+                </a-button>
+                <a-button type="link" size="small" danger @click="handleDeleteItemConfirm(record, itemRecord)">
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </VxeTableList>
         </div>
       </template>
     </VxeTableList>
@@ -254,21 +248,10 @@ const totalItemCount = computed(() => {
   return count
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const typeTableDataSource = computed(() => {
-  const data = [...typeTableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
 const vxeColumns = computed(() => [
   { field: 'dictCode', title: '类型编码', width: 160 },
   { field: 'dictName', title: '类型名称', width: 160 },
-  { field: 'status', title: '状态', width: 80 },
+  { field: 'status', title: '状态', width: 80, slotName: 'statusCell' },
   { field: 'remark', title: '备注', width: 200, showOverflow: 'tooltip' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { type: 'action', title: '操作', width: 140, fixed: 'right' }
@@ -446,11 +429,11 @@ const dictItemMap = reactive<Record<number, DictItem[]>>({})
 const itemLoadingMap = reactive<Record<number, boolean>>({})
 
 const itemColumns: any[] = [
-  { title: '字典项编码', dataIndex: 'itemCode', width: 150 },
-  { title: '字典项名称', dataIndex: 'itemName', width: 180 },
-  { title: '排序', dataIndex: 'sortOrder', width: 80 },
-  { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 130 }
+  { title: '字典项编码', field: 'itemCode', width: 150 },
+  { title: '字典项名称', field: 'itemName', width: 180 },
+  { title: '排序', field: 'sortOrder', width: 80 },
+  { title: '状态', field: 'status', width: 80, slotName: 'statusCell' },
+  { title: '操作', field: 'action', width: 130, slotName: 'actionCell' }
 ]
 
 const itemModalVisible = ref(false)
@@ -477,7 +460,7 @@ const itemFormRules = {
 
 // 展开行 - 加载字典项
 const handleExpand = async (expanded: boolean, record: DictType) => {
-  if (!expanded || record.__empty_row) return
+  if (!expanded) return
   const typeId = record.id as number
   if (dictItemMap[typeId]) return
 
@@ -595,6 +578,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -636,11 +621,6 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
-
-.expanded-content {
-  padding: 12px 0;
-}
 
 .expanded-header {
   display: flex;
@@ -656,28 +636,9 @@ onMounted(() => {
 }
 
 /* 表格网格边框 - 主表 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 嵌套表格网格边框 */
 :deep(.expanded-content .ant-table-thead > tr > th) {

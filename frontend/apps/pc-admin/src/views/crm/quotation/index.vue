@@ -109,47 +109,42 @@
         </template>
 
         <template #action="{ record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-else>
-            <a-space :size="4">
-              <a-tooltip title="查看详情">
-                <a-button type="link" size="small" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status === 'draft'" title="编辑">
-                <a-button type="link" size="small" @click="handleEdit(record)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status === 'draft'" title="发送">
-                <a-button type="link" size="small" @click="handleSend(record)">
-                  <template #icon><SendOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status === 'accepted'" title="转订单">
-                <a-button type="link" size="small" @click="handleConvert(record)">
-                  <template #icon><FileProtectOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-dropdown trigger="click">
-                <a-button type="link" size="small" class="action-more-btn">
-                  <template #icon><MoreOutlined /></template>
-                </a-button>
-                <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                    <a-menu-item key="copy"><CopyOutlined /> 复制报价</a-menu-item>
-                    <a-menu-item key="download"><DownloadOutlined /> 下载PDF</a-menu-item>
-                    <a-menu-item key="history"><HistoryOutlined /> 版本历史</a-menu-item>
-                    <a-menu-divider />
-                    <a-menu-item key="delete" v-if="record.status === 'draft'" danger><DeleteOutlined /> 删除</a-menu-item>
-                  </a-menu>
-                </template>
-              </a-dropdown>
-            </a-space>
-          </template>
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑">
+              <a-button type="link" size="small" @click="handleEdit(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="发送">
+              <a-button type="link" size="small" @click="handleSend(record)">
+                <template #icon><SendOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 'accepted'" title="转订单">
+              <a-button type="link" size="small" @click="handleConvert(record)">
+                <template #icon><FileProtectOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-dropdown trigger="click">
+              <a-button type="link" size="small" class="action-more-btn">
+                <template #icon><MoreOutlined /></template>
+              </a-button>
+              <template #overlay>
+                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu-item key="copy"><CopyOutlined /> 复制报价</a-menu-item>
+                  <a-menu-item key="download"><DownloadOutlined /> 下载PDF</a-menu-item>
+                  <a-menu-item key="history"><HistoryOutlined /> 版本历史</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="delete" v-if="record.status === 'draft'" danger><DeleteOutlined /> 删除</a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </a-space>
         </template>
       </VxeTableList>
     </ErrorBoundary>
@@ -214,34 +209,32 @@
         </a-row>
 
         <a-divider>报价明细</a-divider>
-        <a-table :columns="itemColumns" :data-source="formData.items" :pagination="false" size="small" bordered>
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="产品名称" />
-            </template>
-            <template v-if="column.key === 'spec'">
-              <a-input v-model:value="record.spec" placeholder="规格型号" />
-            </template>
-            <template v-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" style="width: 80px" />
-            </template>
-            <template v-if="column.key === 'unit'">
-              <a-input v-model:value="record.unit" placeholder="单位" style="width: 60px" />
-            </template>
-            <template v-if="column.key === 'price'">
-              <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100px" />
-            </template>
-            <template v-if="column.key === 'discount'">
-              <a-input-number v-model:value="record.discount" :min="0" :max="100" style="width: 80px" />
-            </template>
-            <template v-if="column.key === 'subtotal'">
-              <span class="amount-cell">¥{{ calcItemSubtotal(record) }}</span>
-            </template>
-            <template v-if="column.key === 'action'">
-              <a @click="removeItem(index)" v-if="formData.items.length > 1" class="delete-link">删除</a>
-            </template>
+        <VxeTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <template #productNameCell="{ record }">
+            <a-input v-model:value="record.productName" placeholder="产品名称" />
           </template>
-        </a-table>
+          <template #specCell="{ record }">
+            <a-input v-model:value="record.spec" placeholder="规格型号" />
+          </template>
+          <template #quantityCell="{ record }">
+            <a-input-number v-model:value="record.quantity" :min="1" style="width: 80px" />
+          </template>
+          <template #unitCell="{ record }">
+            <a-input v-model:value="record.unit" placeholder="单位" style="width: 60px" />
+          </template>
+          <template #priceCell="{ record }">
+            <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100px" />
+          </template>
+          <template #discountCell="{ record }">
+            <a-input-number v-model:value="record.discount" :min="0" :max="100" style="width: 80px" />
+          </template>
+          <template #subtotalCell="{ record }">
+            <span class="amount-cell">¥{{ calcItemSubtotal(record) }}</span>
+          </template>
+          <template #action="{ index }">
+            <a @click="removeItem(index)" v-if="formData.items.length > 1" class="delete-link">删除</a>
+          </template>
+        </VxeTableList>
         <a-button type="dashed" block @click="addItem" style="margin-top: 16px">
           <template #icon><PlusOutlined /></template>
           添加产品
@@ -302,16 +295,14 @@
       </a-descriptions>
 
       <a-divider>报价明细</a-divider>
-      <a-table :columns="detailItemColumns" :data-source="quotationDetail.items" :pagination="false" size="small" bordered>
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'subtotal'">
-            <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
-          </template>
-          <template v-if="column.key === 'price'">
-            <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
-          </template>
+      <VxeTableList :columns="detailItemVxeColumns" :data-source="quotationDetail.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <template #subtotalCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
         </template>
-      </a-table>
+        <template #priceCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
+        </template>
+      </VxeTableList>
 
       <div class="detail-footer">
         <a-space>
@@ -411,16 +402,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = tableData
 
 function getStatusColor(status: string): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: string): string { return statusTextMap[status] || '未知' }
@@ -458,24 +441,24 @@ const customerList = ref([
 ])
 const quotationDetail = ref<any>({})
 
-const itemColumns = [
-  { title: '产品名称', key: 'productName', width: 150 },
-  { title: '规格型号', key: 'spec', width: 100 },
-  { title: '数量', key: 'quantity', width: 80, align: 'right' },
-  { title: '单位', key: 'unit', width: 60, align: 'center' },
-  { title: '单价', key: 'price', width: 100, align: 'right' },
-  { title: '折扣%', key: 'discount', width: 80, align: 'right' },
-  { title: '小计', key: 'subtotal', width: 100, align: 'right' },
-  { title: '操作', key: 'action', width: 60, align: 'center' }
+const itemVxeColumns = [
+  { field: 'productName', title: '产品名称', width: 150, slotName: 'productNameCell' },
+  { field: 'spec', title: '规格型号', width: 100, slotName: 'specCell' },
+  { field: 'quantity', title: '数量', width: 80, align: 'right', slotName: 'quantityCell' },
+  { field: 'unit', title: '单位', width: 60, align: 'center', slotName: 'unitCell' },
+  { field: 'price', title: '单价', width: 100, align: 'right', slotName: 'priceCell' },
+  { field: 'discount', title: '折扣%', width: 80, align: 'right', slotName: 'discountCell' },
+  { field: 'subtotal', title: '小计', width: 100, align: 'right', slotName: 'subtotalCell' },
+  { field: 'action', title: '操作', width: 60, align: 'center', type: 'action' }
 ]
-const detailItemColumns = [
-  { title: '产品名称', dataIndex: 'productName', width: 150 },
-  { title: '规格型号', dataIndex: 'spec', width: 100 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单位', dataIndex: 'unit', width: 60, align: 'center' },
-  { title: '单价', key: 'price', width: 100, align: 'right' },
-  { title: '折扣%', dataIndex: 'discount', width: 80, align: 'right' },
-  { title: '小计', key: 'subtotal', width: 100, align: 'right' }
+const detailItemVxeColumns = [
+  { field: 'productName', title: '产品名称', width: 150 },
+  { field: 'spec', title: '规格型号', width: 100 },
+  { field: 'quantity', title: '数量', width: 80, align: 'right' },
+  { field: 'unit', title: '单位', width: 60, align: 'center' },
+  { field: 'price', title: '单价', width: 100, align: 'right', slotName: 'priceCell' },
+  { field: 'discount', title: '折扣%', width: 80, align: 'right' },
+  { field: 'subtotal', title: '小计', width: 100, align: 'right', slotName: 'subtotalCell' }
 ]
 
 function calcItemSubtotal(item: any) {
@@ -846,9 +829,6 @@ function handleSelectionChange(rows: any[], ids: any[]) {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .quotation-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
@@ -910,27 +890,7 @@ function handleSelectionChange(rows: any[], ids: any[]) {
   border-top: 1px solid #f0f0f0;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 </style>

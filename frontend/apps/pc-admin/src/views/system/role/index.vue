@@ -43,21 +43,16 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'roleName'">
-          <a-space>
-            <a-tag :color="getRoleTypeColor(record.roleType)">
-              {{ getRoleTypeName(record.roleType) }}
-            </a-tag>
-            <span>{{ record.roleName }}</span>
-          </a-space>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-switch :checked="record.status === 0" checked-children="启用" un-checked-children="停用" @change="(checked: string | boolean) => handleStatusChange(record, checked)" />
-        </template>
+      <template #roleNameCell="{ record }">
+        <a-space>
+          <a-tag :color="getRoleTypeColor(record.roleType)">
+            {{ getRoleTypeName(record.roleType) }}
+          </a-tag>
+          <span>{{ record.roleName }}</span>
+        </a-space>
+      </template>
+      <template #statusCell="{ record }">
+        <a-switch :checked="record.status === 0" checked-children="启用" un-checked-children="停用" @change="(checked: string | boolean) => handleStatusChange(record, checked)" />
       </template>
 
       <template #action="{ record }">
@@ -136,22 +131,14 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChange
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 const vxeColumns = computed(() => [
-  { field: 'roleName', title: '角色信息', width: 200 },
+  { field: 'roleName', title: '角色信息', width: 200, slotName: 'roleNameCell' },
   { field: 'roleCode', title: '角色编码', width: 150 },
   { field: 'sort', title: '排序', width: 80 },
-  { field: 'status', title: '状态', width: 100 },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { field: 'remark', title: '备注', showOverflow: 'tooltip' },
   { type: 'action', title: '操作', width: 220, fixed: 'right' }
@@ -297,6 +284,8 @@ onMounted(() => { fetchData() })
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -337,31 +326,9 @@ onMounted(() => { fetchData() })
   color: rgba(0, 0, 0, 0.15);
 }
 
-.empty-placeholder { color: transparent; }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

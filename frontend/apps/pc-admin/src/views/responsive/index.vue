@@ -155,11 +155,17 @@
       style="margin-bottom: 20px"
     >
       <div class="responsive-table-container">
-        <a-table
-          :columns="tableColumns"
+        <VxeTableList
+          :columns="vxeColumns"
           :data-source="tableData"
           :pagination="false"
-          :scroll="{ x: 800 }"
+          row-key="key"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         />
       </div>
     </a-card>
@@ -176,6 +182,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { useResponsive } from '@/composables/useResponsiveState'
 
 const { windowWidth, currentBreakpoint, isMobileView, isTabletView, isDesktopView } = useResponsive()
@@ -220,13 +227,13 @@ const layoutRecommendation = computed(() => {
   return 'PC端建议：使用多列布局，完整侧边栏，利用大屏幕空间展示更多信息'
 })
 
-const tableColumns = [
-  { title: '姓名', dataIndex: 'name', key: 'name', width: 120 },
-  { title: '年龄', dataIndex: 'age', key: 'age', width: 100 },
-  { title: '地址', dataIndex: 'address', key: 'address', width: 200 },
-  { title: '邮箱', dataIndex: 'email', key: 'email', width: 200 },
-  { title: '电话', dataIndex: 'phone', key: 'phone', width: 150 },
-  { title: '备注', dataIndex: 'note', key: 'note', width: 200 }
+const vxeColumns = [
+  { field: 'name', title: '姓名', width: 120 },
+  { field: 'age', title: '年龄', width: 100 },
+  { field: 'address', title: '地址', width: 200 },
+  { field: 'email', title: '邮箱', width: 200 },
+  { field: 'phone', title: '电话', width: 150 },
+  { field: 'note', title: '备注', width: 200 },
 ]
 
 const tableData = Array.from({ length: 5 }, (_, i) => ({

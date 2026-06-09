@@ -60,52 +60,48 @@
         </a-button>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.field === 'permissionName'">
-          <a-space>
-            <component
-              :is="getIcon(record.icon)"
-              v-if="record.icon"
-            />
-            <span>{{ record.permissionName }}</span>
-            <a-tag
-              v-if="record.permissionType === 0"
-              color="blue"
-            >
-              目录
-            </a-tag>
-            <a-tag
-              v-else-if="record.permissionType === 1"
-              color="green"
-            >
-              菜单
-            </a-tag>
-            <a-tag
-              v-else-if="record.permissionType === 2"
-              color="orange"
-            >
-              按钮
-            </a-tag>
-            <a-tag
-              v-else-if="record.permissionType === 3"
-              color="purple"
-            >
-              API
-            </a-tag>
-          </a-space>
-        </template>
-
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">
-            {{ record.status === 0 ? '启用' : '停用' }}
+      <template #permissionNameCell="{ record }">
+        <a-space>
+          <component
+            :is="getIcon(record.icon)"
+            v-if="record.icon"
+          />
+          <span>{{ record.permissionName }}</span>
+          <a-tag
+            v-if="record.permissionType === 0"
+            color="blue"
+          >
+            目录
           </a-tag>
-        </template>
-
-        <template v-else-if="column.field === 'visible'">
-          <a-tag :color="record.visible === 1 ? 'success' : 'default'">
-            {{ record.visible === 1 ? '显示' : '隐藏' }}
+          <a-tag
+            v-else-if="record.permissionType === 1"
+            color="green"
+          >
+            菜单
           </a-tag>
-        </template>
+          <a-tag
+            v-else-if="record.permissionType === 2"
+            color="orange"
+          >
+            按钮
+          </a-tag>
+          <a-tag
+            v-else-if="record.permissionType === 3"
+            color="purple"
+          >
+            API
+          </a-tag>
+        </a-space>
+      </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 0 ? 'success' : 'error'">
+          {{ record.status === 0 ? '启用' : '停用' }}
+        </a-tag>
+      </template>
+      <template #visibleCell="{ record }">
+        <a-tag :color="record.visible === 1 ? 'success' : 'default'">
+          {{ record.visible === 1 ? '显示' : '隐藏' }}
+        </a-tag>
       </template>
 
       <template #action="{ record }">
@@ -377,12 +373,12 @@ const apiCount = computed(() => flattenPermissions(tableData.value).filter(p => 
 
 // 表格列定义
 const vxeColumns = computed(() => [
-  { field: 'permissionName', title: '权限名称', width: 250 },
+  { field: 'permissionName', title: '权限名称', width: 250, slotName: 'permissionNameCell' },
   { field: 'permissionCode', title: '权限编码', width: 200, showOverflow: 'tooltip' },
   { field: 'path', title: '路由/API路径', width: 200, showOverflow: 'tooltip' },
   { field: 'sort', title: '排序', width: 80 },
-  { field: 'status', title: '状态', width: 80 },
-  { field: 'visible', title: '显示', width: 80 },
+  { field: 'status', title: '状态', width: 80, slotName: 'statusCell' },
+  { field: 'visible', title: '显示', width: 80, slotName: 'visibleCell' },
   { type: 'action', title: '操作', width: 220, fixed: 'right' }
 ])
 
@@ -624,6 +620,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -665,29 +663,9 @@ onMounted(() => {
   color: rgba(0, 0, 0, 0.15);
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

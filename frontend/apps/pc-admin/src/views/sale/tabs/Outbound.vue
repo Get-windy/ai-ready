@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'sale-outbound-list'"
@@ -166,22 +166,22 @@
             <template #icon><PlusOutlined /></template>添加产品
           </a-button>
         </div>
-        <a-table :data-source="formData.items" :pagination="false" row-key="key" size="small" bordered :columns="itemColumns">
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'unit'">
-              <a-input v-model:value="record.unit" placeholder="单位" size="small" />
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="removeItem(index)" :disabled="formData.items.length <= 1">删除</a-button>
-            </template>
+        <VxeTableList :data-source="formData.items" :pagination="false" row-key="key"
+          :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+          :show-export="false" :show-batch-delete="false" :columns="itemColumns">
+          <template #productNameCell="{ record }">
+            <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
           </template>
-        </a-table>
+          <template #quantityCell="{ record }">
+            <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
+          </template>
+          <template #unitCell="{ record }">
+            <a-input v-model:value="record.unit" placeholder="单位" size="small" />
+          </template>
+          <template #actionCell="{ record, rowIndex }">
+            <a-button type="link" danger size="small" @click="removeItem(rowIndex)" :disabled="formData.items.length <= 1">删除</a-button>
+          </template>
+        </VxeTableList>
       </a-form-item>
       <a-form-item label="备注" name="remark">
         <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
@@ -218,17 +218,6 @@ const draftCount = computed(() => dataSource.value.filter(r => r.status === 0).l
 const pendingCount = computed(() => dataSource.value.filter(r => r.status === 1).length)
 const completedCount = computed(() => dataSource.value.filter(r => r.status === 2).length)
 const partialCount = computed(() => dataSource.value.filter(r => r.status === 3).length)
-
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}`, outboundNo: '', orderNo: '', customerName: '', outboundDate: '', status: 0, createTime: '' })
-  }
-  return data
-})
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -281,10 +270,10 @@ const formData = reactive({ orderNo: '', customerName: '', warehouseName: '', ou
 const defaultItem = (): OutboundItem => ({ key: Date.now() + Math.random(), productName: '', quantity: 1, unit: '' })
 const formRules = { orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }], customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }], warehouseName: [{ required: true, message: '请输入仓库名称', trigger: 'blur' }], outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }] }
 const itemColumns = [
-  { title: '产品名称', key: 'productName', dataIndex: 'productName' },
-  { title: '数量', key: 'quantity', dataIndex: 'quantity', width: 100 },
-  { title: '单位', key: 'unit', dataIndex: 'unit', width: 100 },
-  { title: '操作', key: 'action', width: 80 }
+  { title: '产品名称', field: 'productName', slotName: 'productNameCell' },
+  { title: '数量', field: 'quantity', width: 100, slotName: 'quantityCell' },
+  { title: '单位', field: 'unit', width: 100, slotName: 'unitCell' },
+  { title: '操作', field: 'action', width: 80, slotName: 'actionCell' }
 ]
 const addItem = () => { formData.items.push(defaultItem()) }
 const removeItem = (index: number) => { if (formData.items.length > 1) formData.items.splice(index, 1) }
@@ -423,6 +412,8 @@ function handleKeydown(e: KeyboardEvent) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
   padding: 16px;
 }
 
@@ -480,7 +471,6 @@ function handleKeydown(e: KeyboardEvent) {
   margin-bottom: 8px;
 }
 
-.empty-placeholder { color: transparent; }
 
 .list-update-timestamp {
   font-size: 12px;
@@ -492,29 +482,9 @@ function handleKeydown(e: KeyboardEvent) {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

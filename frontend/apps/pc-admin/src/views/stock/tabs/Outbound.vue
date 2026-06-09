@@ -28,7 +28,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
       :table-key="'stock-outbound-list'"
@@ -61,11 +61,6 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="0" class="action-cell-inner">
             <a-tooltip title="查看">
               <a-button type="link" size="small" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
@@ -88,9 +83,7 @@
                 </a-menu>
               </template>
             </a-dropdown>
-          </a-space>
         </template>
-      </template>
 
       <template #empty>
         <div class="table-empty">
@@ -171,27 +164,27 @@
       <div style="margin-bottom: 12px">
         <a-button type="dashed" size="small" @click="addOutboundItem"><template #icon><PlusOutlined /></template>添加明细</a-button>
       </div>
-      <a-table :columns="addItemColumns" :data-source="addForm.items" :pagination="false" size="small" row-key="key" :scroll="{ y: 250 }">
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productName'">
-            <a-select v-model:value="addForm.items[index].productId" show-search placeholder="选择产品"
-              :options="productOptions" style="width: 100%" size="small"
-              @change="(val: number) => handleItemProductChange(index, val)" />
-          </template>
-          <template v-else-if="column.key === 'availableQty'">
-            <a-tag :color="getAvailableQtyColor(index)">{{ getAvailableQty(index) }}</a-tag>
-          </template>
-          <template v-else-if="column.key === 'quantity'">
-            <a-input-number v-model:value="addForm.items[index].quantity" :min="1" style="width: 100%" size="small" />
-          </template>
-          <template v-else-if="column.key === 'unitPrice'">
-            <a-input-number v-model:value="addForm.items[index].unitPrice" :min="0" :precision="2" style="width: 100%" size="small" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" danger size="small" @click="removeOutboundItem(index)">删除</a-button>
-          </template>
+      <VxeTableList :data-source="addForm.items" :pagination="false" row-key="key"
+        :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+        :show-export="false" :show-batch-delete="false" :columns="addItemColumns">
+        <template #productNameCell="{ record, rowIndex }">
+          <a-select v-model:value="addForm.items[rowIndex].productId" show-search placeholder="选择产品"
+            :options="productOptions" style="width: 100%" size="small"
+            @change="(val: number) => handleItemProductChange(rowIndex, val)" />
         </template>
-      </a-table>
+        <template #availableQtyCell="{ record, rowIndex }">
+          <a-tag :color="getAvailableQtyColor(rowIndex)">{{ getAvailableQty(rowIndex) }}</a-tag>
+        </template>
+        <template #quantityCell="{ record, rowIndex }">
+          <a-input-number v-model:value="addForm.items[rowIndex].quantity" :min="1" style="width: 100%" size="small" />
+        </template>
+        <template #unitPriceCell="{ record, rowIndex }">
+          <a-input-number v-model:value="addForm.items[rowIndex].unitPrice" :min="0" :precision="2" style="width: 100%" size="small" />
+        </template>
+        <template #actionCell="{ record, rowIndex }">
+          <a-button type="link" danger size="small" @click="removeOutboundItem(rowIndex)">删除</a-button>
+        </template>
+      </VxeTableList>
     </a-modal>
   </div>
 </template>
@@ -226,18 +219,6 @@ const hasActiveFilters = computed(() => {
 const pendingCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 const completedCount = computed(() => tableData.value.filter(r => r.status === 2).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
-// vxe-table 列定义
 const vxeColumns = computed(() => [
   { field: 'outboundNo', title: '出库单号', width: 160, sortable: true },
   { field: 'outboundType', title: '出库类型', width: 100 },
@@ -306,9 +287,11 @@ const productOptions = [
   { value: 3, label: 'PROD-003 电子元件A型' }, { value: 4, label: 'PROD-004 包装箱(大)' }
 ]
 const addItemColumns = [
-  { title: '产品名称', key: 'productName' }, { title: '可用库存', key: 'availableQty', width: 90 },
-  { title: '出库数量', key: 'quantity', width: 110 }, { title: '单价', key: 'unitPrice', width: 100 },
-  { title: '操作', key: 'action', width: 60 }
+  { title: '产品名称', field: 'productName', slotName: 'productNameCell' },
+  { title: '可用库存', field: 'availableQty', width: 90, slotName: 'availableQtyCell' },
+  { title: '出库数量', field: 'quantity', width: 110, slotName: 'quantityCell' },
+  { title: '单价', field: 'unitPrice', width: 100, slotName: 'unitPriceCell' },
+  { title: '操作', field: 'action', width: 60, slotName: 'actionCell' }
 ]
 
 const filterOption = (input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())
@@ -473,6 +456,9 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+
 }
 
 /* 统计卡片 */
@@ -534,9 +520,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .detail-modal-footer { text-align: right; margin-top: 16px; }
@@ -551,29 +534,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

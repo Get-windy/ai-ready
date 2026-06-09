@@ -23,6 +23,10 @@ import VXETable from 'vxe-table'
 import 'vxe-table/lib/style.css'
 import zhCNVXETable from 'vxe-table/lib/locale/lang/zh-CN'
 
+// vxe-pc-ui — 注册 vxe-loading、vxe-tooltip 等依赖组件到 VxeUI 全局注册表
+import 'vxe-pc-ui'
+import 'vxe-pc-ui/lib/style.css'
+
 // Ant Design Vue (保留部分组件如 Form, Modal, Button 等)
 import 'ant-design-vue/dist/reset.css'
 import './styles/variables.css'

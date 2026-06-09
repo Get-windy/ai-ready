@@ -45,22 +45,23 @@
         </template>
       </a-alert>
 
-      <a-table
-        :columns="previewColumns"
+      <VxeTableList
+        :columns="previewVxeColumns"
         :data-source="parsedRows.slice(0, 10)"
         :pagination="false"
-        size="small"
-        bordered
-        :scroll="{ x: 600 }"
         row-key="__rowIndex"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === '__status'">
-            <a-tag v-if="record.__valid" color="green">有效</a-tag>
-            <a-tag v-else color="red" :title="record.__errors?.join('; ')">无效</a-tag>
-          </template>
+        <template #statusCell="{ record }">
+          <a-tag v-if="record.__valid" color="green">有效</a-tag>
+          <a-tag v-else color="red" :title="record.__errors?.join('; ')">无效</a-tag>
         </template>
-      </a-table>
+      </VxeTableList>
 
       <p v-if="parsedRows.length > 10" style="color: #999; font-size: 12px; margin-top: 8px;">
         仅显示前 10 条预览，共 {{ parsedRows.length }} 条
@@ -105,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
 import { InboxOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
@@ -137,15 +139,15 @@ const importResult = reactive({
 })
 
 // 预览列
-const previewColumns = [
-  { title: '行号', dataIndex: '__rowIndex', key: '__rowIndex', width: 60 },
-  { title: '订单号', dataIndex: 'orderNo', key: 'orderNo', width: 130 },
-  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 100 },
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 100 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 60 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 80 },
-  { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
-  { title: '状态', key: '__status', width: 60 }
+const previewVxeColumns = [
+  { field: '__rowIndex', title: '行号', width: 60 },
+  { field: 'orderNo', title: '订单号', width: 130 },
+  { field: 'customerName', title: '客户', width: 100 },
+  { field: 'productCode', title: '商品编码', width: 100 },
+  { field: 'quantity', title: '数量', width: 60 },
+  { field: 'unitPrice', title: '单价', width: 80 },
+  { field: 'amount', title: '金额', width: 100 },
+  { field: '__status', title: '状态', width: 60, slotName: 'statusCell' }
 ]
 
 const validCount = computed(() => parsedRows.value.filter(r => r.__valid).length)

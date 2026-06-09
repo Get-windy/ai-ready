@@ -81,20 +81,19 @@
       <!-- 换货商品明细 -->
       <a-divider>换货商品明细</a-divider>
 
-      <a-table
-        :columns="itemColumns"
+      <VxeTableList
+        :columns="itemVxeColumns"
         :data-source="formData.items"
         :pagination="false"
         row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'productName'">
-            {{ record.productName }}
-          </template>
-          <template v-else-if="column.key === 'originalQuantity'">
-            {{ record.originalQuantity }}
-          </template>
-          <template v-else-if="column.key === 'exchangeQuantity'">
+        <template #exchangeQuantityCell="{ record }">
             <a-input-number
               v-model:value="record.exchangeQuantity"
               :min="1"
@@ -102,11 +101,8 @@
               style="width: 100px"
               @change="calculateTotal"
             />
-          </template>
-          <template v-else-if="column.key === 'originalPrice'">
-            ¥{{ record.originalPrice?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'exchangePrice'">
+        </template>
+        <template #exchangePriceCell="{ record }">
             <a-input-number
               v-model:value="record.exchangePrice"
               :min="0"
@@ -114,15 +110,14 @@
               style="width: 100px"
               @change="calculateTotal"
             />
-          </template>
-          <template v-else-if="column.key === 'subtotal'">
-            ¥{{ (record.exchangeQuantity * record.exchangePrice).toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" danger @click="removeItem(index)">删除</a-button>
-          </template>
         </template>
-      </a-table>
+        <template #subtotalCell="{ record }">
+            ¥{{ (record.exchangeQuantity * record.exchangePrice).toFixed(2) }}
+        </template>
+        <template #action="{ index }">
+            <a-button type="link" danger @click="removeItem(index)">删除</a-button>
+        </template>
+      </VxeTableList>
 
       <div class="total-amount">
         <span>换货总金额：</span>
@@ -135,6 +130,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import type { FormInstance } from 'ant-design-vue'
@@ -219,16 +215,16 @@ const formRules = {
   items: [{ required: true, message: '请添加换货商品', validator: () => formData.items.length > 0 }]
 }
 
-const itemColumns = [
-  { title: '商品名称', key: 'productName' },
-  { title: '商品编码', dataIndex: 'productCode', key: 'productCode' },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
-  { title: '原数量', key: 'originalQuantity', width: 100 },
-  { title: '换货数量', key: 'exchangeQuantity', width: 120 },
-  { title: '原单价', key: 'originalPrice', width: 100 },
-  { title: '换货单价', key: 'exchangePrice', width: 120 },
-  { title: '小计', key: 'subtotal', width: 100 },
-  { title: '操作', key: 'action', width: 80 }
+const itemVxeColumns = [
+  { field: 'productName', title: '商品名称' },
+  { field: 'productCode', title: '商品编码' },
+  { field: 'unit', title: '单位', width: 80 },
+  { field: 'originalQuantity', title: '原数量', width: 100 },
+  { field: 'exchangeQuantity', title: '换货数量', width: 120, slotName: 'exchangeQuantityCell' },
+  { field: 'originalPrice', title: '原单价', width: 100 },
+  { field: 'exchangePrice', title: '换货单价', width: 120, slotName: 'exchangePriceCell' },
+  { field: 'subtotal', title: '小计', width: 100, slotName: 'subtotalCell' },
+  { field: 'action', title: '操作', width: 80, type: 'action' }
 ]
 
 // 搜索采购订单

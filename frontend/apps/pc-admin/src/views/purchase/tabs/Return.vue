@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'purchase-return-list'"
@@ -84,10 +84,6 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
           <a-space :size="4">
             <a-tooltip title="查看详情">
               <a-button type="link" size="small" @click="handleView(record)">
@@ -123,7 +119,6 @@
               </template>
             </a-dropdown>
           </a-space>
-        </template>
       </template>
     </VxeTableList>
 
@@ -157,19 +152,25 @@
       <!-- 退货明细表格 -->
       <div class="detail-items-section">
         <div class="detail-items-title">退货物料明细</div>
-        <a-table
+        <VxeTableList
           :columns="detailItemColumns"
           :data-source="detailItems"
           :pagination="false"
-          size="small"
           row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'unitPrice' || column.key === 'amount'">
-              <span class="amount-cell">¥{{ formatAmount(record[column.dataIndex]) }}</span>
-            </template>
+          <template #unitPriceCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.unitPrice) }}</span>
           </template>
-        </a-table>
+          <template #amountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+          </template>
+        </VxeTableList>
       </div>
 
       <div class="detail-modal-footer">
@@ -233,34 +234,34 @@
             添加物料
           </a-button>
         </div>
-        <a-table
+        <VxeTableList
           :columns="returnItemColumns"
-          :data-source="formTableItems"
+          :data-source="formData.items"
           :pagination="false"
-          size="small"
           row-key="tempKey"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'unitPrice'">
-              <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'amount'">
-              <span class="amount-cell">¥{{ formatAmount(record.quantity * record.unitPrice) }}</span>
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="handleRemoveReturnItem(index)">删除</a-button>
-            </template>
+          <template #productNameCell="{ record }">
+            <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
           </template>
-        </a-table>
+          <template #quantityCell="{ record }">
+            <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
+          </template>
+          <template #unitPriceCell="{ record }">
+            <a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" />
+          </template>
+          <template #amountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.quantity * record.unitPrice) }}</span>
+          </template>
+          <template #actionCell="{ record, rowIndex }">
+            <a-button type="link" danger size="small" @click="handleRemoveReturnItem(rowIndex)">删除</a-button>
+          </template>
+        </VxeTableList>
       </div>
     </a-modal>
   </div>
@@ -353,16 +354,6 @@ function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
 
 // ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
@@ -370,13 +361,13 @@ const currentRecord = ref<any>(null)
 const detailItems = ref<any[]>([])
 
 const detailItemColumns = [
-  { title: '物料编码', dataIndex: 'productCode', width: 120 },
-  { title: '物料名称', dataIndex: 'productName', width: 150 },
-  { title: '规格型号', dataIndex: 'spec', width: 100 },
-  { title: '退货数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单价', key: 'unitPrice', dataIndex: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', key: 'amount', dataIndex: 'amount', width: 100, align: 'right' },
-  { title: '备注', dataIndex: 'remark', width: 120 }
+  { title: '物料编码', field: 'productCode', width: 120 },
+  { title: '物料名称', field: 'productName', width: 150 },
+  { title: '规格型号', field: 'spec', width: 100 },
+  { title: '退货数量', field: 'quantity', width: 80, align: 'right' },
+  { title: '单价', field: 'unitPrice', width: 100, align: 'right', slotName: 'unitPriceCell' },
+  { title: '金额', field: 'amount', width: 100, align: 'right', slotName: 'amountCell' },
+  { title: '备注', field: 'remark', width: 120 }
 ]
 
 function handleView(record: any) {
@@ -435,23 +426,12 @@ const formRules = {
 }
 
 const returnItemColumns = [
-  { title: '物料名称', key: 'productName', width: 150 },
-  { title: '退货数量', key: 'quantity', width: 100 },
-  { title: '单价', key: 'unitPrice', width: 100 },
-  { title: '金额', key: 'amount', width: 100 },
-  { title: '操作', key: 'action', width: 80 }
+  { title: '物料名称', field: 'productName', width: 150, slotName: 'productNameCell' },
+  { title: '退货数量', field: 'quantity', width: 100, slotName: 'quantityCell' },
+  { title: '单价', field: 'unitPrice', width: 100, slotName: 'unitPriceCell' },
+  { title: '金额', field: 'amount', width: 100, slotName: 'amountCell' },
+  { title: '操作', field: 'action', width: 80, slotName: 'actionCell' }
 ]
-
-// 表格空行填充 (MIN_TABLE_ROWS = 8)
-const MIN_FORM_ROWS = 8
-const formTableItems = computed(() => {
-  const data = [...formData.items]
-  const emptyCount = Math.max(0, MIN_FORM_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, tempKey: `__empty_form_${i}` })
-  }
-  return data
-})
 
 const handleAddReturnItem = () => {
   formData.items.push({ tempKey: genTempKey(), productName: '', quantity: 1, unitPrice: 0 })
@@ -605,6 +585,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -668,9 +650,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .return-no, .order-link {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
@@ -728,29 +707,9 @@ onUnmounted(() => {
   line-height: 32px; vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

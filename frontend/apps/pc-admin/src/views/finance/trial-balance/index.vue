@@ -65,28 +65,25 @@
         style="margin-bottom: 16px"
       />
 
-      <a-table
-        :columns="columns"
+      <VxeTableList
+        :columns="vxeColumns"
         :data-source="tableData"
         :pagination="false"
         :loading="loading"
         row-key="subjectCode"
-        size="small"
-        bordered
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'subjectName'">
-            <span :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }">
-              {{ record.subjectCode }} {{ record.subjectName }}
-            </span>
-          </template>
-          <template v-if="column.dataIndex?.includes('Debit') || column.dataIndex?.includes('Credit')">
-            <span :class="record[column.dataIndex] !== 0 ? 'amount-value' : 'text-disabled'">
-              {{ record[column.dataIndex]?.toFixed(2) || '-' }}
-            </span>
-          </template>
+        <template #subjectNameCell="{ record }">
+          <span :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }">
+            {{ record.subjectCode }} {{ record.subjectName }}
+          </span>
         </template>
-      </a-table>
+      </VxeTableList>
     </a-card>
   </div>
 </template>
@@ -95,6 +92,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import dayjs from 'dayjs'
 import { accountingApi, type TrialBalanceItem } from '@/api/finance/accounting'
 
@@ -110,15 +108,15 @@ const totals = ref({
   totalClosingCredit: 0
 })
 
-const columns = [
-  { title: '科目', key: 'subjectName', dataIndex: 'subjectName', width: 220 },
-  { title: '期初借方', dataIndex: 'openingDebit', key: 'openingDebit', width: 130, align: 'right' },
-  { title: '期初贷方', dataIndex: 'openingCredit', key: 'openingCredit', width: 130, align: 'right' },
-  { title: '本期借方', dataIndex: 'periodDebit', key: 'periodDebit', width: 130, align: 'right' },
-  { title: '本期贷方', dataIndex: 'periodCredit', key: 'periodCredit', width: 130, align: 'right' },
-  { title: '期末借方', dataIndex: 'closingDebit', key: 'closingDebit', width: 130, align: 'right' },
-  { title: '期末贷方', dataIndex: 'closingCredit', key: 'closingCredit', width: 130, align: 'right' }
-]
+const vxeColumns = computed(() => [
+  { field: 'subjectName', title: '科目', width: 250, slotName: 'subjectNameCell' },
+  { field: 'openingDebit', title: '期初借方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+  { field: 'openingCredit', title: '期初贷方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+  { field: 'periodDebit', title: '本期借方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+  { field: 'periodCredit', title: '本期贷方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+  { field: 'closingDebit', title: '期末借方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+  { field: 'closingCredit', title: '期末贷方', width: 130, align: 'right', formatter: ({ cellValue }: any) => (cellValue ?? 0).toFixed(2) },
+])
 
 const tableData = computed(() => {
   const data = rawItems.value.map((item, idx) => ({ ...item, _level: 0, _key: idx }))
@@ -197,6 +195,8 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */

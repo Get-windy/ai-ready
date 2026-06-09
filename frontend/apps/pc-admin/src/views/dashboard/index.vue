@@ -121,13 +121,22 @@
         <a-card :bordered="false">
           <template #title><h2 class="card-heading">库存预警</h2></template>
           <template #extra><a-badge count="7" /></template>
-          <a-table :columns="alertColumns" :data-source="stockAlerts" :pagination="false" size="small" row-key="id">
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'level'">
-                <a-tag :color="record.level === 'high' ? 'red' : 'orange'">{{ record.level === 'high' ? '缺货' : '低库存' }}</a-tag>
-              </template>
+          <VxeTableList
+            :columns="alertVxeColumns"
+            :data-source="stockAlerts"
+            :pagination="false"
+            row-key="id"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #levelCell="{ record }">
+              <a-tag :color="record.level === 'high' ? 'red' : 'orange'">{{ record.level === 'high' ? '缺货' : '低库存' }}</a-tag>
             </template>
-          </a-table>
+          </VxeTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -144,6 +153,7 @@ import {
   DollarOutlined, TeamOutlined, FileTextOutlined
 } from '@ant-design/icons-vue'
 import { SkeletonDashboard } from '@/components/Skeleton'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { dashboardApi, type DashboardStats, type TrendChartData, type TodoItem, type StockAlertItem } from '@/api/dashboard'
 
 const router = useRouter()
@@ -174,12 +184,12 @@ const quickEntries = [
 ]
 
 // ── 库存预警表格列 ──────────────────────────────────────
-const alertColumns = [
-  { title: '物料编码', dataIndex: 'code', key: 'code', width: 120 },
-  { title: '物料名称', dataIndex: 'name', key: 'name' },
-  { title: '当前库存', dataIndex: 'current', key: 'current', width: 80 },
-  { title: '安全库存', dataIndex: 'safe', key: 'safe', width: 80 },
-  { title: '状态', key: 'level', width: 80 }
+const alertVxeColumns = [
+  { field: 'code', title: '物料编码', width: 120 },
+  { field: 'name', title: '物料名称', width: 120 },
+  { field: 'current', title: '当前库存', width: 80 },
+  { field: 'safe', title: '安全库存', width: 80 },
+  { field: 'level', title: '状态', width: 80, slotName: 'levelCell' },
 ]
 
 // ── 数据加载 ──────────────────────────────────────────
@@ -321,28 +331,9 @@ onBeforeUnmount(() => { chartInstance?.dispose() })
 .quick-entry-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 
 /* ── 库存预警表格网格边框 ──────────────────────────────── */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 2px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #d9d9d9 !important;
-  background: #fafafa !important;
-  padding: 12px 16px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 2px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e8e8e8 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 12px 16px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e8e8e8 !important;
-}
 
 @media (max-width: 768px) {
   .dashboard { padding: var(--spacing-lg); }

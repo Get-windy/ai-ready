@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="tableData"
       :loading="loading"
       :pagination="pagination"
       :table-key="'stock-check-list'"
@@ -68,11 +68,6 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="0" class="action-cell-inner">
             <a-tooltip title="查看">
               <a-button type="link" size="small" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
@@ -95,9 +90,7 @@
                 </a-menu>
               </template>
             </a-dropdown>
-          </a-space>
         </template>
-      </template>
 
       <template #empty>
         <div class="table-empty">
@@ -171,17 +164,19 @@
       </div>
 
       <a-divider v-if="checkItems.length > 0" style="margin: 12px 0">盘点明细</a-divider>
-      <a-table v-if="checkItems.length > 0" :columns="addItemColumns" :data-source="checkItems" :pagination="false" size="small" row-key="id" :scroll="{ y: 300 }">
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'systemQty'">{{ record.quantity || 0 }} {{ record.unit || '' }}</template>
-          <template v-else-if="column.key === 'actualQty'">
-            <a-input-number v-model:value="checkItems[index].actualQty" :min="0" style="width: 100%" placeholder="实盘数量" />
-          </template>
-          <template v-else-if="column.key === 'diff'">
-            <a-tag :color="getDiffColor(index)">{{ getDiffText(index) }}</a-tag>
-          </template>
+      <VxeTableList v-if="checkItems.length > 0" :data-source="checkItems" :pagination="false" row-key="id"
+        :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+        :show-export="false" :show-batch-delete="false" :columns="addItemColumns">
+        <template #systemQtyCell="{ record }">
+          {{ record.quantity || 0 }} {{ record.unit || '' }}
         </template>
-      </a-table>
+        <template #actualQtyCell="{ record, rowIndex }">
+          <a-input-number v-model:value="checkItems[rowIndex].actualQty" :min="0" style="width: 100%" placeholder="实盘数量" />
+        </template>
+        <template #diffCell="{ record, rowIndex }">
+          <a-tag :color="getDiffColor(rowIndex)">{{ getDiffText(rowIndex) }}</a-tag>
+        </template>
+      </VxeTableList>
     </a-modal>
   </div>
 </template>
@@ -215,18 +210,6 @@ const pendingCount = computed(() => tableData.value.filter(r => r.status === 1).
 const completedCount = computed(() => tableData.value.filter(r => r.status === 2).length)
 const diffCount = computed(() => tableData.value.filter(r => r.diffQuantity !== 0).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
-// vxe-table 列定义
 const vxeColumns = computed(() => [
   { field: 'checkNo', title: '盘点单号', width: 160, sortable: true },
   { field: 'warehouseName', title: '仓库', width: 120 },
@@ -297,12 +280,12 @@ const categoryOptions = [
   { value: 4, label: '包装材料' }, { value: 5, label: '备品备件' }
 ]
 const addItemColumns = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 140 },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '规格型号', dataIndex: 'specification', key: 'specification', width: 100 },
-  { title: '系统库存', key: 'systemQty', width: 110 },
-  { title: '实盘数量', key: 'actualQty', width: 120 },
-  { title: '差异', key: 'diff', width: 100 }
+  { title: '产品编码', field: 'productCode', width: 140 },
+  { title: '产品名称', field: 'productName' },
+  { title: '规格型号', field: 'specification', width: 100 },
+  { title: '系统库存', field: 'systemQty', width: 110, slotName: 'systemQtyCell' },
+  { title: '实盘数量', field: 'actualQty', width: 120, slotName: 'actualQtyCell' },
+  { title: '差异', field: 'diff', width: 100, slotName: 'diffCell' }
 ]
 
 let currentDraftCheckId: number | null = null
@@ -482,6 +465,9 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+
 }
 
 /* 统计卡片 */
@@ -544,9 +530,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .detail-modal-footer { text-align: right; margin-top: 16px; }
@@ -561,29 +544,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

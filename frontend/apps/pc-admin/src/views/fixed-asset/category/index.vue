@@ -317,17 +317,6 @@ function handleDelete() {
   overflow-y: auto;
 }
 
-/* 表格网格边框 */
-:deep(.ant-descriptions-bordered .ant-descriptions-item-label) {
-  background: #fafafa;
-  border-right: 1px solid #d9d9d9;
-  font-weight: 600;
-}
-
-:deep(.ant-descriptions-bordered .ant-descriptions-item-content) {
-  border-right: 1px solid #e8e8e8;
-}
-
 /* 响应式 */
 @media (max-width: 768px) {
   .category-content {

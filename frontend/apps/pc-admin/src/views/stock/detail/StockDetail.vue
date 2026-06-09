@@ -30,7 +30,18 @@
       </a-descriptions>
     </template>
     <template #tab-transactions>
-      <a-table :columns="txCols" :data-source="transactions" row-key="id" :pagination="{ pageSize: 5 }" size="small" />
+      <VxeTableList
+        :columns="txVxeCols"
+        :data-source="transactions"
+        row-key="id"
+        :pagination="{ pageSize: 5 }"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      />
       <a-empty v-if="transactions.length === 0" description="暂无出入库记录" />
     </template>
   </DetailLayout>
@@ -90,6 +101,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { stockApi, inboundApi, outboundApi, type StockItem } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
@@ -100,9 +112,11 @@ const bp = computed(() => [{ text: '库存管理', path: '/stock?tab=stock' }, {
 const tabs = [{ key: 'basic', label: '基本信息' }, { key: 'transactions', label: '出入库记录' }]
 const relatedDocs = computed(() => [])
 const logs = computed(() => [{ id: 1, time: data.value?.lastInboundDate || '', user: '系统', action: '最近入库' }])
-const txCols = [
-  { title: '单号', dataIndex: 'orderNo', width: 160 }, { title: '类型', dataIndex: 'type', width: 80 },
-  { title: '数量', dataIndex: 'quantity', width: 80 }, { title: '时间', dataIndex: 'createTime', width: 160 }
+const txVxeCols = [
+  { field: 'orderNo', title: '单号', width: 160 },
+  { field: 'type', title: '类型', width: 80 },
+  { field: 'quantity', title: '数量', width: 80 },
+  { field: 'createTime', title: '时间', width: 160 },
 ]
 
 const fetchDetail = async () => {

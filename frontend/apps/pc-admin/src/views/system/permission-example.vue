@@ -133,10 +133,16 @@
     <div>
       <h3>数据权限范围</h3>
       <p>当前数据权限范围: {{ dataScope }}</p>
-      <a-table
-        :columns="columns"
+      <VxeTableList
+        :columns="vxeColumns"
         :data-source="filteredUsers"
         :pagination="false"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       />
     </div>
   </div>
@@ -212,9 +218,9 @@ const filteredUsers = computed(() => {
 })
 
 // 表格列定义
-const columns = [
-  { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: '姓名', dataIndex: 'name', key: 'name' }
+const vxeColumns = [
+  { field: 'id', title: 'ID' },
+  { field: 'name', title: '姓名' }
 ]
 
 // 操作方法

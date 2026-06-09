@@ -68,24 +68,28 @@
     </template>
 
     <template #tab-detail>
-      <a-table
-        :columns="detailColumns"
+      <VxeTableList
+        :columns="detailVxeColumns"
         :data-source="order?.details || []"
         row-key="id"
         :pagination="false"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'taxAmount'">
-            ¥{{ record.taxAmount?.toFixed(2) }}
-          </template>
-          <template v-else-if="column.key === 'totalAmount'">
-            ¥{{ record.totalAmount?.toFixed(2) }}
-          </template>
+        <template #amountCell="{ record }">
+          ¥{{ record.amount?.toFixed(2) }}
         </template>
-      </a-table>
+        <template #taxAmountCell="{ record }">
+          ¥{{ record.taxAmount?.toFixed(2) }}
+        </template>
+        <template #totalAmountCell="{ record }">
+          ¥{{ record.totalAmount?.toFixed(2) }}
+        </template>
+      </VxeTableList>
     </template>
 
     <template #tab-accounting>
@@ -135,6 +139,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
 import { inboundApi } from '@/api/erp'
 import PurchaseOrderFormModal from '../components/PurchaseOrderFormModal.vue'
@@ -168,16 +173,16 @@ const tabs = [
   { key: 'accounting', label: '会计信息' }
 ]
 
-const detailColumns = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 150 },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '规格型号', dataIndex: 'specification', key: 'specification', width: 120 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
-  { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
-  { title: '税率', dataIndex: 'taxRate', key: 'taxRate', width: 80 },
-  { title: '税额', dataIndex: 'taxAmount', key: 'taxAmount', width: 100 },
-  { title: '价税合计', dataIndex: 'totalAmount', key: 'totalAmount', width: 120 }
+const detailVxeColumns = [
+  { field: 'productCode', title: '产品编码', width: 150 },
+  { field: 'productName', title: '产品名称' },
+  { field: 'specification', title: '规格型号', width: 120 },
+  { field: 'quantity', title: '数量', width: 80 },
+  { field: 'unitPrice', title: '单价', width: 100 },
+  { field: 'amount', title: '金额', width: 100, slotName: 'amountCell' },
+  { field: 'taxRate', title: '税率', width: 80 },
+  { field: 'taxAmount', title: '税额', width: 100, slotName: 'taxAmountCell' },
+  { field: 'totalAmount', title: '价税合计', width: 120, slotName: 'totalAmountCell' }
 ]
 
 const relatedDocuments = computed(() => {

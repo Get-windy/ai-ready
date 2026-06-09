@@ -126,34 +126,33 @@
     <!-- 趋势明细表格 -->
     <a-card title="趋势明细" size="small" style="margin-top: 16px">
       <div class="table-container">
-        <a-table
-          :columns="columns"
-          :data-source="tableDataSource"
+        <VxeTableList
+          :columns="trendVxeColumns"
+          :data-source="trendData"
           :loading="loading"
           :pagination="false"
-          size="small"
-          bordered
           row-key="period"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else-if="column.key === 'currentSales'">
-              <span class="amount-cell">¥{{ formatAmount(record.currentSales) }}</span>
-            </template>
-            <template v-else-if="column.key === 'lastSales'">
-              <span class="amount-cell">¥{{ formatAmount(record.lastSales) }}</span>
-            </template>
-            <template v-else-if="column.key === 'growth'">
-              <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
-                <ArrowUpOutlined v-if="record.growth > 0" />
-                <ArrowDownOutlined v-if="record.growth < 0" />
-                {{ Math.abs(record.growth) }}%
-              </span>
-            </template>
+          <template #currentSalesCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.currentSales) }}</span>
           </template>
-        </a-table>
+          <template #lastSalesCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.lastSales) }}</span>
+          </template>
+          <template #growthCell="{ record }">
+            <span :class="['growth-cell', { positive: record.growth > 0, negative: record.growth < 0 }]">
+              <ArrowUpOutlined v-if="record.growth > 0" />
+              <ArrowDownOutlined v-if="record.growth < 0" />
+              {{ Math.abs(record.growth) }}%
+            </span>
+          </template>
+        </VxeTableList>
       </div>
     </a-card>
   </div>
@@ -170,6 +169,7 @@ import {
   DollarOutlined,
   LineChartOutlined
 } from '@ant-design/icons-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { salesReportApi } from '@/api/sales-report'
 
 // HistoryOutlined 使用 LineChartOutlined 替代
@@ -196,24 +196,13 @@ const stats = reactive({
 
 const trendData = ref<any[]>([])
 
-const columns = [
-  { title: '周期', dataIndex: 'period', width: 120 },
-  { title: '本期销售', key: 'currentSales', width: 140, align: 'right' },
-  { title: '上期销售', key: 'lastSales', width: 140, align: 'right' },
-  { title: '增长率', key: 'growth', width: 100, align: 'right' },
-  { title: '订单数', dataIndex: 'orderCount', width: 100, align: 'right' }
+const trendVxeColumns = [
+  { field: 'period', title: '周期', width: 120 },
+  { field: 'currentSales', title: '本期销售', width: 140, align: 'right', slotName: 'currentSalesCell' },
+  { field: 'lastSales', title: '上期销售', width: 140, align: 'right', slotName: 'lastSalesCell' },
+  { field: 'growth', title: '增长率', width: 100, align: 'right', slotName: 'growthCell' },
+  { field: 'orderCount', title: '订单数', width: 100, align: 'right' }
 ]
-
-// 空行填充
-const MIN_TABLE_ROWS = 10
-const tableDataSource = computed(() => {
-  const data = [...trendData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, period: `__empty_${i}` })
-  }
-  return data
-})
 
 let chart: echarts.ECharts | null = null
 
@@ -447,29 +436,9 @@ defineExpose({ handleQuery })
   overflow-y: auto;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
@@ -492,7 +461,4 @@ defineExpose({ handleQuery })
   color: #f5222d;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 </style>

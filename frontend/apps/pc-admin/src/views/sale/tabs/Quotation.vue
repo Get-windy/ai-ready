@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'sale-quotation-list'"
@@ -135,16 +135,16 @@
       </a-row>
       <a-form-item label="产品明细" required>
         <div class="form-items-toolbar"><a-button type="dashed" size="small" @click="addItem"><template #icon><PlusOutlined /></template>添加产品</a-button></div>
-        <a-table :data-source="formState.items" :pagination="false" row-key="key" size="small" bordered :columns="itemColumns">
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'"><a-input v-model:value="record.productName" placeholder="产品名称" size="small" /></template>
-            <template v-else-if="column.key === 'quantity'"><a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" /></template>
-            <template v-else-if="column.key === 'unitPrice'"><a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" /></template>
-            <template v-else-if="column.key === 'discount'"><a-input-number v-model:value="record.discount" :min="0" :max="100" size="small" style="width: 100%" />%</template>
-            <template v-else-if="column.key === 'amount'">¥{{ (record.quantity * record.unitPrice * (1 - record.discount / 100)).toFixed(2) }}</template>
-            <template v-else-if="column.key === 'action'"><a-button type="link" danger size="small" @click="removeItem(index)" :disabled="formState.items.length <= 1">删除</a-button></template>
-          </template>
-        </a-table>
+        <VxeTableList :data-source="formState.items" :pagination="false" row-key="key"
+          :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
+          :show-export="false" :show-batch-delete="false" :columns="itemColumns">
+          <template #productNameCell="{ record }"><a-input v-model:value="record.productName" placeholder="产品名称" size="small" /></template>
+          <template #quantityCell="{ record }"><a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" /></template>
+          <template #unitPriceCell="{ record }"><a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" /></template>
+          <template #discountCell="{ record }"><a-input-number v-model:value="record.discount" :min="0" :max="100" size="small" style="width: 100%" />%</template>
+          <template #amountCell="{ record }">¥{{ (record.quantity * record.unitPrice * (1 - record.discount / 100)).toFixed(2) }}</template>
+          <template #actionCell="{ record, rowIndex }"><a-button type="link" danger size="small" @click="removeItem(rowIndex)" :disabled="formState.items.length <= 1">删除</a-button></template>
+        </VxeTableList>
       </a-form-item>
       <a-form-item label="备注" name="remark"><a-textarea v-model:value="formState.remark" :rows="3" placeholder="请输入备注" /></a-form-item>
     </a-form>
@@ -181,17 +181,6 @@ const draftCount = computed(() => dataSource.value.filter(r => r.status === 0).l
 const sentCount = computed(() => dataSource.value.filter(r => r.status === 1).length)
 const acceptedCount = computed(() => dataSource.value.filter(r => r.status === 2).length)
 const totalAmount = computed(() => dataSource.value.reduce((s, r) => s + (r.totalAmount || 0), 0))
-
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}`, quotationNo: '', customerName: '', quotationDate: '', validDate: '', status: 0, createTime: '' })
-  }
-  return data
-})
 
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
@@ -252,12 +241,12 @@ const formRules = {
   validUntil: [{ required: true, message: '请选择有效期', trigger: 'change', type: 'object' as const }]
 }
 const itemColumns = [
-  { title: '产品名称', key: 'productName', dataIndex: 'productName' },
-  { title: '数量', key: 'quantity', dataIndex: 'quantity', width: 80 },
-  { title: '单价', key: 'unitPrice', dataIndex: 'unitPrice', width: 120 },
-  { title: '折扣(%)', key: 'discount', dataIndex: 'discount', width: 100 },
-  { title: '金额', key: 'amount', width: 120 },
-  { title: '操作', key: 'action', width: 80 }
+  { title: '产品名称', field: 'productName', slotName: 'productNameCell' },
+  { title: '数量', field: 'quantity', width: 80, slotName: 'quantityCell' },
+  { title: '单价', field: 'unitPrice', width: 120, slotName: 'unitPriceCell' },
+  { title: '折扣(%)', field: 'discount', width: 100, slotName: 'discountCell' },
+  { title: '金额', field: 'amount', width: 120, slotName: 'amountCell' },
+  { title: '操作', field: 'action', width: 80, slotName: 'actionCell' }
 ]
 const addItem = () => { formState.items.push(defaultItem()) }
 const removeItem = (index: number) => { if (formState.items.length > 1) formState.items.splice(index, 1) }
@@ -411,6 +400,8 @@ function handleKeydown(e: KeyboardEvent) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
   padding: 16px;
 }
 
@@ -468,7 +459,6 @@ function handleKeydown(e: KeyboardEvent) {
   margin-bottom: 8px;
 }
 
-.empty-placeholder { color: transparent; }
 
 .list-update-timestamp {
   font-size: 12px;
@@ -480,29 +470,9 @@ function handleKeydown(e: KeyboardEvent) {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

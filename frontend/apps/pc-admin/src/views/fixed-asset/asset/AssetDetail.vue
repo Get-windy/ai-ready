@@ -45,34 +45,13 @@
     <a-card>
       <a-tabs v-model:activeKey="detailTab">
         <a-tab-pane key="depreciation" tab="折旧历史">
-          <a-table
-            :dataSource="depreciationData"
-            :columns="depreciationColumns"
-            :loading="depreciationLoading"
-            rowKey="id"
-            :pagination="false"
-            size="small"
-          />
+          <VxeTableList :columns="depreciationVxeColumns" :data-source="depreciationData" :loading="depreciationLoading" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="transfer" tab="转移记录">
-          <a-table
-            :dataSource="transferData"
-            :columns="transferColumns"
-            :loading="transferLoading"
-            rowKey="id"
-            :pagination="false"
-            size="small"
-          />
+          <VxeTableList :columns="transferVxeColumns" :data-source="transferData" :loading="transferLoading" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="disposal" tab="处置信息">
-          <a-table
-            :dataSource="disposalData"
-            :columns="disposalColumns"
-            :loading="disposalLoading"
-            rowKey="id"
-            :pagination="false"
-            size="small"
-          />
+          <VxeTableList :columns="disposalVxeColumns" :data-source="disposalData" :loading="disposalLoading" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -82,6 +61,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { fixedAssetApi, depreciationApi, transferApi, disposalApi } from '@/api/fixed-asset'
 import { message } from 'ant-design-vue'
 
@@ -115,30 +95,30 @@ const methodMap: Record<string, string> = {
 const statusLabel = computed(() => statusLabels[assetData.value?.status] || assetData.value?.status)
 const statusColor = computed(() => statusColors[assetData.value?.status] || 'default')
 
-const depreciationColumns = [
-  { title: '期间', dataIndex: 'period', width: 100 },
-  { title: '折旧日期', dataIndex: 'depreciationDate', width: 120 },
-  { title: '本期折旧', dataIndex: 'periodAmount', width: 120 },
-  { title: '累计折旧', dataIndex: 'accumulatedDepreciation', width: 120 },
-  { title: '净值', dataIndex: 'netValue', width: 120 },
-  { title: '状态', dataIndex: 'status', width: 80 },
+const depreciationVxeColumns = [
+  { field: 'period', title: '期间', width: 100 },
+  { field: 'depreciationDate', title: '折旧日期', width: 120 },
+  { field: 'periodAmount', title: '本期折旧', width: 120 },
+  { field: 'accumulatedDepreciation', title: '累计折旧', width: 120 },
+  { field: 'netValue', title: '净值', width: 120 },
+  { field: 'status', title: '状态', width: 80 },
 ]
 
-const transferColumns = [
-  { title: '转移单号', dataIndex: 'transferNo', width: 140 },
-  { title: '调出部门', dataIndex: 'fromDepartmentName', width: 120 },
-  { title: '调入部门', dataIndex: 'toDepartmentName', width: 120 },
-  { title: '转移日期', dataIndex: 'transferDate', width: 120 },
-  { title: '状态', dataIndex: 'status', width: 80 },
+const transferVxeColumns = [
+  { field: 'transferNo', title: '转移单号', width: 140 },
+  { field: 'fromDepartmentName', title: '调出部门', width: 120 },
+  { field: 'toDepartmentName', title: '调入部门', width: 120 },
+  { field: 'transferDate', title: '转移日期', width: 120 },
+  { field: 'status', title: '状态', width: 80 },
 ]
 
-const disposalColumns = [
-  { title: '处置单号', dataIndex: 'disposalNo', width: 140 },
-  { title: '处置类型', dataIndex: 'disposalType', width: 100 },
-  { title: '处置日期', dataIndex: 'disposalDate', width: 120 },
-  { title: '处置金额', dataIndex: 'disposalAmount', width: 120 },
-  { title: '处置损益', dataIndex: 'gainLoss', width: 120 },
-  { title: '状态', dataIndex: 'status', width: 80 },
+const disposalVxeColumns = [
+  { field: 'disposalNo', title: '处置单号', width: 140 },
+  { field: 'disposalType', title: '处置类型', width: 100 },
+  { field: 'disposalDate', title: '处置日期', width: 120 },
+  { field: 'disposalAmount', title: '处置金额', width: 120 },
+  { field: 'gainLoss', title: '处置损益', width: 120 },
+  { field: 'status', title: '状态', width: 80 },
 ]
 
 onMounted(() => {

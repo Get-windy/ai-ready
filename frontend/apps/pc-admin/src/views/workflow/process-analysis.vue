@@ -38,12 +38,16 @@
               </a-button>
             </div>
           </template>
-          <a-table
-            :columns="processDurationColumns"
+          <VxeTableList
+            :columns="processDurationVxeColumns"
             :data-source="processDurationData"
             :pagination="false"
-            size="small"
-            :scroll="{ y: 300 }"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           />
         </a-card>
       </a-col>
@@ -70,12 +74,16 @@
               </a-select>
             </div>
           </template>
-          <a-table
-            :columns="nodeDurationColumns"
+          <VxeTableList
+            :columns="nodeDurationVxeColumns"
             :data-source="nodeDurationData"
             :pagination="false"
-            size="small"
-            :scroll="{ y: 300 }"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           />
         </a-card>
       </a-col>
@@ -99,27 +107,30 @@
               />
             </div>
           </template>
-          <a-table
-            :columns="efficiencyColumns"
+          <VxeTableList
+            :columns="efficiencyVxeColumns"
             :data-source="efficiencyData"
             :pagination="false"
-            size="small"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'completionRate'">
-                <a-progress
-                  :percent="record.completionRate"
-                  :stroke-color="getProgressColor(record.completionRate)"
-                />
-              </template>
-              <template v-else-if="column.key === 'efficiency'">
-                <a-rate
-                  v-model:value="record.efficiency"
-                  disabled
-                />
-              </template>
+            <template #completionRateCell="{ record }">
+              <a-progress
+                :percent="record.completionRate"
+                :stroke-color="getProgressColor(record.completionRate)"
+              />
             </template>
-          </a-table>
+            <template #efficiencyCell="{ record }">
+              <a-rate
+                v-model:value="record.efficiency"
+                disabled
+              />
+            </template>
+          </VxeTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -152,7 +163,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
-import type { TableProps } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 
 // 统计卡片数据
@@ -164,12 +175,12 @@ const statisticCards = ref([
 ])
 
 // 流程耗时数据
-const processDurationColumns = [
-  { title: '流程名称', dataIndex: 'processName', key: 'processName', width: 150 },
-  { title: '实例数', dataIndex: 'instanceCount', key: 'instanceCount', width: 80, align: 'center' as const },
-  { title: '平均耗时', dataIndex: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' as const },
-  { title: '最长耗时', dataIndex: 'maxDuration', key: 'maxDuration', width: 100, align: 'right' as const },
-  { title: '最短耗时', dataIndex: 'minDuration', key: 'minDuration', width: 100, align: 'right' as const }
+const processDurationVxeColumns = [
+  { field: 'processName', title: '流程名称', width: 150 },
+  { field: 'instanceCount', title: '实例数', width: 80, align: 'center' },
+  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
+  { field: 'maxDuration', title: '最长耗时', width: 100, align: 'right' },
+  { field: 'minDuration', title: '最短耗时', width: 100, align: 'right' }
 ]
 
 const processDurationData = ref([
@@ -211,12 +222,12 @@ const processOptions = ref([
   { label: '采购审批流程', value: 'purchase' }
 ])
 
-const nodeDurationColumns = [
-  { title: '节点名称', dataIndex: 'nodeName', key: 'nodeName', width: 120 },
-  { title: '任务数', dataIndex: 'taskCount', key: 'taskCount', width: 80, align: 'center' as const },
-  { title: '平均耗时', dataIndex: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' as const },
-  { title: '超时数', dataIndex: 'overdueCount', key: 'overdueCount', width: 80, align: 'center' as const },
-  { title: '超时率', dataIndex: 'overdueRate', key: 'overdueRate', width: 80, align: 'center' as const }
+const nodeDurationVxeColumns = [
+  { field: 'nodeName', title: '节点名称', width: 120 },
+  { field: 'taskCount', title: '任务数', width: 80, align: 'center' },
+  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
+  { field: 'overdueCount', title: '超时数', width: 80, align: 'center' },
+  { field: 'overdueRate', title: '超时率', width: 80, align: 'center' }
 ]
 
 const nodeDurationData = ref([
@@ -227,14 +238,14 @@ const nodeDurationData = ref([
 
 // 审批效率数据
 const reportDateRange = ref<any[]>([])
-const efficiencyColumns = [
-  { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
-  { title: '总任务数', dataIndex: 'totalTasks', key: 'totalTasks', width: 100, align: 'center' as const },
-  { title: '完成数', dataIndex: 'completedTasks', key: 'completedTasks', width: 100, align: 'center' as const },
-  { title: '完成率', dataIndex: 'completionRate', key: 'completionRate', width: 150 },
-  { title: '平均耗时', dataIndex: 'avgDuration', key: 'avgDuration', width: 100, align: 'right' as const },
-  { title: '超时任务', dataIndex: 'overdueTasks', key: 'overdueTasks', width: 100, align: 'center' as const },
-  { title: '效率评分', dataIndex: 'efficiency', key: 'efficiency', width: 150 }
+const efficiencyVxeColumns = [
+  { field: 'date', title: '日期', width: 120 },
+  { field: 'totalTasks', title: '总任务数', width: 100, align: 'center' },
+  { field: 'completedTasks', title: '完成数', width: 100, align: 'center' },
+  { field: 'completionRate', title: '完成率', width: 150, slotName: 'completionRateCell' },
+  { field: 'avgDuration', title: '平均耗时', width: 100, align: 'right' },
+  { field: 'overdueTasks', title: '超时任务', width: 100, align: 'center' },
+  { field: 'efficiency', title: '效率评分', width: 150, slotName: 'efficiencyCell' }
 ]
 
 const efficiencyData = ref([
@@ -390,27 +401,7 @@ const getProgressColor = (percentage: number) => {
   border-radius: 4px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 </style>

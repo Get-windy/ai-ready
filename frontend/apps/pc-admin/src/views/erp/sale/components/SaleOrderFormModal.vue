@@ -218,105 +218,101 @@
           </template>
 
           <div class="product-table-container">
-            <a-table
-              :columns="itemColumns"
-              :data-source="tableDataSource"
+            <VxeTableList
+              :columns="itemVxeColumns"
+              :data-source="formData.items"
               :pagination="false"
-              size="small"
-              bordered
               row-key="id"
-              :scroll="{ y: tableScrollY }"
-              :sticky="true"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
             >
-              <template #bodyCell="{ column, record, index }">
-                <!-- 空占位行 -->
-                <template v-if="record.__empty_row">
-                  <span class="empty-placeholder">&nbsp;</span>
-                </template>
-                <!-- 商品选择 -->
-                <template v-else-if="column.key === 'productId'">
-                  <a-select
-                    v-model:value="record.productId"
-                    placeholder="请选择商品"
-                    show-search
-                    :filter-option="filterOption"
-                    :loading="optionsLoading"
-                    style="width: 100%"
-                    @change="(val) => handleProductChange(val, index)"
+              <!-- 商品选择 -->
+              <template #productIdCell="{ record, index }">
+                <a-select
+                  v-model:value="record.productId"
+                  placeholder="请选择商品"
+                  show-search
+                  :filter-option="filterOption"
+                  :loading="optionsLoading"
+                  style="width: 100%"
+                  @change="(val) => handleProductChange(val, index)"
+                >
+                  <a-select-option v-for="product in productList" :key="product.id" :value="product.id">
+                    {{ product.name }} ({{ product.code }})
+                    <span style="color: #999; font-size: 12px;">
+                      ¥{{ product.salePrice || product.price || 0 }}/{{ product.unit }}
+                    </span>
+                  </a-select-option>
+                </a-select>
+              </template>
+              <!-- 数量 -->
+              <template #quantityCell="{ record, index }">
+                <a-input-number
+                  v-model:value="record.quantity"
+                  :min="1"
+                  :max="record.stockQuantity || 99999"
+                  :step="1"
+                  style="width: 100%"
+                  @change="debouncedCalculate(index)"
+                />
+                <span v-if="record.stockQuantity" class="stock-tip">
+                  库存: {{ record.stockQuantity }}{{ record.unit }}
+                </span>
+              </template>
+              <!-- 单价 -->
+              <template #unitPriceCell="{ record, index }">
+                <a-input-number
+                  v-model:value="record.unitPrice"
+                  :min="0"
+                  :step="0.01"
+                  :precision="2"
+                  style="width: 100%"
+                  @change="debouncedCalculate(index)"
+                />
+              </template>
+              <!-- 折扣 -->
+              <template #discountCell="{ record, index }">
+                <a-input-number
+                  v-model:value="record.discount"
+                  :min="0"
+                  :max="100"
+                  :step="1"
+                  :precision="2"
+                  style="width: 100%"
+                  @change="debouncedCalculate(index)"
+                />
+              </template>
+              <!-- 金额 -->
+              <template #amountCell="{ record }">
+                <span class="amount-text">¥{{ calculateItemAmount(record).toFixed(2) }}</span>
+              </template>
+              <!-- 操作 -->
+              <template #action="{ index }">
+                <a-space>
+                  <a-tooltip title="复制此行">
+                    <a-button type="link" size="small" @click="handleCopyItem(index)">
+                      <template #icon><CopyOutlined /></template>
+                    </a-button>
+                  </a-tooltip>
+                  <a-popconfirm
+                    title="确定要删除此商品吗？"
+                    ok-text="删除"
+                    cancel-text="取消"
+                    @confirm="handleDeleteItem(index)"
                   >
-                    <a-select-option v-for="product in productList" :key="product.id" :value="product.id">
-                      {{ product.name }} ({{ product.code }})
-                      <span style="color: #999; font-size: 12px;">
-                        ¥{{ product.salePrice || product.price || 0 }}/{{ product.unit }}
-                      </span>
-                    </a-select-option>
-                  </a-select>
-                </template>
-                <!-- 数量 -->
-                <template v-else-if="column.key === 'quantity'">
-                  <a-input-number
-                    v-model:value="record.quantity"
-                    :min="1"
-                    :max="record.stockQuantity || 99999"
-                    :step="1"
-                    style="width: 100%"
-                    @change="debouncedCalculate(index)"
-                  />
-                  <span v-if="record.stockQuantity" class="stock-tip">
-                    库存: {{ record.stockQuantity }}{{ record.unit }}
-                  </span>
-                </template>
-                <!-- 单价 -->
-                <template v-else-if="column.key === 'unitPrice'">
-                  <a-input-number
-                    v-model:value="record.unitPrice"
-                    :min="0"
-                    :step="0.01"
-                    :precision="2"
-                    style="width: 100%"
-                    @change="debouncedCalculate(index)"
-                  />
-                </template>
-                <!-- 折扣 -->
-                <template v-else-if="column.key === 'discount'">
-                  <a-input-number
-                    v-model:value="record.discount"
-                    :min="0"
-                    :max="100"
-                    :step="1"
-                    :precision="2"
-                    style="width: 100%"
-                    @change="debouncedCalculate(index)"
-                  />
-                </template>
-                <!-- 金额 -->
-                <template v-else-if="column.key === 'amount'">
-                  <span class="amount-text">¥{{ calculateItemAmount(record).toFixed(2) }}</span>
-                </template>
-                <!-- 操作 -->
-                <template v-else-if="column.key === 'action'">
-                  <a-space>
-                    <a-tooltip title="复制此行">
-                      <a-button type="link" size="small" @click="handleCopyItem(index)">
-                        <template #icon><CopyOutlined /></template>
+                    <a-tooltip title="删除此行">
+                      <a-button type="link" size="small" danger>
+                        <template #icon><DeleteOutlined /></template>
                       </a-button>
                     </a-tooltip>
-                    <a-popconfirm
-                      title="确定要删除此商品吗？"
-                      ok-text="删除"
-                      cancel-text="取消"
-                      @confirm="handleDeleteItem(index)"
-                    >
-                      <a-tooltip title="删除此行">
-                        <a-button type="link" size="small" danger>
-                          <template #icon><DeleteOutlined /></template>
-                        </a-button>
-                      </a-tooltip>
-                    </a-popconfirm>
-                  </a-space>
-                </template>
+                  </a-popconfirm>
+                </a-space>
               </template>
-            </a-table>
+            </VxeTableList>
           </div>
 
           <!-- 汇总区域 -->
@@ -357,6 +353,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -409,8 +406,6 @@ const isEdit = computed(() => !!props.editData?.id)
 const loading = ref(false)
 const optionsLoading = ref(false)
 const formRef = ref<FormInstance>()
-const tableScrollY = ref(200)
-
 // 表单初始数据（用于判断是否有修改）
 const initialFormData = ref<string>('')
 
@@ -444,15 +439,15 @@ const formRules = {
   salesmanId: [{ required: true, message: '请选择销售员', trigger: 'change' }]
 }
 
-const itemColumns = [
-  { title: '商品', dataIndex: 'productId', key: 'productId', width: 200 },
-  { title: '编码', dataIndex: 'productCode', key: 'productCode', width: 100 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 120 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 120, align: 'right' },
-  { title: '折扣%', dataIndex: 'discount', key: 'discount', width: 100 },
-  { title: '金额', key: 'amount', width: 120, align: 'right' },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '操作', key: 'action', width: 100, fixed: 'right' }
+const itemVxeColumns = [
+  { field: 'productId', title: '商品', width: 200, slotName: 'productIdCell' },
+  { field: 'productCode', title: '编码', width: 100 },
+  { field: 'quantity', title: '数量', width: 120, slotName: 'quantityCell' },
+  { field: 'unitPrice', title: '单价', width: 120, align: 'right', slotName: 'unitPriceCell' },
+  { field: 'discount', title: '折扣%', width: 100, slotName: 'discountCell' },
+  { field: 'amount', title: '金额', width: 120, align: 'right', slotName: 'amountCell' },
+  { field: 'unit', title: '单位', width: 60 },
+  { field: 'action', title: '操作', width: 100, fixed: 'right', type: 'action' }
 ]
 
 const customerList = ref<any[]>([])
@@ -466,27 +461,7 @@ const totalAmount = computed(() => formData.items.reduce((sum, item) => sum + ca
 const discountAmount = computed(() => formData.items.reduce((sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0) * (item.discount || 0) / 100, 0))
 const totalAmountWithTax = computed(() => totalAmount.value + totalAmount.value * formData.taxRate / 100)
 
-// 空行填充（保持约8行显示）
-const MIN_TABLE_ROWS = 8
-const tableDataSource = computed(() => {
-  const data = [...formData.items]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({
-      __empty_row: true,
-      id: `__empty_${i}`,
-      productId: undefined,
-      productCode: '',
-      productName: '',
-      quantity: 0,
-      unitPrice: 0,
-      discount: 0,
-      unit: '',
-      remark: ''
-    })
-  }
-  return data
-})
+
 
 const calculateItemAmount = (item: SaleOrderItem) => {
   return (item.quantity || 0) * (item.unitPrice || 0) * (1 - (item.discount || 0) / 100)
@@ -768,36 +743,11 @@ watch(visible, (val) => {
   margin-bottom: 16px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-  text-align: center !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 6px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 
 /* 金额列右对齐等宽字体 */
 .amount-text {
@@ -807,9 +757,6 @@ watch(visible, (val) => {
   font-variant-numeric: tabular-nums;
 }
 
-:deep(.ant-table-tbody > tr > td[align="right"]) {
-  text-align: right !important;
-}
 
 /* 库存提示 */
 .stock-tip {

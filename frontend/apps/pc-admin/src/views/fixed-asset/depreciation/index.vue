@@ -65,33 +65,28 @@
         </div>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'assetCode'">
-          <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
-        </template>
-        <template v-else-if="column.field === 'assetName'">
-          <a @click="handleViewAsset(record)" class="asset-name">{{ record.assetName }}</a>
-        </template>
-        <template v-else-if="column.field === 'periodAmount'">
-          <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
-        </template>
-        <template v-else-if="column.field === 'accumulatedDepreciation'">
-          <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
-        </template>
-        <template v-else-if="column.field === 'netValue'">
-          <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
-        </template>
-        <template v-else-if="column.field === 'assetOriginalValue'">
-          <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
-            {{ record.status === 'completed' ? '已完成' : '待处理' }}
-          </a-tag>
-        </template>
+      <template #assetCodeCell="{ record }">
+        <a @click="handleViewAsset(record)" class="asset-code">{{ record.assetCode }}</a>
+      </template>
+      <template #assetNameCell="{ record }">
+        <a @click="handleViewAsset(record)" class="asset-name">{{ record.assetName }}</a>
+      </template>
+      <template #periodAmountCell="{ record }">
+        <span class="amount-cell depreciation">¥{{ formatAmount(record.periodAmount) }}</span>
+      </template>
+      <template #accumulatedDepreciationCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.accumulatedDepreciation) }}</span>
+      </template>
+      <template #netValueCell="{ record }">
+        <span class="amount-cell success">¥{{ formatAmount(record.netValue) }}</span>
+      </template>
+      <template #assetOriginalValueCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.assetOriginalValue) }}</span>
+      </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 'completed' ? 'green' : 'orange'">
+          {{ record.status === 'completed' ? '已完成' : '待处理' }}
+        </a-tag>
       </template>
     </VxeTableList>
   </div>
@@ -141,27 +136,19 @@ const periodDepreciation = computed(() => {
   return tableData.value.reduce((sum, r) => sum + (r.periodAmount || 0), 0)
 })
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 const vxeColumns = computed(() => [
-  { field: 'assetCode', title: '资产编码', width: 140 },
-  { field: 'assetName', title: '资产名称', width: 180 },
+  { field: 'assetCode', title: '资产编码', width: 140, slotName: 'assetCodeCell' },
+  { field: 'assetName', title: '资产名称', width: 180, slotName: 'assetNameCell' },
   { field: 'period', title: '期间', width: 100 },
   { field: 'depreciationDate', title: '折旧日期', width: 120 },
-  { field: 'periodAmount', title: '本期折旧', width: 130, align: 'right' },
-  { field: 'accumulatedDepreciation', title: '累计折旧', width: 130, align: 'right' },
-  { field: 'netValue', title: '净值', width: 130, align: 'right' },
-  { field: 'assetOriginalValue', title: '资产原值', width: 130, align: 'right' },
-  { field: 'status', title: '状态', width: 80, align: 'center' },
+  { field: 'periodAmount', title: '本期折旧', width: 130, align: 'right', slotName: 'periodAmountCell' },
+  { field: 'accumulatedDepreciation', title: '累计折旧', width: 130, align: 'right', slotName: 'accumulatedDepreciationCell' },
+  { field: 'netValue', title: '净值', width: 130, align: 'right', slotName: 'netValueCell' },
+  { field: 'assetOriginalValue', title: '资产原值', width: 130, align: 'right', slotName: 'assetOriginalValueCell' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
 ])
 
 const filterFields = [
@@ -296,6 +283,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -357,10 +346,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .asset-code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -395,29 +380,9 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

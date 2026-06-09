@@ -25,20 +25,22 @@
       </a-descriptions>
     </template>
     <template #tab-items>
-      <a-table
-        :columns="itemColumns"
+      <VxeTableList
+        :columns="itemVxeColumns"
         :data-source="data?.items || []"
         row-key="id"
         :pagination="false"
-        size="small"
-        bordered
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'amount'">
-            ¥{{ record.amount?.toFixed(2) }}
-          </template>
+        <template #amountCell="{ record }">
+          ¥{{ record.amount?.toFixed(2) }}
         </template>
-      </a-table>
+      </VxeTableList>
       <a-empty v-if="!data?.items || data.items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
     </template>
   </DetailLayout>
@@ -51,6 +53,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inboundApi, type PurchaseInbound } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
@@ -63,15 +66,15 @@ const tabs = computed(() => [
   { key: 'items', label: '入库明细' }
 ])
 
-const itemColumns = [
-  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 150 },
-  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-  { title: '规格型号', dataIndex: 'specification', key: 'specification', width: 120 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
-  { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
-  { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
-  { title: '备注', dataIndex: 'remark', key: 'remark' }
+const itemVxeColumns = [
+  { field: 'productCode', title: '产品编码', width: 150 },
+  { field: 'productName', title: '产品名称' },
+  { field: 'specification', title: '规格型号', width: 120 },
+  { field: 'quantity', title: '数量', width: 80 },
+  { field: 'unit', title: '单位', width: 60 },
+  { field: 'unitPrice', title: '单价', width: 100 },
+  { field: 'amount', title: '金额', width: 100, slotName: 'amountCell' },
+  { field: 'remark', title: '备注' }
 ]
 const relatedDocuments = computed(() => data.value?.orderNo ? [{ id: 1, type: '采购订单', no: data.value.orderNo }] : [])
 const activityLogs = computed(() => [{ id: 1, time: data.value?.createTime || '', user: data.value?.creatorName || '系统', action: '创建入库单' }])

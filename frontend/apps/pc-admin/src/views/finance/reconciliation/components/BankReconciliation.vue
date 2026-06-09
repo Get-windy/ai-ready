@@ -63,39 +63,40 @@
       </a-form>
     </div>
 
-    <!-- 对账结果 -->
-    <a-table
+    <VxeTableList
       :columns="columns"
-      :data-source="tableData"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       row-key="id"
-      :bordered="true"
+      :show-toolbar="false"
+      :selectable="false"
+      :show-add="false"
+      :show-search="false"
+      :show-export="false"
+      :show-batch-delete="false"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'type'">
-          <a-tag v-if="record.date" :color="record.type === 'in' ? 'green' : 'red'">
-            {{ record.type === 'in' ? '收入' : '支出' }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'status'">
-          <a-tag v-if="record.date" :color="getStatusColor(record.status)">
-            {{ getStatusText(record.status) }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'amount'">
-          <span v-if="record.date">¥{{ record.amount?.toFixed(2) }}</span>
-        </template>
+      <template #typeCell="{ record }">
+        <a-tag :color="record.type === 'in' ? 'green' : 'red'">
+          {{ record.type === 'in' ? '收入' : '支出' }}
+        </a-tag>
       </template>
-    </a-table>
+      <template #statusCell="{ record }">
+        <a-tag :color="getStatusColor(record.status)">
+          {{ getStatusText(record.status) }}
+        </a-tag>
+      </template>
+      <template #amountCell="{ record }">
+        <span>¥{{ record.amount?.toFixed(2) }}</span>
+      </template>
+    </VxeTableList>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
-
-const MIN_TABLE_ROWS = 20
 
 interface BankRecord {
   id: number
@@ -124,33 +125,16 @@ const queryParams = reactive({
 const pagination = reactive({
   current: 1,
   pageSize: 10,
-  total: 0,
-  showSizeChanger: true
+  total: 0
 })
 
 const columns = [
-  { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
-  { title: '类型', key: 'type', width: 80 },
-  { title: '金额', key: 'amount', width: 120 },
-  { title: '说明', dataIndex: 'description', key: 'description' },
-  { title: '状态', key: 'status', width: 100 }
+  { field: 'date', title: '日期', width: 120 },
+  { field: 'type', title: '类型', width: 80, slotName: 'typeCell' },
+  { field: 'amount', title: '金额', width: 120, slotName: 'amountCell' },
+  { field: 'description', title: '说明' },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' }
 ]
-
-// 表格空行填充
-const tableData = computed(() => {
-  const data = [...dataSource.value]
-  while (data.length < MIN_TABLE_ROWS) {
-    data.push({
-      id: -(data.length + 1),
-      date: '',
-      type: '',
-      amount: 0,
-      description: '',
-      status: 0
-    } as BankRecord)
-  }
-  return data
-})
 
 const getStatusColor = (status: number) => {
   const colors: Record<number, string> = {
@@ -242,12 +226,5 @@ setTimeout(() => {
 }
 
 /* 网格边框样式 */
-:deep(.ant-table-thead > tr > th) {
-  border: 2px solid #f0f0f0;
-  background: #fafafa;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border: 1px solid #f0f0f0;
-}
 </style>

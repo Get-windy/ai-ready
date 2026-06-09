@@ -596,6 +596,8 @@ function handleKeydown(e: KeyboardEvent) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
   padding: 16px;
 }
 
@@ -656,57 +658,10 @@ function handleKeydown(e: KeyboardEvent) {
   vertical-align: middle;
 }
 
-.empty-placeholder { color: transparent; }
 
 .amount-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
-}
-
-/* vxe-table 样式覆盖 */
-:deep(.vxe-table) {
-  font-size: 13px;
-}
-
-:deep(.vxe-table--header .vxe-header--column) {
-  background: #fafafa;
-  font-weight: 600;
-  border-bottom: 2px solid #b0b0b0 !important;
-}
-
-:deep(.vxe-table--body .vxe-body--row) {
-  height: 42px;
-}
-
-:deep(.vxe-table--body .vxe-body--column) {
-  border-right: 1px solid #e8e8e8 !important;
-}
-
-:deep(.vxe-table--footer .vxe-footer--column) {
-  background: #f5f5f5;
-  font-weight: 600;
-}
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
 }
 
 /* 响应式 */

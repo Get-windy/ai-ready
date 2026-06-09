@@ -36,14 +36,7 @@
     <a-card class="report-tabs-card">
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="summary" tab="折旧汇总">
-          <a-table
-            :dataSource="monthlyData"
-            :columns="depreciationColumns"
-            :loading="loading"
-            rowKey="period"
-            :pagination="false"
-            size="small"
-          />
+          <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
 
         <a-tab-pane key="ledger" tab="资产台账">
@@ -58,14 +51,7 @@
               <a-button type="primary" @click="fetchLedger">查询</a-button>
             </a-form-item>
           </a-form>
-          <a-table
-            :dataSource="ledgerData"
-            :columns="ledgerColumns"
-            :loading="ledgerLoading"
-            rowKey="assetCode"
-            :pagination="{ pageSize: 10 }"
-            size="small"
-          />
+          <VxeTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 }" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
 
         <a-tab-pane key="age" tab="账龄分析">
@@ -77,14 +63,7 @@
             </a-col>
             <a-col :span="12">
               <a-card title="账龄明细">
-                <a-table
-                  :dataSource="ageData"
-                  :columns="ageColumns"
-                  :loading="ageLoading"
-                  rowKey="label"
-                  :pagination="false"
-                  size="small"
-                />
+                <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
               </a-card>
             </a-col>
           </a-row>
@@ -99,14 +78,7 @@
             </a-col>
             <a-col :span="12">
               <a-card title="分类明细">
-                <a-table
-                  :dataSource="categoryData"
-                  :columns="categoryColumns"
-                  :loading="categoryLoading"
-                  rowKey="categoryId"
-                  :pagination="false"
-                  size="small"
-                />
+                <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
               </a-card>
             </a-col>
           </a-row>
@@ -118,6 +90,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { reportApi } from '@/api/fixed-asset'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -147,36 +120,36 @@ const ledgerParams = reactive({
   departmentId: undefined as string | undefined,
 })
 
-const depreciationColumns = [
-  { title: '期间', dataIndex: 'period' },
-  { title: '折旧笔数', dataIndex: 'count' },
-  { title: '折旧金额', dataIndex: 'totalAmount' },
+const depreciationVxeColumns = [
+  { field: 'period', title: '期间' },
+  { field: 'count', title: '折旧笔数' },
+  { field: 'totalAmount', title: '折旧金额' },
 ]
 
-const ledgerColumns = [
-  { title: '资产编码', dataIndex: 'assetCode' },
-  { title: '资产名称', dataIndex: 'assetName' },
-  { title: '分类', dataIndex: 'categoryName' },
-  { title: '原值', dataIndex: 'originalValue' },
-  { title: '累计折旧', dataIndex: 'accumulatedDepreciation' },
-  { title: '净值', dataIndex: 'netValue' },
-  { title: '状态', dataIndex: 'status' },
-  { title: '部门', dataIndex: 'departmentName' },
-  { title: '保管人', dataIndex: 'custodianName' },
+const ledgerVxeColumns = [
+  { field: 'assetCode', title: '资产编码' },
+  { field: 'assetName', title: '资产名称' },
+  { field: 'categoryName', title: '分类' },
+  { field: 'originalValue', title: '原值' },
+  { field: 'accumulatedDepreciation', title: '累计折旧' },
+  { field: 'netValue', title: '净值' },
+  { field: 'status', title: '状态' },
+  { field: 'departmentName', title: '部门' },
+  { field: 'custodianName', title: '保管人' },
 ]
 
-const ageColumns = [
-  { title: '账龄区间', dataIndex: 'label' },
-  { title: '资产数量', dataIndex: 'count' },
-  { title: '原值', dataIndex: 'originalValue' },
-  { title: '净值', dataIndex: 'netValue' },
+const ageVxeColumns = [
+  { field: 'label', title: '账龄区间' },
+  { field: 'count', title: '资产数量' },
+  { field: 'originalValue', title: '原值' },
+  { field: 'netValue', title: '净值' },
 ]
 
-const categoryColumns = [
-  { title: '分类名称', dataIndex: 'categoryName' },
-  { title: '资产数量', dataIndex: 'count' },
-  { title: '原值', dataIndex: 'originalValue' },
-  { title: '净值', dataIndex: 'netValue' },
+const categoryVxeColumns = [
+  { field: 'categoryName', title: '分类名称' },
+  { field: 'count', title: '资产数量' },
+  { field: 'originalValue', title: '原值' },
+  { field: 'netValue', title: '净值' },
 ]
 
 function formatAmount(amount: number): string {
@@ -353,29 +326,9 @@ function fetchCategorySummary() {
   height: 100%;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

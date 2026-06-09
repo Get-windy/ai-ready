@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'purchase-inquiry-list'"
@@ -72,11 +72,7 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
-          <a-space :size="4">
+        <a-space :size="4">
             <a-tooltip title="查看详情">
               <a-button type="link" size="small" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
@@ -106,7 +102,6 @@
               </template>
             </a-dropdown>
           </a-space>
-        </template>
       </template>
     </VxeTableList>
 
@@ -132,19 +127,18 @@
       </a-descriptions>
 
       <a-divider>询价物料</a-divider>
-      <a-table
+      <VxeTableList
         :columns="itemDetailColumns"
-        :data-source="currentRecordItems"
+        :data-source="detailItems"
         :pagination="false"
-        size="small"
-        bordered
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-        </template>
-      </a-table>
+        row-key="tempKey"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+      />
 
       <div class="detail-modal-footer">
         <a-space>
@@ -205,32 +199,34 @@
         </a-row>
 
         <a-divider>询价物料明细</a-divider>
-        <a-table
+        <VxeTableList
           :columns="itemColumns"
           :data-source="formData.items"
           :pagination="false"
-          size="small"
-          bordered
           row-key="tempKey"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.key === 'productName'">
-              <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
-            </template>
-            <template v-else-if="column.key === 'specification'">
-              <a-input v-model:value="record.specification" placeholder="规格" size="small" />
-            </template>
-            <template v-else-if="column.key === 'quantity'">
-              <a-input-number v-model:value="record.quantity" :min="1" placeholder="数量" size="small" style="width: 100%" />
-            </template>
-            <template v-else-if="column.key === 'unit'">
-              <a-input v-model:value="record.unit" placeholder="单位" size="small" />
-            </template>
-            <template v-else-if="column.key === 'action'">
-              <a-button type="link" danger size="small" @click="handleRemoveItem(index)">删除</a-button>
-            </template>
+          <template #productNameCell="{ record }">
+            <a-input v-model:value="record.productName" placeholder="物料名称" size="small" />
           </template>
-        </a-table>
+          <template #specificationCell="{ record }">
+            <a-input v-model:value="record.specification" placeholder="规格" size="small" />
+          </template>
+          <template #quantityCell="{ record }">
+            <a-input-number v-model:value="record.quantity" :min="1" placeholder="数量" size="small" style="width: 100%" />
+          </template>
+          <template #unitCell="{ record }">
+            <a-input v-model:value="record.unit" placeholder="单位" size="small" />
+          </template>
+          <template #actionCell="{ record, rowIndex }">
+            <a-button type="link" danger size="small" @click="handleRemoveItem(rowIndex)">删除</a-button>
+          </template>
+        </VxeTableList>
         <a-button type="dashed" block @click="handleAddItem" style="margin-top: 12px">
           <template #icon><PlusOutlined /></template>
           添加物料
@@ -282,17 +278,6 @@ const statusCounts = computed(() => {
   return { draft, sent, quoted }
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
-
 const vxeColumns = computed(() => [
   { title: '询价单号', field: 'inquiryNo', width: 160 },
   { title: '供应商', field: 'supplierName', width: 140 },
@@ -325,22 +310,13 @@ const filterOption = (input: string, option: any) => option.name?.toLowerCase().
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
 const itemDetailColumns = [
-  { title: '物料名称', dataIndex: 'productName', width: 150 },
-  { title: '规格', dataIndex: 'specification', width: 120 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单位', dataIndex: 'unit', width: 60, align: 'center' }
+  { title: '物料名称', field: 'productName', width: 150 },
+  { title: '规格', field: 'specification', width: 120 },
+  { title: '数量', field: 'quantity', width: 80, align: 'right' },
+  { title: '单位', field: 'unit', width: 60, align: 'center' }
 ]
 
-const currentRecordItems = computed(() => {
-  const items = currentRecord.value?.items || mockDetailItems()
-  const MIN_ROWS = 5
-  const data = [...items]
-  const emptyCount = Math.max(0, MIN_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, tempKey: `__empty_${i}` })
-  }
-  return data
-})
+const detailItems = ref<any[]>([])
 
 const mockDetailItems = () => [
   { productName: '工业传感器', specification: 'P001-A', quantity: 100, unit: '个' },
@@ -377,11 +353,11 @@ const formRules = {
 }
 
 const itemColumns = [
-  { title: '物料名称', key: 'productName', width: 150 },
-  { title: '规格', key: 'specification', width: 120 },
-  { title: '数量', key: 'quantity', width: 80, align: 'right' },
-  { title: '单位', key: 'unit', width: 60, align: 'center' },
-  { title: '操作', key: 'action', width: 60, align: 'center' }
+  { title: '物料名称', field: 'productName', width: 150, slotName: 'productNameCell' },
+  { title: '规格', field: 'specification', width: 120, slotName: 'specificationCell' },
+  { title: '数量', field: 'quantity', width: 80, align: 'right', slotName: 'quantityCell' },
+  { title: '单位', field: 'unit', width: 60, align: 'center', slotName: 'unitCell' },
+  { title: '操作', field: 'action', width: 60, align: 'center', slotName: 'actionCell' }
 ]
 
 let itemCounter = 0
@@ -453,6 +429,7 @@ const mockData = () => [
 
 function handleView(record: any) {
   currentRecord.value = { ...record, items: mockDetailItems() }
+  detailItems.value = currentRecord.value.items || mockDetailItems()
   detailVisible.value = true
 }
 
@@ -656,6 +633,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -718,10 +697,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .inquiry-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
   font-weight: 500;
@@ -739,29 +714,9 @@ onUnmounted(() => {
   border-top: 1px solid #f0f0f0;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

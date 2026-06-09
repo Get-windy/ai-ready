@@ -80,31 +80,26 @@
         </div>
       </template>
 
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'assetCode'">
-          <a @click="viewDetail(record)" class="asset-code">{{ record.assetCode }}</a>
-        </template>
-        <template v-else-if="column.field === 'assetName'">
-          <a @click="viewDetail(record)" class="asset-name">{{ record.assetName }}</a>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
-        </template>
-        <template v-else-if="column.field === 'useStatus'">
-          <a-tag :color="useStatusColorMap[record.useStatus] || 'default'">{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
-        </template>
-        <template v-else-if="column.field === 'originalValue'">
-          <span class="amount-cell">¥{{ formatAmount(record.originalValue) }}</span>
-        </template>
-        <template v-else-if="column.field === 'netValue'">
-          <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
-        </template>
-        <template v-else-if="column.field === 'monthlyDepreciation'">
-          <span class="amount-cell depreciation">¥{{ formatAmount(record.monthlyDepreciation) }}</span>
-        </template>
+      <template #assetCodeCell="{ record }">
+        <a @click="viewDetail(record)" class="asset-code">{{ record.assetCode }}</a>
+      </template>
+      <template #assetNameCell="{ record }">
+        <a @click="viewDetail(record)" class="asset-name">{{ record.assetName }}</a>
+      </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusMap[record.status] || record.status }}</a-tag>
+      </template>
+      <template #useStatusCell="{ record }">
+        <a-tag :color="useStatusColorMap[record.useStatus] || 'default'">{{ useStatusMap[record.useStatus] || record.useStatus }}</a-tag>
+      </template>
+      <template #originalValueCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.originalValue) }}</span>
+      </template>
+      <template #netValueCell="{ record }">
+        <span class="amount-cell">¥{{ formatAmount(record.netValue) }}</span>
+      </template>
+      <template #monthlyDepreciationCell="{ record }">
+        <span class="amount-cell depreciation">¥{{ formatAmount(record.monthlyDepreciation) }}</span>
       </template>
 
       <template #action="{ record }">
@@ -436,16 +431,8 @@ const hasActiveFilters = computed(() => {
 
 const searchFilters = reactive<Record<string, any>>({})
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` } as any)
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 const formData = reactive<any>({
   assetCode: '',
@@ -482,14 +469,14 @@ function handleSelectionChange(keys: number[]) {
 }
 
 const vxeColumns = computed(() => [
-  { field: 'assetCode', title: '资产编码', width: 140 },
-  { field: 'assetName', title: '资产名称', width: 180 },
+  { field: 'assetCode', title: '资产编码', width: 140, slotName: 'assetCodeCell' },
+  { field: 'assetName', title: '资产名称', width: 180, slotName: 'assetNameCell' },
   { field: 'categoryName', title: '分类', width: 120 },
-  { field: 'originalValue', title: '原值', width: 120, align: 'right' },
-  { field: 'netValue', title: '净值', width: 120, align: 'right' },
-  { field: 'monthlyDepreciation', title: '月折旧额', width: 100, align: 'right' },
-  { field: 'status', title: '状态', width: 80, align: 'center' },
-  { field: 'useStatus', title: '使用状态', width: 80, align: 'center' },
+  { field: 'originalValue', title: '原值', width: 120, align: 'right', slotName: 'originalValueCell' },
+  { field: 'netValue', title: '净值', width: 120, align: 'right', slotName: 'netValueCell' },
+  { field: 'monthlyDepreciation', title: '月折旧额', width: 100, align: 'right', slotName: 'monthlyDepreciationCell' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
+  { field: 'useStatus', title: '使用状态', width: 80, align: 'center', slotName: 'useStatusCell' },
   { field: 'departmentName', title: '部门', width: 100 },
   { field: 'custodianName', title: '保管人', width: 80 },
   { field: 'purchaseDate', title: '购置日期', width: 100 },
@@ -810,6 +797,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -871,10 +860,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
 .asset-code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -917,29 +902,9 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

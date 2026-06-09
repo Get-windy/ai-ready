@@ -104,30 +104,39 @@
       </div>
 
       <!-- 数据表格 -->
-      <a-table :columns="columns" :data-source="tableDataSource" :loading="loading" :pagination="pagination" row-key="id" style="flex: 1; overflow: auto;" @change="handleTableChange">
-        <template #bodyCell="{ column, record }">
-          <template v-if="record.__empty_row">
-            <span class="empty-placeholder">&nbsp;</span>
-          </template>
-          <template v-if="column.key === 'status'">
-            <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
-          </template>
-          <template v-else-if="column.key === 'exchangeType'">{{ getExchangeTypeText(record.exchangeType) }}</template>
-          <template v-else-if="column.key === 'totalAmount'">¥{{ record.totalAmount?.toFixed(2) }}</template>
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-              <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-              <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
-              <a-button v-if="record.status === ExchangeStatus.PENDING_APPROVAL" type="link" size="small" @click="handleApprove(record)">审批</a-button>
-              <a-button type="link" size="small" @click="handleTrack(record)">跟踪</a-button>
-              <a-popconfirm v-if="record.status === ExchangeStatus.DRAFT" title="确定要删除该换货单吗？" @confirm="handleDelete(record)">
-                <a-button type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
+      <VxeTableList
+        ref="tableRef"
+        :columns="vxeColumns"
+        :data-source="dataSource"
+        :loading="loading"
+        :pagination="pagination"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        @page-change="handlePageChange"
+      >
+        <template #statusCell="{ record }">
+          <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
         </template>
-      </a-table>
+        <template #exchangeTypeCell="{ record }">{{ getExchangeTypeText(record.exchangeType) }}</template>
+        <template #totalAmountCell="{ record }">¥{{ record.totalAmount?.toFixed(2) }}</template>
+        <template #action="{ record }">
+          <a-space>
+            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+            <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+            <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
+            <a-button v-if="record.status === ExchangeStatus.PENDING_APPROVAL" type="link" size="small" @click="handleApprove(record)">审批</a-button>
+            <a-button type="link" size="small" @click="handleTrack(record)">跟踪</a-button>
+            <a-popconfirm v-if="record.status === ExchangeStatus.DRAFT" title="确定要删除该换货单吗？" @confirm="handleDelete(record)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
+          </a-space>
+        </template>
+      </VxeTableList>
     </a-card>
 
     <ExchangeFormModal v-model:open="formModalVisible" :record="currentRecord" @success="handleFormSuccess" />
@@ -147,6 +156,7 @@ import ExchangeFormModal from './components/ExchangeFormModal.vue'
 import ExchangeApproveModal from './components/ExchangeApproveModal.vue'
 import ExchangeDetailModal from './components/ExchangeDetailModal.vue'
 import ExchangeTrackModal from './components/ExchangeTrackModal.vue'
+import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { RETURN_EXCHANGE_STATUS } from '@/utils/statusConfig'
 import { getStatusText } from '@/utils/statusConfig'
@@ -155,6 +165,7 @@ import { exportCsv } from '@/utils/exportCsv'
 const loading = ref(false)
 const dataSource = ref<PurchaseExchange[]>([])
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
+const tableRef = ref()
 
 // 统计数据
 const statistics = ref({
@@ -162,17 +173,6 @@ const statistics = ref({
   pendingCount: 0,
   completedCount: 0,
   totalAmount: 0
-})
-
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
 })
 
 const formatAmount = (amount: number) => {
@@ -199,18 +199,18 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const columns = [
-  { title: '换货单号', dataIndex: 'exchangeNo', key: 'exchangeNo', width: 180 },
-  { title: '原采购订单', dataIndex: 'originalOrderNo', key: 'originalOrderNo', width: 180 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '换货日期', dataIndex: 'exchangeDate', key: 'exchangeDate', width: 120 },
-  { title: '换货类型', key: 'exchangeType', width: 100 },
-  { title: '换货金额', key: 'totalAmount', width: 120 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '创建人', dataIndex: 'createdByName', key: 'createdByName', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'action', fixed: 'right', width: 250 }
-]
+const vxeColumns = computed(() => [
+  { field: 'exchangeNo', title: '换货单号', width: 180 },
+  { field: 'originalOrderNo', title: '原采购订单', width: 180 },
+  { field: 'supplierName', title: '供应商', width: 120 },
+  { field: 'exchangeDate', title: '换货日期', width: 120 },
+  { field: 'exchangeType', title: '换货类型', width: 100, slotName: 'exchangeTypeCell' },
+  { field: 'totalAmount', title: '换货金额', width: 120, slotName: 'totalAmountCell' },
+  { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
+  { field: 'createdByName', title: '创建人', width: 100 },
+  { field: 'createTime', title: '创建时间', width: 130 },
+  { field: 'action', title: '操作', width: 250, fixed: 'right', type: 'action' },
+])
 
 const getExchangeTypeText = (type: number): string => {
   const texts: Record<number, string> = { 1: '质量问题', 2: '规格不符', 3: '数量错误', 4: '其他' }
@@ -271,9 +271,9 @@ const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
   }
 }
 
-const handleTableChange = (pag: any) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+const handlePageChange = (page: number, size: number) => {
+  pagination.current = page
+  pagination.pageSize = size
   fetchData()
 }
 
@@ -353,6 +353,8 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .search-area {
@@ -418,37 +420,4 @@ onMounted(() => {
   color: #faad14;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
-
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
-
-/* 空占位行 */
-:deep(.ant-table-tbody > tr:not(.ant-table-row):has(.empty-placeholder) > td) {
-  background: #fff !important;
-  height: 40px !important;
-}
 </style>

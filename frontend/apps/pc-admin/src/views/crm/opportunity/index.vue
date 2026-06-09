@@ -208,46 +208,41 @@
           </template>
 
           <template #action="{ record }">
-            <template v-if="record.__empty_row">
-              <span class="empty-placeholder">&nbsp;</span>
-            </template>
-            <template v-else>
-              <a-space :size="4">
-                <a-tooltip title="查看详情">
-                  <a-button type="link" size="small" @click="handleView(record)">
-                    <template #icon><EyeOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="编辑">
-                  <a-button type="link" size="small" @click="handleEdit(record)">
-                    <template #icon><EditOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="移动阶段">
-                  <a-button type="link" size="small" @click="handleMove(record)">
-                    <template #icon><SwapRightOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip v-if="record.stage === 'closing'" title="转订单">
-                  <a-button type="link" size="small" @click="handleConvert(record)">
-                    <template #icon><FileProtectOutlined /></template>
-                  </a-button>
-                </a-tooltip>
-                <a-dropdown trigger="click">
-                  <a-button type="link" size="small" class="action-more-btn">
-                    <template #icon><MoreOutlined /></template>
-                  </a-button>
-                  <template #overlay>
-                    <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                      <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
-                      <a-menu-item key="quotation"><FileTextOutlined /> 创建报价</a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item key="close" danger><StopOutlined /> 关闭商机</a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </a-space>
-            </template>
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="编辑">
+                <a-button type="link" size="small" @click="handleEdit(record)">
+                  <template #icon><EditOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="移动阶段">
+                <a-button type="link" size="small" @click="handleMove(record)">
+                  <template #icon><SwapRightOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-if="record.stage === 'closing'" title="转订单">
+                <a-button type="link" size="small" @click="handleConvert(record)">
+                  <template #icon><FileProtectOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-dropdown trigger="click">
+                <a-button type="link" size="small" class="action-more-btn">
+                  <template #icon><MoreOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                    <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
+                    <a-menu-item key="quotation"><FileTextOutlined /> 创建报价</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="close" danger><StopOutlined /> 关闭商机</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-space>
           </template>
         </VxeTableList>
       </template>
@@ -267,16 +262,14 @@
           </a-col>
         </a-row>
         <a-card title="阶段详情统计" size="small" style="margin-top: 16px">
-          <a-table :columns="stageStatsColumns" :data-source="stageStatsData" :pagination="false" size="small" bordered>
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'amount'">
-                <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
-              </template>
-              <template v-if="column.key === 'avgAmount'">
-                <span class="amount-cell">¥{{ formatAmount(record.avgAmount) }}</span>
-              </template>
+          <VxeTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+            <template #amountCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
             </template>
-          </a-table>
+            <template #avgAmountCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.avgAmount) }}</span>
+            </template>
+          </VxeTableList>
         </a-card>
       </template>
     </ErrorBoundary>
@@ -405,16 +398,14 @@
       </a-timeline>
 
       <a-divider>关联报价单</a-divider>
-      <a-table :columns="quotationColumns" :data-source="opportunityDetail.quotations" :pagination="false" size="small" bordered>
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'totalAmount'">
-            <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-          </template>
-          <template v-if="column.key === 'status'">
-            <a-tag :color="getQuotationStatusColor(record.status)">{{ record.statusLabel }}</a-tag>
-          </template>
+      <VxeTableList :columns="quotationVxeColumns" :data-source="opportunityDetail.quotations" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <template #totalAmountCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
         </template>
-      </a-table>
+        <template #statusCell="{ record }">
+          <a-tag :color="getQuotationStatusColor(record.status)">{{ record.statusLabel }}</a-tag>
+        </template>
+      </VxeTableList>
     </a-modal>
 
     <!-- 移动阶段弹窗 -->
@@ -528,19 +519,19 @@ const filterFields = [
   { key: 'stage', label: '商机阶段', type: 'select' as const, options: pipelineStages.map(s => ({ label: s.name, value: s.key })) }
 ]
 
-const quotationColumns = [
-  { title: '报价单号', dataIndex: 'quotationNo', width: 150 },
-  { title: '报价金额', key: 'totalAmount', width: 120, align: 'right' },
-  { title: '报价日期', dataIndex: 'quotationDate', width: 100 },
-  { title: '状态', key: 'status', width: 100, align: 'center' }
+const quotationVxeColumns = [
+  { field: 'quotationNo', title: '报价单号', width: 150 },
+  { field: 'totalAmount', title: '报价金额', width: 120, align: 'right', slotName: 'totalAmountCell' },
+  { field: 'quotationDate', title: '报价日期', width: 100 },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' }
 ]
 
-const stageStatsColumns = [
-  { title: '阶段', dataIndex: 'name', width: 120 },
-  { title: '商机数', dataIndex: 'count', width: 80, align: 'right' },
-  { title: '金额', key: 'amount', width: 120, align: 'right' },
-  { title: '平均金额', key: 'avgAmount', width: 120, align: 'right' },
-  { title: '占比', dataIndex: 'percent', width: 80, align: 'right' }
+const stageStatsVxeColumns = [
+  { field: 'name', title: '阶段', width: 120 },
+  { field: 'count', title: '商机数', width: 80, align: 'right' },
+  { field: 'amount', title: '金额', width: 120, align: 'right', slotName: 'amountCell' },
+  { field: 'avgAmount', title: '平均金额', width: 120, align: 'right', slotName: 'avgAmountCell' },
+  { field: 'percent', title: '占比', width: 80, align: 'right' }
 ]
 
 const stageColorMap: Record<string, string> = {
@@ -611,16 +602,8 @@ const hasActiveFilters = computed(() => {
   return Object.values(searchForm).some(v => v !== undefined && v !== null && v !== '')
 })
 
-// 空行填充
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// 数据源
+const tableDataSource = tableData
 
 // 阶段统计数据
 const stageStatsData = computed(() => {
@@ -1119,9 +1102,6 @@ function handleExport() {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .opp-name {
   font-weight: 500;
@@ -1161,27 +1141,7 @@ function handleExport() {
   margin-top: 4px;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 </style>

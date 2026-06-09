@@ -45,34 +45,29 @@
       @filter-change="handleFilterChange"
       @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else-if="column.field === 'username'">
-          <a-space>
-            <a-avatar :src="record.avatar" :size="32">
-              {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
-            </a-avatar>
-            <div>
-              <div class="user-name">{{ record.username }}</div>
-              <div class="user-nickname">{{ record.nickname }}</div>
-            </div>
-          </a-space>
-        </template>
-        <template v-else-if="column.field === 'status'">
-          <a-tag :color="record.status === 0 ? 'success' : 'warning'">
-            {{ record.status === 0 ? '正常' : '停用' }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.field === 'userType'">
-          <a-tag :color="getUserTypeColor(record.userType)">
-            {{ getUserTypeName(record.userType) }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.field === 'tenantName'">
-          <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
-        </template>
+      <template #usernameCell="{ record }">
+        <a-space>
+          <a-avatar :src="record.avatar" :size="32">
+            {{ record.nickname?.charAt(0) || record.username?.charAt(0) }}
+          </a-avatar>
+          <div>
+            <div class="user-name">{{ record.username }}</div>
+            <div class="user-nickname">{{ record.nickname }}</div>
+          </div>
+        </a-space>
+      </template>
+      <template #statusCell="{ record }">
+        <a-tag :color="record.status === 0 ? 'success' : 'warning'">
+          {{ record.status === 0 ? '正常' : '停用' }}
+        </a-tag>
+      </template>
+      <template #userTypeCell="{ record }">
+        <a-tag :color="getUserTypeColor(record.userType)">
+          {{ getUserTypeName(record.userType) }}
+        </a-tag>
+      </template>
+      <template #tenantNameCell="{ record }">
+        <span>{{ tenantMap[record.tenantId] || `租户${record.tenantId}` }}</span>
       </template>
 
       <template #action="{ record }">
@@ -177,24 +172,16 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0, showSizeChange
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...tableData.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
+// ── 数据源 ────────────────────────────────────────────
+const tableDataSource = tableData
 
 const vxeColumns = computed(() => [
-  { field: 'username', title: '用户信息', width: 200 },
+  { field: 'username', title: '用户信息', width: 200, slotName: 'usernameCell' },
   { field: 'phone', title: '手机号', width: 120 },
   { field: 'email', title: '邮箱', width: 180, showOverflow: 'tooltip' },
-  { field: 'userType', title: '用户类型', width: 100 },
-  { field: 'tenantName', title: '所属租户', width: 120 },
-  { field: 'status', title: '状态', width: 80, align: 'center' },
+  { field: 'userType', title: '用户类型', width: 100, slotName: 'userTypeCell' },
+  { field: 'tenantName', title: '所属租户', width: 120, slotName: 'tenantNameCell' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { type: 'action', title: '操作', width: 200, fixed: 'right' }
 ])
@@ -404,6 +391,8 @@ onMounted(() => { fetchData(); loadTenants() })
   display: flex;
   flex-direction: column;
   padding: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -446,31 +435,9 @@ onMounted(() => { fetchData(); loadTenants() })
 
 .user-name { font-weight: 500; }
 .user-nickname { font-size: 12px; color: #999; }
-.empty-placeholder { color: transparent; }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
-
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

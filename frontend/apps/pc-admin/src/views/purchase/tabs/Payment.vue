@@ -35,7 +35,7 @@
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
-      :data-source="tableDataSource"
+      :data-source="dataSource"
       :loading="loading"
       :pagination="pagination"
       :table-key="'purchase-payment-list'"
@@ -88,10 +88,6 @@
       </template>
 
       <template #action="{ record }">
-        <template v-if="record.__empty_row">
-          <span class="empty-placeholder">&nbsp;</span>
-        </template>
-        <template v-else>
           <a-space :size="4">
             <a-tooltip title="查看详情">
               <a-button type="link" size="small" @click="handleView(record)">
@@ -124,7 +120,6 @@
               </template>
             </a-dropdown>
           </a-space>
-        </template>
       </template>
     </VxeTableList>
 
@@ -236,23 +231,25 @@
             全部打印
           </a-button>
         </div>
-        <a-table
+        <VxeTableList
           :columns="printTableColumns"
           :data-source="printItems"
           :pagination="false"
-          :scroll="{ y: 300 }"
-          size="small"
           row-key="id"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
         >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'checked'">
-              <a-checkbox v-model:checked="record.checked" />
-            </template>
-            <template v-else-if="column.key === 'paymentAmount'">
-              <span class="amount-cell">¥{{ formatAmount(record.paymentAmount) }}</span>
-            </template>
+          <template #checkedCell="{ record }">
+            <a-checkbox v-model:checked="record.checked" />
           </template>
-        </a-table>
+          <template #paymentAmountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.paymentAmount) }}</span>
+          </template>
+        </VxeTableList>
       </template>
     </a-modal>
   </div>
@@ -352,16 +349,6 @@ function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-// ── 空行填充 ────────────────────────────────────────────
-const MIN_TABLE_ROWS = 20
-const tableDataSource = computed(() => {
-  const data = [...dataSource.value]
-  const emptyCount = Math.max(0, MIN_TABLE_ROWS - data.length)
-  for (let i = 0; i < emptyCount; i++) {
-    data.push({ __empty_row: true, id: `__empty_${i}` })
-  }
-  return data
-})
 
 // ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
@@ -406,11 +393,11 @@ const batchPrintModalVisible = ref(false)
 const printItems = ref<any[]>([])
 
 const printTableColumns = [
-  { title: '选择', key: 'checked', width: 60 },
-  { title: '付款单号', dataIndex: 'paymentNo', key: 'paymentNo', width: 150 },
-  { title: '供应商', dataIndex: 'supplierName', key: 'supplierName' },
-  { title: '付款金额', key: 'paymentAmount', width: 100 },
-  { title: '付款日期', dataIndex: 'paymentDate', key: 'paymentDate', width: 120 }
+  { title: '选择', field: 'checked', width: 60, slotName: 'checkedCell' },
+  { title: '付款单号', field: 'paymentNo', width: 150 },
+  { title: '供应商', field: 'supplierName' },
+  { title: '付款金额', field: 'paymentAmount', width: 100, slotName: 'paymentAmountCell' },
+  { title: '付款日期', field: 'paymentDate', width: 120 }
 ]
 
 async function fetchData() {
@@ -573,6 +560,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -635,9 +624,6 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.empty-placeholder {
-  color: transparent;
-}
 
 .payment-no, .order-link {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Meno, 'Courier New', monospace;
@@ -684,29 +670,9 @@ onUnmounted(() => {
   line-height: 32px; vertical-align: middle;
 }
 
-/* 表格网格边框 */
-:deep(.ant-table-thead > tr > th) {
-  border-top: 1px solid #d9d9d9 !important;
-  border-right: 1px solid #d9d9d9 !important;
-  border-bottom: 2px solid #b0b0b0 !important;
-  background: #fafafa !important;
-  padding: 8px 12px !important;
-  font-weight: 600 !important;
-}
 
-:deep(.ant-table-thead > tr > th:first-child) {
-  border-left: 1px solid #d9d9d9 !important;
-}
 
-:deep(.ant-table-tbody > tr > td) {
-  border-right: 1px solid #e0e0e0 !important;
-  border-bottom: 1px solid #e8e8e8 !important;
-  padding: 8px 12px !important;
-}
 
-:deep(.ant-table-tbody > tr > td:first-child) {
-  border-left: 1px solid #e0e0e0 !important;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {
