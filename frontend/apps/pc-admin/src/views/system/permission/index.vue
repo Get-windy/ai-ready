@@ -38,7 +38,7 @@
       :data-source="tableData"
       :loading="loading"
       :pagination="null as any"
-      row-key="_rowKey"
+      row-key="id"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
@@ -447,14 +447,21 @@ const fetchData = async () => {
   try {
     const res = await permissionApi.getTree(1)
     if (res.data) {
-      // 添加唯一行键（避免 64 位 Long ID 在 JavaScript 中精度丢失导致行键重复）
-      const addRowKey = (items: any[], prefix = '') => {
-        items.forEach((item, index) => {
-          item._rowKey = `perm_${prefix}${index}`
-          if (item.children?.length) addRowKey(item.children, `${prefix}${index}_`)
-        })
+      // 检测并修复因 64 位 Long 超过 JS 安全整数范围导致的重复 id
+      const seenIds = new Set<string>()
+      let dupCounter = 0
+      const fixDuplicateIds = (items: any[]) => {
+        for (const item of items) {
+          const idStr = String(item.id)
+          if (seenIds.has(idStr)) {
+            item._rawId = item.id
+            item.id = --dupCounter // 使用负数保证唯一
+          }
+          seenIds.add(idStr)
+          if (item.children?.length) fixDuplicateIds(item.children)
+        }
       }
-      addRowKey(res.data)
+      fixDuplicateIds(res.data)
       tableData.value = res.data
       // 默认展开第一层
       expandedKeys.value = res.data.filter(item => item.permissionType === 0).map(item => item.id)
@@ -524,7 +531,7 @@ const handleAdd = (record: PermissionInfo | null) => {
 
   Object.assign(formState, {
     id: 0,
-    parentId: record ? record.id : 0,
+    parentId: record ? (record._rawId ?? record.id) : 0,
     tenantId: userStore.tenantId,
     permissionName: '',
     permissionCode: '',
@@ -548,7 +555,7 @@ const handleEdit = (record: PermissionInfo) => {
   isTopLevel.value = record.parentId === 0
 
   Object.assign(formState, {
-    id: record.id,
+    id: record._rawId ?? record.id,
     parentId: record.parentId,
     tenantId: record.tenantId,
     permissionName: record.permissionName,
@@ -606,7 +613,7 @@ const handleDeleteConfirm = (record: PermissionInfo) => {
     centered: true,
     async onOk() {
       try {
-        await permissionApi.delete(record.id)
+        await permissionApi.delete(record._rawId ?? record.id)
         message.success('删除成功')
         fetchData()
       } catch (error: any) {

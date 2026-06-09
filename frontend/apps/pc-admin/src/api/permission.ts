@@ -16,8 +16,8 @@ export interface PermissionInfo {
   sort: number
   visible: number
   status: number
-  /** 唯一行键（前端注入，避免 64 位 ID 精度丢失） */
-  _rowKey?: string
+  /** 原始 ID 备份（修复 64 位 Long 精度丢失后重新生成唯一 ID 时保存） */
+  _rawId?: number
   /** 子权限列表（树形结构） */
   children?: PermissionInfo[]
 }
