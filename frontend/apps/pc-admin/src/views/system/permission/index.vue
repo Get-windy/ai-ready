@@ -38,7 +38,7 @@
       :data-source="tableData"
       :loading="loading"
       :pagination="null as any"
-      :row-key="'id'"
+      row-key="_rowKey"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
@@ -447,6 +447,14 @@ const fetchData = async () => {
   try {
     const res = await permissionApi.getTree(1)
     if (res.data) {
+      // 添加唯一行键（避免 64 位 Long ID 在 JavaScript 中精度丢失导致行键重复）
+      const addRowKey = (items: any[], prefix = '') => {
+        items.forEach((item, index) => {
+          item._rowKey = `perm_${prefix}${index}`
+          if (item.children?.length) addRowKey(item.children, `${prefix}${index}_`)
+        })
+      }
+      addRowKey(res.data)
       tableData.value = res.data
       // 默认展开第一层
       expandedKeys.value = res.data.filter(item => item.permissionType === 0).map(item => item.id)
