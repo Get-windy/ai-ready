@@ -198,6 +198,9 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
       const menuTree = response.data
       userStore.menus = menuTree as any
       
+      // 注入必须始终存在的路由（不依赖后端菜单树的隐藏详情页等）
+      const requiredRoutes = getRequiredRoutes()
+
       const layoutRoute: RouteRecordRaw = {
         path: '/',
         name: 'Layout',
@@ -205,6 +208,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         meta: { requiresAuth: true },
         children: [
           ...menuTree.map(menu => transformMenuToRoute(menu)),
+          ...requiredRoutes,
           {
             path: '/:pathMatch(.*)*',
             name: 'NotFound',
@@ -246,6 +250,117 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   }
 
   return getFallbackRoutes()
+}
+
+/**
+ * 必须始终存在的隐藏路由（详情页、编辑页等，不依赖后端菜单树）
+ * 无论后端菜单 API 返回什么数据，这些路由都会注入到 Layout.children 中
+ */
+function getRequiredRoutes(): RouteRecordRaw[] {
+  return [
+    {
+      path: 'purchase/order/:id',
+      name: 'PurchaseOrderDetail',
+      component: () => import('@/views/purchase/detail/OrderDetail.vue'),
+      meta: { title: '采购订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'purchase/inquiry/:id',
+      name: 'PurchaseInquiryDetail',
+      component: () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
+      meta: { title: '询价详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'purchase/inbound/:id',
+      name: 'PurchaseInboundDetail',
+      component: () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
+      meta: { title: '入库详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'sale/order/:id',
+      name: 'SaleOrderDetail',
+      component: () => import('@/views/sale/detail/OrderDetail.vue'),
+      meta: { title: '销售订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'crm/customer/:id',
+      name: 'CrmCustomerDetail',
+      component: () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
+      meta: { title: '客户详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'stock/detail/:id',
+      name: 'StockDetail',
+      component: () => import('@/views/stock/detail/StockDetail.vue'),
+      meta: { title: '库存详情', icon: 'ContainerOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'supplier/detail/:id',
+      name: 'SupplierDetail',
+      component: () => import('@/views/supplier/detail.vue'),
+      meta: { title: '供应商详情', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'supplier/create',
+      name: 'SupplierCreate',
+      component: () => import('@/views/supplier/create.vue'),
+      meta: { title: '新增供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'supplier/edit/:id',
+      name: 'SupplierEdit',
+      component: () => import('@/views/supplier/edit.vue'),
+      meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'supplier/inquiry/:id?',
+      name: 'SupplierInquiry',
+      component: () => import('@/views/supplier/inquiry/index.vue'),
+      meta: { title: '供应商询价', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'supplier/performance/:id?',
+      name: 'SupplierPerformance',
+      component: () => import('@/views/supplier/performance/index.vue'),
+      meta: { title: '供应商绩效', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'workflow/instance-monitor',
+      name: 'WorkflowInstanceMonitor',
+      component: () => import('@/views/workflow/instance-monitor.vue'),
+      meta: { title: '流程监控', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
+    },
+    {
+      path: 'workflow/task-management',
+      name: 'WorkflowTaskManagement',
+      component: () => import('@/views/workflow/task-management.vue'),
+      meta: { title: '任务管理', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
+    },
+    {
+      path: 'workflow/process-analysis',
+      name: 'WorkflowProcessAnalysis',
+      component: () => import('@/views/workflow/process-analysis.vue'),
+      meta: { title: '流程分析', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
+    },
+    {
+      path: 'notification/index',
+      name: 'Notification',
+      component: () => import('@/views/notification/index.vue'),
+      meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true }
+    },
+    {
+      path: 'profile/index',
+      name: 'Profile',
+      component: () => import('@/views/profile/index.vue'),
+      meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true }
+    },
+    {
+      path: 'charts/index',
+      name: 'Charts',
+      component: () => import('@/views/charts/index.vue'),
+      meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true }
+    },
+  ]
 }
 
 function getFallbackRoutes(): RouteRecordRaw[] {
@@ -348,13 +463,13 @@ function getFallbackRoutes(): RouteRecordRaw[] {
           meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
         },
         {
-          path: 'supplier/inquiry/:id',
+          path: 'supplier/inquiry/:id?',
           name: 'SupplierInquiry',
           component: () => import('@/views/supplier/inquiry/index.vue'),
           meta: { title: '供应商询价', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
         },
         {
-          path: 'supplier/performance/:id',
+          path: 'supplier/performance/:id?',
           name: 'SupplierPerformance',
           component: () => import('@/views/supplier/performance/index.vue'),
           meta: { title: '供应商绩效', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }

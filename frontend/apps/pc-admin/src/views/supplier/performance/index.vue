@@ -146,6 +146,7 @@ import { supplierApi } from '@/api/supplier'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
+import request from '@/utils/request'
 
 const router = useRouter()
 const route = useRoute()
@@ -300,10 +301,14 @@ const submitEvaluate = async () => {
     if (id === null) { message.error('无效的供应商ID'); return }
     submitLoading.value = true
     const comprehensive = (evaluateForm.value.qualityScore + evaluateForm.value.deliveryScore + evaluateForm.value.priceScore + evaluateForm.value.serviceScore) / 4
-    const res = await supplierApi.getById(id)
-    await request.post(`/supplier/${id}/performance`, {
+    await request.post('/supplier/performance/evaluate', {
       supplierId: id,
-      ...evaluateForm.value,
+      evaluationPeriod: evaluateForm.value.period,
+      evaluationType: evaluateForm.value.periodType,
+      qualityScore: evaluateForm.value.qualityScore,
+      deliveryScore: evaluateForm.value.deliveryScore,
+      priceScore: evaluateForm.value.priceScore,
+      serviceScore: evaluateForm.value.serviceScore,
       comprehensiveScore: comprehensive
     })
     message.success('绩效评估提交成功')
@@ -321,7 +326,6 @@ const handleBack = () => {
   router.push(`/supplier/detail/${supplierId}`)
 }
 
-import request from '@/utils/request'
 </script>
 
 <style scoped>

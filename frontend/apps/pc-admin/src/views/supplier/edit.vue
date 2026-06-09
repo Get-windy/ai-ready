@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary>
   <PageContainer title="编辑供应商">
     <template #headerExtra>
       <a-button @click="handleCancel">返回</a-button>
@@ -10,6 +11,8 @@
         :model="form"
         :rules="formRules"
         layout="vertical"
+        hide-required-mark
+        :scroll-to-first-error="true"
       >
         <a-card title="基本信息" style="margin-bottom: 16px">
           <a-row :gutter="24">
@@ -113,25 +116,34 @@
           </a-form-item>
         </a-card>
 
-        <div style="text-align: right; margin-top: 24px">
+        <div class="form-footer">
           <a-space>
+            <a-button @click="handleReset" :disabled="!formDirty">重置</a-button>
             <a-button @click="handleCancel">取消</a-button>
-            <a-button type="primary" :loading="saving" @click="handleSubmit">保存</a-button>
+            <a-button v-permission.disabled="'supplier:edit'" type="primary" :loading="saving" @click="handleSubmit">
+              <template #icon><SaveOutlined /></template>
+              保存
+            </a-button>
+            <span class="submit-hint">Ctrl + Enter</span>
           </a-space>
         </div>
       </a-form>
     </a-spin>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { message, Modal } from 'ant-design-vue'
+import { SaveOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { supplierApi } from '@/api/supplier'
 import { requiredRule, phoneRule, emailRule } from '@/utils/formRules'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -156,11 +168,7 @@ interface SupplierForm {
   remark: string
 }
 
-const formRef = ref<FormInstance>()
-const loading = ref(false)
-const saving = ref(false)
-
-const form = reactive<SupplierForm>({
+const EMPTY_FORM: SupplierForm = {
   supplierCode: '',
   supplierName: '',
   shortName: '',
@@ -177,17 +185,30 @@ const form = reactive<SupplierForm>({
   bankAccount: '',
   taxNumber: '',
   remark: ''
-})
+}
+
+const formRef = ref<FormInstance>()
+const loading = ref(false)
+const saving = ref(false)
+const formDirty = ref(false)
+const loadedSnapshot = ref('')
+let watchReady = false
+
+const form = reactive<SupplierForm>({ ...EMPTY_FORM })
+
+watch(form, () => {
+  if (watchReady) formDirty.value = JSON.stringify(form) !== loadedSnapshot.value
+}, { deep: true })
 
 const formRules: Record<string, any> = {
-  supplierName: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
-  contactPerson: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
+  supplierName: [requiredRule('供应商名称')],
+  contactPerson: [requiredRule('联系人')],
   contactPhone: [
-    { required: true, message: '请输入联系电话', trigger: 'blur' },
+    requiredRule('联系电话'),
     phoneRule
   ],
   email: [emailRule],
-  bankAccount: [{ pattern: /^\d{16,19}$/, message: '请输入正确的银行账号', trigger: 'blur' }]
+  bankAccount: [{ pattern: /^\d{16,19}$/, message: '请输入正确的银行账号（16-19位数字）', trigger: 'blur' }]
 }
 
 const levelOptions = ['A', 'B', 'C', 'D', 'E']
@@ -205,13 +226,21 @@ const statusOptions = [
 const loadSupplier = async () => {
   loading.value = true
   try {
-    const data = await supplierApi.getById(supplierId)
+    const data = await supplierApi.getById(supplierId!)
     Object.assign(form, data)
-  } catch {
-    message.error('加载供应商信息失败')
+    loadedSnapshot.value = JSON.stringify(form)
+    formDirty.value = false
+  } catch (err: any) {
+    message.error(err?.message || '加载供应商信息失败')
   } finally {
     loading.value = false
   }
+}
+
+const handleReset = () => {
+  Object.assign(form, JSON.parse(loadedSnapshot.value))
+  formRef.value?.clearValidate()
+  formDirty.value = false
 }
 
 const handleSubmit = async () => {
@@ -223,11 +252,12 @@ const handleSubmit = async () => {
 
   saving.value = true
   try {
-    await supplierApi.update(supplierId, { ...form })
+    await supplierApi.update(supplierId!, { ...form })
+    formDirty.value = false
     message.success('供应商更新成功')
     router.push(`/supplier/detail/${supplierId}`)
-  } catch {
-    message.error('更新失败')
+  } catch (err: any) {
+    message.error(err?.response?.data?.message || err?.message || '更新失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -237,7 +267,48 @@ const handleCancel = () => {
   router.push(`/supplier/detail/${supplierId}`)
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    handleSubmit()
+  }
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false)
+  })
+})
+
 onMounted(() => {
   loadSupplier()
+  document.addEventListener('keydown', handleKeydown)
+  nextTick(() => { watchReady = true })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
+
+<style scoped>
+.form-footer {
+  text-align: right;
+  margin-top: 24px;
+  padding: 16px 0;
+  border-top: 1px solid #f0f0f0;
+}
+.submit-hint {
+  font-size: 12px;
+  color: #bbb;
+  line-height: 32px;
+  vertical-align: middle;
+  user-select: none;
+}
+</style>

@@ -96,5 +96,20 @@ export const supplierApi = {
   /** 获取供应商积分记录 */
   getPointsRecords(id: number): Promise<any> {
     return request.get(`/supplier-portal/points/${id}/records`)
+  },
+
+  /** 获取供应商统计信息 */
+  getStatistics(): Promise<{
+    totalSuppliers: number
+    levelACount: number
+    activeCooperationCount: number
+    portalActivatedCount: number
+  }> {
+    return request.get('/supplier/statistics')
+  },
+
+  /** 导入供应商（批量上传） */
+  importSuppliers(data: FormData | any[]): Promise<void> {
+    return request.post('/supplier/import', data)
   }
 }

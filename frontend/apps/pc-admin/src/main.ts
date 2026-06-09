@@ -24,7 +24,7 @@ import 'vxe-table/lib/style.css'
 import zhCNVXETable from 'vxe-table/lib/locale/lang/zh-CN'
 
 // vxe-pc-ui — 注册 vxe-loading、vxe-tooltip 等依赖组件到 VxeUI 全局注册表
-import 'vxe-pc-ui'
+import VxeUI from 'vxe-pc-ui'
 import 'vxe-pc-ui/lib/style.css'
 
 // Ant Design Vue (保留部分组件如 Form, Modal, Button 等)
@@ -90,6 +90,9 @@ async function bootstrap() {
   app.use(VueQueryPlugin, {
     queryClientConfig: getVueQueryClientConfig(),
   })
+
+  // 安装 vxe-pc-ui（为 VxeTable 提供复选框、加载提示、工具提示等组件）
+  app.use(VxeUI)
 
   // 安装 vxe-table（表格组件）
   VXETable.setup({

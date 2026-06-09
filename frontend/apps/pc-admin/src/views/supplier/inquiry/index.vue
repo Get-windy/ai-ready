@@ -132,6 +132,7 @@ import { supplierApi } from '@/api/supplier'
 import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -237,7 +238,7 @@ const submitInquiry = async () => {
   try {
     await formRef.value?.validate()
     submitLoading.value = true
-    await request.post('/supplier-portal/inquiries', {
+    await request.post('/v1/supplier-portal/inquiries', {
       supplierId: Number(supplierId || 0),
       inquiryTitle: createForm.value.inquiryTitle,
       deadline: createForm.value.deadline?.format('YYYY-MM-DD'),
@@ -267,7 +268,7 @@ const handleAcceptQuotation = async (inquiry: InquiryRecord) => {
     content: `确定接受报价 ¥${inquiry.quotationAmount?.toLocaleString() || '0'}？`,
     onOk: async () => {
       try {
-        await request.post(`/supplier-portal/inquiries/${inquiry.id}/accept`)
+        await request.post(`/v1/supplier-portal/quotations/${inquiry.id}/accept`)
         message.success('报价已接受')
         await loadInquiries()
       } catch (err: any) {
@@ -288,7 +289,7 @@ const handleRejectQuotation = async (inquiry: InquiryRecord) => {
         throw new Error('请输入拒绝原因')
       }
       try {
-        await request.post(`/supplier-portal/inquiries/${inquiry.id}/reject`, { reason })
+        await request.post(`/v1/supplier-portal/quotations/${inquiry.id}/reject`, null, { params: { reason } })
         message.success('报价已拒绝')
         await loadInquiries()
       } catch (err: any) {
@@ -303,7 +304,6 @@ const handleBack = () => {
   router.push(`/supplier/detail/${supplierId}`)
 }
 
-import request from '@/utils/request'
 </script>
 
 <style scoped>

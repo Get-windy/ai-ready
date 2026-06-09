@@ -136,6 +136,10 @@
 defineOptions({ name: 'SaleOrdersTab' })
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+
+// 🐛 调试
+const DEBUG_TAG = '[Orders:DEBUG]'
+console.log(DEBUG_TAG, '模块已加载, defineOptions name = SaleOrdersTab')
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -184,35 +188,42 @@ interface SaleOrder {
 }
 
 // vxe-table 列定义
-const vxeColumns = computed(() => [
-  {
-    field: 'orderNo',
-    title: '订单号',
-    width: 160,
-    sortable: true,
-    formatter: ({ cellValue, row }: any) => `<a style="color: #1890ff; cursor: pointer;">${cellValue}</a>`,
-  },
-  { field: 'customerName', title: '客户', width: 140 },
-  { field: 'orderDate', title: '订单日期', width: 110 },
-  {
-    field: 'totalAmountWithTax',
-    title: '订单金额',
-    width: 120,
-    sortable: true,
-    align: 'right',
-    formatter: ({ cellValue }: any) => `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-  },
-  {
-    field: 'status',
-    title: '状态',
-    width: 100,
-    align: 'center',
-    formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`,
-  },
-  { field: 'salesmanName', title: '销售员', width: 100 },
-  { field: 'createTime', title: '创建时间', width: 160 },
-  { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
-])
+const vxeColumns = computed(() => {
+  const cols = [
+    {
+      field: 'orderNo',
+      title: '订单号',
+      width: 160,
+      sortable: true,
+      formatter: ({ cellValue, row }: any) => `<a style="color: #1890ff; cursor: pointer;">${cellValue}</a>`,
+    },
+    { field: 'customerName', title: '客户', width: 140 },
+    { field: 'orderDate', title: '订单日期', width: 110 },
+    {
+      field: 'totalAmountWithTax',
+      title: '订单金额',
+      width: 120,
+      sortable: true,
+      align: 'right',
+      formatter: ({ cellValue }: any) => `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+    },
+    {
+      field: 'status',
+      title: '状态',
+      width: 100,
+      align: 'center',
+      formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`,
+    },
+    { field: 'salesmanName', title: '销售员', width: 100 },
+    { field: 'createTime', title: '创建时间', width: 160 },
+    { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
+  ]
+
+  // 🐛 调试
+  console.log(DEBUG_TAG, 'vxeColumns 产出:', cols.length, '列, fields:', cols.map(c => c.field).join(','))
+
+  return cols
+})
 
 // 筛选字段
 const filterFields = [
@@ -295,6 +306,11 @@ async function fetchData() {
       ...searchFilters
     }
     const res = await saleOrderApi.getPage(params)
+    // 🐛 调试
+    console.log(DEBUG_TAG, 'fetchData 返回:', res)
+    console.log(DEBUG_TAG, '  records:', res.data?.records?.length, 'total:', res.data?.total)
+    console.log(DEBUG_TAG, '  首条记录:', res.data?.records?.[0])
+
     dataSource.value = res.data?.records || []
     const total = res.data?.total || 0
     pagination.total = total
@@ -306,6 +322,8 @@ async function fetchData() {
       message.info(`共找到 ${res.data?.total || 0} 条匹配结果`)
     }
   } catch (error) {
+    // 🐛 调试
+    console.error(DEBUG_TAG, 'fetchData 失败:', error)
     message.error('获取销售订单列表失败')
     dataSource.value = []
   } finally {
@@ -571,6 +589,9 @@ function handleFilterChange(filters: Record<string, any>) {
 }
 
 onMounted(() => {
+  // 🐛 调试
+  console.log(DEBUG_TAG, '>>>> 组件挂载 <<<<')
+  console.log(DEBUG_TAG, '  表格列定义:', vxeColumns.value.map(c => c.field).join(', '))
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', fetchData)
@@ -578,6 +599,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // 🐛 调试
+  console.log(DEBUG_TAG, '>>>> 组件卸载 <<<<')
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', fetchData)
   window.removeEventListener('sale:create', handleAdd)

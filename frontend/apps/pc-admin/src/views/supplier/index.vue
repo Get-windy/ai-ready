@@ -1,16 +1,21 @@
 <template>
+  <ErrorBoundary>
   <PageContainer full-height>
     <!-- 操作栏 -->
     <template #headerExtra>
       <a-space>
-        <a-button type="primary" @click="handleCreate">
+        <a-button v-permission.disabled="'supplier:add'" type="primary" @click="handleCreate" title="快捷键 Ctrl+N">
           <template #icon><PlusOutlined /></template>
           新增供应商
         </a-button>
-        <a-button @click="handleImport">导入</a-button>
-        <a-button @click="handleExport">导出</a-button>
+        <a-button v-permission.disabled="'supplier:import'" @click="handleImport">导入</a-button>
+        <a-button v-permission.disabled="'supplier:export'" @click="handleExport">导出</a-button>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
-          更新 {{ dayjs(lastUpdated).format('HH:mm') }}
+          <ReloadOutlined :spin="loading" style="margin-right: 4px; font-size: 11px; vertical-align: middle; cursor: pointer;" @click="handleRefresh" />
+          {{ relativeTimeText }}
+          <template v-if="autoRefreshCountdown > 0">
+            <span :class="{ 'countdown-warning': autoRefreshCountdown <= 5 }"> · {{ autoRefreshCountdown }}s 后刷新</span>
+          </template>
         </span>
       </a-space>
     </template>
@@ -24,6 +29,7 @@
             placeholder="搜索供应商编码 / 名称..."
             allow-clear
             @press-enter="handleSearch"
+            @input="handleSearchInput"
           >
             <template #prefix><SearchOutlined /></template>
           </a-input>
@@ -78,7 +84,10 @@
             </div>
             <div class="stat-card-content">
               <div class="stat-card-title">供应商总数</div>
-              <div class="stat-card-value">{{ pagination.total }}</div>
+              <div class="stat-card-value">
+                <span v-if="statLoading" class="stat-skeleton" />
+                <template v-else>{{ statData.totalSuppliers }}</template>
+              </div>
             </div>
           </div>
         </a-col>
@@ -89,7 +98,10 @@
             </div>
             <div class="stat-card-content">
               <div class="stat-card-title">A级供应商</div>
-              <div class="stat-card-value">{{ dataSource.filter(s => s.supplierLevel === 'A').length }}</div>
+              <div class="stat-card-value">
+                <span v-if="statLoading" class="stat-skeleton" />
+                <template v-else>{{ statData.levelACount }}</template>
+              </div>
             </div>
           </div>
         </a-col>
@@ -100,7 +112,10 @@
             </div>
             <div class="stat-card-content">
               <div class="stat-card-title">正常合作</div>
-              <div class="stat-card-value">{{ dataSource.filter(s => s.cooperationStatus === 1).length }}</div>
+              <div class="stat-card-value">
+                <span v-if="statLoading" class="stat-skeleton" />
+                <template v-else>{{ statData.activeCooperationCount }}</template>
+              </div>
             </div>
           </div>
         </a-col>
@@ -111,12 +126,31 @@
             </div>
             <div class="stat-card-content">
               <div class="stat-card-title">门户已激活</div>
-              <div class="stat-card-value">{{ dataSource.filter(s => s.portalStatus === 1).length }}</div>
+              <div class="stat-card-value">
+                <span v-if="statLoading" class="stat-skeleton" />
+                <template v-else>{{ statData.portalActivatedCount }}</template>
+              </div>
             </div>
           </div>
         </a-col>
       </a-row>
     </template>
+
+    <!-- 错误提示 -->
+    <a-alert
+      v-if="fetchError"
+      message="数据加载失败"
+      description="无法获取供应商数据，请检查网络连接后重试"
+      type="error"
+      show-icon
+      closable
+      style="margin-bottom: 16px"
+      @close="fetchError = false"
+    >
+      <template #action>
+        <a-button size="small" type="primary" @click="fetchData">重试</a-button>
+      </template>
+    </a-alert>
 
     <!-- 表格 -->
     <VxeTableList
@@ -134,6 +168,16 @@
       @page-change="handlePageChange"
       @selection-change="handleSelectionChange"
     >
+      <template #batch-actions="{ selectedRows: rows }">
+        <a-button v-permission.disabled="'supplier:delete'" danger size="small" :loading="batchDeleting" @click="handleBatchDelete">
+          <template #icon><DeleteOutlined /></template>
+          批量删除 ({{ rows.length }})
+        </a-button>
+        <a-button v-permission.disabled="'supplier:export'" size="small" @click="handleBatchExport">
+          <template #icon><ExportOutlined /></template>
+          导出选中
+        </a-button>
+      </template>
       <template #empty>
         <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配供应商">
           <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
@@ -164,17 +208,17 @@
       <template #action="{ record }">
         <a-space :size="0" class="action-cell-inner">
           <a-tooltip title="详情">
-            <a-button type="link" size="small" @click="handleDetail(record)">
+            <a-button v-permission.disabled="'supplier:view'" type="link" size="small" @click="handleDetail(record)">
               <template #icon><ProfileOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip title="绩效">
-            <a-button type="link" size="small" @click="handlePerformance(record)">
+            <a-button v-permission.disabled="'supplier:performance'" type="link" size="small" @click="handlePerformance(record)">
               <template #icon><BarChartOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip title="编辑">
-            <a-button type="link" size="small" @click="handleEdit(record)">
+            <a-button v-permission.disabled="'supplier:edit'" type="link" size="small" @click="handleEdit(record)">
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -183,18 +227,18 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item key="portal">
+              <a-menu @click="(info: any) => handleActionMenuClick(String(info.key), record)">
+                <a-menu-item v-permission.disabled="'supplier:portal'" key="portal">
                   <DesktopOutlined /> 门户管理
                 </a-menu-item>
-                <a-menu-item v-if="record.portalStatus !== 1" key="activate_portal">
+                <a-menu-item v-permission.disabled="'supplier:portal'" v-if="record.portalStatus !== 1" key="activate_portal">
                   <CheckCircleOutlined /> 激活门户
                 </a-menu-item>
-                <a-menu-item v-else key="disable_portal" danger>
+                <a-menu-item v-permission.disabled="'supplier:portal'" v-else key="disable_portal" danger>
                   <StopOutlined /> 禁用门户
                 </a-menu-item>
                 <a-menu-divider />
-                <a-menu-item key="delete" danger>
+                <a-menu-item v-permission.disabled="'supplier:delete'" key="delete" danger>
                   <DeleteOutlined /> 删除
                 </a-menu-item>
               </a-menu>
@@ -204,6 +248,50 @@
       </template>
     </VxeTableList>
   </PageContainer>
+  </ErrorBoundary>
+
+  <!-- 门户管理弹窗 -->
+  <a-modal
+    v-model:open="portalModalVisible"
+    title="门户管理"
+    width="520px"
+    centered
+    :footer="null"
+    @cancel="portalModalVisible = false"
+  >
+    <template v-if="currentPortalSupplier">
+      <a-descriptions :column="1" bordered size="small">
+        <a-descriptions-item label="供应商名称">{{ currentPortalSupplier.supplierName }}</a-descriptions-item>
+        <a-descriptions-item label="供应商编码">{{ currentPortalSupplier.supplierCode }}</a-descriptions-item>
+        <a-descriptions-item label="门户状态">
+          <a-tag :color="currentPortalSupplier.portalStatus === 1 ? 'purple' : 'default'">
+            {{ getPortalStatusLabel(currentPortalSupplier.portalStatus) }}
+          </a-tag>
+        </a-descriptions-item>
+        <a-descriptions-item label="门户账户ID">{{ currentPortalSupplier.portalAccountId || '-' }}</a-descriptions-item>
+      </a-descriptions>
+      <div style="margin-top: 24px; text-align: center;">
+        <a-button
+          v-if="currentPortalSupplier.portalStatus !== 1"
+          type="primary"
+          :loading="portalLoading"
+          @click="handleActivatePortal(currentPortalSupplier)"
+        >
+          <template #icon><CheckCircleOutlined /></template>
+          激活门户
+        </a-button>
+        <a-button
+          v-else
+          danger
+          :loading="portalLoading"
+          @click="handleDisablePortal(currentPortalSupplier)"
+        >
+          <template #icon><StopOutlined /></template>
+          禁用门户
+        </a-button>
+      </div>
+    </template>
+  </a-modal>
 
   <!-- 导入弹窗 -->
   <a-modal
@@ -211,16 +299,15 @@
     title="导入供应商"
     width="700px"
     centered
+    :confirm-loading="importLoading"
     @ok="handleImportConfirm"
     @cancel="importVisible = false"
   >
     <a-upload-dragger
       name="file"
-      :action="uploadUrl"
-      :headers="uploadHeaders"
-      :max-count="1"
+      :before-upload="handleBeforeUpload"
+      :show-upload-list="false"
       accept=".xlsx,.xls,.csv"
-      @change="handleImportChange"
     >
       <p class="ant-upload-drag-icon">
         <inbox-outlined />
@@ -229,11 +316,15 @@
       <p class="ant-upload-hint">支持 .xlsx .xls .csv 格式文件</p>
     </a-upload-dragger>
 
+    <div v-if="uploadFile" style="margin-top: 12px; padding: 8px 12px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 4px;">
+      已选择文件：{{ uploadFile.name }}
+    </div>
+
     <a-divider>字段映射</a-divider>
     <VxeTableList
       :columns="importMappingColumns"
       :data-source="importMapping"
-      :pagination="false"
+      :pagination="false as any"
       :show-toolbar="false"
       :selectable="false"
       :show-add="false"
@@ -241,8 +332,8 @@
       :show-export="false"
       :show-batch-delete="false"
     >
-      <template #csvFieldCell="{ record, rowIndex }">
-        <a-input v-model:value="importMapping[rowIndex].csvField" placeholder="请输入CSV文件中的列名" size="small" />
+      <template #csvFieldCell="{ record, index }">
+        <a-input v-model:value="importMapping[index].csvField" placeholder="请输入CSV文件中的列名" size="small" />
       </template>
       <template #requiredCell="{ record }">
         <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
@@ -255,22 +346,57 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, InboxOutlined, SearchOutlined, DownOutlined, EditOutlined, EllipsisOutlined, DeleteOutlined, ProfileOutlined, BarChartOutlined, DesktopOutlined, CheckCircleOutlined, StopOutlined, TeamOutlined, StarOutlined } from '@ant-design/icons-vue'
+import { debounce } from 'lodash-es'
+import {
+  PlusOutlined, InboxOutlined, SearchOutlined, DownOutlined,
+  EditOutlined, EllipsisOutlined, DeleteOutlined,
+  ProfileOutlined, BarChartOutlined, DesktopOutlined,
+  CheckCircleOutlined, StopOutlined, TeamOutlined,
+  StarOutlined, ExportOutlined, UploadOutlined, ReloadOutlined
+} from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { exportCsv } from '@/utils/exportCsv'
-import { executeBatch } from '@/utils/batchOperations'
 import { supplierApi, type Supplier } from '@/api/supplier'
+
+dayjs.extend(relativeTime)
+dayjs.locale('zh-cn')
 
 const router = useRouter()
 
 // ── 状态 ──
 const loading = ref(false)
+const portalLoading = ref(false)
+const batchDeleting = ref(false)
+const fetchError = ref(false)
+const autoRefreshCountdown = ref(0)
+let autoRefreshTimer: ReturnType<typeof setInterval> | undefined
+let countdownTimer: ReturnType<typeof setInterval> | undefined
 const dataSource = ref<Supplier[]>([])
 const selectedRowKeys = ref<(string | number)[]>([])
+const selectedRows = ref<Supplier[]>([])
 const searchKeyword = ref('')
 const tableRef = ref()
+const importVisible = ref(false)
+const importLoading = ref(false)
+const uploadFile = ref<File | null>(null)
+
+// ── 统计数据 ──
+const statData = reactive({
+  totalSuppliers: 0,
+  levelACount: 0,
+  activeCooperationCount: 0,
+  portalActivatedCount: 0,
+})
+const statLoading = ref(false)
+
+// ── 门户管理弹窗 ──
+const portalModalVisible = ref(false)
+const currentPortalSupplier = ref<Supplier | null>(null)
 
 const pagination = reactive({ current: 1, pageSize: 10, total: 0, showSizeChanger: true, showQuickJumper: true })
 const lastUpdated = ref('')
@@ -300,18 +426,63 @@ const vxeColumns = computed(() => [
   { title: '供应商编码', field: 'supplierCode', width: 140 },
   { title: '供应商名称', field: 'supplierName', width: 200 },
   { title: '等级', field: 'supplierLevel', width: 80, slotName: 'supplierLevel' },
-  { title: '综合评分', field: 'comprehensiveScore', width: 150, slotName: 'comprehensiveScore' },
-  { title: '积分', field: 'totalPoints', width: 80 },
+  { title: '综合评分', field: 'comprehensiveScore', width: 120, align: 'right' },
+  { title: '积分', field: 'totalPoints', width: 80, align: 'right' },
   { title: '合作状态', field: 'cooperationStatus', width: 100, slotName: 'cooperationStatus' },
   { title: '门户状态', field: 'portalStatus', width: 100, slotName: 'portalStatus' },
   { title: '联系人', field: 'contactPerson', width: 100 },
   { title: '联系电话', field: 'contactPhone', width: 130 },
-  { title: '操作', field: 'action', width: 220, fixed: 'right', type: 'action' }
+  { title: '操作', field: 'action', width: 240, fixed: 'right', type: 'action' }
 ])
+
+// ── 相对时间 ──
+const relativeTimeText = computed(() => {
+  if (!lastUpdated.value) return ''
+  return dayjs(lastUpdated.value).fromNow()
+})
+
+// ── 防抖搜索 ──
+const handleSearchInput = debounce(() => {
+  if (searchKeyword.value === '' && !hasActiveFilters.value) {
+    // 搜索框无内容且无筛选条件时保留当前页，避免无意义刷新
+    return
+  }
+  pagination.current = 1
+  fetchData()
+}, 300)
+
+// ── 自动刷新 ──
+function startAutoRefresh() {
+  stopAutoRefresh()
+  const interval = 60
+  autoRefreshCountdown.value = interval
+  autoRefreshTimer = setInterval(() => {
+    fetchData()
+    fetchStatistics()
+    autoRefreshCountdown.value = interval
+  }, interval * 1000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = undefined }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = undefined }
+  autoRefreshCountdown.value = 0
+}
+
+function handleRefresh() {
+  if (loading.value) return
+  fetchData()
+  fetchStatistics()
+  autoRefreshCountdown.value = 60
+}
 
 // ── 数据加载 ──
 const fetchData = async () => {
   loading.value = true
+  fetchError.value = false
   try {
     const params: Record<string, any> = {
       pageNum: pagination.current,
@@ -325,15 +496,37 @@ const fetchData = async () => {
     dataSource.value = res.records || []
     pagination.total = res.total || 0
     lastUpdated.value = new Date().toISOString()
+    autoRefreshCountdown.value = 60
   } catch (err: any) {
+    fetchError.value = true
     message.error(err?.message || '获取数据失败')
   } finally {
     loading.value = false
   }
 }
 
+// ── 统计数据加载（后端全量，非当前页） ──
+const fetchStatistics = async () => {
+  statLoading.value = true
+  try {
+    const res = await supplierApi.getStatistics()
+    if (res) {
+      Object.assign(statData, {
+        totalSuppliers: (res as any).totalSuppliers ?? (res as any).data?.totalSuppliers ?? 0,
+        levelACount: (res as any).levelACount ?? (res as any).data?.levelACount ?? 0,
+        activeCooperationCount: (res as any).activeCooperationCount ?? (res as any).data?.activeCooperationCount ?? 0,
+        portalActivatedCount: (res as any).portalActivatedCount ?? (res as any).data?.portalActivatedCount ?? 0,
+      })
+    }
+  } catch {
+    // 统计数据非关键数据，失败不阻塞
+  } finally {
+    statLoading.value = false
+  }
+}
+
 // ── 事件处理 ──
-const handleSearch = () => { pagination.current = 1; fetchData() }
+const handleSearch = () => { handleSearchInput.cancel(); pagination.current = 1; fetchData() }
 const handleReset = () => {
   searchKeyword.value = ''
   filters.supplierLevel = undefined
@@ -347,8 +540,9 @@ const handlePageChange = (page: number, size: number) => {
   pagination.pageSize = size
   fetchData()
 }
-const handleSelectionChange = (keys: any[]) => {
+const handleSelectionChange = (keys: any[], rows: any[]) => {
   selectedRowKeys.value = keys
+  selectedRows.value = rows
 }
 
 // ── CRUD ──
@@ -356,34 +550,41 @@ const handleCreate = () => router.push('/supplier/create')
 const handleDetail = (record: Supplier) => router.push(`/supplier/detail/${record.id}`)
 const handleEdit = (record: Supplier) => router.push(`/supplier/edit/${record.id}`)
 const handlePerformance = (record: Supplier) => router.push(`/supplier/performance/${record.id}`)
-const handlePortal = (record: Supplier) => router.push(`/supplier/portal/${record.id}`)
 
-const handleActivatePortal = (record: Supplier) => {
-  Modal.confirm({
-    title: '激活门户',
-    content: `确定激活供应商"${record.supplierName}"的门户账户吗？`,
-    async onOk() {
-      try {
-        await supplierApi.activatePortal(record.id, record.supplierCode)
-        message.success('门户激活成功')
-        fetchData()
-      } catch { message.error('激活失败') }
-    }
-  })
+// ── 门户管理（弹窗模式） ──
+const handlePortal = (record: Supplier) => {
+  currentPortalSupplier.value = record
+  portalModalVisible.value = true
 }
 
-const handleDisablePortal = (record: Supplier) => {
-  Modal.confirm({
-    title: '禁用门户',
-    content: `确定禁用供应商"${record.supplierName}"的门户账户吗？`,
-    async onOk() {
-      try {
-        await supplierApi.disablePortal(record.id, '管理员禁用')
-        message.success('门户已禁用')
-        fetchData()
-      } catch { message.error('禁用失败') }
-    }
-  })
+const handleActivatePortal = async (record: Supplier) => {
+  portalLoading.value = true
+  try {
+    await supplierApi.activatePortal(record.id, record.supplierCode)
+    message.success('门户激活成功')
+    portalModalVisible.value = false
+    fetchData()
+    fetchStatistics()
+  } catch {
+    message.error('激活失败')
+  } finally {
+    portalLoading.value = false
+  }
+}
+
+const handleDisablePortal = async (record: Supplier) => {
+  portalLoading.value = true
+  try {
+    await supplierApi.disablePortal(record.id, '管理员禁用')
+    message.success('门户已禁用')
+    portalModalVisible.value = false
+    fetchData()
+    fetchStatistics()
+  } catch {
+    message.error('禁用失败')
+  } finally {
+    portalLoading.value = false
+  }
 }
 
 const handleDelete = (record: Supplier) => {
@@ -396,16 +597,39 @@ const handleDelete = (record: Supplier) => {
         await supplierApi.delete(record.id)
         message.success('删除成功')
         fetchData()
+        fetchStatistics()
       } catch { message.error('删除失败') }
     }
   })
 }
 
-// ── 导入 ──
-const importVisible = ref(false)
-const uploadUrl = '/api/upload'
-const uploadHeaders = {}
+// ── 批量操作 ──
+const handleBatchDelete = () => {
+  if (selectedRows.value.length === 0) {
+    message.warning('请先选择要删除的供应商')
+    return
+  }
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定要删除选中的 ${selectedRows.value.length} 个供应商吗？此操作不可恢复。`,
+    okType: 'danger',
+    async onOk() {
+      try {
+        for (const row of selectedRows.value) {
+          await supplierApi.delete(row.id)
+        }
+        message.success(`成功删除 ${selectedRows.value.length} 个供应商`)
+        selectedRows.value = []
+        selectedRowKeys.value = []
+        tableRef.value?.clearSelection()
+        fetchData()
+        fetchStatistics()
+      } catch { message.error('批量删除失败') }
+    }
+  })
+}
 
+// ── 导入 ──
 const importMappingColumns = [
   { title: '系统字段', field: 'label', width: 120 },
   { title: 'CSV列名', field: 'csvField', slotName: 'csvFieldCell' },
@@ -420,38 +644,87 @@ const importMapping = reactive([
   { csvField: '', systemField: 'supplierLevel', required: false, label: '等级' }
 ])
 
-const handleImportChange = (info: any) => {
-  if (info.file.status === 'done') {
-    message.success(`${info.file.name} 上传成功，请配置字段映射`)
-  } else if (info.file.status === 'error') {
-    message.error(`${info.file.name} 上传失败`)
+const handleBeforeUpload = (file: File) => {
+  uploadFile.value = file
+  // 尝试读取 CSV/JSON 文件，提取列名供字段映射
+  if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      if (!text) return
+      if (file.name.endsWith('.csv')) {
+        const firstLine = text.split('\n')[0]
+        if (firstLine) {
+          const headers = firstLine.split(',').map(h => h.trim().replace(/^"/, '').replace(/"$/, ''))
+          importMapping.forEach((m) => {
+            const match = headers.find(h => h.includes(m.label) || m.systemField.toLowerCase().includes(h.toLowerCase()))
+            if (match) m.csvField = match
+          })
+          message.info(`检测到 ${headers.length} 列，请确认字段映射是否正确`)
+        }
+      }
+    }
+    reader.readAsText(file)
   }
+  return false // 阻止自动上传
 }
 
 const handleImport = () => {
+  uploadFile.value = null
   importMapping.forEach(m => { m.csvField = '' })
   importVisible.value = true
 }
 
 const handleImportConfirm = async () => {
-  const unmappedRequired = importMapping.filter(f => f.required && !f.csvField)
-  if (unmappedRequired.length > 0) {
-    message.warning(`请为必填字段配置CSV映射：${unmappedRequired.map(f => f.label).join('、')}`)
+  if (!uploadFile.value) {
+    message.warning('请先上传文件')
     return
   }
+  importLoading.value = true
   try {
-    await supplierApi.importSuppliers({
-      mapping: importMapping.reduce((acc, m) => {
-        if (m.csvField) acc[m.systemField] = m.csvField
-        return acc
-      }, {} as Record<string, string>)
-    })
-    message.success('导入成功')
+    // 读取文件内容并解析为 SupplierDTO 数组
+    const text = await uploadFile.value.text()
+    let supplierList: any[]
+    if (uploadFile.value.name.endsWith('.json')) {
+      supplierList = JSON.parse(text)
+    } else {
+      // CSV 简单解析：首行表头，后续行数据
+      const lines = text.split('\n').filter(Boolean)
+      if (lines.length < 2) throw new Error('CSV 文件至少需要包含表头和一行数据')
+      const headers = lines[0].split(',').map(h => h.trim())
+      supplierList = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim())
+        const item: Record<string, any> = {}
+        headers.forEach((h, i) => { item[h] = values[i] || '' })
+        return item
+      })
+    }
+    if (!Array.isArray(supplierList) || supplierList.length === 0) {
+      throw new Error('文件中未找到有效的供应商数据')
+    }
+    await supplierApi.importSuppliers(supplierList)
+    message.success(`成功导入 ${supplierList.length} 条供应商数据`)
     importVisible.value = false
     fetchData()
-  } catch {
-    message.error('导入失败，请检查文件格式')
+    fetchStatistics()
+  } catch (err: any) {
+    message.error(err?.message || '导入失败，请检查文件格式')
+  } finally {
+    importLoading.value = false
   }
+}
+
+// ── 批量导出 ──
+const handleBatchExport = () => {
+  const rows = selectedRows.value.length > 0 ? selectedRows.value : dataSource.value
+  const headers = ['供应商编码', '供应商名称', '等级', '综合评分', '积分', '合作状态', '门户状态', '联系人', '联系电话']
+  const data = rows.map(row => [
+    row.supplierCode || '', row.supplierName || '', row.supplierLevel || '',
+    row.comprehensiveScore?.toFixed(1) || '0.0', row.totalPoints || 0,
+    getStatusLabel(row.cooperationStatus), getPortalStatusLabel(row.portalStatus),
+    row.contactPerson || '', row.contactPhone || ''
+  ])
+  exportCsv(headers, data, `供应商数据_${dayjs().format('YYYYMMDD_HHmm')}`)
 }
 
 // ── 导出 ──
@@ -507,10 +780,14 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   fetchData()
+  fetchStatistics()
+  startAutoRefresh()
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  stopAutoRefresh()
+  handleSearchInput.cancel()
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>
@@ -590,11 +867,31 @@ onUnmounted(() => {
 
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .list-update-timestamp {
-  font-size: 12px; color: var(--color-text-tertiary, #bbb);
+  font-size: 12px; color: #bbb;
   white-space: nowrap; cursor: help;
   line-height: 32px; vertical-align: middle;
 }
+.list-update-timestamp :deep(.countdown-warning) {
+  color: #faad14;
+  font-weight: 600;
+}
 .action-cell-inner { flex-wrap: nowrap; }
+.countdown-warning { color: #faad14; font-weight: 600; }
+
+/* ── 骨架屏 ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.stat-skeleton {
+  display: inline-block;
+  width: 60px;
+  height: 22px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.3) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
 
 /* 空行占位符 */
 
