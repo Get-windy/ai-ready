@@ -72,10 +72,17 @@ public class SupplierController {
     }
     
     @PostMapping("/list")
-    @Operation(summary = "查询供应商列表", description = "根据条件查询供应商列表（不分页）")
+    @Operation(summary = "查询供应商列表", description = "根据条件查询供应商列表（不分页，POST方式，带查询条件）")
     public R<List<SupplierDTO>> querySupplierList(@Valid @RequestBody SupplierQueryDTO queryDTO) {
         log.info("查询供应商列表请求");
         return supplierService.querySupplierList(queryDTO);
+    }
+
+    @GetMapping("/list")
+    @Operation(summary = "查询供应商列表", description = "获取所有可用供应商列表（GET方式，供下拉选择器使用）")
+    public R<List<SupplierDTO>> listAll() {
+        log.info("查询所有供应商列表请求");
+        return supplierService.querySupplierList(new SupplierQueryDTO());
     }
     
     @DeleteMapping("/{id}")

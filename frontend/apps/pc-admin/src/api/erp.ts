@@ -119,12 +119,12 @@ export interface SaleReceipt {
 }
 export const receiptApi = {
   page(params: PageQuery): Promise<PageResult<SaleReceipt>> {
-    return request.get('/erp/sale/receipt/page', params)
+    return request.get('/erp/receipt/page', params)
   },
-  getById(id: number) { return request.get(`/erp/sale/receipt/${id}`) },
-  create(data: any) { return request.post('/erp/sale/receipt', data) },
-  delete(id: number) { return request.delete(`/erp/sale/receipt/${id}`) },
-  approve(id: number) { return request.post(`/erp/sale/receipt/${id}/approve`) },
+  getById(id: number) { return request.get(`/erp/receipt/${id}`) },
+  create(data: any) { return request.post('/erp/receipt', data) },
+  delete(id: number) { return request.delete(`/erp/receipt/${id}`) },
+  approve(id: number) { return request.post(`/erp/receipt/${id}/approve`) },
 }
 
 // ── 销售报价 ──────────────────────────────────────────
@@ -249,9 +249,9 @@ export interface BatchItem {
 }
 export const batchApi = {
   page(params: PageQuery): Promise<PageResult<BatchItem>> {
-    return request.get('/erp/batch-sn/batch/page', params)
+    return request.get('/erp/batch-sn/batches/page', params)
   },
-  getById(id: number) { return request.get(`/erp/batch-sn/batch/${id}`) },
+  getById(id: number) { return request.get(`/erp/batch-sn/batches/${id}`) },
 }
 
 // ── 智能补货 ──────────────────────────────────────────

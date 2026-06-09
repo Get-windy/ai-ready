@@ -1,6 +1,8 @@
 package cn.aiedge.crm.customer.controller;
 
 import cn.aiedge.crm.customer.entity.Customer;
+import cn.aiedge.crm.customer.entity.CustomerFollowUp;
+import cn.aiedge.crm.customer.service.CustomerFollowUpService;
 import cn.aiedge.crm.customer.service.CustomerService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,8 +18,9 @@ import java.util.List;
 @Tag(name = "CRM客户管理", description = "客户信息管理、查询、维护")
 @RequiredArgsConstructor
 public class CustomerController {
-    
+
     private final CustomerService customerService;
+    private final CustomerFollowUpService customerFollowUpService;
     
     @Operation(summary = "分页查询客户列表")
     @GetMapping("/page")
@@ -93,5 +96,59 @@ public class CustomerController {
     @GetMapping("/level/{customerLevel}")
     public List<Customer> listByLevel(@PathVariable Integer customerLevel) {
         return customerService.listByCustomerLevel(customerLevel);
+    }
+
+    @Operation(summary = "获取客户列表（无分页，供下拉选择器使用）")
+    @GetMapping("/list")
+    public List<Customer> list(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword) {
+        return customerService.list();
+    }
+
+    @Operation(summary = "更新客户状态")
+    @PutMapping("/{id}/status")
+    public Customer updateStatus(
+            @PathVariable Long id,
+            @Parameter(description = "状态") @RequestParam Integer status) {
+        Customer customer = customerService.getById(id);
+        if (customer != null) {
+            customer.setStatus(status);
+            customerService.updateById(customer);
+        }
+        return customer;
+    }
+
+    @Operation(summary = "导入客户")
+    @PostMapping("/import")
+    public boolean importCustomers(@RequestBody List<Customer> customers) {
+        for (Customer customer : customers) {
+            customer.setCustomerCode(customerService.generateCustomerCode());
+            customerService.save(customer);
+        }
+        return true;
+    }
+
+    @Operation(summary = "获取客户跟进记录")
+    @GetMapping("/{customerId}/follows")
+    public List<CustomerFollowUp> getFollowRecords(@PathVariable Long customerId) {
+        return customerFollowUpService.listByCustomerId(customerId);
+    }
+
+    @Operation(summary = "添加客户跟进记录")
+    @PostMapping("/{customerId}/follow")
+    public CustomerFollowUp addFollowRecord(
+            @PathVariable Long customerId,
+            @RequestBody CustomerFollowUp followUp) {
+        followUp.setCustomerId(customerId);
+        followUp.setFollowUpCode(customerFollowUpService.generateFollowUpCode());
+        customerFollowUpService.save(followUp);
+        return followUp;
+    }
+
+    @Operation(summary = "获取客户订单记录")
+    @GetMapping("/{customerId}/orders")
+    public List<?> getOrderRecords(@PathVariable Long customerId) {
+        // 订单记录由销售模块提供，此处返回空列表
+        return List.of();
     }
 }

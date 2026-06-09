@@ -59,6 +59,11 @@ public interface PurchaseInquiryService {
     List<PurchaseInquiry> getAllInquiries();
 
     /**
+     * 分页查询询价单
+     */
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<PurchaseInquiry> pageInquiries(int pageNum, int pageSize, String keyword, String status);
+
+    /**
      * 根据状态查询询价单
      */
     List<PurchaseInquiry> getInquiriesByStatus(String status);

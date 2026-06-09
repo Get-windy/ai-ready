@@ -265,7 +265,7 @@
         <VxeTableList
           :columns="displayColumns"
           :data-source="displayData"
-          row-key="id"
+          row-key="_rowKey"
           :pagination="false"
           :loading="loading"
           :show-toolbar="false"
@@ -465,6 +465,7 @@ const COLUMN_CONFIG_KEY = 'order-center-columns-v2'
 
 interface UnifiedOrder {
   id: number
+  _rowKey: string
   orderNo: string
   orderType: 'purchase' | 'sales'
   orderStatus: number
@@ -793,6 +794,7 @@ async function fetchData(append = false) {
         records.forEach((o: any) => {
           allOrders.push({
             id: o.id,
+            _rowKey: `purchase_${o.id}`,
             orderNo: o.orderNo,
             orderType: 'purchase' as const,
             orderStatus: o.status ?? o.orderStatus ?? 0,
@@ -823,6 +825,7 @@ async function fetchData(append = false) {
         records.forEach((o: any) => {
           allOrders.push({
             id: o.id,
+            _rowKey: `sales_${o.id}`,
             orderNo: o.orderNo,
             orderType: 'sales' as const,
             orderStatus: o.status ?? o.orderStatus ?? 0,

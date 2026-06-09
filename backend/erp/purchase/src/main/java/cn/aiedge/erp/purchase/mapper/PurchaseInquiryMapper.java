@@ -46,4 +46,15 @@ public interface PurchaseInquiryMapper {
 
     @Delete("UPDATE purchase_inquiry SET deleted = 1 WHERE id = #{id}")
     int deleteById(Long id);
+
+    @Select("SELECT * FROM purchase_inquiry WHERE deleted = 0 "
+            + "AND (#{keyword} IS NULL OR title LIKE CONCAT('%', #{keyword}, '%') OR inquiry_no LIKE CONCAT('%', #{keyword}, '%')) "
+            + "AND (#{status} IS NULL OR status = #{status}) "
+            + "ORDER BY created_at DESC LIMIT #{pageSize} OFFSET #{offset}")
+    List<PurchaseInquiry> findPage(int offset, int pageSize, String keyword, String status);
+
+    @Select("SELECT COUNT(*) FROM purchase_inquiry WHERE deleted = 0 "
+            + "AND (#{keyword} IS NULL OR title LIKE CONCAT('%', #{keyword}, '%') OR inquiry_no LIKE CONCAT('%', #{keyword}, '%')) "
+            + "AND (#{status} IS NULL OR status = #{status})")
+    long countByConditions(String keyword, String status);
 }

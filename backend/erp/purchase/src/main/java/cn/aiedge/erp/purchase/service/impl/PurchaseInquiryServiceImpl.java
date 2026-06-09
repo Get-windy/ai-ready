@@ -5,6 +5,7 @@ import cn.aiedge.erp.purchase.entity.PurchaseInquiry;
 import cn.aiedge.erp.purchase.enums.InquiryStatus;
 import cn.aiedge.erp.purchase.mapper.PurchaseInquiryMapper;
 import cn.aiedge.erp.purchase.service.PurchaseInquiryService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,6 +112,17 @@ public class PurchaseInquiryServiceImpl implements PurchaseInquiryService {
     @Override
     public List<PurchaseInquiry> getAllInquiries() {
         return inquiryMapper.findAll();
+    }
+
+    @Override
+    public Page<PurchaseInquiry> pageInquiries(int pageNum, int pageSize, String keyword, String status) {
+        Page<PurchaseInquiry> page = new Page<>(pageNum, pageSize);
+        int offset = (pageNum - 1) * pageSize;
+        List<PurchaseInquiry> records = inquiryMapper.findPage(offset, pageSize, keyword, status);
+        long total = inquiryMapper.countByConditions(keyword, status);
+        page.setRecords(records);
+        page.setTotal(total);
+        return page;
     }
 
     @Override

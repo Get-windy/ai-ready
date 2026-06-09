@@ -2,6 +2,7 @@ package cn.aiedge.erp.purchase.controller;
 
 import cn.aiedge.erp.purchase.entity.PurchaseInquiry;
 import cn.aiedge.erp.purchase.service.PurchaseInquiryService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -62,6 +63,19 @@ public class PurchaseInquiryController {
     public ResponseEntity<PurchaseInquiry> cancelInquiry(@PathVariable Long id) {
         PurchaseInquiry cancelled = inquiryService.cancelInquiry(id);
         return ResponseEntity.ok(cancelled);
+    }
+
+    /**
+     * 分页查询询价单
+     */
+    @GetMapping("/page")
+    public ResponseEntity<Page<PurchaseInquiry>> pageInquiries(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
+        Page<PurchaseInquiry> page = inquiryService.pageInquiries(pageNum, pageSize, keyword, status);
+        return ResponseEntity.ok(page);
     }
 
     /**

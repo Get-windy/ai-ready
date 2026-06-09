@@ -127,4 +127,16 @@ public interface WorkflowService {
      * 分页查询任务（待办/已办，供任务管理页面使用）
      */
     Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId);
+
+    // ==================== 流程监控 ====================
+
+    /**
+     * 获取流程图数据
+     */
+    Map<String, Object> getInstanceDiagram(String instanceId);
+
+    /**
+     * 流程干预（终止/挂起/恢复）
+     */
+    boolean interveneInstance(String instanceId, String action, Long userId);
 }

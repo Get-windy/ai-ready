@@ -199,9 +199,9 @@ const props = defineProps({
   showSummary: { type: Boolean, default: false },
   summaryData: { type: Array as PropType<any[]>, default: undefined },
 
-  // 分页
+  // 分页 — 传入 false 可隐藏分页栏，传入对象则按配置显示
   pagination: {
-    type: Object as PropType<{ current?: number; pageSize?: number; total?: number }>,
+    type: [Object, Boolean] as PropType<{ current?: number; pageSize?: number; total?: number } | boolean>,
     default: () => ({ current: 1, pageSize: 20, total: 0 })
   },
 
@@ -299,18 +299,37 @@ const customSlotColumns = computed(() => {
 })
 
 // ========== 数据处理 ==========
+let _fillerSeq = 0
+const _fillerNs = `__vxe_f_${Date.now().toString(36)}_`
+
 const tableData = computed(() => {
+  const keyField = props.rowKey || 'id'
+  const seen = new Map<string, boolean>()
+  const deduped: any[] = []
+
+  for (const item of props.dataSource) {
+    const key = item?.[keyField]
+    const keyStr = key != null ? String(key) : ''
+    if (keyStr && seen.has(keyStr)) {
+      console.warn(`[VxeTableList] 检测到重复 rowKey (${keyField}=${keyStr})，已自动去重。请检查数据源是否包含重复 ID。`)
+      continue
+    }
+    if (keyStr) {
+      seen.set(keyStr, true)
+    }
+    deduped.push(item)
+  }
+
   // 空行填充（最少 20 行以保证表格视觉完整）
-  const data = [...props.dataSource]
   const minRows = 20
-  const emptyCount = Math.max(0, minRows - data.length)
+  const emptyCount = Math.max(0, minRows - deduped.length)
   for (let i = 0; i < emptyCount; i++) {
-    data.push({
-      [props.rowKey]: `__empty_${i}`,
+    deduped.push({
+      [keyField]: `${_fillerNs}${_fillerSeq++}`,
       __empty_row: true,
     })
   }
-  return data
+  return deduped
 })
 
 // ========== 汇总行 ==========

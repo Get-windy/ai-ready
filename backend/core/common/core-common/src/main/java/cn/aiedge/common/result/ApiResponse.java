@@ -1,10 +1,11 @@
 package cn.aiedge.common.result;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * 统一响应结果封装
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -14,27 +15,31 @@ public class ApiResponse<T> {
     private final String message;
     private final T data;
     private final Long timestamp;
-    
+
     public ApiResponse(int code, String message, T data, Long timestamp) {
         this.code = code;
         this.message = message;
         this.data = data;
         this.timestamp = timestamp;
     }
-    
-    public int code() {
+
+    @JsonProperty("code")
+    public int getCode() {
         return code;
     }
-    
-    public String message() {
+
+    @JsonProperty("message")
+    public String getMessage() {
         return message;
     }
-    
-    public T data() {
+
+    @JsonProperty("data")
+    public T getData() {
         return data;
     }
-    
-    public Long timestamp() {
+
+    @JsonProperty("timestamp")
+    public Long getTimestamp() {
         return timestamp;
     }
 

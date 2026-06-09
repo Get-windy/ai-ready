@@ -2,6 +2,7 @@ package cn.aiedge.erp.batchsn.controller;
 
 import cn.aiedge.erp.batchsn.controller.dto.BatchQueryRequest;
 import cn.aiedge.erp.batchsn.controller.dto.CreateBatchRequest;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import cn.aiedge.erp.batchsn.controller.dto.BatchTransferRequest;
 import cn.aiedge.erp.batchsn.controller.dto.BatchInventoryRequest;
 import cn.aiedge.erp.batchsn.controller.dto.BatchAdvancedSearchRequest;
@@ -59,6 +60,22 @@ public class BatchNumberController {
                 .body(BatchApiResponse.created(created));
     }
     
+    @Operation(summary = "分页查询批次", description = "支持按批次号、产品编码、状态等条件分页查询")
+    @GetMapping("/page")
+    public ResponseEntity<BatchApiResponse<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BatchNumber>>> pageBatches(@Valid BatchQueryRequest request) {
+        log.debug("分页查询批次: {}", request);
+        request.validate();
+        var page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<BatchNumber>(request.getPage(), request.getSize());
+        // 使用 service 的分页方法
+        List<BatchNumber> list = batchNumberService.listBatches(
+            request.getBatchNo(), request.getProductCode(), request.getStatus(),
+            request.getSourceType(), request.getPage(), request.getSize()
+        );
+        page.setRecords(list);
+        page.setTotal(list.size());
+        return ResponseEntity.ok(BatchApiResponse.success(page));
+    }
+
     @Operation(summary = "查询批次详情", description = "根据批次ID查询批次详情信息，支持缓存")
     @Parameter(name = "id", description = "批次ID", required = true, example = "1")
     @ApiResponses({

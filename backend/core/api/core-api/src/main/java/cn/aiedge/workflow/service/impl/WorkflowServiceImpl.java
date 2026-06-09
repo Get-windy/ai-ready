@@ -496,6 +496,148 @@ public class WorkflowServiceImpl implements WorkflowService {
         return result;
     }
 
+    // ==================== 流程监控 ====================
+
+    @Override
+    public Map<String, Object> getInstanceDiagram(String instanceId) {
+        WorkflowInstance instance = getWorkflowInstance(instanceId);
+        if (instance == null) {
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("svg", "");
+            empty.put("imageUrl", "");
+            return empty;
+        }
+
+        WorkflowDefinition definition = getWorkflowDefinition(instance.getDefinitionId());
+        if (definition == null) {
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("svg", "");
+            empty.put("imageUrl", "");
+            return empty;
+        }
+
+        // 生成简单 SVG 流程图
+        StringBuilder svg = new StringBuilder();
+        svg.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        svg.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 ")
+                .append(definition.getNodes().size() * 80 + 40).append("\">");
+        svg.append("<rect width=\"100%\" height=\"100%\" fill=\"#fafafa\"/>");
+        svg.append("<text x=\"200\" y=\"24\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"bold\">")
+                .append(escapeXml(definition.getName())).append("</text>");
+
+        int y = 50;
+        for (WorkflowNode node : definition.getNodes()) {
+            boolean isCurrent = node.getNodeId().equals(instance.getCurrentNodeId());
+            String fillColor = isCurrent ? "#1890ff" : "#ffffff";
+            String strokeColor = isCurrent ? "#1890ff" : "#d9d9d9";
+            String textColor = isCurrent ? "#ffffff" : "#333333";
+
+            if ("start".equals(node.getNodeType()) || "end".equals(node.getNodeType())) {
+                // 椭圆形
+                svg.append("<ellipse cx=\"200\" cy=\"").append(y + 20)
+                        .append("\" rx=\"60\" ry=\"20\" fill=\"").append(fillColor)
+                        .append("\" stroke=\"").append(strokeColor).append("\" stroke-width=\"2\"/>");
+            } else {
+                // 矩形
+                svg.append("<rect x=\"120\" y=\"").append(y)
+                        .append("\" width=\"160\" height=\"40\" rx=\"4\" fill=\"").append(fillColor)
+                        .append("\" stroke=\"").append(strokeColor).append("\" stroke-width=\"2\"/>");
+            }
+            svg.append("<text x=\"200\" y=\"").append(y + (isCurrent ? 26 : 24))
+                    .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"").append(textColor).append("\">")
+                    .append(escapeXml(node.getNodeName())).append("</text>");
+
+            y += 80;
+
+            // 箭头
+            if (node.getNextNodeId() != null && !node.getNextNodeId().isEmpty()) {
+                int arrowY = y - 60;
+                svg.append("<line x1=\"200\" y1=\"").append(arrowY)
+                        .append("\" x2=\"200\" y2=\"").append(arrowY + 20)
+                        .append("\" stroke=\"#999\" stroke-width=\"1.5\" marker-end=\"url(#arrow)\"/>");
+            }
+        }
+
+        svg.append("<defs><marker id=\"arrow\" viewBox=\"0 0 10 10\" refX=\"10\" refY=\"5\"")
+                .append(" markerWidth=\"6\" markerHeight=\"6\" orient=\"auto\">")
+                .append("<path d=\"M 0 0 L 10 5 L 0 10 z\" fill=\"#999\"/></marker></defs>");
+        svg.append("</svg>");
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("svg", svg.toString());
+        result.put("imageUrl", "");
+        return result;
+    }
+
+    @Override
+    public boolean interveneInstance(String instanceId, String action, Long userId) {
+        WorkflowInstance instance = getWorkflowInstance(instanceId);
+        if (instance == null) {
+            log.warn("[workflow] 干预失败，实例不存在: {}", instanceId);
+            return false;
+        }
+
+        log.info("[workflow] 流程干预: instanceId={}, action={}, userId={}", instanceId, action, userId);
+
+        switch (action) {
+            case "terminate":
+                if (!"approving".equals(instance.getStatus()) && !"suspended".equals(instance.getStatus())) {
+                    log.warn("[workflow] 终止失败，当前状态不允许终止: {}", instance.getStatus());
+                    return false;
+                }
+                instance.setStatus("terminated");
+                instance.setCompleteTime(LocalDateTime.now());
+                break;
+
+            case "suspend":
+                if (!"approving".equals(instance.getStatus())) {
+                    log.warn("[workflow] 挂起失败，当前状态不允许挂起: {}", instance.getStatus());
+                    return false;
+                }
+                instance.setStatus("suspended");
+                break;
+
+            case "resume":
+                if (!"suspended".equals(instance.getStatus())) {
+                    log.warn("[workflow] 恢复失败，当前状态不允许恢复: {}", instance.getStatus());
+                    return false;
+                }
+                instance.setStatus("approving");
+                break;
+
+            default:
+                log.warn("[workflow] 未知干预动作: {}", action);
+                return false;
+        }
+
+        cacheService.set(INSTANCE_KEY + instanceId, instance);
+
+        // 记录干预操作
+        ApprovalRecord record = new ApprovalRecord();
+        record.setInstanceId(instanceId);
+        record.setNodeId(instance.getCurrentNodeId());
+        record.setNodeName(instance.getCurrentNodeName());
+        record.setApproverId(userId);
+        record.setAction(action);
+        record.setComment("流程干预: " + action);
+        record.setApproveTime(LocalDateTime.now());
+        record.setStatus(action);
+        addApprovalRecord(instanceId, record);
+
+        log.info("[workflow] 流程干预成功: instanceId={}, action={}", instanceId, action);
+        return true;
+    }
+
+    private String escapeXml(String text) {
+        if (text == null) return "";
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+    }
+
     @Override
     public Map<String, Object> pageTasks(String tab, Long userId, int pageNum, int pageSize, Long tenantId) {
         List<WorkflowInstance> records;
