@@ -43,6 +43,7 @@
             v-model:value="queryParams.customerName"
             placeholder="请输入客户名称"
             allow-clear
+            size="small"
           />
         </a-form-item>
         <a-form-item label="提醒状态">
@@ -50,6 +51,7 @@
             v-model:value="queryParams.status"
             placeholder="请选择"
             allow-clear
+            size="small"
             style="width: 120px"
           >
             <a-select-option :value="0">
@@ -114,7 +116,22 @@
         :show-batch-delete="false"
         @page-change="handlePageChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
       >
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <p class="table-empty-text">暂无数据</p>
+            </template>
+          </div>
+        </template>
         <template #amountCell="{ record }">
           <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
         </template>
@@ -157,11 +174,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { BellOutlined, ExportOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { WarningOutlined, ReloadOutlined, BellOutlined, ExportOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 interface CollectionReminder {
   id: number
@@ -176,6 +199,7 @@ interface CollectionReminder {
 }
 
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<CollectionReminder[]>([])
 const selectedRowKeys = ref<number[]>([])
 const tableRef = ref()
@@ -240,9 +264,32 @@ const isUrgent = (date: string) => {
   return diffDays <= 2
 }
 
+function handleParentCreate() {
+  handleAdd()
+}
+
+function isInput(target: Element | null): boolean {
+  if (!target) return false
+  const tag = target.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput(e.target as Element | null)) { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleAdd() {
+  // 催收页面无需直接新增
+}
+
 const formatAmount = (val: number) => {
   if (val === undefined || val === null) return '0.00'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const handleView = (record: CollectionReminder) => {
+  message.info(`查看详情: ${record.customerName}`)
 }
 
 const handleSearch = () => {
@@ -303,8 +350,10 @@ const fetchData = async () => {
       tableData.value = []
       pagination.total = 0
     }
+    hasError.value = false
   } catch (error) {
     message.error('获取数据失败')
+    hasError.value = true
   } finally {
     loading.value = false
   }
@@ -313,6 +362,18 @@ const fetchData = async () => {
 fetchData()
 
 defineExpose({ handleQuery: fetchData })
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
+})
 </script>
 
 <style scoped>
@@ -323,6 +384,16 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.collection-reminder-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+.collection-reminder-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -403,6 +474,27 @@ defineExpose({ handleQuery: fetchData })
 
 
 /* 响应式 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.table-empty-action {
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .stat-cards {
     flex-wrap: wrap;
@@ -411,5 +503,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

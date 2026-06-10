@@ -46,7 +46,7 @@
       :selectable="true"
       add-text="新建订单"
       @add="handleAdd"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @search="handleSearch"
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
@@ -54,6 +54,7 @@
       @export="handleExport"
       @batch-delete="handleBatchDelete"
       @selection-change="handleSelectionChange"
+      @cell-dblclick="handleView"
       @view="handleView"
     >
       <template #toolbar-actions>
@@ -85,6 +86,7 @@
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
+          <PrintButton :record="record" :business-id="record.id" business-type="sale_order" template-type="order" button-type="link" button-size="small" tooltip="打印" />
           <a-dropdown v-if="canSubmit(record.status) || canApprove(record.status) || canDelete(record.status)">
             <a-button type="link" size="small" class="action-more-btn">
               <template #icon><MoreOutlined /></template>
@@ -101,18 +103,25 @@
       </template>
 
       <template #empty>
-        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配订单">
-          <template #image>
-            <SearchOutlined style="font-size: 48px; color: #faad14" />
+        <div class="table-empty">
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
           </template>
-          <a-button @click="handleResetFilters">清除筛选</a-button>
-        </a-empty>
-        <a-empty v-else description="暂无销售订单">
-          <template #image>
-            <InboxOutlined style="font-size: 48px; color: #d9d9d9" />
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              当前筛选条件下无匹配订单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无销售订单，点击「新建订单」开始创建
+            </p>
           </template>
-          <a-button type="primary" @click="handleAdd">创建第一个订单</a-button>
-        </a-empty>
+        </div>
       </template>
     </VxeTableList>
 
@@ -136,10 +145,6 @@
 defineOptions({ name: 'SaleOrdersTab' })
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-
-// 🐛 调试
-const DEBUG_TAG = '[Orders:DEBUG]'
-console.log(DEBUG_TAG, '模块已加载, defineOptions name = SaleOrdersTab')
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -159,12 +164,24 @@ import {
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  WarningOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import SaleOrderImportModal from '../components/SaleOrderImportModal.vue'
 import { saleOrderApi } from '@/api/erp'
 import { useExport } from '@/composables/useExport'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 import {
   ORDER_STATUS_TEXT,
   ORDER_STATUS_COLOR,
@@ -219,9 +236,6 @@ const vxeColumns = computed(() => {
     { field: 'action', title: '操作', width: 140, fixed: 'right', type: 'action' },
   ]
 
-  // 🐛 调试
-  console.log(DEBUG_TAG, 'vxeColumns 产出:', cols.length, '列, fields:', cols.map(c => c.field).join(','))
-
   return cols
 })
 
@@ -248,6 +262,7 @@ const hasActiveFilters = computed(() => {
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<SaleOrder[]>([])
 const formVisible = ref(false)
 const isEdit = ref(false)
@@ -306,11 +321,6 @@ async function fetchData() {
       ...searchFilters
     }
     const res = await saleOrderApi.getPage(params)
-    // 🐛 调试
-    console.log(DEBUG_TAG, 'fetchData 返回:', res)
-    console.log(DEBUG_TAG, '  records:', res.data?.records?.length, 'total:', res.data?.total)
-    console.log(DEBUG_TAG, '  首条记录:', res.data?.records?.[0])
-
     dataSource.value = res.data?.records || []
     const total = res.data?.total || 0
     pagination.total = total
@@ -321,10 +331,11 @@ async function fetchData() {
     if (searchFilters.keyword || Object.keys(searchFilters).some(k => k !== 'sortField' && k !== 'sortOrder' && searchFilters[k])) {
       message.info(`共找到 ${res.data?.total || 0} 条匹配结果`)
     }
+    hasError.value = false
   } catch (error) {
     // 🐛 调试
     console.warn('[销售订单] 获取列表失败', error)
-    message.error('获取销售订单列表失败')
+    hasError.value = true
     dataSource.value = []
   } finally {
     loading.value = false
@@ -349,7 +360,6 @@ function handleActionMenuClick(key: string, record: SaleOrder) {
   switch (key) {
     case 'submit': handleSubmit(record); break
     case 'approve': handleApprove(record); break
-    case 'print': handlePrint(record); break
     case 'delete': handleDelete(record); break
   }
 }
@@ -371,6 +381,10 @@ function handleAdd() {
   isEdit.value = false
   editRecord.value = null
   formVisible.value = true
+}
+
+function handleParentCreate() {
+  handleAdd()
 }
 
 function handleEdit(record: SaleOrder) {
@@ -522,24 +536,6 @@ function handleApprove(record: SaleOrder) {
   })
 }
 
-function handlePrint(record: SaleOrder) {
-  Modal.confirm({
-    title: '打印',
-    content: `打印订单 "${record.orderNo}" ？`,
-    okText: '确认打印',
-    cancelText: '取消',
-    centered: true,
-    async onOk() {
-      try {
-        await saleOrderApi.print(record.id)
-        message.success('打印任务已提交')
-      } catch (err) {
-        console.warn('[销售订单] 打印失败', err)
-        message.error('打印失败')
-      }
-    }
-  })
-}
 
 function handleImport() {
   importModalVisible.value = true
@@ -596,28 +592,21 @@ function handleFilterChange(filters: Record<string, any>) {
 }
 
 onMounted(() => {
-  // 🐛 调试
-  console.log(DEBUG_TAG, '>>>> 组件挂载 <<<<')
-  console.log(DEBUG_TAG, '  表格列定义:', vxeColumns.value.map(c => c.field).join(', '))
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', fetchData)
-  window.addEventListener('sale:create', handleAdd)
+  window.addEventListener('sale:create', handleParentCreate)
 })
 
 onUnmounted(() => {
-  // 🐛 调试
-  console.log(DEBUG_TAG, '>>>> 组件卸载 <<<<')
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', fetchData)
-  window.removeEventListener('sale:create', handleAdd)
+  window.removeEventListener('sale:create', handleParentCreate)
 })
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-    e.preventDefault()
-    handleAdd()
-  }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 
 defineExpose({ handleQuery: fetchData })
@@ -631,6 +620,29 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   padding: 16px;
+}
+
+.orders-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
 }
 
 /* 统计卡片 */
@@ -708,5 +720,21 @@ defineExpose({ handleQuery: fetchData })
   .orders-page {
     padding: 8px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

@@ -90,6 +90,16 @@
 import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 import {
   purchaseExchangeApi,
   type PurchaseExchange,
@@ -320,5 +330,21 @@ watch(() => props.record, (record) => {
 .timeline-content {
   color: #666;
   font-size: 13px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

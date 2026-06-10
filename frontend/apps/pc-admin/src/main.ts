@@ -1,20 +1,16 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
-import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import router from './router'
 import { setupI18n } from './locales'
 import { initErrorReporter } from './utils/errorReporter'
 import { permission, role } from './directives/permission'
-import featureFlag from './directives/featureFlag'
-import shortcutDirective from './directives/shortcut'
 import { initMockServer } from '@/mocks'
 import { initFeatureFlags, getFeatureFlagService } from '@/utils/featureFlags'
 import { initSentry, setSentryUser, clearSentryUser } from '@/utils/sentry'
 import { trackPageLoad, setupRouteTracking } from '@/utils/performanceMonitor'
 import { useUserStore } from '@/stores/user'
-import { getVueQueryClientConfig } from '@/composables/useQueryConfig'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 
@@ -35,10 +31,6 @@ import './styles/index.css'
 import './styles/accessibility.css'
 import './styles/table-grid-overrides.css'
 
-// ── 调试：应用启动日志 ────────────────────────────────
-const DEBUG_PREFIX = '[DEBUG:main]'
-console.log(`${DEBUG_PREFIX} 应用启动开始`)
-
 // 初始化 Mock Server — 必须在所有其他初始化之前调用，
 // 因为后续的 store/router 初始化可能会触发 API 请求。
 initMockServer()
@@ -47,8 +39,6 @@ initMockServer()
 initFeatureFlags()
 
 dayjs.locale('zh-cn')
-
-console.log(`${DEBUG_PREFIX} Pinia / Vue 实例创建中...`)
 
 // 创建 Pinia 实例
 const pinia = createPinia()
@@ -63,8 +53,6 @@ app.use(pinia)
 // 注册指令
 app.directive('permission', permission)
 app.directive('role', role)
-app.directive('feature-flag', featureFlag)
-app.directive('shortcut', shortcutDirective)
 
 // 提供 Feature Flag 服务（全局注入，组件可通过 inject 获取）
 app.provide('featureFlagService', getFeatureFlagService())
@@ -85,11 +73,6 @@ async function bootstrap() {
 
   // 使用 Router
   app.use(router)
-
-  // 安装 Vue Query
-  app.use(VueQueryPlugin, {
-    queryClientConfig: getVueQueryClientConfig(),
-  })
 
   // 安装 vxe-pc-ui（为 VxeTable 提供复选框、加载提示、工具提示等组件）
   app.use(VxeUI)
@@ -113,10 +96,7 @@ async function bootstrap() {
 
   // 注意：Ant Design Vue 已改为按需引入，不需要 app.use(Antd)
 
-  // ── 调试：应用挂载 ──────────────────────────────────
-  console.log(`${DEBUG_PREFIX} 即将挂载 app.mount('#app')`)
   app.mount('#app')
-  console.log(`${DEBUG_PREFIX} 挂载完成 ✅`)
 
   // 启动 Web Vitals 性能监控
   trackPageLoad()

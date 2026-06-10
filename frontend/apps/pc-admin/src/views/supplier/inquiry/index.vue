@@ -22,7 +22,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="loadInquiries">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadInquiries)()">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -35,6 +35,7 @@
       </div>
     </template>
 
+    <div class="page-content">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-total">
@@ -90,6 +91,7 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="handleView"
       >
         <template #inquiryStatusCell="{ record }">
           <a-tag :color="getStatusColor(record.inquiryStatus)">{{ getStatusLabel(record.inquiryStatus) }}</a-tag>
@@ -122,6 +124,21 @@
             >拒绝</a-button>
           </a-space>
         </template>
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="loadInquiries" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <InboxOutlined class="table-empty-icon" />
+              <p class="table-empty-text">暂无询价报价记录</p>
+            </template>
+          </div>
+        </template>
       </VxeTableList>
     </a-card>
 
@@ -133,23 +150,24 @@
     >
       <a-form ref="formRef" :model="createForm" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="询价标题" name="inquiryTitle">
-          <a-input v-model:value="createForm.inquiryTitle" placeholder="请输入询价标题" />
+          <a-input v-model:value="createForm.inquiryTitle" size="small" placeholder="请输入询价标题" />
         </a-form-item>
         <a-form-item label="截止日期" name="deadline">
-          <a-date-picker v-model:value="createForm.deadline" style="width: 100%" placeholder="选择截止日期" />
+          <a-date-picker v-model:value="createForm.deadline" size="small" style="width: 100%" placeholder="选择截止日期" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="createForm.remark" :rows="3" placeholder="请输入备注" />
+          <a-textarea v-model:value="createForm.remark" size="small" :rows="3" placeholder="请输入备注" />
         </a-form-item>
       </a-form>
-    </a-modal>
-  </PageContainer>
+      </a-modal>
+    </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined, ReloadOutlined, SyncOutlined, LeftOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CheckOutlined, ReloadOutlined, SyncOutlined, LeftOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
@@ -157,6 +175,16 @@ import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import request from '@/utils/request'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -190,6 +218,7 @@ const autoRefreshCountdown = ref(0)
 const showCreateModal = ref(false)
 const formRef = ref<FormInstance>()
 
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -231,7 +260,15 @@ const getStatusColor = (status: number) => {
   return map[status] || 'default'
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadInquiries)(); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreateInquiry(); return }
+}
+
+function handleParentCreate() { handleAdd() }
+
 onMounted(async () => {
+  document.addEventListener('keydown', handleKeydown)
   await Promise.allSettled([loadSupplier(), loadInquiries()])
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -241,11 +278,14 @@ onMounted(async () => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('supplier:create', handleParentCreate)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: loadInquiries })
@@ -263,10 +303,12 @@ const loadSupplier = async () => {
 const loadInquiries = async () => {
   if (!supplierId) return
   loading.value = true
+  hasError.value = false
   try {
     const res = await supplierApi.getInquiries(Number(supplierId))
     inquiries.value = (res as any)?.data || (res as any) || []
   } catch (err: any) {
+    hasError.value = true
     console.warn('[供应商] 获取询价记录失败', err)
     message.error(err?.message || '获取询价记录失败')
     inquiries.value = []
@@ -280,6 +322,11 @@ const loadInquiries = async () => {
 const handleCreateInquiry = () => {
   createForm.value = { inquiryTitle: '', deadline: undefined, remark: '' }
   showCreateModal.value = true
+}
+
+const handleView = (record: any) => {
+  const row = record?.row ?? record
+  handleViewQuotation(row)
 }
 
 const submitInquiry = async () => {
@@ -361,6 +408,32 @@ const handleBack = () => {
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 .inquiry-header {
   display: flex;
   justify-content: space-between;

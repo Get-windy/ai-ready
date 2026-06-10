@@ -18,7 +18,7 @@
             <a-switch v-model:checked="autoRefresh" size="small" />
           </a-tooltip>
           <a-tooltip title="手动刷新">
-            <a-button size="small" @click="fetchData">
+            <a-button size="small" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -88,7 +88,34 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @selection-change="handleSelectionChange"
+      @cell-dblclick="handleView"
     >
+      <template #empty>
+        <EmptyState
+          v-if="hasError"
+          image="error"
+          title="数据加载异常"
+          description="数据获取失败，请检查网络后重试"
+          :show-add="false"
+          :show-refresh="true"
+          :show-actions="true"
+          size="small"
+          @refresh="fetchData"
+        />
+        <EmptyState
+          v-else
+          image="no-data"
+          title="暂无销售订单"
+          description="当前没有销售订单数据，可点击新增创建"
+          :show-add="true"
+          :show-refresh="true"
+          :show-actions="true"
+          size="small"
+          add-text="新增订单"
+          @add="handleAdd"
+          @refresh="fetchData"
+        />
+      </template>
       <!-- 操作列自定义 -->
       <template #action="{ record }">
         <a-space :size="4">
@@ -124,16 +151,10 @@
           <a-tooltip v-else title="需审批后才可打印">
             <a-button type="link" size="small" disabled>打印</a-button>
           </a-tooltip>
-          <!-- 取消 -->
-          <a-popconfirm
-            v-if="record.status < OrderStatus.COMPLETED && record.status !== OrderStatus.CANCELLED"
-            title="确定要取消该订单吗？此操作不可恢复"
-            @confirm="handleCancel(record)"
-          >
-            <a-tooltip title="取消订单 (未完成状态可取消)">
-              <a-button type="link" size="small" danger>取消</a-button>
-            </a-tooltip>
-          </a-popconfirm>
+          <!-- 取消（使用 Modal.confirm 替代 a-popconfirm） -->
+          <a-tooltip v-if="record.status < OrderStatus.COMPLETED && record.status !== OrderStatus.CANCELLED" title="取消订单 (未完成状态可取消)">
+            <a-button type="link" size="small" danger @click="handleCancelClick(record)">取消</a-button>
+          </a-tooltip>
           <a-tooltip v-else title="已完成或已取消，不可操作">
             <a-button type="link" size="small" disabled danger>取消</a-button>
           </a-tooltip>
@@ -150,40 +171,41 @@
       :footer="null"
       destroy-on-close
     >
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="订单号">{{ currentRecord.orderNo }}</a-descriptions-item>
-        <a-descriptions-item label="客户">{{ currentRecord.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="订单日期">{{ currentRecord.orderDate }}</a-descriptions-item>
-        <a-descriptions-item label="交货日期">{{ currentRecord.deliveryDate || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="销售员">{{ currentRecord.salesperson }}</a-descriptions-item>
-        <a-descriptions-item label="订单金额">
-          <span class="currency-value">¥{{ currentRecord.totalAmount?.toFixed(2) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="折扣金额">
-          <span class="currency-value">¥{{ currentRecord.discountAmount?.toFixed(2) || '0.00' }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="税额">
-          <span class="currency-value">¥{{ currentRecord.taxAmount?.toFixed(2) || '0.00' }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="最终金额">
-          <span class="currency-value" style="font-weight: 600; color: #1890ff;">
-            ¥{{ currentRecord.finalAmount?.toFixed(2) || currentRecord.totalAmount?.toFixed(2) }}
-          </span>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <StatusTag :status="currentRecord.status" :map="SALES_ORDER_STATUS" />
-        </a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="更新时间">{{ currentRecord.updateTime || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-spin :spinning="detailLoading">
+        <a-descriptions bordered :column="2" v-if="detailData">
+          <a-descriptions-item label="订单号">{{ detailData.orderNo }}</a-descriptions-item>
+          <a-descriptions-item label="客户">{{ detailData.customerName }}</a-descriptions-item>
+          <a-descriptions-item label="订单日期">{{ detailData.orderDate }}</a-descriptions-item>
+          <a-descriptions-item label="交货日期">{{ detailData.deliveryDate || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="销售员">{{ detailData.salesperson }}</a-descriptions-item>
+          <a-descriptions-item label="订单金额">
+            <span class="currency-value">¥{{ detailData.totalAmount?.toFixed(2) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="折扣金额">
+            <span class="currency-value">¥{{ detailData.discountAmount?.toFixed(2) || '0.00' }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="税额">
+            <span class="currency-value">¥{{ detailData.taxAmount?.toFixed(2) || '0.00' }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="最终金额">
+            <span class="currency-value" style="font-weight: 600; color: #1890ff;">
+              ¥{{ detailData.finalAmount?.toFixed(2) || detailData.totalAmount?.toFixed(2) }}
+            </span>
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <StatusTag :status="detailData.status" :map="SALES_ORDER_STATUS" />
+          </a-descriptions-item>
+          <a-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="更新时间">{{ detailData.updateTime || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+        </a-descriptions>
 
-      <!-- 订单明细 -->
-      <a-divider>订单明细</a-divider>
-      <VxeTableList
-        v-if="currentRecord.details && currentRecord.details.length > 0"
-        :columns="detailColumns"
-        :data-source="currentRecord.details"
+        <!-- 订单明细 -->
+        <a-divider>订单明细</a-divider>
+        <VxeTableList
+          v-if="detailData?.details && detailData.details.length > 0"
+          :columns="detailColumns"
+          :data-source="detailData.details"
         :pagination="false"
         row-key="id"
         :show-toolbar="false"
@@ -203,7 +225,8 @@
           <span class="currency-value">¥{{ record.taxAmount?.toFixed(2) }}</span>
         </template>
       </VxeTableList>
-      <a-empty v-else description="暂无订单明细" />
+      <EmptyState v-else image="no-data" title="暂无订单明细" description="该订单暂无明细数据" :show-actions="false" size="small" />
+      </a-spin>
     </a-drawer>
 
     <!-- 新建/编辑表单弹窗 -->
@@ -225,6 +248,7 @@
       >
         <a-form-item label="客户名称" name="customerId">
           <a-select
+            size="small"
             v-model:value="formData.customerId"
             placeholder="请选择客户"
             show-search
@@ -236,16 +260,16 @@
           </a-select>
         </a-form-item>
         <a-form-item label="订单日期" name="orderDate">
-          <a-date-picker v-model:value="formData.orderDate" style="width: 100%" />
+          <a-date-picker size="small" v-model:value="formData.orderDate" style="width: 100%" />
         </a-form-item>
         <a-form-item label="交货日期">
-          <a-date-picker v-model:value="formData.deliveryDate" style="width: 100%" />
+          <a-date-picker size="small" v-model:value="formData.deliveryDate" style="width: 100%" />
         </a-form-item>
         <a-form-item label="销售员" name="salesperson">
-          <a-input v-model:value="formData.salesperson" placeholder="请输入销售员" />
+          <a-input size="small" v-model:value="formData.salesperson" placeholder="请输入销售员" />
         </a-form-item>
         <a-form-item label="订单金额" name="totalAmount">
-          <a-input-number
+          <a-input-number size="small"
             v-model:value="formData.totalAmount"
             :min="0"
             :precision="2"
@@ -254,7 +278,7 @@
           />
         </a-form-item>
         <a-form-item label="折扣金额">
-          <a-input-number
+          <a-input-number size="small"
             v-model:value="formData.discountAmount"
             :min="0"
             :precision="2"
@@ -263,7 +287,7 @@
           />
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="formData.remark" :rows="3" placeholder="请输入备注" />
+          <a-textarea size="small" v-model:value="formData.remark" :rows="3" placeholder="请输入备注" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -286,10 +310,10 @@
       />
       <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="销售员">
-          <a-input v-model:value="batchEditData.salesperson" placeholder="批量修改销售员" />
+          <a-input size="small" v-model:value="batchEditData.salesperson" placeholder="批量修改销售员" />
         </a-form-item>
         <a-form-item label="交货日期">
-          <a-date-picker v-model:value="batchEditData.deliveryDate" style="width: 100%" />
+          <a-date-picker size="small" v-model:value="batchEditData.deliveryDate" style="width: 100%" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -305,14 +329,31 @@ import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import { salesOrderApi, OrderStatus, type SalesOrder } from '@/api/order'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, SearchBar } from '@/components'
+import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import { PageContainer, SearchBar, EmptyState } from '@/components'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { useUserStore } from '@/stores/user'
 import { requiredSelectRule, requiredRule } from '@/utils/formRules'
 import { SALES_ORDER_STATUS } from '@/utils/statusConfig'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd(); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); handleExport(); return }
+}
 
 // ── 状态定义 ────────────────────────────────────────
 
@@ -338,6 +379,8 @@ function formatAmount(amount: number): string {
 }
 
 const detailVisible = ref(false)
+const detailData = ref<SalesOrder | null>(null)
+const detailLoading = ref(false)
 const currentRecord = ref<SalesOrder | null>(null)
 
 const formVisible = ref(false)
@@ -528,6 +571,9 @@ watch(autoRefresh, (enabled) => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener("erp:create", handleParentCreate)
+  window.removeEventListener("erp:refresh", fetchData)
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
@@ -579,18 +625,25 @@ const handleSelectionChange = (rows: SalesOrder[], ids: number[]) => {
 
 // ── 单条操作 ────────────────────────────────────────
 
-const handleView = async (record: SalesOrder) => {
+const fetchDetail = async (id: number) => {
+  detailLoading.value = true
   try {
-    const res = await salesOrderApi.getById(record.id)
-    if (res.data) {
-      currentRecord.value = res.data
-      detailVisible.value = true
-    }
+    const res = await salesOrderApi.getById(id)
+    detailData.value = res.data || null
   } catch (error: any) {
     console.warn('[销售订单] 获取详情失败', error)
     message.error(error?.response?.data?.message || '获取详情失败')
+  } finally {
+    detailLoading.value = false
   }
 }
+
+const handleView = async (record: SalesOrder) => {
+  detailVisible.value = true
+  fetchDetail(record.id)
+}
+
+function handleParentCreate() { handleAdd() }
 
 const handleAdd = () => {
   isEdit.value = false
@@ -681,6 +734,17 @@ const handleApprove = async (record: SalesOrder) => {
   })
 }
 
+const handleCancelClick = (record: SalesOrder) => {
+  Modal.confirm({
+    title: '取消订单',
+    content: `确定要取消订单 ${record.orderNo} 吗？此操作不可恢复。`,
+    okText: '确认取消',
+    okType: 'danger',
+    cancelText: '保留订单',
+    onOk: () => handleCancel(record)
+  })
+}
+
 const handleCancel = async (record: SalesOrder) => {
   try {
     await salesOrderApi.cancel(record.id)
@@ -726,7 +790,7 @@ const handleBatchEditSubmit = async () => {
   try {
     // 批量更新逻辑（实际项目中需要后端支持）
     for (const id of selectedIds.value) {
-      const updateData: any = {}
+      const updateData: Partial<SalesOrder> = {}
       if (batchEditData.salesperson) updateData.salesperson = batchEditData.salesperson
       if (batchEditData.deliveryDate) updateData.deliveryDate = batchEditData.deliveryDate
       if (Object.keys(updateData).length > 0) {
@@ -787,10 +851,10 @@ const handleFormSubmit = async () => {
     await formRef.value?.validate()
     formLoading.value = true
     if (isEdit.value && editingId.value) {
-      await salesOrderApi.update(editingId.value, formData as any)
+      await salesOrderApi.update(editingId.value, formData as Partial<SalesOrder>)
       message.success('更新成功')
     } else {
-      await salesOrderApi.create({ tenantId: userStore.tenantId, ...formData } as any)
+      await salesOrderApi.create({ tenantId: userStore.tenantId, ...formData } as Partial<SalesOrder>)
       message.success('创建成功')
     }
     formVisible.value = false
@@ -817,7 +881,10 @@ const filterCustomerOption = (input: string, option: any) => {
 // ── 初始化 ────────────────────────────────────────
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
   fetchData()
+  window.addEventListener("erp:create", handleParentCreate)
+  window.addEventListener("erp:refresh", fetchData)
   // 加载客户选项
   loadCustomerOptions()
   // 更新搜索栏选项
@@ -919,13 +986,31 @@ async function loadCustomerOptions() {
   font-weight: 500;
 }
 
-
-
-
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
 
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

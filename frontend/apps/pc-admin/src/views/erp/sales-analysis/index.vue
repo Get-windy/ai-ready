@@ -1,10 +1,17 @@
 <template>
-  <PageContainer title="销售分析报表" full-height>
+  <ErrorBoundary @error="handleError"><PageContainer title="销售分析报表" full-height>
     <!-- 状态栏 -->
     <template #headerExtra>
       <a-space :size="12">
+        <!-- 对比期选择 -->
+        <a-select v-model:value="comparePeriod" style="width: 120px" size="small" @change="onComparePeriodChange">
+          <a-select-option value="none">无对比</a-select-option>
+          <a-select-option value="prev_month">环比上月</a-select-option>
+          <a-select-option value="prev_year">同比去年</a-select-option>
+        </a-select>
+        <a-divider type="vertical" />
         <span class="data-status">
-          <a-badge :status="loading ? 'processing' : 'success'" />
+          <StatusTag :status="dataFreshness" :map="DATA_FRESHNESS" />
           <span v-if="lastUpdateTime" class="update-time">
             数据更新: {{ lastUpdateTime }}
           </span>
@@ -12,86 +19,59 @@
         <a-tooltip title="自动刷新 (每60秒)">
           <a-switch v-model:checked="autoRefresh" size="small" />
         </a-tooltip>
-        <a-button size="small" @click="loadData">
-          <template #icon><ReloadOutlined /></template>
-          刷新
+        <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
+          <a-button size="small" @click="debounceClick('refresh', loadData)">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+        </a-tooltip>
+        <a-tooltip title="Ctrl+N 新建分析">
+          <a-button size="small" @click="debounceClick('create', handleCreate)">
+            <template #icon><PlusOutlined /></template>
+            新建
+          </a-button>
+        </a-tooltip>
+        <PrintButton page-code="erp/sales-analysis" button-size="small" tooltip="打印当前报表" />
+        <a-button size="small" @click="showExportModal = true">
+          <template #icon><ExportOutlined /></template>
+          导出
         </a-button>
       </a-space>
     </template>
 
-    <!-- 筛选区 -->
+    <!-- 搜索筛选 -->
     <template #filter>
-      <a-collapse v-model:activeKey="filterExpanded" class="filter-collapse">
-        <a-collapse-panel key="1" header="筛选条件">
-          <a-row :gutter="16">
-            <a-col :span="6">
-              <a-form-item label="日期范围">
-                <a-range-picker
-                  v-model:value="dateRange"
-                  style="width: 100%"
-                  :placeholder="['开始日期', '结束日期']"
-                />
-              </a-form-item>
-            </a-col>
-            <a-col :span="4">
-              <a-form-item label="仓库">
-                <a-select
-                  v-model:value="selectedWarehouse"
-                  placeholder="全部仓库"
-                  allow-clear
-                  style="width: 100%"
-                >
-                  <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                    {{ wh.name }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="4">
-              <a-form-item label="销售人员">
-                <a-select
-                  v-model:value="selectedSalesperson"
-                  placeholder="全部人员"
-                  allow-clear
-                  style="width: 100%"
-                >
-                  <a-select-option v-for="sp in salespersons" :key="sp.id" :value="sp.id">
-                    {{ sp.name }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="4">
-              <a-form-item label="客户类型">
-                <a-select
-                  v-model:value="selectedCustomerType"
-                  placeholder="全部类型"
-                  allow-clear
-                  style="width: 100%"
-                >
-                  <a-select-option value="A">A类客户</a-select-option>
-                  <a-select-option value="B">B类客户</a-select-option>
-                  <a-select-option value="C">C类客户</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="6" class="filter-actions">
-              <a-space>
-                <a-button type="primary" :loading="loading" @click="loadData">查询</a-button>
-                <a-button @click="handleResetFilter">重置</a-button>
-                <a-button @click="exportReport">
-                  <template #icon><ExportOutlined /></template>
-                  导出
-                </a-button>
-              </a-space>
-            </a-col>
-          </a-row>
-        </a-collapse-panel>
-      </a-collapse>
+      <SearchBar
+        :fields="searchFields"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleResetFilter"
+        :expandable="false"
+        :show-result-count="false"
+      />
     </template>
 
+    <!-- 错误提示 -->
+    <div v-if="hasError" class="error-banner">
+      <a-alert
+        type="error"
+        message="数据加载失败"
+        description="系统异常，请检查网络连接后重试"
+        show-icon
+        closable
+        @close="hasError = false"
+      >
+        <template #action>
+          <a-button size="small" type="primary" @click="loadData">
+            <template #icon><ReloadOutlined /></template>
+            重试
+          </a-button>
+        </template>
+      </a-alert>
+    </div>
+
     <!-- 汇总统计卡片 -->
-    <div class="summary-cards">
+    <div v-if="!hasError" class="summary-cards">
       <a-row :gutter="16">
         <a-col :span="6">
           <div class="summary-card">
@@ -153,33 +133,38 @@
     </div>
 
     <!-- Tab 内容区 -->
-    <div class="tab-content">
+    <div v-if="!hasError" class="tab-content">
       <a-tabs v-model:activeKey="activeTab" type="card" size="small">
         <a-tab-pane key="overview" tab="销售概览">
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-card title="销售趋势" size="small" :loading="chartLoading">
-                <div ref="trendChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="12">
-              <a-card title="销售渠道分布" size="small" :loading="chartLoading">
-                <div ref="channelChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
-          <a-row :gutter="16" style="margin-top: 16px">
-            <a-col :span="12">
-              <a-card title="月度对比" size="small" :loading="chartLoading">
-                <div ref="monthlyChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-            <a-col :span="12">
-              <a-card title="同比环比分析" size="small" :loading="chartLoading">
-                <div ref="compareChartRef" class="chart-container"></div>
-              </a-card>
-            </a-col>
-          </a-row>
+          <template v-if="!hasChartData">
+            <EmptyState title="暂无概览数据" description="当前筛选条件下没有销售概览数据" :show-add="false" />
+          </template>
+          <template v-else>
+            <a-row :gutter="16">
+              <a-col :span="12">
+                <a-card title="销售趋势" size="small" :loading="chartLoading">
+                  <div ref="trendChartRef" class="chart-container"></div>
+                </a-card>
+              </a-col>
+              <a-col :span="12">
+                <a-card title="销售渠道分布" size="small" :loading="chartLoading">
+                  <div ref="channelChartRef" class="chart-container"></div>
+                </a-card>
+              </a-col>
+            </a-row>
+            <a-row :gutter="16" style="margin-top: 16px">
+              <a-col :span="12">
+                <a-card title="月度对比" size="small" :loading="chartLoading">
+                  <div ref="monthlyChartRef" class="chart-container"></div>
+                </a-card>
+              </a-col>
+              <a-col :span="12">
+                <a-card title="同比环比分析" size="small" :loading="chartLoading">
+                  <div ref="compareChartRef" class="chart-container"></div>
+                </a-card>
+              </a-col>
+            </a-row>
+          </template>
         </a-tab-pane>
 
         <a-tab-pane key="customer" tab="客户分析">
@@ -201,7 +186,17 @@
             </a-col>
           </a-row>
           <a-card title="客户销售排行 TOP10" size="small" style="margin-top: 16px">
-            <div class="ranking-table-container">
+            <div v-if="sectionErrors.customerRank" class="section-error-banner">
+              <a-alert type="error" message="客户排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('customerRank')">
+                <template #action>
+                  <a-button size="small" type="primary" @click="retrySection('customerRank')"><ReloadOutlined /> 重试</a-button>
+                </template>
+              </a-alert>
+            </div>
+            <div v-else-if="customerRankData.length === 0" class="empty-table-placeholder">
+              <EmptyState title="暂无客户排行数据" description="当前筛选条件下没有客户排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
+            </div>
+            <div v-else class="ranking-table-container">
               <VxeTableList
                 :columns="customerRankVxeColumns"
                 :data-source="customerRankData"
@@ -219,6 +214,9 @@
                     {{ record.rank }}
                   </a-tag>
                   <span v-else>{{ record.rank }}</span>
+                </template>
+                <template #customerTypeCell="{ record }">
+                  <StatusTag :status="record.customerType" :map="CUSTOMER_TYPE_MAP" />
                 </template>
                 <template #totalAmountCell="{ record }">
                   <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
@@ -254,7 +252,17 @@
             </a-col>
           </a-row>
           <a-card title="产品销售排行 TOP10" size="small" style="margin-top: 16px">
-            <div class="ranking-table-container">
+            <div v-if="sectionErrors.productRank" class="section-error-banner">
+              <a-alert type="error" message="产品排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('productRank')">
+                <template #action>
+                  <a-button size="small" type="primary" @click="retrySection('productRank')"><ReloadOutlined /> 重试</a-button>
+                </template>
+              </a-alert>
+            </div>
+            <div v-else-if="productRankData.length === 0" class="empty-table-placeholder">
+              <EmptyState title="暂无产品排行数据" description="当前筛选条件下没有产品排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
+            </div>
+            <div v-else class="ranking-table-container">
               <VxeTableList
                 :columns="productRankVxeColumns"
                 :data-source="productRankData"
@@ -272,6 +280,14 @@
                     {{ record.rank }}
                   </a-tag>
                   <span v-else>{{ record.rank }}</span>
+                </template>
+                <template #trendCell="{ record }">
+                  <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
+                    <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
+                    <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
+                    <span v-if="(record.trend ?? 0) === 0">--</span>
+                    <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
+                  </span>
                 </template>
                 <template #totalAmountCell="{ record }">
                   <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
@@ -304,7 +320,17 @@
             </a-col>
           </a-row>
           <a-card title="销售人员业绩排行" size="small" style="margin-top: 16px">
-            <div class="ranking-table-container">
+            <div v-if="sectionErrors.salespersonRank" class="section-error-banner">
+              <a-alert type="error" message="人员排行加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('salespersonRank')">
+                <template #action>
+                  <a-button size="small" type="primary" @click="retrySection('salespersonRank')"><ReloadOutlined /> 重试</a-button>
+                </template>
+              </a-alert>
+            </div>
+            <div v-else-if="salespersonRankData.length === 0" class="empty-table-placeholder">
+              <EmptyState title="暂无人员排行数据" description="当前筛选条件下没有人员排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
+            </div>
+            <div v-else class="ranking-table-container">
               <VxeTableList
                 :columns="salespersonRankVxeColumns"
                 :data-source="salespersonRankData"
@@ -322,6 +348,14 @@
                     {{ record.rank }}
                   </a-tag>
                   <span v-else>{{ record.rank }}</span>
+                </template>
+                <template #trendCell="{ record }">
+                  <span :class="['trend-cell', { up: (record.trend ?? 0) > 0, down: (record.trend ?? 0) < 0, flat: (record.trend ?? 0) === 0 }]">
+                    <ArrowUpOutlined v-if="(record.trend ?? 0) > 0" />
+                    <ArrowDownOutlined v-if="(record.trend ?? 0) < 0" />
+                    <span v-if="(record.trend ?? 0) === 0">--</span>
+                    <span v-if="(record.trend ?? 0) !== 0">{{ Math.abs(record.trend ?? 0) }}%</span>
+                  </span>
                 </template>
                 <template #totalAmountCell="{ record }">
                   <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
@@ -354,7 +388,17 @@
             </a-col>
           </a-row>
           <a-card title="区域销售明细" size="small" style="margin-top: 16px">
-            <div class="ranking-table-container">
+            <div v-if="sectionErrors.region" class="section-error-banner">
+              <a-alert type="error" message="区域数据加载失败" description="系统异常，请重试" show-icon closable @close="clearSectionError('region')">
+                <template #action>
+                  <a-button size="small" type="primary" @click="retrySection('region')"><ReloadOutlined /> 重试</a-button>
+                </template>
+              </a-alert>
+            </div>
+            <div v-else-if="regionData.length === 0" class="empty-table-placeholder">
+              <EmptyState title="暂无区域数据" description="当前筛选条件下没有区域销售数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
+            </div>
+            <div v-else class="ranking-table-container">
               <VxeTableList
                 :columns="regionVxeColumns"
                 :data-source="regionData"
@@ -403,12 +447,100 @@
         </a-tab-pane>
       </a-tabs>
     </div>
+    <!-- 新建分析对话框 -->
+    <a-modal
+      v-model:visible="showCreateModal"
+      title="新建分析"
+      ok-text="创建"
+      cancel-text="取消"
+      @ok="confirmCreate"
+    >
+      <a-input
+        v-model:value="newAnalysisName"
+        placeholder="请输入分析名称"
+        @press-enter="confirmCreate"
+      />
+    </a-modal>
+
+    <!-- 导出报表对话框 -->
+    <a-modal
+      v-model:visible="showExportModal"
+      title="导出报表"
+      ok-text="导出"
+      cancel-text="取消"
+      @ok="confirmExportWithOptions"
+      :confirm-loading="exportLoading"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="导出格式">
+          <a-radio-group v-model:value="exportOptions.format">
+            <a-radio value="xlsx">Excel (.xlsx)</a-radio>
+            <a-radio value="csv">CSV (.csv)</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item label="日期范围">
+          <a-range-picker
+            v-model:value="exportOptions.dateRange"
+            placeholder="默认使用当前筛选日期"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="包含标签页">
+          <a-checkbox-group v-model:value="exportOptions.includeTabs">
+            <a-checkbox value="overview">销售概览</a-checkbox>
+            <a-checkbox value="customer">客户分析</a-checkbox>
+            <a-checkbox value="product">产品分析</a-checkbox>
+            <a-checkbox value="salesperson">销售人员分析</a-checkbox>
+            <a-checkbox value="region">区域分析</a-checkbox>
+            <a-checkbox value="time">时间分析</a-checkbox>
+          </a-checkbox-group>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 下钻明细抽屉 -->
+    <a-drawer
+      v-model:visible="drillDownVisible"
+      :title="drillDownTitle"
+      placement="right"
+      width="560"
+      @close="drillDownVisible = false"
+    >
+      <template v-if="drillDownLoading">
+        <a-skeleton active :paragraph="{ rows: 6 }" />
+      </template>
+      <template v-else>
+        <VxeTableList
+          v-if="drillDownData.length > 0"
+          :columns="drillDownColumns"
+          :data-source="drillDownData"
+          :pagination="false"
+          row-key="productName"
+          :show-toolbar="false"
+          :selectable="false"
+          :show-add="false"
+          :show-search="false"
+          :show-export="false"
+          :show-batch-delete="false"
+        >
+          <template #drillAmountCell="{ record }">
+            <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+          </template>
+          <template #drillMarginCell="{ record }">
+            {{ record.margin?.toFixed?.(1) ?? 0 }}%
+          </template>
+        </VxeTableList>
+        <EmptyState v-else title="暂无明细数据" description="当前筛选条件下没有明细数据" :show-add="false" />
+      </template>
+    </a-drawer>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import {
   ReloadOutlined,
@@ -418,12 +550,108 @@ import {
   TeamOutlined,
   PercentageOutlined,
   ArrowUpOutlined,
-  ArrowDownOutlined
+  ArrowDownOutlined,
+  WarningOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { PageContainer, SearchBar, EmptyState } from '@/components'
+import type { SearchField } from '@/components'
+import type { StatusMap } from '@/utils/statusConfig'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { salesAnalysisApi, type SalesOverview, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
+import request from '@/utils/request'
+import { salesAnalysisApi, type SalesOverview, type CustomerRankItem, type ProductRankItem, type SalespersonRankItem, type RegionItem, type DrillDownItem, type CompareData, type SalesAnalysisQuery } from '@/api/sales-analysis'
 
+// ── 类型定义 ──────────────────────────────────────────────
+interface SummaryData extends SalesOverview {
+  totalGrowth?: number
+  orderGrowth?: number
+  avgGrowth?: number
+  marginGrowth?: number
+}
+
+interface ExportOptions {
+  format: 'xlsx' | 'csv'
+  dateRange?: any
+  includeTabs: string[]
+}
+
+// ── 状态映射表 ─────────────────────────────────────────────
+const DATA_FRESHNESS: StatusMap = {
+  fresh: { text: '数据正常', color: 'success' },
+  error: { text: '数据异常', color: 'error' },
+  loading: { text: '加载中', color: 'processing' },
+}
+
+const CUSTOMER_TYPE_MAP: StatusMap = {
+  A: { text: 'A类客户', color: 'red' },
+  B: { text: 'B类客户', color: 'orange' },
+  C: { text: 'C类客户', color: 'blue' },
+}
+
+// ── ErrorBoundary 回调 ────────────────────────────────────
+function handleError(err: unknown) {
+  console.warn("[销售分析] ErrorBoundary 捕获异常:", err)
+}
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); showExportModal.value = true; return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('create', handleCreate); return }
+}
+
+// ── 搜索字段配置 ─────────────────────────────────────────
+const searchForm = reactive({
+  dateRange: [] as any[],
+  warehouseId: undefined as number | undefined,
+  salespersonId: undefined as number | undefined,
+  customerType: undefined as string | undefined,
+})
+
+const searchFields = computed<SearchField[]>(() => [
+  {
+    name: 'dateRange',
+    label: '日期范围',
+    type: 'date-range',
+  },
+  {
+    name: 'warehouseId',
+    label: '仓库',
+    type: 'select',
+    placeholder: '全部仓库',
+    options: warehouses.value.map(w => ({ label: w.name, value: w.id })),
+  },
+  {
+    name: 'salespersonId',
+    label: '销售人员',
+    type: 'select',
+    placeholder: '全部人员',
+    options: salespersons.value.map(sp => ({ label: sp.name, value: sp.id })),
+  },
+  {
+    name: 'customerType',
+    label: '客户类型',
+    type: 'select',
+    placeholder: '全部类型',
+    options: [
+      { label: 'A类客户', value: 'A' },
+      { label: 'B类客户', value: 'B' },
+      { label: 'C类客户', value: 'C' },
+    ],
+  },
+])
+
+// ── 响应式状态 ──────────────────────────────────────────
 const activeTab = ref('overview')
 const filterExpanded = ref<string[]>([])
 const dateRange = ref<any[]>([])
@@ -431,31 +659,100 @@ const selectedWarehouse = ref<number>()
 const selectedSalesperson = ref<number>()
 const selectedCustomerType = ref<string>()
 const loading = ref(false)
+const hasError = ref(false)
 const chartLoading = ref(false)
 const autoRefresh = ref(false)
 const lastUpdateTime = ref<string>('')
+const showCreateModal = ref(false)
+const newAnalysisName = ref('')
+
+// ── 对比期状态 ──────────────────────────────────────
+const comparePeriod = ref<'none' | 'prev_month' | 'prev_year'>('none')
+const compareData = ref<CompareData | null>(null)
+const compareLoading = ref(false)
+
+// ── 导出选项状态 ──────────────────────────────────────
+const showExportModal = ref(false)
+const exportLoading = ref(false)
+const exportOptions = reactive<ExportOptions>({
+  format: 'xlsx',
+  dateRange: null,
+  includeTabs: ['overview', 'customer', 'product', 'salesperson', 'region', 'time'],
+})
+
+// ── 下钻状态 ────────────────────────────────────────
+const drillDownVisible = ref(false)
+const drillDownTitle = ref('')
+const drillDownLoading = ref(false)
+const drillDownData = ref<DrillDownItem[]>([])
+
+// ── 分区块错误状态 ──────────────────────────────────
+const sectionErrors = reactive<Record<string, boolean>>({
+  summary: false,
+  charts: false,
+  customerRank: false,
+  productRank: false,
+  salespersonRank: false,
+  region: false,
+})
+
+const clearSectionError = (key: string) => { sectionErrors[key] = false }
+
+// ── 分区块重试 ──────────────────────────────────────
+const retrySection = async (section: string) => {
+  sectionErrors[section] = false
+  if (section === 'summary') {
+    await loadSummary()
+  } else if (['customerRank', 'productRank', 'salespersonRank', 'region'].includes(section)) {
+    await loadRankingData()
+  } else if (section === 'charts') {
+    sectionErrors.charts = false
+    await nextTick()
+    initAllCharts()
+  }
+}
+
+const handleCreate = () => {
+  showCreateModal.value = true
+  newAnalysisName.value = ''
+}
+
+const confirmCreate = () => {
+  const name = newAnalysisName.value.trim()
+  if (!name) {
+    message.warning('请输入分析名称')
+    return
+  }
+  showCreateModal.value = false
+  message.success(`已创建分析「${name}」`)
+  handleResetFilter()
+}
 
 const warehouses = ref<{ id: number; name: string }[]>([])
 const salespersons = ref<{ id: number; name: string }[]>([])
 
-const summary = ref<SalesOverview & {
-  totalGrowth?: number
-  orderGrowth?: number
-  avgGrowth?: number
-  marginGrowth?: number
-}>({
+const summary = ref<SummaryData>({
   totalAmount: 0,
   orderCount: 0,
   avgOrderAmount: 0,
-  grossMargin: 0
+  grossMargin: 0,
 })
+
+const dataFreshness = computed(() => {
+  if (loading.value) return 'loading'
+  if (hasError.value) return 'error'
+  return 'fresh'
+})
+
+const hasChartData = computed(() => !chartLoading.value && !hasError.value)
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 // 表格列配置
 const customerRankVxeColumns = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
-  { field: 'name', title: '客户名称', width: 180 },
+  { field: 'name', title: '客户名称', width: 150 },
+  { field: 'customerType', title: '客户类型', width: 100, align: 'center', slotName: 'customerTypeCell' },
   { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
   { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
   { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' },
@@ -463,7 +760,8 @@ const customerRankVxeColumns = computed(() => [
 
 const productRankVxeColumns = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
-  { field: 'name', title: '产品名称', width: 180 },
+  { field: 'name', title: '产品名称', width: 150 },
+  { field: 'trend', title: '趋势', width: 80, align: 'center', slotName: 'trendCell' },
   { field: 'volume', title: '销量', width: 100, align: 'right' },
   { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
   { field: 'margin', title: '毛利率', width: 150, slotName: 'marginCell' },
@@ -471,7 +769,8 @@ const productRankVxeColumns = computed(() => [
 
 const salespersonRankVxeColumns = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
-  { field: 'name', title: '销售人员', width: 140 },
+  { field: 'name', title: '销售人员', width: 130 },
+  { field: 'trend', title: '趋势', width: 80, align: 'center', slotName: 'trendCell' },
   { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
   { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
   { field: 'targetRate', title: '目标达成率', width: 150, slotName: 'targetRateCell' },
@@ -484,13 +783,19 @@ const regionVxeColumns = computed(() => [
   { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' },
 ])
 
+// 下钻明细列配置
+const drillDownColumns = [
+  { field: 'productName', title: '产品名称', width: 180 },
+  { field: 'quantity', title: '数量', width: 80, align: 'right' },
+  { field: 'amount', title: '金额', width: 140, align: 'right', slotName: 'drillAmountCell' },
+  { field: 'margin', title: '毛利率', width: 120, align: 'right', slotName: 'drillMarginCell' },
+]
+
 // 数据源
 const customerRankData = ref<CustomerRankItem[]>([])
 const productRankData = ref<ProductRankItem[]>([])
-const salespersonRankData = ref<any[]>([])
-const regionData = ref<any[]>([])
-
-
+const salespersonRankData = ref<SalespersonRankItem[]>([])
+const regionData = ref<RegionItem[]>([])
 
 // 图表引用
 const trendChartRef = ref<HTMLElement>()
@@ -513,21 +818,25 @@ const hourlyChartRef = ref<HTMLElement>()
 
 let charts: echarts.ECharts[] = []
 
-// 加载选项数据
+// ── 加载选项数据 ──────────────────────────────────────
 const loadOptions = async () => {
   try {
     const whRes = await salesAnalysisApi.getWarehouses()
     warehouses.value = whRes.data || []
-    const spRes = await salesAnalysisApi.getSalespersons?.() || { data: [] }
+  } catch (err) {
+    console.warn('[销售分析报表] 加载仓库选项失败', err)
+    warehouses.value = []
+  }
+  try {
+    const spRes = await salesAnalysisApi.getSalespersons()
     salespersons.value = spRes.data || []
   } catch (err) {
-    console.warn('[销售分析报表] 加载筛选选项失败', err)
-    warehouses.value = []
+    console.warn('[销售分析报表] 加载销售人员选项失败', err)
     salespersons.value = []
   }
 }
 
-// 构建查询参数
+// ── 构建查询参数 ──────────────────────────────────────
 const buildParams = () => ({
   warehouseId: selectedWarehouse.value,
   salespersonId: selectedSalesperson.value ? String(selectedSalesperson.value) : undefined,
@@ -537,64 +846,137 @@ const buildParams = () => ({
     : undefined
 })
 
-// 加载汇总数据
+// ── 加载汇总数据 ──────────────────────────────────────
 const loadSummary = async () => {
+  sectionErrors.summary = false
   try {
     const res = await salesAnalysisApi.getOverview(buildParams())
     if (res.data) {
-      summary.value = res.data
+      summary.value = { ...summary.value, ...res.data }
     }
   } catch (err) {
     console.warn('[销售分析报表] 加载汇总数据失败', err)
+    sectionErrors.summary = true
+    throw err
   }
 }
 
-// 加载排行数据
+// ── 加载对比期数据 ────────────────────────────────────
+const loadCompareData = async () => {
+  if (comparePeriod.value === 'none') {
+    compareData.value = null
+    return
+  }
+  compareLoading.value = true
+  try {
+    const res = await salesAnalysisApi.getCompareData({
+      ...buildParams(),
+      compareType: comparePeriod.value,
+    })
+    compareData.value = res.data || null
+    // 将对比变化更新到汇总卡片的 growth 字段
+    if (compareData.value) {
+      const ch = compareData.value.changes
+      summary.value.totalGrowth = ch.totalAmountChange
+      summary.value.orderGrowth = ch.orderCountChange
+      summary.value.avgGrowth = ch.avgAmountChange
+      summary.value.marginGrowth = ch.marginChange
+    }
+  } catch (err) {
+    console.warn('[销售分析报表] 加载对比期数据失败', err)
+    compareData.value = null
+  } finally {
+    compareLoading.value = false
+  }
+}
+
+// ── 加载排行数据（含趋势标记）─────────────────────────
 const loadRankingData = async () => {
   const params = buildParams()
   try {
     const cr = await salesAnalysisApi.getCustomerRanking(params)
-    customerRankData.value = cr.data || []
+    customerRankData.value = (cr.data || []).map(item => ({
+      ...item,
+      trend: item.trend ?? (item.growth > 0 ? 1 : item.growth < 0 ? -1 : 0),
+    }))
+    sectionErrors.customerRank = false
   } catch (err) {
     console.warn('[销售分析报表] 加载客户排行失败', err)
     customerRankData.value = []
+    sectionErrors.customerRank = true
   }
   try {
     const pr = await salesAnalysisApi.getProductRanking(params)
-    productRankData.value = pr.data || []
+    productRankData.value = (pr.data || []).map(item => ({
+      ...item,
+      trend: item.trend ?? (item.margin >= 20 ? 1 : item.margin >= 10 ? 0 : -1),
+    }))
+    sectionErrors.productRank = false
   } catch (err) {
     console.warn('[销售分析报表] 加载产品排行失败', err)
     productRankData.value = []
+    sectionErrors.productRank = true
   }
   try {
     const sr = await salesAnalysisApi.getSalespersonRanking(params)
-    salespersonRankData.value = sr.data || []
+    salespersonRankData.value = (sr.data || []).map(item => ({
+      ...item,
+      trend: item.trend ?? (item.targetRate >= 80 ? 1 : item.targetRate >= 60 ? 0 : -1),
+    }))
+    sectionErrors.salespersonRank = false
   } catch (err) {
     console.warn('[销售分析报表] 加载销售人员排行失败', err)
     salespersonRankData.value = []
+    sectionErrors.salespersonRank = true
   }
-  regionData.value = []
+  try {
+    regionData.value = []
+    sectionErrors.region = false
+  } catch (err) {
+    console.warn('[销售分析报表] 加载区域数据失败', err)
+    sectionErrors.region = true
+  }
 }
 
-// 加载所有数据
+// ── 加载所有数据 ──────────────────────────────────────
 const loadData = async () => {
+  hasError.value = false
   loading.value = true
   chartLoading.value = true
   const hide = message.loading('正在加载数据...', 0)
   try {
-    await Promise.allSettled([loadSummary(), loadRankingData()])
+    await Promise.allSettled([loadSummary(), loadRankingData(), loadCompareData()])
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     message.success('数据已更新')
+  } catch (err) {
+    hasError.value = true
+    console.warn('[销售分析报表] 数据加载失败', err)
+    message.error('数据加载失败，请稍后重试')
   } finally {
     loading.value = false
     hide()
     await nextTick()
-    initAllCharts()
+    if (!hasError.value) {
+      initAllCharts()
+    }
     chartLoading.value = false
   }
 }
 
-// 重置筛选
+// ── 对比期切换 ────────────────────────────────────────
+const onComparePeriodChange = () => {
+  loadCompareData()
+}
+
+// ── 搜索/重置 ────────────────────────────────────────
+const handleSearch = (formData: Record<string, any>) => {
+  dateRange.value = formData.dateRange || []
+  selectedWarehouse.value = formData.warehouseId
+  selectedSalesperson.value = formData.salespersonId
+  selectedCustomerType.value = formData.customerType
+  loadData()
+}
+
 const handleResetFilter = () => {
   dateRange.value = []
   selectedWarehouse.value = undefined
@@ -603,45 +985,117 @@ const handleResetFilter = () => {
   loadData()
 }
 
-// 导出报表
-const exportReport = async () => {
-  const hide = message.loading('正在生成报表...', 0)
+// ── 导出报表 ──────────────────────────────────────────
+const exportReport = async (format: 'xlsx' | 'csv', tabs: string[]) => {
+  const hide = message.loading('正在导出销售分析报表...', 0)
   try {
-    // 实际项目中应调用导出API
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    const data = {
-      汇总: {
-        销售总额: summary.value.totalAmount,
-        订单数量: summary.value.orderCount,
-        平均客单价: summary.value.avgOrderAmount,
-        毛利率: summary.value.grossMargin
-      },
-      客户排行: customerRankData.value,
-      产品排行: productRankData.value
-    }
-    const csv = JSON.stringify(data, null, 2)
-    const blob = new Blob(['\ufeff' + csv], { type: 'application/json;charset=utf-8' })
+    // 尝试调用后端导出 API（blob 下载）
+    const ext = format === 'xlsx' ? 'xlsx' : 'csv'
+    const mimeType = format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv'
+
+    const blobData: Blob = await salesAnalysisApi.exportReport({
+      ...buildParams(),
+      format,
+      includeTabs: tabs,
+    })
+
+    const blob = blobData.type ? blobData : new Blob([blobData], { type: mimeType })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `销售分析报表_${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `销售分析_${dayjs().format('YYYYMMDD')}.${ext}`
     a.click()
     window.URL.revokeObjectURL(url)
-    message.success('报表导出成功')
-  } catch (error: any) {
-    console.warn('[销售分析报表] 导出失败', error)
-    message.error(error?.message || '导出失败')
+    message.success('导出成功')
+  } catch (error: unknown) {
+    console.warn('[销售分析] 导出失败，降级为前端 JSON 导出', error)
+    // 降级：前端生成 JSON 文件
+    try {
+      const data = {
+        导出时间: new Date().toLocaleString('zh-CN'),
+        筛选条件: {
+          日期范围: dateRange.value?.length === 2
+            ? `${dateRange.value[0]?.format?.('YYYY-MM-DD') || dateRange.value[0]} ~ ${dateRange.value[1]?.format?.('YYYY-MM-DD') || dateRange.value[1]}`
+            : '全部',
+          仓库: selectedWarehouse.value ? warehouses.value.find(w => w.id === selectedWarehouse.value)?.name : '全部',
+          销售人员: selectedSalesperson.value ? salespersons.value.find(sp => sp.id === selectedSalesperson.value)?.name : '全部',
+          客户类型: selectedCustomerType.value ? CUSTOMER_TYPE_MAP[selectedCustomerType.value]?.text : '全部',
+        },
+        汇总: {
+          销售总额: summary.value.totalAmount,
+          订单数量: summary.value.orderCount,
+          平均客单价: summary.value.avgOrderAmount,
+          毛利率: summary.value.grossMargin,
+        },
+        客户排行: customerRankData.value,
+        产品排行: productRankData.value,
+        人员排行: salespersonRankData.value,
+      }
+      const jsonStr = JSON.stringify(data, null, 2)
+      const fallbackBlob = new Blob(['\ufeff' + jsonStr], { type: 'application/json;charset=utf-8' })
+      const fallbackUrl = window.URL.createObjectURL(fallbackBlob)
+      const fallbackA = document.createElement('a')
+      fallbackA.href = fallbackUrl
+      fallbackA.download = `销售分析报表_${dayjs().format('YYYYMMDD')}.json`
+      fallbackA.click()
+      window.URL.revokeObjectURL(fallbackUrl)
+      message.warning('后端导出不可用，已降级为 JSON 导出')
+    } catch (fallbackErr) {
+      console.warn('[销售分析] 降级导出也失败', fallbackErr)
+      message.error('导出失败')
+    }
   } finally {
     hide()
   }
 }
 
-// 格式化金额
+const confirmExportWithOptions = () => {
+  if (exportOptions.includeTabs.length === 0) {
+    message.warning('请至少选择一个标签页')
+    return
+  }
+  exportLoading.value = true
+  exportReport(exportOptions.format, exportOptions.includeTabs)
+    .finally(() => {
+      exportLoading.value = false
+      showExportModal.value = false
+    })
+}
+
+// ── 下钻查看明细 ──────────────────────────────────────
+const showDrillDown = async (title: string, params?: SalesAnalysisQuery & { salespersonId?: string; productName?: string; customerName?: string }) => {
+  drillDownTitle.value = title
+  drillDownVisible.value = true
+  drillDownLoading.value = true
+  drillDownData.value = []
+  try {
+    const res = await salesAnalysisApi.getDrillDownData({ ...buildParams(), ...params })
+    drillDownData.value = res.data || []
+  } catch (err) {
+    console.warn('[销售分析] 加载下钻数据失败', err)
+    message.error('明细数据加载失败')
+    drillDownData.value = []
+  } finally {
+    drillDownLoading.value = false
+  }
+}
+
+// ── 图表点击下钻处理 ────────────────────────────────
+const setupChartDrillDown = (chart: echarts.ECharts, drillKey: string, titlePrefix: string) => {
+  chart.on('click', (params: any) => {
+    if (params.name) {
+      showDrillDown(`${titlePrefix}: ${params.name}`, { [drillKey]: params.name })
+    }
+  })
+}
+
+// ── 格式化/颜色辅助函数 ─────────────────────────────
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-// 排名颜色
 const getRankColor = (rank: number) => {
   if (rank === 1) return 'gold'
   if (rank === 2) return 'silver'
@@ -649,21 +1103,19 @@ const getRankColor = (rank: number) => {
   return 'default'
 }
 
-// 毛利率颜色
 const getMarginColor = (margin: number) => {
   if (margin >= 30) return '#52c41a'
   if (margin >= 20) return '#1890ff'
   return '#faad14'
 }
 
-// 目标达成颜色
 const getTargetColor = (rate: number) => {
   if (rate >= 90) return '#52c41a'
   if (rate >= 70) return '#1890ff'
   return '#faad14'
 }
 
-// 自动刷新
+// ── 自动刷新 ──────────────────────────────────────────
 watch(autoRefresh, (enabled) => {
   if (enabled) {
     refreshTimer = setInterval(loadData, 60000)
@@ -675,10 +1127,9 @@ watch(autoRefresh, (enabled) => {
   }
 })
 
-// Tab切换刷新图表
 watch(activeTab, () => nextTick(() => initAllCharts()))
 
-// 初始化所有图表
+// ── 图表初始化 ────────────────────────────────────────
 const initAllCharts = () => {
   initTrendChart()
   initChannelChart()
@@ -699,7 +1150,6 @@ const initAllCharts = () => {
   initHourlyChart()
 }
 
-// 图表初始化函数
 const initTrendChart = () => {
   if (!trendChartRef.value) return
   disposeChart(trendChartRef.value)
@@ -802,6 +1252,7 @@ const initCustomerLevelChart = () => {
       ]
     }]
   })
+  setupChartDrillDown(chart, 'customerType', '客户等级')
 }
 
 const initCustomerSourceChart = () => {
@@ -853,6 +1304,7 @@ const initProductCategoryChart = () => {
     yAxis: { type: 'category', data: ['电脑', '办公家具', '打印设备', '配件', '其他'] },
     series: [{ type: 'bar', data: [520000, 280000, 180000, 80000, 50000], itemStyle: { color: '#1890ff' } }]
   })
+  setupChartDrillDown(chart, 'productName', '产品类别')
 }
 
 const initProductVolumeChart = () => {
@@ -886,7 +1338,7 @@ const initProductMarginChart = () => {
     grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
     xAxis: { type: 'category', data: ['<20%', '20-25%', '25-30%', '>30%'] },
     yAxis: { type: 'value', name: '产品数' },
-    series: [{ type: 'bar', data: [15, 35, 40, 10], itemStyle: { colors: ['#faad14', '#1890ff', '#52c41a', '#3f8600'] } }]
+    series: [{ type: 'bar', data: [15, 35, 40, 10], itemStyle: { color: '#1890ff' } }]
   })
 }
 
@@ -906,6 +1358,7 @@ const initSalespersonChart = () => {
       { name: '目标', type: 'line', data: [550000, 430000, 370000, 290000, 270000], itemStyle: { color: '#f5222d' } }
     ]
   })
+  setupChartDrillDown(chart, 'salespersonName', '销售人员')
 }
 
 const initTargetChart = () => {
@@ -1025,26 +1478,33 @@ const disposeChart = (el: HTMLElement | undefined) => {
   }
 }
 
-// 窗口 resize 处理
 const handleResize = () => {
   charts.forEach(chart => chart.resize())
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleKeydown)
   await loadOptions()
   loadData()
+  window.addEventListener("erp:refresh", loadData)
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
   charts.forEach(chart => chart.dispose())
   charts = []
   if (refreshTimer) clearInterval(refreshTimer)
+  window.removeEventListener("erp:refresh", loadData)
   window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <style scoped>
+.error-banner {
+  padding: 12px 0;
+}
+
 .filter-collapse {
   background: #fff;
   border-radius: 4px;
@@ -1060,6 +1520,11 @@ onUnmounted(() => {
   padding: 16px 0;
 }
 
+@keyframes slideUpFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .summary-card {
   display: flex;
   align-items: center;
@@ -1068,7 +1533,13 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.3s;
+  animation: slideUpFadeIn 0.4s ease-out both;
 }
+
+.summary-card:nth-child(1) { animation-delay: 0s; }
+.summary-card:nth-child(2) { animation-delay: 0.08s; }
+.summary-card:nth-child(3) { animation-delay: 0.16s; }
+.summary-card:nth-child(4) { animation-delay: 0.24s; }
 
 .summary-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
@@ -1090,10 +1561,12 @@ onUnmounted(() => {
   color: #fff;
   font-size: 24px;
   margin-right: 16px;
+  flex-shrink: 0;
 }
 
 .summary-content {
   flex: 1;
+  min-width: 0;
 }
 
 .summary-title {
@@ -1108,6 +1581,7 @@ onUnmounted(() => {
   color: #303133;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
   font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
 }
 
 .summary-change {
@@ -1137,11 +1611,9 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-
-
-
-
-
+.empty-table-placeholder {
+  padding: 20px 0;
+}
 
 /* 金额单元格 */
 .amount-cell {
@@ -1179,4 +1651,60 @@ onUnmounted(() => {
   color: #999;
 }
 
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 分区块错误横幅 ──────────────────────────────── */
+.section-error-banner {
+  padding: 8px 0;
+}
+
+/* ── 趋势单元格 ────────────────────────────────────── */
+.trend-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.trend-cell.up {
+  color: #52c41a;
+}
+
+.trend-cell.down {
+  color: #f5222d;
+}
+
+.trend-cell.flat {
+  color: #999;
+}
+
+/* ── 下钻抽屉表格 ──────────────────────────────────── */
+:deep(.ant-drawer-body .vxe-table) {
+  margin-top: 8px;
+}
+
+/* ── 对比期选择器 ──────────────────────────────────── */
+:deep(.ant-select-sm.ant-select) {
+  min-width: 100px;
+}
 </style>
