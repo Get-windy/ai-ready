@@ -1,11 +1,9 @@
 <template>
-  <a-modal
-    :open="open"
+  <FullScreenDetail
+    :visible="open"
     title="导入销售订单"
-    :width="800"
-    :footer="null"
-    :destroy-on-close="true"
-    @cancel="handleClose"
+    :show-footer="false"
+    @close="handleClose"
   >
     <!-- ========== Step 1: 上传文件 ========== -->
     <div v-if="step === 1" class="import-step">
@@ -101,17 +99,28 @@
         </template>
       </a-result>
     </div>
-  </a-modal>
+  </FullScreenDetail>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { FullScreenDetail } from '@/components'
 import { message } from 'ant-design-vue'
 import { InboxOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { saleOrderApi } from '@/api/erp'
 import optionsApi from '@/api/options'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'update:open', val: boolean): void; (e: 'success'): void }>()
@@ -469,5 +478,21 @@ function resetState() {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

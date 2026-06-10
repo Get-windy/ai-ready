@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.controller;
 
+import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.erp.fixedasset.dto.ApiResponse;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetCategoryDTO;
 import cn.aiedge.erp.fixedasset.service.FixedAssetCategoryService;
@@ -26,6 +27,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "创建分类")
     @PostMapping
+    @RequiresPermission("erp:fixed-asset:category:create")
     public ApiResponse<FixedAssetCategoryDTO> create(@Valid @RequestBody FixedAssetCategoryDTO dto) {
         FixedAssetCategoryDTO result = categoryService.create(dto);
         return ApiResponse.success("分类创建成功", result);
@@ -33,6 +35,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "更新分类")
     @PutMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:category:update")
     public ApiResponse<FixedAssetCategoryDTO> update(
             @Parameter(description = "分类ID") @PathVariable Long id,
             @Valid @RequestBody FixedAssetCategoryDTO dto) {
@@ -42,6 +45,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "删除分类")
     @DeleteMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:category:delete")
     public ApiResponse<Void> delete(
             @Parameter(description = "分类ID") @PathVariable Long id) {
         categoryService.delete(id);
@@ -50,6 +54,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "获取分类详情")
     @GetMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:category:query")
     public ApiResponse<FixedAssetCategoryDTO> getById(
             @Parameter(description = "分类ID") @PathVariable Long id) {
         FixedAssetCategoryDTO result = categoryService.getById(id);
@@ -58,6 +63,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "获取所有分类")
     @GetMapping("/list")
+    @RequiresPermission("erp:fixed-asset:category:list")
     public ApiResponse<List<FixedAssetCategoryDTO>> getAll() {
         List<FixedAssetCategoryDTO> result = categoryService.getAll();
         return ApiResponse.success(result);
@@ -65,6 +71,7 @@ public class FixedAssetCategoryController {
 
     @Operation(summary = "获取分类树")
     @GetMapping("/tree")
+    @RequiresPermission("erp:fixed-asset:category:list")
     public ApiResponse<List<Map<String, Object>>> getTree() {
         List<Map<String, Object>> tree = categoryService.getTree();
         return ApiResponse.success(tree);

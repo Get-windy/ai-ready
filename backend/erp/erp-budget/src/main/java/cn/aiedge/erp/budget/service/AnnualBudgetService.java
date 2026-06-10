@@ -23,6 +23,8 @@ public interface AnnualBudgetService {
 
     AnnualBudgetDTO reject(Long id);
 
+    AnnualBudgetDTO startExec(Long id);
+
     AnnualBudgetDTO close(Long id);
 
     List<AnnualBudgetDTO> exportList(String keyword, Integer fiscalYear, String departmentId, String status);

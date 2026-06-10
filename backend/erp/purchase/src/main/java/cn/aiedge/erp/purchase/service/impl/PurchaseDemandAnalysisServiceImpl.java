@@ -202,7 +202,7 @@ public class PurchaseDemandAnalysisServiceImpl
     @Transactional(rollbackFor = Exception.class)
     public Long batchConvertToInquiry(List<Long> demandIds) {
         Assert.notEmpty(demandIds, "需求ID列表不能为空");
-        
+
         // 批量检查需求状态
         List<PurchaseDemand> demands = this.listByIds(demandIds);
         for (PurchaseDemand demand : demands) {
@@ -210,19 +210,22 @@ public class PurchaseDemandAnalysisServiceImpl
                 throw new IllegalStateException("需求ID: " + demand.getId() + " 状态不是已批准，无法转为询价");
             }
         }
-        
-        // TODO: 批量创建询价单逻辑
-        Long inquiryId = createBatchInquiryFromDemands(demands);
-        
-        // 批量更新需求关联信息
-        demands.forEach(demand -> {
+
+        // 为每个需求创建独立的询价单（一个需求对应一个询价单，便于分项比价和跟踪）
+        List<Long> inquiryIds = new ArrayList<>();
+        for (PurchaseDemand demand : demands) {
+            Long inquiryId = createInquiryFromDemand(demand);
             demand.setInquiryId(inquiryId);
             demand.setUpdateTime(LocalDateTime.now());
-        });
+            inquiryIds.add(inquiryId);
+        }
         this.updateBatchById(demands);
-        
-        log.info("批量采购需求转为询价成功，需求数量: {}, 询价单ID: {}", demands.size(), inquiryId);
-        return inquiryId;
+
+        log.info("批量采购需求转为询价成功，需求数量: {}, 询价单数量: {}, 询价单ID列表: {}",
+            demands.size(), inquiryIds.size(), inquiryIds);
+
+        // 返回第一个询价单ID作为主ID，调用方可通过查询获取所有关联询价单
+        return inquiryIds.isEmpty() ? null : inquiryIds.get(0);
     }
 
     @Override
@@ -1112,7 +1115,14 @@ public class PurchaseDemandAnalysisServiceImpl
 
     /**
      * 从多个需求批量创建询价单（仅创建一张合并询价单）
+     * <p>
+     * 此方法已废弃，建议使用 {@link #createInquiryFromDemand(PurchaseDemand)} 为每个需求创建独立的询价单。
+     * 当前保留以供兼容，但 {@link #batchConvertToInquiry(List)} 已改为逐需求创建独立询价单。
+     * </p>
+     *
+     * @deprecated 请改用 per-demand 方式，为每个需求创建独立询价单
      */
+    @Deprecated
     private Long createBatchInquiryFromDemands(List<PurchaseDemand> demands) {
         PurchaseDemand first = demands.get(0);
         PurchaseInquiry inquiry = new PurchaseInquiry();

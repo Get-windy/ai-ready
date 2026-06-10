@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -107,7 +107,24 @@
       size="small"
       @page-change="handlePageChange"
       @selection-change="handleSelectionChange"
-    />
+      @cell-dblclick="handleView"
+    >
+      <template #empty>
+        <div class="table-empty">
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <InboxOutlined class="table-empty-icon" />
+            <p class="table-empty-text">暂无数据</p>
+          </template>
+        </div>
+      </template>
+    </VxeTableList>
 
     <!-- 汇总信息 -->
     <div v-if="summaryData" class="summary-bar">
@@ -121,16 +138,25 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import { accountingApi, type LedgerRecord, type AccountSubject } from '@/api/finance/accounting'
 
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
+
+const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const subjectLoading = ref(false)
@@ -171,6 +197,19 @@ const summaryData = computed(() => {
   }
 })
 
+function handleParentCreate() {
+  handleAdd()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleAdd() {
+  // 总账页面无需新增
+}
+
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
@@ -189,9 +228,11 @@ async function fetchData() {
     ledgerData.value = res.data?.records || []
     pagination.total = res.data?.total || 0
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    hasError.value = false
   } catch (err) {
     console.warn('获取总账数据失败', err)
     message.error('获取总账数据失败')
+    hasError.value = true
   } finally {
     loading.value = false
     refreshLoading.value = false
@@ -219,12 +260,18 @@ function handlePageChange(page: number, pageSize: number) {
 
 function handleSelectionChange(rows: any[], ids: any[]) {
   // 可以在这里处理选中行的逻辑
-  console.log('Selected rows:', rows.length)
+}
+
+function handleView(record: LedgerRecord) {
+  viewVoucher(record)
 }
 
 function viewVoucher(record: LedgerRecord) {
-  // TODO: 跳转到凭证详情
-  message.info(`凭证: ${record.voucherNo}`)
+  if (record.voucherId) {
+    router.push({ name: 'ErpFinanceVoucherDetail', params: { id: record.voucherId } })
+  } else {
+    message.info(`凭证: ${record.voucherNo} (暂无详情页)`)
+  }
 }
 
 // 定时刷新（30s）
@@ -233,11 +280,15 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
   // 加载科目选项
   accountingApi.getDetailSubjects().then(res => {
     subjectOptions.value = res.data || []
   }).catch(err => {
     console.warn('获取科目选项失败', err)
+    message.warning('获取科目选项失败')
   })
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -250,6 +301,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -305,6 +359,11 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.general-ledger-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -402,5 +461,21 @@ defineExpose({ handleQuery: fetchData })
   border-radius: 4px;
   font-size: 13px;
   font-family: monospace;
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

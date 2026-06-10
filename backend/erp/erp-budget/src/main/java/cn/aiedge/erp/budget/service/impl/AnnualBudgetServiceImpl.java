@@ -228,6 +228,19 @@ public class AnnualBudgetServiceImpl implements AnnualBudgetService {
 
     @Override
     @Transactional
+    public AnnualBudgetDTO startExec(Long id) {
+        AnnualBudget entity = annualBudgetRepository.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));
+        if (!"approved".equals(entity.getStatus())) {
+            throw BusinessException.badRequest("只有已审批状态的预算可以开始执行");
+        }
+        entity.setStatus("executing");
+        entity = annualBudgetRepository.save(entity);
+        return getById(entity.getId());
+    }
+
+    @Override
+    @Transactional
     public AnnualBudgetDTO close(Long id) {
         AnnualBudget entity = annualBudgetRepository.findById(id)
                 .orElseThrow(() -> BusinessException.notFound("年度预算不存在: " + id));

@@ -4,6 +4,7 @@ import cn.aiedge.assistant.model.AssistantRequest;
 import cn.aiedge.assistant.model.AssistantResponse;
 import cn.aiedge.assistant.entity.Conversation;
 import cn.aiedge.assistant.service.AssistantService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/assistant")
+@SaCheckLogin
 public class AssistantController {
 
     @Autowired

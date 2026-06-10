@@ -85,6 +85,13 @@ public class AnnualBudgetController {
         return ApiResponse.success("已拒绝", result);
     }
 
+    @Operation(summary = "开始执行")
+    @PostMapping("/{id}/start-exec")
+    public ApiResponse<AnnualBudgetDTO> startExec(@Parameter(description = "预算ID") @PathVariable Long id) {
+        AnnualBudgetDTO result = annualBudgetService.startExec(id);
+        return ApiResponse.success("已开始执行", result);
+    }
+
     @Operation(summary = "关闭预算")
     @PostMapping("/{id}/close")
     public ApiResponse<AnnualBudgetDTO> close(@Parameter(description = "预算ID") @PathVariable Long id) {

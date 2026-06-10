@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -64,16 +64,37 @@
         :row-key="'id'"
         :filter-fields="filterFields"
         :selectable="true"
+        :show-export="true"
+        :show-summary="true"
+        :summary-data="summaryData"
         add-text="新建调整"
         @add="handleAdd"
-        @refresh="loadData"
+        @cell-dblclick="handleView"
+        @refresh="debounceClick('refresh', loadData)"
         @search="handleSearch"
+        @export="handleExport"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @batch-delete="handleBatchDelete"
       >
+        <template #batch-actions="{ selectedRows: rows }">
+          <a-button size="small" @click="handleBatchSubmit(rows)" :disabled="!canBatchSubmit(rows)">
+            <template #icon><CheckCircleOutlined /></template>
+            批量提交
+          </a-button>
+        </template>
+
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="loadData">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -97,46 +118,52 @@
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
-            <a-dropdown trigger="click">
-              <a-button type="link" size="small" class="action-more-btn">
-                <template #icon><EllipsisOutlined /></template>
-              </a-button>
-              <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="submit">
-                    <CheckCircleOutlined /> 提交
-                  </a-menu-item>
-                  <a-menu-item v-if="record.status === 'submitted'" key="approve">
-                    <AuditOutlined /> 通过
-                  </a-menu-item>
-                  <a-menu-item v-if="record.status === 'submitted'" key="reject">
-                    <CloseCircleOutlined /> 拒绝
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
+            <a-tooltip title="更多操作">
+              <a-dropdown trigger="click">
+                <a-button type="link" size="small" class="action-more-btn">
+                  <template #icon><EllipsisOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                    <a-menu-item v-if="record.status === 'draft'" key="submit">
+                      <CheckCircleOutlined /> 提交
+                    </a-menu-item>
+                    <a-menu-item v-if="record.status === 'submitted'" key="approve">
+                      <AuditOutlined /> 通过
+                    </a-menu-item>
+                    <a-menu-item v-if="record.status === 'submitted'" key="reject">
+                      <CloseCircleOutlined /> 拒绝
+                    </a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
+            </a-tooltip>
           </a-space>
         </template>
       </VxeTableList>
 
-      <!-- 新建/编辑弹窗 -->
-      <a-modal
-        v-model:open="formVisible"
+      <!-- 全屏详情抽屉（新建/编辑） -->
+      <FullScreenDetail
+        :visible="formVisible"
         :title="isEdit ? '编辑预算调整' : '新建预算调整'"
-        :width="600"
-        :confirm-loading="submitLoading"
-        @ok="handleFormSubmit"
+        :save-loading="submitLoading"
+        :show-save-and-new="!isEdit"
+        @close="handleFormClose"
+        @save="handleFormSubmit"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
           <a-row :gutter="16">
             <a-col :span="12">
-              <a-form-item label="预算ID" name="budgetId">
-                <a-input-number v-model:value="formData.budgetId" :min="1" style="width: 100%" placeholder="请输入预算ID" />
+              <a-form-item label="预算" name="budgetId">
+                <a-select v-model:value="formData.budgetId" placeholder="请选择预算" size="small" show-search :filter-option="budgetFilterOption">
+                  <a-select-option v-for="b in budgetOptions" :key="b.id" :value="b.id">{{ b.budgetNo }} - {{ b.departmentName }}</a-select-option>
+                </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="调整类型" name="adjustmentType">
-                <a-select v-model:value="formData.adjustmentType" placeholder="请选择">
+                <a-select v-model:value="formData.adjustmentType" placeholder="请选择" size="small">
                   <a-select-option value="increase">增加</a-select-option>
                   <a-select-option value="decrease">减少</a-select-option>
                   <a-select-option value="transfer">调剂</a-select-option>
@@ -147,47 +174,44 @@
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="金额" name="amount">
-                <a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" />
+                <a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="申请日期">
-                <a-date-picker v-model:value="formData.applyDate" style="width: 100%" />
+                <a-date-picker v-model:value="formData.applyDate" style="width: 100%" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
-          <a-form-item label="源科目ID" v-if="formData.adjustmentType === 'decrease' || formData.adjustmentType === 'transfer'">
-            <a-input-number v-model:value="formData.sourceSubjectId" :min="0" style="width: 100%" placeholder="减少/调出科目ID" />
+          <a-form-item label="源科目" v-if="formData.adjustmentType === 'decrease' || formData.adjustmentType === 'transfer'">
+            <a-input v-model:value="formData.sourceSubjectName" placeholder="减少/调出科目" size="small" />
           </a-form-item>
-          <a-form-item label="目标科目ID" v-if="formData.adjustmentType === 'increase' || formData.adjustmentType === 'transfer'">
-            <a-input-number v-model:value="formData.targetSubjectId" :min="0" style="width: 100%" placeholder="增加/调入科目ID" />
+          <a-form-item label="目标科目" v-if="formData.adjustmentType === 'increase' || formData.adjustmentType === 'transfer'">
+            <a-input v-model:value="formData.targetSubjectName" placeholder="增加/调入科目" size="small" />
           </a-form-item>
           <a-form-item label="调整原因" name="reason">
-            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入调整原因" />
+            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入调整原因" size="small" />
           </a-form-item>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="申请人">
-                <a-input v-model:value="formData.applicantName" placeholder="申请人" />
-              </a-form-item>
-            </a-col>
-          </a-row>
+          <a-form-item label="申请人">
+            <a-input v-model:value="formData.applicantName" placeholder="申请人" size="small" />
+          </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   EyeOutlined, EditOutlined, EllipsisOutlined, CheckCircleOutlined, AuditOutlined, CloseCircleOutlined, SearchOutlined, InboxOutlined,
-  FileOutlined, ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined
+  FileOutlined, ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, DownloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
-import { budgetAdjustmentApi, type BudgetAdjustment } from '@/api/budget'
+import { PageContainer, FullScreenDetail } from '@/components'
+import { budgetAdjustmentApi, annualBudgetApi, type BudgetAdjustment } from '@/api/budget'
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -198,6 +222,7 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const selectedRows = ref<BudgetAdjustment[]>([])
@@ -205,6 +230,39 @@ const selectedIds = ref<number[]>([])
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
+})
+
+// ── 预算选项 ────────────────────────────────────────────
+const budgetOptions = ref<{ id: number; budgetNo: string; departmentName: string }[]>([])
+const statLoading = ref(false)
+const statError = ref(false)
+
+function budgetFilterOption(input: string, option: any) {
+  return option.children?.toLowerCase().includes(input.toLowerCase())
+}
+
+// ── debounceClick ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: () => void) {
+  if (clickLocks.get(key)) return
+  clickLocks.set(key, true)
+  try { fn() } finally { setTimeout(() => clickLocks.set(key, false), 300) }
+}
+
+// ── Keyboard shortcuts ─────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', loadData) }
+}
+
+// ── 汇总行 ──────────────────────────────────────────────
+const summaryData = computed(() => {
+  if (tableData.value.length === 0) return []
+  const totalAmount = tableData.value.reduce((s, r) => s + (r.amount || 0), 0)
+  return [
+    { label: '调整总额', value: `¥${formatAmount(totalAmount)}`, type: 'currency' }
+  ]
 })
 
 // ── 统计数据 ────────────────────────────────────────────
@@ -266,6 +324,35 @@ const submitLoading = ref(false)
 const formRef = ref()
 const editId = ref<number | null>(null)
 
+// ── 表单脏状态跟踪 ──────────────────────────────────────
+const initialFormSnapshot = ref<string>('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({
+    budgetId: formData.budgetId,
+    adjustmentType: formData.adjustmentType,
+    amount: formData.amount,
+    reason: formData.reason,
+    applicantName: formData.applicantName,
+    applyDate: formData.applyDate,
+    sourceSubjectId: formData.sourceSubjectId,
+    targetSubjectId: formData.targetSubjectId,
+  })
+}
+const formDirty = computed(() => {
+  if (!formVisible.value) return false
+  const current = JSON.stringify({
+    budgetId: formData.budgetId,
+    adjustmentType: formData.adjustmentType,
+    amount: formData.amount,
+    reason: formData.reason,
+    applicantName: formData.applicantName,
+    applyDate: formData.applyDate,
+    sourceSubjectId: formData.sourceSubjectId,
+    targetSubjectId: formData.targetSubjectId,
+  })
+  return current !== initialFormSnapshot.value
+})
+
 const formData = reactive<BudgetAdjustment>({
   id: 0,
   adjustmentNo: '',
@@ -301,6 +388,7 @@ const formRules = {
 const loadData = async () => {
   loading.value = true
   try {
+    hasError.value = false
     const res = await budgetAdjustmentApi.page({
       budgetId: searchFilters.budgetId || undefined,
       status: searchFilters.status || undefined,
@@ -313,6 +401,7 @@ const loadData = async () => {
       pagination.total = res.data.total || 0
     }
   } catch {
+    hasError.value = true
     console.warn('[预算调整] 加载数据失败')
     tableData.value = []
     pagination.total = 0
@@ -356,10 +445,13 @@ const resetForm = () => {
   editId.value = null
 }
 
+function handleParentCreate() { handleAdd() }
+
 const handleAdd = () => {
   resetForm()
   isEdit.value = false
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleEdit = async (record: BudgetAdjustment) => {
@@ -380,6 +472,7 @@ const handleEdit = async (record: BudgetAdjustment) => {
       editId.value = d.id
       isEdit.value = true
       formVisible.value = true
+      nextTick(() => saveFormSnapshot())
     }
   } catch {
     console.warn('[预算调整] 获取详情失败')
@@ -388,32 +481,6 @@ const handleEdit = async (record: BudgetAdjustment) => {
 
 const handleView = (record: BudgetAdjustment) => {
   handleEdit(record)
-}
-
-const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    console.warn('[预算调整] 表单验证失败')
-    return
-  }
-  submitLoading.value = true
-  try {
-    if (isEdit.value && editId.value) {
-      await budgetAdjustmentApi.update(editId.value, { ...formData })
-      message.success('更新成功')
-    } else {
-      await budgetAdjustmentApi.create({ ...formData })
-      message.success('创建成功')
-    }
-    formVisible.value = false
-    loadData()
-  } catch (e: any) {
-    console.warn('[预算调整] 操作失败', e)
-    message.error(e?.response?.data?.message || '操作失败')
-  } finally {
-    submitLoading.value = false
-  }
 }
 
 const handleSubmit = async (record: BudgetAdjustment) => {
@@ -463,8 +530,147 @@ function handleActionMenuClick(key: string, record: BudgetAdjustment) {
   }
 }
 
+// ── 导出 ────────────────────────────────────────────────
+async function handleExport() {
+  try {
+    const res = await budgetAdjustmentApi.export({
+      budgetId: searchFilters.budgetId || undefined,
+      status: searchFilters.status || undefined,
+      adjustmentType: searchFilters.adjustmentType || undefined,
+    })
+    if (res.success && res.data?.length) {
+      const csv = res.data.map((r: any) => `${r.adjustmentNo},${r.adjustmentType},${r.amount},${r.status},${r.reason}`).join('\n')
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `预算调整_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click(); URL.revokeObjectURL(url)
+    }
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
+}
+
+// ── 批量操作 ────────────────────────────────────────────
+function canBatchSubmit(rows: BudgetAdjustment[]) {
+  return rows.some(r => r.status === 'draft')
+}
+
+async function handleBatchSubmit(rows: BudgetAdjustment[]) {
+  const draftIds = rows.filter(r => r.status === 'draft').map(r => r.id)
+  if (!draftIds.length) { message.warning('选中的记录中没有可提交的草稿'); return }
+  Modal.confirm({
+    title: '批量提交',
+    content: `确定提交选中的 ${draftIds.length} 项草稿？`,
+    onOk: async () => {
+      try {
+        await Promise.all(draftIds.map(id => budgetAdjustmentApi.submit(id)))
+        message.success(`已提交 ${draftIds.length} 项`)
+        loadData()
+      } catch { message.error('批量提交失败') }
+    },
+  })
+}
+
+async function handleBatchDelete(ids: number[]) {
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定删除 ${ids.length} 项调整记录？`,
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await Promise.all(ids.map(id => budgetAdjustmentApi.delete(id)))
+        message.success(`已删除 ${ids.length} 项`)
+        loadData()
+      } catch { message.error('批量删除失败') }
+    },
+  })
+}
+
+// ── 表单弹窗增强 ────────────────────────────────────────
+function handleFormClose() {
+  if (formRef.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定关闭吗？',
+      onOk: () => { formVisible.value = false }
+    })
+  } else {
+    formVisible.value = false
+  }
+}
+
+// ── 路由离开守卫 ─────────────────────────────────────────
+onBeforeRouteLeave((_to, _from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的内容，确定离开吗？',
+      onOk: () => { next() },
+      onCancel: () => { next(false) },
+    })
+  } else {
+    next()
+  }
+})
+
+async function handleFormSaveAndNew() {
+  await handleFormSubmit(true)
+  if (!submitLoading.value) {
+    resetForm()
+    isEdit.value = false
+    formVisible.value = true
+  }
+}
+
+async function handleFormSubmit(keepOpen?: boolean) {
+  try {
+    await formRef.value?.validate()
+  } catch {
+    console.warn('[预算调整] 表单验证失败')
+    return
+  }
+  submitLoading.value = true
+  try {
+    if (isEdit.value && editId.value) {
+      await budgetAdjustmentApi.update(editId.value, { ...formData })
+      message.success('更新成功')
+    } else {
+      await budgetAdjustmentApi.create({ ...formData })
+      message.success('创建成功')
+    }
+    if (!keepOpen) formVisible.value = false
+    loadData()
+  } catch (e: any) {
+    console.warn('[预算调整] 操作失败', e)
+    message.error(e?.response?.data?.message || '操作失败')
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+// ── 加载预算下拉选项 ────────────────────────────────────
+async function loadBudgetOptions() {
+  try {
+    const res = await annualBudgetApi.page({ pageNum: 0, pageSize: 200 })
+    if (res.success) {
+      budgetOptions.value = (res.data?.records || []).map((b: any) => ({
+        id: b.id, budgetNo: b.budgetNo || `#${b.id}`,
+        departmentName: b.departmentName || `预算${b.id}`
+      }))
+    }
+  } catch {
+    console.warn('[预算调整] 加载预算列表失败')
+    budgetOptions.value = []
+  }
+}
+
 onMounted(() => {
   loadData()
+  loadBudgetOptions()
+  window.addEventListener('budget:create', handleParentCreate)
+  window.addEventListener('budget:refresh', loadData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadData()
@@ -473,11 +679,15 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('budget:create', handleParentCreate)
+  window.removeEventListener('budget:refresh', loadData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: loadData })
@@ -528,6 +738,11 @@ defineExpose({ handleQuery: loadData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.adjustment-management :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -588,6 +803,14 @@ defineExpose({ handleQuery: loadData })
   margin-top: 12px;
 }
 
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
+}
+
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .action-cell-inner { flex-wrap: nowrap; }
 
@@ -608,4 +831,23 @@ defineExpose({ handleQuery: loadData })
     min-width: 120px;
   }
 }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.adjustment-management :deep(.ant-input-sm),
+.adjustment-management :deep(.ant-input-number-sm),
+.adjustment-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.adjustment-management :deep(.ant-picker-small),
+.adjustment-management :deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+
+.adjustment-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+
+.adjustment-management :deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

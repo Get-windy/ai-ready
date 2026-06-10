@@ -172,7 +172,8 @@ export const saleExchangeApi = {
 export interface StockItem {
   id: number; productCode: string; productName: string; specification?: string
   unit?: string; warehouseName?: string; quantity: number
-  availableQuantity?: number; lockedQuantity?: number; minStock?: number; maxStock?: number
+  availableQuantity?: number; lockedQuantity?: number; frozenQuantity?: number
+  minStock?: number; maxStock?: number
   lastInboundDate?: string; lastOutboundDate?: string; createTime?: string
 }
 export const stockApi = {
@@ -180,6 +181,8 @@ export const stockApi = {
     return request.get('/erp/stock/page', params)
   },
   getById(id: number) { return request.get(`/erp/stock/${id}`) },
+  export(params?: any) { return request.get('/erp/stock/export', params) },
+  getWarehouses(): Promise<any> { return request.get('/erp/stock/warehouses') },
 }
 
 // ── 库存盘点 ──────────────────────────────────────────
@@ -354,7 +357,7 @@ export interface PurchaseStats {
 }
 
 export const purchaseStatsApi = {
-  get(): Promise<ApiResponse<PurchaseStats>> {
-    return request.get('/erp/purchase/order/stats')
+  get(tenantId?: number): Promise<ApiResponse<PurchaseStats>> {
+    return request.get('/erp/purchase/order/stats', { tenantId: tenantId || 1 })
   }
 }

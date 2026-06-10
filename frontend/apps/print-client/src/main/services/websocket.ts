@@ -23,6 +23,7 @@ class WebSocketService {
   private store: Store
   private heartbeatInterval: NodeJS.Timeout | null = null
   private reconnectTimeout: NodeJS.Timeout | null = null
+  private onTaskCallback: ((task: any) => void) | null = null
 
   constructor() {
     this.store = new Store()
@@ -42,20 +43,31 @@ class WebSocketService {
     this.mainWindow = window
   }
 
+  public onTask(callback: (task: any) => void): void {
+    this.onTaskCallback = callback
+  }
+
   public connect(): void {
-    if (this.ws && this.isConnected) {
-      return
-    }
+    if (this.ws && this.isConnected) return
 
     try {
       this.ws = new WebSocket(this.config.serverUrl)
-      
+
       this.ws.on('open', () => {
         this.isConnected = true
         this.reconnectAttempts = 0
         this.startHeartbeat()
         this.sendToRenderer('websocket-connected', { serverUrl: this.config.serverUrl })
-        console.log('[WebSocket] Connected to server:', this.config.serverUrl)
+
+        // 发送客户端身份认证
+        this.send({
+          type: 'HEALTH_CHECK',
+          payload: {
+            clientId: this.getClientId(),
+            action: 'auth'
+          },
+          timestamp: Date.now()
+        })
       })
 
       this.ws.on('message', (data: WebSocket.Data) => {
@@ -71,18 +83,14 @@ class WebSocketService {
         this.isConnected = false
         this.stopHeartbeat()
         this.sendToRenderer('websocket-disconnected', { reason: 'Connection closed' })
-        console.log('[WebSocket] Connection closed')
         this.scheduleReconnect()
       })
 
       this.ws.on('error', (error: Error) => {
         this.isConnected = false
         this.sendToRenderer('websocket-error', { error: error.message })
-        console.error('[WebSocket] Error:', error.message)
       })
-
     } catch (error: any) {
-      console.error('[WebSocket] Failed to connect:', error.message)
       this.scheduleReconnect()
     }
   }
@@ -108,35 +116,30 @@ class WebSocketService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-      this.sendToRenderer('websocket-reconnect-failed', { 
+      this.sendToRenderer('websocket-reconnect-failed', {
         attempts: this.reconnectAttempts,
         maxAttempts: this.config.maxReconnectAttempts
       })
-      console.log('[WebSocket] Max reconnect attempts reached')
       return
     }
 
     this.reconnectAttempts++
-    this.sendToRenderer('websocket-reconnecting', { 
+    this.sendToRenderer('websocket-reconnecting', {
       attempt: this.reconnectAttempts,
-      maxAttempts: this.config.maxReconnectAttempts,
-      interval: this.config.reconnectInterval
+      maxAttempts: this.config.maxReconnectAttempts
     })
-    console.log(`[WebSocket] Reconnecting in ${this.config.reconnectInterval}ms (attempt ${this.reconnectAttempts})`)
 
-    this.reconnectTimeout = setTimeout(() => {
-      this.connect()
-    }, this.config.reconnectInterval)
+    this.reconnectTimeout = setTimeout(() => this.connect(), this.config.reconnectInterval)
   }
 
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
       if (this.ws && this.isConnected) {
-        this.ws.send(JSON.stringify({
+        this.send({
           type: 'HEALTH_CHECK',
           payload: { clientId: this.getClientId() },
           timestamp: Date.now()
-        }))
+        })
       }
     }, 30000)
   }
@@ -151,6 +154,9 @@ class WebSocketService {
   private handleMessage(message: PrintTaskMessage): void {
     switch (message.type) {
       case 'PRINT_TASK':
+        if (this.onTaskCallback) {
+          this.onTaskCallback(message.payload)
+        }
         this.sendToRenderer('print-task-received', message.payload)
         break
       case 'TASK_STATUS_UPDATE':
@@ -167,11 +173,7 @@ class WebSocketService {
   }
 
   public send(message: PrintTaskMessage): boolean {
-    if (!this.ws || !this.isConnected) {
-      console.warn('[WebSocket] Cannot send message: not connected')
-      return false
-    }
-
+    if (!this.ws || !this.isConnected) return false
     try {
       this.ws.send(JSON.stringify(message))
       return true
@@ -189,10 +191,15 @@ class WebSocketService {
     })
   }
 
+  public static sendTaskStatus(taskId: string, status: string, progress?: number): void {
+    // 委托给实例方法（保持向后兼容）
+    instance.sendTaskStatus(taskId, status, progress)
+  }
+
   private getClientId(): string {
     let clientId = this.store.get('clientId') as string
     if (!clientId) {
-      clientId = `print-client-${app.getName()}-${Date.now()}`
+      clientId = `print-client-${Date.now()}`
       this.store.set('clientId', clientId)
     }
     return clientId
@@ -209,29 +216,22 @@ class WebSocketService {
       this.connect()
       return { success: true, serverUrl: this.config.serverUrl }
     })
-
     ipcMain.handle('websocket-disconnect', async () => {
       this.disconnect()
       return { success: true }
     })
-
     ipcMain.handle('websocket-reconnect', async () => {
       this.reconnect()
       return { success: true }
     })
-
-    ipcMain.handle('websocket-status', async () => {
-      return {
-        isConnected: this.isConnected,
-        serverUrl: this.config.serverUrl,
-        reconnectAttempts: this.reconnectAttempts
-      }
-    })
-
-    ipcMain.handle('websocket-send', async (_event, message: PrintTaskMessage) => {
-      return { success: this.send(message) }
-    })
-
+    ipcMain.handle('websocket-status', async () => ({
+      isConnected: this.isConnected,
+      serverUrl: this.config.serverUrl,
+      reconnectAttempts: this.reconnectAttempts
+    }))
+    ipcMain.handle('websocket-send', async (_event, message: PrintTaskMessage) => ({
+      success: this.send(message)
+    }))
     ipcMain.handle('websocket-config-update', async (_event, config: Partial<WebSocketConfig>) => {
       if (config.serverUrl) {
         this.store.set('websocket.serverUrl', config.serverUrl)
@@ -249,7 +249,7 @@ class WebSocketService {
     })
   }
 
-  public getStatus(): { isConnected: boolean; serverUrl: string; reconnectAttempts: number } {
+  public getStatus() {
     return {
       isConnected: this.isConnected,
       serverUrl: this.config.serverUrl,
@@ -258,4 +258,6 @@ class WebSocketService {
   }
 }
 
-export default new WebSocketService()
+const instance = new WebSocketService()
+export { WebSocketService }
+export default instance

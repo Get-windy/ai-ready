@@ -2,6 +2,7 @@ package cn.aiedge.erp.fixedasset.repository;
 
 import cn.aiedge.erp.fixedasset.model.FixedAssetDepreciation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.Optional;
  * 固定资产折旧记录仓库
  */
 @Repository
-public interface FixedAssetDepreciationRepository extends JpaRepository<FixedAssetDepreciation, Long> {
+public interface FixedAssetDepreciationRepository extends JpaRepository<FixedAssetDepreciation, Long>, JpaSpecificationExecutor<FixedAssetDepreciation> {
 
     List<FixedAssetDepreciation> findByAssetIdOrderByPeriodDesc(Long assetId);
 

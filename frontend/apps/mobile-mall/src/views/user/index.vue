@@ -17,14 +17,14 @@ const menuItems = [
   { icon: 'setting-o', title: '设置', path: '/user/settings' }
 ]
 
-const handleLogout = () => {
-  Dialog.confirm({
+const handleLogout = async () => {
+  const confirmed = await Dialog.confirm({
     title: '提示',
     message: '确定要退出登录吗？'
-  }).then(() => {
-    userStore.logout()
-    router.push('/login')
-  }).catch((err) => { console.error('退出登录操作失败:', err) })
+  }).catch(() => false)
+  if (!confirmed) return
+  userStore.logout()
+  router.push('/login')
 }
 
 onMounted(() => {

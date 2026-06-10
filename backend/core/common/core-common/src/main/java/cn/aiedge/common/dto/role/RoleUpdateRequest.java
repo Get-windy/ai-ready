@@ -21,6 +21,11 @@ public class RoleUpdateRequest {
     @Size(max = 20, message = "角色类型长度不能超过20")
     private String roleType;
 
+    /**
+     * 角色作用域：PLATFORM-平台级 TENANT-租户级
+     */
+    private String scope;
+
     private Integer dataScope;
 
     private Long parentId;

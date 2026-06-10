@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleQuery">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleQuery)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -83,6 +83,7 @@
             v-model:value="queryForm.taskName"
             placeholder="请输入任务名称"
             allow-clear
+            size="small"
           />
         </a-form-item>
         <a-form-item label="流程名称">
@@ -90,6 +91,7 @@
             v-model:value="queryForm.processName"
             placeholder="请输入流程名称"
             allow-clear
+            size="small"
           />
         </a-form-item>
         <a-form-item label="优先级">
@@ -97,6 +99,7 @@
             v-model:value="queryForm.priority"
             placeholder="请选择优先级"
             allow-clear
+            size="small"
             style="width: 100px"
           >
             <a-select-option value="high">高</a-select-option>
@@ -107,6 +110,7 @@
         <a-form-item label="创建时间">
           <a-range-picker
             v-model:value="queryForm.dateRange"
+            size="small"
             value-format="YYYY-MM-DD"
           />
         </a-form-item>
@@ -117,6 +121,7 @@
       </a-form>
 
       <!-- 数据表格 -->
+      <div class="table-wrapper">
       <VxeTableList
         :columns="vxeColumns"
         :data-source="tableData"
@@ -129,6 +134,7 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="handleView"
         @page-change="handlePageChange"
       >
         <template #priorityCell="{ record }">
@@ -151,27 +157,61 @@
             </template>
           </a-dropdown>
         </template>
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="debounceClick('refresh', handleQuery)()" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的任务记录，<a @click="handleReset">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">暂无任务记录</p>
+            </template>
+          </div>
+        </template>
       </VxeTableList>
+      </div>
     </a-card>
 
     <!-- 详情对话框 -->
     <a-drawer v-model:open="detailVisible" title="任务详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions bordered :column="2">
-        <a-descriptions-item label="任务ID">{{ detailData.taskId }}</a-descriptions-item>
-        <a-descriptions-item label="任务名称">{{ detailData.taskName }}</a-descriptions-item>
-        <a-descriptions-item label="流程名称">{{ detailData.processName }}</a-descriptions-item>
-        <a-descriptions-item label="优先级">
-          <a-tag :color="getPriorityColor(detailData.priority)">{{ getPriorityLabel(detailData.priority) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="处理人">{{ detailData.assignee }}</a-descriptions-item>
-        <a-descriptions-item label="当前节点">{{ detailData.currentNode }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="截止时间">{{ detailData.dueTime }}</a-descriptions-item>
-        <a-descriptions-item label="任务描述" :span="2">{{ detailData.description }}</a-descriptions-item>
-        <a-descriptions-item label="业务数据" :span="2">
-          <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
-        </a-descriptions-item>
-      </a-descriptions>
+      <template #extra>
+        <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.taskId)" :loading="detailLoading" :disabled="!detailRecord">
+          <template #icon><ReloadOutlined /></template>
+        </a-button>
+      </template>
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2">
+            <a-descriptions-item label="任务ID">{{ detailData.taskId }}</a-descriptions-item>
+            <a-descriptions-item label="任务名称">{{ detailData.taskName }}</a-descriptions-item>
+            <a-descriptions-item label="流程名称">{{ detailData.processName }}</a-descriptions-item>
+            <a-descriptions-item label="优先级">
+              <a-tag :color="getPriorityColor(detailData.priority)">{{ getPriorityLabel(detailData.priority) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="处理人">{{ detailData.assignee }}</a-descriptions-item>
+            <a-descriptions-item label="当前节点">{{ detailData.currentNode }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="截止时间">{{ detailData.dueTime }}</a-descriptions-item>
+            <a-descriptions-item label="任务描述" :span="2">{{ detailData.description }}</a-descriptions-item>
+            <a-descriptions-item label="业务数据" :span="2">
+              <pre>{{ detailData.businessData ? JSON.stringify(JSON.parse(detailData.businessData), null, 2) : '无' }}</pre>
+            </a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.taskId)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 审批对话框 -->
@@ -185,10 +225,10 @@
           </a-radio-group>
         </a-form-item>
         <a-form-item label="审批备注">
-          <a-textarea v-model:value="approveForm.comment" :rows="4" placeholder="请输入审批备注" />
+          <a-textarea v-model:value="approveForm.comment" size="small" :rows="4" placeholder="请输入审批备注" />
         </a-form-item>
         <a-form-item v-if="approveForm.approval === 'return'" label="退回节点">
-          <a-select v-model:value="approveForm.returnNode" placeholder="请选择退回节点">
+          <a-select v-model:value="approveForm.returnNode" size="small" placeholder="请选择退回节点">
             <a-select-option value="start">发起人</a-select-option>
             <a-select-option value="previous">上一节点</a-select-option>
           </a-select>
@@ -200,14 +240,14 @@
     <a-modal v-model:open="transferVisible" :title="transferDialogTitle" :width="500" @ok="handleConfirmTransfer" @cancel="handleCancelTransfer">
       <a-form :model="transferForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
         <a-form-item label="目标用户">
-          <a-select v-model:value="transferForm.targetUser" placeholder="请选择用户" show-search :filter-option="filterUserOption">
+          <a-select v-model:value="transferForm.targetUser" size="small" placeholder="请选择用户" show-search :filter-option="filterUserOption">
             <a-select-option v-for="u in userList" :key="u.id" :value="u.id">
               {{ u.nickname || u.username }}
             </a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="transferForm.comment" :rows="4" placeholder="请输入备注" />
+          <a-textarea v-model:value="transferForm.comment" size="small" :rows="4" placeholder="请输入备注" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -218,12 +258,22 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined, ReloadOutlined, SyncOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import request from '@/utils/request'
 import { userApi } from '@/api/user'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // 自动刷新
 const lastUpdateTime = ref('')
@@ -231,6 +281,8 @@ const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+const hasError = ref(false)
 
 // 当前标签页
 const activeTab = ref('todo')
@@ -250,6 +302,10 @@ const tableData = ref<any[]>([])
 const todoCount = computed(() => activeTab.value === 'todo' ? tableData.value.length : 0)
 const highPriorityCount = computed(() => tableData.value.filter(r => r.priority === 'high').length)
 const overdueCount = computed(() => tableData.value.filter(r => r.dueTime && new Date(r.dueTime) < new Date()).length)
+
+const hasActiveFilters = computed(() => {
+  return queryForm.taskName || queryForm.processName || queryForm.priority || queryForm.dateRange?.length > 0
+})
 
 // 表格列定义
 const vxeColumns = [
@@ -277,7 +333,10 @@ const pagination = reactive({
 
 // 详情对话框
 const detailVisible = ref(false)
-const detailData = ref<any>({})
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 
 // 审批对话框
 const approveVisible = ref(false)
@@ -328,6 +387,7 @@ const handleTabChange = () => {
 // 查询
 const handleQuery = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await request.get('/workflow/task/page', {
       params: {
@@ -344,6 +404,7 @@ const handleQuery = async () => {
     tableData.value = res.data?.records || []
     pagination.total = res.data?.total || 0
   } catch (error: any) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[工作流] 获取任务列表失败', error)
@@ -373,9 +434,30 @@ const handlePageChange = (page: number, size: number) => {
 }
 
 // 查看详情
+const handleView = (record: any) => {
+  const row = record?.row ?? record
+  handleViewDetail(row)
+}
+
 const handleViewDetail = (record: any) => {
-  detailData.value = record
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.taskId)
+}
+
+async function fetchDetail(taskId: string) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await request.get('/workflow/task/detail', { params: { taskId } })
+    detailData.value = res.data || res
+  } catch (err: any) {
+    console.warn('[工作流] 获取任务详情失败', err)
+    detailError.value = err?.message || '获取任务详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 // 审批
@@ -487,6 +569,15 @@ const getPriorityLabel = (priority: string) => {
 }
 
 // 初始加载
+function handleParentCreate() { handleAdd() }
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', handleQuery)()
+  }
+}
+
 onMounted(() => {
   handleQuery()
   fetchUserList()
@@ -498,17 +589,47 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('workflow:create', handleParentCreate)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('workflow:create', handleParentCreate)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery })
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.table-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 .workflow-page-header {
   display: flex;
   justify-content: space-between;
@@ -615,4 +736,15 @@ pre {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

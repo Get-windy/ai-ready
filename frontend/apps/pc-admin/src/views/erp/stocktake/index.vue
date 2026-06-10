@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @reset="fetchData">
   <PageContainer full-height>
     <template #header>
       <div class="stocktake-header">
@@ -17,7 +18,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -91,13 +92,23 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @selection-change="handleSelectionChange"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
+        <a-button size="small" @click="handleExport">
+          <template #icon><DownloadOutlined /></template>
+          导出
+        </a-button>
       </template>
 
       <template #empty>
-        <div class="table-empty">
+        <div v-if="hasError" class="table-empty">
+          <WarningOutlined class="table-empty-icon" />
+          <p class="table-empty-text">数据加载异常，请重试</p>
+          <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
+        </div>
+        <div v-else class="table-empty">
           <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
           <InboxOutlined v-else class="table-empty-icon" />
           <p v-if="hasActiveFilters" class="table-empty-text">
@@ -116,14 +127,28 @@
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="record.status === 0" title="开始盘点">
-            <a-button type="link" size="small" @click="handleStart(record)">
+          <!-- 草稿 -> 编辑 -->
+          <a-tooltip v-if="record.status === 0" title="编辑">
+            <a-button type="link" size="small" @click="handleView(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <!-- 已审批 -> 开始盘点 -->
+          <a-tooltip v-if="record.status === 2" title="开始盘点">
+            <a-button type="link" size="small" @click="confirmStart(record)">
               <template #icon><FormOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="record.status === 1" title="完成盘点">
-            <a-button type="link" size="small" @click="handleComplete(record)">
+          <!-- 进行中 -> 完成盘点 -->
+          <a-tooltip v-if="record.status === 5" title="完成盘点">
+            <a-button type="link" size="small" @click="confirmComplete(record)">
               <template #icon><CheckOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <!-- 已完成有差异 -> 库存调整 -->
+          <a-tooltip v-if="record.status === 6 && record.diffItems > 0" title="库存调整">
+            <a-button type="link" size="small" @click="confirmAdjust(record)">
+              <template #icon><AuditOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-dropdown trigger="click">
@@ -147,27 +172,142 @@
       title="盘点单详情"
       placement="right"
       width="80vw"
-      :footer="null"
     >
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="盘点单号">{{ currentRecord.stocktakeNo }}</a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="盘点日期">{{ currentRecord.stocktakeDate }}</a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <StatusTag :status="currentRecord.status" :map="STOCKTAKE_STATUS_ORDER" />
-        </a-descriptions-item>
-        <a-descriptions-item label="系统数量">{{ currentRecord.systemQuantity }}</a-descriptions-item>
-        <a-descriptions-item label="实际数量">{{ currentRecord.actualQuantity }}</a-descriptions-item>
-        <a-descriptions-item label="差异">
-          <span :class="{ 'positive': currentRecord.difference > 0, 'negative': currentRecord.difference < 0 }">
-            {{ currentRecord.difference > 0 ? '+' : '' }}{{ currentRecord.difference }}
-          </span>
-        </a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-spin :spinning="detailLoading">
+        <a-descriptions bordered :column="2" v-if="detailData">
+          <a-descriptions-item label="盘点单号">{{ detailData.checkNo || detailData.stocktakeNo }}</a-descriptions-item>
+          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+          <a-descriptions-item label="盘点日期">{{ detailData.checkDate ? dayjs(detailData.checkDate).format('YYYY-MM-DD') : (detailData.stocktakeDate || '-') }}</a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <StatusTag :status="detailData.status" :map="STOCKTAKE_STATUS_ORDER" />
+          </a-descriptions-item>
+          <a-descriptions-item label="盘点类型">
+            {{ detailData.checkType === 1 ? '全盘' : detailData.checkType === 2 ? '抽盘' : detailData.checkType === 3 ? '动态盘点' : '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="操作人">{{ detailData.creatorName || detailData.operator || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="盘点人">{{ detailData.checkerName || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="监盘人">{{ detailData.supervisorName || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="系统数量">{{ detailData.totalBookQuantity ?? detailData.systemQuantity ?? '-' }}</a-descriptions-item>
+          <a-descriptions-item label="实际数量">{{ detailData.totalActualQuantity ?? detailData.actualQuantity ?? '-' }}</a-descriptions-item>
+          <a-descriptions-item label="差异">
+            <span :class="{ 'positive': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0, 'negative': (detailData.totalDiffQuantity ?? detailData.difference ?? 0) < 0 }">
+              {{ (detailData.totalDiffQuantity ?? detailData.difference ?? 0) > 0 ? '+' : '' }}{{ detailData.totalDiffQuantity ?? detailData.difference ?? 0 }}
+            </span>
+          </a-descriptions-item>
+          <a-descriptions-item label="差异项数">{{ detailData.diffItems ?? '-' }}</a-descriptions-item>
+          <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+        </a-descriptions>
+        <template v-if="detailData">
+          <h4 style="margin: 16px 0 8px;">盘点明细</h4>
+          <a-table
+            :data-source="detailItems"
+            :columns="detailColumns"
+            :pagination="false"
+            size="small"
+            bordered
+            row-key="id"
+          />
+        </template>
+      </a-spin>
+      <template #footer v-if="detailData">
+        <a-space>
+          <a-button v-if="detailData.status === 0" @click="handleEdit(detailData)">
+            <template #icon><EditOutlined /></template>
+            编辑
+          </a-button>
+          <a-button v-if="detailData.status === 2" type="primary" @click="confirmStart(detailData)">
+            <template #icon><FormOutlined /></template>
+            开始盘点
+          </a-button>
+          <a-button v-if="detailData.status === 5" type="primary" @click="confirmComplete(detailData)">
+            <template #icon><CheckOutlined /></template>
+            完成盘点
+          </a-button>
+          <a-button v-if="detailData.status === 6 && detailData.diffItems > 0" type="primary" @click="confirmAdjust(detailData)">
+            <template #icon><AuditOutlined /></template>
+            库存调整
+          </a-button>
+          <PrintButton v-if="detailData.status >= 6" template-type="stocktake" :business-id="detailData.id" business-type="stocktake" button-text="打印" button-size="small" />
+        </a-space>
+      </template>
     </a-drawer>
   </PageContainer>
+
+  <!-- 新建盘点单弹窗 -->
+  <a-modal
+    v-model:open="createModalVisible"
+    title="新建盘点单"
+    width="600px"
+    :confirm-loading="submitLoading"
+    @ok="handleCreateSubmit"
+    @cancel="handleCreateCancel"
+    :mask-closable="false"
+    destroy-on-close
+  >
+    <a-form
+      ref="createFormRef"
+      :model="createForm"
+      :rules="formRules"
+      layout="vertical"
+    >
+      <a-form-item label="创建方式">
+        <a-radio-group v-model:value="createMode">
+          <a-radio value="blank">创建空白盘点单</a-radio>
+          <a-radio value="from-stock">从仓库库存生成明细</a-radio>
+        </a-radio-group>
+      </a-form-item>
+
+      <a-form-item label="仓库" name="warehouseId">
+        <a-select
+          v-model:value="createForm.warehouseId"
+          :options="warehouseOptions"
+          placeholder="请选择仓库"
+          show-search
+          :filter-option="(input, option) => option.label.toLowerCase().includes(input.toLowerCase())"
+          allow-clear
+        />
+      </a-form-item>
+
+      <a-form-item label="盘点日期" name="checkDate">
+        <a-date-picker
+          v-model:value="createForm.checkDate"
+          value-format="YYYY-MM-DD"
+          style="width: 100%"
+          placeholder="请选择盘点日期"
+        />
+      </a-form-item>
+
+      <a-form-item label="盘点类型" name="checkType">
+        <a-select
+          v-model:value="createForm.checkType"
+          placeholder="请选择盘点类型"
+          :options="[
+            { label: '全盘', value: 1 },
+            { label: '抽盘', value: 2 },
+            { label: '动态盘点', value: 3 },
+          ]"
+        />
+      </a-form-item>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="盘点人" name="checkerName">
+            <a-input v-model:value="createForm.checkerName" placeholder="请输入盘点人姓名" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="监盘人" name="supervisorName">
+            <a-input v-model:value="createForm.supervisorName" placeholder="请输入监盘人姓名" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-form-item label="备注" name="remark">
+        <a-textarea v-model:value="createForm.remark" placeholder="请输入备注" :rows="3" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -177,10 +317,10 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { STOCKTAKE_STATUS_ORDER } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'
-import { stockCheckApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 import {
+  DownloadOutlined,
   EyeOutlined,
   FormOutlined,
   CheckOutlined,
@@ -191,9 +331,26 @@ import {
   FileTextOutlined,
   ClockCircleOutlined,
   SyncOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  WarningOutlined,
+  EditOutlined,
+  AuditOutlined
 } from '@ant-design/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { PageContainer } from '@/components'
+import PrintButton from '@/components/business/print-button/PrintButton.vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+function handleError(err: any) { console.warn('[Stocktake]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 interface Stocktake {
   id: number
@@ -210,6 +367,7 @@ interface Stocktake {
 
 const userStore = useUserStore()
 const loading = ref(false)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -268,9 +426,15 @@ const filterFields = computed(() => [
   { key: 'stocktakeNo', label: '盘点单号', type: 'input' as const, placeholder: '请输入盘点单号' },
   { key: 'warehouseId', label: '仓库', type: 'select' as const, options: warehouseOptions.value },
   { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '待审核', value: 0 },
-    { label: '盘点中', value: 1 },
-    { label: '已完成', value: 2 },
+    { label: '草稿', value: 0 },
+    { label: '待审批', value: 1 },
+    { label: '已审批', value: 2 },
+    { label: '已拒绝', value: 3 },
+    { label: '盘点中', value: 4 },
+    { label: '进行中', value: 5 },
+    { label: '已完成', value: 6 },
+    { label: '已调整', value: 7 },
+    { label: '已取消', value: 8 },
   ]},
 ])
 
@@ -303,19 +467,132 @@ const handleResetFilters = () => {
   fetchData()
 }
 
+function handleParentCreate() { handleCreate() }
+
+// ── 新建盘点单弹窗 ──────────────────────────────────────────
+const createModalVisible = ref(false)
+const createMode = ref<'blank' | 'from-stock'>('blank')
+const submitLoading = ref(false)
+const createFormRef = ref()
+
+const createForm = reactive({
+  warehouseId: undefined as number | undefined,
+  checkDate: dayjs().format('YYYY-MM-DD'),
+  checkType: 1,
+  checkerName: userStore?.realName || userStore?.username || '',
+  supervisorName: '',
+  remark: ''
+})
+
+const formRules: Record<string, any[]> = {
+  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
+  checkDate: [{ required: true, message: '请选择盘点日期', trigger: 'change' }],
+}
+
 const handleCreate = () => {
-  message.info('打开新建盘点单表单')
+  createMode.value = 'blank'
+  createForm.warehouseId = undefined
+  createForm.checkDate = dayjs().format('YYYY-MM-DD')
+  createForm.checkType = 1
+  createForm.checkerName = userStore?.realName || userStore?.username || ''
+  createForm.supervisorName = ''
+  createForm.remark = ''
+  createModalVisible.value = true
+}
+
+const handleCreateSubmit = async () => {
+  try {
+    await createFormRef.value?.validate()
+  } catch {
+    return
+  }
+
+  submitLoading.value = true
+  try {
+    const payload: Record<string, any> = {
+      checkType: createForm.checkType,
+      warehouseId: createForm.warehouseId,
+      warehouseName: warehouseOptions.value.find(o => o.value === createForm.warehouseId)?.label || '',
+      checkDate: createForm.checkDate,
+    }
+    if (createForm.checkerName) payload.checkerName = createForm.checkerName
+    if (createForm.supervisorName) payload.supervisorName = createForm.supervisorName
+    if (createForm.remark) payload.remark = createForm.remark
+
+    if (createMode.value === 'from-stock' && createForm.warehouseId) {
+      await request.post(`/erp/stock/check/create-with-items/${createForm.warehouseId}`, payload)
+      message.success('盘点单创建成功（含库存明细）')
+    } else {
+      await request.post('/erp/stock/check', payload)
+      message.success('空白盘点单创建成功')
+    }
+
+    createModalVisible.value = false
+    fetchData()
+  } catch (err) {
+    console.warn('[库存盘点] 创建盘点单失败', err)
+    message.error('创建盘点单失败')
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+const handleCreateCancel = () => {
+  createModalVisible.value = false
+}
+
+const detailData = ref<Stocktake | null>(null)
+const detailLoading = ref(false)
+const detailItems = ref<any[]>([])
+const detailColumns = [
+  { title: '产品编码', dataIndex: 'productCode', key: 'productCode' },
+  { title: '产品名称', dataIndex: 'productName', key: 'productName' },
+  { title: '规格', dataIndex: 'productSpec', key: 'productSpec' },
+  { title: '系统数量', dataIndex: 'bookQuantity', key: 'bookQuantity' },
+  { title: '实际数量', dataIndex: 'actualQuantity', key: 'actualQuantity' },
+  {
+    title: '差异',
+    dataIndex: 'diffQuantity',
+    key: 'diffQuantity',
+    customRender: ({ text }: { text: number }) => {
+      const prefix = text > 0 ? '+' : ''
+      const color = text > 0 ? '#3f8600' : text < 0 ? '#ff4d4f' : undefined
+      return h('span', { style: { color, fontWeight: 'bold' } }, `${prefix}${text}`)
+    }
+  },
+]
+
+const fetchDetail = async (id: number) => {
+  detailLoading.value = true
+  detailItems.value = []
+  try {
+    const res = await request.get(`/erp/stock/check/${id}`)
+    detailData.value = res.data || null
+    // 获取盘点明细
+    try {
+      const itemsRes = await request.get(`/erp/stock/check/${id}/items`)
+      detailItems.value = itemsRes?.data || []
+    } catch {
+      detailItems.value = []
+    }
+  } catch (err) {
+    console.warn('[库存盘点] 获取详情失败', err)
+    detailData.value = dataSource.value.find(item => item.id === id) || null
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 const handleView = (record: Stocktake) => {
-  currentRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
 }
 
 const handleStart = async (record: Stocktake) => {
   try {
-    await stockCheckApi.startCheck(record.id)
+    await request.put(`/erp/stock/check/${record.id}/start`)
     message.success(`开始盘点: ${record.stocktakeNo}`)
+    detailVisible.value = false
     fetchData()
   } catch (err) {
     console.warn('[库存盘点] 开始盘点失败', err)
@@ -325,8 +602,9 @@ const handleStart = async (record: Stocktake) => {
 
 const handleComplete = async (record: Stocktake) => {
   try {
-    await stockCheckApi.completeCheck(record.id)
+    await request.put(`/erp/stock/check/${record.id}/complete`)
     message.success(`盘点完成: ${record.stocktakeNo}`)
+    detailVisible.value = false
     fetchData()
   } catch (err) {
     console.warn('[库存盘点] 完成盘点失败', err)
@@ -357,6 +635,73 @@ const handleActionMenuClick = (key: string, record: Stocktake) => {
   }
 }
 
+const handleEdit = (record: Stocktake) => {
+  router.push(`/erp/stocktake/${record.id}`)
+}
+
+const confirmStart = (record: Stocktake) => {
+  Modal.confirm({
+    title: '确认开始盘点',
+    content: `确认开始盘点 ${record.stocktakeNo} 吗？`,
+    okText: '确定',
+    cancelText: '取消',
+    onOk: () => handleStart(record)
+  })
+}
+
+const confirmComplete = (record: Stocktake) => {
+  Modal.confirm({
+    title: '确认完成盘点',
+    content: `确认完成盘点 ${record.stocktakeNo} 吗？完成后可进行库存调整。`,
+    okText: '确定',
+    cancelText: '取消',
+    onOk: () => handleComplete(record)
+  })
+}
+
+const confirmAdjust = (record: Stocktake) => {
+  Modal.confirm({
+    title: '库存调整确认',
+    content: `盘点单 ${record.stocktakeNo} 存在差异，确认按盘点结果调整库存？`,
+    okText: '确认调整',
+    cancelText: '取消',
+    onOk: () => handleAdjust(record)
+  })
+}
+
+const handleAdjust = async (record: Stocktake) => {
+  try {
+    await request.post(`/erp/stock/check/${record.id}/adjust`)
+    message.success(`库存调整完成: ${record.stocktakeNo}`)
+    detailVisible.value = false
+    fetchData()
+  } catch (err) {
+    console.warn('[库存盘点] 库存调整失败', err)
+    message.error('库存调整失败')
+  }
+}
+
+const handleExport = async () => {
+  try {
+    const res = await request.get('/erp/stock/check/export', null, {
+      params: { ...searchFilters },
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([res]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `盘点单_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (err) {
+    console.warn('[库存盘点] 导出失败', err)
+    message.error('导出失败')
+  }
+}
+
 const handlePageChange = (page: number, size: number) => {
   pagination.current = page
   pagination.pageSize = size
@@ -369,6 +714,7 @@ const handleSelectionChange = (rows: Stocktake[], ids: number[]) => {
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
     handleCreate()
@@ -377,6 +723,8 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('erp:create', handleParentCreate)
+  window.addEventListener('erp:refresh', fetchData)
   loadWarehouses()
   fetchData()
   autoRefreshCountdown.value = 30
@@ -391,6 +739,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('erp:create', handleParentCreate)
+  window.removeEventListener('erp:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -398,15 +748,16 @@ onUnmounted(() => {
 defineExpose({ handleQuery: fetchData })
 
 const fetchData = async () => {
+  hasError.value = false
   loading.value = true
   try {
-    const res = await stockCheckApi.page({
+    const res = await request.get('/erp/stock/check/page', { params: {
       tenantId: userStore.tenantId,
       keyword: searchFilters.stocktakeNo || undefined,
       status: searchFilters.status,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
-    })
+    }})
     if (res.data?.records) {
       dataSource.value = res.data.records.map((item) => ({
         id: item.id,
@@ -421,17 +772,25 @@ const fetchData = async () => {
         remark: item.remark || ''
       }))
       pagination.total = res.data.total || 0
-      // 更新统计
-      statistics.value.totalCount = dataSource.value.length
-      statistics.value.pendingCount = dataSource.value.filter(item => item.status === 0).length
-      statistics.value.processingCount = dataSource.value.filter(item => item.status === 1).length
-      statistics.value.completedCount = dataSource.value.filter(item => item.status === 2).length
+      // 优先使用 API 返回的全局统计数据，避免仅基于当前页计算
+      if (res.data.totalCount !== undefined) {
+        statistics.value.totalCount = res.data.totalCount
+        statistics.value.pendingCount = res.data.pendingCount || 0
+        statistics.value.processingCount = res.data.processingCount || 0
+        statistics.value.completedCount = res.data.completedCount || 0
+      } else {
+        statistics.value.totalCount = dataSource.value.length
+        statistics.value.pendingCount = dataSource.value.filter(item => item.status === 0).length
+        statistics.value.processingCount = dataSource.value.filter(item => item.status === 1).length
+        statistics.value.completedCount = dataSource.value.filter(item => item.status === 2).length
+      }
     } else {
       dataSource.value = []
       pagination.total = 0
     }
     lastUpdated.value = new Date().toISOString()
   } catch (error) {
+    hasError.value = true
     console.warn('[库存盘点] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
@@ -596,10 +955,25 @@ const fetchData = async () => {
   color: #faad14;
 }
 
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
 
-
-
-
-
-/* 空占位行 */
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

@@ -26,12 +26,18 @@ sa-token:
   token-name: Authorization
   timeout: 7200
   active-timeout: 1800
-  is-concurrent: true
-  is-share: true
-  token-style: uuid
+  # 禁止同账号多地并发登录：新登录会踢掉旧会话
+  is-concurrent: false
+  # 同账号登录时是否共享 Token（is-concurrent=false 时此配置不生效）
+  is-share: false
+  # 被踢下线后，再次访问时提示
+  is-login-kick: true
+  token-style: jwt
+  jwt-secret: ${SA_TOKEN_JWT_SECRET:ai-ready-production-jwt-secret-key-2024}
   is-log: false
   is-read-header: true
   is-read-cookie: false
+  token-prefix: "Bearer"
 
 # 日志配置
 logging:
@@ -39,3 +45,8 @@ logging:
     root: INFO
     cn.aiedge: INFO
     org.springframework.cloud.gateway: INFO
+
+# 密码策略配置
+password:
+  policy:
+    max-age-days: 90

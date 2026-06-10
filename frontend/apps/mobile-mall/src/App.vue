@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { useCartStore } from '@/stores/cart'
 import TabBar from '@/components/layout/TabBar.vue'
 
+// 初始化商店（从 localStorage 恢复）
 const userStore = useUserStore()
-const showTabBar = ref(true)
+const cartStore = useCartStore()
+userStore.init()
+cartStore.loadCart()
 
 const tabBarItems = [
   { key: 'home', icon: 'wap-home-o', text: '首页', path: '/' },
@@ -16,12 +20,8 @@ const tabBarItems = [
 
 <template>
   <div class="mall-app">
-    <router-view v-slot="{ Component }">
-      <keep-alive>
-        <component :is="Component" />
-      </keep-alive>
-    </router-view>
-    <TabBar v-if="showTabBar" :items="tabBarItems" />
+    <router-view />
+    <TabBar :items="tabBarItems" />
   </div>
 </template>
 

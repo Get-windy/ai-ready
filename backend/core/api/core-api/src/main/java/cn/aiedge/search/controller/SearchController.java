@@ -1,6 +1,7 @@
 package cn.aiedge.search.controller;
 
 import cn.aiedge.search.model.*;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.search.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,6 +29,7 @@ import java.util.Map;
 @RequestMapping("/api/search")
 @RequiredArgsConstructor
 @Tag(name = "搜索服务", description = "提供全文搜索、搜索建议、搜索历史等功能")
+@SaCheckLogin
 public class SearchController {
 
     private final SearchService searchService;

@@ -1,5 +1,6 @@
 package cn.aiedge.dict.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.dict.dto.DictItemDTO;
 import cn.aiedge.dict.model.DictItem;
 import cn.aiedge.dict.service.DictItemService;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /**
  * 字典项控制器
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -31,6 +32,7 @@ public class DictItemController {
     private final DictItemService dictItemService;
 
     @PostMapping
+    @SaCheckPermission("system:dict:create")
     @Operation(summary = "创建字典项")
     public Map<String, Object> create(@Valid @RequestBody DictItemDTO dictItemDTO) {
         Long id = dictItemService.create(dictItemDTO);
@@ -38,6 +40,7 @@ public class DictItemController {
     }
 
     @PostMapping("/batch")
+    @SaCheckPermission("system:dict:create")
     @Operation(summary = "批量创建字典项")
     public Map<String, Object> batchCreate(@Valid @RequestBody List<DictItemDTO> dictItemDTOs) {
         int count = dictItemService.batchCreate(dictItemDTOs);
@@ -45,6 +48,7 @@ public class DictItemController {
     }
 
     @PutMapping
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "更新字典项")
     public Map<String, Object> update(@Valid @RequestBody DictItemDTO dictItemDTO) {
         boolean result = dictItemService.update(dictItemDTO);
@@ -52,6 +56,7 @@ public class DictItemController {
     }
 
     @DeleteMapping("/{id}")
+    @SaCheckPermission("system:dict:delete")
     @Operation(summary = "删除字典项")
     public Map<String, Object> delete(
             @Parameter(description = "字典项ID") @PathVariable Long id) {
@@ -98,7 +103,7 @@ public class DictItemController {
             @Parameter(description = "状态") @RequestParam(required = false) String status,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize) {
-        
+
         Map<String, Object> params = Map.of(
             "tenantId", tenantId != null ? tenantId : 1L,
             "dictTypeId", dictTypeId != null ? dictTypeId : "",
@@ -120,6 +125,7 @@ public class DictItemController {
     }
 
     @PutMapping("/{id}/status")
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "修改字典项状态")
     public Map<String, Object> updateStatus(
             @Parameter(description = "字典项ID") @PathVariable Long id,
@@ -129,6 +135,7 @@ public class DictItemController {
     }
 
     @GetMapping("/export")
+    @SaCheckPermission("system:dict:export")
     @Operation(summary = "导出字典项")
     public List<DictItem> export(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
@@ -136,7 +143,7 @@ public class DictItemController {
             @Parameter(description = "字典项值") @RequestParam(required = false) String itemValue,
             @Parameter(description = "字典项文本") @RequestParam(required = false) String itemText,
             @Parameter(description = "状态") @RequestParam(required = false) String status) {
-        
+
         Map<String, Object> params = Map.of(
             "tenantId", tenantId != null ? tenantId : 1L,
             "dictTypeId", dictTypeId != null ? dictTypeId : "",
@@ -148,6 +155,7 @@ public class DictItemController {
     }
 
     @DeleteMapping("/batch")
+    @SaCheckPermission("system:dict:delete")
     @Operation(summary = "批量删除字典项")
     public Map<String, Object> batchDelete(@RequestBody List<Long> ids) {
         boolean result = dictItemService.removeBatchByIds(ids);
@@ -155,6 +163,7 @@ public class DictItemController {
     }
 
     @PutMapping("/cache/refresh/{dictCode}")
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "刷新字典项缓存")
     public Map<String, Object> refreshCache(
             @Parameter(description = "字典类型编码") @PathVariable String dictCode) {

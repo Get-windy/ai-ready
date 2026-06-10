@@ -13,6 +13,10 @@ export interface TenantInfo {
   status: number
   maxUsers?: number
   expireDate?: string
+  /** 租户管理员用户ID */
+  adminUserId?: number
+  /** 租户等级：basic-基础版 professional-专业版 enterprise-企业版 */
+  level?: string
   createTime?: string
   updateTime?: string
 }
@@ -85,4 +89,55 @@ export const tenantApi = {
   }
 }
 
-export default tenantApi
+// ── 租户注册审批 API ──────────────────────────────────────
+
+/** 租户注册请求 */
+export interface TenantRegisterForm {
+  tenantName: string
+  tenantCode: string
+  contactPerson: string
+  contactPhone: string
+  contactEmail: string
+  adminUsername: string
+  adminPassword: string
+  adminEmail: string
+}
+
+/** 租户审批 API */
+export const tenantApprovalApi = {
+  /** 租户自助注册（公开接口） */
+  register(data: TenantRegisterForm): Promise<ApiResponse<any>> {
+    return request.post('/tenant/register', data, { _skipAuthRefresh: true })
+  },
+
+  /** 审批通过租户 */
+  approve(id: number, remark?: string): Promise<ApiResponse<void>> {
+    return request.post(`/tenant/${id}/approve`, remark ? { remark } : undefined)
+  },
+
+  /** 驳回租户注册 */
+  reject(id: number, reason: string): Promise<ApiResponse<void>> {
+    return request.post(`/tenant/${id}/reject`, { reason })
+  },
+
+  /** 查询待审核租户列表 */
+  getPending(): Promise<ApiResponse<SysTenant[]>> {
+    return request.get('/tenant/pending')
+  }
+}
+
+/** 待审核租户接口（后端 SysTenant 实体的前端表示） */
+export interface SysTenant {
+  id: number
+  tenantName: string
+  tenantCode: string
+  contactPerson: string
+  contactPhone: string
+  contactEmail: string
+  address?: string
+  adminUserId?: number
+  level?: string
+  status: number
+  remark?: string
+  createTime: string
+}

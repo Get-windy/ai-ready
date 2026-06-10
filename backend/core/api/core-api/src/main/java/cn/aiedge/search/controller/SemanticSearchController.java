@@ -1,6 +1,7 @@
 package cn.aiedge.search.controller;
 
 import cn.aiedge.search.model.SearchResponse;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.search.service.SemanticSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/search/semantic")
+@SaCheckLogin
 public class SemanticSearchController {
 
     @Autowired

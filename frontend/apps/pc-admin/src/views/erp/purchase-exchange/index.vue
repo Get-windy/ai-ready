@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="purchase-exchange-header">
@@ -8,7 +9,8 @@
         </div>
         <div class="purchase-exchange-header__right">
           <a-space :size="12">
-            <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <a-switch size="small" v-model:checked="autoRefreshEnabled" checked-children="自动" un-checked-children="手动" @change="handleAutoRefreshChange" />
+            <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
               <SyncOutlined /> {{ autoRefreshCountdown }}s
             </span>
             <span class="data-status">
@@ -17,7 +19,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="fetchData">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -75,46 +77,13 @@
     </a-row>
 
     <a-card title="采购换货管理" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
-      <!-- 搜索区域 -->
-      <div class="search-area">
-        <a-form layout="inline" :model="queryParams">
-          <a-form-item label="换货单号">
-            <a-input v-model:value="queryParams.exchangeNo" placeholder="请输入换货单号" allow-clear />
-          </a-form-item>
-          <a-form-item label="原采购订单">
-            <a-input v-model:value="queryParams.originalOrderNo" placeholder="请输入原采购订单号" allow-clear />
-          </a-form-item>
-          <a-form-item label="供应商">
-            <a-select v-model:value="queryParams.supplierId" placeholder="请选择供应商" allow-clear style="width: 150px">
-              <a-select-option v-for="s in supplierOptions" :key="s.id" :value="s.id">{{ s.name }}</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="状态">
-            <a-select v-model:value="queryParams.status" placeholder="请选择状态" allow-clear style="width: 120px">
-              <a-select-option :value="ExchangeStatus.DRAFT">草稿</a-select-option>
-              <a-select-option :value="ExchangeStatus.PENDING_APPROVAL">待审批</a-select-option>
-              <a-select-option :value="ExchangeStatus.APPROVED">已审批</a-select-option>
-              <a-select-option :value="ExchangeStatus.EXCHANGING">换货中</a-select-option>
-              <a-select-option :value="ExchangeStatus.COMPLETED">已完成</a-select-option>
-              <a-select-option :value="ExchangeStatus.REJECTED">已拒绝</a-select-option>
-              <a-select-option :value="ExchangeStatus.CANCELLED">已取消</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="换货日期">
-            <a-range-picker v-model:value="dateRange" @change="handleDateChange" />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>查询
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>重置
-              </a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </div>
+      <!-- 搜索栏 -->
+      <SearchBar
+        :fields="searchFields"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
 
       <!-- 操作按钮 -->
       <div class="action-area">
@@ -142,8 +111,17 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="handleView"
         @page-change="handlePageChange"
       >
+        <template #empty>
+          <div v-if="hasError" class="table-empty">
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">数据加载异常，请重试</p>
+            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
+          </div>
+          <EmptyState v-else title="暂无数据" description="暂无采购换货数据" size="small" :show-actions="false" />
+        </template>
         <template #statusCell="{ record }">
           <StatusTag :status="record.status" :map="RETURN_EXCHANGE_STATUS" />
         </template>
@@ -156,9 +134,14 @@
             <a-button v-if="record.status === ExchangeStatus.DRAFT" type="link" size="small" @click="handleSubmit(record)">提交</a-button>
             <a-button v-if="record.status === ExchangeStatus.PENDING_APPROVAL" type="link" size="small" @click="handleApprove(record)">审批</a-button>
             <a-button type="link" size="small" @click="handleTrack(record)">跟踪</a-button>
-            <a-popconfirm v-if="record.status === ExchangeStatus.DRAFT" title="确定要删除该换货单吗？" @confirm="handleDelete(record)">
-              <a-button type="link" size="small" danger>删除</a-button>
-            </a-popconfirm>
+            <PrintButton
+              v-if="record.status === ExchangeStatus.COMPLETED || record.status === ExchangeStatus.APPROVED"
+              :record="record"
+              business-type="PURCHASE_EXCHANGE"
+              button-text="打印"
+              button-size="small"
+            />
+            <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
           </a-space>
         </template>
       </VxeTableList>
@@ -169,13 +152,16 @@
     <ExchangeDetailModal v-model:open="detailModalVisible" :record="currentRecord" />
     <ExchangeTrackModal v-model:open="trackModalVisible" :record="currentRecord" />
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { PlusOutlined, SearchOutlined, ReloadOutlined, SyncOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { message, Modal } from 'ant-design-vue'
+import { PlusOutlined, SearchOutlined, ReloadOutlined, SyncOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { PageContainer, SearchBar, EmptyState } from '@/components'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import type { Dayjs } from 'dayjs'
 import { purchaseExchangeApi, type PurchaseExchange, ExchangeStatus } from '@/api/purchase-exchange'
 import ExchangeFormModal from './components/ExchangeFormModal.vue'
@@ -188,11 +174,75 @@ import { RETURN_EXCHANGE_STATUS } from '@/utils/statusConfig'
 import { getStatusText } from '@/utils/statusConfig'
 import { exportCsv } from '@/utils/exportCsv'
 import { supplierApi } from '@/api/supplier'
+import PrintButton from '@/components/business/print-button/PrintButton.vue'
+
+// ── 类型定义 ──────────────────────────────────────────
+export interface PurchaseExchangeItem {
+  id?: number
+  exchangeId?: number
+  productCode: string
+  productName: string
+  productSpec?: string
+  quantity: number
+  unitPrice: number
+  amount: number
+  remark?: string
+}
+
+export interface ExchangeStatistics {
+  totalCount: number
+  pendingCount: number
+  completedCount: number
+  totalAmount: number
+}
+
+export interface ExchangeQueryParams {
+  exchangeNo: string
+  originalOrderNo: string
+  supplierId?: number
+  status?: ExchangeStatus
+  startDate: string
+  endDate: string
+  current: number
+  size: number
+}
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); handleExport(); return }
+}
+
+function handleError(err: any) {
+  hasError.value = true
+  console.warn('[采购换货] ErrorBoundary 捕获异常:', err)
+}
+
+const handleAutoRefreshChange = (checked: boolean) => {
+  if (checked) {
+    autoRefreshCountdown.value = 30
+  } else {
+    autoRefreshCountdown.value = 0
+  }
+}
 
 const loading = ref(false)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
+const autoRefreshEnabled = ref(true)
 const dataSource = ref<PurchaseExchange[]>([])
 const dateRange = ref<[Dayjs, Dayjs] | null>(null)
 const tableRef = ref()
@@ -201,17 +251,32 @@ const supplierOptions = ref<{ id: number; name: string }[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
-// 统计数据
-const statistics = ref({
-  totalCount: 0,
-  pendingCount: 0,
-  completedCount: 0,
-  totalAmount: 0
-})
+// 统计数据（使用 computed 自动计算）
+const statistics = computed(() => ({
+  totalCount: dataSource.value.length,
+  pendingCount: dataSource.value.filter(r => r.status === ExchangeStatus.PENDING_APPROVAL).length,
+  completedCount: dataSource.value.filter(r => r.status === ExchangeStatus.COMPLETED).length,
+  totalAmount: dataSource.value.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
+}))
 
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
+
+const searchFields: SearchField[] = [
+  { name: 'exchangeNo', label: '换货单号', type: 'input', placeholder: '请输入换货单号' },
+  { name: 'originalOrderNo', label: '原采购订单', type: 'input', placeholder: '请输入原采购订单号' },
+  { name: 'supplierId', label: '供应商', type: 'select', placeholder: '请选择供应商', options: [] },
+  { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [
+    { label: '草稿', value: ExchangeStatus.DRAFT },
+    { label: '待审批', value: ExchangeStatus.PENDING_APPROVAL },
+    { label: '已审批', value: ExchangeStatus.APPROVED },
+    { label: '换货中', value: ExchangeStatus.EXCHANGING },
+    { label: '已完成', value: ExchangeStatus.COMPLETED },
+    { label: '已拒绝', value: ExchangeStatus.REJECTED },
+    { label: '已取消', value: ExchangeStatus.CANCELLED },
+  ]},
+]
 
 const queryParams = reactive({
   exchangeNo: '',
@@ -258,6 +323,7 @@ const trackModalVisible = ref(false)
 const currentRecord = ref<PurchaseExchange | null>(null)
 
 const fetchData = async () => {
+  hasError.value = false
   loading.value = true
   try {
     const res = await purchaseExchangeApi.page({
@@ -267,12 +333,8 @@ const fetchData = async () => {
     })
     dataSource.value = res.data?.records || []
     pagination.total = res.data?.total || 0
-    // 更新统计
-    statistics.value.totalCount = dataSource.value.length
-    statistics.value.pendingCount = dataSource.value.filter(r => r.status === ExchangeStatus.PENDING_APPROVAL).length
-    statistics.value.completedCount = dataSource.value.filter(r => r.status === ExchangeStatus.COMPLETED).length
-    statistics.value.totalAmount = dataSource.value.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
   } catch (error) {
+    hasError.value = true
     console.warn('[采购换货] 获取数据失败', error)
     message.error('获取数据失败')
   } finally {
@@ -282,7 +344,17 @@ const fetchData = async () => {
   }
 }
 
-const handleSearch = () => {
+const handleSearch = (values?: Record<string, any>) => {
+  if (values) {
+    Object.assign(queryParams, {
+      exchangeNo: values.exchangeNo || '',
+      originalOrderNo: values.originalOrderNo || '',
+      supplierId: values.supplierId,
+      status: values.status,
+      startDate: values.exchangeDateRange?.[0] || '',
+      endDate: values.exchangeDateRange?.[1] || ''
+    })
+  }
   pagination.current = 1
   fetchData()
 }
@@ -295,7 +367,8 @@ const handleReset = () => {
   queryParams.startDate = ''
   queryParams.endDate = ''
   dateRange.value = null
-  handleSearch()
+  pagination.current = 1
+  fetchData()
 }
 
 const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
@@ -314,6 +387,8 @@ const handlePageChange = (page: number, size: number) => {
   fetchData()
 }
 
+function handleParentCreate() { handleCreate() }
+
 const handleCreate = () => {
   currentRecord.value = null
   formModalVisible.value = true
@@ -329,15 +404,23 @@ const handleView = (record: PurchaseExchange) => {
   detailModalVisible.value = true
 }
 
-const handleSubmit = async (record: PurchaseExchange) => {
-  try {
-    await purchaseExchangeApi.submit(record.id)
-    message.success('提交成功')
-    fetchData()
-  } catch (error) {
-    console.warn('[采购换货] 提交失败', error)
-    message.error('提交失败')
-  }
+const handleSubmit = (record: PurchaseExchange) => {
+  Modal.confirm({
+    title: '提交确认',
+    content: `确认提交换货单 ${record.exchangeNo} 吗？`,
+    okText: '确认提交',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await purchaseExchangeApi.submit(record.id)
+        message.success('提交成功')
+        fetchData()
+      } catch (error) {
+        console.warn('[采购换货] 提交失败', error)
+        message.error('提交失败')
+      }
+    }
+  })
 }
 
 const handleApprove = (record: PurchaseExchange) => {
@@ -350,15 +433,24 @@ const handleTrack = (record: PurchaseExchange) => {
   trackModalVisible.value = true
 }
 
-const handleDelete = async (record: PurchaseExchange) => {
-  try {
-    await purchaseExchangeApi.delete(record.id)
-    message.success('删除成功')
-    fetchData()
-  } catch (error) {
-    console.warn('[采购换货] 删除失败', error)
-    message.error('删除失败')
-  }
+const handleDelete = (record: PurchaseExchange) => {
+  Modal.confirm({
+    title: '删除确认',
+    content: `确定要删除换货单 ${record.exchangeNo} 吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await purchaseExchangeApi.delete(record.id)
+        message.success('删除成功')
+        fetchData()
+      } catch (error) {
+        console.warn('[采购换货] 删除失败', error)
+        message.error('删除失败')
+      }
+    }
+  })
 }
 
 const handleExport = () => {
@@ -382,19 +474,27 @@ const handleApproveSuccess = () => {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
   fetchData()
   loadSuppliers()
+  window.addEventListener("erp:create", handleParentCreate)
+  window.addEventListener("erp:refresh", fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
-    fetchData()
-    autoRefreshCountdown.value = 30
+    if (autoRefreshEnabled.value) {
+      fetchData()
+      autoRefreshCountdown.value = 30
+    }
   }, 30000)
   countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+    if (autoRefreshEnabled.value && autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener("erp:create", handleParentCreate)
+  window.removeEventListener("erp:refresh", fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -404,6 +504,7 @@ async function loadSuppliers() {
     const res = await supplierApi.page({ pageSize: 200, pageNum: 1 })
     const pageData = (res as any).data ?? res
     supplierOptions.value = (pageData.records || []).map((s: any) => ({ id: s.id, name: s.supplierName }))
+    searchFields[2].options = supplierOptions.value.map(s => ({ label: s.name, value: s.id }))
   } catch (e) {
     console.warn('[采购换货] 加载供应商选项失败', e)
     supplierOptions.value = []
@@ -529,4 +630,43 @@ defineExpose({ handleQuery: fetchData })
   color: #faad14;
 }
 
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 12px;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-bottom: 16px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

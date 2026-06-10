@@ -25,6 +25,11 @@ public class RoleCreateRequest {
     @Size(max = 20, message = "角色类型长度不能超过20")
     private String roleType;
 
+    /**
+     * 角色作用域：PLATFORM-平台级 TENANT-租户级（默认）
+     */
+    private String scope = "TENANT";
+
     private Integer dataScope = 1;
 
     private Long parentId;

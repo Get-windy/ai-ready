@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -102,6 +102,7 @@
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
         @export="handleExport"
       >
       <template #toolbar-actions>
@@ -109,14 +110,24 @@
 
         <template #empty>
           <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无供应商数据，点击右上角「新建供应商」开始创建
-            </p>
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">数据加载失败，请重试</p>
+              <a-button type="primary" size="small" @click="fetchData">
+                <template #icon><ReloadOutlined /></template>
+                重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">
+                暂无供应商数据，点击右上角「新建供应商」开始创建
+              </p>
+            </template>
           </div>
         </template>
 
@@ -141,15 +152,23 @@
       </VxeTableList>
     </ErrorBoundary>
 
-    <a-modal v-model:open="modalVisible" :title="modalTitle" width="800px" :confirm-loading="submitLoading" @ok="handleSubmit" @cancel="handleModalCancel">
+    <FullScreenDetail
+      :visible="modalVisible"
+      :title="modalTitle"
+      :save-loading="submitLoading"
+      :show-save-and-new="!isEdit"
+      @save="handleSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
+    >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="供应商名称" name="supplierName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierName" placeholder="请输入供应商名称" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="供应商编码" name="supplierCode" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierCode" placeholder="自动生成" disabled /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="供应商名称" name="supplierName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierName" placeholder="请输入供应商名称" size="small" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="供应商编码" name="supplierCode" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.supplierCode" placeholder="自动生成" disabled size="small" /></a-form-item></a-col>
         </a-row>
         <a-row :gutter="24">
           <a-col :span="12"><a-form-item label="供应商类型" name="supplierType" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.supplierType" placeholder="请选择供应商类型">
+            <a-select v-model:value="formData.supplierType" placeholder="请选择供应商类型" size="small">
               <a-select-option :value="1">原材料供应商</a-select-option>
               <a-select-option :value="2">产品供应商</a-select-option>
               <a-select-option :value="3">服务供应商</a-select-option>
@@ -157,7 +176,7 @@
             </a-select>
           </a-form-item></a-col>
           <a-col :span="12"><a-form-item label="供应商等级" name="supplierLevel" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.supplierLevel" placeholder="请选择供应商等级">
+            <a-select v-model:value="formData.supplierLevel" placeholder="请选择供应商等级" size="small">
               <a-select-option value="A">A级供应商</a-select-option>
               <a-select-option value="B">B级供应商</a-select-option>
               <a-select-option value="C">C级供应商</a-select-option>
@@ -165,56 +184,70 @@
           </a-form-item></a-col>
         </a-row>
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" size="small" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" size="small" /></a-form-item></a-col>
         </a-row>
         <a-row :gutter="24">
-          <a-col :span="12"><a-form-item label="电子邮箱" name="email" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.email" placeholder="请输入电子邮箱" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="电子邮箱" name="email" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }"><a-input v-model:value="formData.email" placeholder="请输入电子邮箱" size="small" /></a-form-item></a-col>
           <a-col :span="12"><a-form-item label="合作状态" name="cooperationStatus" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-            <a-select v-model:value="formData.cooperationStatus" placeholder="请选择合作状态">
+            <a-select v-model:value="formData.cooperationStatus" placeholder="请选择合作状态" size="small">
               <a-select-option :value="1">合作中</a-select-option>
               <a-select-option :value="2">暂停合作</a-select-option>
             </a-select>
           </a-form-item></a-col>
         </a-row>
-        <a-form-item label="公司地址" name="address"><a-input v-model:value="formData.address" placeholder="请输入公司地址" /></a-form-item>
-        <a-form-item label="银行信息" name="bankInfo"><a-input v-model:value="formData.bankInfo" placeholder="请输入银行账户信息" /></a-form-item>
-        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
+        <a-form-item label="公司地址" name="address"><a-input v-model:value="formData.address" placeholder="请输入公司地址" size="small" /></a-form-item>
+        <a-form-item label="银行信息" name="bankInfo"><a-input v-model:value="formData.bankInfo" placeholder="请输入银行账户信息" size="small" /></a-form-item>
+        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
-    <a-drawer v-model:open="detailVisible" title="供应商详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions :column="2" bordered>
-        <a-descriptions-item label="供应商名称">{{ supplierDetail.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="供应商编码">{{ supplierDetail.supplierCode }}</a-descriptions-item>
-        <a-descriptions-item label="供应商类型">{{ supplierDetail.supplierTypeLabel }}</a-descriptions-item>
-        <a-descriptions-item label="供应商等级"><a-tag :color="getLevelColor(supplierDetail.supplierLevel)">{{ supplierDetail.supplierLevel }}级</a-tag></a-descriptions-item>
-        <a-descriptions-item label="联系人">{{ supplierDetail.contactPerson }}</a-descriptions-item>
-        <a-descriptions-item label="联系电话">{{ supplierDetail.contactPhone }}</a-descriptions-item>
-        <a-descriptions-item label="电子邮箱">{{ supplierDetail.email }}</a-descriptions-item>
-        <a-descriptions-item label="合作状态"><a-tag :color="getStatusColor(supplierDetail.cooperationStatus)">{{ getStatusText(supplierDetail.cooperationStatus) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="公司地址" :span="2">{{ supplierDetail.address }}</a-descriptions-item>
-        <a-descriptions-item label="银行信息">{{ supplierDetail.bankInfo }}</a-descriptions-item>
-      </a-descriptions>
-      <a-divider>业务统计</a-divider>
-      <a-row :gutter="16">
-        <a-col :span="6"><a-statistic title="采购订单" :value="supplierDetail.orderCount" suffix="单" /></a-col>
-        <a-col :span="6"><a-statistic title="采购金额" :value="supplierDetail.purchaseAmount" :precision="2" prefix="¥" /></a-col>
-        <a-col :span="6"><a-statistic title="已付款" :value="supplierDetail.paidAmount" :precision="2" prefix="¥" /></a-col>
-        <a-col :span="6"><a-statistic title="待付款" :value="supplierDetail.payableAmount" :precision="2" prefix="¥" :value-style="{ color: '#f5222d' }" /></a-col>
-      </a-row>
-      <a-divider>供应商评估</a-divider>
-      <a-row :gutter="16">
-        <a-col :span="6"><a-statistic title="质量评分" :value="supplierDetail.qualityScore" suffix="分" /></a-col>
-        <a-col :span="6"><a-statistic title="交货评分" :value="supplierDetail.deliveryScore" suffix="分" /></a-col>
-        <a-col :span="6"><a-statistic title="服务评分" :value="supplierDetail.serviceScore" suffix="分" /></a-col>
-        <a-col :span="6"><a-statistic title="综合评分" :value="supplierDetail.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
-      </a-row>
-      <a-divider>最近采购订单</a-divider>
-      <VxeTableList :columns="orderVxeColumns" :data-source="supplierDetail.recentOrders" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-        <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
-        <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
-      </VxeTableList>
+    <a-drawer v-model:open="detailVisible" title="供应商详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+      <a-spin :spinning="detailLoading">
+        <template v-if="detailError">
+          <div class="table-empty">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">详情数据加载失败</p>
+            <a-button type="primary" size="small" @click="handleDetailRefresh">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+        </template>
+        <template v-else-if="detailData.id">
+          <a-descriptions :column="2" bordered>
+            <a-descriptions-item label="供应商名称">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="供应商编码">{{ detailData.supplierCode }}</a-descriptions-item>
+            <a-descriptions-item label="供应商类型">{{ detailData.supplierTypeLabel }}</a-descriptions-item>
+            <a-descriptions-item label="供应商等级"><a-tag :color="getLevelColor(detailData.supplierLevel)">{{ detailData.supplierLevel }}级</a-tag></a-descriptions-item>
+            <a-descriptions-item label="联系人">{{ detailData.contactPerson }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ detailData.contactPhone }}</a-descriptions-item>
+            <a-descriptions-item label="电子邮箱">{{ detailData.email }}</a-descriptions-item>
+            <a-descriptions-item label="合作状态"><a-tag :color="getStatusColor(detailData.cooperationStatus)">{{ getStatusText(detailData.cooperationStatus) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="公司地址" :span="2">{{ detailData.address }}</a-descriptions-item>
+            <a-descriptions-item label="银行信息">{{ detailData.bankInfo }}</a-descriptions-item>
+          </a-descriptions>
+          <a-divider>业务统计</a-divider>
+          <a-row :gutter="16">
+            <a-col :span="6"><a-statistic title="采购订单" :value="detailData.orderCount" suffix="单" /></a-col>
+            <a-col :span="6"><a-statistic title="采购金额" :value="detailData.purchaseAmount" :precision="2" prefix="¥" /></a-col>
+            <a-col :span="6"><a-statistic title="已付款" :value="detailData.paidAmount" :precision="2" prefix="¥" /></a-col>
+            <a-col :span="6"><a-statistic title="待付款" :value="detailData.payableAmount" :precision="2" prefix="¥" :value-style="{ color: '#f5222d' }" /></a-col>
+          </a-row>
+          <a-divider>供应商评估</a-divider>
+          <a-row :gutter="16">
+            <a-col :span="6"><a-statistic title="质量评分" :value="detailData.qualityScore" suffix="分" /></a-col>
+            <a-col :span="6"><a-statistic title="交货评分" :value="detailData.deliveryScore" suffix="分" /></a-col>
+            <a-col :span="6"><a-statistic title="服务评分" :value="detailData.serviceScore" suffix="分" /></a-col>
+            <a-col :span="6"><a-statistic title="综合评分" :value="detailData.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
+          </a-row>
+          <a-divider>最近采购订单</a-divider>
+          <VxeTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+            <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
+            <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
+          </VxeTableList>
+        </template>
+      </a-spin>
     </a-drawer>
 
     <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
@@ -226,7 +259,7 @@
 
     <a-modal v-model:open="evaluateModalVisible" title="供应商评估" width="600px" @ok="handleEvaluateSubmit">
       <a-form :model="evaluateForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="供应商名称"><a-input :value="evaluateForm.supplierName" disabled /></a-form-item>
+        <a-form-item label="供应商名称"><a-input :value="evaluateForm.supplierName" disabled size="small" /></a-form-item>
         <a-form-item label="质量评分" required>
           <a-rate v-model:value="evaluateForm.qualityScore" :count="5" style="vertical-align:middle" />
           <span style="margin-left:8px;color:#999">{{ evaluateForm.qualityScore }} 分</span>
@@ -239,7 +272,7 @@
           <a-rate v-model:value="evaluateForm.serviceScore" :count="5" style="vertical-align:middle" />
           <span style="margin-left:8px;color:#999">{{ evaluateForm.serviceScore }} 分</span>
         </a-form-item>
-        <a-form-item label="评价内容"><a-textarea v-model:value="evaluateForm.comment" placeholder="请输入评价内容" :rows="4" /></a-form-item>
+        <a-form-item label="评价内容"><a-textarea v-model:value="evaluateForm.comment" placeholder="请输入评价内容" :rows="4" size="small" /></a-form-item>
       </a-form>
     </a-modal>
 
@@ -265,16 +298,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SyncOutlined, WarningOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { supplierApi } from '@/api/supplier'
 import type { FormInstance } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { exportCsv } from '@/utils/exportCsv'
+
+function handleError(err: any) { console.warn('[CRM供应商]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const tableRef = ref()
 const router = useRouter()
@@ -284,6 +329,7 @@ const submitLoading = ref(false)
 const modalVisible = ref(false)
 const detailVisible = ref(false)
 const modalTitle = ref('新建供应商')
+const isEdit = ref(false)
 const activeTab = ref('all')
 const formRef = ref<FormInstance>()
 const searchFilters = reactive<Record<string, any>>({})
@@ -318,14 +364,14 @@ const hasActiveFilters = computed(() => {
 const tableDataSource = tableData
 
 const vxeColumns = [
-  { title: '供应商名称', dataIndex: 'supplierName', key: 'supplierName', width: 180 },
-  { title: '供应商编码', dataIndex: 'supplierCode', key: 'supplierCode', width: 120 },
-  { title: '供应商类型', dataIndex: 'supplierTypeLabel', key: 'supplierTypeLabel', width: 120 },
-  { title: '等级', dataIndex: 'supplierLevel', key: 'supplierLevel', width: 80, type: 'status' as const },
-  { title: '联系人', dataIndex: 'contactPerson', key: 'contactPerson', width: 100 },
-  { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 120 },
-  { title: '状态', dataIndex: 'cooperationStatus', key: 'cooperationStatus', width: 100, type: 'status' as const },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' as const, type: 'action' as const }
+  { field: 'supplierName', title: '供应商名称', width: 180 },
+  { field: 'supplierCode', title: '供应商编码', width: 120 },
+  { field: 'supplierTypeLabel', title: '供应商类型', width: 120 },
+  { field: 'supplierLevel', title: '等级', width: 80, type: 'status' as const },
+  { field: 'contactPerson', title: '联系人', width: 100 },
+  { field: 'contactPhone', title: '联系电话', width: 120 },
+  { field: 'cooperationStatus', title: '状态', width: 100, type: 'status' as const },
+  { field: 'action', title: '操作', width: 200, fixed: 'right' as const, type: 'action' as const }
 ]
 
 const filterFields = [
@@ -364,9 +410,51 @@ const orderVxeColumns = [
 ]
 
 const formData = reactive({ id: undefined, supplierName: '', supplierCode: '', supplierType: 1, supplierLevel: 'B', contactPerson: '', contactPhone: '', email: '', address: '', bankInfo: '', cooperationStatus: 1, remark: '' })
+
+// 表单脏数据追踪
+const initialFormSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!modalVisible.value) return false
+  const current = JSON.stringify(formData)
+  return current !== initialFormSnapshot.value
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formData })
+}
+
 const formRules = { supplierName: [{ required: true, message: '请输入供应商名称' }], supplierType: [{ required: true, message: '请选择供应商类型' }], contactPerson: [{ required: true, message: '请输入联系人' }], contactPhone: [{ required: true, message: '请输入联系电话' }] }
 
-const supplierDetail = ref<any>({})
+// 详情抽屉
+const detailData = ref<any>({})
+const detailLoading = ref(false)
+const detailError = ref(false)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = false
+  try {
+    const res = await supplierApi.getById(id)
+    detailData.value = res as any
+  } catch (err) {
+    detailError.value = true
+    console.warn('[CRM供应商] 获取供应商详情失败', err)
+    message.error('获取供应商详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = {}
+  detailError.value = false
+}
+
+function handleDetailRefresh() {
+  if (detailData.value.id) {
+    fetchDetail(detailData.value.id)
+  }
+}
 
 const productsModalVisible = ref(false)
 const productsModalTitle = ref('')
@@ -392,6 +480,21 @@ const contactsVxeColumns = [
   { field: 'isPrimary', title: '是否主要联系人', width: 120, slotName: 'isPrimaryCell' }
 ]
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    debounceClick('add', handleAdd)
+    return
+  }
+}
+
+function handleParentCreate() { handleAdd() }
+
 onMounted(() => {
   fetchData()
   autoRefreshCountdown.value = 30
@@ -402,11 +505,17 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchData)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchData)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 async function fetchData(silent = false) {
@@ -448,22 +557,22 @@ function handleResetFilters() {
 }
 
 function handleView(record: any) {
-  supplierDetail.value = {
-    ...record, orderCount: 28, paidAmount: 580000 - 38000,
-    qualityScore: 92, deliveryScore: 88, serviceScore: 90, totalScore: 90,
-    recentOrders: [
-      { orderNo: 'PO20240115001', amount: 58000, orderDate: '2024-01-15', status: 'received', statusLabel: '已收货' },
-      { orderNo: 'PO20240110002', amount: 32000, orderDate: '2024-01-10', status: 'completed', statusLabel: '已完成' },
-      { orderNo: 'PO20240105003', amount: 45000, orderDate: '2024-01-05', status: 'pending', statusLabel: '待确认' }
-    ]
-  }
+  fetchDetail(record.id)
   detailVisible.value = true
 }
-function handleEdit(record: any) { modalTitle.value = '编辑供应商'; Object.assign(formData, record); modalVisible.value = true }
+function handleEdit(record: any) {
+  modalTitle.value = '编辑供应商'
+  isEdit.value = true
+  Object.assign(formData, record)
+  modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
+}
 function handleAdd() {
   modalTitle.value = '新建供应商'
+  isEdit.value = false
   formData.supplierCode = `SUP${String(Date.now()).slice(-6)}`
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleProducts(record: any) {
@@ -507,16 +616,40 @@ function handleCopyPortalUrl() { navigator.clipboard.writeText(portalInfo.portal
 function handleResetPortalPassword() { Modal.confirm({ title: '重置密码', content: `确定要重置供应商"${portalInfo.supplierName}"的门户密码吗？`, okText: '确认重置', cancelText: '取消', centered: true, onOk() { portalInfo.password = '******'; message.success('密码已重置') } }) }
 function handleOpenPortal() { window.open(portalInfo.portalUrl, '_blank'); message.success('正在打开供应商门户') }
 
-async function handleSubmit() {
+async function handleSubmit(saveAndNew = false) {
   try { await formRef.value?.validate() } catch (err) { console.warn('[CRM供应商] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     if (formData.id) { await supplierApi.update(formData.id, formData as any) } else { await supplierApi.create(formData as any) }
-    message.success('保存成功'); modalVisible.value = false; fetchData()
+    message.success('保存成功')
+    if (saveAndNew) {
+      isEdit.value = false
+      formData.supplierCode = `SUP${String(Date.now()).slice(-6)}`
+      Object.assign(formData, { id: undefined, supplierName: '', supplierCode: '', supplierType: 1, supplierLevel: 'B', contactPerson: '', contactPhone: '', email: '', address: '', bankInfo: '', cooperationStatus: 1, remark: '' })
+      nextTick(() => saveFormSnapshot())
+    } else {
+      modalVisible.value = false
+      fetchData()
+    }
   } catch (err: any) { console.warn('[CRM供应商] 保存供应商失败', err); message.error(err?.message || '保存失败') }
   finally { submitLoading.value = false }
 }
-function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
+
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单内容尚未保存，确定要关闭吗？',
+      onOk: () => { modalVisible.value = false }
+    })
+    return
+  }
+  modalVisible.value = false
+}
+
+function handleFormSaveAndNew() {
+  handleSubmit(true)
+}
 
 function handleExport() {
   const headers = ['供应商名称', '编码', '类型', '等级', '联系人', '电话', '状态']
@@ -528,6 +661,20 @@ function handleSearch(keyword: string) { searchFilters.keyword = keyword || unde
 function handlePageChange(page: number, size: number) { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单内容尚未保存，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 defineExpose({ handleQuery: fetchData })
 </script>
 
@@ -685,4 +832,21 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-tabs) {
   margin: 0 24px;
 }
+
+/* 让 VxeTableList 填满剩余空间 */
+.vxe-table-list-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

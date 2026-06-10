@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.controller;
 
+import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.erp.fixedasset.dto.ApiResponse;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDepreciationDTO;
 import cn.aiedge.erp.fixedasset.service.FixedAssetDepreciationService;
@@ -27,6 +28,7 @@ public class FixedAssetDepreciationController {
 
     @Operation(summary = "批量计提折旧")
     @PostMapping("/batch-calculate")
+    @RequiresPermission("erp:fixed-asset:depreciation:calculate")
     public ApiResponse<List<FixedAssetDepreciationDTO>> batchCalculate() {
         List<FixedAssetDepreciationDTO> result = depreciationService.batchCalculate();
         return ApiResponse.success("批量折旧计提完成", result);
@@ -34,6 +36,7 @@ public class FixedAssetDepreciationController {
 
     @Operation(summary = "分页查询折旧记录")
     @GetMapping("/page")
+    @RequiresPermission("erp:fixed-asset:depreciation:list")
     public ApiResponse<Page<FixedAssetDepreciationDTO>> getPage(
             @Parameter(description = "资产ID") @RequestParam(required = false) Long assetId,
             @Parameter(description = "期间") @RequestParam(required = false) String period,
@@ -46,6 +49,7 @@ public class FixedAssetDepreciationController {
 
     @Operation(summary = "获取折旧记录详情")
     @GetMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:depreciation:query")
     public ApiResponse<FixedAssetDepreciationDTO> getById(
             @Parameter(description = "折旧记录ID") @PathVariable Long id) {
         FixedAssetDepreciationDTO result = depreciationService.getById(id);

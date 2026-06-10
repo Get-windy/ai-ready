@@ -53,7 +53,7 @@ export function initErrorReporter(app: {
   activeConfig = { ...finalConfig }
 
   if (!finalConfig.enabled) {
-    console.log('[ErrorReporter] Disabled')
+    console.warn('[ErrorReporter] Disabled')
     return
   }
 
@@ -146,7 +146,7 @@ export function initErrorReporter(app: {
   // 启动定时上报
   startFlushTimer(finalConfig)
 
-  console.log('[ErrorReporter] Initialized')
+  console.warn('[ErrorReporter] Initialized')
 }
 
 /**
@@ -336,7 +336,7 @@ export function destroyErrorReporter() {
     flushTimer = null
   }
   errorQueue = []
-  console.log('[ErrorReporter] Destroyed')
+  console.warn('[ErrorReporter] Destroyed')
 }
 
 export default {

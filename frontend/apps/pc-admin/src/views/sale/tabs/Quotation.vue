@@ -51,12 +51,13 @@
       @view="handleView"
       @delete="handleDelete"
       @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @search="handleSearch"
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="handleSelectionChange"
     >
     <template #toolbar-actions>
@@ -66,14 +67,25 @@
     </template>
 
     <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配报价单">
-        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无报价单">
-        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        <a-button type="primary" @click="handleAdd">新建报价单</a-button>
-      </a-empty>
+      <div class="table-empty">
+        <template v-if="hasError">
+          <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+          <p class="table-empty-text">加载失败</p>
+          <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <ReloadOutlined /> 重试
+          </a-button>
+        </template>
+        <template v-else>
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            当前筛选条件下无匹配报价单，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无报价单，点击「新建报价单」开始创建
+          </p>
+        </template>
+      </div>
     </template>
 
     <template #action="{ record }">
@@ -88,6 +100,7 @@
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
+		  <PrintButton :record="record" :business-id="record.id" business-type="sale_quotation" button-type="link" button-size="small" tooltip="打印" />
         <a-dropdown trigger="click">
           <a-button type="link" size="small" class="action-more-btn">
             <template #icon><EllipsisOutlined /></template>
@@ -127,10 +140,10 @@
 
   <a-modal v-model:open="formVisible" :title="isEdit ? '编辑报价单' : '新建报价单'" width="800px" :confirm-loading="formSubmitting" @ok="handleFormSubmit" @cancel="formVisible = false">
     <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-      <a-form-item label="客户" name="customerName"><a-input v-model:value="formState.customerName" placeholder="请输入客户名称" /></a-form-item>
+      <a-form-item label="客户" name="customerName"><a-input v-model:value="formState.customerName" placeholder="请输入客户名称" size="small" /></a-form-item>
       <a-row>
-        <a-col :span="12"><a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }"><a-date-picker v-model:value="formState.quotationDate" style="width: 100%" /></a-form-item></a-col>
-        <a-col :span="12"><a-form-item label="有效期至" name="validUntil" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }"><a-date-picker v-model:value="formState.validUntil" style="width: 100%" /></a-form-item></a-col>
+        <a-col :span="12"><a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }"><a-date-picker v-model:value="formState.quotationDate" size="small" style="width: 100%" /></a-form-item></a-col>
+        <a-col :span="12"><a-form-item label="有效期至" name="validUntil" :label-col="{ span: 12 }" :wrapper-col="{ span: 12 }"><a-date-picker v-model:value="formState.validUntil" size="small" style="width: 100%" /></a-form-item></a-col>
       </a-row>
       <a-form-item label="产品明细" required>
         <div class="form-items-toolbar"><a-button type="dashed" size="small" @click="addItem"><template #icon><PlusOutlined /></template>添加产品</a-button></div>
@@ -156,7 +169,7 @@ defineOptions({ name: 'SaleQuotationTab' })
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, SwapOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { quotationApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
@@ -165,11 +178,22 @@ import { useExport } from '@/composables/useExport'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const { execute: executeExport } = useExport()
 const router = useRouter()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -194,7 +218,7 @@ const vxeColumns = computed(() => [
   { title: '客户', field: 'customerName', width: 140 },
   { title: '报价日期', field: 'quotationDate', width: 110 },
   { title: '有效期', field: 'validDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', field: 'action', width: 130, fixed: 'right', type: 'action' }
 ])
@@ -261,12 +285,14 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch (err) { console.warn('[销售报价] 获取报价单列表', err); message.error('获取报价单列表失败') }
+    hasError.value = false
+  } catch (err) { console.warn('[销售报价] 获取报价单列表', err); hasError.value = true }
   finally { loading.value = false }
 }
 
 function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
 function handleAdd() { resetForm(); formVisible.value = true }
+function handleParentCreate() { handleAdd() }
 function handleEdit(record: any) {
   resetForm(); isEdit.value = true; editRecordId.value = record.id
   formState.customerName = record.customerName || ''; formState.remark = record.remark || ''
@@ -377,10 +403,12 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', handleRefreshEvent)
+  window.addEventListener('sale:create', handleParentCreate)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', handleRefreshEvent)
+  window.removeEventListener('sale:create', handleParentCreate)
 })
 
 let refreshTimer = 0
@@ -390,7 +418,8 @@ function handleRefreshEvent() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -403,6 +432,29 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   padding: 16px;
+}
+
+.quotation-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
 }
 
 /* 统计卡片 */
@@ -481,5 +533,21 @@ defineExpose({ handleQuery: fetchData })
   .quotation-page {
     padding: 8px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

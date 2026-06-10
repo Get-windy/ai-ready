@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleGenerate">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleGenerate)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -115,7 +115,24 @@
           :selectable="true"
           size="small"
           @selection-change="handleSelectionChange"
-        />
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                <p class="table-empty-text">加载失败</p>
+                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <InboxOutlined class="table-empty-icon" />
+                <p class="table-empty-text">暂无数据</p>
+              </template>
+            </div>
+          </template>
+        </VxeTableList>
       </a-tab-pane>
 
       <!-- 资产负债表 -->
@@ -141,7 +158,24 @@
           :selectable="true"
           size="small"
           @selection-change="handleSelectionChange"
-        />
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                <p class="table-empty-text">加载失败</p>
+                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <InboxOutlined class="table-empty-icon" />
+                <p class="table-empty-text">暂无数据</p>
+              </template>
+            </div>
+          </template>
+        </VxeTableList>
       </a-tab-pane>
 
       <!-- 利润表 -->
@@ -163,7 +197,24 @@
           :summary-data="incomeSummaryData"
           size="small"
           @selection-change="handleSelectionChange"
-        />
+          @cell-dblclick="handleView"
+        >
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                <p class="table-empty-text">加载失败</p>
+                <a-button type="primary" size="small" @click="handleGenerate" class="table-empty-action">
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <InboxOutlined class="table-empty-icon" />
+                <p class="table-empty-text">暂无数据</p>
+              </template>
+            </div>
+          </template>
+        </VxeTableList>
       </a-tab-pane>
     </a-tabs>
     </div>
@@ -176,16 +227,24 @@ import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined,
-  SyncOutlined, RiseOutlined, FallOutlined, DollarOutlined, ReloadOutlined
+  SyncOutlined, RiseOutlined, FallOutlined, DollarOutlined, ReloadOutlined,
+  WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import { reportApi } from '@/api/finance'
 
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
+
 const activeTab = ref('trial-balance')
 const filterYear = ref(dayjs().year())
 const filterPeriod = ref(dayjs().month() + 1)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -264,7 +323,8 @@ const loadReport = async (tab: string) => {
 const loadTrialBalance = async (period: string) => {
   trialLoading.value = true
   try {
-    const res = await reportApi.getTrialBalance({ fiscalPeriod: period })
+    const [year, p] = period.split('-')
+    const res = await reportApi.getTrialBalance({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
     if (res.data) {
       const items = res.data.items || res.data || []
       trialBalanceData.value = Array.isArray(items) ? items : []
@@ -293,11 +353,13 @@ const loadTrialBalance = async (period: string) => {
         Math.abs(totalOpenDebit - totalOpenCredit) < 0.01 &&
         Math.abs(totalPeriodDebit - totalPeriodCredit) < 0.01 &&
         Math.abs(totalCloseDebit - totalCloseCredit) < 0.01
+      hasError.value = false
     }
   } catch (err) {
     console.warn('[财务报表] 获取试算平衡表失败', err)
     message.error('获取试算平衡表失败')
     trialBalanceBalanced.value = null
+    hasError.value = true
   } finally {
     trialLoading.value = false
   }
@@ -306,7 +368,8 @@ const loadTrialBalance = async (period: string) => {
 const loadBalanceSheet = async (period: string) => {
   bsLoading.value = true
   try {
-    const res = await reportApi.getBalanceSheet({ fiscalPeriod: period })
+    const [year, p] = period.split('-')
+    const res = await reportApi.getBalanceSheet({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
     if (res.data) {
       const items = res.data.items || res.data || []
       balanceSheetData.value = Array.isArray(items) ? items : []
@@ -323,10 +386,12 @@ const loadBalanceSheet = async (period: string) => {
         .reduce((s: number, r: any) => s + (r.endingBalance || 0), 0)
 
       balanceSheetBalanced.value = Math.abs(assets - (liabilities + equity)) < 0.01
+      hasError.value = false
     }
   } catch (err) {
     console.warn('[财务报表] 获取资产负债表失败', err)
     message.error('获取资产负债表失败')
+    hasError.value = true
   } finally {
     bsLoading.value = false
   }
@@ -335,7 +400,13 @@ const loadBalanceSheet = async (period: string) => {
 const loadIncomeStatement = async (period: string) => {
   isLoading.value = true
   try {
-    const res = await reportApi.getIncomeStatement({ fiscalPeriod: period })
+    const [year, p] = period.split('-')
+    const res = await reportApi.getIncomeStatement({
+      fiscalYear: parseInt(year),
+      fiscalPeriod: parseInt(p),
+      startMonth: parseInt(p),
+      endMonth: parseInt(p)
+    })
     if (res.data) {
       const items = res.data.items || res.data || []
       incomeStatementData.value = Array.isArray(items) ? items : []
@@ -348,10 +419,12 @@ const loadIncomeStatement = async (period: string) => {
           cumulative: lastItem.cumulativeAmount || lastItem.total || 0
         }
       }
+      hasError.value = false
     }
   } catch (err) {
     console.warn('[财务报表] 获取利润表失败', err)
     message.error('获取利润表失败')
+    hasError.value = true
   } finally {
     isLoading.value = false
   }
@@ -366,12 +439,19 @@ const handleSelectionChange = (keys: any[]) => {
   // 选中行处理，预留
 }
 
+const handleView = (record: any) => {
+  message.info(`查看: ${record.subjectName || record.itemName || '-'}`)
+}
+
 // 定时刷新（30s）
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   loadReport(activeTab.value)
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', handleRefresh)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadReport(activeTab.value)
@@ -383,9 +463,24 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', handleRefresh)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', handleGenerate); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+const handleRefresh = () => loadReport(activeTab.value)
 
 defineExpose({ handleQuery: loadReport })
 </script>
@@ -439,6 +534,11 @@ defineExpose({ handleQuery: loadReport })
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.finance-report-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -516,5 +616,21 @@ defineExpose({ handleQuery: loadReport })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

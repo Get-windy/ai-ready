@@ -1,5 +1,7 @@
 package cn.aiedge.erp.printing.service.impl;
 
+import cn.aiedge.base.security.SecurityContext;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.printing.dto.PrinterStatusDTO;
 import cn.aiedge.erp.printing.entity.Printer;
 import cn.aiedge.erp.printing.entity.PrinterGroup;
@@ -24,6 +26,7 @@ public class PrinterServiceImpl implements PrinterService {
     private final PrinterMapper printerMapper;
     private final PrinterGroupMapper groupMapper;
     private final PrintTaskMapper taskMapper;
+    private final SecurityContext securityContext;
 
     @Override
     @Transactional
@@ -42,7 +45,7 @@ public class PrinterServiceImpl implements PrinterService {
     public Printer updatePrinter(Long id, Printer printer) {
         Printer existing = printerMapper.selectById(id);
         if (existing == null) {
-            throw new RuntimeException("打印机不存在: " + id);
+            throw BusinessException.notFound("打印机不存在");
         }
         printer.setId(id);
         printerMapper.updateById(printer);
@@ -78,14 +81,14 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterStatusDTO getPrinterStatus(Long id) {
         Printer printer = printerMapper.selectById(id);
         if (printer == null) {
-            throw new RuntimeException("打印机不存在: " + id);
+            throw BusinessException.notFound("打印机不存在");
         }
         PrinterStatusDTO dto = new PrinterStatusDTO();
         dto.setPrinterId(id);
         dto.setPrinterName(printer.getPrinterName());
         dto.setStatus(printer.getStatus() == 1 ? "ONLINE" : "OFFLINE");
         dto.setIsOnline(printer.getIsOnline());
-        dto.setActiveTasks(taskMapper.countActiveTasksByPrinter(id));
+        dto.setActiveTasks(taskMapper.countActiveTasksByPrinter(id, securityContext.getCurrentTenantId()));
         dto.setPaperStatus(printer.getPaperStatus());
         dto.setInkStatus(printer.getInkStatus());
         return dto;
@@ -96,7 +99,7 @@ public class PrinterServiceImpl implements PrinterService {
     public void updatePrinterStatus(Long id, String status, Boolean isOnline) {
         Printer printer = printerMapper.selectById(id);
         if (printer == null) {
-            throw new RuntimeException("打印机不存在: " + id);
+            throw BusinessException.notFound("打印机不存在");
         }
         printer.setStatus(status.equals("ONLINE") ? 1 : 0);
         printer.setIsOnline(isOnline);
@@ -120,7 +123,7 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterGroup updateGroup(Long id, PrinterGroup group) {
         PrinterGroup existing = groupMapper.selectById(id);
         if (existing == null) {
-            throw new RuntimeException("打印机分组不存在: " + id);
+            throw BusinessException.notFound("打印机分组不存在");
         }
         group.setId(id);
         groupMapper.updateById(group);

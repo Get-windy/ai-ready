@@ -11,7 +11,7 @@
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="refreshLoading" @click="loadData">
+        <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -133,16 +133,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   ReloadOutlined, SyncOutlined, DollarOutlined, PieChartOutlined, WalletOutlined,
-  FileTextOutlined, CalendarOutlined, EditOutlined, BarChartOutlined
+  FileTextOutlined, CalendarOutlined, EditOutlined, BarChartOutlined,
+  PercentageOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import { budgetReportApi, budgetAdjustmentApi } from '@/api/budget'
 import * as echarts from 'echarts'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const loading = ref(false)
 const lastUpdateTime = ref('')
@@ -269,12 +280,30 @@ const loadData = async () => {
   lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
 }
 
+function handleParentCreate() { handleAdd() }
+
+function handleAdd() {
+  // Dashboard: no inline create action
+}
+
+// ── 快捷键 ──────────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', loadData)
+    return
+  }
+}
+
 onMounted(() => {
-  setTimeout(() => {
+  window.addEventListener('budget:create', handleParentCreate)
+  window.addEventListener('budget:refresh', loadData)
+  document.addEventListener('keydown', handleKeydown)
+  nextTick(() => {
     initTrendChart()
     initStatusChart()
     loadData()
-  }, 100)
+  })
   window.addEventListener('resize', handleResize)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -287,6 +316,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('budget:create', handleParentCreate)
+  window.removeEventListener('budget:refresh', loadData)
+  document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('resize', handleResize)
   trendChart?.dispose()
   statusChart?.dispose()
@@ -391,6 +423,12 @@ defineExpose({ handleQuery: loadData })
 
 
 
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.budget-dashboard :deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
 
 /* 快捷键提示条 */
 .footer-hint {

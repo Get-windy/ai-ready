@@ -63,4 +63,12 @@ public interface SysRoleService extends IService<SysRole> {
      * 启用/禁用角色
      */
     void updateRoleStatus(Long roleId, Integer status);
+
+    /**
+     * 复制角色权限（从源角色复制到目标角色）
+     *
+     * @param targetRoleId 目标角色ID
+     * @param sourceRoleId 源角色ID
+     */
+    void copyPermissions(Long targetRoleId, Long sourceRoleId);
 }

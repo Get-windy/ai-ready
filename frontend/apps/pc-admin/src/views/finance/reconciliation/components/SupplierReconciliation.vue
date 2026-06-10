@@ -27,6 +27,7 @@
             v-model:value="queryParams.supplierName"
             placeholder="请输入供应商名称"
             allow-clear
+            size="small"
           />
         </a-form-item>
         <a-form-item>
@@ -52,7 +53,23 @@
       :show-search="false"
       :show-export="false"
       :show-batch-delete="false"
+      @cell-dblclick="handleView"
     >
+      <template #empty>
+        <div class="table-empty">
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="loadMockData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <InboxOutlined class="table-empty-icon" />
+            <p class="table-empty-text">暂无数据</p>
+          </template>
+        </div>
+      </template>
       <template #systemAmountCell="{ record }">
         <span>¥{{ record.systemAmount?.toFixed(2) }}</span>
       </template>
@@ -69,9 +86,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
+import { WarningOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons-vue'
 
 interface SupplierRecord {
   id: number
@@ -83,6 +101,7 @@ interface SupplierRecord {
 }
 
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<SupplierRecord[]>([])
 
 const summaryData = reactive({
@@ -108,20 +127,43 @@ const handleSearch = () => {
   message.info('查询供应商对账记录')
 }
 
+const handleView = (record: SupplierRecord) => {
+  message.info(`查看记录: ${record.supplierName}`)
+}
+
 loading.value = true
-setTimeout(() => {
-  dataSource.value = [
-    {
-      id: 1,
-      supplierName: '供应商A',
-      orderNo: 'PO20260328001',
-      systemAmount: 8000,
-      supplierAmount: 8000,
-      difference: 0
-    }
-  ]
-  loading.value = false
-}, 500)
+hasError.value = false
+function loadMockData() {
+  setTimeout(() => {
+    dataSource.value = [
+      {
+        id: 1,
+        supplierName: '供应商A',
+        orderNo: 'PO20260328001',
+        systemAmount: 8000,
+        supplierAmount: 8000,
+        difference: 0
+      }
+    ]
+    loading.value = false
+  }, 500)
+}
+loadMockData()
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+onMounted(() => {
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', loadMockData)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', loadMockData)
+})
 
 defineExpose({})
 </script>
@@ -129,6 +171,16 @@ defineExpose({})
 <style scoped>
 .supplier-reconciliation {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.supplier-reconciliation > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片样式 */

@@ -1,6 +1,7 @@
 package cn.aiedge.export.controller;
 
 import cn.aiedge.export.service.BatchImportService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/import")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "批量导入", description = "Excel/CSV批量导入、进度追踪、模板下载")
 public class BatchImportController {
 

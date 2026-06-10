@@ -10,13 +10,14 @@
           <h2 class="shipment-page-title">发货管理</h2>
         </div>
         <div class="shipment-page-header-right">
+          <a-switch size="small" v-model:checked="autoRefreshEnabled" checked-children="自动" un-checked-children="手动" @change="handleAutoRefreshChange" />
           <span class="data-status">
             <a-badge :status="loading ? 'processing' : hasError ? 'error' : 'success'" />
             <span v-if="lastUpdateTime" class="update-time">
               数据更新: {{ lastUpdateTime }}
             </span>
           </span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <a-button size="small" :loading="loading" @click="handleRefresh">
@@ -75,7 +76,15 @@
       </a-col>
     </a-row>
 
-    <ErrorBoundary @reset="fetchData">
+    <!-- 搜索栏 -->
+    <SearchBar
+      :fields="searchFields"
+      :loading="loading"
+      @search="handleSearch"
+      @reset="handleReset"
+    />
+
+    <ErrorBoundary @error="handleError">
       <VxeTableList
         ref="tableRef"
         :columns="vxeColumns"
@@ -94,6 +103,7 @@
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
       >
         <template #toolbar-actions>
           <span class="stats-summary">
@@ -113,16 +123,12 @@
         </template>
 
         <template #empty>
-          <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的出库单，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无出库单数据，点击右上角「新建出库单」开始创建
-            </p>
+          <div v-if="hasError" class="table-empty">
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">数据加载异常，请重试</p>
+            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
           </div>
+          <EmptyState v-else title="暂无数据" description="暂无出库单数据" size="small" :show-actions="false" />
         </template>
 
         <template #action="{ record }">
@@ -181,64 +187,139 @@
       title="出库单详情"
       placement="right"
       width="80vw"
-      :footer="null"
+      @update:open="(v) => { if (!v) editMode.value = false }"
     >
       <template #extra>
-        <a-button size="small" @click="handlePrintFromDetail">
-          <template #icon><PrinterOutlined /></template>
-          打印
-        </a-button>
+        <a-space>
+          <a-button v-if="detailData?.status === 0 && !editMode" size="small" @click="handleStartEdit">编辑</a-button>
+          <PrintButton :business-id="detailData?.id" business-type="shipment" button-size="small" tooltip="打印" />
+        </a-space>
       </template>
 
-      <a-descriptions bordered :column="2" v-if="currentRecord" size="small">
-        <a-descriptions-item label="出库单号">
-          <span class="code-text">{{ currentRecord.shipmentNo }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="销售订单">
-          <a @click="handleViewOrder">{{ currentRecord.orderNo }}</a>
-        </a-descriptions-item>
-        <a-descriptions-item label="客户名称">
-          <span class="customer-name">{{ currentRecord.customerName }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="出库金额">
-          <span class="amount-cell">¥{{ formatAmount(currentRecord.totalAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <StatusTag :status="currentRecord.status" :map="SHIPMENT_STATUS" />
-        </a-descriptions-item>
-        <a-descriptions-item label="出库日期">{{ currentRecord.shipmentDate }}</a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ currentRecord.operator }}</a-descriptions-item>
-        <a-descriptions-item label="物流单号">
-          <span v-if="currentRecord.trackingNo">{{ currentRecord.trackingNo }}</span>
-          <span v-else class="empty-text">未填写</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">
-          <span v-if="currentRecord.remark">{{ currentRecord.remark }}</span>
-          <span v-else class="empty-text">无</span>
-        </a-descriptions-item>
-      </a-descriptions>
+      <a-spin :spinning="detailLoading">
+        <a-descriptions bordered :column="2" v-if="detailData" size="small">
+          <a-descriptions-item label="出库单号">
+            <span class="code-text">{{ detailData.shipmentNo }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="销售订单">
+            <a @click="handleViewOrder">{{ detailData.orderNo }}</a>
+          </a-descriptions-item>
+          <a-descriptions-item label="客户名称">
+            <span class="customer-name">{{ detailData.customerName }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+          <a-descriptions-item label="出库类型">
+            <span>{{ detailData.outboundTypeName || '-' }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="出库金额">
+            <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="状态">
+            <StatusTag :status="detailData.status" :map="SHIPMENT_STATUS" />
+          </a-descriptions-item>
+          <a-descriptions-item label="出库日期">{{ detailData.shipmentDate }}</a-descriptions-item>
+          <a-descriptions-item label="联系人">
+            <template v-if="editMode">
+              <a-input v-model:value="editForm.contactName" size="small" placeholder="请输入联系人" />
+            </template>
+            <template v-else>
+              <span>{{ detailData.contactName || '-' }}</span>
+            </template>
+          </a-descriptions-item>
+          <a-descriptions-item label="联系电话">
+            <template v-if="editMode">
+              <a-input v-model:value="editForm.contactPhone" size="small" placeholder="请输入联系电话" />
+            </template>
+            <template v-else>
+              <span>{{ detailData.contactPhone || '-' }}</span>
+            </template>
+          </a-descriptions-item>
+          <a-descriptions-item label="业务员">
+            <span>{{ detailData.salesPersonName || '-' }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="部门">
+            <span>{{ detailData.departmentName || '-' }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="收货人">
+            <template v-if="editMode">
+              <a-input v-model:value="editForm.receiverName" size="small" placeholder="请输入收货人" />
+            </template>
+            <template v-else>
+              <span>{{ detailData.receiverName || '-' }}</span>
+            </template>
+          </a-descriptions-item>
+          <a-descriptions-item label="收货电话">
+            <template v-if="editMode">
+              <a-input v-model:value="editForm.receiverPhone" size="small" placeholder="请输入收货电话" />
+            </template>
+            <template v-else>
+              <span>{{ detailData.receiverPhone || '-' }}</span>
+            </template>
+          </a-descriptions-item>
+          <a-descriptions-item label="收货地址" :span="2">
+            <template v-if="editMode">
+              <a-input v-model:value="editForm.shippingAddress" size="small" placeholder="请输入收货地址" />
+            </template>
+            <template v-else>
+              <span>{{ detailData.shippingAddress || '-' }}</span>
+            </template>
+          </a-descriptions-item>
+          <a-descriptions-item label="物流单号">
+            <span v-if="detailData.trackingNo">{{ detailData.trackingNo }}</span>
+            <span v-else class="empty-text">未填写</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="操作人">{{ detailData.operator }}</a-descriptions-item>
+          <a-descriptions-item label="备注" :span="2">
+            <template v-if="editMode">
+              <a-textarea v-model:value="editForm.remark" :rows="2" placeholder="请输入备注" />
+            </template>
+            <template v-else>
+              <span v-if="detailData.remark">{{ detailData.remark }}</span>
+              <span v-else class="empty-text">无</span>
+            </template>
+          </a-descriptions-item>
+        </a-descriptions>
 
-      <!-- 出库明细 -->
-      <div class="detail-items-section">
-        <h4 class="section-title">出库明细</h4>
-        <VxeTableList
-          :columns="itemColumns"
-          :data-source="currentRecordItems"
+        <h4 style="margin: 16px 0 8px;">出库明细</h4>
+        <a-table
+          :data-source="detailDataItems"
+          :columns="detailItemColumns"
           :pagination="false"
+          size="small"
+          bordered
           row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
         >
-          <template #amountCell="{ record }">
-            <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'unitPrice' || column.key === 'amount'">
+              <span class="amount-cell">¥{{ formatAmount(column.key === 'amount' ? record.amount : record.unitPrice) }}</span>
+            </template>
           </template>
-        </VxeTableList>
-      </div>
+        </a-table>
+      </a-spin>
+
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <template v-if="editMode">
+            <a-button @click="handleCancelEdit">取消</a-button>
+            <a-button type="primary" @click="handleSaveEdit">保存</a-button>
+          </template>
+          <template v-else>
+            <a-button @click="detailVisible = false">关闭</a-button>
+            <a-button v-if="detailData?.status === 0" type="primary" @click="handleApprove(detailData)">
+              审核
+            </a-button>
+            <a-button v-if="detailData?.status === 1" type="primary" @click="handleShip(detailData)">
+              出库
+            </a-button>
+            <PrintButton
+              v-if="detailData && detailData.status >= 2"
+              templateType="stock_out"
+              :businessId="detailData.id"
+              businessType="shipment"
+            />
+          </template>
+        </div>
+      </template>
     </a-drawer>
 
     <!-- 物流单号填写弹窗 -->
@@ -250,10 +331,10 @@
     >
       <a-form layout="vertical">
         <a-form-item label="物流单号">
-          <a-input v-model:value="trackingForm.trackingNo" placeholder="请输入物流单号" />
+          <a-input size="small" v-model:value="trackingForm.trackingNo" placeholder="请输入物流单号" />
         </a-form-item>
         <a-form-item label="物流公司">
-          <a-select v-model:value="trackingForm.carrier" placeholder="请选择物流公司">
+          <a-select size="small" v-model:value="trackingForm.carrier" placeholder="请选择物流公司">
             <a-select-option value="SF">顺丰速运</a-select-option>
             <a-select-option value="EMS">EMS</a-select-option>
             <a-select-option value="JD">京东物流</a-select-option>
@@ -264,16 +345,241 @@
       </a-form>
     </a-modal>
   </PageContainer>
+
+
+    <!-- 新建出库单弹窗 -->
+    <a-modal
+      v-model:open="createFormVisible"
+      title="新建出库单"
+      width="800px"
+      :footer="null"
+      :mask-closable="false"
+      @cancel="handleCreateFormCancel"
+    >
+      <a-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="formRules"
+        layout="vertical"
+        @finish="submitCreateForm"
+      >
+        <!-- 基本信息 -->
+        <a-divider orientation="left">基本信息</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item label="出库类型" name="outboundType" required>
+              <a-select v-model:value="createForm.outboundType" placeholder="请选择出库类型" allow-clear>
+                <a-select-option :value="1">销售出库</a-select-option>
+                <a-select-option :value="2">换货出库</a-select-option>
+                <a-select-option :value="3">调拨出库</a-select-option>
+                <a-select-option :value="4">其他出库</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item label="出库日期" name="outboundDate" required>
+              <a-date-picker v-model:value="createForm.outboundDate" style="width: 100%" placeholder="请选择出库日期" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item label="仓库" name="warehouseId" required>
+              <a-select
+                v-model:value="createForm.warehouseId"
+                placeholder="请选择仓库"
+                :options="warehouseOptions"
+                :loading="warehouseLoading"
+                allow-clear
+                show-search
+                option-filter-prop="label"
+                @change="handleWarehouseChange"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 客户信息 -->
+        <a-divider orientation="left">客户信息</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="客户" name="customerId" required>
+              <a-select
+                v-model:value="createForm.customerId"
+                placeholder="请选择客户"
+                :options="customerOptions"
+                :loading="customerLoading"
+                allow-clear
+                show-search
+                option-filter-prop="label"
+                @change="handleCustomerChange"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="联系人">
+              <a-select
+                v-model:value="createForm.contactId"
+                placeholder="请选择联系人"
+                allow-clear
+                show-search
+                option-filter-prop="label"
+              >
+                <a-select-option
+                  v-for="c in contactOptions"
+                  :key="c.id"
+                  :value="c.id"
+                  :label="c.name"
+                >
+                  {{ c.name }}{{ c.phone ? ` (${c.phone})` : '' }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 人员信息 -->
+        <a-divider orientation="left">人员信息</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="销售人员">
+              <a-input v-model:value="createForm.salesPersonName" placeholder="销售人员姓名" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="所属部门">
+              <a-input v-model:value="createForm.departmentName" placeholder="所属部门" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 收货信息 -->
+        <a-divider orientation="left">收货信息</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="收货地址">
+              <a-input v-model:value="createForm.shippingAddress" placeholder="请输入收货地址" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="收货人">
+              <a-input v-model:value="createForm.receiverName" placeholder="请输入收货人" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="收货电话">
+              <a-input v-model:value="createForm.receiverPhone" placeholder="请输入收货电话" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 出库明细 -->
+        <a-divider orientation="left">出库明细</a-divider>
+        <a-table
+          :data-source="createForm.items"
+          :columns="itemFormColumns"
+          :pagination="false"
+          row-key="tempId"
+          size="small"
+          bordered
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.key === 'product'">
+              <a-select
+                v-model:value="record.productId"
+                placeholder="搜索选择商品"
+                style="width: 100%"
+                show-search
+                allow-clear
+                :filter-option="false"
+                :options="productOptions"
+                :loading="productLoading"
+                @search="(val) => handleProductSearch(val, index)"
+                @change="(val) => handleProductChange(val, index)"
+              >
+                <template #option="{ label, productCode, productName, productSpec }">
+                  <div>
+                    <div>{{ productName || label }}</div>
+                    <div style="font-size: 12px; color: #999;">
+                      {{ productCode }}{{ productSpec ? ` / ${productSpec}` : '' }}
+                    </div>
+                  </div>
+                </template>
+              </a-select>
+            </template>
+            <template v-else-if="column.key === 'quantity'">
+              <a-input-number
+                v-model:value="record.orderQuantity"
+                :min="0"
+                :precision="0"
+                style="width: 100%"
+                placeholder="数量"
+              />
+            </template>
+            <template v-else-if="column.key === 'unitPrice'">
+              <a-input-number
+                v-model:value="record.unitPrice"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+                placeholder="单价"
+              />
+            </template>
+            <template v-else-if="column.key === 'remark'">
+              <a-input v-model:value="record.remark" placeholder="备注" style="width: 100%" />
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a-button
+                type="link"
+                danger
+                size="small"
+                @click="handleRemoveItem(index)"
+                :disabled="createForm.items.length <= 1"
+              >
+                <template #icon><MinusCircleOutlined /></template>
+                删除
+              </a-button>
+            </template>
+          </template>
+        </a-table>
+        <a-button type="dashed" block style="margin-top: 8px;" @click="handleAddItem">
+          <template #icon><PlusOutlined /></template>
+          添加商品行
+        </a-button>
+
+        <!-- 备注 -->
+        <a-divider orientation="left">备注</a-divider>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="备注">
+              <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="内部备注">
+              <a-textarea v-model:value="createForm.internalNote" :rows="2" placeholder="内部备注" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 提交按钮 -->
+        <a-form-item>
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <a-button @click="handleCreateFormCancel">取消</a-button>
+            <a-button type="primary" html-type="submit" :loading="createFormSubmitting">提交</a-button>
+          </div>
+        </a-form-item>
+      </a-form>
+    </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, SearchBar, EmptyState } from '@/components'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { SHIPMENT_STATUS } from '@/utils/statusConfig'
 import request from '@/utils/request'
@@ -287,17 +593,35 @@ import {
   SearchOutlined,
   InboxOutlined,
   ReloadOutlined,
-  PrinterOutlined,
   NumberOutlined,
   FileTextOutlined,
   ClockCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  WarningOutlined,
+  PlusOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons-vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+function handleError(err: any) {
+  hasError.value = true
+  console.warn('[发货管理] ErrorBoundary 捕获异常:', err)
+}
 
 interface ShipmentItem {
   id: number
   productName: string
   productCode: string
+  productSpec?: string
   quantity: number
   unitPrice: number
   amount: number
@@ -315,6 +639,15 @@ interface Shipment {
   operator: string
   trackingNo?: string
   remark?: string
+  outboundType?: number
+  outboundTypeName?: string
+  contactName?: string
+  contactPhone?: string
+  salesPersonName?: string
+  departmentName?: string
+  shippingAddress?: string
+  receiverName?: string
+  receiverPhone?: string
   items?: ShipmentItem[]
 }
 
@@ -324,9 +657,19 @@ const dataSource = ref<Shipment[]>([])
 const detailVisible = ref(false)
 const trackingVisible = ref(false)
 const currentRecord = ref<Shipment | null>(null)
+const editMode = ref(false)
+const editForm = reactive({
+  remark: '',
+  contactName: '',
+  contactPhone: '',
+  shippingAddress: '',
+  receiverName: '',
+  receiverPhone: ''
+})
 const tableRef = ref()
 const lastUpdateTime = ref<string>('')
 const autoRefreshCountdown = ref(0)
+const autoRefreshEnabled = ref(true)
 const selectedRows = ref<Shipment[]>([])
 const selectedIds = ref<number[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -344,8 +687,19 @@ const pagination = reactive({
   total: 0
 })
 
-// 状态统计
+// 服务端统计（如果 API 返回）
+const serverStats = reactive({
+  total: 0,
+  pending: 0,
+  processing: 0,
+  completed: 0
+})
+
+// 状态统计 - 优先使用服务端统计数据，否则从当前页计算
 const statusCounts = computed(() => {
+  if (serverStats.total > 0) {
+    return { ...serverStats }
+  }
   const pending = dataSource.value.filter(item => item.status === 0).length
   const processing = dataSource.value.filter(item => item.status === 1).length
   const completed = dataSource.value.filter(item => item.status >= 2).length
@@ -359,8 +713,8 @@ const hasActiveFilters = computed(() => {
 
 
 // 详情明细
-const currentRecordItems = computed(() => {
-  return currentRecord.value?.items || []
+const detailDataItems = computed(() => {
+  return detailData.value?.items || []
 })
 
 const vxeColumns = computed(() => [
@@ -375,12 +729,13 @@ const vxeColumns = computed(() => [
   { type: 'action', title: '操作', width: 200, fixed: 'right' },
 ])
 
-const itemColumns = [
-  { title: '商品名称', field: 'productName', width: 200 },
-  { title: '商品编码', field: 'productCode', width: 120 },
-  { title: '数量', field: 'quantity', width: 80, align: 'right' },
-  { title: '单价', field: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', field: 'amount', width: 120, align: 'right', slotName: 'amountCell' }
+const detailItemColumns = [
+  { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
+  { title: '产品名称', dataIndex: 'productName', key: 'productName', width: 200 },
+  { title: '规格', dataIndex: 'productSpec', key: 'productSpec', width: 120 },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' },
+  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100, align: 'right' },
+  { title: '小计', dataIndex: 'amount', key: 'amount', width: 120, align: 'right' }
 ]
 
 const filterFields = [
@@ -395,6 +750,18 @@ const filterFields = [
   ]}
 ]
 
+const searchFields: SearchField[] = [
+  { name: 'shipmentNo', label: '出库单号', type: 'input', placeholder: '请输入出库单号' },
+  { name: 'orderNo', label: '销售订单', type: 'input', placeholder: '请输入订单号' },
+  { name: 'customerName', label: '客户名称', type: 'input', placeholder: '请输入客户名称' },
+  { name: 'status', label: '状态', type: 'select', options: [
+    { label: '待审核', value: 0 },
+    { label: '已审核', value: 1 },
+    { label: '已出库', value: 2 },
+    { label: '已签收', value: 3 }
+  ]},
+]
+
 const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
@@ -404,7 +771,26 @@ const handleRefresh = async () => {
   await fetchData()
 }
 
-const handleSearch = () => {
+const handleAutoRefreshChange = (checked: boolean) => {
+  if (checked) {
+    autoRefreshCountdown.value = 30
+  } else {
+    autoRefreshCountdown.value = 0
+  }
+}
+
+const handleSearch = (values?: Record<string, any>) => {
+  if (values) {
+    Object.assign(searchFilters, values)
+  }
+  pagination.current = 1
+  fetchData()
+}
+
+const handleReset = () => {
+  for (const key of Object.keys(searchFilters)) {
+    searchFilters[key] = undefined
+  }
   pagination.current = 1
   fetchData()
 }
@@ -423,13 +809,267 @@ const handleResetFilters = () => {
   fetchData()
 }
 
+// ── 新建出库单表单 ────────────────────────────────────
+const createFormVisible = ref(false)
+const createFormSubmitting = ref(false)
+const createFormRef = ref<any>(null)
+
+let tempIdCounter = 0
+function nextTempId() {
+  return --tempIdCounter
+}
+
+const initFormData = () => ({
+  orderId: null,
+  orderNo: '',
+  customerId: null,
+  customerName: '',
+  contactId: null,
+  contactName: '',
+  outboundDate: dayjs(),
+  outboundType: null,
+  warehouseId: null,
+  warehouseName: '',
+  salesPersonId: null,
+  salesPersonName: '',
+  departmentId: null,
+  departmentName: '',
+  shippingAddress: '',
+  receiverName: '',
+  receiverPhone: '',
+  remark: '',
+  internalNote: '',
+  items: [] as any[]
+})
+
+const createForm = reactive<Record<string, any>>(initFormData())
+
+const formRules: Record<string, any> = {
+  outboundType: [{ required: true, message: '请选择出库类型', trigger: 'change' }],
+  outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }],
+  warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
+  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }]
+}
+
+// ── 仓库 ──────────────────────────────────────────────
+const warehouseOptions = ref<any[]>([])
+const warehouseLoading = ref(false)
+
+async function loadWarehouses() {
+  warehouseLoading.value = true
+  try {
+    const res = await request.get('/erp/stock/warehouses')
+    warehouseOptions.value = (res.data || []).map((w: any) => ({
+      value: w.id,
+      label: w.name
+    }))
+  } catch (err) {
+    console.warn('[发货管理] 加载仓库列表失败', err)
+  } finally {
+    warehouseLoading.value = false
+  }
+}
+
+function handleWarehouseChange(val: any) {
+  const found = warehouseOptions.value.find(o => o.value === val)
+  createForm.warehouseName = found?.label || ''
+}
+
+// ── 客户 ──────────────────────────────────────────────
+const customerOptions = ref<any[]>([])
+const customerLoading = ref(false)
+const contactOptions = ref<any[]>([])
+
+async function loadCustomers() {
+  customerLoading.value = true
+  try {
+    const res = await request.get('/erp/partner/list', {
+      params: { partnerType: 'CUSTOMER', pageSize: 200 }
+    })
+    customerOptions.value = (res.data?.records || res.data || []).map((c: any) => ({
+      value: c.id,
+      label: c.name,
+      customerName: c.name,
+      contactId: c.contactId,
+      contactName: c.contactName,
+      contacts: c.contacts || []
+    }))
+  } catch (err) {
+    console.warn('[发货管理] 加载客户列表失败', err)
+  } finally {
+    customerLoading.value = false
+  }
+}
+
+function handleCustomerChange(val: any) {
+  if (val) {
+    const id = val.value ?? val
+    const found = customerOptions.value.find(o => o.value === id)
+    if (found) {
+      createForm.customerName = found.customerName || found.label
+      createForm.contactId = found.contactId || null
+      createForm.contactName = found.contactName || ''
+      contactOptions.value = (found.contacts || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone
+      }))
+    }
+  } else {
+    createForm.customerName = ''
+    createForm.contactId = null
+    createForm.contactName = ''
+    contactOptions.value = []
+  }
+}
+
+// ── 商品 ──────────────────────────────────────────────
+const productOptions = ref<any[]>([])
+const productLoading = ref(false)
+let productSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function loadProducts(keyword = '') {
+  productLoading.value = true
+  try {
+    const res = await request.get('/erp/product/list', {
+      params: { keyword, pageSize: 50 }
+    })
+    productOptions.value = (res.data?.records || res.data || []).map((p: any) => ({
+      value: p.id,
+      label: p.name,
+      productName: p.name,
+      productCode: p.code,
+      productSpec: p.spec,
+      productUnit: p.unit
+    }))
+  } catch (err) {
+    console.warn('[发货管理] 加载商品列表失败', err)
+  } finally {
+    productLoading.value = false
+  }
+}
+
+function handleProductSearch(keyword: string) {
+  if (productSearchTimer) clearTimeout(productSearchTimer)
+  productSearchTimer = setTimeout(() => {
+    loadProducts(keyword)
+  }, 300)
+}
+
+function handleProductChange(val: any, index: number) {
+  const item = createForm.items[index]
+  if (!item || !val) return
+  const found = productOptions.value.find(o => o.value === (val.value ?? val))
+  if (found) {
+    item.productId = found.value
+    item.productCode = found.productCode
+    item.productName = found.productName
+    item.productSpec = found.productSpec
+    item.productUnit = found.productUnit
+  }
+}
+
+// ── 出库明细 ──────────────────────────────────────────
+const itemFormColumns = [
+  { title: '商品', key: 'product', width: 250 },
+  { title: '数量', key: 'quantity', width: 100 },
+  { title: '单价', key: 'unitPrice', width: 120 },
+  { title: '备注', key: 'remark', width: 150 },
+  { title: '操作', key: 'action', width: 80 }
+]
+
+function handleAddItem() {
+  createForm.items.push({
+    tempId: nextTempId(),
+    productId: null,
+    productCode: '',
+    productName: '',
+    productSpec: '',
+    productUnit: '',
+    orderItemId: null,
+    orderQuantity: 1,
+    unitPrice: 0,
+    remark: ''
+  })
+}
+
+function handleRemoveItem(index: number) {
+  if (createForm.items.length <= 1) return
+  createForm.items.splice(index, 1)
+}
+
+function resetCreateForm() {
+  Object.assign(createForm, initFormData())
+  createForm.items = []
+  handleAddItem()
+  contactOptions.value = []
+  productOptions.value = []
+  nextTick(() => {
+    createFormRef.value?.clearValidate?.()
+  })
+}
+
+const handleCreateFormCancel = () => {
+  createFormVisible.value = false
+}
+
+async function submitCreateForm() {
+  if (!createForm.items.length || createForm.items.every((i: any) => !i.productId)) {
+    message.warning('请至少添加一个出库商品')
+    return
+  }
+
+  createFormSubmitting.value = true
+  try {
+    const payload = { ...createForm }
+    if (payload.outboundDate) {
+      payload.outboundDate = dayjs(payload.outboundDate).format('YYYY-MM-DD')
+    }
+    payload.items = payload.items.map((item: any) => {
+      const { tempId, ...rest } = item
+      return rest
+    })
+    await request.post('/erp/sale/outbound', payload)
+    message.success('出库单创建成功')
+    createFormVisible.value = false
+    fetchData()
+  } catch (error: any) {
+    console.warn('[发货管理] 创建出库单失败', error)
+    message.error(error?.response?.data?.message || error?.message || '创建出库单失败')
+  } finally {
+    createFormSubmitting.value = false
+  }
+}
+
+function handleParentCreate() { handleCreate() }
+
 const handleCreate = () => {
-  message.info('打开新建出库单表单')
+  createFormVisible.value = true
+  resetCreateForm()
+  loadWarehouses()
+  loadCustomers()
+}
+
+const detailData = ref<Shipment | null>(null)
+const detailLoading = ref(false)
+
+const fetchDetail = async (id: number) => {
+  detailLoading.value = true
+  try {
+    const res = await request.get(`/erp/sale/outbound/${id}`)
+    detailData.value = res.data || null
+  } catch (err) {
+    console.warn('[发货管理] 获取详情失败', err)
+    detailData.value = dataSource.value.find(item => item.id === id) || null
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 const handleView = (record: Shipment) => {
-  currentRecord.value = record
+  editMode.value = false
   detailVisible.value = true
+  fetchDetail(record.id)
 }
 
 const handleViewOrder = () => {
@@ -449,6 +1089,9 @@ const handleApprove = (record: Shipment) => {
         await request.put(`/erp/sale/outbound/${record.id}/approve`)
         message.success('审核成功')
         fetchData()
+        if (detailVisible.value && detailData.value?.id === record.id) {
+          fetchDetail(record.id)
+        }
       } catch (error) {
         console.warn('[发货管理] 审核失败', error)
         message.error('审核失败')
@@ -468,6 +1111,9 @@ const handleShip = (record: Shipment) => {
         await request.put(`/erp/sale/outbound/${record.id}/ship`)
         message.success('出库成功')
         fetchData()
+        if (detailVisible.value && detailData.value?.id === record.id) {
+          fetchDetail(record.id)
+        }
       } catch (error) {
         console.warn('[发货管理] 出库失败', error)
         message.error('出库失败')
@@ -484,10 +1130,6 @@ const handlePrintError = (error: any) => {
   message.error(`打印失败: ${error.message || '未知错误'}`)
 }
 
-const handlePrintFromDetail = () => {
-  message.info('打印当前出库单')
-}
-
 const handleDelete = async (record: Shipment) => {
   try {
     await request.delete(`/erp/sale/outbound/${record.id}`)
@@ -502,7 +1144,7 @@ const handleDelete = async (record: Shipment) => {
 const handleActionMenuClick = (key: string, record: Shipment) => {
   switch (key) {
     case 'edit':
-      message.info(`编辑出库单: ${record.shipmentNo}`)
+      handleView(record)
       break
     case 'delete':
       Modal.confirm({
@@ -540,8 +1182,64 @@ const handleSaveTracking = async () => {
   }
 }
 
-const handleExport = () => {
-  message.info('导出出库单数据')
+const handleExport = async () => {
+  try {
+    const res = await request.get('/erp/shipment/export', {
+      params: { ...searchFilters },
+      responseType: 'blob'
+    })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `出库单_${dayjs().format('YYYYMMDDHHmmss')}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error: any) {
+    console.warn('[发货管理] 导出失败', error)
+    message.error(error?.response?.data?.message || '导出失败')
+  }
+}
+
+// ── 编辑模式 ──────────────────────────────────────────
+const handleStartEdit = () => {
+  if (detailData.value) {
+    editForm.remark = detailData.value.remark || ''
+    editForm.contactName = detailData.value.contactName || ''
+    editForm.contactPhone = detailData.value.contactPhone || ''
+    editForm.shippingAddress = detailData.value.shippingAddress || ''
+    editForm.receiverName = detailData.value.receiverName || ''
+    editForm.receiverPhone = detailData.value.receiverPhone || ''
+  }
+  editMode.value = true
+}
+
+const handleSaveEdit = async () => {
+  if (!detailData.value) return
+  try {
+    await request.put(`/erp/sale/outbound/${detailData.value.id}`, {
+      remark: editForm.remark,
+      contactName: editForm.contactName,
+      contactPhone: editForm.contactPhone,
+      shippingAddress: editForm.shippingAddress,
+      receiverName: editForm.receiverName,
+      receiverPhone: editForm.receiverPhone
+    })
+    message.success('编辑成功')
+    editMode.value = false
+    fetchDetail(detailData.value.id)
+    fetchData()
+  } catch (error: any) {
+    console.warn('[发货管理] 编辑失败', error)
+    message.error(error?.response?.data?.message || '编辑失败')
+  }
+}
+
+const handleCancelEdit = () => {
+  editMode.value = false
 }
 
 const handlePageChange = (page: number, size: number) => {
@@ -560,6 +1258,10 @@ const handleKeydown = (e: KeyboardEvent) => {
     e.preventDefault()
     handleCreate()
   }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    e.preventDefault()
+    handleExport()
+  }
   if (e.key === 'F5' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault()
     handleRefresh()
@@ -576,9 +1278,21 @@ const fetchData = async (silent = false) => {
       pageSize: pagination.pageSize
     }
     const res = await request.get('/erp/sale/outbound/page', { params })
-    if (res.data?.records) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total || 0
+    if (res.data) {
+      // 如果 API 返回了统计数据，优先使用（如 totalCount, pendingCount 等）
+      if (res.data.totalCount !== undefined) {
+        serverStats.total = res.data.totalCount || 0
+        serverStats.pending = res.data.pendingCount || 0
+        serverStats.processing = res.data.processingCount || 0
+        serverStats.completed = res.data.completedCount || 0
+      }
+      if (res.data.records) {
+        dataSource.value = res.data.records
+        pagination.total = res.data.total || 0
+      } else {
+        dataSource.value = []
+        pagination.total = 0
+      }
     } else {
       dataSource.value = []
       pagination.total = 0
@@ -598,13 +1312,19 @@ const fetchData = async (silent = false) => {
 
 onMounted(() => {
   fetchData()
+  loadWarehouses()
+  loadCustomers()
+  window.addEventListener("erp:create", handleParentCreate)
+  window.addEventListener("erp:refresh", fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
-    fetchData(true)
-    autoRefreshCountdown.value = 30
+    if (autoRefreshEnabled.value) {
+      fetchData(true)
+      autoRefreshCountdown.value = 30
+    }
   }, 30000)
   countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+    if (autoRefreshEnabled.value && autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
   window.addEventListener('keydown', handleKeydown)
 })
@@ -821,4 +1541,25 @@ onUnmounted(() => {
   background: #fafafa;
 }
 
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

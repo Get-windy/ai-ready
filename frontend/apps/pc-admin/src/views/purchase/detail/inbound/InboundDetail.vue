@@ -57,6 +57,16 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inboundApi, type PurchaseInbound } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const router = useRouter(); const route = useRoute()
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 const data = ref<PurchaseInbound | null>(null)
@@ -94,13 +104,21 @@ const handleBreadcrumbClick = (item: any) => { if (item.path) router.push(item.p
 const handleTabChange = (k: string) => { activeTab.value = k }
 const handleRelatedClick = (doc: any) => { if (doc.type === '采购订单') router.push(`/purchase/order/${doc.id}`) }
 const handleApprove = async () => { try { await inboundApi.approve(data.value!.id); message.success('审批成功'); fetchDetail() } catch (e) { console.warn('[入库详情] 审批失败', e); message.error('审批失败') } }
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault()
+    debounceClick('refresh', fetchDetail)
+  }
+}
 onMounted(() => {
   fetchDetail()
   refreshTimer = setInterval(() => fetchDetail(), 30000)
+  document.addEventListener('keydown', handleKeydown)
   window.addEventListener('purchase:refresh', fetchDetail)
 })
 onUnmounted(() => {
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('purchase:refresh', fetchDetail)
 })
 </script>

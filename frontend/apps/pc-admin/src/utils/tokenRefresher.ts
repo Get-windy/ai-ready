@@ -184,12 +184,12 @@ export function isTokenExpired(token: string): boolean {
     const payload = JSON.parse(atob(token.split('.')[1]))
     const exp = payload.exp * 1000 // 转换为毫秒
     const expired = Date.now() >= exp - 60000 // 提前1分钟判定过期
-    console.log(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
+    console.warn(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
     return expired
   } catch {
     // 非 JWT 格式（如 UUID token）→ 本地无法判断，返回 false
     // 由 verifyToken() 进行后端验证
-    console.log(`${T} isTokenExpired: 非JWT格式, 需要后端验证`)
+    console.warn(`${T} isTokenExpired: 非JWT格式, 需要后端验证`)
     return false
   }
 }

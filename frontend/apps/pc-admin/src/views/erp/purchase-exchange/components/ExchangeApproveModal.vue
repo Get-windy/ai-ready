@@ -1,11 +1,10 @@
 <template>
-  <a-modal
-    v-model:open="open"
+  <FullScreenDetail
+    :visible="open"
     title="换货单审批"
-    width="600px"
-    :confirm-loading="submitting"
-    @ok="handleSubmit"
-    @cancel="handleCancel"
+    :save-loading="submitting"
+    @close="handleCancel"
+    @save="handleSubmit"
   >
     <div v-if="record" class="approve-info">
       <a-descriptions :column="2" bordered>
@@ -22,12 +21,7 @@
 
     <a-divider />
 
-    <a-form
-      ref="formRef"
-      :model="formData"
-      :rules="formRules"
-      layout="vertical"
-    >
+    <a-form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
       <a-form-item label="审批结果" name="approved">
         <a-radio-group v-model:value="formData.approved">
           <a-radio :value="true">通过</a-radio>
@@ -43,17 +37,28 @@
         />
       </a-form-item>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { FullScreenDetail } from '@/components'
 import {
   purchaseExchangeApi,
   type PurchaseExchange
 } from '@/api/purchase-exchange'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 interface Props {
   open: boolean
@@ -68,11 +73,6 @@ const emit = defineEmits<{
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-
-const open = computed({
-  get: () => props.open,
-  set: (val) => emit('update:open', val)
-})
 
 const formData = reactive({
   approved: true,
@@ -124,7 +124,7 @@ const handleSubmit = async () => {
 
 const handleCancel = () => {
   resetForm()
-  open.value = false
+  emit('update:open', false)
 }
 
 const resetForm = () => {
@@ -137,5 +137,21 @@ const resetForm = () => {
 <style scoped>
 .approve-info {
   margin-bottom: 16px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

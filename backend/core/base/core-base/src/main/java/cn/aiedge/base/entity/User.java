@@ -83,6 +83,12 @@ public class User extends BaseEntity {
     private String lastLoginIp;
 
     /**
+     * 数据权限范围（ALL-全数据 DEPT-本部门 DEPT_CHILD-本部门及子部门 SELF-仅本人）
+     * 若为空则继承角色 dataScope
+     */
+    private String dataScope;
+
+    /**
      * 备注
      */
     private String remark;

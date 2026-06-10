@@ -50,12 +50,13 @@
       @view="handleView"
       @delete="handleDelete"
       @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @search="handleSearch"
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="handleSelectionChange"
     >
     <template #toolbar-actions>
@@ -65,14 +66,25 @@
     </template>
 
     <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配收款单">
-        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无收款单">
-        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        <a-button type="primary" @click="handleAdd">新建收款单</a-button>
-      </a-empty>
+      <div class="table-empty">
+        <template v-if="hasError">
+          <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+          <p class="table-empty-text">加载失败</p>
+          <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <ReloadOutlined /> 重试
+          </a-button>
+        </template>
+        <template v-else>
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            当前筛选条件下无匹配收款单，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无收款单，点击「新建收款单」开始创建
+          </p>
+        </template>
+      </div>
     </template>
 
     <template #batch-actions>
@@ -86,6 +98,7 @@
             <template #icon><EyeOutlined /></template>
           </a-button>
         </a-tooltip>
+		  <PrintButton :record="record" :business-id="record.id" business-type="sale_receipt" button-type="link" button-size="small" tooltip="打印" />
         <a-dropdown trigger="click">
           <a-button type="link" size="small" class="action-more-btn">
             <template #icon><EllipsisOutlined /></template>
@@ -126,13 +139,13 @@
     :confirm-loading="receiptFormSubmitting" ok-text="确认创建" cancel-text="取消"
     @ok="handleReceiptFormSubmit" @cancel="receiptFormVisible = false">
     <a-form ref="receiptFormRef" :model="receiptFormData" :rules="receiptFormRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
-      <a-form-item label="销售订单" name="orderNo"><a-input v-model:value="receiptFormData.orderNo" placeholder="请输入销售订单号" /></a-form-item>
-      <a-form-item label="客户" name="customerName"><a-input v-model:value="receiptFormData.customerName" placeholder="请输入客户名称" /></a-form-item>
+      <a-form-item label="销售订单" name="orderNo"><a-input v-model:value="receiptFormData.orderNo" placeholder="请输入销售订单号" size="small" /></a-form-item>
+      <a-form-item label="客户" name="customerName"><a-input v-model:value="receiptFormData.customerName" placeholder="请输入客户名称" size="small" /></a-form-item>
       <a-form-item label="收款金额" name="receiptAmount"><a-input-number v-model:value="receiptFormData.receiptAmount" :min="0" :precision="2" style="width: 100%" prefix="¥" placeholder="请输入收款金额" /></a-form-item>
       <a-row>
         <a-col :span="12">
           <a-form-item label="收款方式" name="receiptMethod" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-select v-model:value="receiptFormData.receiptMethod" placeholder="请选择收款方式">
+            <a-select v-model:value="receiptFormData.receiptMethod" placeholder="请选择收款方式" size="small">
               <a-select-option value="银行转账">银行转账</a-select-option>
               <a-select-option value="现金">现金</a-select-option>
               <a-select-option value="微信">微信</a-select-option>
@@ -144,10 +157,10 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="收款日期" name="receiptDate" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-date-picker v-model:value="receiptFormData.receiptDate" style="width: 100%" /></a-form-item>
+            <a-date-picker v-model:value="receiptFormData.receiptDate" size="small" style="width: 100%" /></a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="收款账户" name="bankAccount"><a-input v-model:value="receiptFormData.bankAccount" placeholder="请输入收款账户" /></a-form-item>
+      <a-form-item label="收款账户" name="bankAccount"><a-input v-model:value="receiptFormData.bankAccount" placeholder="请输入收款账户" size="small" /></a-form-item>
       <a-form-item label="备注" name="remark"><a-textarea v-model:value="receiptFormData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
     </a-form>
   </a-modal>
@@ -160,17 +173,28 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, ClockCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, ClockCircleOutlined, DollarOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { receiptApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { executeBatch } from '@/utils/batchOperations'
 import { useExport } from '@/composables/useExport'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -199,7 +223,7 @@ const vxeColumns = computed(() => [
   { title: '收款日期', field: 'receiptDate', width: 110 },
   { title: '收款金额', field: 'receiptAmount', width: 120, sortable: true, formatter: ({ cellValue }) => cellValue ? `¥${cellValue.toFixed(2)}` : '¥0.00' },
   { title: '收款方式', field: 'receiptMethod', width: 100 },
-  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', field: 'action', width: 100, fixed: 'right', type: 'action' }
 ])
@@ -253,7 +277,8 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch (err) { console.warn('[销售收款] 获取收款单列表', err); message.error('获取收款单列表失败') }
+    hasError.value = false
+  } catch (err) { console.warn('[销售收款] 获取收款单列表', err); hasError.value = true }
   finally { loading.value = false }
 }
 
@@ -263,6 +288,10 @@ function handleAdd() {
   receiptFormData.receiptMethod = undefined; receiptFormData.receiptDate = undefined
   receiptFormData.bankAccount = ''; receiptFormData.remark = ''
   receiptFormVisible.value = true
+}
+
+function handleParentCreate() {
+  handleAdd()
 }
 
 function handleActionMenuClick(key: string, record: any) {
@@ -358,14 +387,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', fetchData)
+  window.addEventListener('sale:create', handleParentCreate)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', fetchData)
+  window.removeEventListener('sale:create', handleParentCreate)
 })
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -378,6 +410,29 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   padding: 16px;
+}
+
+.receipt-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
 }
 
 /* 统计卡片 */
@@ -442,5 +497,21 @@ defineExpose({ handleQuery: fetchData })
   .receipt-page {
     padding: 8px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

@@ -3,6 +3,7 @@ package cn.aiedge.erp.stock.service.impl;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.Stock;
 import cn.aiedge.erp.stock.entity.StockReplenishment;
+import cn.aiedge.erp.stock.event.PurchaseOrderCreateEvent;
 import cn.aiedge.erp.stock.mapper.StockMapper;
 import cn.aiedge.erp.stock.mapper.StockReplenishmentMapper;
 import cn.aiedge.erp.stock.service.StockReplenishmentService;
@@ -12,6 +13,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.List;
 public class StockReplenishmentServiceImpl extends ServiceImpl<StockReplenishmentMapper, StockReplenishment> implements StockReplenishmentService {
 
     private final StockMapper stockMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public Page<StockReplenishment> pageList(String keyword, String priority, String status, int pageNum, int pageSize) {
@@ -131,10 +134,23 @@ public class StockReplenishmentServiceImpl extends ServiceImpl<StockReplenishmen
         suggestion.setUpdateBy(StpUtil.getLoginIdAsLong());
         this.updateById(suggestion);
 
-        // TODO: 调用采购订单服务创建采购订单
-        // 当前仅标记为已下单，实际创建采购订单需要集成 purchase 模块
+        // 通过事件发布解耦创建采购订单，采购模块监听后创建实际采购订单
+        eventPublisher.publishEvent(new PurchaseOrderCreateEvent(
+            this, suggestion.getId(), supplierId,
+            suggestion.getProductCode(), suggestion.getProductName(), suggestion.getSuggestedQty(),
+            suggestion.getWarehouseId(), suggestion.getWarehouseName()));
 
-        log.info("补货建议 {} 已转为采购订单，供应商ID: {}", suggestionId, supplierId);
+        // 生成临时订单号并记录到补货建议（后续由采购模块实际创建后更新）
+        String tempOrderNo = "PO-" + System.currentTimeMillis();
+        suggestion.setCreatedOrderNo(tempOrderNo);
+        this.updateById(suggestion);
+
+        log.info("补货建议 {} 已转为采购订单: 供应商ID={}, 产品编码={}, 产品名称={}, "
+                + "建议数量={}, 仓库ID={}, 仓库名称={}, 临时订单号={}, "
+                + "已发布采购订单创建事件，待采购模块监听处理",
+            suggestionId, supplierId,
+            suggestion.getProductCode(), suggestion.getProductName(), suggestion.getSuggestedQty(),
+            suggestion.getWarehouseId(), suggestion.getWarehouseName(), tempOrderNo);
         return suggestion;
     }
 

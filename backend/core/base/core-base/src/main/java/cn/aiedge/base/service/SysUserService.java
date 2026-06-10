@@ -98,6 +98,14 @@ public interface SysUserService extends IService<SysUser> {
     void assignRoles(Long userId, List<Long> roleIds);
 
     /**
+     * 批量分配角色
+     *
+     * @param userIds 用户ID列表
+     * @param roleIds 角色ID列表
+     */
+    void batchAssignRoles(List<Long> userIds, List<Long> roleIds);
+
+    /**
      * 启用/禁用用户
      */
     void updateUserStatus(Long userId, Integer status);

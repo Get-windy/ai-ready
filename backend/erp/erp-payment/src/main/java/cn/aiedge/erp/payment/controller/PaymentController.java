@@ -2,6 +2,7 @@ package cn.aiedge.erp.payment.controller;
 
 import cn.aiedge.erp.payment.dto.PaymentCreateDTO;
 import cn.aiedge.erp.payment.dto.PaymentItemDTO;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.payment.dto.PaymentVO;
 import cn.aiedge.erp.payment.entity.Payment;
 import cn.aiedge.erp.payment.entity.PaymentItem;
@@ -38,9 +39,10 @@ public class PaymentController {
             @Parameter(description = "供应商ID") @RequestParam(required = false) Long supplierId,
             @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "来源类型") @RequestParam(required = false) String sourceType,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<Payment> page = paymentService.pageList(keyword, supplierId, orderId, status, pageNum, pageSize);
+        Page<Payment> page = paymentService.pageList(keyword, supplierId, orderId, status, sourceType, pageNum, pageSize);
         Page<PaymentVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
@@ -51,7 +53,7 @@ public class PaymentController {
     public PaymentVO getById(@PathVariable Long id) {
         Payment payment = paymentService.getById(id);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         PaymentVO vo = convertToVO(payment);
         vo.setItems(paymentService.getItems(id));
@@ -169,6 +171,14 @@ public class PaymentController {
     @Operation(summary = "完成核销")
     public PaymentVO completeVerify(@PathVariable Long id) {
         Payment payment = paymentService.completeVerify(id);
+        return convertToVO(payment);
+    }
+
+    @PostMapping("/{id}/write-off")
+    @Operation(summary = "核销付款单")
+    public PaymentVO writeOff(@PathVariable Long id, @RequestBody Map<String, BigDecimal> body) {
+        BigDecimal amount = body.getOrDefault("amount", BigDecimal.ZERO);
+        Payment payment = paymentService.writeOff(id, amount);
         return convertToVO(payment);
     }
 

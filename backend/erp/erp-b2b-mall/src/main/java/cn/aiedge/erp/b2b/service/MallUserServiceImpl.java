@@ -4,14 +4,16 @@ import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.AddressDTO;
 import cn.aiedge.erp.b2b.dto.UserInfo;
 import cn.aiedge.erp.b2b.mapper.MallAddressMapper;
+import cn.aiedge.erp.b2b.mapper.ShopUserMapper;
 import cn.aiedge.erp.b2b.model.MallAddress;
+import cn.aiedge.erp.b2b.model.ShopUser;
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,18 +23,36 @@ import java.util.stream.Collectors;
 public class MallUserServiceImpl implements MallUserService {
 
     private final MallAddressMapper mallAddressMapper;
+    private final ShopUserMapper shopUserMapper;
+
+    /** 获取当前登录用户的租户ID */
+    private Long getTenantId() {
+        Object tid = StpUtil.getSession().get("tenantId");
+        return tid instanceof Number ? ((Number) tid).longValue() : 0L;
+    }
 
     @Override
     public UserInfo getUserInfo() {
         log.info("获取用户信息");
-        String userId = StpUtil.getLoginIdAsString();
+        Long userId = StpUtil.getLoginIdAsLong();
 
-        // TODO: Get actual user info from user service
+        ShopUser user = shopUserMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+
         UserInfo userInfo = new UserInfo();
-        userInfo.setId(userId);
-        userInfo.setUsername("test_user");
-        userInfo.setNickname("测试用户");
-        userInfo.setLevel("普通会员");
+        userInfo.setId(String.valueOf(user.getId()));
+        userInfo.setUsername(user.getUsername());
+        userInfo.setNickname(user.getNickname());
+        userInfo.setAvatar(user.getAvatar());
+        userInfo.setPhone(user.getPhone());
+        // B2B用户等级基于公司信息
+        if (user.getCompanyName() != null && !user.getCompanyName().isEmpty()) {
+            userInfo.setLevel("企业会员");
+        } else {
+            userInfo.setLevel("普通会员");
+        }
         userInfo.setPoints(0);
         userInfo.setBalance(0.0);
         return userInfo;
@@ -41,20 +61,38 @@ public class MallUserServiceImpl implements MallUserService {
     @Override
     public UserInfo updateProfile(UserInfo userInfo) {
         log.info("更新用户信息: {}", userInfo.getUsername());
+        Long userId = StpUtil.getLoginIdAsLong();
 
-        // TODO: Implement actual user profile update
+        ShopUser user = shopUserMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.notFound("用户不存在");
+        }
+
+        if (userInfo.getNickname() != null) {
+            user.setNickname(userInfo.getNickname());
+        }
+        if (userInfo.getPhone() != null) {
+            user.setPhone(userInfo.getPhone());
+        }
+        if (userInfo.getAvatar() != null) {
+            user.setAvatar(userInfo.getAvatar());
+        }
+
+        shopUserMapper.updateById(user);
         return userInfo;
     }
 
     @Override
     public List<AddressDTO> getAddresses() {
         log.info("获取地址列表");
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         List<MallAddress> addresses = mallAddressMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MallAddress>()
+                new LambdaQueryWrapper<MallAddress>()
                         .eq(MallAddress::getCustomerId, customerId)
-                        .eq(MallAddress::getDeleted, false)
+                        .eq(MallAddress::getTenantId, tenantId)
+                        .eq(MallAddress::getDeleted, 0)
         );
 
         return addresses.stream().map(this::convertToDTO).collect(Collectors.toList());
@@ -64,10 +102,12 @@ public class MallUserServiceImpl implements MallUserService {
     @Transactional
     public AddressDTO addAddress(AddressDTO addressDTO) {
         log.info("新增地址: {}", addressDTO.getConsignee());
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         MallAddress address = new MallAddress();
         address.setCustomerId(customerId);
+        address.setTenantId(tenantId);
         address.setConsignee(addressDTO.getConsignee());
         address.setPhone(addressDTO.getPhone());
         address.setProvince(addressDTO.getProvince());
@@ -76,8 +116,6 @@ public class MallUserServiceImpl implements MallUserService {
         address.setDetailAddress(addressDTO.getDetailAddress());
         address.setIsDefault(addressDTO.getIsDefault());
         address.setLabel(addressDTO.getLabel());
-        address.setCreatedAt(LocalDateTime.now());
-        address.setUpdatedAt(LocalDateTime.now());
 
         if (Boolean.TRUE.equals(address.getIsDefault())) {
             clearDefaultAddress(customerId);
@@ -104,7 +142,6 @@ public class MallUserServiceImpl implements MallUserService {
         address.setDetailAddress(addressDTO.getDetailAddress());
         address.setIsDefault(addressDTO.getIsDefault());
         address.setLabel(addressDTO.getLabel());
-        address.setUpdatedAt(LocalDateTime.now());
 
         if (Boolean.TRUE.equals(address.getIsDefault())) {
             clearDefaultAddress(address.getCustomerId());
@@ -122,8 +159,7 @@ public class MallUserServiceImpl implements MallUserService {
         if (address == null) {
             throw BusinessException.notFound("地址不存在: " + id);
         }
-        address.setDeleted(true);
-        address.setUpdatedAt(LocalDateTime.now());
+        address.setDeleted(1);
         mallAddressMapper.updateById(address);
     }
 
@@ -139,20 +175,18 @@ public class MallUserServiceImpl implements MallUserService {
         clearDefaultAddress(address.getCustomerId());
 
         address.setIsDefault(true);
-        address.setUpdatedAt(LocalDateTime.now());
         mallAddressMapper.updateById(address);
     }
 
-    private void clearDefaultAddress(String customerId) {
+    private void clearDefaultAddress(Long customerId) {
         MallAddress defaultAddress = mallAddressMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MallAddress>()
+                new LambdaQueryWrapper<MallAddress>()
                         .eq(MallAddress::getCustomerId, customerId)
                         .eq(MallAddress::getIsDefault, true)
-                        .eq(MallAddress::getDeleted, false)
+                        .eq(MallAddress::getDeleted, 0)
         );
         if (defaultAddress != null) {
             defaultAddress.setIsDefault(false);
-            defaultAddress.setUpdatedAt(LocalDateTime.now());
             mallAddressMapper.updateById(defaultAddress);
         }
     }

@@ -51,12 +51,13 @@
       @view="handleView"
       @delete="handleDelete"
       @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @search="handleSearch"
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="handleSelectionChange"
     >
     <template #toolbar-actions>
@@ -66,14 +67,25 @@
     </template>
 
     <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配换货单">
-        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无换货单">
-        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        <a-button type="primary" @click="handleAdd">新建换货单</a-button>
-      </a-empty>
+      <div class="table-empty">
+        <template v-if="hasError">
+          <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+          <p class="table-empty-text">加载失败</p>
+          <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <ReloadOutlined /> 重试
+          </a-button>
+        </template>
+        <template v-else>
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            当前筛选条件下无匹配换货单，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无换货单，点击「新建换货单」开始创建
+          </p>
+        </template>
+      </div>
     </template>
 
     <template #batch-actions>
@@ -92,6 +104,7 @@
             <template #icon><EditOutlined /></template>
           </a-button>
         </a-tooltip>
+		  <PrintButton :record="record" :business-id="record.id" business-type="sale_exchange" button-type="link" button-size="small" tooltip="打印" />
         <a-dropdown trigger="click">
           <a-button type="link" size="small" class="action-more-btn">
             <template #icon><EllipsisOutlined /></template>
@@ -134,12 +147,12 @@
     :confirm-loading="formSubmitting" ok-text="确认" cancel-text="取消"
     @ok="handleFormSubmit" @cancel="formModalVisible = false">
     <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
-      <a-form-item label="关联订单" name="orderNo"><a-input v-model:value="formData.orderNo" placeholder="请输入销售订单号" /></a-form-item>
-      <a-form-item label="客户" name="customerName"><a-input v-model:value="formData.customerName" placeholder="请输入客户名称" /></a-form-item>
+      <a-form-item label="关联订单" name="orderNo"><a-input v-model:value="formData.orderNo" placeholder="请输入销售订单号" size="small" /></a-form-item>
+      <a-form-item label="客户" name="customerName"><a-input v-model:value="formData.customerName" placeholder="请输入客户名称" size="small" /></a-form-item>
       <a-row>
         <a-col :span="12">
           <a-form-item label="换货原因" name="reason" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-select v-model:value="formData.reason" placeholder="请选择换货原因">
+            <a-select v-model:value="formData.reason" placeholder="请选择换货原因" size="small">
               <a-select-option value="质量问题">质量问题</a-select-option>
               <a-select-option value="规格不符">规格不符</a-select-option>
               <a-select-option value="数量错误">数量错误</a-select-option>
@@ -150,11 +163,11 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="换货日期" name="exchangeDate" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-date-picker v-model:value="formData.exchangeDate" style="width: 100%" /></a-form-item>
+            <a-date-picker v-model:value="formData.exchangeDate" size="small" style="width: 100%" /></a-form-item>
         </a-col>
       </a-row>
-      <a-form-item label="退换产品" name="outItem"><a-input v-model:value="formData.outItem" placeholder="请输入需要退换的产品名称" /></a-form-item>
-      <a-form-item label="替换产品" name="inItem"><a-input v-model:value="formData.inItem" placeholder="请输入替换的产品名称" /></a-form-item>
+      <a-form-item label="退换产品" name="outItem"><a-input v-model:value="formData.outItem" placeholder="请输入需要退换的产品名称" size="small" /></a-form-item>
+      <a-form-item label="替换产品" name="inItem"><a-input v-model:value="formData.inItem" placeholder="请输入替换的产品名称" size="small" /></a-form-item>
       <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
     </a-form>
   </a-modal>
@@ -168,17 +181,28 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, ClockCircleOutlined, SwapOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, CheckCircleOutlined, InboxOutlined, SearchOutlined, EllipsisOutlined, FileOutlined, ClockCircleOutlined, SwapOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { saleExchangeApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { executeBatch } from '@/utils/batchOperations'
 import { useExport } from '@/composables/useExport'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -200,7 +224,7 @@ const vxeColumns = computed(() => [
   { title: '关联订单', field: 'orderNo', width: 160 },
   { title: '客户', field: 'customerName', width: 140 },
   { title: '换货日期', field: 'exchangeDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, formatter: ({ cellValue }) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建人', field: 'creatorName', width: 100 },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', field: 'action', width: 130, fixed: 'right', type: 'action' }
@@ -251,7 +275,8 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData?.records || []; pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch (err) { console.warn('[销售换货] 获取换货单列表', err); message.error('获取换货单列表失败') }
+    hasError.value = false
+  } catch (err) { console.warn('[销售换货] 获取换货单列表', err); hasError.value = true }
   finally { loading.value = false }
 }
 
@@ -261,6 +286,7 @@ function handleAdd() {
   formData.reason = undefined; formData.exchangeDate = undefined; formData.outItem = ''; formData.inItem = ''; formData.remark = ''
   formModalVisible.value = true
 }
+function handleParentCreate() { handleAdd() }
 function handleEdit(record: any) {
   formMode.value = 'edit'; formData.id = record.id; formData.orderNo = record.orderNo || ''
   formData.customerName = record.customerName || ''; formData.reason = record.reason || undefined
@@ -368,14 +394,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', fetchData)
+  window.addEventListener('sale:create', handleParentCreate)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', fetchData)
+  window.removeEventListener('sale:create', handleParentCreate)
 })
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -388,6 +417,29 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   padding: 16px;
+}
+
+.sale-exchange-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
 }
 
 /* 统计卡片 */
@@ -446,5 +498,21 @@ defineExpose({ handleQuery: fetchData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
   .sale-exchange-page { padding: 8px; }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

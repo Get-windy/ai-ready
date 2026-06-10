@@ -1,6 +1,7 @@
 package cn.aiedge.base.controller;
 
 import cn.aiedge.base.entity.SysRole;
+import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.SysRoleService;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -29,6 +30,7 @@ public class SysRoleController {
     @Operation(summary = "创建角色")
     @PostMapping
     @SaCheckPermission("role:create")
+    @OperationLog(module = "角色管理", type = "CREATE", desc = "创建角色")
     public Result<Long> createRole(@RequestBody SysRole role) {
         Long roleId = roleService.createRole(role);
         return Result.ok("创建成功", roleId);
@@ -37,6 +39,7 @@ public class SysRoleController {
     @Operation(summary = "更新角色")
     @PutMapping("/{id}")
     @SaCheckPermission("role:update")
+    @OperationLog(module = "角色管理", type = "UPDATE", desc = "更新角色")
     public Result<Void> updateRole(@PathVariable Long id, @RequestBody SysRole role) {
         role.setId(id);
         roleService.updateRole(role);
@@ -46,6 +49,7 @@ public class SysRoleController {
     @Operation(summary = "删除角色")
     @DeleteMapping("/{id}")
     @SaCheckPermission("role:delete")
+    @OperationLog(module = "角色管理", type = "DELETE", desc = "删除角色")
     public Result<Void> deleteRole(@PathVariable Long id) {
         roleService.deleteRole(id);
         return Result.ok("删除成功", null);
@@ -54,6 +58,7 @@ public class SysRoleController {
     @Operation(summary = "分配权限")
     @PostMapping("/{id}/permissions")
     @SaCheckPermission("role:assign-permission")
+    @OperationLog(module = "权限管理", type = "UPDATE", desc = "分配角色权限", saveParams = true)
     public Result<Void> assignPermissions(@PathVariable Long id, @RequestBody List<Long> permissionIds) {
         roleService.assignPermissions(id, permissionIds);
         return Result.ok("分配成功", null);
@@ -62,6 +67,7 @@ public class SysRoleController {
     @Operation(summary = "分配菜单")
     @PostMapping("/{id}/menus")
     @SaCheckPermission("role:assign-menu")
+    @OperationLog(module = "权限管理", type = "UPDATE", desc = "分配角色菜单", saveParams = true)
     public Result<Void> assignMenus(@PathVariable Long id, @RequestBody List<Long> menuIds) {
         roleService.assignMenus(id, menuIds);
         return Result.ok("分配成功", null);
@@ -100,8 +106,18 @@ public class SysRoleController {
     @Operation(summary = "更新角色状态")
     @PutMapping("/{id}/status")
     @SaCheckPermission("role:update-status")
+    @OperationLog(module = "角色管理", type = "UPDATE", desc = "更新角色状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         roleService.updateRoleStatus(id, status);
         return Result.ok("状态更新成功", null);
+    }
+
+    @Operation(summary = "复制角色权限", description = "从源角色复制权限和菜单配置到目标角色")
+    @PostMapping("/{id}/copy-from/{sourceRoleId}")
+    @SaCheckPermission("role:assign-permission")
+    @OperationLog(module = "权限管理", type = "UPDATE", desc = "复制角色权限")
+    public Result<Void> copyPermissions(@PathVariable Long id, @PathVariable Long sourceRoleId) {
+        roleService.copyPermissions(id, sourceRoleId);
+        return Result.ok("复制成功", null);
     }
 }

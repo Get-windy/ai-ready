@@ -1,6 +1,7 @@
 package cn.aiedge.report.controller;
 
 import cn.aiedge.report.service.ReportAnalyticsService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.report.service.ReportAnalyticsService.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,6 +29,7 @@ import java.util.Map;
 @RequestMapping("/api/report/analytics")
 @RequiredArgsConstructor
 @Tag(name = "报表统计分析", description = "高级统计分析功能：同比、环比、趋势、排名、分布分析等")
+@SaCheckLogin
 public class ReportAnalyticsController {
 
     private final ReportAnalyticsService analyticsService;

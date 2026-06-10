@@ -22,8 +22,9 @@ public interface RoleService extends IService<Role> {
 
     /**
      * 获取所有角色列表（下拉选择用）
+     * @param scope 可选，指定角色作用域过滤（PLATFORM/TENANT），为空则根据用户上下文自动推断
      */
-    List<RoleDetailVO> listAll();
+    List<RoleDetailVO> listAll(String scope);
 
     /**
      * 根据ID获取角色详情

@@ -1,8 +1,10 @@
 package cn.aiedge.permission.service.impl;
 
+import cn.aiedge.base.entity.Role;
 import cn.aiedge.base.entity.SysPermission;
 import cn.aiedge.base.entity.SysRolePermission;
 import cn.aiedge.base.entity.SysUserRole;
+import cn.aiedge.base.mapper.RoleMapper;
 import cn.aiedge.base.mapper.SysPermissionMapper;
 import cn.aiedge.base.mapper.SysRolePermissionMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
@@ -37,6 +39,7 @@ public class PermissionServiceImpl implements PermissionService {
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysPermissionMapper sysPermissionMapper;
+    private final RoleMapper roleMapper;
     
     private static final String PERMISSION_CACHE_KEY = "permission:user:";
     private static final String ROLE_CACHE_KEY = "role:user:";
@@ -224,6 +227,30 @@ public class PermissionServiceImpl implements PermissionService {
         if (userId == null || tenantId == null || CollUtil.isEmpty(roleIds)) {
             log.warn("分配用户角色参数不完整: userId={}, tenantId={}, roleIds={}", userId, tenantId, roleIds);
             return;
+        }
+
+        // 角色作用域校验
+        try {
+            Collection<Role> roles = roleMapper.selectBatchIds(roleIds);
+            if (roles.size() != roleIds.size()) {
+                log.warn("部分角色不存在: roleIds={}", roleIds);
+                throw new RuntimeException("部分角色不存在");
+            }
+            Map<Long, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getId, r -> r));
+            boolean hasTenantContext = tenantId != null;
+            for (Long roleId : roleIds) {
+                Role role = roleMap.get(roleId);
+                if (role == null) continue;
+                if ("PLATFORM".equals(role.getScope()) && hasTenantContext) {
+                    throw new RuntimeException("不能将平台级角色「" + role.getRoleName() + "」分配给租户用户");
+                }
+                if ("TENANT".equals(role.getScope()) && !hasTenantContext) {
+                    throw new RuntimeException("不能将租户级角色「" + role.getRoleName() + "」分配给平台用户");
+                }
+            }
+        } catch (RuntimeException e) {
+            log.warn("角色作用域校验失败: {}", e.getMessage());
+            throw e;
         }
 
         try {

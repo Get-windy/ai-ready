@@ -1,20 +1,20 @@
 package cn.aiedge.base.service.impl;
 
-import cn.aiedge.base.entity.Permission;
-import cn.aiedge.base.entity.Role;
-import cn.aiedge.base.entity.RolePermission;
-import cn.aiedge.base.entity.UserRole;
-import cn.aiedge.base.mapper.PermissionMapper;
-import cn.aiedge.base.mapper.RoleMapper;
-import cn.aiedge.base.mapper.RolePermissionMapper;
-import cn.aiedge.base.mapper.UserRoleMapper;
+import cn.aiedge.base.entity.*;
+import cn.aiedge.base.mapper.*;
+import cn.aiedge.base.security.StpInterfaceImpl;
+import cn.aiedge.base.security.SecurityUtils;
 import cn.aiedge.base.service.RoleService;
+import cn.aiedge.base.service.SysOperLogService;
 import cn.aiedge.common.dto.role.*;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.common.result.PageResult;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -24,7 +24,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -39,11 +39,28 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     private final PermissionMapper permissionMapper;
     private final RolePermissionMapper rolePermissionMapper;
     private final UserRoleMapper userRoleMapper;
+    private final StpInterfaceImpl stpInterface;
+    private final SysOperLogService operLogService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResult<RoleDetailVO> pageList(RoleQueryRequest request) {
         LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
-        
+
+        // 根据当前用户上下文自动过滤 scope
+        String currentScope = resolveCurrentScope();
+        if (currentScope != null) {
+            wrapper.eq(Role::getScope, currentScope);
+        } else if (StringUtils.hasText(request.getScope())) {
+            wrapper.eq(Role::getScope, request.getScope());
+        }
+
+        // 租户隔离：租户用户只能看到自己的角色
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        if (tenantId != null) {
+            wrapper.eq(Role::getTenantId, tenantId);
+        }
+
         wrapper.like(StringUtils.hasText(request.getRoleCode()), Role::getRoleCode, request.getRoleCode())
                .like(StringUtils.hasText(request.getRoleName()), Role::getRoleName, request.getRoleName())
                .eq(StringUtils.hasText(request.getRoleType()), Role::getRoleType, request.getRoleType())
@@ -62,12 +79,30 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     }
 
     @Override
-    public List<RoleDetailVO> listAll() {
-        List<Role> roles = lambdaQuery()
+    public List<RoleDetailVO> listAll(String scope) {
+        LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<Role>()
                 .eq(Role::getStatus, 1)
-                .orderByAsc(Role::getSort)
-                .list();
-        
+                .orderByAsc(Role::getSort);
+
+        // 优先使用显式传入的 scope，否则根据用户上下文自动推断
+        String effectiveScope = scope;
+        if (effectiveScope == null) {
+            effectiveScope = resolveCurrentScope();
+        }
+        if (effectiveScope != null) {
+            wrapper.eq(Role::getScope, effectiveScope);
+        }
+
+        // 租户隔离：TENANT 作用域的角色按租户过滤
+        if ("TENANT".equals(effectiveScope)) {
+            Long tenantId = SecurityUtils.getCurrentTenantId();
+            if (tenantId != null) {
+                wrapper.eq(Role::getTenantId, tenantId);
+            }
+        }
+
+        List<Role> roles = list(wrapper);
+
         return roles.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
@@ -97,10 +132,28 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         if (getByRoleCode(request.getRoleCode()) != null) {
             throw BusinessException.badRequest("角色编码已存在");
         }
-        
+
+        // scope 隔离校验：租户用户不能创建平台级角色
+        String requestedScope = request.getScope();
+        String currentScope = resolveCurrentScope();
+        if ("PLATFORM".equals(requestedScope) && "TENANT".equals(currentScope)) {
+            throw BusinessException.forbidden("租户用户无权创建平台级角色");
+        }
+
         Role role = new Role();
         BeanUtils.copyProperties(request, role);
-        
+
+        // 自动设置 scope：如果未指定，根据当前用户上下文推断
+        if (role.getScope() == null) {
+            role.setScope(currentScope != null ? currentScope : "TENANT");
+        }
+
+        // 自动设置 tenantId（如果用户有租户上下文）
+        if (role.getTenantId() == null) {
+            Long tenantId = SecurityUtils.getCurrentTenantId();
+            role.setTenantId(tenantId);
+        }
+
         save(role);
         
         // 分配权限
@@ -119,7 +172,13 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
-        
+
+        // scope 隔离校验：租户用户不能将角色 scope 改为 PLATFORM
+        String currentScope = resolveCurrentScope();
+        if ("TENANT".equals(currentScope) && "PLATFORM".equals(request.getScope())) {
+            throw BusinessException.forbidden("租户用户无权将角色作用域设置为平台级");
+        }
+
         BeanUtils.copyProperties(request, role);
         updateById(role);
         
@@ -138,7 +197,13 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         if (role == null) {
             throw BusinessException.notFound("角色不存在");
         }
-        
+
+        // scope 隔离校验：租户用户不能删除平台级角色
+        String currentScope = resolveCurrentScope();
+        if ("TENANT".equals(currentScope) && "PLATFORM".equals(role.getScope())) {
+            throw BusinessException.forbidden("租户用户无权删除平台级角色");
+        }
+
         // 检查是否有用户关联
         long userCount = userRoleMapper.selectCount(
                 new LambdaQueryWrapper<UserRole>().eq(UserRole::getRoleId, id)
@@ -199,9 +264,15 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignPermissions(Long roleId, List<Long> permissionIds) {
+        Role role = getById(roleId);
+        String roleName = (role != null) ? role.getRoleName() : String.valueOf(roleId);
+
+        // 获取当前已有权限 ID（用于后续 diff 计算）
+        List<Long> oldPermissionIds = rolePermissionMapper.selectPermissionIdsByRoleId(roleId);
+
         // 删除原有权限
         rolePermissionMapper.deleteByRoleId(roleId);
-        
+
         // 添加新权限
         if (!CollectionUtils.isEmpty(permissionIds)) {
             List<RolePermission> rolePermissions = permissionIds.stream()
@@ -215,8 +286,76 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
                     .collect(Collectors.toList());
             rolePermissionMapper.batchInsert(rolePermissions);
         }
-        
-        log.info("分配权限成功: roleId={}, permissionIds={}", roleId, permissionIds);
+
+        // 清除该角色下所有用户的权限缓存
+        try {
+            List<UserRole> userRoles = userRoleMapper.selectList(
+                    new LambdaQueryWrapper<UserRole>().eq(UserRole::getRoleId, roleId)
+            );
+            for (UserRole userRole : userRoles) {
+                stpInterface.clearUserPermissionCache(userRole.getUserId());
+            }
+            if (!userRoles.isEmpty()) {
+                log.info("清除 {} 个用户的权限缓存", userRoles.size());
+            }
+        } catch (Exception e) {
+            log.warn("清除用户权限缓存异常: roleId={}", roleId, e);
+        }
+
+        // 记录权限变更审计日志
+        try {
+            recordPermissionAuditLog(role, roleName, oldPermissionIds, permissionIds);
+        } catch (Exception e) {
+            log.warn("记录权限变更审计日志异常: roleId={}", roleId, e);
+        }
+
+        log.info("分配权限成功: roleId={}, roleName={}, permissionCount={}",
+                roleId, roleName, permissionIds != null ? permissionIds.size() : 0);
+    }
+
+    /**
+     * 记录权限变更审计日志
+     */
+    private void recordPermissionAuditLog(Role role, String roleName,
+                                           List<Long> oldPermissionIds, List<Long> newPermissionIds) {
+        Set<Long> oldSet = new HashSet<>(oldPermissionIds != null ? oldPermissionIds : Collections.emptyList());
+        Set<Long> newSet = new HashSet<>(newPermissionIds != null ? newPermissionIds : Collections.emptyList());
+
+        List<Long> added = new ArrayList<>(newSet);
+        added.removeAll(oldSet);
+
+        List<Long> removed = new ArrayList<>(oldSet);
+        removed.removeAll(newSet);
+
+        if (added.isEmpty() && removed.isEmpty()) {
+            return; // 无变更，不记录
+        }
+
+        Map<String, Object> diffData = new LinkedHashMap<>();
+        diffData.put("roleName", roleName);
+        diffData.put("roleCode", role != null ? role.getRoleCode() : null);
+        diffData.put("addedCount", added.size());
+        diffData.put("removedCount", removed.size());
+        if (!added.isEmpty()) diffData.put("addedPermissionIds", added);
+        if (!removed.isEmpty()) diffData.put("removedPermissionIds", removed);
+
+        try {
+            SysOperLog logEntry = new SysOperLog();
+            logEntry.setTenantId(SecurityUtils.getCurrentTenantId());
+            if (StpUtil.isLogin()) {
+                logEntry.setUserId(StpUtil.getLoginIdAsLong());
+                logEntry.setUsername(StpUtil.getSession().getString("username"));
+            }
+            logEntry.setModule("权限管理");
+            logEntry.setAction("分配权限");
+            logEntry.setMethod("RoleServiceImpl.assignPermissions");
+            logEntry.setDiffData(objectMapper.writeValueAsString(diffData));
+            logEntry.setStatus(0);
+            logEntry.setOperTime(LocalDateTime.now());
+            operLogService.recordLogAsync(logEntry);
+        } catch (JsonProcessingException e) {
+            log.warn("序列化审计日志 diffData 失败", e);
+        }
     }
 
     @Override
@@ -232,6 +371,24 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     public List<Long> getPermissionIds(Long roleId) {
         return rolePermissionMapper.selectPermissionIdsByRoleId(roleId);
+    }
+
+    /**
+     * 解析当前用户上下文对应的角色作用域
+     * - 平台用户（无租户上下文）→ PLATFORM
+     * - 租户用户（有租户上下文）→ TENANT
+     * - 无法确定 → null（不限）
+     */
+    private String resolveCurrentScope() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        if (tenantId != null) {
+            return "TENANT";
+        }
+        // 已登录但无租户ID → 平台管理员
+        if (SecurityUtils.isLoggedIn()) {
+            return "PLATFORM";
+        }
+        return null;
     }
 
     /**

@@ -1,6 +1,7 @@
 package cn.aiedge.storage.service.impl;
 
 import cn.aiedge.storage.config.StorageProperties;
+import cn.aiedge.storage.mapper.FileInfoMapper;
 import cn.aiedge.storage.model.FileInfo;
 import cn.aiedge.storage.model.StorageFile;
 import cn.aiedge.storage.service.FileStorageService;
@@ -8,6 +9,7 @@ import cn.aiedge.storage.service.StorageStrategy;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,7 @@ public class MultiStorageServiceImpl implements FileStorageService {
 
     private final Map<String, StorageStrategy> strategyMap = new ConcurrentHashMap<>();
     private final StorageProperties properties;
+    private final FileInfoMapper fileInfoMapper;
     private StorageStrategy defaultStrategy;
 
     /**
@@ -86,7 +89,7 @@ public class MultiStorageServiceImpl implements FileStorageService {
             
             // 执行上传
             FileInfo fileInfo = getStrategy().upload(inputStream, filePath, originalName, contentType);
-            
+
             // 构建存储文件记录
             StorageFile storageFile = StorageFile.builder()
                 .fileId(fileId)
@@ -101,6 +104,29 @@ public class MultiStorageServiceImpl implements FileStorageService {
                 .etag(fileInfo.getEtag())
                 .createTime(LocalDateTime.now())
                 .build();
+
+            // 保存文件元数据到数据库
+            try {
+                FileInfo dbFileInfo = FileInfo.builder()
+                    .fileName(originalName)
+                    .storageName(fileId)
+                    .filePath(fileInfo.getFilePath())
+                    .fileSize(fileInfo.getFileSize())
+                    .fileType(contentType)
+                    .contentType(contentType)
+                    .fileExtension(FileUtil.extName(originalName))
+                    .storageType(getStrategy().getType())
+                    .fileMd5(fileInfo.getEtag())
+                    .etag(fileInfo.getEtag())
+                    .bizType(bizType)
+                    .bizId(bizId != null ? Long.parseLong(bizId) : null)
+                    .downloadUrl(filePath)
+                    .createTime(LocalDateTime.now())
+                    .build();
+                fileInfoMapper.insert(dbFileInfo);
+            } catch (Exception e) {
+                log.warn("保存文件元数据失败(不影响上传): fileId={}, error={}", fileId, e.getMessage());
+            }
             
             log.info("文件上传成功: fileId={}, fileName={}, size={}", 
                 fileId, originalName, fileInfo.getFileSize());
@@ -129,8 +155,29 @@ public class MultiStorageServiceImpl implements FileStorageService {
 
     @Override
     public StorageFile getFileInfo(String fileId) {
-        // TODO: 从数据库查询文件信息
-        return null;
+        // 从数据库查询文件信息
+        FileInfo dbFileInfo = fileInfoMapper.selectOne(
+            new LambdaQueryWrapper<FileInfo>()
+                .eq(FileInfo::getStorageName, fileId)
+                .last("LIMIT 1")
+        );
+        if (dbFileInfo == null) {
+            log.warn("文件不存在: fileId={}", fileId);
+            return null;
+        }
+        return StorageFile.builder()
+            .fileId(fileId)
+            .fileName(dbFileInfo.getFileName())
+            .filePath(dbFileInfo.getFilePath())
+            .fileSize(dbFileInfo.getFileSize())
+            .contentType(dbFileInfo.getContentType())
+            .fileExtension(dbFileInfo.getFileExtension())
+            .bizType(dbFileInfo.getBizType())
+            .bizId(String.valueOf(dbFileInfo.getBizId()))
+            .storageType(dbFileInfo.getStorageType())
+            .etag(dbFileInfo.getEtag())
+            .createTime(dbFileInfo.getCreateTime())
+            .build();
     }
 
     @Override
@@ -143,7 +190,11 @@ public class MultiStorageServiceImpl implements FileStorageService {
             
             boolean deleted = getStrategy().delete(fileInfo.getFilePath());
             if (deleted) {
-                // TODO: 删除数据库记录
+                // 删除数据库记录
+                fileInfoMapper.delete(
+                    new LambdaQueryWrapper<FileInfo>()
+                        .eq(FileInfo::getStorageName, fileId)
+                );
                 log.info("文件删除成功: fileId={}", fileId);
             }
             return deleted;

@@ -12,20 +12,32 @@ export interface CartItem {
   stock: number
 }
 
+/** 商品接口（cart.addItem 入参） */
+export interface CartProduct {
+  id: string
+  name: string
+  image: string
+  price: number
+  stock: number
+  productId?: string
+  productName?: string
+  productImage?: string
+}
+
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([])
   const totalCount = computed(() => items.value.reduce((sum, item) => sum + item.quantity, 0))
-  const totalPrice = computed(() => 
+  const totalPrice = computed(() =>
     items.value
       .filter(item => item.selected)
       .reduce((sum, item) => sum + item.price * item.quantity, 0)
   )
   const selectedCount = computed(() => items.value.filter(item => item.selected).length)
-  const isAllSelected = computed(() => 
+  const isAllSelected = computed(() =>
     items.value.length > 0 && items.value.every(item => item.selected)
   )
 
-  const addItem = (product: any, quantity: number = 1) => {
+  const addItem = (product: CartProduct, quantity: number = 1) => {
     const existingItem = items.value.find(item => item.productId === product.id)
     if (existingItem) {
       existingItem.quantity += quantity
@@ -33,8 +45,8 @@ export const useCartStore = defineStore('cart', () => {
       items.value.push({
         id: Date.now().toString(),
         productId: product.id,
-        productName: product.name,
-        productImage: product.image,
+        productName: product.productName || product.name,
+        productImage: product.productImage || product.image,
         price: product.price,
         quantity,
         selected: true,

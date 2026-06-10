@@ -1,5 +1,6 @@
 package cn.aiedge.erp.payment.service.integration;
 
+import cn.aiedge.common.exception.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +28,8 @@ public class PaymentAccountingService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    /** Finance service base URL */
-    private static final String FINANCE_BASE_URL = "http://localhost:8095";
+    @org.springframework.beans.factory.annotation.Value("${erp.finance.api-base-url:http://localhost:8095}")
+    private String financeBaseUrl;
 
     /**
      * 付款时创建付款凭证并核销应付账款
@@ -142,7 +143,7 @@ public class PaymentAccountingService {
      * 调用财务模块API (POST)
      */
     private JsonNode callFinanceApi(String path, Object request) {
-        String url = FINANCE_BASE_URL + path;
+        String url = financeBaseUrl + path;
         try {
             ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
             JsonNode body = response.getBody();
@@ -150,10 +151,10 @@ public class PaymentAccountingService {
                 return body.get("data");
             }
             String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw new RuntimeException("Finance API error: " + errMsg + " (path=" + path + ")");
+            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
         } catch (Exception e) {
             log.error("调用财务模块API失败: path={}", path, e);
-            throw new RuntimeException("调用财务模块API失败: " + e.getMessage(), e);
+            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
         }
     }
 
@@ -161,7 +162,7 @@ public class PaymentAccountingService {
      * 调用财务模块API (PUT)
      */
     private JsonNode callFinanceApiPut(String path, Object request) {
-        String url = FINANCE_BASE_URL + path;
+        String url = financeBaseUrl + path;
         try {
             HttpEntity<Object> entity = new HttpEntity<>(request);
             ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.PUT, entity, JsonNode.class);
@@ -170,10 +171,10 @@ public class PaymentAccountingService {
                 return body.get("data");
             }
             String errMsg = body != null ? body.path("message").asText("Unknown error") : "No response";
-            throw new RuntimeException("Finance API error: " + errMsg + " (path=" + path + ")");
+            throw BusinessException.badRequest("Finance API error: " + errMsg + " (path=" + path + ")");
         } catch (Exception e) {
             log.error("调用财务模块API失败: path={}", path, e);
-            throw new RuntimeException("调用财务模块API失败: " + e.getMessage(), e);
+            throw BusinessException.badRequest("调用财务模块API失败: " + e.getMessage());
         }
     }
 }

@@ -108,7 +108,7 @@ const emit = defineEmits<{
 
 // 计算图片组件
 const imageComponent = computed(() => {
-  const images: Record<string, any> = {
+  const images: Record<string, object> = {
     'default': Standard中图,
     'simple': EmptySimple,
     'error': NetworkError,
@@ -116,7 +116,7 @@ const imageComponent = computed(() => {
     'no-data': NoData,
     'custom': Standard中图
   }
-  
+
   return images[props.image] || images['default']
 })
 

@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+          <PrintButton :record="depreciationSummary" business-type="fixed_asset_report" button-type="link" button-size="small" tooltip="打印报表" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()" v-permission="'erp:fixed-asset:report:query'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -24,8 +25,19 @@
     </template>
 
     <div class="report-page">
-      <!-- Summary Cards -->
-      <div class="stat-cards">
+      <!-- 错误态 -->
+      <template v-if="hasError && !loading">
+        <a-result status="error" title="加载失败" sub-title="获取报表数据时发生错误">
+          <template #extra>
+            <a-button size="small" type="primary" @click="handleRefresh">重新加载</a-button>
+          </template>
+        </a-result>
+      </template>
+
+      <!-- 正常内容 -->
+      <template v-else>
+        <!-- Summary Cards -->
+        <div class="stat-cards">
         <div class="stat-card stat-original" @click="activeTab = 'summary'">
           <div class="stat-card-body">
             <div class="stat-card-value">¥{{ formatAmount(depreciationSummary?.totalOriginalValue || 0) }}</div>
@@ -60,19 +72,26 @@
       <a-card class="report-tabs-card">
         <a-tabs v-model:activeKey="activeTab">
           <a-tab-pane key="summary" tab="折旧汇总">
-            <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+            <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+              <template #empty>
+                <div class="tab-empty">
+                  <InboxOutlined v-if="!loading" class="tab-empty-icon" />
+                  <p v-if="!loading" class="tab-empty-text">暂无折旧汇总数据</p>
+                </div>
+              </template>
+            </VxeTableList>
           </a-tab-pane>
 
           <a-tab-pane key="ledger" tab="资产台账">
             <a-form layout="inline" style="margin-bottom: 16px">
               <a-form-item label="资产编码">
-                <a-input v-model:value="ledgerParams.assetCode" placeholder="资产编码" allow-clear />
+                <a-input v-model:value="ledgerParams.assetCode" placeholder="资产编码" allow-clear size="small" />
               </a-form-item>
               <a-form-item label="部门">
-                <a-input v-model:value="ledgerParams.departmentId" placeholder="部门ID" allow-clear />
+                <a-input v-model:value="ledgerParams.departmentId" placeholder="部门ID" allow-clear size="small" />
               </a-form-item>
               <a-form-item>
-                <a-button type="primary" @click="fetchLedger">查询</a-button>
+                <a-button type="primary" @click="fetchLedger" v-permission="'erp:fixed-asset:report:query'">查询</a-button>
               </a-form-item>
             </a-form>
             <VxeTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 }" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
@@ -87,7 +106,14 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="账龄明细">
-                  <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+                  <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+              <template #empty>
+                <div class="tab-empty">
+                  <InboxOutlined v-if="!ageLoading" class="tab-empty-icon" />
+                  <p v-if="!ageLoading" class="tab-empty-text">暂无账龄数据</p>
+                </div>
+              </template>
+            </VxeTableList>
                 </a-card>
               </a-col>
             </a-row>
@@ -102,13 +128,21 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="分类明细">
-                  <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+                  <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+              <template #empty>
+                <div class="tab-empty">
+                  <InboxOutlined v-if="!categoryLoading" class="tab-empty-icon" />
+                  <p v-if="!categoryLoading" class="tab-empty-text">暂无分类汇总数据</p>
+                </div>
+              </template>
+            </VxeTableList>
                 </a-card>
               </a-col>
             </a-row>
           </a-tab-pane>
         </a-tabs>
       </a-card>
+      </template>
     </div>
   </PageContainer>
 </template>
@@ -124,12 +158,22 @@ import { PieChart, BarChart, LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import {
   DollarOutlined, CalculatorOutlined, LineChartOutlined, FileTextOutlined,
-  SyncOutlined, ReloadOutlined
+  SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { PageContainer } from '@/components'
 
 use([CanvasRenderer, PieChart, BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent])
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const activeTab = ref('summary')
 const loading = ref(false)
@@ -139,6 +183,7 @@ const categoryLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -159,13 +204,15 @@ const depreciationVxeColumns = [
   { field: 'totalAmount', title: '折旧金额' },
 ]
 
+const formatAmountCell = ({ cellValue }: any) => cellValue != null ? '¥' + Number(cellValue).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) : '¥0.00'
+
 const ledgerVxeColumns = [
   { field: 'assetCode', title: '资产编码' },
   { field: 'assetName', title: '资产名称' },
   { field: 'categoryName', title: '分类' },
-  { field: 'originalValue', title: '原值' },
-  { field: 'accumulatedDepreciation', title: '累计折旧' },
-  { field: 'netValue', title: '净值' },
+  { field: 'originalValue', title: '原值', align: 'right', formatter: formatAmountCell },
+  { field: 'accumulatedDepreciation', title: '累计折旧', align: 'right', formatter: formatAmountCell },
+  { field: 'netValue', title: '净值', align: 'right', formatter: formatAmountCell },
   { field: 'status', title: '状态' },
   { field: 'departmentName', title: '部门' },
   { field: 'custodianName', title: '保管人' },
@@ -174,15 +221,15 @@ const ledgerVxeColumns = [
 const ageVxeColumns = [
   { field: 'label', title: '账龄区间' },
   { field: 'count', title: '资产数量' },
-  { field: 'originalValue', title: '原值' },
-  { field: 'netValue', title: '净值' },
+  { field: 'originalValue', title: '原值', align: 'right', formatter: formatAmountCell },
+  { field: 'netValue', title: '净值', align: 'right', formatter: formatAmountCell },
 ]
 
 const categoryVxeColumns = [
   { field: 'categoryName', title: '分类名称' },
   { field: 'count', title: '资产数量' },
-  { field: 'originalValue', title: '原值' },
-  { field: 'netValue', title: '净值' },
+  { field: 'originalValue', title: '原值', align: 'right', formatter: formatAmountCell },
+  { field: 'netValue', title: '净值', align: 'right', formatter: formatAmountCell },
 ]
 
 function formatAmount(amount: number): string {
@@ -226,10 +273,25 @@ const categoryChartOption = computed(() => ({
   ],
 }))
 
+function handleParentCreate() {
+  // 报表页面无新增功能，仅占位
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)()
+  }
+}
+
 onMounted(() => {
   fetchDepreciationSummary()
   fetchAgeAnalysis()
   fetchCategorySummary()
+  window.addEventListener('fixed-asset:create', handleParentCreate)
+  window.addEventListener('fixed-asset:refresh', handleRefresh)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchDepreciationSummary()
@@ -240,22 +302,28 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
+  window.removeEventListener('fixed-asset:refresh', handleRefresh)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: handleRefresh })
 
 function handleRefresh() {
   refreshLoading.value = true
+  hasError.value = false
   Promise.all([
     fetchDepreciationSummary(),
     fetchAgeAnalysis(),
     fetchCategorySummary(),
   ]).catch(() => {
+    hasError.value = true
     console.warn('[报表统计] 刷新数据失败')
   }).finally(() => {
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
@@ -440,6 +508,23 @@ function fetchCategorySummary(): Promise<any> {
   height: 100%;
 }
 
+/* Tab 空状态 */
+.tab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0;
+}
+.tab-empty-icon {
+  font-size: 36px;
+  color: #d9d9d9;
+}
+.tab-empty-text {
+  color: #999;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards {
@@ -450,4 +535,15 @@ function fetchCategorySummary(): Promise<any> {
     min-width: 120px;
   }
 }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

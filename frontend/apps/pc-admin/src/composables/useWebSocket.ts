@@ -249,7 +249,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       30000
     )
 
-    console.log(`[useWebSocket] ${delay.toFixed(0)}ms 后重连 (第 ${reconnectAttempts} 次): ${opts.path}`)
+    console.warn(`[useWebSocket] ${delay.toFixed(0)}ms 后重连 (第 ${reconnectAttempts} 次): ${opts.path}`)
     reconnectTimer = setTimeout(() => doConnect(), delay)
   }
 

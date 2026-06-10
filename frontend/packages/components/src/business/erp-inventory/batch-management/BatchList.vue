@@ -228,8 +228,71 @@ const handleReset = () => {
   handleSearch()
 }
 
-const handleExport = () => {
-  // TODO: 实现导出批次数据功能
+const handleExport = async () => {
+  try {
+    // 优先尝试导出 API
+    const response = await fetch('/api/v1/erp-batch-sn/batches/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batchNo: searchParams.batchNo,
+        productName: searchParams.productName,
+        startDate: searchParams.dateRange?.[0],
+        endDate: searchParams.dateRange?.[1],
+        status: searchParams.status,
+        warehouse: searchParams.warehouse
+      })
+    })
+
+    if (response.ok) {
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `批次数据_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      message.success('导出成功')
+      return
+    }
+    // API 不存在时降级为客户端 CSV 导出
+    exportAsCsv()
+  } catch {
+    exportAsCsv()
+  }
+}
+
+const exportAsCsv = () => {
+  if (batchList.value.length === 0) {
+    message.warning('没有可导出的数据')
+    return
+  }
+
+  const headers = ['批次号', '产品名称', '产品编码', '数量', '单位', '生产日期', '有效期至', '状态', '仓库', '库位', '供应商']
+  const keys = ['batchNo', 'productName', 'productCode', 'quantity', 'unit', 'productionDate', 'expiryDate', 'status', 'warehouse', 'location', 'supplier']
+
+  const csvRows = [headers.join(',')]
+  batchList.value.forEach(item => {
+    const row = keys.map(key => {
+      const val = (item as any)[key] ?? ''
+      return `"${String(val).replace(/"/g, '""')}"`
+    })
+    csvRows.push(row.join(','))
+  })
+
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `批次数据_${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+  message.success('导出成功')
 }
 
 const handleTableChange = (pag: any) => {

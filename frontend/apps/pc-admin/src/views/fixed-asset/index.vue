@@ -11,7 +11,8 @@
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+        <PrintButton business-type="fixed_asset" button-type="link" button-size="small" tooltip="打印资产总览" />
+        <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()" v-permission="'erp:fixed-asset:asset:list'">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -69,6 +70,12 @@
             <span><FolderOutlined /> 分类管理</span>
           </template>
         </a-tab-pane>
+        <a-tab-pane key="purchase">
+          <template #tab>
+            <span><ShoppingCartOutlined /> 购置申请</span>
+            <a-badge :count="purchaseCount" :overflow-count="99" :number-style="{ backgroundColor: '#722ed1' }" style="margin-left: 8px" />
+          </template>
+        </a-tab-pane>
         <a-tab-pane key="depreciation">
           <template #tab>
             <span><CalculatorOutlined /> 折旧管理</span>
@@ -104,6 +111,7 @@
           <KeepAlive>
             <AssetList v-if="activeKey === 'asset'" ref="assetRef" @update-count="updateAssetCount" />
             <CategoryList v-else-if="activeKey === 'category'" ref="categoryRef" />
+            <PurchaseList v-else-if="activeKey === 'purchase'" ref="purchaseRef" @update-count="updatePurchaseCount" />
             <DepreciationList v-else-if="activeKey === 'depreciation'" ref="depreciationRef" @update-count="updateDepreciationCount" />
             <TransferList v-else-if="activeKey === 'transfer'" ref="transferRef" />
             <DisposalList v-else-if="activeKey === 'disposal'" ref="disposalRef" @update-count="updateDisposalCount" />
@@ -132,6 +140,7 @@ import { PageContainer } from '@/components'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import AssetList from './asset/index.vue'
 import CategoryList from './category/index.vue'
+import PurchaseList from './purchase/index.vue'
 import DepreciationList from './depreciation/index.vue'
 import TransferList from './transfer/index.vue'
 import DisposalList from './disposal/index.vue'
@@ -139,13 +148,23 @@ import InventoryList from './inventory/index.vue'
 import ReportPage from './report/index.vue'
 import {
   ReloadOutlined, SyncOutlined, FileTextOutlined, FolderOutlined, CalculatorOutlined,
-  SwapOutlined, DeleteOutlined, CheckSquareOutlined, BarChartOutlined
+  SwapOutlined, DeleteOutlined, CheckSquareOutlined, BarChartOutlined, ShoppingCartOutlined
 } from '@ant-design/icons-vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const router = useRouter()
 const route = useRoute()
 
-const VALID_TABS = ['asset', 'category', 'depreciation', 'transfer', 'disposal', 'inventory', 'report'] as const
+const VALID_TABS = ['asset', 'category', 'purchase', 'depreciation', 'transfer', 'disposal', 'inventory', 'report'] as const
 const activeKey = ref<string>('asset')
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -158,6 +177,7 @@ const refreshLoading = ref(false)
 // Tab 引用
 const assetRef = ref()
 const categoryRef = ref()
+const purchaseRef = ref()
 const depreciationRef = ref()
 const transferRef = ref()
 const disposalRef = ref()
@@ -166,6 +186,7 @@ const reportRef = ref()
 
 // Tab 统计数据
 const assetCount = ref(0)
+const purchaseCount = ref(0)
 const depreciationCount = ref(0)
 const disposalCount = ref(0)
 const inventoryCount = ref(0)
@@ -184,6 +205,7 @@ function handleRefresh() {
   const refMap: Record<string, any> = {
     asset: assetRef.value,
     category: categoryRef.value,
+    purchase: purchaseRef.value,
     depreciation: depreciationRef.value,
     transfer: transferRef.value,
     disposal: disposalRef.value,
@@ -207,6 +229,10 @@ function updateAssetCount(count: number) {
   assetCount.value = count
 }
 
+function updatePurchaseCount(count: number) {
+  purchaseCount.value = count
+}
+
 function updateDepreciationCount(count: number) {
   depreciationCount.value = count
 }
@@ -226,7 +252,7 @@ function handleKeydown(e: KeyboardEvent) {
   // F5 刷新
   if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
-    handleRefresh()
+    debounceClick('refresh', handleRefresh)()
   }
   // Ctrl+N 新建
   if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
@@ -432,6 +458,9 @@ defineExpose({ handleQuery: fetchData })
   .fixed-asset-module {
     padding: 8px;
     border-radius: 6px;
+  }
+  .stat-cards {
+    flex-wrap: wrap;
   }
   .tab-content-area {
     padding: 0 8px;

@@ -1,10 +1,15 @@
 package cn.aiedge.agent.capability;
 
 import cn.aiedge.agent.annotation.AgentCapability;
+import cn.aiedge.erp.party.entity.CustomerGrade;
+import cn.aiedge.erp.party.entity.CustomerGradePrice;
 import cn.aiedge.erp.party.entity.Party;
+import cn.aiedge.erp.party.service.CustomerGradePriceService;
+import cn.aiedge.erp.party.service.CustomerGradeService;
 import cn.aiedge.erp.party.service.PartyService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -18,15 +23,22 @@ import java.util.stream.Collectors;
  * 提供 AI Agent 查询、管理往来单位的能力
  * 往来单位包含：客户、供应商、物流商、配套商
  */
+@Slf4j
 @Component
 @AgentCapability(code = "party", name = "往来单位", tags = {"party", "customer", "supplier"})
 public class PartyCapabilityProvider {
 
     private final PartyService partyService;
+    private final CustomerGradeService customerGradeService;
+    private final CustomerGradePriceService customerGradePriceService;
 
     @Autowired
-    public PartyCapabilityProvider(PartyService partyService) {
+    public PartyCapabilityProvider(PartyService partyService,
+                                   CustomerGradeService customerGradeService,
+                                   CustomerGradePriceService customerGradePriceService) {
         this.partyService = partyService;
+        this.customerGradeService = customerGradeService;
+        this.customerGradePriceService = customerGradePriceService;
     }
 
     /**
@@ -153,12 +165,153 @@ public class PartyCapabilityProvider {
             timeout = 30
     )
     public Map<String, Object> getGradePrice(Map<String, Object> args) {
-        // TODO: 接入真实的 CustomerGradePriceService
+        // 校验必填参数
+        if (args.get("partyId") == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "缺少 partyId 参数");
+            return error;
+        }
+
+        Long partyId = ((Number) args.get("partyId")).longValue();
+        Long productId = args.get("productId") != null ? ((Number) args.get("productId")).longValue() : null;
+
+        // 查询往来单位信息
+        Party party = partyService.getPartyDetailById(partyId);
+        if (party == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "未找到该往来单位");
+            return error;
+        }
+
+        String partyLevel = party.getPartyLevel();
+        if (partyLevel == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "该往来单位未设置等级（partyLevel 为空）");
+            return error;
+        }
+        log.info("查询客户等级价格：partyId={}, partyName={}, partyLevel={}, productId={}",
+                partyId, party.getPartyName(), partyLevel, productId);
+
+        // 根据 partyLevel 映射到客户等级配置
+        CustomerGrade grade = customerGradeService.getByGradeCode(partyLevel);
+        if (grade == null) {
+            log.warn("未找到 partyLevel={} 对应的客户等级配置，使用默认定价逻辑", partyLevel);
+            return buildFallbackPriceResult(party, productId);
+        }
+        log.info("匹配到等级配置：gradeId={}, gradeName={}, gradeCode={}, discountRate={}",
+                grade.getId(), grade.getGradeName(), grade.getGradeCode(), grade.getDiscountRate());
+
         Map<String, Object> result = new HashMap<>();
-        result.put("partyId", args.get("partyId"));
-        result.put("productId", args.get("productId"));
-        result.put("message", "客户等级价格功能开发中");
+        result.put("partyId", partyId);
+        result.put("partyName", party.getPartyName());
+        result.put("partyLevel", partyLevel);
+        result.put("gradeId", grade.getId());
+        result.put("gradeName", grade.getGradeName());
+        result.put("discountRate", grade.getDiscountRate());
+
+        if (productId != null) {
+            // 查询指定产品的等级价格
+            CustomerGradePrice gradePrice = customerGradePriceService.getByGradeAndProduct(grade.getId(), productId);
+            if (gradePrice != null) {
+                result.put("productId", productId);
+                result.put("priceId", gradePrice.getId());
+                result.put("priceType", gradePrice.getPriceType());
+                result.put("standardPrice", gradePrice.getStandardPrice());
+                result.put("gradePrice", gradePrice.getGradePrice());
+                result.put("discountRate", gradePrice.getDiscountRate());
+                result.put("minPrice", gradePrice.getMinPrice());
+                result.put("maxPrice", gradePrice.getMaxPrice());
+                log.debug("查找到产品等级价格：productId={}, gradePrice={}, discountRate={}",
+                        productId, gradePrice.getGradePrice(), gradePrice.getDiscountRate());
+            } else {
+                result.put("productId", productId);
+                result.put("message", "该产品未设置等级价格");
+                log.info("产品未设置等级价格：productId={}", productId);
+            }
+        } else {
+            // 查询该等级下所有产品的定价
+            List<CustomerGradePrice> priceList = customerGradePriceService.listByGrade(grade.getId());
+            List<Map<String, Object>> priceMaps = priceList.stream().map(p -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("priceId", p.getId());
+                m.put("productId", p.getProductId());
+                m.put("productName", p.getProductName());
+                m.put("productSpec", p.getProductSpec());
+                m.put("skuId", p.getSkuId());
+                m.put("priceType", p.getPriceType());
+                m.put("standardPrice", p.getStandardPrice());
+                m.put("gradePrice", p.getGradePrice());
+                m.put("discountRate", p.getDiscountRate());
+                m.put("minPrice", p.getMinPrice());
+                m.put("maxPrice", p.getMaxPrice());
+                m.put("isDefault", p.getIsDefault());
+                m.put("priority", p.getPriority());
+                m.put("status", p.getStatus());
+                return m;
+            }).collect(Collectors.toList());
+            result.put("total", priceList.size());
+            result.put("prices", priceMaps);
+            log.debug("查找到 {} 条等级价格记录", priceList.size());
+        }
+
         return result;
+    }
+
+    /**
+     * 当未找到等级配置时的兜底逻辑：基于 partyLevel (A/B/C/D) 返回示例定价
+     */
+    private Map<String, Object> buildFallbackPriceResult(Party party, Long productId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("partyId", party.getId());
+        result.put("partyName", party.getPartyName());
+        result.put("partyLevel", party.getPartyLevel());
+        result.put("note", "未匹配到正式等级配置，以下为基于 partyLevel 的示例定价");
+
+        if (productId != null) {
+            result.put("productId", productId);
+        }
+
+        // 基于 partyLevel (A/B/C/D) 的降级定价策略
+        Map<String, Object> tieredPricing = buildTieredPricing(party.getPartyLevel(), productId);
+        result.put("tieredPricing", tieredPricing);
+        return result;
+    }
+
+    /**
+     * 构建基于等级 (A/B/C/D) 的阶梯定价
+     */
+    private Map<String, Object> buildTieredPricing(String partyLevel, Long productId) {
+        Map<String, Object> pricing = new HashMap<>();
+        pricing.put("rule", "基于往来单位等级的示例定价");
+        pricing.put("level", partyLevel);
+
+        // 等级对应的折扣率：A=90%, B=85%, C=80%, D=75%
+        java.math.BigDecimal[] discountByLevel = {
+                null, // 占位，index 0 不用
+                new java.math.BigDecimal("90"),  // A
+                new java.math.BigDecimal("85"),  // B
+                new java.math.BigDecimal("80"),  // C
+                new java.math.BigDecimal("75")   // D
+        };
+
+        int levelIndex = Math.max(0, Math.min(4, partyLevel.charAt(0) - 'A' + 1));
+        java.math.BigDecimal discountRate = discountByLevel[levelIndex];
+        pricing.put("defaultDiscountRate", discountRate + "%");
+
+        if (productId != null) {
+            pricing.put("productId", productId);
+            pricing.put("estimatedPrice", "标准价格 × " + discountRate + "%");
+        }
+
+        pricing.put("levelDescriptions", Map.of(
+                "A", "优质客户，折扣率 90%",
+                "B", "良好客户，折扣率 85%",
+                "C", "普通客户，折扣率 80%",
+                "D", "待发展客户，折扣率 75%"
+        ));
+
+        log.warn("使用降级定价策略：partyLevel={}, discountRate={}", partyLevel, discountRate);
+        return pricing;
     }
 
     private Map<String, Object> toSimpleMap(Party party) {

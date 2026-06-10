@@ -1,6 +1,7 @@
 package cn.aiedge.report.controller;
 
 import cn.aiedge.report.service.ReportScheduleService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RequestMapping("/api/report/schedule")
 @RequiredArgsConstructor
 @Tag(name = "定时报表服务", description = "定时报表任务管理功能")
+@SaCheckLogin
 public class ReportScheduleController {
 
     private final ReportScheduleService reportScheduleService;

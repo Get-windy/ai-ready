@@ -3,6 +3,7 @@ package cn.aiedge.runner;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.mapper.SysUserMapper;
 import cn.hutool.crypto.digest.BCrypt;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
  * 启动时重置admin密码的Runner
  * 使用Hutool BCrypt确保与登录模块兼容
  */
+@Slf4j
 @Component
 public class PasswordResetRunner implements CommandLineRunner {
 
@@ -31,16 +33,16 @@ public class PasswordResetRunner implements CommandLineRunner {
                 adminUser.setPassword(encodedPassword);
                 sysUserMapper.updateById(adminUser);
 
-                System.out.println("===================================");
-                System.out.println("Admin password reset successfully!");
-                System.out.println("Username: admin");
-                System.out.println("Password: admin123");
-                System.out.println("===================================");
+                log.info("===================================");
+                log.info("Admin password reset successfully!");
+                log.info("Username: admin");
+                log.info("Password: admin123");
+                log.info("===================================");
             } else {
-                System.out.println("Admin user not found in database.");
+                log.warn("Admin user not found in database.");
             }
         } catch (Exception e) {
-            System.err.println("Failed to reset admin password: " + e.getMessage());
+            log.error("Failed to reset admin password: " + e.getMessage());
         }
     }
 }

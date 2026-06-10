@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadMenuTree">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadMenuTree)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -70,14 +70,27 @@
       :show-batch-delete="false"
       :selectable="false"
       :bordered="true"
-      @refresh="loadMenuTree"
+      @refresh="debounceClick('refresh', loadMenuTree)"
       @filter-change="handleFilterChange"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
-        <a-button type="primary" :loading="submitLoading" @click="handleAdd">
+        <a-button type="primary" :loading="submitLoading" v-permission="'system:permission:create'" @click="handleAdd">
           <template #icon><PlusOutlined /></template>
           新增菜单
         </a-button>
+      </template>
+
+      <template #empty>
+        <a-empty v-if="!hasError" description="暂无数据" />
+        <a-result v-else status="error" title="数据加载失败">
+          <template #extra>
+            <a-button type="primary" @click="debounceClick('refresh', loadMenuTree)()">
+              <template #icon><ReloadOutlined /></template>
+              重新加载
+            </a-button>
+          </template>
+        </a-result>
       </template>
 
       <template #menuNameCell="{ record }">
@@ -105,29 +118,30 @@
       </template>
 
       <template #action="{ record }">
-        <a-button type="link" size="small" @click="handleAddChild(record)">
+        <a-button type="link" size="small" v-permission="'system:permission:create'" @click="handleAddChild(record)">
           <template #icon><PlusOutlined /></template>新增
         </a-button>
-        <a-button type="link" size="small" @click="handleEdit(record)">
+        <a-button type="link" size="small" v-permission="'system:permission:update'" @click="handleEdit(record)">
           <template #icon><EditOutlined /></template>编辑
         </a-button>
-        <a-button type="link" size="small" @click="handleAssignRole(record)">
+        <a-button type="link" size="small" v-permission="'system:permission:assign'" @click="handleAssignRole(record)">
           <template #icon><UserOutlined /></template>分配角色
         </a-button>
-        <a-button type="link" size="small" danger @click="handleDelete(record)">
+        <a-button type="link" size="small" danger v-permission="'system:permission:delete'" @click="handleDelete(record)">
           <template #icon><DeleteOutlined /></template>删除
         </a-button>
       </template>
     </VxeTableList>
 
     <!-- 菜单编辑弹窗 -->
-    <a-modal
-      v-model:open="dialogVisible"
+    <FullScreenDetail
+      :visible="dialogVisible"
       :title="dialogTitle"
-      width="600px"
-      :destroy-on-close="true"
-      @ok="handleSubmit"
-      :confirm-loading="submitLoading"
+      :save-loading="submitLoading"
+      :show-save-and-new="!formData.id"
+      @save="handleSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form
         ref="formRef"
@@ -148,9 +162,11 @@
 
         <a-form-item label="菜单类型" name="menuType">
           <a-radio-group v-model:value="formData.menuType">
-            <a-radio :value="0">目录</a-radio>
-            <a-radio :value="1">菜单</a-radio>
-            <a-radio :value="2">按钮</a-radio>
+            <a-radio
+              v-for="opt in menuTypeOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</a-radio>
           </a-radio-group>
         </a-form-item>
 
@@ -219,15 +235,15 @@
           />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 角色分配弹窗 -->
-    <a-modal
-      v-model:open="roleDialogVisible"
+    <FullScreenDetail
+      :visible="roleDialogVisible"
       title="分配角色"
-      width="500px"
-      @ok="handleRoleSubmit"
-      :confirm-loading="roleSubmitLoading"
+      :save-loading="roleSubmitLoading"
+      @save="handleRoleSubmit"
+      @close="roleDialogVisible = false"
     >
       <a-form :label-col="{ style: { width: '80px' } }">
         <a-form-item label="菜单名称">
@@ -238,6 +254,7 @@
             v-model:value="selectedRoles"
             mode="multiple"
             placeholder="请选择角色"
+            size="small"
             style="width: 100%"
           >
             <a-select-option
@@ -250,13 +267,14 @@
           </a-select>
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
   </div>
 </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, Rule } from 'ant-design-vue'
 import {
@@ -269,12 +287,14 @@ import {
   StopOutlined,
   ControlOutlined,
   ReloadOutlined,
-  SyncOutlined
+  SyncOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
+import { dictItemApi } from '@/api/dict'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
 import * as Icons from '@ant-design/icons-vue'
@@ -283,8 +303,19 @@ const userStore = useUserStore()
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // 查询表单
 const queryForm = reactive<MenuQuery>({
@@ -320,6 +351,28 @@ const dialogTitle = ref('新增菜单')
 const { isSubmitting: submitLoading, withSubmitLock } = useSubmitLock()
 const formRef = ref<FormInstance>()
 
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formData) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formData) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
+})
+
 // 表格列配置
 const vxeColumns = computed(() => [
   { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip', slotName: 'menuNameCell' },
@@ -332,14 +385,28 @@ const vxeColumns = computed(() => [
   { type: 'action', title: '操作', width: 280, fixed: 'right' }
 ])
 
+// ── 菜单类型选项（从API加载） ──────────────────────────
+const menuTypeOptions = ref<{ label: string; value: number }[]>([])
+
+async function loadMenuTypes() {
+  try {
+    const res = await dictItemApi.getByDictCode('MENU_TYPE')
+    if (res.data) {
+      menuTypeOptions.value = res.data
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+    }
+  } catch (err) {
+    console.warn('[菜单管理] 加载菜单类型失败', err)
+  }
+}
+
 // 筛选字段
-const filterFields: FilterField[] = [
+const filterFields = computed<FilterField[]>(() => [
   { key: 'menuName', label: '菜单名称', type: 'input', placeholder: '请输入菜单名称' },
-  { key: 'menuType', label: '菜单类型', type: 'select', options: [
-    { label: '目录', value: 0 }, { label: '菜单', value: 1 }, { label: '按钮', value: 2 }
-  ]},
+  { key: 'menuType', label: '菜单类型', type: 'select', options: menuTypeOptions.value },
   { key: 'status', label: '状态', type: 'select', options: [{ label: '启用', value: 1 }, { label: '禁用', value: 0 }] },
-]
+])
 
 // 将图标字符串转为组件
 const iconComponent = (iconName: string) => {
@@ -395,6 +462,7 @@ const handleFilterChange = (filters: Record<string, any>) => {
 // 加载菜单树
 const loadMenuTree = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await menuApi.getTree(queryForm)
     if (res.code === 200) {
@@ -404,6 +472,7 @@ const loadMenuTree = async () => {
       menuTree.value = []
     }
   } catch (error) {
+    hasError.value = true
     console.warn('[系统管理] 获取菜单列表失败', error)
     message.error('获取菜单列表失败')
     menuTree.value = []
@@ -413,8 +482,6 @@ const loadMenuTree = async () => {
     refreshLoading.value = false
   }
 }
-
-// Mock数据 - removed, all data comes from API
 
 // 搜索
 const handleSearch = () => {
@@ -434,6 +501,7 @@ const handleAdd = () => {
   dialogTitle.value = '新增菜单'
   resetForm()
   dialogVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 新增子菜单
@@ -442,6 +510,7 @@ const handleAddChild = (row: MenuInfo) => {
   resetForm()
   formData.parentId = row.id
   dialogVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 编辑菜单
@@ -466,6 +535,7 @@ const handleEdit = (row: MenuInfo) => {
     remark: row.remark || ''
   })
   dialogVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 删除菜单
@@ -535,6 +605,24 @@ const handleSubmit = async () => {
       message.error(error?.message || '提交失败')
     }
   }
+}
+
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { dialogVisible.value = false },
+    })
+  } else {
+    dialogVisible.value = false
+  }
+}
+
+const handleFormSaveAndNew = () => {
+  handleSubmit()
 }
 
 // 状态变更
@@ -617,9 +705,25 @@ const resetForm = () => {
   formRef.value?.clearValidate()
 }
 
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', loadMenuTree)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    handleAdd()
+  }
+}
+
 // 初始化
 onMounted(() => {
   loadMenuTree()
+  loadMenuTypes()
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadMenuTree()
@@ -631,6 +735,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -686,6 +791,11 @@ defineExpose({ handleQuery: loadMenuTree })
   min-height: 0;
 }
 
+.menu-management > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
 /* 统计卡片 */
 .stat-cards {
   display: flex;
@@ -730,13 +840,17 @@ defineExpose({ handleQuery: loadMenuTree })
   font-size: 16px;
 }
 
-
-
-
-
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

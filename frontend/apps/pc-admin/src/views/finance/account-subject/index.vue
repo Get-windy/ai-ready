@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -66,7 +66,7 @@
           <template #icon><PlusOutlined /></template>
           新增科目
         </a-button>
-        <a-button size="small" @click="fetchTree" style="margin-left: 8px">
+        <a-button size="small" @click="debounceClick('refresh', fetchTree)" style="margin-left: 8px">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -183,13 +183,14 @@
     </a-card>
 
     <!-- 科目编辑弹窗 -->
-    <a-modal
-      v-model:open="formVisible"
+    <FullScreenDetail
+      :visible="formVisible"
       :title="isEdit ? '编辑科目' : '新增科目'"
-      :width="560"
-      :confirm-loading="formSubmitting"
-      @ok="handleFormSubmit"
-      @cancel="handleFormCancel"
+      :save-loading="formSubmitting"
+      :show-save-and-new="!isEdit"
+      @save="handleFormSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form
         ref="formRef"
@@ -200,13 +201,13 @@
         size="small"
       >
         <a-form-item label="科目编码" name="subjectCode">
-          <a-input v-model:value="formState.subjectCode" placeholder="如：1001" />
+          <a-input v-model:value="formState.subjectCode" placeholder="如：1001" size="small" />
         </a-form-item>
         <a-form-item label="科目名称" name="subjectName">
-          <a-input v-model:value="formState.subjectName" placeholder="如：库存现金" />
+          <a-input v-model:value="formState.subjectName" placeholder="如：库存现金" size="small" />
         </a-form-item>
         <a-form-item label="科目类别" name="subjectType">
-          <a-select v-model:value="formState.subjectType" :options="subjectTypeOptions" />
+          <a-select v-model:value="formState.subjectType" :options="subjectTypeOptions" size="small" />
         </a-form-item>
         <a-form-item label="上级科目">
           <a-input :value="formState.parentSubjectName" disabled placeholder="无（一级科目）" />
@@ -221,26 +222,27 @@
           <a-switch v-model:checked="formState.isDetailBool" />
         </a-form-item>
         <a-form-item label="期初余额">
-          <a-input-number v-model:value="formState.openingBalance" :precision="2" style="width: 100%" :min="0" />
+          <a-input-number v-model:value="formState.openingBalance" :precision="2" style="width: 100%" :min="0" size="small" />
         </a-form-item>
         <a-form-item label="状态">
           <a-switch v-model:checked="formState.statusBool" checked-children="启用" un-checked-children="禁用" />
         </a-form-item>
         <a-form-item label="排序">
-          <a-input-number v-model:value="formState.sortOrder" :min="0" style="width: 100%" />
+          <a-input-number v-model:value="formState.sortOrder" :min="0" style="width: 100%" size="small" />
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="formState.remark" :rows="2" />
+          <a-textarea v-model:value="formState.remark" :rows="2" size="small" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
+import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined,
   EditOutlined,
@@ -256,8 +258,14 @@ import {
   CheckCircleOutlined,
   DashboardOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { accountingApi, type AccountSubject, type AccountSubjectSave } from '@/api/finance/accounting'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 const treeLoading = ref(false)
 const refreshLoading = ref(false)
@@ -334,6 +342,40 @@ const formRules = {
   balanceDirection: [{ required: true, message: '请选择借贷方向', trigger: 'change' }]
 }
 
+const initialFormSnapshot = ref('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formState })
+}
+const formDirty = computed(() => {
+  return JSON.stringify({ ...formState }) !== initialFormSnapshot.value
+})
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formVisible.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的修改，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
+function handleParentCreate() {
+  handleAdd()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchTree); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleAdd() {
+  handleAddRoot()
+}
+
 function getSubjectTypeColor(type?: number): string {
   const colors: Record<number, string> = { 1: 'blue', 2: 'orange', 3: 'purple', 4: 'cyan', 5: 'green' }
   return colors[type || 0] || 'default'
@@ -395,6 +437,7 @@ function resetForm() {
 function handleAddRoot() {
   resetForm()
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleAddChild(parent: AccountSubject) {
@@ -403,6 +446,7 @@ function handleAddChild(parent: AccountSubject) {
   formState.parentSubjectName = `${parent.subjectCode} ${parent.subjectName}`
   formState.subjectType = parent.subjectType
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleEdit(subject: AccountSubject) {
@@ -434,6 +478,7 @@ function handleEdit(subject: AccountSubject) {
     formState.parentSubjectName = findParent(subjectTree.value)
   }
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 async function handleDelete(subject: AccountSubject) {
@@ -487,8 +532,29 @@ async function handleFormSubmit() {
   }
 }
 
-function handleFormCancel() {
-  formVisible.value = false
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的修改，确定要关闭吗？',
+      onOk: () => { formVisible.value = false }
+    })
+  } else {
+    formVisible.value = false
+  }
+}
+
+let _savedAndNew = false
+function handleFormSaveAndNew() {
+  _savedAndNew = true
+  handleFormSubmit().then(() => {
+    if (_savedAndNew && !formVisible.value) {
+      _savedAndNew = false
+      resetForm()
+      formVisible.value = true
+      nextTick(() => saveFormSnapshot())
+    }
+  })
 }
 
 // 定时刷新（30s）
@@ -497,6 +563,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchTree()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchTree)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTree()
@@ -508,6 +577,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchTree)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -619,5 +691,21 @@ defineExpose({ handleQuery: fetchTree })
 
 .font-bold {
   font-weight: 600;
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

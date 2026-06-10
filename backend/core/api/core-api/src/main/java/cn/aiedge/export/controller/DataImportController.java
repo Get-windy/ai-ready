@@ -2,6 +2,7 @@ package cn.aiedge.export.controller;
 
 import cn.aiedge.export.service.DataImportService;
 import cn.aiedge.export.service.DataImportService.*;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/import/v2")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "数据导入", description = "Excel/CSV导入、预览、校验功能")
 public class DataImportController {
 

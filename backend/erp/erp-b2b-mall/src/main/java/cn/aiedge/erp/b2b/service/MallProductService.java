@@ -5,6 +5,7 @@ import cn.aiedge.erp.b2b.dto.ProductDetailDTO;
 import cn.aiedge.erp.b2b.dto.ProductListDTO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface MallProductService {
 
@@ -12,11 +13,11 @@ public interface MallProductService {
 
     ProductDetailDTO getProductDetail(Long id);
 
-    List getCategories();
+    List<Map<String, Object>> getCategories();
 
     List<ProductListDTO> getRecommendations();
 
     List<ProductListDTO> getHotProducts();
 
-    List getBanners();
+    List<Map<String, Object>> getBanners();
 }

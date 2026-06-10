@@ -4,6 +4,7 @@ import cn.aiedge.dict.service.DictItemService;
 import cn.aiedge.dict.service.DictTypeService;
 import cn.aiedge.dict.vo.DictItemVO;
 import cn.aiedge.dict.vo.DictTypeVO;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/dict")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "字典查询", description = "字典数据查询接口，供前端下拉选择器使用")
 public class DictController {
 

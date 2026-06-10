@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -64,16 +64,36 @@
         :row-key="'id'"
         :filter-fields="filterFields"
         :selectable="true"
+        :show-export="true"
+        :show-summary="true"
+        :summary-data="summaryData"
         add-text="新建模板"
         @add="handleAdd"
+        @cell-dblclick="handleView"
         @refresh="loadData"
         @search="handleSearch"
+        @export="handleExport"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @batch-delete="handleBatchDelete"
       >
+        <template #batch-actions="{ selectedRows: rows }">
+          <a-button size="small" @click="handleBatchPublish(rows)" :disabled="!canBatchPublish(rows)">
+            <template #icon><SendOutlined /></template>
+            批量发布
+          </a-button>
+        </template>
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="loadData">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -117,39 +137,41 @@
         </template>
       </VxeTableList>
 
-      <!-- 新建/编辑弹窗 -->
-      <a-modal
-        v-model:open="formVisible"
+      <!-- 全屏详情抽屉（新建/编辑） -->
+      <FullScreenDetail
+        :visible="formVisible"
         :title="isEdit ? '编辑模板' : '新建模板'"
-        :width="900"
-        :confirm-loading="submitLoading"
-        @ok="handleSubmit"
+        :save-loading="submitLoading"
+        :show-save-and-new="!isEdit"
+        @close="handleFormClose"
+        @save="handleFormSubmit"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :rules="formRules" ref="formRef" layout="vertical">
           <a-row :gutter="16">
             <a-col :span="8">
               <a-form-item label="模板编码" name="templateCode">
-                <a-input v-model:value="formData.templateCode" placeholder="自动生成" :disabled="isEdit" />
+                <a-input v-model:value="formData.templateCode" placeholder="自动生成" :disabled="isEdit" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="模板名称" name="templateName">
-                <a-input v-model:value="formData.templateName" placeholder="请输入模板名称" />
+                <a-input v-model:value="formData.templateName" placeholder="请输入模板名称" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="财政年度" name="fiscalYear">
-                <a-input-number v-model:value="formData.fiscalYear" :min="2020" :max="2099" style="width: 100%" />
+                <a-input-number v-model:value="formData.fiscalYear" :min="2020" :max="2099" style="width: 100%" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-form-item label="描述" name="description">
-            <a-textarea v-model:value="formData.description" :rows="2" placeholder="请输入模板描述" />
+            <a-textarea v-model:value="formData.description" :rows="2" placeholder="请输入模板描述" size="small" />
           </a-form-item>
         </a-form>
 
         <a-divider>预算科目</a-divider>
-        <a-button type="dashed" @click="addItem" style="width: 100%; margin-bottom: 12px">
+        <a-button type="dashed" @click="debounceClick('addItem', addItem)" style="width: 100%; margin-bottom: 12px">
           <template #icon><PlusOutlined /></template>添加科目
         </a-button>
         <VxeTableList
@@ -165,38 +187,49 @@
           :show-batch-delete="false"
         >
           <template #subjectCodeCell="{ record }">
-            <a-input v-model:value="record.subjectCode" placeholder="科目编码" />
+            <a-input v-model:value="record.subjectCode" placeholder="科目编码" size="small" />
           </template>
           <template #subjectNameCell="{ record }">
-            <a-input v-model:value="record.subjectName" placeholder="科目名称" />
+            <a-input v-model:value="record.subjectName" placeholder="科目名称" size="small" />
           </template>
           <template #budgetAmountCell="{ record }">
-            <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" />
+            <a-input-number v-model:value="record.budgetAmount" :min="0" :precision="2" style="width: 100%" size="small" />
           </template>
           <template #sortOrderCell="{ record }">
-            <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 60px" />
+            <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 60px" size="small" />
           </template>
           <template #action="{ index }">
-            <a-popconfirm title="确定删除？" @confirm="removeItem(index)">
+            <a-popconfirm title="确定删除？" @confirm="removeItem(index as number)">
               <a class="danger">删除</a>
             </a-popconfirm>
           </template>
         </VxeTableList>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, EyeOutlined, EditOutlined, EllipsisOutlined, DeleteOutlined, SendOutlined, SearchOutlined, InboxOutlined,
-  FileOutlined, FolderOutlined, DollarOutlined, SyncOutlined, ReloadOutlined
+  FileOutlined, FolderOutlined, DollarOutlined, SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { budgetTemplateApi, type BudgetTemplate, type BudgetTemplateItem } from '@/api/budget'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const searchFilters = reactive<Record<string, any>>({})
 
@@ -207,6 +240,7 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const selectedRows = ref<BudgetTemplate[]>([])
@@ -221,6 +255,15 @@ const draftCount = computed(() => tableData.value.filter(r => r.status === 'draf
 const publishedCount = computed(() => tableData.value.filter(r => r.status === 'published').length)
 const archivedCount = computed(() => tableData.value.filter(r => r.status === 'archived').length)
 const totalAmount = computed(() => tableData.value.reduce((s, r) => s + (r.totalAmount || 0), 0))
+
+// ── 汇总行 ──────────────────────────────────────────────
+const summaryData = computed(() => {
+  if (tableData.value.length === 0) return []
+  const total = tableData.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
+  return [
+    { label: '模板总额', value: `¥${formatAmount(total)}`, type: 'currency' },
+  ]
+})
 
 
 function formatAmount(amount: number): string {
@@ -281,6 +324,53 @@ const formRules = {
   fiscalYear: [{ required: true, message: '请选择年度', type: 'number' as const }],
 }
 
+// ── 表单脏状态跟踪 ──────────────────────────────────────
+const initialFormSnapshot = ref<string>('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({
+    templateCode: formData.templateCode,
+    templateName: formData.templateName,
+    fiscalYear: formData.fiscalYear,
+    description: formData.description,
+    items: formData.items.map((i: any) => ({
+      subjectCode: i.subjectCode,
+      subjectName: i.subjectName,
+      budgetAmount: i.budgetAmount,
+      sortOrder: i.sortOrder,
+    })),
+  })
+}
+const formDirty = computed(() => {
+  if (!formVisible.value) return false
+  const current = JSON.stringify({
+    templateCode: formData.templateCode,
+    templateName: formData.templateName,
+    fiscalYear: formData.fiscalYear,
+    description: formData.description,
+    items: formData.items.map((i: any) => ({
+      subjectCode: i.subjectCode,
+      subjectName: i.subjectName,
+      budgetAmount: i.budgetAmount,
+      sortOrder: i.sortOrder,
+    })),
+  })
+  return current !== initialFormSnapshot.value
+})
+
+// ── 路由离开守卫 ─────────────────────────────────────────
+onBeforeRouteLeave((_to, _from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的内容，确定离开吗？',
+      onOk: () => { next() },
+      onCancel: () => { next(false) },
+    })
+  } else {
+    next()
+  }
+})
+
 const statusColor = (s: string) => {
   const map: Record<string, string> = { draft: 'default', published: 'blue', archived: 'orange' }
   return map[s] || 'default'
@@ -312,6 +402,7 @@ const removeItem = (index: number) => {
 const loadData = async () => {
   loading.value = true
   try {
+    hasError.value = false
     const res = await budgetTemplateApi.page({
       keyword: searchFilters.keyword || undefined,
       fiscalYear: searchFilters.fiscalYear || undefined,
@@ -324,6 +415,7 @@ const loadData = async () => {
       pagination.total = res.data.total || 0
     }
   } catch {
+    hasError.value = true
     console.warn('[预算模板] 加载数据失败')
     tableData.value = []
     pagination.total = 0
@@ -368,10 +460,13 @@ const resetForm = () => {
   editId.value = null
 }
 
+function handleParentCreate() { handleAdd() }
+
 const handleAdd = () => {
   resetForm()
   isEdit.value = false
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleEdit = async (record: BudgetTemplate) => {
@@ -389,6 +484,7 @@ const handleEdit = async (record: BudgetTemplate) => {
       editId.value = d.id
       isEdit.value = true
       formVisible.value = true
+      nextTick(() => saveFormSnapshot())
     }
   } catch {
     console.warn('[预算模板] 获取详情失败')
@@ -399,7 +495,29 @@ const handleView = async (record: BudgetTemplate) => {
   handleEdit(record)
 }
 
-const handleSubmit = async () => {
+function handleFormClose() {
+  if (formRef.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定关闭吗？',
+      onOk: () => { formVisible.value = false }
+    })
+  } else {
+    formVisible.value = false
+  }
+}
+
+async function handleFormSaveAndNew() {
+  await handleFormSubmit(true)
+  if (!submitLoading.value) {
+    resetForm()
+    isEdit.value = false
+    formVisible.value = true
+    nextTick(() => saveFormSnapshot())
+  }
+}
+
+const handleFormSubmit = async (keepOpen?: boolean) => {
   try {
     await formRef.value?.validate()
   } catch {
@@ -418,7 +536,7 @@ const handleSubmit = async () => {
       await budgetTemplateApi.create({ ...formData })
       message.success('创建成功')
     }
-    formVisible.value = false
+    if (!keepOpen) formVisible.value = false
     loadData()
   } catch (e: any) {
     console.warn('[预算模板] 操作失败', e)
@@ -473,8 +591,87 @@ function handleActionMenuClick(key: string, record: BudgetTemplate) {
   }
 }
 
+// ── 导出 ────────────────────────────────────────────────
+async function handleExport() {
+  try {
+    const res = await budgetTemplateApi.page({
+      keyword: searchFilters.keyword || undefined,
+      fiscalYear: searchFilters.fiscalYear || undefined,
+      status: searchFilters.status || undefined,
+      pageNum: 0,
+      pageSize: 9999,
+    })
+    if (res.success && res.data?.records?.length) {
+      const data = res.data.records
+      const csv = data.map((r: any) => `${r.templateCode},${r.templateName},${r.fiscalYear},${r.totalAmount},${r.status}`).join('\n')
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `预算模板_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click(); URL.revokeObjectURL(url)
+    }
+    message.success('导出成功')
+  } catch {
+    message.error('导出失败')
+  }
+}
+
+// ── 批量操作 ────────────────────────────────────────────
+function canBatchPublish(rows: BudgetTemplate[]) {
+  return rows.some(r => r.status === 'draft')
+}
+
+async function handleBatchPublish(rows: BudgetTemplate[]) {
+  const draftIds = rows.filter(r => r.status === 'draft').map(r => r.id)
+  if (!draftIds.length) { message.warning('选中的记录中没有可发布的草稿'); return }
+  Modal.confirm({
+    title: '批量发布',
+    content: `确定发布选中的 ${draftIds.length} 项草稿？`,
+    onOk: async () => {
+      try {
+        await Promise.all(draftIds.map(id => budgetTemplateApi.publish(id)))
+        message.success(`已发布 ${draftIds.length} 项`)
+        loadData()
+      } catch { message.error('批量发布失败') }
+    },
+  })
+}
+
+async function handleBatchDelete(ids: number[]) {
+  if (!ids.length) { message.warning('请选择要删除的记录'); return }
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定删除 ${ids.length} 项模板？`,
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await Promise.all(ids.map(id => budgetTemplateApi.delete(id)))
+        message.success(`已删除 ${ids.length} 项`)
+        loadData()
+      } catch { message.error('批量删除失败') }
+    },
+  })
+}
+
+// ── 快捷键 ──────────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', loadData)
+    return
+  }
+  if (e.ctrlKey && e.key === 'n') {
+    e.preventDefault()
+    debounceClick('add', handleAdd)
+    return
+  }
+}
+
 onMounted(() => {
   loadData()
+  window.addEventListener('budget:create', handleParentCreate)
+  window.addEventListener('budget:refresh', loadData)
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadData()
@@ -486,6 +683,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('budget:create', handleParentCreate)
+  window.removeEventListener('budget:refresh', loadData)
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -538,6 +738,11 @@ defineExpose({ handleQuery: loadData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.template-management :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -598,6 +803,14 @@ defineExpose({ handleQuery: loadData })
   margin-top: 12px;
 }
 
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
+}
+
 .danger { color: #ff4d4f; }
 .action-more-btn { padding: 0 4px; font-size: 16px; vertical-align: middle; }
 .action-cell-inner { flex-wrap: nowrap; }
@@ -607,6 +820,22 @@ defineExpose({ handleQuery: loadData })
   font-variant-numeric: tabular-nums;
   color: #f5222d;
   font-weight: 500;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.template-management :deep(.ant-input-sm),
+.template-management :deep(.ant-input-number-sm),
+.template-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.template-management :deep(.ant-picker-small),
+.template-management :deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+.template-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+.template-management :deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 
 /* 响应式 */

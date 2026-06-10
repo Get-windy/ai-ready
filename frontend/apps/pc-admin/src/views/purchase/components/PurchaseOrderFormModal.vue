@@ -1,11 +1,12 @@
 <template>
-  <a-modal
-    :open="open"
+  <FullScreenDetail
+    :visible="open"
     :title="editData ? '编辑采购订单' : '新建采购订单'"
-    :width="900"
-    :confirm-loading="loading"
-    @ok="handleOk"
-    @cancel="handleCancel"
+    :save-loading="loading"
+    :show-save-and-new="!isEdit"
+    @close="handleFormClose"
+    @save="handleOk"
+    @save-and-new="handleFormSaveAndNew"
   >
     <a-form
       ref="formRef"
@@ -17,7 +18,7 @@
       <a-row :gutter="24">
         <a-col :span="12">
           <a-form-item label="订单号" name="orderNo">
-            <a-input v-model:value="formData.orderNo" placeholder="系统自动生成" :disabled="true" />
+            <a-input v-model:value="formData.orderNo" placeholder="系统自动生成" :disabled="true" size="small" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
@@ -28,6 +29,7 @@
               show-search
               :filter-option="filterOption"
               :loading="loadingOptions"
+              size="small"
               @change="handleSupplierChange"
             >
               <a-select-option v-for="item in supplierOptions" :key="item.id" :value="item.id">
@@ -47,6 +49,7 @@
               style="width: 100%"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
+              size="small"
             />
           </a-form-item>
         </a-col>
@@ -58,6 +61,7 @@
               style="width: 100%"
               format="YYYY-MM-DD"
               value-format="YYYY-MM-DD"
+              size="small"
             />
           </a-form-item>
         </a-col>
@@ -72,6 +76,7 @@
               show-search
               :filter-option="filterOption"
               :loading="loadingOptions"
+              size="small"
             >
               <a-select-option v-for="item in userOptions" :key="item.id" :value="item.id">
                 {{ item.name }}
@@ -81,7 +86,7 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="付款方式" name="paymentMethod">
-            <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式">
+            <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式" size="small">
               <a-select-option :value="1">预付全款</a-select-option>
               <a-select-option :value="2">货到付款</a-select-option>
               <a-select-option :value="3">分期付款</a-select-option>
@@ -94,7 +99,7 @@
       <a-row :gutter="24">
         <a-col :span="12">
           <a-form-item label="结算币种" name="currency">
-            <a-select v-model:value="formData.currency" placeholder="请选择币种">
+            <a-select v-model:value="formData.currency" placeholder="请选择币种" size="small">
               <a-select-option value="CNY">人民币(CNY)</a-select-option>
               <a-select-option value="USD">美元(USD)</a-select-option>
               <a-select-option value="EUR">欧元(EUR)</a-select-option>
@@ -103,13 +108,13 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="税率(%)" name="taxRate">
-            <a-input-number v-model:value="formData.taxRate" :min="0" :max="100" :step="1" :precision="2" style="width: 100%" />
+            <a-input-number v-model:value="formData.taxRate" :min="0" :max="100" :step="1" :precision="2" style="width: 100%" size="small" />
           </a-form-item>
         </a-col>
       </a-row>
 
       <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
-        <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" :maxlength="500" show-count />
+        <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" :maxlength="500" show-count size="small" />
       </a-form-item>
 
       <a-divider>采购商品明细</a-divider>
@@ -143,6 +148,7 @@
             :filter-option="filterOption"
             style="width: 100%"
             :loading="loadingOptions"
+            size="small"
             @change="(val: number) => handleProductChange(val, index)"
           >
             <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
@@ -154,10 +160,10 @@
           {{ record.productCode }}
         </template>
         <template #quantityCell="{ record }">
-          <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" />
+          <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" size="small" />
         </template>
         <template #unitPriceCell="{ record }">
-          <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" />
+          <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" size="small" />
         </template>
         <template #amountCell="{ record }">
           <span class="amount-text">¥{{ ((record.quantity || 0) * (record.unitPrice || 0)).toFixed(2) }}</span>
@@ -196,20 +202,32 @@
         <a-button @click="importVisible = false">关闭</a-button>
       </div>
     </a-modal>
-  </a-modal>
+  </FullScreenDetail>
 </template>
 
 <script setup lang="ts">
 defineOptions({ name: 'PurchaseOrderFormModal' })
 
-import { ref, reactive, computed, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { FullScreenDetail } from '@/components'
 import { PlusOutlined, ImportOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import * as XLSX from 'xlsx'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { purchaseOrderApi } from '@/api/erp'
 import optionsApi from '@/api/options'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 interface OrderItem {
   id: string
@@ -232,6 +250,16 @@ interface Props {
 
 const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'update:open', val: boolean): void; (e: 'success'): void }>()
+
+// ── 表单脏状态跟踪 ──────────────────────────────────────
+const initialFormSnapshot = ref<string>('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formData, items: [...formData.items] })
+}
+const formDirty = computed(() => {
+  if (!props.open) return false
+  return JSON.stringify({ ...formData, items: [...formData.items] }) !== initialFormSnapshot.value
+})
 
 const loading = ref(false)
 const loadingOptions = ref(false)
@@ -328,10 +356,48 @@ function handleCopyItem(index: number) {
 
 function handleImportItems() { importVisible.value = true }
 function handleImportFile(_file: File) {
-  // TODO: 实际解析 Excel/CSV 文件内容并导入产品明细
-  const fileName = _file.name
-  message.success(`已接收文件 "${fileName}"，请使用单品添加方式录入明细（批量导入功能尚在完善）`)
-  importVisible.value = false
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer)
+      const workbook = XLSX.read(data, { type: 'array' })
+      const firstSheetName = workbook.SheetNames[0]
+      if (!firstSheetName) {
+        message.warning('文件中没有可读取的工作表')
+        return
+      }
+      const sheet = workbook.Sheets[firstSheetName]
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+
+      if (rows.length === 0) {
+        message.warning('文件中未读取到有效数据行')
+        return
+      }
+
+      const newItems = rows.map((row: any) => ({
+        id: Date.now().toString() + Math.random(),
+        productId: undefined,
+        productCode: (row['产品编码'] || row['productCode'] || row['编码'] || '').toString(),
+        productName: (row['产品名称'] || row['productName'] || row['名称'] || '').toString(),
+        quantity: Number(row['数量'] || row['quantity'] || 1),
+        unitPrice: Number(row['单价'] || row['unitPrice'] || 0),
+        unit: (row['单位'] || row['unit'] || '').toString(),
+        remark: (row['备注'] || row['remark'] || '').toString()
+      }))
+
+      formData.items = newItems
+      message.success(`成功导入 ${newItems.length} 条商品明细`)
+    } catch (err) {
+      console.warn('[导入] 解析文件失败', err)
+      message.error('文件解析失败，请检查文件格式（支持 .xlsx / .csv）')
+    }
+    importVisible.value = false
+  }
+  reader.onerror = () => {
+    message.error('文件读取失败')
+    importVisible.value = false
+  }
+  reader.readAsArrayBuffer(_file)
 }
 
 async function handleOk() {
@@ -388,7 +454,66 @@ async function handleOk() {
   }
 }
 
-function handleCancel() { updateOpen(false) }
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定关闭吗？',
+      onOk: () => { updateOpen(false) }
+    })
+  } else {
+    updateOpen(false)
+  }
+}
+
+async function handleFormSaveAndNew() {
+  try {
+    await formRef.value?.validate()
+    if (formData.items.length === 0) { message.error('请至少添加一条商品明细'); return }
+    if (formData.items.some(item => !item.productId)) { message.error('请选择所有商品'); return }
+    loading.value = true
+    const submitData: Record<string, any> = {
+      supplierId: formData.supplierId, supplierName: formData.supplierName,
+      orderDate: formData.orderDate, expectedDate: formData.expectedDate,
+      purchaserId: formData.purchaserId, purchaserName: formData.purchaserName,
+      paymentMethod: formData.paymentMethod, currency: formData.currency,
+      taxRate: formData.taxRate, remark: formData.remark,
+      totalAmount: Math.round(totalAmount.value * 100) / 100,
+      taxAmount: Math.round(taxAmount.value * 100) / 100,
+      totalAmountWithTax: Math.round(totalAmountWithTax.value * 100) / 100,
+      items: formData.items.map(i => ({
+        productId: i.productId, productCode: i.productCode,
+        productName: i.productName, quantity: i.quantity,
+        unitPrice: i.unitPrice, unit: i.unit, remark: i.remark
+      }))
+    }
+    if (props.editData?.id) {
+      await purchaseOrderApi.update(props.editData.id, submitData)
+      message.success('更新成功')
+    } else {
+      await purchaseOrderApi.create(submitData)
+      message.success('创建成功')
+    }
+    // 重置表单，保持打开
+    Object.assign(formData, {
+      orderNo: 'PO' + dayjs().format('YYYYMMDDHHmmss'),
+      supplierId: undefined, supplierName: '',
+      orderDate: dayjs().format('YYYY-MM-DD'),
+      expectedDate: '', purchaserId: undefined, purchaserName: '',
+      paymentMethod: 2, currency: 'CNY', taxRate: 13, remark: '',
+      items: [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
+    })
+    emit('success')
+    nextTick(() => saveFormSnapshot())
+  } catch (error: any) {
+    const errMsg = error?.response?.data?.message || error?.message || '操作失败'
+    message.error(errMsg)
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleCancel() { handleFormClose() }
 
 function updateOpen(val: boolean) {
   emit('update:open', val)
@@ -468,6 +593,7 @@ watch(() => props.open, (val) => {
       formData.purchaserName = ''
       formData.items = [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
     }
+    nextTick(() => saveFormSnapshot())
   }
 })
 </script>
@@ -477,4 +603,20 @@ watch(() => props.open, (val) => {
 .amount-summary { margin-top: 16px; padding: 16px; background: var(--color-bg-layout); border-radius: var(--border-radius-lg); }
 .amount-text { font-weight: 600; color: var(--color-primary); }
 .danger { color: var(--color-danger); }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

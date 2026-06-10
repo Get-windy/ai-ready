@@ -361,10 +361,8 @@ public class DirectoryStructureRule implements CheckRule {
      * 获取堆栈跟踪
      */
     private String getStackTrace(Exception e) {
-        java.io.StringWriter sw = new java.io.StringWriter();
-        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
-        e.printStackTrace(pw);
-        return sw.toString();
+        log.error("获取堆栈跟踪失败, rule={}", RULE_NAME, e);
+        return e.getMessage() != null ? e.getMessage() : e.getClass().getName();
     }
 
     /**

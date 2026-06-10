@@ -56,6 +56,7 @@
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
     >
       <template #toolbar-actions>
@@ -73,14 +74,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的换货单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无换货单数据，点击右上角「新建换货」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的换货单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无换货单数据，点击右上角「新建换货」开始创建
+            </p>
+          </template>
         </div>
       </template>
 
@@ -96,6 +106,15 @@
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
+          <PrintButton
+            template-type="exchange"
+            :business-id="record.id"
+            business-type="purchase_exchange"
+            button-text=""
+            button-size="small"
+            button-type="link"
+            tooltip="打印"
+          />
           <a-dropdown trigger="click">
             <a-button type="link" size="small" class="action-more-btn">
               <template #icon><EllipsisOutlined /></template>
@@ -110,10 +129,6 @@
                 </a-menu-item>
                 <a-menu-item v-if="record.status === 2" key="confirm">
                   <CheckOutlined /> 确认换货
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="print">
-                  <PrinterOutlined /> 打印
                 </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item v-if="record.status === 0" key="delete" danger>
@@ -137,7 +152,13 @@
       <template #extra>
         <a-space>
           <a-button v-if="currentRecord?.status === 2" type="primary" size="small" @click="handleConfirmExchange">确认换货完成</a-button>
-          <a-button size="small" @click="handlePrintDetail"><PrinterOutlined /> 打印</a-button>
+          <PrintButton
+            template-type="exchange"
+            :business-id="currentRecord?.id"
+            business-type="purchase_exchange"
+            button-text="打印"
+            button-size="small"
+          />
         </a-space>
       </template>
 
@@ -197,10 +218,10 @@
         :wrapper-col="{ span: 19 }"
       >
         <a-form-item label="采购订单号" name="orderNo">
-          <a-input v-model:value="formData.orderNo" placeholder="请输入采购订单号" />
+          <a-input v-model:value="formData.orderNo" size="small" placeholder="请输入采购订单号" />
         </a-form-item>
         <a-form-item label="换货原因" name="reason">
-          <a-select v-model:value="formData.reason" placeholder="请选择换货原因">
+          <a-select v-model:value="formData.reason" size="small" placeholder="请选择换货原因">
             <a-select-option value="质量问题">质量问题</a-select-option>
             <a-select-option value="规格不符">规格不符</a-select-option>
             <a-select-option value="数量错误">数量错误</a-select-option>
@@ -208,7 +229,7 @@
           </a-select>
         </a-form-item>
         <a-form-item label="换货日期" name="exchangeDate">
-          <a-date-picker v-model:value="formData.exchangeDate" style="width: 100%" />
+          <a-date-picker v-model:value="formData.exchangeDate" size="small" style="width: 100%" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
           <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
@@ -262,8 +283,8 @@ import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import {
   PlusOutlined, EyeOutlined, EditOutlined, SendOutlined, CheckCircleOutlined,
-  DeleteOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined, PrinterOutlined,
-  CheckOutlined, ClockCircleOutlined, SyncOutlined, SwapOutlined
+  DeleteOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined,
+  CheckOutlined, ClockCircleOutlined, SyncOutlined, SwapOutlined, WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -272,11 +293,22 @@ import { useUserStore } from '@/stores/user'
 import { useExport } from '@/composables/useExport'
 import { executeBatch, validateSelection } from '@/utils/batchOperations'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const selectedRowKeys = ref<number[]>([])
@@ -301,7 +333,7 @@ const vxeColumns = computed(() => [
   { title: '关联订单', field: 'orderNo', width: 160 },
   { title: '供应商', field: 'supplierName', width: 140 },
   { title: '换货日期', field: 'exchangeDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建人', field: 'creatorName', width: 100 },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 130, fixed: 'right' }
@@ -357,10 +389,6 @@ function handleViewOrder(record: any) {
   } else {
     message.info('订单详情功能开发中')
   }
-}
-
-function handlePrintDetail() {
-  message.info(`打印换货单: ${currentRecord.value?.exchangeNo}`)
 }
 
 function handleConfirmExchange() {
@@ -432,10 +460,11 @@ async function fetchData() {
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
   } catch (e) {
     console.warn('[采购换货] 获取列表失败', e)
-    message.error('获取换货单列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally { loading.value = false }
 }
 
@@ -471,7 +500,6 @@ function handleActionMenuClick(key: string, record: any) {
     case 'submit': handleSubmit(record); break
     case 'approve': handleApprove(record); break
     case 'confirm': handleConfirm(record); break
-    case 'print': message.info(`打印换货单: ${record.exchangeNo}`); break
     case 'delete': handleDelete(record); break
   }
 }
@@ -566,19 +594,23 @@ function handleFilterChange(filters: Record<string, any>) {
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd) }
 }
 
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:create', handleParentCreate)
   window.addEventListener('purchase:refresh', fetchData)
   refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:create', handleParentCreate)
   window.removeEventListener('purchase:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   clearTimeout(debouncedFetch.value)
@@ -593,6 +625,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-exchange-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -716,5 +754,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

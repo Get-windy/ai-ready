@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -22,6 +22,7 @@
       </div>
     </template>
 
+    <div class="page-content">
     <div class="workflow-analysis">
       <!-- 统计卡片 -->
       <a-row :gutter="16">
@@ -71,7 +72,23 @@
               :show-search="false"
               :show-export="false"
               :show-batch-delete="false"
-            />
+            >
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                    <p class="table-empty-text">加载失败</p>
+                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">暂无数据</p>
+                  </template>
+                </div>
+              </template>
+            </VxeTableList>
           </a-card>
         </a-col>
 
@@ -107,7 +124,23 @@
               :show-search="false"
               :show-export="false"
               :show-batch-delete="false"
-            />
+            >
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                    <p class="table-empty-text">加载失败</p>
+                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">暂无数据</p>
+                  </template>
+                </div>
+              </template>
+            </VxeTableList>
           </a-card>
         </a-col>
       </a-row>
@@ -153,6 +186,21 @@
                   disabled
                 />
               </template>
+              <template #empty>
+                <div class="table-empty">
+                  <template v-if="hasError">
+                    <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                    <p class="table-empty-text">加载失败</p>
+                    <a-button type="primary" size="small" @click="handleRefresh" class="table-empty-action">
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                  <template v-else>
+                    <InboxOutlined class="table-empty-icon" />
+                    <p class="table-empty-text">暂无数据</p>
+                  </template>
+                </div>
+              </template>
             </VxeTableList>
           </a-card>
         </a-col>
@@ -181,18 +229,30 @@
         </a-col>
       </a-row>
     </div>
-  </PageContainer>
+  </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { SyncOutlined, ReloadOutlined, WarningOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { PageContainer } from '@/components'
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
 // ── 自动刷新 ────────────────────────────────────────────
+const hasError = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
@@ -349,6 +409,7 @@ const efficiencyData = ref([
 
 // 刷新数据
 const handleRefresh = async () => {
+  hasError.value = false
   try {
     const res = await request.get('/workflow/analysis/refresh')
     if (res.data) {
@@ -371,6 +432,7 @@ const handleRefresh = async () => {
     console.warn('[工作流] 操作成功: 数据刷新成功')
     message.success('数据刷新成功')
   } catch (err) {
+    hasError.value = true
     console.warn('[工作流] 刷新数据失败', err)
     message.error('刷新数据失败')
   } finally {
@@ -406,6 +468,15 @@ const getProgressColor = (percentage: number) => {
   return '#f5222d'
 }
 
+function handleParentCreate() { handleAdd() }
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)()
+  }
+}
+
 onMounted(() => {
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -415,17 +486,47 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('workflow:create', handleParentCreate)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('workflow:create', handleParentCreate)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: handleRefresh })
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 .workflow-analysis-page-header {
   display: flex;
   justify-content: space-between;
@@ -497,6 +598,14 @@ defineExpose({ handleQuery: handleRefresh })
   border-radius: 4px;
 }
 
-
-
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

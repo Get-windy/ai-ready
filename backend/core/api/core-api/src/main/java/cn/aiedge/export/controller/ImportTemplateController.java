@@ -2,11 +2,14 @@ package cn.aiedge.export.controller;
 
 import cn.aiedge.export.template.*;
 import cn.aiedge.export.template.ImportTemplateDefinition.*;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -28,6 +32,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/import-templates")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "导入模板管理", description = "模板定义、生成、校验接口")
 public class ImportTemplateController {
 
@@ -164,8 +169,8 @@ public class ImportTemplateController {
             return ResponseEntity.notFound().build();
         }
         
-        // TODO: 解析Excel文件获取数据
-        List<Map<String, Object>> data = parseExcelFile(file);
+        // 解析Excel文件获取数据
+        List<Map<String, Object>> data = parseExcelFile(file, template);
         
         ImportTemplateValidator.ValidationResult result = templateValidator.validate(template, data);
         
@@ -264,10 +269,108 @@ public class ImportTemplateController {
         return URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
-    private List<Map<String, Object>> parseExcelFile(MultipartFile file) throws IOException {
-        // TODO: 实现Excel解析
-        // 这里简化处理，实际应使用POI读取Excel
-        return new ArrayList<>();
+    /**
+     * 使用 Apache POI 解析 Excel 文件
+     */
+    private List<Map<String, Object>> parseExcelFile(MultipartFile file, ImportTemplateDefinition template) throws IOException {
+        if (file.isEmpty()) {
+            log.warn("上传的文件为空");
+            return new ArrayList<>();
+        }
+
+        List<TemplateField> fields = template.getFields();
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) {
+                log.warn("Excel文件中没有工作表");
+                return result;
+            }
+
+            int lastRowNum = sheet.getLastRowNum();
+            log.info("解析Excel文件: fileName={}, rows={}, columns={}", file.getOriginalFilename(), lastRowNum, fields.size());
+
+            // 从第1行开始（跳过表头行）
+            for (int i = 1; i <= lastRowNum; i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                // 检查是否为空行
+                boolean emptyRow = true;
+                for (int c = 0; c < fields.size(); c++) {
+                    Cell cell = row.getCell(c);
+                    if (cell != null && cell.getCellType() != CellType.BLANK) {
+                        emptyRow = false;
+                        break;
+                    }
+                }
+                if (emptyRow) continue;
+
+                Map<String, Object> rowData = new LinkedHashMap<>();
+                for (int c = 0; c < fields.size(); c++) {
+                    TemplateField field = fields.get(c);
+                    Cell cell = row.getCell(c);
+                    Object value = getCellValue(cell, field);
+                    rowData.put(field.getFieldName(), value);
+                }
+                result.add(rowData);
+            }
+
+            log.info("Excel解析完成: 共解析 {} 条数据", result.size());
+        } catch (Exception e) {
+            log.error("解析Excel文件失败: fileName={}", file.getOriginalFilename(), e);
+            throw new IOException("解析Excel文件失败: " + e.getMessage(), e);
+        }
+
+        return result;
+    }
+
+    /**
+     * 读取单元格值并根据字段类型转换
+     */
+    private Object getCellValue(Cell cell, TemplateField field) {
+        if (cell == null) return null;
+
+        return switch (cell.getCellType()) {
+            case STRING -> {
+                String val = cell.getStringCellValue().trim();
+                // 根据目标字段类型转换
+                if (field != null && ("number".equals(field.getFieldType().name().toLowerCase())
+                        || "decimal".equals(field.getFieldType().name().toLowerCase()))) {
+                    try {
+                        yield Double.parseDouble(val);
+                    } catch (NumberFormatException e) {
+                        yield val;
+                    }
+                }
+                yield val;
+            }
+            case NUMERIC -> {
+                if (field != null && "string".equals(field.getFieldType().name().toLowerCase())) {
+                    yield String.valueOf(cell.getNumericCellValue());
+                }
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    yield cell.getLocalDateTimeCellValue();
+                } else {
+                    yield cell.getNumericCellValue();
+                }
+            }
+            case BOOLEAN -> cell.getBooleanCellValue();
+            case FORMULA -> {
+                try {
+                    yield cell.getNumericCellValue();
+                } catch (Exception e) {
+                    try {
+                        yield cell.getStringCellValue();
+                    } catch (Exception e2) {
+                        yield cell.getCellFormula();
+                    }
+                }
+            }
+            case BLANK -> null;
+            default -> null;
+        };
     }
 
     // ==================== DTO ====================

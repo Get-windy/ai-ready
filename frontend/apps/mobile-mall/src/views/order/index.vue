@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NavBar, Card, Button, Cell, CellGroup, AddressList, RadioGroup, Radio, showToast, showLoadingToast, closeToast, Dialog } from 'vant'
-import { api } from '@/api'
+import { api, type AddressItem } from '@/api'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 
@@ -10,8 +10,8 @@ const router = useRouter()
 const cartStore = useCartStore()
 const userStore = useUserStore()
 
-const addresses = ref<any[]>([])
-const selectedAddress = ref<any>(null)
+const addresses = ref<AddressItem[]>([])
+const selectedAddress = ref<AddressItem | null>(null)
 const paymentMethod = ref('wechat')
 const remark = ref('')
 const submitting = ref(false)
@@ -47,13 +47,15 @@ const loadAddresses = async () => {
   try {
     const res = await api.user.getAddresses()
     addresses.value = res.data || []
-    
+
     const defaultAddress = addresses.value.find(a => a.isDefault)
     if (defaultAddress) {
       selectedAddress.value = defaultAddress
     } else if (addresses.value.length > 0) {
       selectedAddress.value = addresses.value[0]
     }
+  } catch (err) {
+    console.warn('[确认订单] 加载地址失败', err)
   } finally {
     closeToast()
   }
@@ -72,39 +74,43 @@ const handleSubmitOrder = async () => {
     showToast({ type: 'fail', message: '请选择收货地址' })
     return
   }
-  
-  Dialog.confirm({
+
+  const confirmed = await Dialog.confirm({
     title: '提交订单',
     message: `订单金额 ¥${totalPrice.value.toFixed(2)}，确定提交吗？`
-  }).then(async () => {
-    submitting.value = true
-    showLoadingToast({ message: '提交中...', forbidClick: true })
-    
-    try {
-      const orderData = {
-        addressId: selectedAddress.value.id,
-        items: selectedItems.value.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        paymentMethod: paymentMethod.value,
-        remark: remark.value,
-        totalAmount: totalPrice.value
-      }
-      
-      const res = await api.order.create(orderData)
-      
-      cartStore.clearSelectedItems()
-      
-      showToast({ type: 'success', message: '订单创建成功' })
-      
-      router.push(`/order/${res.data.orderId}`)
-    } finally {
-      closeToast()
-      submitting.value = false
+  }).catch(() => false)
+  if (!confirmed) return
+
+  submitting.value = true
+  showLoadingToast({ message: '提交中...', forbidClick: true })
+
+  try {
+    const orderData = {
+      addressId: selectedAddress.value.id,
+      items: selectedItems.value.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      paymentMethod: paymentMethod.value,
+      remark: remark.value,
+      totalAmount: totalPrice.value
     }
-  }).catch((err) => { console.error('订单创建失败:', err) })
+
+    const res = await api.order.create(orderData)
+
+    cartStore.clearSelectedItems()
+
+    showToast({ type: 'success', message: '订单创建成功' })
+
+    router.push(`/order/${res.data.orderId}`)
+  } catch (err) {
+    console.warn('[确认订单] 创建订单失败', err)
+    showToast({ type: 'fail', message: '订单创建失败' })
+  } finally {
+    closeToast()
+    submitting.value = false
+  }
 }
 
 const handleSelectPayment = (method: string) => {

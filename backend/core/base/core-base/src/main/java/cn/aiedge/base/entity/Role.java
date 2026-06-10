@@ -28,6 +28,11 @@ public class Role extends BaseEntity {
     private String roleType;
 
     /**
+     * 角色作用域（PLATFORM-平台级 TENANT-租户级）
+     */
+    private String scope;
+
+    /**
      * 数据权限类型（1-全部 2-本部门 3-本部门及子部门 4-仅本人）
      */
     private Integer dataScope;

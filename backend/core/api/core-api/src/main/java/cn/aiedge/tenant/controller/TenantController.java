@@ -4,6 +4,7 @@ import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +33,7 @@ public class TenantController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询租户")
+    @SaCheckPermission("system:tenant:list")
     public Result<Map<String, Object>> getPage(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -65,6 +67,7 @@ public class TenantController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "获取租户详情")
+    @SaCheckPermission("system:tenant:query")
     public Result<SysTenant> getById(@PathVariable Long id) {
         SysTenant tenant = tenantMapper.selectById(id);
         if (tenant == null || tenant.getDeleted() == 1) {
@@ -78,6 +81,7 @@ public class TenantController {
      */
     @PostMapping
     @Operation(summary = "创建租户")
+    @SaCheckPermission("system:tenant:create")
     public Result<Boolean> create(@RequestBody SysTenant tenant) {
         tenant.setDeleted(0);
         if (tenant.getStatus() == null) {
@@ -92,6 +96,7 @@ public class TenantController {
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新租户")
+    @SaCheckPermission("system:tenant:update")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody SysTenant tenant) {
         tenant.setId(id);
         int rows = tenantMapper.updateById(tenant);
@@ -103,6 +108,7 @@ public class TenantController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除租户")
+    @SaCheckPermission("system:tenant:delete")
     public Result<Boolean> delete(@PathVariable Long id) {
         int rows = tenantMapper.deleteById(id);
         return Result.ok(rows > 0);
@@ -113,6 +119,7 @@ public class TenantController {
      */
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除租户")
+    @SaCheckPermission("system:tenant:delete")
     public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {
         int rows = tenantMapper.deleteBatchIds(ids);
         return Result.ok(rows > 0);
@@ -123,6 +130,7 @@ public class TenantController {
      */
     @PatchMapping("/{id}/status")
     @Operation(summary = "更新租户状态")
+    @SaCheckPermission("system:tenant:update")
     public Result<Boolean> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         SysTenant tenant = new SysTenant();
         tenant.setId(id);

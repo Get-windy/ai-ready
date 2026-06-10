@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/mall/orders")
@@ -67,18 +68,27 @@ public class MallOrderController {
         return ApiResponse.success("支付成功", null);
     }
 
-    @Operation(summary = "支付方式列表", description = "获取可用的支付方式列表")
-    @GetMapping("/payment-methods")
-    public ApiResponse<List> getPaymentMethods() {
-        List methods = mallOrderService.getPaymentMethods();
-        return ApiResponse.success(methods);
+    @Operation(summary = "审核通过", description = "管理端审核通过订单")
+    @PutMapping("/{id}/approve")
+    public ApiResponse<Void> approveOrder(
+            @Parameter(description = "订单ID") @PathVariable Long id) {
+        mallOrderService.approveOrder(id);
+        return ApiResponse.success("审核通过", null);
     }
 
-    @Operation(summary = "订单物流跟踪", description = "获取订单物流跟踪信息")
-    @GetMapping("/{id}/track")
-    public ApiResponse<Void> trackOrder(
-            @Parameter(description = "订单ID") @PathVariable Long id) {
-        mallOrderService.trackOrder(id);
-        return ApiResponse.success("查询成功", null);
+    @Operation(summary = "审核驳回", description = "管理端审核驳回订单")
+    @PutMapping("/{id}/reject")
+    public ApiResponse<Void> rejectOrder(
+            @Parameter(description = "订单ID") @PathVariable Long id,
+            @Parameter(description = "驳回原因") @RequestParam String reason) {
+        mallOrderService.rejectOrder(id, reason);
+        return ApiResponse.success("已驳回", null);
+    }
+
+    @Operation(summary = "支付方式列表", description = "获取可用的支付方式列表")
+    @GetMapping("/payment-methods")
+    public ApiResponse<List<Map<String, Object>>> getPaymentMethods() {
+        List<Map<String, Object>> methods = mallOrderService.getPaymentMethods();
+        return ApiResponse.success(methods);
     }
 }

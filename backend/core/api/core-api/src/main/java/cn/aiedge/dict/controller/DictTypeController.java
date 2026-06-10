@@ -1,5 +1,6 @@
 package cn.aiedge.dict.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.aiedge.dict.dto.DictTypeDTO;
 import cn.aiedge.dict.model.DictType;
 import cn.aiedge.dict.service.DictTypeService;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /**
  * 字典类型控制器
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -31,6 +32,7 @@ public class DictTypeController {
     private final DictTypeService dictTypeService;
 
     @PostMapping
+    @SaCheckPermission("system:dict:create")
     @Operation(summary = "创建字典类型")
     public Map<String, Object> create(@Valid @RequestBody DictTypeDTO dictTypeDTO) {
         Long id = dictTypeService.create(dictTypeDTO);
@@ -38,6 +40,7 @@ public class DictTypeController {
     }
 
     @PutMapping
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "更新字典类型")
     public Map<String, Object> update(@Valid @RequestBody DictTypeDTO dictTypeDTO) {
         boolean result = dictTypeService.update(dictTypeDTO);
@@ -45,6 +48,7 @@ public class DictTypeController {
     }
 
     @DeleteMapping("/{id}")
+    @SaCheckPermission("system:dict:delete")
     @Operation(summary = "删除字典类型")
     public Map<String, Object> delete(
             @Parameter(description = "字典类型ID") @PathVariable Long id) {
@@ -75,7 +79,7 @@ public class DictTypeController {
             @Parameter(description = "状态") @RequestParam(required = false) String status,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize) {
-        
+
         Map<String, Object> params = Map.of(
             "tenantId", tenantId != null ? tenantId : 1L,
             "dictCode", dictCode != null ? dictCode : "",
@@ -101,6 +105,7 @@ public class DictTypeController {
     }
 
     @PutMapping("/{id}/status")
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "修改字典类型状态")
     public Map<String, Object> updateStatus(
             @Parameter(description = "字典类型ID") @PathVariable Long id,
@@ -110,13 +115,14 @@ public class DictTypeController {
     }
 
     @GetMapping("/export")
+    @SaCheckPermission("system:dict:export")
     @Operation(summary = "导出字典类型")
     public List<DictType> export(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
             @Parameter(description = "字典类型编码") @RequestParam(required = false) String dictCode,
             @Parameter(description = "字典类型名称") @RequestParam(required = false) String dictName,
             @Parameter(description = "状态") @RequestParam(required = false) String status) {
-        
+
         Map<String, Object> params = Map.of(
             "tenantId", tenantId != null ? tenantId : 1L,
             "dictCode", dictCode != null ? dictCode : "",
@@ -127,6 +133,7 @@ public class DictTypeController {
     }
 
     @DeleteMapping("/cache/{dictCode}")
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "清理字典类型缓存")
     public Map<String, Object> clearCache(
             @Parameter(description = "字典类型编码") @PathVariable String dictCode) {
@@ -135,6 +142,7 @@ public class DictTypeController {
     }
 
     @DeleteMapping("/cache")
+    @SaCheckPermission("system:dict:update")
     @Operation(summary = "清理所有字典缓存")
     public Map<String, Object> clearAllCache() {
         dictTypeService.clearAllCache();

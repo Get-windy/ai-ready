@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -93,6 +93,7 @@
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
         @export="handleExport"
       >
         <template #toolbar-actions>
@@ -104,14 +105,24 @@
 
         <template #empty>
           <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的报价，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无报价数据，点击右上角「新建报价」开始创建
-            </p>
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">数据加载失败，请重试</p>
+              <a-button type="primary" size="small" @click="fetchData">
+                <template #icon><ReloadOutlined /></template>
+                重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的报价，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">
+                暂无报价数据，点击右上角「新建报价」开始创建
+              </p>
+            </template>
           </div>
         </template>
 
@@ -137,6 +148,15 @@
                 <template #icon><FileProtectOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton
+              template-type="quotation"
+              :business-id="record.id"
+              business-type="quotation"
+              button-text=""
+              button-size="small"
+              button-type="link"
+              tooltip="打印"
+            />
             <a-dropdown trigger="click">
               <a-button type="link" size="small" class="action-more-btn">
                 <template #icon><MoreOutlined /></template>
@@ -153,50 +173,54 @@
             </a-dropdown>
           </a-space>
         </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+          </template>
       </VxeTableList>
     </ErrorBoundary>
 
     <!-- 报价表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <FullScreenDetail
+      :visible="modalVisible"
       :title="modalTitle"
-      width="900px"
-      :confirm-loading="submitLoading"
-      @ok="handleSubmit"
-      @cancel="handleModalCancel"
+      :save-loading="submitLoading"
+      :show-save-and-new="!isEdit"
+      @save="handleSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
         <a-row :gutter="24">
           <a-col :span="12">
             <a-form-item label="报价单号" name="quotationNo" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.quotationNo" placeholder="自动生成" disabled />
+              <a-input v-model:value="formData.quotationNo" placeholder="自动生成" disabled size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="报价日期" name="quotationDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-date-picker v-model:value="formData.quotationDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.quotationDate" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="报价名称" name="quotationName" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.quotationName" placeholder="请输入报价名称" />
+              <a-input v-model:value="formData.quotationName" placeholder="请输入报价名称" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="有效期(天)" name="validDays" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input-number v-model:value="formData.validDays" :min="1" style="width: 100%" />
+              <a-input-number v-model:value="formData.validDays" :min="1" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="客户名称" name="customerId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption">
+              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
                 <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="币种" name="currency" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-select v-model:value="formData.currency" placeholder="请选择币种">
+              <a-select v-model:value="formData.currency" placeholder="请选择币种" size="small">
                 <a-select-option value="CNY">人民币(CNY)</a-select-option>
                 <a-select-option value="USD">美元(USD)</a-select-option>
                 <a-select-option value="EUR">欧元(EUR)</a-select-option>
@@ -205,12 +229,12 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="联系人" name="contactPerson" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" />
+              <a-input v-model:value="formData.contactPerson" placeholder="请输入联系人" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" />
+              <a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" size="small" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -218,22 +242,22 @@
         <a-divider>报价明细</a-divider>
         <VxeTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
           <template #productNameCell="{ record }">
-            <a-input v-model:value="record.productName" placeholder="产品名称" />
+            <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
           </template>
           <template #specCell="{ record }">
-            <a-input v-model:value="record.spec" placeholder="规格型号" />
+            <a-input v-model:value="record.spec" placeholder="规格型号" size="small" />
           </template>
           <template #quantityCell="{ record }">
-            <a-input-number v-model:value="record.quantity" :min="1" style="width: 80px" />
+            <a-input-number v-model:value="record.quantity" :min="1" style="width: 80px" size="small" />
           </template>
           <template #unitCell="{ record }">
-            <a-input v-model:value="record.unit" placeholder="单位" style="width: 60px" />
+            <a-input v-model:value="record.unit" placeholder="单位" style="width: 60px" size="small" />
           </template>
           <template #priceCell="{ record }">
-            <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100px" />
+            <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100px" size="small" />
           </template>
           <template #discountCell="{ record }">
-            <a-input-number v-model:value="record.discount" :min="0" :max="100" style="width: 80px" />
+            <a-input-number v-model:value="record.discount" :min="0" :max="100" style="width: 80px" size="small" />
           </template>
           <template #subtotalCell="{ record }">
             <span class="amount-cell">¥{{ calcItemSubtotal(record) }}</span>
@@ -270,65 +294,80 @@
         </a-row>
 
         <a-form-item label="报价条款" name="terms" style="margin-top: 16px">
-          <a-textarea v-model:value="formData.terms" placeholder="请输入报价条款" :rows="3" />
+          <a-textarea v-model:value="formData.terms" placeholder="请输入报价条款" :rows="3" size="small" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
+          <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="报价详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions :column="2" bordered size="small">
-        <a-descriptions-item label="报价单号">
-          <span class="quotation-no">{{ quotationDetail.quotationNo }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="报价名称">{{ quotationDetail.quotationName }}</a-descriptions-item>
-        <a-descriptions-item label="客户名称">{{ quotationDetail.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="联系人">{{ quotationDetail.contactPerson }}</a-descriptions-item>
-        <a-descriptions-item label="联系电话">{{ quotationDetail.contactPhone }}</a-descriptions-item>
-        <a-descriptions-item label="报价日期">{{ quotationDetail.quotationDate }}</a-descriptions-item>
-        <a-descriptions-item label="有效期">{{ quotationDetail.validDays }}天</a-descriptions-item>
-        <a-descriptions-item label="币种">{{ quotationDetail.currency }}</a-descriptions-item>
-        <a-descriptions-item label="报价总额">
-          <span class="amount-cell">¥{{ formatAmount(quotationDetail.totalAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="报价状态">
-          <a-tag :color="getStatusColor(quotationDetail.status)">{{ getStatusText(quotationDetail.status) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="报价条款" :span="2">{{ quotationDetail.terms || '无' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ quotationDetail.remark || '无' }}</a-descriptions-item>
-      </a-descriptions>
-
-      <a-divider>报价明细</a-divider>
-      <VxeTableList :columns="detailItemVxeColumns" :data-source="quotationDetail.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
-        <template #subtotalCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
+    <a-drawer v-model:open="detailVisible" title="报价详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+      <a-spin :spinning="detailLoading">
+        <template v-if="detailError">
+          <div class="table-empty">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">详情数据加载失败</p>
+            <a-button type="primary" size="small" @click="handleDetailRefresh">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
         </template>
-        <template #priceCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
-        </template>
-      </VxeTableList>
+        <template v-else-if="detailData.id">
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item label="报价单号">
+              <span class="quotation-no">{{ detailData.quotationNo }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="报价名称">{{ detailData.quotationName }}</a-descriptions-item>
+            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
+            <a-descriptions-item label="联系人">{{ detailData.contactPerson }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ detailData.contactPhone }}</a-descriptions-item>
+            <a-descriptions-item label="报价日期">{{ detailData.quotationDate }}</a-descriptions-item>
+            <a-descriptions-item label="有效期">{{ detailData.validDays }}天</a-descriptions-item>
+            <a-descriptions-item label="币种">{{ detailData.currency }}</a-descriptions-item>
+            <a-descriptions-item label="报价总额">
+              <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="报价状态">
+              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="报价条款" :span="2">{{ detailData.terms || '无' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+          </a-descriptions>
 
-      <div class="detail-footer">
-        <a-space>
-          <a-button type="primary" @click="handleDownloadPDF"><DownloadOutlined /> 下载PDF</a-button>
-          <a-button v-if="quotationDetail.status === 'accepted'" type="primary" @click="handleConvertFromDetail">转为订单</a-button>
-          <a-button v-if="quotationDetail.status === 'draft'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
-        </a-space>
-      </div>
+          <a-divider>报价明细</a-divider>
+          <VxeTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+            <template #subtotalCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
+            </template>
+            <template #priceCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
+            </template>
+          </VxeTableList>
+
+          <div class="detail-footer">
+            <a-space>
+              <a-button type="primary" @click="handleDownloadPDF"><DownloadOutlined /> 下载PDF</a-button>
+              <a-button v-if="detailData.status === 'accepted'" type="primary" @click="handleConvertFromDetail">转为订单</a-button>
+              <a-button v-if="detailData.status === 'draft'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
+            </a-space>
+          </div>
+        </template>
+      </a-spin>
     </a-drawer>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { quotationApi } from '@/api/erp'
 import { exportCsv } from '@/utils/exportCsv'
 import dayjs from 'dayjs'
@@ -349,8 +388,20 @@ import {
   HistoryOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
-  DollarOutlined
+  DollarOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
+
+function handleError(err: any) { console.warn('[CRM报价]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const tableRef = ref()
 const loading = ref(false)
@@ -359,6 +410,7 @@ const submitLoading = ref(false)
 const modalVisible = ref(false)
 const detailVisible = ref(false)
 const modalTitle = ref('新建报价')
+const isEdit = ref(false)
 const formRef = ref<FormInstance>()
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -377,7 +429,7 @@ const vxeColumns = computed(() => [
   { field: 'quotationDate', title: '报价日期', width: 100 },
   { field: 'validDays', title: '有效期', width: 80, align: 'right', formatter: ({ cellValue }: any) => `${cellValue || 0}天` },
   { field: 'totalAmount', title: '报价总额', width: 130, align: 'right', formatter: ({ cellValue }: any) => `¥${formatAmount(cellValue)}` },
-  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }: any) => getStatusText(cellValue) },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'action', title: '操作', width: 160, fixed: 'right', type: 'action' }
 ])
@@ -438,6 +490,18 @@ const formData = reactive({
   remark: '',
   items: [{ productName: '', spec: '', quantity: 1, unit: '', price: 0, discount: 0 }]
 })
+
+// 表单脏数据追踪
+const initialFormSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!modalVisible.value) return false
+  const current = JSON.stringify(formData)
+  return current !== initialFormSnapshot.value
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formData })
+}
+
 const formRules = {
   quotationName: [{ required: true, message: '请输入报价名称' }],
   customerId: [{ required: true, message: '请选择客户' }],
@@ -450,7 +514,37 @@ const customerList = ref([
   { id: 4, name: '深圳电子公司' },
   { id: 5, name: '杭州互联网公司' }
 ])
-const quotationDetail = ref<any>({})
+// 详情抽屉
+const detailData = ref<any>({})
+const detailLoading = ref(false)
+const detailError = ref(false)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = false
+  try {
+    const res = await quotationApi.getById(id)
+    detailData.value = res as any
+  } catch (err) {
+    detailError.value = true
+    console.warn('[CRM报价] 获取报价详情失败', err)
+    message.error('获取报价详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = {}
+  detailError.value = false
+}
+
+function handleDetailRefresh() {
+  if (detailData.value.id) {
+    fetchDetail(detailData.value.id)
+  }
+}
 
 const itemVxeColumns = [
   { field: 'productName', title: '产品名称', width: 150, slotName: 'productNameCell' },
@@ -498,6 +592,13 @@ function generateQuotationNo() {
   formData.quotationNo = `QT${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleParentCreate() { handleAdd() }
+
 onMounted(() => {
   fetchData()
   autoRefreshCountdown.value = 30
@@ -508,11 +609,17 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchData)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchData)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 async function fetchData(silent = false) {
@@ -542,31 +649,22 @@ const handleRefresh = () => {
 }
 
 function handleView(record: any) {
-  quotationDetail.value = {
-    ...record,
-    items: [
-      { productName: '笔记本电脑', spec: '银色/16GB/512GB', quantity: 5, unit: '台', price: 8999, discount: 0, subtotal: 44995 },
-      { productName: '无线鼠标', spec: '黑色', quantity: 10, unit: '个', price: 199, discount: 5, subtotal: 1890.5 },
-      { productName: '机械键盘', spec: '青轴/白色', quantity: 5, unit: '个', price: 399, discount: 0, subtotal: 1995 }
-    ],
-    terms: '付款方式：预付30%，发货前付清余款\n交货期：下单后15个工作日内\n质保期：产品保修1年',
-    remark: '',
-    currency: 'CNY',
-    contactPerson: '张总',
-    contactPhone: '13800138001'
-  }
+  fetchDetail(record.id)
   detailVisible.value = true
 }
 
 function handleEdit(record: any) {
   modalTitle.value = '编辑报价'
+  isEdit.value = true
   Object.assign(formData, record)
   formData.items = record.items || [{ productName: '', spec: '', quantity: 1, unit: '', price: 0, discount: 0 }]
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleAdd() {
   modalTitle.value = '新建报价'
+  isEdit.value = false
   generateQuotationNo()
   Object.assign(formData, {
     id: undefined, quotationName: '', customerId: undefined, contactPerson: '', contactPhone: '',
@@ -574,6 +672,7 @@ function handleAdd() {
     items: [{ productName: '', spec: '', quantity: 1, unit: '', price: 0, discount: 0 }]
   })
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleResetFilters() {
@@ -653,22 +752,22 @@ function handleBatchSend() {
 }
 
 function handleDownloadPDF() {
-  if (quotationDetail.value.quotationNo) {
-    message.info(`下载报价PDF: ${quotationDetail.value.quotationNo}`)
+  if (detailData.value.quotationNo) {
+    message.info(`下载报价PDF: ${detailData.value.quotationNo}`)
   }
 }
 
 function handleConvertFromDetail() {
-  handleConvert(quotationDetail.value)
+  handleConvert(detailData.value)
   detailVisible.value = false
 }
 
 function handleSendFromDetail() {
-  handleSend(quotationDetail.value)
+  handleSend(detailData.value)
   detailVisible.value = false
 }
 
-async function handleSubmit() {
+async function handleSubmit(saveAndNew = false) {
   try { await formRef.value?.validate() } catch (err) { console.warn('[CRM报价] 表单验证失败', err); return }
   submitLoading.value = true
   try {
@@ -678,13 +777,38 @@ async function handleSubmit() {
     }
     if (formData.id) { await quotationApi.update(formData.id, payload) } else { await quotationApi.create(payload) }
     message.success('保存成功')
-    modalVisible.value = false
-    fetchData()
+    if (saveAndNew) {
+      isEdit.value = false
+      generateQuotationNo()
+      Object.assign(formData, {
+        id: undefined, quotationName: '', customerId: undefined, contactPerson: '', contactPhone: '',
+        quotationDate: undefined, validDays: 30, currency: 'CNY', terms: '', remark: '',
+        items: [{ productName: '', spec: '', quantity: 1, unit: '', price: 0, discount: 0 }]
+      })
+      nextTick(() => saveFormSnapshot())
+    } else {
+      modalVisible.value = false
+      fetchData()
+    }
   } catch (err: any) { console.warn('[CRM报价] 保存报价失败', err); message.error(err?.message || '保存失败') }
   finally { submitLoading.value = false }
 }
 
-function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单内容尚未保存，确定要关闭吗？',
+      onOk: () => { modalVisible.value = false }
+    })
+    return
+  }
+  modalVisible.value = false
+}
+
+function handleFormSaveAndNew() {
+  handleSubmit(true)
+}
 
 function handleExport() {
   const headers = ['报价单号', '报价名称', '客户名称', '报价日期', '有效期', '报价总额', '状态', '创建时间']
@@ -715,6 +839,20 @@ function handleFilterChange(filters: Record<string, any>) {
 function handleSelectionChange(rows: any[], ids: any[]) {
   selectedRowKeys.value = ids
 }
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单内容尚未保存，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 defineExpose({ handleQuery: fetchData })
 </script>
 
@@ -913,4 +1051,21 @@ defineExpose({ handleQuery: fetchData })
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
 }
+
+/* 让 VxeTableList 填满剩余空间 */
+.vxe-table-list-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

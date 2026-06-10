@@ -1,6 +1,7 @@
 package cn.aiedge.scheduler.controller;
 
 import cn.aiedge.scheduler.entity.ScheduledTask;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.scheduler.entity.TaskExecuteLog;
 import cn.aiedge.scheduler.service.TaskSchedulerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ import java.util.List;
 @RequestMapping("/api/scheduler/tasks")
 @RequiredArgsConstructor
 @Tag(name = "定时任务管理", description = "任务调度管理接口")
+@SaCheckLogin
 public class TaskSchedulerController {
 
     private final TaskSchedulerService taskSchedulerService;

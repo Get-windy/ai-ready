@@ -1,6 +1,7 @@
 package cn.aiedge.scheduler.controller;
 
 import cn.aiedge.common.utils.Result;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.scheduler.model.ScheduledTask;
 import cn.aiedge.scheduler.model.ScheduledTaskLog;
 import cn.aiedge.scheduler.service.ScheduledTaskService;
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/scheduler/task")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class ScheduledTaskController {
 
     private final ScheduledTaskService taskService;

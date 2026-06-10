@@ -47,7 +47,7 @@
       :show-batch-delete="false"
       :selectable="true"
       add-text="娣诲姞浜哄憳"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
@@ -119,15 +119,8 @@
       </template>
     </VxeTableList>
 
-    <!-- 娣诲姞浜哄憳寮圭獥 -->
-    <a-modal
-      v-model:open="addModalVisible"
-      title="娣诲姞閮ㄩ棬浜哄憳"
-      :confirm-loading="addModalLoading"
-      width="600px"
-      @ok="handleAddModalOk"
-      @cancel="handleAddModalCancel"
-    >
+    <!-- 添加人员弹窗 -->
+    <FullScreenDetail :visible="addModalVisible" title="添加部门人员" :save-loading="addModalLoading" @save="handleAddModalOk" @close="handleAddClose">
       <a-form
         ref="addFormRef"
         :model="addFormState"
@@ -136,13 +129,13 @@
         :wrapper-col="{ span: 16 }"
       >
         <a-form-item
-          label="閫夋嫨浜哄憳"
+          label="选择人员"
           name="userIds"
         >
           <a-select
             v-model:value="addFormState.userIds"
             mode="multiple"
-            placeholder="璇烽€夋嫨瑕佹坊鍔犵殑浜哄憳"
+            placeholder="请选择要添加的人员"
             show-search
             :filter-option="filterUserOption"
           >
@@ -156,12 +149,12 @@
           </a-select>
         </a-form-item>
         <a-form-item
-          label="宀椾綅"
+          label="岗位"
           name="positionId"
         >
           <a-select
             v-model:value="addFormState.positionId"
-            placeholder="璇烽€夋嫨宀椾綅"
+            placeholder="请选择岗位"
             allow-clear
           >
             <a-select-option
@@ -174,7 +167,7 @@
           </a-select>
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 浜哄憳璋冨姩寮圭獥 -->
     <a-modal
@@ -309,7 +302,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -319,15 +313,18 @@ import {
   TeamOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  ApartmentOutlined
+  ApartmentOutlined,
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { positionApi, type PositionInfo } from '@/api/position'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -415,7 +412,43 @@ const transferFormRules = {
   targetDepartmentId: [{ required: true, message: '璇烽€夋嫨鐩爣閮ㄩ棬', trigger: 'change' }]
 }
 
-// 鍗曚汉璋冨姩寮圭獥
+// ── debounceClick ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: () => void) {
+  if (clickLocks.get(key)) return
+  clickLocks.set(key, true)
+  try { fn() } finally { setTimeout(() => clickLocks.set(key, false), 300) }
+}
+
+// ── Keyboard shortcuts ─────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData) }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); if (currentDepartment.value) handleAdd() }
+}
+
+// ── Form dirty tracking (add personnel form) ───────────────
+const initialFormSnapshot = ref('')
+const watchReady = ref(false)
+const formDirty = computed(() => {
+  if (!watchReady.value) return false
+  return initialFormSnapshot.value !== JSON.stringify(addFormState)
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify(addFormState)
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开', content: '当前表单未保存，确定要离开吗？', okText: '确定', cancelText: '取消',
+      onOk() { next() }, onCancel() { next(false) }
+    })
+  } else { next() }
+})
+
+// 单项转移弹窗
 const singleTransferModalVisible = ref(false)
 const singleTransferModalLoading = ref(false)
 const singleTransferFormRef = ref<FormInstance>()
@@ -531,12 +564,13 @@ const selectedUsers = computed(() => {
   return tableData.value.filter(u => selectedRowKeys.value.includes(u.id))
 })
 
-// 娣诲姞浜哄憳
+// 添加人员
 const handleAdd = () => {
   addFormState.userIds = []
   addFormState.positionId = undefined
   fetchAvailableUsers()
   addModalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
 }
 
 const handleAddModalOk = async () => {
@@ -549,19 +583,28 @@ const handleAddModalOk = async () => {
       userIds: addFormState.userIds,
       positionId: addFormState.positionId
     })
-    message.success('娣诲姞鎴愬姛')
+    message.success('添加成功')
     addModalVisible.value = false
+    watchReady.value = false
     fetchData()
   } catch (error) {
-    message.error('鎿嶄綔澶辫触')
+    message.error('操作失败')
   } finally {
     addModalLoading.value = false
   }
 }
 
-const handleAddModalCancel = () => {
-  addModalVisible.value = false
-  addFormRef.value?.resetFields()
+const handleAddClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭', content: '当前表单未保存，确定要关闭吗？', okText: '确定', cancelText: '取消',
+      onOk() { addModalVisible.value = false; watchReady.value = false; addFormRef.value?.resetFields() }
+    })
+  } else {
+    addModalVisible.value = false
+    watchReady.value = false
+    addFormRef.value?.resetFields()
+  }
 }
 
 // 鎵归噺璋冨姩
@@ -667,7 +710,7 @@ const filterUserOption = (input: string, option: any) => {
 }
 
 onMounted(() => {
-  // 浠庤矾鐢卞弬鏁拌幏鍙栭儴闂↖D
+  // 从路由参数获取部门ID
   const deptId = route.query.deptId as string
   if (deptId) {
     departmentApi.getById(Number(deptId)).then(res => {
@@ -679,6 +722,11 @@ onMounted(() => {
   }
   fetchPositionList()
   fetchDepartmentTree()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: fetchData })
@@ -755,5 +803,26 @@ defineExpose({ handleQuery: fetchData })
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
+
+/* ── FullScreenDetail form compact overrides ── */
+.fsd-body .ant-form-item {
+  margin-bottom: 12px !important;
+}
+.fsd-body .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+.fsd-body .ant-input,
+.fsd-body .ant-input-password,
+.fsd-body .ant-input-number,
+.fsd-body .ant-select,
+.fsd-body .ant-picker,
+.fsd-body .ant-tree-select,
+.fsd-body .ant-cascader-picker {
+  min-height: 28px !important;
+  font-size: 13px !important;
+}
+.fsd-body .ant-form-item-label > label {
+  font-size: 13px !important;
 }
 </style>

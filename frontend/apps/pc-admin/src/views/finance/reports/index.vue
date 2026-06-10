@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="refreshData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', refreshData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -89,6 +89,12 @@ import dayjs from 'dayjs'
 import { FundOutlined, CreditCardOutlined, DollarOutlined, CalendarOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import BalanceSheet from './components/BalanceSheet.vue'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 import ProfitStatement from './components/ProfitStatement.vue'
 import CashFlowStatement from './components/CashFlowStatement.vue'
 
@@ -140,6 +146,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', refreshData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     refreshData()
@@ -151,9 +160,22 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', refreshData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', refreshData); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
 
 defineExpose({})
 </script>
@@ -254,5 +276,21 @@ defineExpose({})
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

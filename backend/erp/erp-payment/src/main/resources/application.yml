@@ -27,6 +27,10 @@ mybatis-plus:
       logic-not-delete-value: 0
       field-strategy: not_null
 
+erp:
+  finance:
+    api-base-url: http://localhost:8095
+
 knife4j:
   enable: true
   openapi:

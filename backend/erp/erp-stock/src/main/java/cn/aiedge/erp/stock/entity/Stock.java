@@ -105,6 +105,16 @@ public class Stock {
     private LocalDateTime validityDate;
 
     /**
+     * 序列号（序列号管理模式使用）
+     */
+    private String serialNo;
+
+    /**
+     * SKU（SKU管理模式使用）
+     */
+    private String sku;
+
+    /**
      * 供应商ID
      */
     private Long supplierId;

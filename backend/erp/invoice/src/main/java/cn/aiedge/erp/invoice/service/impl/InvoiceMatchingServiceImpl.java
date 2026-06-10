@@ -8,6 +8,7 @@ import cn.aiedge.erp.invoice.model.enums.PaymentStatus;
 import cn.aiedge.erp.invoice.repository.InvoiceRepository;
 import cn.aiedge.erp.invoice.repository.PaymentRecordRepository;
 import cn.aiedge.erp.invoice.service.InvoiceMatchingService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.Optional;
  * 发票匹配服务实现类
  */
 import cn.aiedge.erp.invoice.model.dto.MatchingStatistics;
+@Slf4j
 @Service
 @Transactional
 public class InvoiceMatchingServiceImpl implements InvoiceMatchingService {
@@ -452,7 +454,7 @@ public class InvoiceMatchingServiceImpl implements InvoiceMatchingService {
             return true;
         } catch (Exception e) {
             // 记录错误日志
-            System.err.println("匹配操作失败: " + e.getMessage());
+            log.error("匹配操作失败: " + e.getMessage());
             return false;
         }
     }

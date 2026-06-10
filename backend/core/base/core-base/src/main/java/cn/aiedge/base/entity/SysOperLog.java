@@ -94,6 +94,11 @@ public class SysOperLog {
     private Long costTime;
 
     /**
+     * 变更对比数据（JSON格式，记录修改前后的内容差异）
+     */
+    private String diffData;
+
+    /**
      * 操作IP
      */
     private String operIp;

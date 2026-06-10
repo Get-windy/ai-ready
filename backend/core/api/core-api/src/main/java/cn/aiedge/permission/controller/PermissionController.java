@@ -2,6 +2,7 @@ package cn.aiedge.permission.controller;
 
 import cn.aiedge.permission.annotation.RequirePermission;
 import cn.aiedge.permission.dto.PermissionDTO;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.permission.dto.RoleDTO;
 import cn.aiedge.permission.dto.UserRoleDTO;
 import cn.aiedge.permission.service.PermissionService;
@@ -29,6 +30,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/permission")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class PermissionController {
 
     private final PermissionService permissionService;

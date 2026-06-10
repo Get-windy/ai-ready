@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -66,15 +66,43 @@
         :show-search="false"
         :selectable="true"
         add-text="新增租户"
+        add-permission="tenant:create"
+        edit-permission="tenant:update"
+        delete-permission="tenant:delete"
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDelete"
         @batch-delete="handleBatchDelete"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+        @cell-dblclick="handleView"
       >
+        <template #empty>
+          <a-empty v-if="!hasError" description="暂无数据" />
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchData)">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </template>
+
+        <template #levelCell="{ record }">
+          <a-tag :color="record.level === 'enterprise' ? 'gold' : record.level === 'professional' ? 'blue' : 'default'" style="font-size: 11px; line-height: 18px; padding: 0 6px;">
+            {{ record.level === 'enterprise' ? '企业版' : record.level === 'professional' ? '专业版' : '基础版' }}
+          </a-tag>
+        </template>
+        <template #expireCell="{ record }">
+          <span v-if="record.expireDate" :style="{ color: isExpired(record.expireDate) ? '#ff4d4f' : undefined, fontWeight: isExpired(record.expireDate) ? 600 : undefined }">
+            {{ record.expireDate }}
+            <a-tag v-if="isExpired(record.expireDate)" color="red" style="font-size: 10px; line-height: 16px; padding: 0 4px;">已过期</a-tag>
+          </span>
+          <span v-else style="color: #999;">未设置</span>
+        </template>
         <template #statusCell="{ record }">
           <a-tag :color="record.status === 0 ? 'success' : 'error'">
             {{ record.status === 0 ? '正常' : '停用' }}
@@ -86,6 +114,7 @@
             <a-button
               type="link"
               size="small"
+              v-permission="'tenant:update'"
               @click="handleEdit(record)"
             >
               编辑
@@ -93,6 +122,7 @@
             <a-button
               type="link"
               size="small"
+              v-permission="'tenant:config'"
               @click="handleConfig(record)"
             >
               配置
@@ -106,13 +136,14 @@
               </a-button>
               <template #overlay>
                 <a-menu>
-                  <a-menu-item @click="handleToggleStatus(record)">
+                  <a-menu-item @click="handleToggleStatus(record)" v-permission="'tenant:update'">
                     <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item
                     danger
                     @click="handleDelete(record)"
+                    v-permission="'tenant:delete'"
                   >
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -124,14 +155,7 @@
       </VxeTableList>
 
       <!-- 新增/编辑租户弹窗 -->
-      <a-modal
-        v-model:open="modalVisible"
-        :title="modalTitle"
-        :confirm-loading="submittingLoading"
-        width="700px"
-        @ok="handleModalOk"
-        @cancel="handleModalCancel"
-      >
+      <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
         <a-form
           ref="formRef"
           :model="formState"
@@ -236,11 +260,39 @@
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item
+                label="管理员ID"
+                name="adminUserId"
+              >
+                <a-input-number
+                  v-model:value="formState.adminUserId"
+                  placeholder="租户管理员用户ID"
+                  :min="1"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item
+                label="租户等级"
+                name="level"
+              >
+                <a-select v-model:value="formState.level" placeholder="请选择租户等级" size="small">
+                  <a-select-option value="basic">基础版</a-select-option>
+                  <a-select-option value="professional">专业版</a-select-option>
+                  <a-select-option value="enterprise">企业版</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item
                 label="过期日期"
                 name="expireDate"
               >
                 <a-date-picker
                   v-model:value="formState.expireDate"
+                  size="small"
                   placeholder="请选择过期日期"
                   style="width: 100%"
                 />
@@ -263,17 +315,10 @@
             </a-col>
           </a-row>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 配置弹窗 -->
-      <a-modal
-        v-model:open="configModalVisible"
-        title="租户配置"
-        :confirm-loading="configLoading"
-        width="600px"
-        @ok="handleConfigSave"
-        @cancel="configModalVisible = false"
-      >
+      <FullScreenDetail :visible="configModalVisible" title="租户配置" :save-loading="configLoading" @save="handleConfigSave" @close="handleConfigClose">
         <a-form
           :model="configForm"
           :label-col="{ span: 6 }"
@@ -307,6 +352,7 @@
           <a-form-item label="过期日期">
             <a-date-picker
               v-model:value="configForm.expireDate"
+              size="small"
               placeholder="请选择过期日期"
               style="width: 100%"
             />
@@ -334,13 +380,14 @@
             {{ currentConfigTenant?.createTime }}
           </a-descriptions-item>
         </a-descriptions>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -351,12 +398,14 @@ import {
   CheckCircleOutlined,
   TeamOutlined,
   SyncOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { tenantApi, type TenantInfo } from '@/api/tenant'
 import { useSubmitLock } from '@/composables'
 import { PageContainer } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 搜索表单 ──────────────────────────────────────────────
 const searchForm = reactive({
@@ -374,6 +423,7 @@ const { isSubmitting: batchDeleteLoading } = useSubmitLock()
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -397,13 +447,15 @@ const pagination = reactive({
 
 // ── 表格列定义 ────────────────────────────────────────────
 const vxeColumns = computed(() => [
-  { field: 'tenantCode', title: '租户编码', width: 150 },
-  { field: 'tenantName', title: '租户名称', width: 200 },
-  { field: 'contactName', title: '联系人' },
-  { field: 'contactPhone', title: '联系电话', width: 130 },
-  { field: 'status', title: '状态', width: 80, slotName: 'statusCell' },
-  { field: 'createTime', title: '创建时间', width: 170 },
-  { type: 'action', title: '操作', width: 180, fixed: 'right' }
+  { field: 'tenantCode', title: '租户编码', width: 120 },
+  { field: 'tenantName', title: '租户名称', width: 160 },
+  { field: 'level', title: '等级', width: 80, slotName: 'levelCell' },
+  { field: 'expireDate', title: '到期时间', width: 100, slotName: 'expireCell' },
+  { field: 'contactName', title: '联系人', width: 90 },
+  { field: 'contactPhone', title: '联系电话', width: 110 },
+  { field: 'status', title: '状态', width: 70, slotName: 'statusCell' },
+  { field: 'createTime', title: '创建时间', width: 150 },
+  { type: 'action', title: '操作', width: 170, fixed: 'right' }
 ])
 
 // ── 筛选字段 ──────────────────────────────────────────────
@@ -430,7 +482,9 @@ const formState = reactive({
   description: '',
   status: 0,
   maxUsers: undefined as number | undefined,
-  expireDate: undefined as string | undefined
+  expireDate: undefined as string | undefined,
+  adminUserId: undefined as number | undefined,
+  level: 'basic'
 })
 
 const formRules = {
@@ -460,9 +514,46 @@ const configForm = reactive({
   expireDate: undefined as string | undefined
 })
 
+// ── debounceClick ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: () => void) {
+  if (clickLocks.get(key)) return
+  clickLocks.set(key, true)
+  try { fn() } finally { setTimeout(() => clickLocks.set(key, false), 300) }
+}
+
+// ── Keyboard shortcuts ─────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData) }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+// ── Form dirty tracking (tenant form) ──────────────────────
+const initialFormSnapshot = ref('')
+const watchReady = ref(false)
+const formDirty = computed(() => {
+  if (!watchReady.value) return false
+  return initialFormSnapshot.value !== JSON.stringify(formState)
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify(formState)
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开', content: '当前表单未保存，确定要离开吗？', okText: '确定', cancelText: '取消',
+      onOk() { next() }, onCancel() { next(false) }
+    })
+  } else { next() }
+})
+
 // ── 数据加载 ──────────────────────────────────────────────
 const fetchData = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await tenantApi.getPage({
       ...searchForm,
@@ -474,6 +565,7 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[租户管理] 加载租户数据失败', error)
@@ -528,9 +620,12 @@ const handleAdd = () => {
     description: '',
     status: 0,
     maxUsers: undefined,
-    expireDate: undefined
+    expireDate: undefined,
+    adminUserId: undefined,
+    level: 'basic'
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
 }
 
 // ── 编辑 ──────────────────────────────────────────────────
@@ -547,9 +642,12 @@ const handleEdit = (record: TenantInfo) => {
     description: record.description || '',
     status: record.status,
     maxUsers: record.maxUsers,
-    expireDate: record.expireDate || undefined
+    expireDate: record.expireDate || undefined,
+    adminUserId: record.adminUserId,
+    level: record.level || 'basic'
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
 }
 
 // ── 提交表单 ──────────────────────────────────────────────
@@ -578,9 +676,34 @@ const handleModalOk = async () => {
   }
 }
 
-const handleModalCancel = () => {
-  modalVisible.value = false
-  formRef.value?.resetFields()
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭', content: '当前表单未保存，确定要关闭吗？', okText: '确定', cancelText: '取消',
+      onOk() { modalVisible.value = false; watchReady.value = false; formRef.value?.resetFields() }
+    })
+  } else {
+    modalVisible.value = false
+    watchReady.value = false
+    formRef.value?.resetFields()
+  }
+}
+
+const handleFormSaveAndNew = async () => {
+  try {
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+      await tenantApi.create(formState as any)
+      message.success('创建成功')
+      fetchData()
+      handleAdd()
+    })
+    void result
+  } catch (error: any) { if (error) message.error(error?.message || '操作失败') }
+}
+
+const handleConfigClose = () => {
+  configModalVisible.value = false
 }
 
 // ── 删除 ──────────────────────────────────────────────────
@@ -677,6 +800,12 @@ const handleConfigSave = async () => {
   }
 }
 
+// ── 工具函数 ──────────────────────────────────────────────
+const isExpired = (date: string) => {
+  if (!date) return false
+  return new Date(date) < new Date()
+}
+
 // ── 初始加载 ──────────────────────────────────────────────
 onMounted(() => {
   fetchData()
@@ -688,11 +817,13 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: fetchData })
@@ -743,6 +874,11 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.tenant-management > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -804,4 +940,36 @@ defineExpose({ handleQuery: fetchData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail form compact overrides ── */
+.fsd-body .ant-form-item {
+  margin-bottom: 12px !important;
+}
+.fsd-body .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+.fsd-body .ant-input,
+.fsd-body .ant-input-password,
+.fsd-body .ant-input-number,
+.fsd-body .ant-select,
+.fsd-body .ant-picker,
+.fsd-body .ant-tree-select,
+.fsd-body .ant-cascader-picker {
+  min-height: 28px !important;
+  font-size: 13px !important;
+}
+.fsd-body .ant-form-item-label > label {
+  font-size: 13px !important;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.tenant-management :deep(.ant-input-sm),
+.tenant-management :deep(.ant-input-number-sm),
+.tenant-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.tenant-management :deep(.ant-picker-small),
+.tenant-management :deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+.tenant-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+.tenant-management :deep(.ant-input-number-sm input) { height: 26px; }
 </style>

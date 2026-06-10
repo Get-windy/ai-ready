@@ -1,11 +1,15 @@
 package cn.aiedge.erp.payment.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.payment.entity.Payment;
 import cn.aiedge.erp.payment.entity.PaymentItem;
 import cn.aiedge.erp.payment.enums.ReceiptStatus;
 import cn.aiedge.erp.payment.mapper.PaymentItemMapper;
 import cn.aiedge.erp.payment.mapper.PaymentMapper;
+import cn.aiedge.erp.payment.entity.WriteOff;
+import cn.aiedge.erp.payment.service.CapitalFlowService;
 import cn.aiedge.erp.payment.service.PaymentService;
+import cn.aiedge.erp.payment.service.WriteOffService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -26,6 +30,8 @@ import java.util.List;
 public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> implements PaymentService {
 
     private final PaymentItemMapper paymentItemMapper;
+    private final CapitalFlowService capitalFlowService;
+    private final WriteOffService writeOffService;
 
     @Override
     public Payment getByPaymentNo(String paymentNo) {
@@ -36,7 +42,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     }
 
     @Override
-    public Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, int pageNum, int pageSize) {
+    public Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize) {
         LambdaQueryWrapper<Payment> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Payment::getDeleted, 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -52,6 +58,9 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         }
         if (status != null) {
             wrapper.eq(Payment::getStatus, status);
+        }
+        if (sourceType != null && !sourceType.isEmpty()) {
+            wrapper.eq(Payment::getSourceType, sourceType);
         }
         wrapper.orderByDesc(Payment::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
@@ -117,6 +126,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
         payment.setVerifiedAmount(BigDecimal.ZERO);
         payment.setPendingAmount(payment.getPaymentAmount());
         save(payment);
+        capitalFlowService.recordPaymentFlow(payment);
         if (items != null && !items.isEmpty()) {
             for (int i = 0; i < items.size(); i++) {
                 PaymentItem item = items.get(i);
@@ -157,10 +167,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment updatePayment(Long paymentId, Payment payment, List<PaymentItem> items) {
         Payment existing = getById(paymentId);
         if (existing == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (existing.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的付款单可以修改");
+            throw BusinessException.badRequest("只有草稿状态的付款单可以修改");
         }
         payment.setId(paymentId);
         payment.setPendingAmount(payment.getPaymentAmount());
@@ -189,10 +199,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment submitForApproval(Long paymentId) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的付款单可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的付款单可以提交审批");
         }
         payment.setStatus(ReceiptStatus.PENDING_APPROVAL.getCode());
         updateById(payment);
@@ -204,10 +214,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment approve(Long paymentId, Long approverId, String note) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的付款单可以审批");
+            throw BusinessException.badRequest("只有待审批状态的付款单可以审批");
         }
         payment.setStatus(ReceiptStatus.APPROVED.getCode());
         payment.setApprovedBy(approverId);
@@ -222,10 +232,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment reject(Long paymentId, String reason) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的付款单可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的付款单可以拒绝");
         }
         payment.setStatus(ReceiptStatus.DRAFT.getCode());
         payment.setRemark(reason);
@@ -238,10 +248,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment startVerify(Long paymentId) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的付款单可以开始核销");
+            throw BusinessException.badRequest("只有已审批状态的付款单可以开始核销");
         }
         payment.setStatus(ReceiptStatus.VERIFYING.getCode());
         updateById(payment);
@@ -253,11 +263,11 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public PaymentItem verifyItem(Long itemId, BigDecimal verifyAmount) {
         PaymentItem item = paymentItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("核销明细不存在");
+            throw BusinessException.notFound("核销明细不存在");
         }
         Payment payment = getById(item.getPaymentId());
         if (payment.getStatus() != ReceiptStatus.VERIFYING.getCode()) {
-            throw new RuntimeException("只有核销中状态的付款单可以处理明细");
+            throw BusinessException.badRequest("只有核销中状态的付款单可以处理明细");
         }
         item.setVerifyAmount(verifyAmount);
         item.setVerifiedAmount(verifyAmount);
@@ -274,7 +284,7 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment completeVerify(Long paymentId) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         payment.setStatus(ReceiptStatus.VERIFIED.getCode());
         payment.setVerifiedBy(payment.getCreateBy());
@@ -288,15 +298,16 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment complete(Long paymentId) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.VERIFIED.getCode()) {
-            throw new RuntimeException("只有已核销状态的付款单可以完成");
+            throw BusinessException.badRequest("只有已核销状态的付款单可以完成");
         }
         payment.setStatus(ReceiptStatus.COMPLETED.getCode());
         payment.setCompletedBy(payment.getCreateBy());
         payment.setCompletedTime(LocalDateTime.now());
         updateById(payment);
+        capitalFlowService.recordPaymentFlow(payment);
         return payment;
     }
 
@@ -305,14 +316,15 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public Payment cancel(Long paymentId, String reason) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() == ReceiptStatus.COMPLETED.getCode()) {
-            throw new RuntimeException("已完成的付款单不能取消");
+            throw BusinessException.badRequest("已完成的付款单不能取消");
         }
         payment.setStatus(ReceiptStatus.CANCELLED.getCode());
         payment.setRemark(reason);
         updateById(payment);
+        capitalFlowService.recordPaymentFlow(payment);
         return payment;
     }
 
@@ -336,10 +348,10 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public PaymentItem addItem(Long paymentId, PaymentItem item) {
         Payment payment = getById(paymentId);
         if (payment == null) {
-            throw new RuntimeException("付款单不存在");
+            throw BusinessException.notFound("付款单不存在");
         }
         if (payment.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的付款单可以添加明细");
+            throw BusinessException.badRequest("只有草稿状态的付款单可以添加明细");
         }
         List<PaymentItem> existingItems = getItems(paymentId);
         item.setPaymentId(paymentId);
@@ -357,13 +369,45 @@ public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> impl
     public void removeItem(Long itemId) {
         PaymentItem item = paymentItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("核销明细不存在");
+            throw BusinessException.notFound("核销明细不存在");
         }
         Payment payment = getById(item.getPaymentId());
         if (payment.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的付款单可以删除明细");
+            throw BusinessException.badRequest("只有草稿状态的付款单可以删除明细");
         }
         paymentItemMapper.deleteById(itemId);
         calculateTotals(item.getPaymentId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Payment writeOff(Long paymentId, BigDecimal amount) {
+        Payment payment = getById(paymentId);
+        if (payment == null) {
+            throw BusinessException.notFound("付款单不存在");
+        }
+        if (payment.getStatus() == ReceiptStatus.COMPLETED.getCode() || payment.getStatus() == ReceiptStatus.CANCELLED.getCode()) {
+            throw BusinessException.badRequest("已完成或已取消的付款单不能核销");
+        }
+        BigDecimal pending = payment.getPendingAmount() != null ? payment.getPendingAmount() : payment.getPaymentAmount();
+        if (amount.compareTo(pending) > 0) {
+            throw BusinessException.badRequest("核销金额不能大于未核销金额");
+        }
+        payment.setVerifiedAmount(payment.getVerifiedAmount() != null
+                ? payment.getVerifiedAmount().add(amount) : amount);
+        payment.setPendingAmount(pending.subtract(amount));
+        if (payment.getPendingAmount().compareTo(BigDecimal.ZERO) == 0) {
+            payment.setStatus(ReceiptStatus.VERIFIED.getCode());
+        }
+        updateById(payment);
+
+        // 创建核销记录
+        writeOffService.createPaymentWriteOff(
+                paymentId, payment.getPaymentNo(), null,
+                payment.getSupplierId(), payment.getSupplierName(),
+                payment.getPaymentAmount(), amount, payment.getPendingAmount());
+
+        log.info("付款单核销成功: paymentId={}, amount={}", paymentId, amount);
+        return payment;
     }
 }

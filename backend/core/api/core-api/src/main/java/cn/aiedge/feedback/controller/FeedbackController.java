@@ -4,6 +4,7 @@ import cn.aiedge.feedback.model.Feedback;
 import cn.aiedge.feedback.model.FeedbackCategory;
 import cn.aiedge.feedback.model.FeedbackReply;
 import cn.aiedge.feedback.service.FeedbackService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/feedback")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "用户反馈", description = "用户反馈收集和处理功能")
 public class FeedbackController {
 

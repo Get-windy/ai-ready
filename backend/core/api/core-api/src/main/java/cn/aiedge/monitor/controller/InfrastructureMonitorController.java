@@ -1,6 +1,7 @@
 package cn.aiedge.monitor.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.util.*;
 @RequestMapping("/api/monitor/infrastructure")
 @RequiredArgsConstructor
 @Tag(name = "基础设施监控", description = "服务器、网络、存储等基础设施监控接口")
+@SaCheckLogin
 public class InfrastructureMonitorController {
 
     /**

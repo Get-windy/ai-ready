@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.controller;
 
+import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.erp.fixedasset.dto.ApiResponse;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDisposalDTO;
 import cn.aiedge.erp.fixedasset.service.FixedAssetDisposalService;
@@ -26,6 +27,7 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "创建处置申请")
     @PostMapping
+    @RequiresPermission("erp:fixed-asset:disposal:create")
     public ApiResponse<FixedAssetDisposalDTO> create(@Valid @RequestBody FixedAssetDisposalDTO dto) {
         FixedAssetDisposalDTO result = disposalService.create(dto);
         return ApiResponse.success("处置申请创建成功", result);
@@ -33,6 +35,7 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "更新处置申请")
     @PutMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:disposal:update")
     public ApiResponse<FixedAssetDisposalDTO> update(
             @Parameter(description = "处置ID") @PathVariable Long id,
             @Valid @RequestBody FixedAssetDisposalDTO dto) {
@@ -42,6 +45,7 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "删除处置申请")
     @DeleteMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:disposal:delete")
     public ApiResponse<Void> delete(
             @Parameter(description = "处置ID") @PathVariable Long id) {
         disposalService.delete(id);
@@ -50,6 +54,7 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "分页查询处置记录")
     @GetMapping("/page")
+    @RequiresPermission("erp:fixed-asset:disposal:list")
     public ApiResponse<Page<FixedAssetDisposalDTO>> getPage(
             @Parameter(description = "处置单号") @RequestParam(required = false) String disposalNo,
             @Parameter(description = "状态") @RequestParam(required = false) String status,
@@ -62,6 +67,7 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "获取处置记录详情")
     @GetMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:disposal:query")
     public ApiResponse<FixedAssetDisposalDTO> getById(
             @Parameter(description = "处置ID") @PathVariable Long id) {
         FixedAssetDisposalDTO result = disposalService.getById(id);
@@ -70,18 +76,20 @@ public class FixedAssetDisposalController {
 
     @Operation(summary = "审批通过")
     @PostMapping("/{id}/approve")
+    @RequiresPermission("erp:fixed-asset:disposal:approve")
     public ApiResponse<FixedAssetDisposalDTO> approve(
             @Parameter(description = "处置ID") @PathVariable Long id,
-            @RequestParam(required = false) String comment) {
+            @Parameter(description = "审批意见") @RequestParam(required = false) String comment) {
         FixedAssetDisposalDTO result = disposalService.approve(id, comment);
         return ApiResponse.success("处置申请已审批通过", result);
     }
 
     @Operation(summary = "审批拒绝")
     @PostMapping("/{id}/reject")
+    @RequiresPermission("erp:fixed-asset:disposal:approve")
     public ApiResponse<FixedAssetDisposalDTO> reject(
             @Parameter(description = "处置ID") @PathVariable Long id,
-            @RequestParam(required = false) String comment) {
+            @Parameter(description = "拒绝原因") @RequestParam(required = false) String comment) {
         FixedAssetDisposalDTO result = disposalService.reject(id, comment);
         return ApiResponse.success("处置申请已拒绝", result);
     }

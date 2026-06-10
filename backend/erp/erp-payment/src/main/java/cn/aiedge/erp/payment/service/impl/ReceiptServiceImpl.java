@@ -1,11 +1,15 @@
 package cn.aiedge.erp.payment.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.payment.entity.Receipt;
 import cn.aiedge.erp.payment.entity.ReceiptItem;
 import cn.aiedge.erp.payment.enums.ReceiptStatus;
 import cn.aiedge.erp.payment.mapper.ReceiptItemMapper;
 import cn.aiedge.erp.payment.mapper.ReceiptMapper;
+import cn.aiedge.erp.payment.entity.WriteOff;
+import cn.aiedge.erp.payment.service.CapitalFlowService;
 import cn.aiedge.erp.payment.service.ReceiptService;
+import cn.aiedge.erp.payment.service.WriteOffService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -26,6 +30,8 @@ import java.util.List;
 public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> implements ReceiptService {
 
     private final ReceiptItemMapper receiptItemMapper;
+    private final CapitalFlowService capitalFlowService;
+    private final WriteOffService writeOffService;
 
     @Override
     public Receipt getByReceiptNo(String receiptNo) {
@@ -36,7 +42,7 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     }
 
     @Override
-    public Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, int pageNum, int pageSize) {
+    public Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize) {
         LambdaQueryWrapper<Receipt> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Receipt::getDeleted, 0);
         if (keyword != null && !keyword.isEmpty()) {
@@ -52,6 +58,9 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
         }
         if (status != null) {
             wrapper.eq(Receipt::getStatus, status);
+        }
+        if (sourceType != null && !sourceType.isEmpty()) {
+            wrapper.eq(Receipt::getSourceType, sourceType);
         }
         wrapper.orderByDesc(Receipt::getCreateTime);
         return page(new Page<>(pageNum, pageSize), wrapper);
@@ -95,6 +104,7 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
         receipt.setVerifiedAmount(BigDecimal.ZERO);
         receipt.setPendingAmount(receipt.getReceiptAmount());
         save(receipt);
+        capitalFlowService.recordReceiptFlow(receipt);
         if (items != null && !items.isEmpty()) {
             for (int i = 0; i < items.size(); i++) {
                 ReceiptItem item = items.get(i);
@@ -135,10 +145,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt updateReceipt(Long receiptId, Receipt receipt, List<ReceiptItem> items) {
         Receipt existing = getById(receiptId);
         if (existing == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (existing.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的收款单可以修改");
+            throw BusinessException.badRequest("只有草稿状态的收款单可以修改");
         }
         receipt.setId(receiptId);
         receipt.setPendingAmount(receipt.getReceiptAmount());
@@ -167,10 +177,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt submitForApproval(Long receiptId) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的收款单可以提交审批");
+            throw BusinessException.badRequest("只有草稿状态的收款单可以提交审批");
         }
         receipt.setStatus(ReceiptStatus.PENDING_APPROVAL.getCode());
         updateById(receipt);
@@ -182,10 +192,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt approve(Long receiptId, Long approverId, String note) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的收款单可以审批");
+            throw BusinessException.badRequest("只有待审批状态的收款单可以审批");
         }
         receipt.setStatus(ReceiptStatus.APPROVED.getCode());
         receipt.setApprovedBy(approverId);
@@ -200,10 +210,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt reject(Long receiptId, String reason) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.PENDING_APPROVAL.getCode()) {
-            throw new RuntimeException("只有待审批状态的收款单可以拒绝");
+            throw BusinessException.badRequest("只有待审批状态的收款单可以拒绝");
         }
         receipt.setStatus(ReceiptStatus.DRAFT.getCode());
         receipt.setRemark(reason);
@@ -216,10 +226,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt startVerify(Long receiptId) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.APPROVED.getCode()) {
-            throw new RuntimeException("只有已审批状态的收款单可以开始核销");
+            throw BusinessException.badRequest("只有已审批状态的收款单可以开始核销");
         }
         receipt.setStatus(ReceiptStatus.VERIFYING.getCode());
         updateById(receipt);
@@ -231,11 +241,11 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public ReceiptItem verifyItem(Long itemId, BigDecimal verifyAmount) {
         ReceiptItem item = receiptItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("核销明细不存在");
+            throw BusinessException.notFound("核销明细不存在");
         }
         Receipt receipt = getById(item.getReceiptId());
         if (receipt.getStatus() != ReceiptStatus.VERIFYING.getCode()) {
-            throw new RuntimeException("只有核销中状态的收款单可以处理明细");
+            throw BusinessException.badRequest("只有核销中状态的收款单可以处理明细");
         }
         item.setVerifyAmount(verifyAmount);
         item.setVerifiedAmount(verifyAmount);
@@ -252,7 +262,7 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt completeVerify(Long receiptId) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         receipt.setStatus(ReceiptStatus.VERIFIED.getCode());
         receipt.setVerifiedBy(receipt.getCreateBy());
@@ -266,15 +276,16 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt complete(Long receiptId) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.VERIFIED.getCode()) {
-            throw new RuntimeException("只有已核销状态的收款单可以完成");
+            throw BusinessException.badRequest("只有已核销状态的收款单可以完成");
         }
         receipt.setStatus(ReceiptStatus.COMPLETED.getCode());
         receipt.setCompletedBy(receipt.getCreateBy());
         receipt.setCompletedTime(LocalDateTime.now());
         updateById(receipt);
+        capitalFlowService.recordReceiptFlow(receipt);
         return receipt;
     }
 
@@ -283,14 +294,15 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public Receipt cancel(Long receiptId, String reason) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() == ReceiptStatus.COMPLETED.getCode()) {
-            throw new RuntimeException("已完成的收款单不能取消");
+            throw BusinessException.badRequest("已完成的收款单不能取消");
         }
         receipt.setStatus(ReceiptStatus.CANCELLED.getCode());
         receipt.setRemark(reason);
         updateById(receipt);
+        capitalFlowService.recordReceiptFlow(receipt);
         return receipt;
     }
 
@@ -314,10 +326,10 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public ReceiptItem addItem(Long receiptId, ReceiptItem item) {
         Receipt receipt = getById(receiptId);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         if (receipt.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的收款单可以添加明细");
+            throw BusinessException.badRequest("只有草稿状态的收款单可以添加明细");
         }
         List<ReceiptItem> existingItems = getItems(receiptId);
         item.setReceiptId(receiptId);
@@ -335,13 +347,45 @@ public class ReceiptServiceImpl extends ServiceImpl<ReceiptMapper, Receipt> impl
     public void removeItem(Long itemId) {
         ReceiptItem item = receiptItemMapper.selectById(itemId);
         if (item == null) {
-            throw new RuntimeException("核销明细不存在");
+            throw BusinessException.notFound("核销明细不存在");
         }
         Receipt receipt = getById(item.getReceiptId());
         if (receipt.getStatus() != ReceiptStatus.DRAFT.getCode()) {
-            throw new RuntimeException("只有草稿状态的收款单可以删除明细");
+            throw BusinessException.badRequest("只有草稿状态的收款单可以删除明细");
         }
         receiptItemMapper.deleteById(itemId);
         calculateTotals(item.getReceiptId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Receipt writeOff(Long receiptId, BigDecimal amount) {
+        Receipt receipt = getById(receiptId);
+        if (receipt == null) {
+            throw BusinessException.notFound("收款单不存在");
+        }
+        if (receipt.getStatus() == ReceiptStatus.COMPLETED.getCode() || receipt.getStatus() == ReceiptStatus.CANCELLED.getCode()) {
+            throw BusinessException.badRequest("已完成或已取消的收款单不能核销");
+        }
+        BigDecimal pending = receipt.getPendingAmount() != null ? receipt.getPendingAmount() : receipt.getReceiptAmount();
+        if (amount.compareTo(pending) > 0) {
+            throw BusinessException.badRequest("核销金额不能大于未核销金额");
+        }
+        receipt.setVerifiedAmount(receipt.getVerifiedAmount() != null
+                ? receipt.getVerifiedAmount().add(amount) : amount);
+        receipt.setPendingAmount(pending.subtract(amount));
+        if (receipt.getPendingAmount().compareTo(BigDecimal.ZERO) == 0) {
+            receipt.setStatus(ReceiptStatus.VERIFIED.getCode());
+        }
+        updateById(receipt);
+
+        // 创建核销记录
+        writeOffService.createReceiptWriteOff(
+                receiptId, receipt.getReceiptNo(), null,
+                receipt.getCustomerId(), receipt.getCustomerName(),
+                receipt.getReceiptAmount(), amount, receipt.getPendingAmount());
+
+        log.info("收款单核销成功: receiptId={}, amount={}", receiptId, amount);
+        return receipt;
     }
 }

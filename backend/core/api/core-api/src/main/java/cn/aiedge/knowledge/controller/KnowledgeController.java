@@ -1,6 +1,7 @@
 package cn.aiedge.knowledge.controller;
 
 import java.util.Map;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 
 import cn.aiedge.knowledge.entity.*;
 import cn.aiedge.knowledge.model.*;
@@ -15,6 +16,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/knowledge")
+@SaCheckLogin
 public class KnowledgeController {
 
     @Autowired

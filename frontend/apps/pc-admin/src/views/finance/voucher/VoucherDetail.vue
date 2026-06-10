@@ -19,8 +19,9 @@
     </template>
 
     <template #actions>
+      <PrintButton :business-id="voucher?.id" business-type="voucher" button-size="small" tooltip="打印凭证" />
       <a-button
-        v-if="voucher?.status === 0"
+        v-if="voucher?.status === 'draft'"
         type="primary"
         :loading="auditing"
         @click="handleAudit"
@@ -28,7 +29,7 @@
         审核
       </a-button>
       <a-button
-        v-if="voucher?.status === 1"
+        v-if="voucher?.status === 'audited'"
         type="primary"
         :loading="posting"
         @click="handlePost"
@@ -36,7 +37,7 @@
         过账
       </a-button>
       <a-button
-        v-if="voucher?.status === 2"
+        v-if="voucher?.status === 'posted'"
         danger
         @click="handleReverse"
       >
@@ -49,10 +50,9 @@
         <a-button>更多操作</a-button>
         <template #overlay>
           <a-menu>
-            <a-menu-item @click="handlePrint">打印凭证</a-menu-item>
-            <a-menu-item :disabled="voucher?.status !== 0" @click="handleEdit">
+            <a-menu-item :disabled="voucher?.status !== 'draft'" @click="handleEdit">
               编辑
-              <span v-if="voucher?.status !== 0" style="color: #999; font-size: 12px; margin-left: 4px">(仅草稿可编辑)</span>
+              <span v-if="voucher?.status !== 'draft'" style="color: #999; font-size: 12px; margin-left: 4px">(仅草稿可编辑)</span>
             </a-menu-item>
           </a-menu>
         </template>
@@ -132,6 +132,7 @@
           v-model:value="reverseReason"
           placeholder="请输入冲销原因"
           :rows="3"
+          size="small"
         />
       </a-form-item>
     </a-form>
@@ -139,12 +140,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { voucherApi } from '@/api/finance'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -173,18 +180,18 @@ const reverseModalVisible = ref(false)
 const reverseLoading = ref(false)
 const reverseReason = ref('')
 
-const statusColorMap: Record<number, string> = {
-  0: 'default',
-  1: 'processing',
-  2: 'success',
-  3: 'error'
+const statusColorMap: Record<string, string> = {
+  draft: 'default',
+  audited: 'processing',
+  posted: 'success',
+  reversed: 'error'
 }
 
-const statusLabelMap: Record<number, string> = {
-  0: '草稿',
-  1: '已审核',
-  2: '已过账',
-  3: '已冲销'
+const statusLabelMap: Record<string, string> = {
+  draft: '\u8349\u7a3f',
+  audited: '\u5df2\u5ba1\u6838',
+  posted: '\u5df2\u8fc7\u8d26',
+  reversed: '\u5df2\u51b2\u9500'
 }
 
 const breadcrumbItems = computed(() => [
@@ -202,9 +209,9 @@ const isBalanced = computed(() => {
   return Math.abs((voucher.value?.debitTotal || 0) - (voucher.value?.creditTotal || 0)) < 0.01
 })
 
-const getStatusType = (status?: number): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
-  const types: Record<number, any> = { 0: 'default', 1: 'warning', 2: 'success', 3: 'danger' }
-  return status !== undefined ? (types[status] || 'default') : 'default'
+const getStatusType = (status?: string): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+  const types: Record<string, string> = { draft: 'default', audited: 'warning', posted: 'success', reversed: 'danger' }
+  return status ? (types[status] || 'default') : 'default'
 }
 
 const entryVxeColumns = [
@@ -243,12 +250,22 @@ const handleTabChange = (key: string) => {
   activeTab.value = key
 }
 
-const handlePrint = () => {
-  message.info('打印功能开发中')
-}
 
-const handleEdit = () => {
-  message.info('编辑功能开发中')
+
+const handleEdit = async () => {
+  if (!voucher.value?.id) return
+  try {
+    // 导航回凭证列表页并传递编辑数据
+    await router.push({
+      path: '/erp/finance/voucher',
+      query: { editVoucherId: String(voucher.value.id) }
+    })
+    // 导航完成后通过自定义事件传递完整凭证数据
+    window.dispatchEvent(new CustomEvent('finance:edit-voucher', { detail: voucher.value }))
+  } catch (err) {
+    console.warn('[凭证详情] 编辑跳转失败', err)
+    message.error('跳转编辑页面失败')
+  }
 }
 
 const handleAudit = () => {
@@ -322,9 +339,28 @@ const formatAmount = (val: number) => {
 
 onMounted(() => {
   fetchVoucher()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchVoucher)
 })
 
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchVoucher)
+})
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
 defineExpose({ handleQuery: fetchVoucher })
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchVoucher); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
 </script>
 
 <style scoped>
@@ -340,5 +376,21 @@ defineExpose({ handleQuery: fetchVoucher })
 }
 .voucher-summary-label {
   font-weight: 500;
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

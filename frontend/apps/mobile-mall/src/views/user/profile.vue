@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NavBar, Form, Field, CellGroup, Button, Uploader, Dialog, showLoadingToast, closeToast } from 'vant'
+import type { UploaderFileListItem } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
 
@@ -17,7 +18,7 @@ const form = ref({
   avatar: ''
 })
 
-const avatarFile = ref<any[]>([])
+const avatarFile = ref<UploaderFileListItem[]>([])
 
 onMounted(() => {
   if (userStore.user) {
@@ -52,15 +53,13 @@ const handleSave = async () => {
   
   try {
     await api.user.updateProfile(form.value)
-    userStore.updateUser(form.value)
+    userStore.setUser({ ...userStore.user, ...form.value } as any)
     Dialog.alert({ message: '保存成功' }).then(() => {
       router.back()
     })
-  } catch {
-    userStore.updateUser(form.value)
-    Dialog.alert({ message: '保存成功' }).then(() => {
-      router.back()
-    })
+  } catch (err) {
+    console.warn('[个人信息] 保存失败', err)
+    Dialog.alert({ message: '保存失败，请检查网络连接' })
   } finally {
     closeToast()
   }

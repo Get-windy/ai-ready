@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Form, Field, Button, Checkbox, Divider, Dialog, showLoadingToast, closeToast } from 'vant'
 import { useUserStore } from '@/stores/user'
@@ -21,6 +21,7 @@ const loading = ref(false)
 const showPassword = ref(false)
 const countdown = ref(0)
 const sendingCode = ref(false)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const sendVerifyCode = async () => {
   if (!form.value.phone) {
@@ -41,10 +42,10 @@ const sendVerifyCode = async () => {
     countdown.value = 60
     startCountdown()
     Dialog.alert({ message: '验证码已发送' })
-  } catch {
-    countdown.value = 60
-    startCountdown()
-    Dialog.alert({ message: '验证码已发送（模拟）' })
+  } catch (err) {
+    console.warn('[注册] 发送验证码失败', err)
+    Dialog.alert({ message: '验证码发送失败，请稍后重试' })
+    return
   } finally {
     sendingCode.value = false
     closeToast()
@@ -52,13 +53,17 @@ const sendVerifyCode = async () => {
 }
 
 const startCountdown = () => {
-  const timer = setInterval(() => {
+  countdownTimer = setInterval(() => {
     countdown.value--
     if (countdown.value <= 0) {
-      clearInterval(timer)
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
     }
   }, 1000)
 }
+
+onUnmounted(() => {
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+})
 
 const handleRegister = async () => {
   if (!form.value.phone) {
@@ -103,18 +108,9 @@ const handleRegister = async () => {
     Dialog.alert({ message: '注册成功' }).then(() => {
       router.replace('/')
     })
-  } catch {
-    userStore.setUser({
-      id: Date.now(),
-      phone: form.value.phone,
-      nickname: form.value.nickname || '用户' + form.value.phone.slice(-4),
-      token: 'mock_token_' + Date.now()
-    })
-    userStore.setToken('mock_token_' + Date.now())
-    
-    Dialog.alert({ message: '注册成功' }).then(() => {
-      router.replace('/')
-    })
+  } catch (err) {
+    console.warn('[注册] 注册失败', err)
+    Dialog.alert({ message: '注册失败，请检查网络连接' })
   } finally {
     loading.value = false
     closeToast()

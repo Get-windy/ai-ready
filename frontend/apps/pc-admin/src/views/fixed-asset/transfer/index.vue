@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <PrintButton business-type="fixed_asset_transfer" button-type="link" button-size="small" tooltip="打印转移记录" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:transfer:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -66,10 +67,13 @@
         :filter-fields="filterFields"
         :selectable="true"
         add-text="新增转移"
+        add-permission="erp:fixed-asset:transfer:create"
+        delete-permission="erp:fixed-asset:transfer:delete"
         @add="showCreateModal"
+        @cell-dblclick="viewDetail"
         @edit="editRecord"
         @delete="handleDelete"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @search="handleSearch"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
@@ -80,8 +84,19 @@
             更新 {{ dayjs(lastUpdated).format('HH:mm') }}
           </span>
         </template>
+        <template #batch-actions="{ selectedRowKeys }">
+          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+        </template>
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="debounceClick('refresh', fetchData)()">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -100,25 +115,30 @@
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)">
+              <a-button type="link" size="small" @click="editRecord(record)" v-permission="'erp:fixed-asset:transfer:update'">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton
+              template-type="transfer"
+              :business-id="record.id"
+              business-type="fixed_asset_transfer"
+              button-text=""
+              button-size="small"
+              button-type="link"
+              tooltip="打印"
+            />
             <a-dropdown trigger="click">
               <a-button type="link" size="small" class="action-more-btn">
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
                 <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="approve">
+                  <a-menu-item v-if="record.status === 'draft'" key="approve" v-permission="'erp:fixed-asset:transfer:approve'">
                     <CheckCircleOutlined /> 审批通过
                   </a-menu-item>
-                  <a-menu-item v-if="record.status === 'draft'" key="reject">
+                  <a-menu-item v-if="record.status === 'draft'" key="reject" v-permission="'erp:fixed-asset:transfer:approve'">
                     <CloseCircleOutlined /> 审批拒绝
-                  </a-menu-item>
-                  <a-menu-divider v-if="record.status === 'draft'" />
-                  <a-menu-item key="print">
-                    <PrinterOutlined /> 打印
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
@@ -132,72 +152,75 @@
       </VxeTableList>
 
       <!-- Create/Edit Modal -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="isEdit ? '编辑转移申请' : '新增转移申请'"
-        :width="700"
-        @ok="handleModalOk"
-        :confirmLoading="modalLoading"
+        :save-loading="modalLoading"
+        :show-save-and-new="!isEdit"
+        @save="handleModalOk"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
           <a-form-item label="资产ID" required>
-            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" />
+            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" size="small" />
           </a-form-item>
           <a-form-item label="资产编码">
-            <a-input v-model:value="formData.assetCode" placeholder="资产编码" />
+            <a-input v-model:value="formData.assetCode" placeholder="资产编码" size="small" />
           </a-form-item>
           <a-form-item label="资产名称">
-            <a-input v-model:value="formData.assetName" placeholder="资产名称" />
+            <a-input v-model:value="formData.assetName" placeholder="资产名称" size="small" />
           </a-form-item>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="调出部门">
-                <a-input v-model:value="formData.fromDepartmentName" placeholder="调出部门" />
+                <a-input v-model:value="formData.fromDepartmentName" placeholder="调出部门" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="调入部门">
-                <a-input v-model:value="formData.toDepartmentName" placeholder="调入部门" />
+                <a-input v-model:value="formData.toDepartmentName" placeholder="调入部门" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="调出保管人">
-                <a-input v-model:value="formData.fromCustodianName" placeholder="调出保管人" />
+                <a-input v-model:value="formData.fromCustodianName" placeholder="调出保管人" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="调入保管人">
-                <a-input v-model:value="formData.toCustodianName" placeholder="调入保管人" />
+                <a-input v-model:value="formData.toCustodianName" placeholder="调入保管人" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-form-item label="转移日期">
-            <a-date-picker v-model:value="formData.transferDate" style="width: 100%" />
+            <a-date-picker v-model:value="formData.transferDate" style="width: 100%" size="small" />
           </a-form-item>
           <a-form-item label="转移原因">
-            <a-textarea v-model:value="formData.reason" :rows="2" />
+            <a-textarea v-model:value="formData.reason" :rows="2" size="small" />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined,
   ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined,
-  PrinterOutlined, SwapOutlined, FileTextOutlined,
-  SyncOutlined, ReloadOutlined
+  SwapOutlined, FileTextOutlined,
+  SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { transferApi } from '@/api/fixed-asset'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 
 const loading = ref(false)
 const modalVisible = ref(false)
@@ -210,6 +233,7 @@ const lastUpdated = ref('')
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 const selectedRowKeys = ref<number[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -220,6 +244,17 @@ const hasActiveFilters = computed(() => {
 
 const searchFilters = reactive<Record<string, any>>({})
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
+// ── 表单数据 ────────────────────────────────────────────
 const formData = reactive({
   assetId: undefined as number | undefined,
   assetCode: '',
@@ -234,6 +269,28 @@ const formData = reactive({
   toCustodianName: '',
   transferDate: undefined as any,
   reason: '',
+})
+
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formData) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formData) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
 })
 
 const pagination = reactive({
@@ -286,9 +343,29 @@ const statusColorMap: Record<string, string> = {
   draft: 'default', approved: 'green', completed: 'blue', rejected: 'red',
 }
 
+function handleParentCreate() {
+  showCreateModal()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    showCreateModal()
+  }
+}
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('fixed-asset:create', handleParentCreate)
+  window.addEventListener('fixed-asset:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -301,14 +378,17 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
+  window.removeEventListener('fixed-asset:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
 
 defineExpose({ handleQuery: fetchData })
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
+  hasError.value = false
   const params: any = {
     page: pagination.current - 1,
     size: pagination.pageSize,
@@ -316,20 +396,22 @@ function fetchData() {
   if (searchFilters.transferNo) params.transferNo = searchFilters.transferNo
   if (searchFilters.status) params.status = searchFilters.status
 
-  transferApi.getPage(params).then((res: any) => {
+  try {
+    const res = await transferApi.getPage(params)
     tableData.value = res.data?.content || res.data?.records || []
     pagination.total = res.data?.totalElements || res.data?.total || 0
     lastUpdated.value = new Date().toISOString()
-  }).catch(() => {
+  } catch {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[转移管理] 加载转移数据失败')
     message.error('加载转移数据失败')
-  }).finally(() => {
+  } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     refreshLoading.value = false
-  })
+  }
 }
 
 function handleSearch() {
@@ -368,6 +450,7 @@ function showCreateModal() {
     reason: '',
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function editRecord(record: any) {
@@ -375,6 +458,7 @@ function editRecord(record: any) {
   editId.value = record.id
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function viewDetail(record: any) {
@@ -382,6 +466,7 @@ function viewDetail(record: any) {
   editId.value = record.id
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function handleModalOk() {
@@ -400,6 +485,24 @@ function handleModalOk() {
   }).finally(() => {
     modalLoading.value = false
   })
+}
+
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false },
+    })
+  } else {
+    modalVisible.value = false
+  }
+}
+
+function handleFormSaveAndNew() {
+  handleModalOk()
 }
 
 function handleDelete(id: number) {
@@ -455,10 +558,6 @@ function handleActionMenuClick(key: string, record: any) {
       break
   }
 }
-
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault() }
-}
 </script>
 
 <style scoped>
@@ -505,6 +604,11 @@ function handleKeydown(e: KeyboardEvent) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.transfer-list-page :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -567,6 +671,14 @@ function handleKeydown(e: KeyboardEvent) {
   margin-top: 12px;
 }
 
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
+}
+
 .transfer-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -596,4 +708,12 @@ function handleKeydown(e: KeyboardEvent) {
     min-width: 120px;
   }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

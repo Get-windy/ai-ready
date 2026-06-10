@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import cn.dev33.satoken.stp.StpUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ import java.util.Map;
 /**
  * 智能报表服务实现
  */
+@Slf4j
 @Service
 @Transactional
 public class IntelligentReportServiceImpl implements IIntelligentReportService {
@@ -269,14 +271,14 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
             
             return true;
         } catch (Exception e) {
-            System.err.println("数据源连接测试失败: " + e.getMessage());
+            log.error("数据源连接测试失败: " + e.getMessage());
             return false;
         } finally {
             if (conn != null) {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("关闭连接时出错: " + e.getMessage());
+                    log.error("关闭连接时出错: " + e.getMessage());
                 }
             }
         }
@@ -337,7 +339,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("关闭连接时出错: " + e.getMessage());
+                    log.error("关闭连接时出错: " + e.getMessage());
                 }
             }
         }
@@ -525,7 +527,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("关闭连接时出错: " + e.getMessage());
+                    log.error("关闭连接时出错: " + e.getMessage());
                 }
             }
         }
@@ -730,7 +732,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("关闭连接时出错: " + e.getMessage());
+                    log.error("关闭连接时出错: " + e.getMessage());
                 }
             }
         }
@@ -837,7 +839,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                         chartMap.put("data", chartResult);
                         chartData.add(chartMap);
                     } catch (Exception e) {
-                        System.err.println("生成图表数据失败: " + e.getMessage());
+                        log.error("生成图表数据失败: " + e.getMessage());
                     }
                 }
                 
@@ -852,7 +854,7 @@ public class IntelligentReportServiceImpl implements IIntelligentReportService {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("关闭连接时出错: " + e.getMessage());
+                    log.error("关闭连接时出错: " + e.getMessage());
                 }
             }
         }

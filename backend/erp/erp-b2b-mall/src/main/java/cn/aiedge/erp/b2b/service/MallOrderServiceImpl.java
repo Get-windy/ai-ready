@@ -5,9 +5,13 @@ import cn.aiedge.erp.b2b.dto.*;
 import cn.aiedge.erp.b2b.mapper.MallOrderItemMapper;
 import cn.aiedge.erp.b2b.mapper.MallOrderMapper;
 import cn.aiedge.erp.b2b.mapper.MallProductMapper;
+import cn.aiedge.erp.b2b.mapper.MallAddressMapper;
+import cn.aiedge.erp.b2b.mapper.ShopUserMapper;
+import cn.aiedge.erp.b2b.model.MallAddress;
 import cn.aiedge.erp.b2b.model.MallOrder;
 import cn.aiedge.erp.b2b.model.MallOrderItem;
 import cn.aiedge.erp.b2b.model.MallProduct;
+import cn.aiedge.erp.b2b.model.ShopUser;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.LocalDateTimeUtil;
@@ -33,18 +37,32 @@ public class MallOrderServiceImpl implements MallOrderService {
     private final MallOrderMapper mallOrderMapper;
     private final MallOrderItemMapper mallOrderItemMapper;
     private final MallProductMapper mallProductMapper;
+    private final ShopUserMapper shopUserMapper;
+    private final MallAddressMapper mallAddressMapper;
 
     private static final AtomicLong ORDER_NO_COUNTER = new AtomicLong(0);
+
+    /** 获取当前登录用户的租户ID */
+    private Long getTenantId() {
+        Object tid = StpUtil.getSession().get("tenantId");
+        return tid instanceof Number ? ((Number) tid).longValue() : 0L;
+    }
 
     @Override
     @Transactional
     public OrderDetailDTO createOrder(OrderCreateRequest request) {
         log.info("创建订单");
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw BusinessException.badRequest("订单商品不能为空");
         }
+
+        // 获取用户信息用于订单客户名称
+        ShopUser user = shopUserMapper.selectById(customerId);
+        String customerName = (user != null && user.getCompanyName() != null && !user.getCompanyName().isEmpty())
+                ? user.getCompanyName() : (user != null ? user.getUsername() : "");
 
         // Calculate order amounts
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -54,7 +72,7 @@ public class MallOrderServiceImpl implements MallOrderService {
             MallProduct product = mallProductMapper.selectOne(
                     new LambdaQueryWrapper<MallProduct>()
                             .eq(MallProduct::getProductId, itemRequest.getProductId())
-                            .eq(MallProduct::getDeleted, false)
+                            .eq(MallProduct::getDeleted, 0)
             );
             if (product == null) {
                 throw BusinessException.notFound("商品不存在: " + itemRequest.getProductId());
@@ -64,14 +82,13 @@ public class MallOrderServiceImpl implements MallOrderService {
             }
 
             MallOrderItem orderItem = new MallOrderItem();
+            orderItem.setTenantId(tenantId);
             orderItem.setProductId(itemRequest.getProductId());
             orderItem.setProductName(product.getProductName());
             orderItem.setProductImage(product.getImageUrl());
             orderItem.setPrice(product.getSalePrice());
             orderItem.setQuantity(itemRequest.getQuantity());
             orderItem.setSubtotal(product.getSalePrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
-            orderItem.setCreatedAt(LocalDateTime.now());
-            orderItem.setUpdatedAt(LocalDateTime.now());
             orderItems.add(orderItem);
 
             totalAmount = totalAmount.add(orderItem.getSubtotal());
@@ -83,9 +100,10 @@ public class MallOrderServiceImpl implements MallOrderService {
 
         // Create order
         MallOrder order = new MallOrder();
+        order.setTenantId(tenantId);
         order.setOrderNo(generateOrderNo());
         order.setCustomerId(customerId);
-        order.setCustomerName("test_user");
+        order.setCustomerName(customerName);
         order.setTotalAmount(totalAmount);
         order.setDiscountAmount(BigDecimal.ZERO);
         order.setPayAmount(totalAmount);
@@ -93,8 +111,20 @@ public class MallOrderServiceImpl implements MallOrderService {
         order.setPaymentStatus("UNPAID");
         order.setDeliveryStatus("UNSHIPPED");
         order.setRemark(request.getRemark());
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
+
+        // 地址信息
+        if (request.getAddressId() != null) {
+            MallAddress addr = mallAddressMapper.selectById(request.getAddressId());
+            if (addr != null) {
+                order.setConsignee(addr.getConsignee());
+                order.setPhone(addr.getPhone());
+                order.setAddress(addr.getProvince() + addr.getCity() + addr.getDistrict() + " " + addr.getDetailAddress());
+            }
+        } else {
+            order.setConsignee(request.getConsignee());
+            order.setPhone(request.getPhone());
+            order.setAddress(request.getAddress());
+        }
 
         mallOrderMapper.insert(order);
 
@@ -111,15 +141,17 @@ public class MallOrderServiceImpl implements MallOrderService {
     @Override
     public PageResult<OrderListDTO> listOrders(int page, int size, String orderStatus) {
         log.info("查询订单列表: page={}, size={}, orderStatus={}", page, size, orderStatus);
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         LambdaQueryWrapper<MallOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MallOrder::getCustomerId, customerId);
-        wrapper.eq(MallOrder::getDeleted, false);
+        wrapper.eq(MallOrder::getTenantId, tenantId);
+        wrapper.eq(MallOrder::getDeleted, 0);
         if (orderStatus != null && !orderStatus.isEmpty()) {
             wrapper.eq(MallOrder::getOrderStatus, orderStatus);
         }
-        wrapper.orderByDesc(MallOrder::getCreatedAt);
+        wrapper.orderByDesc(MallOrder::getCreateTime);
 
         IPage<MallOrder> orderPage = mallOrderMapper.selectPage(new Page<>(page, size), wrapper);
 
@@ -166,25 +198,10 @@ public class MallOrderServiceImpl implements MallOrderService {
         }
 
         order.setOrderStatus("CANCELLED");
-        order.setUpdatedAt(LocalDateTime.now());
         mallOrderMapper.updateById(order);
 
         // Restore stock
-        List<MallOrderItem> items = mallOrderItemMapper.selectList(
-                new LambdaQueryWrapper<MallOrderItem>()
-                        .eq(MallOrderItem::getOrderId, order.getId())
-        );
-        for (MallOrderItem item : items) {
-            MallProduct product = mallProductMapper.selectOne(
-                    new LambdaQueryWrapper<MallProduct>()
-                            .eq(MallProduct::getProductId, item.getProductId())
-            );
-            if (product != null) {
-                product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-                mallProductMapper.updateById(product);
-            }
-        }
-
+        restoreStock(order.getId());
         log.info("订单已取消: {}", order.getOrderNo());
     }
 
@@ -203,7 +220,6 @@ public class MallOrderServiceImpl implements MallOrderService {
 
         order.setOrderStatus("COMPLETED");
         order.setDeliveryStatus("RECEIVED");
-        order.setUpdatedAt(LocalDateTime.now());
         mallOrderMapper.updateById(order);
 
         log.info("订单已确认收货: {}", order.getOrderNo());
@@ -224,42 +240,89 @@ public class MallOrderServiceImpl implements MallOrderService {
 
         order.setOrderStatus("PAID");
         order.setPaymentStatus("PAID");
-        order.setUpdatedAt(LocalDateTime.now());
         mallOrderMapper.updateById(order);
 
         log.info("订单支付成功: {}", order.getOrderNo());
     }
 
     @Override
-    public List getPaymentMethods() {
-        log.info("获取支付方式列表");
-        List<Map<String, Object>> methods = new ArrayList<>();
-
-        Map<String, Object> method1 = new HashMap<>();
-        method1.put("id", "wechat");
-        method1.put("name", "微信支付");
-        method1.put("icon", "wechat");
-        methods.add(method1);
-
-        Map<String, Object> method2 = new HashMap<>();
-        method2.put("id", "alipay");
-        method2.put("name", "支付宝");
-        method2.put("icon", "alipay");
-        methods.add(method2);
-
-        Map<String, Object> method3 = new HashMap<>();
-        method3.put("id", "bank_transfer");
-        method3.put("name", "银行转账");
-        method3.put("icon", "bank");
-        methods.add(method3);
-
-        return methods;
+    @Transactional
+    public void approveOrder(Long id) {
+        log.info("审核通过订单: {}", id);
+        MallOrder order = mallOrderMapper.selectById(id);
+        if (order == null) {
+            throw BusinessException.notFound("订单不存在: " + id);
+        }
+        if (!"PAID".equals(order.getOrderStatus())) {
+            throw BusinessException.badRequest("当前订单状态不允许审核");
+        }
+        order.setOrderStatus("APPROVED");
+        mallOrderMapper.updateById(order);
+        log.info("订单已审核通过: {}", order.getOrderNo());
     }
 
     @Override
-    public void trackOrder(Long id) {
-        log.info("查询物流跟踪: {}", id);
-        // TODO: Implement actual logistics tracking
+    @Transactional
+    public void rejectOrder(Long id, String reason) {
+        log.info("审核驳回订单: {}", id);
+        MallOrder order = mallOrderMapper.selectById(id);
+        if (order == null) {
+            throw BusinessException.notFound("订单不存在: " + id);
+        }
+        if (!"PAID".equals(order.getOrderStatus()) && !"PENDING_PAYMENT".equals(order.getOrderStatus())) {
+            throw BusinessException.badRequest("当前订单状态不允许驳回");
+        }
+        order.setOrderStatus("REJECTED");
+        order.setRemark(reason);
+        mallOrderMapper.updateById(order);
+
+        // 驳回时归还库存
+        restoreStock(order.getId());
+        log.info("订单已驳回: {}", order.getOrderNo());
+    }
+
+    /** 归还订单占用的库存 */
+    private void restoreStock(Long orderId) {
+        List<MallOrderItem> items = mallOrderItemMapper.selectList(
+                new LambdaQueryWrapper<MallOrderItem>()
+                        .eq(MallOrderItem::getOrderId, orderId)
+        );
+        for (MallOrderItem item : items) {
+            MallProduct product = mallProductMapper.selectOne(
+                    new LambdaQueryWrapper<MallProduct>()
+                            .eq(MallProduct::getProductId, item.getProductId())
+            );
+            if (product != null) {
+                product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+                mallProductMapper.updateById(product);
+            }
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> getPaymentMethods() {
+        log.info("获取支付方式列表");
+        List<Map<String, Object>> methods = new ArrayList<>();
+
+        Map<String, Object> wechat = new LinkedHashMap<>();
+        wechat.put("id", "wechat");
+        wechat.put("name", "微信支付");
+        wechat.put("icon", "wechat");
+        methods.add(wechat);
+
+        Map<String, Object> alipay = new LinkedHashMap<>();
+        alipay.put("id", "alipay");
+        alipay.put("name", "支付宝");
+        alipay.put("icon", "alipay");
+        methods.add(alipay);
+
+        Map<String, Object> bank = new LinkedHashMap<>();
+        bank.put("id", "bank_transfer");
+        bank.put("name", "银行转账");
+        bank.put("icon", "bank");
+        methods.add(bank);
+
+        return methods;
     }
 
     private String generateOrderNo() {
@@ -275,9 +338,8 @@ public class MallOrderServiceImpl implements MallOrderService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setPayAmount(order.getPayAmount());
         dto.setOrderStatus(order.getOrderStatus());
-        dto.setCreatedAt(order.getCreatedAt());
+        dto.setCreatedAt(order.getCreateTime());
 
-        // Count items
         Long itemCount = mallOrderItemMapper.selectCount(
                 new LambdaQueryWrapper<MallOrderItem>()
                         .eq(MallOrderItem::getOrderId, order.getId())
@@ -294,7 +356,7 @@ public class MallOrderServiceImpl implements MallOrderService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setPayAmount(order.getPayAmount());
         dto.setOrderStatus(order.getOrderStatus());
-        dto.setCreatedAt(order.getCreatedAt());
+        dto.setCreatedAt(order.getCreateTime());
         dto.setCustomerName(order.getCustomerName());
         dto.setConsignee(order.getConsignee());
         dto.setPhone(order.getPhone());

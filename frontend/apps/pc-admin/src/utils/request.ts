@@ -104,11 +104,11 @@ service.interceptors.request.use(
     const url = `${config.baseURL || ''}${config.url || ''}`
     const skipRefresh = !!(config as ExtendedAxiosRequestConfig)._skipAuthRefresh
 
-    console.log(`${R} ➡️ ${config.method?.toUpperCase() || 'GET'} ${url}`, { hasToken: !!token, skipRefresh })
+    console.warn(`${R} ➡️ ${config.method?.toUpperCase() || 'GET'} ${url}`, { hasToken: !!token, skipRefresh })
 
     // 检查 Token 是否即将过期，若是则尝试刷新
     if (token && isTokenExpired(token) && !skipRefresh) {
-      console.log(`${R} Token已过期, 尝试刷新: ${url}`)
+      console.warn(`${R} Token已过期, 尝试刷新: ${url}`)
       return refreshTokenAndRetry((newToken) => {
         config.headers.Authorization = `Bearer ${newToken}`
         return config
@@ -148,7 +148,7 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const url = `${response.config.baseURL || ''}${response.config.url || ''}`
-    console.log(`${R} ⬅️ ${response.config.method?.toUpperCase() || 'GET'} ${url} → ${response.status}`)
+    console.warn(`${R} ⬅️ ${response.config.method?.toUpperCase() || 'GET'} ${url} → ${response.status}`)
 
     // 请求完成：结束进度条
     NProgress.done()
@@ -166,6 +166,11 @@ service.interceptors.response.use(
       }
     }
 
+    // Blob 响应直接返回（文件下载等）
+    if (response.config.responseType === 'blob') {
+      return response.data as any
+    }
+
     const resData = response.data
 
     // ── 标准 wrapper 响应处理 ──────────────────────────
@@ -175,22 +180,25 @@ service.interceptors.response.use(
       return response.data as any
     }
 
-    // 业务错误：401 → Token 刷新
+    // 业务错误：401 → Token 刷新 或 被踢下线
     if (code === 401) {
       const config = response.config as ExtendedAxiosRequestConfig
       if (config.url?.includes('/auth/login')) {
         message.error(msg || '登录失败')
         return Promise.reject(new Error(msg || '登录失败'))
       }
-      if (!config._skipAuthRefresh) {
+      // 被踢下线场景：显示具体提示
+      const isKicked = msg?.includes('踢下线') || msg?.includes('已过期')
+      if (!config._skipAuthRefresh && !isKicked) {
         return refreshTokenAndRetry((newToken) => {
           config.headers.Authorization = `Bearer ${newToken}`
           config._skipAuthRefresh = true
           return service(config)
         })
       }
+      message.error(msg || (isKicked ? '账号已在其他设备登录' : '登录已过期'))
       handleUnauthorized()
-      return Promise.reject(new Error('登录已过期'))
+      return Promise.reject(new Error(msg || '登录已过期'))
     }
 
     // 403 → 权限不足（不自动登出）

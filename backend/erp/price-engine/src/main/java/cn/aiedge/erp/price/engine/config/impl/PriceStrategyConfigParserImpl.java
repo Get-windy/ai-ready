@@ -3,6 +3,7 @@ package cn.aiedge.erp.price.engine.config.impl;
 import cn.aiedge.erp.price.engine.config.IPriceStrategyConfigParser;
 import cn.aiedge.erp.price.engine.config.dto.PriceStrategyConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.List;
 /**
  * 价格策略配置解析器实现
  */
+@Slf4j
 @Service
 public class PriceStrategyConfigParserImpl implements IPriceStrategyConfigParser {
     
@@ -74,7 +76,7 @@ public class PriceStrategyConfigParserImpl implements IPriceStrategyConfigParser
                 }
             } catch (Exception e) {
                 // 跳过无法解析的配置，记录错误
-                System.err.println("Failed to parse config: " + e.getMessage());
+                log.error("Failed to parse config: " + e.getMessage());
             }
         }
         return result;

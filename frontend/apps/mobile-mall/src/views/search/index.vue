@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search, List, PullRefresh, Empty, Tag, showLoadingToast, closeToast } from 'vant'
-import { api } from '@/api'
+import { api, type ProductItem } from '@/api'
 import ProductCard from '@/components/product/ProductCard.vue'
 
 const router = useRouter()
@@ -10,7 +10,7 @@ const route = useRoute()
 
 const keyword = computed(() => route.query.keyword as string || '')
 const searchValue = ref('')
-const products = ref<any[]>([])
+const products = ref<ProductItem[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
 const finished = ref(false)

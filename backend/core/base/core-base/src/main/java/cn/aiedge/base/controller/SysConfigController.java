@@ -3,6 +3,7 @@ package cn.aiedge.base.controller;
 import cn.aiedge.base.entity.SysProjectConfig;
 import cn.aiedge.base.service.SysConfigService;
 import cn.aiedge.base.vo.Result;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,30 +30,35 @@ public class SysConfigController {
 
     @GetMapping("/value/{key}")
     @Operation(summary = "获取配置值")
+    @SaCheckPermission("system:config:list")
     public Result<String> getValue(@PathVariable String key) {
         return Result.ok(configService.getValue(key, null));
     }
 
     @GetMapping("/get/{key}")
     @Operation(summary = "获取配置对象")
+    @SaCheckPermission("system:config:list")
     public Result<SysProjectConfig> getConfig(@PathVariable String key) {
         return Result.ok(configService.getConfig(key).orElse(null));
     }
 
     @GetMapping("/group/{group}")
     @Operation(summary = "获取配置分组")
+    @SaCheckPermission("system:config:list")
     public Result<List<SysProjectConfig>> getConfigsByGroup(@PathVariable String group) {
         return Result.ok(configService.getConfigsByGroup(group));
     }
 
     @GetMapping("/list")
     @Operation(summary = "获取所有配置")
+    @SaCheckPermission("system:config:list")
     public Result<List<SysProjectConfig>> getAllConfigs() {
         return Result.ok(configService.getAllConfigs());
     }
 
     @GetMapping("/map")
     @Operation(summary = "获取配置Map")
+    @SaCheckPermission("system:config:list")
     public Result<Map<String, String>> getConfigMap() {
         return Result.ok(configService.getConfigMap());
     }
@@ -61,6 +67,7 @@ public class SysConfigController {
 
     @PostMapping("/set")
     @Operation(summary = "设置配置")
+    @SaCheckPermission("system:config:update")
     public Result<Void> setValue(@RequestBody ConfigRequest request) {
         configService.setValue(
             request.getKey(), 
@@ -74,6 +81,7 @@ public class SysConfigController {
 
     @PostMapping("/batch")
     @Operation(summary = "批量设置配置")
+    @SaCheckPermission("system:config:update")
     public Result<Void> setValues(@RequestBody Map<String, String> configs) {
         configService.setValues(configs);
         return Result.ok();
@@ -81,6 +89,7 @@ public class SysConfigController {
 
     @DeleteMapping("/{key}")
     @Operation(summary = "删除配置")
+    @SaCheckPermission("system:config:delete")
     public Result<Void> deleteConfig(@PathVariable String key) {
         configService.deleteConfig(key);
         return Result.ok();
@@ -90,6 +99,7 @@ public class SysConfigController {
 
     @PostMapping("/refresh")
     @Operation(summary = "刷新所有配置缓存")
+    @SaCheckPermission("system:config:update")
     public Result<Void> refreshCache() {
         configService.refreshCache();
         return Result.ok();
@@ -97,6 +107,7 @@ public class SysConfigController {
 
     @PostMapping("/refresh/{key}")
     @Operation(summary = "刷新指定配置")
+    @SaCheckPermission("system:config:update")
     public Result<Void> refreshConfig(@PathVariable String key) {
         configService.refreshConfig(key);
         return Result.ok();
@@ -106,12 +117,14 @@ public class SysConfigController {
 
     @GetMapping("/history/{key}")
     @Operation(summary = "获取配置历史")
+    @SaCheckPermission("system:config:list")
     public Result<List<SysConfigService.ConfigHistory>> getConfigHistory(@PathVariable String key) {
         return Result.ok(configService.getConfigHistory(key));
     }
 
     @PostMapping("/rollback")
     @Operation(summary = "回滚配置")
+    @SaCheckPermission("system:config:update")
     public Result<Void> rollbackConfig(@RequestBody RollbackRequest request) {
         configService.rollbackConfig(request.getKey(), request.getVersion());
         return Result.ok();
@@ -119,6 +132,7 @@ public class SysConfigController {
 
     @GetMapping("/compare")
     @Operation(summary = "比较配置版本")
+    @SaCheckPermission("system:config:list")
     public Result<SysConfigService.ConfigDiff> compareVersions(
             @RequestParam String key,
             @RequestParam Long version1,

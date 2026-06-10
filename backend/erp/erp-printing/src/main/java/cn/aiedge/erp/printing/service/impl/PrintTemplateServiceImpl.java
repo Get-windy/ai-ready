@@ -1,5 +1,6 @@
 package cn.aiedge.erp.printing.service.impl;
 
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.printing.entity.PrintTemplate;
 import cn.aiedge.erp.printing.mapper.PrintTemplateMapper;
 import cn.aiedge.erp.printing.service.PrintTemplateService;
@@ -32,7 +33,7 @@ public class PrintTemplateServiceImpl implements PrintTemplateService {
     public PrintTemplate updateTemplate(Long id, PrintTemplate template) {
         PrintTemplate existing = templateMapper.selectById(id);
         if (existing == null) {
-            throw new RuntimeException("模板不存在: " + id);
+            throw BusinessException.notFound("模板不存在");
         }
         template.setId(id);
         templateMapper.updateById(template);
@@ -69,7 +70,7 @@ public class PrintTemplateServiceImpl implements PrintTemplateService {
     public PrintTemplate copyTemplate(Long id, String newName) {
         PrintTemplate source = templateMapper.selectById(id);
         if (source == null) {
-            throw new RuntimeException("模板不存在: " + id);
+            throw BusinessException.notFound("模板不存在");
         }
         PrintTemplate copy = new PrintTemplate();
         copy.setTemplateCode("TPL" + IdUtil.fastSimpleUUID().substring(0, 8));
@@ -94,7 +95,7 @@ public class PrintTemplateServiceImpl implements PrintTemplateService {
     public String previewTemplate(Long id, String printData) {
         PrintTemplate template = templateMapper.selectById(id);
         if (template == null) {
-            throw new RuntimeException("模板不存在: " + id);
+            throw BusinessException.notFound("模板不存在");
         }
         return template.getContent();
     }

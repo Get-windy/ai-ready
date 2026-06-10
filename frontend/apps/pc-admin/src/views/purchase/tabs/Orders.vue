@@ -49,10 +49,11 @@
       @filter-change="handleFilterChange"
       @selection-change="handleSelectionChange"
       @batch-delete="handleBatchDelete"
+      @cell-dblclick="handleView"
       @export="handleExport"
     >
       <template #toolbar-actions>
-        <a-button size="small" @click="handleImport">
+        <a-button size="small" :loading="importLoading" @click="debounceClick('import', handleImport)">
           <template #icon><ImportOutlined /></template>
           导入
         </a-button>
@@ -81,6 +82,15 @@
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
+          <PrintButton
+            template-type="order"
+            :business-id="record.id"
+            business-type="purchase_order"
+            button-text=""
+            button-size="small"
+            button-type="link"
+            tooltip="打印"
+          />
           <a-dropdown trigger="click">
             <a-button type="link" size="small" class="action-more-btn">
               <template #icon><EllipsisOutlined /></template>
@@ -100,9 +110,6 @@
                   <StopOutlined /> 关闭订单
                 </a-menu-item>
                 <a-menu-divider />
-                <a-menu-item key="print">
-                  <PrinterOutlined /> 打印
-                </a-menu-item>
                 <a-menu-item key="copy">
                   <CopyOutlined /> 复制
                 </a-menu-item>
@@ -118,14 +125,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的订单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无采购订单数据，点击右上角「新建订单」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的订单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无采购订单数据，点击右上角「新建订单」开始创建
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
@@ -148,13 +164,24 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined,
-  AuditOutlined, PrinterOutlined, ImportOutlined, StopOutlined,
+  AuditOutlined, ImportOutlined, StopOutlined,
   SearchOutlined, InboxOutlined, EllipsisOutlined, CopyOutlined,
-  ClockCircleOutlined, DollarOutlined, FileTextOutlined
+  ClockCircleOutlined, DollarOutlined, FileTextOutlined,
+  WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import PurchaseOrderFormModal from '../components/PurchaseOrderFormModal.vue'
 import { purchaseOrderApi } from '@/api/erp'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 interface PurchaseOrder {
   id: number
@@ -229,12 +256,14 @@ function formatAmount(amount: number): string {
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<PurchaseOrder[]>([])
 const formVisible = ref(false)
 const isEdit = ref(false)
 const editRecord = ref<PurchaseOrder | null>(null)
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const importLoading = ref(false)
 
 const hasActiveFilters = computed(() => {
   return Object.values(searchFilters).some(v => v !== undefined && v !== null && v !== '')
@@ -264,10 +293,12 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    hasError.value = false
   } catch (e) {
     console.warn('[采购订单] 获取列表失败', e)
     message.error('获取采购订单列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally {
     loading.value = false
   }
@@ -314,11 +345,8 @@ function handleActionMenuClick(key: string, record: PurchaseOrder) {
     case 'close':
       handleClose(record)
       break
-    case 'print':
-      message.info(`打印订单: ${record.orderNo}`)
-      break
     case 'copy':
-      message.info(`复制订单: ${record.orderNo}`)
+      router.push(`/purchase/order/create?copyFrom=${record.id}`)
       break
     case 'delete':
       handleDelete(record)
@@ -408,8 +436,13 @@ async function handleBatchDelete(ids: number[]) {
   })
 }
 
-function handleImport() {
-  message.info('导入功能开发中')
+async function handleImport() {
+  importLoading.value = true
+  try {
+    message.info('导入功能开发中')
+  } finally {
+    importLoading.value = false
+  }
 }
 
 function handleBatchApprove(selectedRows: any[]) {
@@ -505,21 +538,25 @@ function handleFilterChange(filters: Record<string, any>) {
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
-    handleAdd()
+    debounceClick('add', handleAdd)
   }
 }
 
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:create', handleParentCreate)
   refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:create', handleParentCreate)
   if (refreshTimer) clearInterval(refreshTimer)
   clearTimeout(debouncedFetch.value)
 })
@@ -533,6 +570,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-orders-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -622,5 +665,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

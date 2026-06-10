@@ -38,15 +38,22 @@ const handleLogin = async () => {
   
   try {
     const res = await api.auth.login({
-      phone: form.value.phone,
+      username: form.value.phone,
       password: form.value.password
     })
-    
-    userStore.setUser(res.data)
-    userStore.setToken(res.data?.token)
-    
+
+    // 兼容不同响应格式：res.data.data 或 res.data
+    const userData = res.data?.user || res.data
+    const tokenData = res.data?.token
+
+    if (tokenData) {
+      userStore.setToken(tokenData)
+      userStore.setUser(userData)
+    }
+
     Dialog.alert({ message: '登录成功' }).then(() => {
-      router.replace('/')
+      const redirect = (router.currentRoute.value.query.redirect as string) || '/'
+      router.replace(redirect)
     })
   } catch (err: any) {
     showToast(err?.response?.data?.message || err?.message || '登录失败，请检查网络连接')

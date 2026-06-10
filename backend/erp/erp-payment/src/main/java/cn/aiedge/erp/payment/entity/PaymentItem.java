@@ -41,6 +41,12 @@ public class PaymentItem {
 
     private Integer verifyStatus;
 
+    /** 关联应付单ID(finance_payable) */
+    private Long payableId;
+
+    /** 核销来源类型: order/invoice/payable */
+    private String sourceType;
+
     private LocalDateTime verifiedTime;
 
     private Long verifiedBy;

@@ -45,6 +45,11 @@ public class SysRole {
     private Integer roleType;
 
     /**
+     * 角色作用域（PLATFORM-平台级 TENANT-租户级）
+     */
+    private String scope;
+
+    /**
      * 数据权限类型（0-全部 1-本部门 2-本部门及以下 3-仅本人 4-自定义）
      */
     private Integer dataScope;

@@ -76,4 +76,12 @@ public interface StockService extends IService<Stock> {
      * @return 预警列表
      */
     java.util.List<Stock> checkStockAlert();
+
+    /**
+     * 根据产品ID查询库存汇总
+     *
+     * @param productId 产品ID
+     * @return 库存汇总
+     */
+    Stock getStockByProductId(Long productId);
 }

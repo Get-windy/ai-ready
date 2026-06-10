@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -102,6 +102,7 @@
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
         @export="handleExport"
       >
       <template #toolbar-actions>
@@ -109,14 +110,24 @@
 
         <template #empty>
           <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的发票，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无发票数据，点击右上角「新建发票」开始创建
-            </p>
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">数据加载失败，请重试</p>
+              <a-button type="primary" size="small" @click="fetchData">
+                <template #icon><ReloadOutlined /></template>
+                重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的发票，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">
+                暂无发票数据，点击右上角「新建发票」开始创建
+              </p>
+            </template>
           </div>
         </template>
 
@@ -126,32 +137,43 @@
             <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="开具"><a-button type="link" size="small" @click="handleIssue(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
             <a-tooltip v-if="record.status === 'issued'" title="发送"><a-button type="link" size="small" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
-            <PrintButton v-if="record.status === 'issued'" templateType="invoice" :businessId="record.id" businessType="invoice" buttonText="" buttonSize="small" @print-success="handlePrintSuccess(record)" @print-error="handlePrintError" />
+            <PrintButton v-if="record.status === 'issued'" template-type="invoice" :business-id="record.id" business-type="invoice" button-text="" button-size="small" @print-success="handlePrintSuccess(record)" @print-error="handlePrintError" />
             <a-tooltip v-if="record.status === 'issued'" title="作废"><a-button type="link" danger size="small" @click="handleCancelConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
           </a-space>
         </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+          </template>
       </VxeTableList>
     </ErrorBoundary>
 
-    <a-modal v-model:open="modalVisible" :title="modalTitle" width="700px" :confirm-loading="submitLoading" @ok="handleSubmit" @cancel="handleModalCancel">
+    <FullScreenDetail
+      :visible="modalVisible"
+      :title="modalTitle"
+      :save-loading="submitLoading"
+      :show-save-and-new="!isEdit"
+      @save="handleSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
+    >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="发票号码" name="invoiceNo"><a-input v-model:value="formData.invoiceNo" placeholder="请输入发票号码" /></a-form-item>
+        <a-form-item label="发票号码" name="invoiceNo"><a-input v-model:value="formData.invoiceNo" placeholder="请输入发票号码" size="small" /></a-form-item>
         <a-form-item label="发票类型" name="invoiceType">
-          <a-select v-model:value="formData.invoiceType" placeholder="请选择发票类型">
+          <a-select v-model:value="formData.invoiceType" placeholder="请选择发票类型" size="small">
             <a-select-option value="special">增值税专用发票</a-select-option>
             <a-select-option value="normal">增值税普通发票</a-select-option>
             <a-select-option value="electronic">电子发票</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="开票日期" name="invoiceDate"><a-date-picker v-model:value="formData.invoiceDate" style="width:100%" /></a-form-item>
+        <a-form-item label="开票日期" name="invoiceDate"><a-date-picker v-model:value="formData.invoiceDate" style="width:100%" size="small" /></a-form-item>
         <a-form-item label="客户名称" name="customerId">
-          <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption">
+          <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
             <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="发票金额" name="amount"><a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width:100%" /></a-form-item>
+        <a-form-item label="发票金额" name="amount"><a-input-number v-model:value="formData.amount" :min="0" :precision="2" style="width:100%" size="small" /></a-form-item>
         <a-form-item label="税率" name="taxRate">
-          <a-select v-model:value="formData.taxRate" placeholder="请选择税率">
+          <a-select v-model:value="formData.taxRate" placeholder="请选择税率" size="small">
             <a-select-option value="13">13%</a-select-option>
             <a-select-option value="9">9%</a-select-option>
             <a-select-option value="6">6%</a-select-option>
@@ -159,47 +181,73 @@
             <a-select-option value="0">0%</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="税额"><a-input-number :value="formTaxAmount" :precision="2" disabled style="width:100%" /></a-form-item>
-        <a-form-item label="价税合计"><a-input-number :value="formTotalAmount" :precision="2" disabled style="width:100%" /></a-form-item>
+        <a-form-item label="税额"><a-input-number :value="formTaxAmount" :precision="2" disabled style="width:100%" size="small" /></a-form-item>
+        <a-form-item label="价税合计"><a-input-number :value="formTotalAmount" :precision="2" disabled style="width:100%" size="small" /></a-form-item>
         <a-form-item label="关联订单" name="relatedOrders">
-          <a-select v-model:value="formData.relatedOrders" mode="multiple" placeholder="请选择关联订单">
+          <a-select v-model:value="formData.relatedOrders" mode="multiple" placeholder="请选择关联订单" size="small">
             <a-select-option v-for="o in orderList" :key="o.id" :value="o.id">{{ o.orderNo }} - ¥{{ o.amount }}</a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
+        <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
-    <a-drawer v-model:open="detailVisible" title="发票详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions :column="2" bordered>
-        <a-descriptions-item label="发票号码">{{ invoiceDetail.invoiceNo }}</a-descriptions-item>
-        <a-descriptions-item label="发票类型"><a-tag :color="getInvoiceTypeColor(invoiceDetail.invoiceType)">{{ invoiceDetail.invoiceTypeLabel }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="客户名称">{{ invoiceDetail.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="开票日期">{{ invoiceDetail.invoiceDate }}</a-descriptions-item>
-        <a-descriptions-item label="发票金额"><span class="amount">¥{{ formatAmount(invoiceDetail.amount) }}</span></a-descriptions-item>
-        <a-descriptions-item label="税率">{{ invoiceDetail.taxRate }}%</a-descriptions-item>
-        <a-descriptions-item label="税额">¥{{ formatAmount(invoiceDetail.taxAmount) }}</a-descriptions-item>
-        <a-descriptions-item label="价税合计"><span class="amount total">¥{{ formatAmount(invoiceDetail.totalAmount) }}</span></a-descriptions-item>
-        <a-descriptions-item label="发票状态"><a-tag :color="getStatusColor(invoiceDetail.status)">{{ getStatusText(invoiceDetail.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="开票人">{{ invoiceDetail.issuer }}</a-descriptions-item>
-        <a-descriptions-item label="关联订单" :span="2"><a-space><a-tag v-for="o in invoiceDetail.relatedOrders" :key="o">{{ o }}</a-tag></a-space></a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ invoiceDetail.remark }}</a-descriptions-item>
-      </a-descriptions>
+    <a-drawer v-model:open="detailVisible" title="发票详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+      <a-spin :spinning="detailLoading">
+        <template v-if="detailError">
+          <div class="table-empty">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">详情数据加载失败</p>
+            <a-button type="primary" size="small" @click="handleDetailRefresh">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+        </template>
+        <template v-else-if="detailData.id">
+          <a-descriptions :column="2" bordered>
+            <a-descriptions-item label="发票号码">{{ detailData.invoiceNo }}</a-descriptions-item>
+            <a-descriptions-item label="发票类型"><a-tag :color="getInvoiceTypeColor(detailData.invoiceType)">{{ detailData.invoiceTypeLabel }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
+            <a-descriptions-item label="开票日期">{{ detailData.invoiceDate }}</a-descriptions-item>
+            <a-descriptions-item label="发票金额"><span class="amount">¥{{ formatAmount(detailData.amount) }}</span></a-descriptions-item>
+            <a-descriptions-item label="税率">{{ detailData.taxRate }}%</a-descriptions-item>
+            <a-descriptions-item label="税额">¥{{ formatAmount(detailData.taxAmount) }}</a-descriptions-item>
+            <a-descriptions-item label="价税合计"><span class="amount total">¥{{ formatAmount(detailData.totalAmount) }}</span></a-descriptions-item>
+            <a-descriptions-item label="发票状态"><a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="开票人">{{ detailData.issuer }}</a-descriptions-item>
+            <a-descriptions-item label="关联订单" :span="2"><a-space><a-tag v-for="o in detailData.relatedOrders" :key="o">{{ o }}</a-tag></a-space></a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+      </a-spin>
     </a-drawer>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, FileTextOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, WarningOutlined, FileTextOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import type { FormInstance } from 'ant-design-vue'
 import { invoiceApi } from '@/api/crm'
 import { exportCsv } from '@/utils/exportCsv'
+
+function handleError(err: any) { console.warn('[CRM发票]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const tableRef = ref()
 const loading = ref(false)
@@ -208,6 +256,7 @@ const submitLoading = ref(false)
 const modalVisible = ref(false)
 const detailVisible = ref(false)
 const modalTitle = ref('新建发票')
+const isEdit = ref(false)
 const activeTab = ref('all')
 const formRef = ref<FormInstance>()
 const searchFilters = reactive<Record<string, any>>({})
@@ -246,7 +295,7 @@ const vxeColumns = computed(() => [
   { field: 'amount', title: '发票金额', width: 120, align: 'right', formatter: ({ cellValue }: any) => `¥${formatAmount(cellValue)}` },
   { field: 'taxAmount', title: '税额', width: 100, align: 'right', formatter: ({ cellValue }: any) => `¥${formatAmount(cellValue)}` },
   { field: 'totalAmount', title: '价税合计', width: 120, align: 'right', formatter: ({ cellValue }: any) => `¥${formatAmount(cellValue)}` },
-  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }: any) => getStatusText(cellValue) },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
   { field: 'action', title: '操作', width: 160, fixed: 'right', type: 'action' }
 ])
 
@@ -284,13 +333,62 @@ function getInvoiceTypeColor(type: string): string { return invoiceTypeColorMap[
 const filterOption = (input: string, option: any) => option.name?.toLowerCase().includes(input.toLowerCase())
 
 const formData = reactive({ id: undefined, invoiceNo: '', invoiceType: undefined, invoiceDate: undefined, customerId: undefined, amount: undefined, taxRate: '13', remark: '', relatedOrders: [], attachments: [] })
+
+// 表单脏数据追踪
+const initialFormSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!modalVisible.value) return false
+  const current = JSON.stringify(formData)
+  return current !== initialFormSnapshot.value
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formData })
+}
+
 const formRules = { invoiceNo: [{ required: true, message: '请输入发票号码' }], invoiceType: [{ required: true, message: '请选择发票类型' }], invoiceDate: [{ required: true, message: '请选择开票日期' }], customerId: [{ required: true, message: '请选择客户' }], amount: [{ required: true, message: '请输入发票金额' }] }
 const customerList = ref([{ id: 1, name: '北京科技有限公司' }, { id: 2, name: '上海贸易公司' }, { id: 3, name: '广州制造企业' }])
 const orderList = ref([{ id: 1, orderNo: 'SO20240115001', amount: '58,000' }, { id: 2, orderNo: 'SO20240115002', amount: '32,500' }, { id: 3, orderNo: 'SO20240114003', amount: '128,000' }])
-const invoiceDetail = ref<any>({})
+// 详情抽屉
+const detailData = ref<any>({})
+const detailLoading = ref(false)
+const detailError = ref(false)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = false
+  try {
+    const res = await invoiceApi.getById(id)
+    detailData.value = res as any
+  } catch (err) {
+    detailError.value = true
+    console.warn('[CRM发票] 获取发票详情失败', err)
+    message.error('获取发票详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = {}
+  detailError.value = false
+}
+
+function handleDetailRefresh() {
+  if (detailData.value.id) {
+    fetchDetail(detailData.value.id)
+  }
+}
 
 const formTaxAmount = computed(() => { const amt = formData.amount || 0; const rate = parseFloat(formData.taxRate) / 100; return amt * rate })
 const formTotalAmount = computed(() => { const amt = formData.amount || 0; return amt + formTaxAmount.value })
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData) }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleParentCreate() { handleAdd() }
 
 onMounted(() => {
   fetchData()
@@ -302,11 +400,17 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchData)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchData)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 async function fetchData(silent = false) {
@@ -349,9 +453,20 @@ function handleResetFilters() {
   fetchData()
 }
 
-function handleView(record: any) { invoiceDetail.value = { ...record, relatedOrders: ['SO20240115001', 'SO20240115002'], remark: record.remark || '' }; detailVisible.value = true }
-function handleEdit(record: any) { modalTitle.value = '编辑发票'; Object.assign(formData, record); modalVisible.value = true }
-function handleAdd() { modalTitle.value = '新建发票'; modalVisible.value = true }
+function handleView(record: any) { fetchDetail(record.id); detailVisible.value = true }
+function handleEdit(record: any) {
+  modalTitle.value = '编辑发票'
+  isEdit.value = true
+  Object.assign(formData, record)
+  modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
+}
+function handleAdd() {
+  modalTitle.value = '新建发票'
+  isEdit.value = false
+  modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
+}
 async function handleIssue(record: any) {
   try { await invoiceApi.updateStatus(record.id, 'ISSUED'); message.success('发票已开具'); fetchData() }
   catch (err) { console.warn('[CRM发票] 开发票失败', err); message.error('开票失败') }
@@ -369,16 +484,39 @@ function handleCancelConfirm(record: any) {
   }})
 }
 
-async function handleSubmit() {
+async function handleSubmit(saveAndNew = false) {
   try { await formRef.value?.validate() } catch (err) { console.warn('[CRM发票] 表单验证失败', err); return }
   submitLoading.value = true
   try {
     await invoiceApi.create(formData)
-    message.success('保存成功'); modalVisible.value = false; fetchData()
+    message.success('保存成功')
+    if (saveAndNew) {
+      isEdit.value = false
+      Object.assign(formData, { id: undefined, invoiceNo: '', invoiceType: undefined, invoiceDate: undefined, customerId: undefined, amount: undefined, taxRate: '13', remark: '', relatedOrders: [], attachments: [] })
+      nextTick(() => saveFormSnapshot())
+    } else {
+      modalVisible.value = false
+      fetchData()
+    }
   } catch (err) { console.warn('[CRM发票] 保存发票失败', err); message.error('保存失败') }
   finally { submitLoading.value = false }
 }
-function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
+
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单内容尚未保存，确定要关闭吗？',
+      onOk: () => { modalVisible.value = false }
+    })
+    return
+  }
+  modalVisible.value = false
+}
+
+function handleFormSaveAndNew() {
+  handleSubmit(true)
+}
 
 function handleExport() {
   const headers = ['发票号码', '发票类型', '客户名称', '开票日期', '发票金额', '税额', '价税合计', '状态', '开票人']
@@ -391,6 +529,20 @@ function handlePageChange(page: number, size: number) { pagination.current = pag
 function handleSortChange(field: string, order: string) { searchFilters.sortField = field; searchFilters.sortOrder = order; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchFilters, filters); pagination.current = 1; fetchData() }
 function handleSelectionChange(rows: any[], ids: any[]) { selectedRowKeys.value = ids }
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单内容尚未保存，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 defineExpose({ handleQuery: fetchData })
 </script>
 <style scoped>
@@ -548,4 +700,21 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-tabs) {
   margin: 0 24px;
 }
+
+/* 让 VxeTableList 填满剩余空间 */
+.vxe-table-list-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

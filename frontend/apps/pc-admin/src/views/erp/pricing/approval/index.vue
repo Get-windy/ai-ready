@@ -17,7 +17,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="loadData">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadData)">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -96,9 +96,17 @@
             :show-export="false"
             :show-batch-delete="false"
             :selectable="false"
+            @cell-dblclick="handleView"
             @refresh="loadData"
             @page-change="handlePageChange"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #priceChange="{ record }">
               <div class="price-change">
                 <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
@@ -128,7 +136,15 @@
             :show-toolbar="false"
             :selectable="false"
             :pagination="false"
+            @cell-dblclick="handleView"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #priceChange="{ record }">
               <div class="price-change">
                 <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
@@ -154,7 +170,15 @@
             :show-toolbar="false"
             :selectable="false"
             :pagination="false"
+            @cell-dblclick="handleView"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #priceChange="{ record }">
               <div class="price-change">
                 <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
@@ -180,7 +204,15 @@
             :show-toolbar="false"
             :selectable="false"
             :pagination="false"
+            @cell-dblclick="handleView"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadData"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #priceChange="{ record }">
               <div class="price-change">
                 <span class="old-price">原价: ¥{{ record.oldPrice }}</span>
@@ -215,6 +247,7 @@
       >
         <a-form-item label="产品" name="productId">
           <a-select
+            size="small"
             v-model:value="applyForm.productId"
             placeholder="请选择产品"
             show-search
@@ -227,6 +260,7 @@
         </a-form-item>
         <a-form-item label="客户" name="customerId">
           <a-select
+            size="small"
             v-model:value="applyForm.customerId"
             placeholder="请选择客户(可选，不选则为通用价格)"
             show-search
@@ -242,7 +276,7 @@
           <span class="current-price">¥{{ currentPrice }}</span>
         </a-form-item>
         <a-form-item label="新价格" name="newPrice">
-          <a-input-number v-model:value="applyForm.newPrice" :min="0" :precision="2" style="width: 100%" />
+          <a-input-number size="small" v-model:value="applyForm.newPrice" :min="0" :precision="2" style="width: 100%" />
         </a-form-item>
         <a-form-item label="价格变动">
           <span :class="{ increase: priceChangeType === 'increase', decrease: priceChangeType === 'decrease' }">
@@ -250,7 +284,7 @@
           </span>
         </a-form-item>
         <a-form-item label="审批类型" name="approvalType">
-          <a-select v-model:value="applyForm.approvalType" placeholder="请选择审批类型">
+          <a-select size="small" v-model:value="applyForm.approvalType" placeholder="请选择审批类型">
             <a-select-option value="price_adjustment">价格调整</a-select-option>
             <a-select-option value="promotion">促销价格</a-select-option>
             <a-select-option value="contract">合同价格</a-select-option>
@@ -258,10 +292,10 @@
           </a-select>
         </a-form-item>
         <a-form-item label="生效时间">
-          <a-range-picker v-model:value="applyForm.effectiveRange" show-time />
+          <a-range-picker size="small" v-model:value="applyForm.effectiveRange" show-time />
         </a-form-item>
         <a-form-item label="申请原因" name="approvalReason">
-          <a-textarea v-model:value="applyForm.approvalReason" placeholder="请输入申请原因" :rows="3" />
+          <a-textarea size="small" v-model:value="applyForm.approvalReason" placeholder="请输入申请原因" :rows="3" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -280,7 +314,7 @@
           <span>¥{{ approveData.oldPrice }} → ¥{{ approveData.newPrice }}</span>
         </a-form-item>
         <a-form-item label="审批备注">
-          <a-textarea v-model:value="approveRemark" placeholder="请输入审批备注(可选)" :rows="2" />
+          <a-textarea size="small" v-model:value="approveRemark" placeholder="请输入审批备注(可选)" :rows="2" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -299,7 +333,7 @@
           <span>¥{{ rejectData.oldPrice }} → ¥{{ rejectData.newPrice }}</span>
         </a-form-item>
         <a-form-item label="拒绝原因">
-          <a-textarea v-model:value="rejectReason" placeholder="请输入拒绝原因" :rows="2" />
+          <a-textarea size="small" v-model:value="rejectReason" placeholder="请输入拒绝原因" :rows="2" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -337,7 +371,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -346,8 +380,25 @@ import { useUserStore } from '@/stores/user'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PRICE_APPROVAL_STATUS } from '@/utils/statusConfig'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleApply(); return }
+}
+
 const userStore = useUserStore()
 const loading = ref(false)
+const hasError = ref(false)
 const submitLoading = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
@@ -357,6 +408,7 @@ const applyVisible = ref(false)
 const approveVisible = ref(false)
 const rejectVisible = ref(false)
 const detailVisible = ref(false)
+const detailLoading = ref(false)
 const applyFormRef = ref<FormInstance>()
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -461,9 +513,10 @@ const loadPendingList = async () => {
     const res = await priceApprovalApi.getPendingList()
     pendingList.value = res.data || []
     pagination.total = pendingList.value.length
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.warn('[价格审批] 加载待审批列表失败', err)
-    message.error('加载待审批列表失败: ' + (err?.message || ''))
+    const msg = err instanceof Error ? err.message : '加载待审批列表失败'
+    message.error('加载待审批列表失败: ' + msg)
   }
 }
 
@@ -500,11 +553,17 @@ const loadMyList = async () => {
 }
 
 const loadData = async () => {
+  hasError.value = false
   loading.value = true
-  await Promise.allSettled([loadStatistics(), loadPendingList(), loadApprovedList(), loadRejectedList(), loadMyList()])
-  loading.value = false
-  refreshLoading.value = false
-  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  try {
+    await Promise.allSettled([loadStatistics(), loadPendingList(), loadApprovedList(), loadRejectedList(), loadMyList()])
+  } catch {
+    hasError.value = true
+  } finally {
+    loading.value = false
+    refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+  }
 }
 
 // Tab 切换时按需刷新
@@ -522,6 +581,8 @@ const handlePageChange = (page: number, size: number) => {
 }
 
 // ── 操作 ────────────────────────────────────────────────
+
+function handleParentCreate() { handleApply() }
 
 const handleApply = () => {
   Object.assign(applyForm, {
@@ -551,9 +612,9 @@ const handleApplySubmit = async () => {
     message.success('价格变更申请已提交')
     applyVisible.value = false
     loadData()
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.warn('[价格审批] 提交申请失败', err)
-    if (err?.message) message.error(err.message)
+    if (err instanceof Error) message.error(err.message)
   } finally {
     submitLoading.value = false
   }
@@ -572,9 +633,10 @@ const handleApproveConfirm = async () => {
     message.success('审批已通过')
     approveVisible.value = false
     loadData()
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.warn('[价格审批] 审批失败', err)
-    message.error('审批失败: ' + (err?.message || ''))
+    const msg = err instanceof Error ? err.message : ''
+    message.error('审批失败: ' + msg)
   }
 }
 
@@ -595,27 +657,31 @@ const handleRejectConfirm = async () => {
     message.success('审批已拒绝')
     rejectVisible.value = false
     loadData()
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.warn('[价格审批] 拒绝审批失败', err)
-    message.error('拒绝审批失败: ' + (err?.message || ''))
+    const msg = err instanceof Error ? err.message : ''
+    message.error('拒绝审批失败: ' + msg)
   }
 }
 
 const handleView = async (record: PriceApproval) => {
+  detailLoading.value = true
+  detailVisible.value = true
   try {
     const res = await priceApprovalApi.getById(record.id)
     detailData.value = res.data || record
   } catch {
     console.warn('[价格审批] 加载详情失败，使用本地数据')
     detailData.value = { ...record, approvalTypeLabel: getApprovalTypeText(record.approvalType) } as PriceApproval
+  } finally {
+    detailLoading.value = false
   }
-  detailVisible.value = true
 }
 
 // ── 辅助 ────────────────────────────────────────────────
 
 const formatDate = (date: string) => date ? date.split('T')[0] : ''
-const filterOption = (input: string, option: any) =>
+const filterOption = (input: string, option: { name?: string }) =>
   option?.name?.toLowerCase?.().includes(input.toLowerCase()) ?? false
 
 const getApprovalTypeText = (type: string) => {
@@ -626,7 +692,10 @@ const getApprovalTypeText = (type: string) => {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
   loadData()
+  window.addEventListener('erp:create', handleParentCreate)
+  window.addEventListener('erp:refresh', loadData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadData()
@@ -638,6 +707,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('erp:create', handleParentCreate)
+  window.removeEventListener('erp:refresh', loadData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -803,5 +875,45 @@ defineExpose({ handleQuery: loadData })
 .decrease {
   color: #3f8600;
   font-weight: 500;
+}
+
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 12px;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-bottom: 16px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

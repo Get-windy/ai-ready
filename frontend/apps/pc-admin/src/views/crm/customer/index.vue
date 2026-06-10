@@ -12,7 +12,7 @@
           <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
           <a-radio-button value="kanban"><AppstoreOutlined /> 看板</a-radio-button>
         </a-radio-group>
-        <a-button size="small" @click="handleRefresh">
+        <a-button size="small" @click="debounceClick('refresh', handleRefresh)">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -92,6 +92,7 @@
           @page-change="handlePageChange"
           @filter-change="handleFilterChange"
           @selection-change="handleSelectionChange"
+          @cell-dblclick="handleView"
           @export="handleExport"
         >
           <template #toolbar-actions>
@@ -110,14 +111,24 @@
 
           <template #empty>
             <div class="table-empty">
-              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-              <InboxOutlined v-else class="table-empty-icon" />
-              <p v-if="hasActiveFilters" class="table-empty-text">
-                没有符合条件的客户，<a @click="handleResetFilters">清除筛选</a>
-              </p>
-              <p v-else class="table-empty-text">
-                暂无客户数据，点击右上角「新增客户」开始创建
-              </p>
+              <template v-if="hasError">
+                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                <p class="table-empty-text">数据加载失败，请重试</p>
+                <a-button type="primary" size="small" @click="fetchData">
+                  <template #icon><ReloadOutlined /></template>
+                  重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+                <InboxOutlined v-else class="table-empty-icon" />
+                <p v-if="hasActiveFilters" class="table-empty-text">
+                  没有符合条件的客户，<a @click="handleResetFilters">清除筛选</a>
+                </p>
+                <p v-else class="table-empty-text">
+                  暂无客户数据，点击右上角「新增客户」开始创建
+                </p>
+              </template>
             </div>
           </template>
 
@@ -215,44 +226,46 @@
       </template>
     </ErrorBoundary>
 
-    <!-- 客户表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <!-- 全屏详情抽屉（新建/编辑客户） -->
+    <FullScreenDetail
+      :visible="modalVisible"
       :title="modalTitle"
-      :confirm-loading="modalLoading"
-      width="700px"
-      @ok="handleModalOk"
+      :save-loading="modalLoading"
+      :show-save-and-new="!isEdit"
+      @close="handleFormClose"
+      @save="handleModalOk"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="客户名称" name="name">
-              <a-input v-model:value="formState.name" placeholder="请输入客户名称" />
+              <a-input v-model:value="formState.name" placeholder="请输入客户名称" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="客户编码" name="code">
-              <a-input v-model:value="formState.code" placeholder="请输入客户编码" />
+              <a-input v-model:value="formState.code" placeholder="请输入客户编码" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="联系人" name="contactPerson">
-              <a-input v-model:value="formState.contactPerson" placeholder="请输入联系人" />
+              <a-input v-model:value="formState.contactPerson" placeholder="请输入联系人" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="联系电话" name="phone">
-              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" />
+              <a-input v-model:value="formState.phone" placeholder="请输入联系电话" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="邮箱" name="email">
-              <a-input v-model:value="formState.email" placeholder="请输入邮箱" />
+              <a-input v-model:value="formState.email" placeholder="请输入邮箱" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="客户等级" name="level">
-              <a-select v-model:value="formState.level" placeholder="请选择等级">
+              <a-select v-model:value="formState.level" placeholder="请选择等级" size="small">
                 <a-select-option :value="1">VIP客户</a-select-option>
                 <a-select-option :value="2">重要客户</a-select-option>
                 <a-select-option :value="3">普通客户</a-select-option>
@@ -262,7 +275,7 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="行业" name="industry">
-              <a-select v-model:value="formState.industry" placeholder="请选择行业">
+              <a-select v-model:value="formState.industry" placeholder="请选择行业" size="small">
                 <a-select-option value="IT">IT/互联网</a-select-option>
                 <a-select-option value="制造业">制造业</a-select-option>
                 <a-select-option value="金融">金融</a-select-option>
@@ -282,17 +295,17 @@
           </a-col>
           <a-col :span="24">
             <a-form-item label="地址" name="address" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-input v-model:value="formState.address" placeholder="请输入地址" />
+              <a-input v-model:value="formState.address" placeholder="请输入地址" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="24">
             <a-form-item label="备注" name="description" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formState.description" placeholder="请输入备注" :rows="3" />
+              <a-textarea v-model:value="formState.description" placeholder="请输入备注" :rows="3" size="small" />
             </a-form-item>
           </a-col>
         </a-row>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 跟进记录弹窗 -->
     <a-modal
@@ -304,7 +317,7 @@
     >
       <a-form :model="followForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="跟进类型" required>
-          <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型">
+          <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型" size="small">
             <a-select-option :value="1">电话</a-select-option>
             <a-select-option :value="2">拜访</a-select-option>
             <a-select-option :value="3">邮件</a-select-option>
@@ -313,17 +326,17 @@
           </a-select>
         </a-form-item>
         <a-form-item label="跟进内容" required>
-          <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="4" />
+          <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="4" size="small" />
         </a-form-item>
         <a-form-item label="跟进结果">
-          <a-select v-model:value="followForm.result" placeholder="请选择跟进结果">
+          <a-select v-model:value="followForm.result" placeholder="请选择跟进结果" size="small">
             <a-select-option :value="1">有意向</a-select-option>
             <a-select-option :value="2">无意向</a-select-option>
             <a-select-option :value="3">待跟进</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="下次跟进时间">
-          <a-date-picker v-model:value="followForm.nextFollowTime" style="width: 100%" />
+          <a-date-picker v-model:value="followForm.nextFollowTime" style="width: 100%" size="small" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -371,20 +384,36 @@
         <template #requiredCell="{ record }">
           <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
         </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '正常' : '停用' }}</a-tag>
+          </template>
       </VxeTableList>
     </a-modal>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { customerApi, type CustomerInfo } from '@/api/customer'
+
+// ── 防抖工具 ──────────────────────────────────────────
+function handleError(err: any) { console.warn('[CRM客户]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 import { useUserStore } from '@/stores/user'
 import { exportCsv } from '@/utils/exportCsv'
 import {
@@ -409,7 +438,8 @@ import {
   FileTextOutlined,
   SolutionOutlined,
   PhoneOutlined,
-  HomeOutlined
+  HomeOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 
 const userStore = useUserStore()
@@ -465,7 +495,7 @@ const vxeColumns = computed(() => [
   { field: 'phone', title: '联系电话', width: 120 },
   { field: 'level', title: '客户等级', width: 100, align: 'center', formatter: ({ cellValue }: any) => getLevelName(cellValue) },
   { field: 'industry', title: '行业', width: 100 },
-  { field: 'status', title: '状态', width: 80, align: 'center', formatter: ({ cellValue }: any) => cellValue === 0 ? '正常' : '停用' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { field: 'action', title: '操作', width: 160, fixed: 'right', type: 'action' }
 ])
@@ -612,6 +642,30 @@ const formRules = {
   phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }]
 }
 
+// ── 表单脏状态跟踪 ──────────────────────────────────────
+const initialFormSnapshot = ref<string>('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formState })
+}
+const formDirty = computed(() => {
+  if (!modalVisible.value) return false
+  return JSON.stringify({ ...formState }) !== initialFormSnapshot.value
+})
+
+// ── 路由离开守卫 ─────────────────────────────────────────
+onBeforeRouteLeave((_to, _from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的内容，确定离开吗？',
+      onOk: () => { next() },
+      onCancel: () => { next(false) },
+    })
+  } else {
+    next()
+  }
+})
+
 const followModalVisible = ref(false)
 const followModalLoading = ref(false)
 const currentCustomerId = ref(0)
@@ -624,6 +678,7 @@ function handleAdd() {
     address: '', level: 3, industry: '', status: 0, description: ''
   })
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleAddToLevel(level: number) {
@@ -633,12 +688,39 @@ function handleAddToLevel(level: number) {
     address: '', level, industry: '', status: 0, description: ''
   })
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleEdit(record: any) {
   isEdit.value = true
   Object.assign(formState, record)
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
+}
+
+function handleFormClose() {
+  if (formRef.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定关闭吗？',
+      onOk: () => { modalVisible.value = false }
+    })
+  } else {
+    modalVisible.value = false
+  }
+}
+
+async function handleFormSaveAndNew() {
+  await handleModalOk()
+  if (!modalLoading.value) {
+    Object.assign(formState, {
+      id: 0, name: '', code: '', contactPerson: '', phone: '', email: '',
+      address: '', level: 3, industry: '', status: 0, description: ''
+    })
+    isEdit.value = false
+    modalVisible.value = true
+    nextTick(() => saveFormSnapshot())
+  }
 }
 
 function handleFollow(record: any) {
@@ -809,13 +891,35 @@ watch(currentView, (val) => {
   }
 })
 
+function handleParentCreate() { handleAdd() }
+
+// ── 快捷键 ──────────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)
+    return
+  }
+  if (e.ctrlKey && e.key === 'n') {
+    e.preventDefault()
+    debounceClick('add', handleAdd)
+    return
+  }
+}
+
 onMounted(() => {
   fetchData()
   startAutoRefresh()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchData)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchData)
 })
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -1049,4 +1153,25 @@ defineExpose({ handleQuery: fetchData })
 
 
 
+/* 让 VxeTableList 填满剩余空间 */
+.vxe-table-list-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

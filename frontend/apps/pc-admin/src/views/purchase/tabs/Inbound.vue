@@ -49,6 +49,7 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
     >
       <template #batch-actions>
@@ -60,14 +61,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的入库单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无入库单数据，点击右上角「新建入库」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的入库单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无入库单数据，点击右上角「新建入库」开始创建
+            </p>
+          </template>
         </div>
       </template>
 
@@ -88,13 +98,21 @@
               <template #icon><ImportOutlined /></template>
             </a-button>
           </a-tooltip>
+          <PrintButton
+            template-type="inbound"
+            :business-id="record.id"
+            business-type="purchase_inbound"
+            button-text=""
+            button-size="small"
+            button-type="link"
+            tooltip="打印"
+          />
           <a-dropdown trigger="click">
             <a-button type="link" size="small" class="action-more-btn">
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
               <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item key="print"><PrinterOutlined /> 打印</a-menu-item>
                 <a-menu-divider />
                 <a-menu-item key="delete" v-if="record.status === 0" danger><DeleteOutlined /> 删除</a-menu-item>
               </a-menu>
@@ -111,10 +129,20 @@
       placement="right"
       width="80vw"
       class="inbound-detail-drawer"
+      @close="handleDetailClose"
     >
       <template #extra>
         <a-space>
-          <a-button size="small" @click="handlePrint"><PrinterOutlined /> 打印</a-button>
+          <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
+          <PrintButton
+            template-type="inbound"
+            :business-id="currentRecord?.id"
+            business-type="purchase_inbound"
+            button-text="打印"
+            button-size="small"
+          />
           <a-button v-if="currentRecord?.status === 1" type="primary" size="small" @click="handleConfirmFromDetail">
             <template #icon><ImportOutlined /></template>
             确认入库
@@ -122,42 +150,51 @@
         </a-space>
       </template>
 
-      <a-descriptions bordered :column="2" size="small" v-if="currentRecord">
-        <a-descriptions-item label="入库单号">
-          <span class="inbound-no">{{ currentRecord.inboundNo }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="关联订单">
-          <a @click="handleViewOrder(currentRecord)" class="order-link">{{ currentRecord.orderNo }}</a>
-        </a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="入库日期">{{ currentRecord.inboundDate }}</a-descriptions-item>
-        <a-descriptions-item label="入库金额">
-          <span class="amount-cell">¥{{ formatAmount(currentRecord.totalAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="创建人">{{ currentRecord.creatorName }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '无' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 10 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small">
+            <a-descriptions-item label="入库单号">
+              <span class="inbound-no">{{ detailData.inboundNo }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="关联订单">
+              <a @click="handleViewOrder(detailData)" class="order-link">{{ detailData.orderNo }}</a>
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+            <a-descriptions-item label="入库日期">{{ detailData.inboundDate }}</a-descriptions-item>
+            <a-descriptions-item label="入库金额">
+              <span class="amount-cell">¥{{ formatAmount(detailData.totalAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建人">{{ detailData.creatorName }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+          </a-descriptions>
 
-      <a-divider>入库明细</a-divider>
-      <VxeTableList
-        :columns="detailItemColumns"
-        :data-source="detailItems"
-        :pagination="false"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-      >
-        <template #amountCell="{ record }">
-          <span class="amount-cell">¥{{ formatAmount(record.actualQty * record.unitPrice) }}</span>
+          <a-divider>入库明细</a-divider>
+          <VxeTableList
+            :columns="detailItemColumns"
+            :data-source="detailItems"
+            :pagination="false"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #amountCell="{ record }">
+              <span class="amount-cell">¥{{ formatAmount(record.actualQty * record.unitPrice) }}</span>
+            </template>
+          </VxeTableList>
         </template>
-      </VxeTableList>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建入库弹窗 -->
@@ -191,14 +228,14 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="仓库" name="warehouseId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-select v-model:value="formData.warehouseId" placeholder="请选择入库仓库">
+              <a-select v-model:value="formData.warehouseId" size="small" placeholder="请选择入库仓库">
                 <a-select-option v-for="w in warehouseList" :key="w.id" :value="w.id">{{ w.name }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="入库日期" name="inboundDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-date-picker v-model:value="formData.inboundDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.inboundDate" size="small" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="24">
@@ -261,18 +298,30 @@ import {
   InboxOutlined,
   EllipsisOutlined,
   ImportOutlined,
-  PrinterOutlined,
   ClockCircleOutlined,
-  DollarOutlined
+  DollarOutlined,
+  WarningOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inboundApi } from '@/api/erp'
 import { optionsApi } from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const selectedRowKeys = ref<number[]>([])
@@ -299,7 +348,7 @@ const vxeColumns = computed(() => [
   { title: '供应商', field: 'supplierName', width: 140 },
   { title: '入库日期', field: 'inboundDate', width: 110 },
   { title: '金额', field: 'totalAmount', width: 130, align: 'right', formatter: ({ cellValue }) => `¥${formatAmount(cellValue)}` },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建人', field: 'creatorName', width: 100 },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 140, fixed: 'right' }
@@ -328,6 +377,10 @@ function formatAmount(amount: number): string {
 // 详情弹窗
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 const detailItems = ref<any[]>([])
 
 const detailItemColumns = [
@@ -423,23 +476,61 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    hasError.value = false
   } catch (e) {
     console.warn('[采购入库] 获取列表失败', e)
     message.error('获取入库单列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally {
     loading.value = false
   }
 }
 
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await inboundApi.getById(id) as any
+    const data = (res as any).data ?? res
+    detailData.value = data
+    detailItems.value = data.items || []
+  } catch (err: any) {
+    console.warn('[采购入库] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+    detailItems.value = []
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 function handleView(record: any) {
-  currentRecord.value = { ...record, items: record.items || [] }
-  detailItems.value = currentRecord.value.items || []
+  currentRecord.value = record
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+  detailItems.value = []
+}
+
+function handleDetailRefresh() {
+  if (detailRecord.value?.id) fetchDetail(detailRecord.value.id)
 }
 
 function handleViewOrder(record: any) {
-  message.info(`查看采购订单: ${record.orderNo}`)
+  if (record.orderNo) {
+    // 通过路由跳转到关联的采购订单详情
+    const matchedOrder = dataSource.value.find(d => d.orderNo === record.orderNo)
+    if (matchedOrder?.orderId) {
+      window.dispatchEvent(new CustomEvent('purchase:view-order', { detail: { orderNo: record.orderNo } }))
+    }
+  }
 }
 
 function handleAdd() {
@@ -476,9 +567,6 @@ function handleResetFilters() {
 
 function handleActionMenuClick(key: string, record: any) {
   switch (key) {
-    case 'print':
-      message.info(`打印入库单: ${record.inboundNo}`)
-      break
     case 'delete':
       handleDelete(record)
       break
@@ -549,12 +637,6 @@ function handleConfirmFromDetail() {
   if (currentRecord.value) {
     handleConfirm(currentRecord.value)
     detailVisible.value = false
-  }
-}
-
-function handlePrint() {
-  if (currentRecord.value?.inboundNo) {
-    message.info(`打印入库单: ${currentRecord.value.inboundNo}`)
   }
 }
 
@@ -634,7 +716,7 @@ function handleFilterChange(filters: Record<string, any>) {
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
-    handleAdd()
+    debounceClick('add', handleAdd)
   }
 }
 
@@ -660,6 +742,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-inbound-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -758,5 +846,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

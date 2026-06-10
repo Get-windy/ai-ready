@@ -23,7 +23,7 @@
     <div class="filter-area">
       <a-form layout="inline">
         <a-form-item label="报表月份">
-          <a-month-picker v-model:value="queryParams.month" format="YYYY-MM" value-format="YYYY-MM" />
+          <a-month-picker v-model:value="queryParams.month" format="YYYY-MM" value-format="YYYY-MM" size="small" />
         </a-form-item>
         <a-form-item>
           <a-button type="primary" @click="handleGenerate" :loading="loading">生成报表</a-button>
@@ -46,9 +46,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import request from '@/utils/request'
+import * as XLSX from 'xlsx'
 
 interface CashFlowStatement {
   operatingCashFlow: number; investingCashFlow: number; financingCashFlow: number; netIncrease: number; beginningCash: number; endingCash: number
@@ -66,17 +67,58 @@ const handleGenerate = async () => {
   if (!queryParams.month) { message.warning('请选择报表月份'); return }
   loading.value = true
   try {
-    const res = await request.get('/finance/report/cash-flow', { params: { period: queryParams.month } })
-    cashFlow.value = (res as any)?.data || cashFlow.value
+    const res = await request.post('/finance/statement/cash-flow-statement/generate', null, { params: { period: queryParams.month } })
+    if ((res as any)?.code === 200 && (res as any)?.data) {
+      const { data } = (res as any)
+      cashFlow.value = {
+        operatingCashFlow: data.operatingCashFlow || 0,
+        investingCashFlow: data.investingCashFlow || 0,
+        financingCashFlow: data.financingCashFlow || 0,
+        netIncrease: data.netIncrease || 0,
+        beginningCash: data.beginningCash || 0,
+        endingCash: data.endingCash || 0
+      }
+    }
     message.success('报表生成成功')
   } catch (err: any) {
-    message.error(err?.message || '报表生成失败')
+    message.warning('报表生成接口暂不可用，可尝试生成其他报表')
   } finally { loading.value = false }
 }
 
 const handleExport = () => {
-  message.info('导出功能开发中')
+  const data = cashFlow.value
+  if (!data.operatingCashFlow && !data.endingCash) {
+    message.warning('暂无数据可导出，请先生成报表')
+    return
+  }
+  const ws = XLSX.utils.json_to_sheet([
+    { '项目': '经营活动现金流', '金额': data.operatingCashFlow },
+    { '项目': '投资活动现金流', '金额': data.investingCashFlow },
+    { '项目': '筹资活动现金流', '金额': data.financingCashFlow },
+    { '项目': '现金净增加额', '金额': data.netIncrease },
+    { '项目': '期初现金余额', '金额': data.beginningCash },
+    { '项目': '期末现金余额', '金额': data.endingCash }
+  ])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '现金流量表')
+  XLSX.writeFile(wb, `现金流量表_${queryParams.month || 'unknown'}.xlsx`)
+  message.success('导出成功')
 }
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+onMounted(() => {
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', handleGenerate)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', handleGenerate)
+})
 
 defineExpose({})
 </script>

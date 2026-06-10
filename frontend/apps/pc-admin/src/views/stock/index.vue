@@ -11,10 +11,15 @@
         </div>
         <div class="stock-header-right">
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <span v-if="autoRefreshCountdown > 0 && autoRefreshEnabled" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+          <a-tooltip v-else-if="!autoRefreshEnabled" title="连续失败后自动刷新已暂停">
+            <span class="auto-refresh-badge auto-refresh-badge--paused">
+              <SyncOutlined /> 暂停
+            </span>
+          </a-tooltip>
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -23,15 +28,28 @@
     </template>
 
     <div class="stock-module">
-      <!-- 统计卡片 -->
+      <!-- 统计卡片：加载态 -->
       <template v-if="loading">
-        <div class="stat-cards" style="margin-bottom: 16px;">
+        <div class="stat-cards">
           <a-card v-for="i in 4" :key="i" :bordered="false" class="stat-skeleton">
             <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" />
           </a-card>
         </div>
       </template>
-      <div v-else class="stat-cards" style="margin-bottom: 16px;">
+      <!-- 统计卡片：错误态 -->
+      <template v-else-if="statError">
+        <div class="stat-cards">
+          <a-result status="warning" title="统计数据加载失败" sub-title="部分数据可能未更新">
+            <template #extra>
+              <a-button size="small" @click="initialLoadStats">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+          </a-result>
+        </div>
+      </template>
+      <!-- 统计卡片：正常态 -->
+      <div v-else class="stat-cards">
         <div class="stat-card stat-blue">
           <div class="stat-card-icon"><DatabaseOutlined /></div>
           <div class="stat-card-content">
@@ -110,6 +128,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -125,15 +144,28 @@ import {
 } from '@ant-design/icons-vue'
 import { hasPermission } from '@/utils/permission'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const router = useRouter()
 const route = useRoute()
 
 const VALID_TABS = ['stock', 'inbound', 'outbound', 'check', 'transfer', 'batch'] as const
 const activeTab = ref<string>('stock')
-const loading = ref(false)
+const loading = ref(true)
 const refreshLoading = ref(false)
+const statError = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
+const autoRefreshEnabled = ref(true)
+let consecutiveErrors = 0
 
 // Tab 引用
 const stockRef = ref()
@@ -165,6 +197,35 @@ function handleTabChange(key: string) {
   router.replace({ query: { ...route.query, tab: key } })
 }
 
+async function initialLoadStats() {
+  loading.value = true
+  statError.value = false
+  try {
+    // 尝试从各 tab 组件获取统计数据
+    const refMap: Record<string, any> = {
+      stock: stockRef.value,
+      inbound: inboundRef.value,
+      outbound: outboundRef.value,
+      batch: batchRef.value
+    }
+    const promises = Object.entries(refMap).map(([key, ref]) => {
+      if (ref?.fetchData) {
+        return ref.fetchData().catch(() => {
+          console.warn(`[库存管理] ${key} tab 初始加载失败`)
+          return null
+        })
+      }
+      return Promise.resolve()
+    })
+    await Promise.allSettled(promises)
+    statError.value = false
+  } catch {
+    statError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
 function handleRefresh() {
   refreshLoading.value = true
 
@@ -185,6 +246,21 @@ function handleRefresh() {
 
   lastUpdateTime.value = dayjs().format('HH:mm:ss')
   refreshLoading.value = false
+}
+
+function onTabFetchError() {
+  consecutiveErrors++
+  if (consecutiveErrors >= 3) {
+    autoRefreshEnabled.value = false
+    console.warn('[库存管理] 连续 3 次加载失败，自动刷新已停止')
+  }
+  statError.value = true
+}
+
+function onTabFetchSuccess() {
+  consecutiveErrors = 0
+  statError.value = false
+  lastUpdateTime.value = dayjs().format('HH:mm:ss')
 }
 
 function updateStockCount(count: number) {
@@ -214,16 +290,20 @@ function handleKeydown(e: KeyboardEvent) {
   // F5 刷新
   if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
-    handleRefresh()
+    message.info({ content: '正在刷新数据...', key: 'refresh-hint', duration: 1 })
+    debounceClick('refresh', handleRefresh)
+    return
   }
   // Ctrl+N 新建
   if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
+    message.info({ content: '触发新建操作', key: 'create-hint', duration: 1 })
     window.dispatchEvent(new CustomEvent('stock:create'))
   }
   // Ctrl+F 筛选
   if ((e.ctrlKey || e.metaKey) && e.key === 'f' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
+    message.info({ content: '打开筛选面板', key: 'filter-hint', duration: 1 })
     window.dispatchEvent(new CustomEvent('stock:filter'))
   }
 }
@@ -242,13 +322,29 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   initActiveTab()
   lastUpdateTime.value = dayjs().format('HH:mm:ss')
+  initialLoadStats()
+
   autoRefreshCountdown.value = 30
   autoRefreshTimer = setInterval(() => {
-    lastUpdateTime.value = dayjs().format('HH:mm:ss')
+    if (!autoRefreshEnabled.value) return
+    const refMap: Record<string, any> = {
+      stock: stockRef.value, inbound: inboundRef.value,
+      outbound: outboundRef.value, check: checkRef.value,
+      transfer: transferRef.value, batch: batchRef.value
+    }
+    const currentRef = refMap[activeTab.value]
+    if (currentRef?.fetchData) {
+      currentRef.fetchData().then(() => {
+        lastUpdateTime.value = dayjs().format('HH:mm:ss')
+        consecutiveErrors = 0
+      }).catch(() => {
+        onTabFetchError()
+      })
+    }
     autoRefreshCountdown.value = 30
   }, 30000)
   countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+    if (autoRefreshCountdown.value > 0 && autoRefreshEnabled.value) autoRefreshCountdown.value--
   }, 1000)
 
   window.addEventListener('popstate', handlePopState)
@@ -310,6 +406,12 @@ onUnmounted(() => {
   user-select: none;
 }
 
+.auto-refresh-badge--paused {
+  color: #e6a23c;
+  background: #fdf6ec;
+  cursor: help;
+}
+
 .stock-module {
   flex: 1;
   display: flex;
@@ -336,6 +438,7 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   flex-shrink: 0;
+  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -455,5 +558,21 @@ onUnmounted(() => {
   .stat-card {
     flex: 1 1 45%;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

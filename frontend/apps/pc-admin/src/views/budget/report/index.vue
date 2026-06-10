@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadAllData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadAllData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -59,10 +59,10 @@
         <div class="search-area">
           <a-form layout="inline">
             <a-form-item label="年度">
-              <a-input-number v-model:value="fiscalYear" :min="2020" :max="2099" style="width: 120px" />
+              <a-input-number v-model:value="fiscalYear" :min="2020" :max="2099" style="width: 120px" size="small" />
             </a-form-item>
             <a-form-item>
-              <a-button type="primary" @click="loadAllData">查询</a-button>
+              <a-button type="primary" @click="debounceClick('query', loadAllData)">查询</a-button>
             </a-form-item>
           </a-form>
         </div>
@@ -123,22 +123,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined,
-  SyncOutlined, ReloadOutlined
+  SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import { budgetReportApi } from '@/api/budget'
 import * as echarts from 'echarts'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const fiscalYear = ref(new Date().getFullYear())
 const summary = ref<any>({})
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -200,11 +211,13 @@ const initCharts = () => {
 }
 
 const loadAllData = async () => {
+  hasError.value = false
   // Summary
   try {
     const res = await budgetReportApi.executionSummary(fiscalYear.value)
     if (res.success) summary.value = res.data
   } catch {
+    hasError.value = true
     console.warn('[预算报表] 加载汇总数据失败')
     summary.value = {}
   }
@@ -274,11 +287,29 @@ const handleResize = () => {
   trendChart?.resize()
 }
 
+function handleParentCreate() { handleAdd() }
+
+function handleAdd() {
+  // Report page: no inline create action
+}
+
+// ── 快捷键 ──────────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', loadAllData)
+    return
+  }
+}
+
 onMounted(() => {
-  setTimeout(() => {
+  window.addEventListener('budget:create', handleParentCreate)
+  window.addEventListener('budget:refresh', loadAllData)
+  document.addEventListener('keydown', handleKeydown)
+  nextTick(() => {
     initCharts()
     loadAllData()
-  }, 100)
+  })
   window.addEventListener('resize', handleResize)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -291,6 +322,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('budget:create', handleParentCreate)
+  window.removeEventListener('budget:refresh', loadAllData)
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
   window.removeEventListener('resize', handleResize)
@@ -405,6 +439,22 @@ defineExpose({ handleQuery: loadAllData })
 .rate-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.report-management :deep(.ant-input-sm),
+.report-management :deep(.ant-input-number-sm),
+.report-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.report-management :deep(.ant-picker-small),
+.report-management :deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+.report-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+.report-management :deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 
 /* 响应式 */

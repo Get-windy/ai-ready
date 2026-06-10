@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+          <PrintButton business-type="fixed_asset_category" button-type="link" button-size="small" tooltip="打印分类" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)()" v-permission="'erp:fixed-asset:category:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -24,6 +25,17 @@
     </template>
 
     <div class="category-list-page">
+      <!-- 错误态 -->
+      <template v-if="hasError && !refreshLoading">
+        <a-result status="error" title="加载失败" sub-title="获取分类数据时发生错误">
+          <template #extra>
+            <a-button size="small" type="primary" @click="fetchTree">重新加载</a-button>
+          </template>
+        </a-result>
+      </template>
+
+      <!-- 正常内容 -->
+      <template v-else>
       <!-- 统计卡片 -->
       <div class="stat-cards">
         <div class="stat-card stat-total">
@@ -53,7 +65,7 @@
         <a-col :span="10">
           <a-card title="分类树" class="category-card">
             <template #extra>
-              <a-button type="primary" size="small" @click="showAddRootModal">添加根分类</a-button>
+              <a-button type="primary" size="small" @click="showAddRootModal" v-permission="'erp:fixed-asset:category:create'">添加根分类</a-button>
             </template>
             <a-tree
               v-if="treeData.length > 0"
@@ -76,9 +88,9 @@
                 <a-descriptions-item label="描述">{{ selectedCategory.description }}</a-descriptions-item>
               </a-descriptions>
               <a-space style="margin-top: 16px">
-                <a-button type="primary" @click="showEditModal">编辑</a-button>
-                <a-button @click="showAddChildModal">添加子分类</a-button>
-                <a-popconfirm title="确认删除?" @confirm="handleDelete">
+                <a-button type="primary" @click="showEditModal" v-permission="'erp:fixed-asset:category:update'">编辑</a-button>
+                <a-button @click="showAddChildModal" v-permission="'erp:fixed-asset:category:create'">添加子分类</a-button>
+                <a-popconfirm title="确认删除?" @confirm="handleDelete" v-permission="'erp:fixed-asset:category:delete'">
                   <a-button danger>删除</a-button>
                 </a-popconfirm>
               </a-space>
@@ -89,47 +101,52 @@
       </a-row>
 
       <!-- Category Form Modal -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="modalTitle"
-        @ok="handleModalOk"
-        :confirmLoading="modalLoading"
+        @save="handleModalOk"
+        :save-loading="modalLoading"
+        :show-save-and-new="!isEdit"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
           <a-form-item label="分类编码">
-            <a-input v-model:value="formData.categoryCode" placeholder="分类编码" />
+            <a-input v-model:value="formData.categoryCode" placeholder="分类编码" size="small" />
           </a-form-item>
           <a-form-item label="分类名称" required>
-            <a-input v-model:value="formData.categoryName" placeholder="分类名称" />
+            <a-input v-model:value="formData.categoryName" placeholder="分类名称" size="small" />
           </a-form-item>
           <a-form-item label="排序">
-            <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" />
+            <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" size="small" />
           </a-form-item>
           <a-form-item label="默认折旧方法">
-            <a-select v-model:value="formData.defaultDepreciationMethod" placeholder="选择折旧方法">
+            <a-select v-model:value="formData.defaultDepreciationMethod" placeholder="选择折旧方法" size="small">
               <a-select-option value="straight_line">直线法</a-select-option>
               <a-select-option value="double_declining">双倍余额递减法</a-select-option>
               <a-select-option value="sum_of_years">年数总和法</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item label="默认使用年限(月)">
-            <a-input-number v-model:value="formData.defaultUsefulLife" :min="1" style="width: 100%" />
+            <a-input-number v-model:value="formData.defaultUsefulLife" :min="1" style="width: 100%" size="small" />
           </a-form-item>
           <a-form-item label="描述">
-            <a-textarea v-model:value="formData.description" :rows="2" />
+            <a-textarea v-model:value="formData.description" :rows="2" size="small" />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
+      </template>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { fixedAssetCategoryApi } from '@/api/fixed-asset'
-import { message } from 'ant-design-vue'
-import { FolderOutlined, ApartmentOutlined, ClusterOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { message, Modal } from 'ant-design-vue'
+import { FolderOutlined, ApartmentOutlined, ClusterOutlined, SyncOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { PageContainer, FullScreenDetail } from '@/components'
 
 interface Category {
   id: number
@@ -153,6 +170,7 @@ const editId = ref<number | null>(null)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -175,6 +193,17 @@ const maxDepth = computed(() => {
   return getDepth(treeData.value)
 })
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
+// ── 表单数据 ────────────────────────────────────────────
 const formData = reactive({
   categoryCode: '',
   categoryName: '',
@@ -183,6 +212,28 @@ const formData = reactive({
   defaultDepreciationMethod: 'straight_line',
   defaultUsefulLife: 60,
   description: '',
+})
+
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formData) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formData) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
 })
 
 const methodMap: Record<string, string> = {
@@ -195,8 +246,29 @@ const modalTitle = computed(() => {
   return '添加根分类'
 })
 
+function handleParentCreate() {
+  showAddRootModal()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault()
+    debounceClick('refresh', fetchTree)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    showAddRootModal()
+  }
+}
+
 onMounted(() => {
   fetchTree()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('fixed-asset:create', handleParentCreate)
+  window.addEventListener('fixed-asset:refresh', fetchTree)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTree()
@@ -208,23 +280,29 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
+  window.removeEventListener('fixed-asset:refresh', fetchTree)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
 
 defineExpose({ handleQuery: fetchTree })
 
-function fetchTree() {
+async function fetchTree() {
+  hasError.value = false
   refreshLoading.value = true
-  fixedAssetCategoryApi.getTree().then((res: any) => {
+  try {
+    const res = await fixedAssetCategoryApi.getTree()
     treeData.value = res.data || []
-  }).catch(() => {
+  } catch {
+    hasError.value = true
     console.warn('[分类管理] 加载分类树失败')
     message.error('加载分类树失败')
-  }).finally(() => {
+  } finally {
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     refreshLoading.value = false
-  })
+  }
 }
 
 function onSelect(keys: any[], info: any) {
@@ -253,6 +331,7 @@ function showAddRootModal() {
     description: '',
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function showAddChildModal() {
@@ -270,6 +349,7 @@ function showAddChildModal() {
     description: '',
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function showEditModal() {
@@ -279,6 +359,7 @@ function showEditModal() {
   editId.value = selectedCategory.value.id
   Object.assign(formData, selectedCategory.value)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function handleModalOk() {
@@ -298,6 +379,24 @@ function handleModalOk() {
   }).finally(() => {
     modalLoading.value = false
   })
+}
+
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false },
+    })
+  } else {
+    modalVisible.value = false
+  }
+}
+
+function handleFormSaveAndNew() {
+  handleModalOk()
 }
 
 function handleDelete() {
@@ -426,4 +525,12 @@ function handleDelete() {
     min-width: 120px;
   }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

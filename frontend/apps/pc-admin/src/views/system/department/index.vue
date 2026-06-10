@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchTreeData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTreeData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -95,6 +95,7 @@
             <a-button
               type="primary"
               :loading="submittingLoading"
+              v-permission="'department:create'"
               @click="handleAddRoot"
             >
               <template #icon>
@@ -159,13 +160,14 @@
     </a-card>
 
     <!-- 部门表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <FullScreenDetail
+      :visible="modalVisible"
       :title="modalTitle"
-      :confirm-loading="submittingLoading"
-      width="600px"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
+      :save-loading="submittingLoading"
+      :show-save-and-new="!isEdit"
+      @save="handleModalOk"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form
         ref="formRef"
@@ -215,6 +217,7 @@
           <a-select
             v-model:value="formState.leaderId"
             placeholder="请选择负责人"
+            size="small"
             allow-clear
             show-search
             :filter-option="filterLeaderOption"
@@ -281,7 +284,7 @@
           </a-radio-group>
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 右键菜单 -->
     <a-dropdown
@@ -291,22 +294,23 @@
       <div class="context-menu-placeholder" />
       <template #overlay>
         <a-menu @click="handleContextMenuClick as any">
-          <a-menu-item key="add">
+          <a-menu-item key="add" v-permission="'department:create'">
             <PlusOutlined /> 新增子部门
           </a-menu-item>
-          <a-menu-item key="edit">
+          <a-menu-item key="edit" v-permission="'department:edit'">
             <EditOutlined /> 编辑部门
           </a-menu-item>
           <a-menu-item key="move">
             <DragOutlined /> 移动部门
           </a-menu-item>
           <a-menu-divider />
-          <a-menu-item key="toggle-status">
+          <a-menu-item key="toggle-status" v-permission="'department:edit'">
             <StopOutlined /> {{ contextMenuNode?.status === 0 ? '停用' : '启用' }}
           </a-menu-item>
           <a-menu-item
             key="delete"
             danger
+            v-permission="'department:delete'"
           >
             <DeleteOutlined /> 删除部门
           </a-menu-item>
@@ -318,11 +322,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-// TreeDropEvent type removed - using any for compatibility
 import {
   PlusOutlined,
   TeamOutlined,
@@ -338,9 +342,10 @@ import {
   CheckCircleOutlined,
   UserOutlined,
   ReloadOutlined,
-  SyncOutlined
+  SyncOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { userApi, type UserInfo } from '@/api/user'
 import { useSubmitLock } from '@/composables'
@@ -353,8 +358,19 @@ const router = useRouter()
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -440,6 +456,28 @@ const formState = reactive<Partial<DepartmentInfo>>({
   status: 0
 })
 
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formState) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formState) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
+})
+
 const formRules = {
   departmentName: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
   departmentCode: [{ required: true, message: '请输入部门编码', trigger: 'blur' }]
@@ -458,6 +496,7 @@ const contextMenuNode = ref<DepartmentInfo | null>(null)
 // 数据加载
 const fetchTreeData = async () => {
   treeLoading.value = true
+  hasError.value = false
   try {
     const res = await departmentApi.getTree({ tenantId: userStore.tenantId })
     if (res.data) {
@@ -466,6 +505,7 @@ const fetchTreeData = async () => {
       expandedKeys.value = getAllNodeIds(res.data)
     }
   } catch (error) {
+    hasError.value = true
     console.warn('[部门管理] 加载部门数据失败', error)
     message.error('加载部门数据失败')
   } finally {
@@ -556,6 +596,7 @@ const handleAddRoot = () => {
     status: 0
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 拖拽处理
@@ -624,6 +665,7 @@ const handleAddChild = (parentNode: DepartmentInfo) => {
     status: 0
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 编辑部门
@@ -631,6 +673,7 @@ const handleEdit = (node: DepartmentInfo) => {
   isEdit.value = true
   Object.assign(formState, node)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 提交表单
@@ -659,9 +702,23 @@ const handleModalOk = async () => {
   }
 }
 
-const handleModalCancel = () => {
-  modalVisible.value = false
-  formRef.value?.resetFields()
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false; formRef.value?.resetFields() },
+    })
+  } else {
+    modalVisible.value = false
+    formRef.value?.resetFields()
+  }
+}
+
+const handleFormSaveAndNew = () => {
+  handleModalOk()
 }
 
 // 切换状态
@@ -713,10 +770,25 @@ const handleRightClick = ({ node }: any, event: MouseEvent) => {
   contextMenuVisible.value = true
 }
 
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchTreeData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    handleAddRoot()
+  }
+}
+
 onMounted(() => {
   fetchTreeData()
   fetchParentTreeData()
   fetchLeaderList()
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTreeData()
@@ -729,6 +801,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -869,4 +942,12 @@ defineExpose({ handleQuery: fetchTreeData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

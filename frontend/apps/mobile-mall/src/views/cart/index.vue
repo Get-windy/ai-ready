@@ -15,13 +15,13 @@ const handleQuantityChange = (id: string, quantity: number) => {
   cartStore.updateQuantity(id, quantity)
 }
 
-const handleRemoveItem = (id: string) => {
-  Dialog.confirm({
+const handleRemoveItem = async (id: string) => {
+  const confirmed = await Dialog.confirm({
     title: '提示',
     message: '确定要删除该商品吗？'
-  }).then(() => {
-    cartStore.removeItem(id)
-  }).catch((err) => { console.error('删除商品操作失败:', err) })
+  }).catch(() => false)
+  if (!confirmed) return
+  cartStore.removeItem(id)
 }
 
 const handleCheckout = () => {

@@ -1,39 +1,42 @@
 package cn.aiedge.erp.b2b.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * 收货地址
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@Entity
-@Table(name = "mall_address")
+@TableName("mall_address")
 public class MallAddress extends BaseEntity {
 
-    @Column(name = "customer_id", length = 64, nullable = false)
-    private String customerId;
+    @TableField("customer_id")
+    private Long customerId;
 
-    @Column(name = "consignee", length = 50, nullable = false)
+    @TableField("consignee")
     private String consignee;
 
-    @Column(name = "phone", length = 20, nullable = false)
+    @TableField("phone")
     private String phone;
 
-    @Column(name = "province", length = 50)
+    @TableField("province")
     private String province;
 
-    @Column(name = "city", length = 50)
+    @TableField("city")
     private String city;
 
-    @Column(name = "district", length = 50)
+    @TableField("district")
     private String district;
 
-    @Column(name = "detail_address", length = 500)
+    @TableField("detail_address")
     private String detailAddress;
 
-    @Column(name = "is_default")
+    @TableField("is_default")
     private Boolean isDefault = false;
 
-    @Column(name = "label", length = 50)
+    @TableField("label")
     private String label;
 }

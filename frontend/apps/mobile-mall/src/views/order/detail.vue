@@ -2,14 +2,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NavBar, Steps, Step, Cell, CellGroup, Card, Button, Tag, Image, showLoadingToast, closeToast } from 'vant'
-import { api } from '@/api'
+import { api, type OrderInfo, type LogisticsItem } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
 
 const orderId = route.params.id as string
-const order = ref<any>(null)
-const logistics = ref<any[]>([])
+const order = ref<OrderInfo | null>(null)
+const logistics = ref<LogisticsItem[]>([])
 
 const statusMap = {
   pending: { label: '待付款', color: '#ff976a' },
@@ -26,9 +26,15 @@ onMounted(async () => {
     order.value = res.data
     
     if (order.value.status === 'shipped' || order.value.status === 'completed') {
-      const logisticsRes = await api.order.track(orderId)
-      logistics.value = logisticsRes.data || []
+      try {
+        const logisticsRes = await api.order.track(orderId)
+        logistics.value = logisticsRes.data || []
+      } catch (err) {
+        console.warn('[订单详情] 加载物流失败', err)
+      }
     }
+  } catch (err) {
+    console.warn('[订单详情] 加载订单失败', err)
   } finally {
     closeToast()
   }
@@ -54,7 +60,8 @@ const handleCancel = async () => {
     await api.order.cancel(orderId)
     closeToast()
     router.back()
-  } finally {
+  } catch (err) {
+    console.warn('[订单详情] 取消订单失败', err)
     closeToast()
   }
 }
@@ -65,7 +72,8 @@ const handleConfirmReceive = async () => {
     await api.order.confirm(orderId)
     closeToast()
     loadOrder()
-  } finally {
+  } catch (err) {
+    console.warn('[订单详情] 确认收货失败', err)
     closeToast()
   }
 }

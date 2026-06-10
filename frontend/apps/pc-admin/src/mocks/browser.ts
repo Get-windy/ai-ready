@@ -187,7 +187,7 @@ export function initMockServer(): void {
 
   if (!useMocks) {
     if (import.meta.env.DEV) {
-      console.log('[MockServer] 未启用 (VITE_USE_MOCKS / VITE_FEATURE_MOCK_API 不为 true)')
+      console.warn('[MockServer] 未启用 (VITE_USE_MOCKS / VITE_FEATURE_MOCK_API 不为 true)')
     }
     return
   }
@@ -207,7 +207,7 @@ export function initMockServer(): void {
   resetUserStore()
 
   isActive = true
-  console.log(
+  console.warn(
     `[MockServer] 已激活 — ${handlers.length} 个处理程序已注册 (${handlers.map((h) => `${h.method} ${h.path}`).join(', ')})`
   )
 
@@ -291,7 +291,7 @@ function setupAxiosMock() {
       return config
     })
 
-    console.log(`[MockServer] Axios 拦截器已安装 (id=${axiosInterceptorId})`)
+    console.warn(`[MockServer] Axios 拦截器已安装 (id=${axiosInterceptorId})`)
   } catch (e) {
     console.warn('[MockServer] 无法安装 Axios 拦截器，仅支持 fetch:', e)
   }
@@ -316,7 +316,7 @@ export function stopMockServer(): void {
     axiosInterceptorId = null
   }
 
-  console.log('[MockServer] 已停止，已恢复原始 fetch 和 Axios 拦截器')
+  console.warn('[MockServer] 已停止，已恢复原始 fetch 和 Axios 拦截器')
 }
 
 /**

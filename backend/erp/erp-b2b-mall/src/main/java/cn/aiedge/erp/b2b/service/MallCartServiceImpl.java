@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,15 +26,24 @@ public class MallCartServiceImpl implements MallCartService {
     private final MallCartMapper mallCartMapper;
     private final MallProductMapper mallProductMapper;
 
+    /** 获取当前登录用户的租户ID */
+    private Long getTenantId() {
+        // tenant_id 从 Sa-Token 会话中获取，在登录时存入
+        Object tid = StpUtil.getSession().get("tenantId");
+        return tid instanceof Number ? ((Number) tid).longValue() : 0L;
+    }
+
     @Override
     public List<CartDTO> getCart() {
         log.info("获取购物车");
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         List<MallCart> cartItems = mallCartMapper.selectList(
                 new LambdaQueryWrapper<MallCart>()
                         .eq(MallCart::getCustomerId, customerId)
-                        .eq(MallCart::getDeleted, false)
+                        .eq(MallCart::getTenantId, tenantId)
+                        .eq(MallCart::getDeleted, 0)
         );
 
         return cartItems.stream().map(this::convertToDTO).collect(Collectors.toList());
@@ -45,13 +53,14 @@ public class MallCartServiceImpl implements MallCartService {
     @Transactional
     public CartDTO addToCart(CartAddRequest request) {
         log.info("添加购物车: productId={}, quantity={}", request.getProductId(), request.getQuantity());
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         // Check if product exists
         MallProduct product = mallProductMapper.selectOne(
                 new LambdaQueryWrapper<MallProduct>()
                         .eq(MallProduct::getProductId, request.getProductId())
-                        .eq(MallProduct::getDeleted, false)
+                        .eq(MallProduct::getDeleted, 0)
         );
         if (product == null) {
             throw BusinessException.notFound("商品不存在: " + request.getProductId());
@@ -62,19 +71,20 @@ public class MallCartServiceImpl implements MallCartService {
                 new LambdaQueryWrapper<MallCart>()
                         .eq(MallCart::getCustomerId, customerId)
                         .eq(MallCart::getProductId, request.getProductId())
-                        .eq(MallCart::getDeleted, false)
+                        .eq(MallCart::getTenantId, tenantId)
+                        .eq(MallCart::getDeleted, 0)
         );
 
         if (existing != null) {
             existing.setQuantity(existing.getQuantity() + request.getQuantity());
             existing.setSubtotal(existing.getPrice().multiply(BigDecimal.valueOf(existing.getQuantity())));
-            existing.setUpdatedAt(LocalDateTime.now());
             mallCartMapper.updateById(existing);
             return convertToDTO(existing);
         }
 
         MallCart cart = new MallCart();
         cart.setCustomerId(customerId);
+        cart.setTenantId(tenantId);
         cart.setProductId(request.getProductId());
         cart.setProductName(product.getProductName());
         cart.setProductImage(product.getImageUrl());
@@ -82,8 +92,6 @@ public class MallCartServiceImpl implements MallCartService {
         cart.setQuantity(request.getQuantity());
         cart.setSubtotal(product.getSalePrice().multiply(BigDecimal.valueOf(request.getQuantity())));
         cart.setChecked(true);
-        cart.setCreatedAt(LocalDateTime.now());
-        cart.setUpdatedAt(LocalDateTime.now());
 
         mallCartMapper.insert(cart);
         return convertToDTO(cart);
@@ -100,7 +108,6 @@ public class MallCartServiceImpl implements MallCartService {
 
         cart.setQuantity(request.getQuantity());
         cart.setSubtotal(cart.getPrice().multiply(BigDecimal.valueOf(request.getQuantity())));
-        cart.setUpdatedAt(LocalDateTime.now());
 
         mallCartMapper.updateById(cart);
         return convertToDTO(cart);
@@ -114,8 +121,7 @@ public class MallCartServiceImpl implements MallCartService {
         if (cart == null) {
             throw BusinessException.notFound("购物车项不存在: " + id);
         }
-        cart.setDeleted(true);
-        cart.setUpdatedAt(LocalDateTime.now());
+        cart.setDeleted(1);
         mallCartMapper.updateById(cart);
     }
 
@@ -123,17 +129,18 @@ public class MallCartServiceImpl implements MallCartService {
     @Transactional
     public void clearCart() {
         log.info("清空购物车");
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         List<MallCart> cartItems = mallCartMapper.selectList(
                 new LambdaQueryWrapper<MallCart>()
                         .eq(MallCart::getCustomerId, customerId)
-                        .eq(MallCart::getDeleted, false)
+                        .eq(MallCart::getTenantId, tenantId)
+                        .eq(MallCart::getDeleted, 0)
         );
 
         for (MallCart item : cartItems) {
-            item.setDeleted(true);
-            item.setUpdatedAt(LocalDateTime.now());
+            item.setDeleted(1);
             mallCartMapper.updateById(item);
         }
     }
@@ -141,12 +148,14 @@ public class MallCartServiceImpl implements MallCartService {
     @Override
     public void checkStock() {
         log.info("检查库存");
-        String customerId = StpUtil.getLoginIdAsString();
+        Long customerId = StpUtil.getLoginIdAsLong();
+        Long tenantId = getTenantId();
 
         List<MallCart> cartItems = mallCartMapper.selectList(
                 new LambdaQueryWrapper<MallCart>()
                         .eq(MallCart::getCustomerId, customerId)
-                        .eq(MallCart::getDeleted, false)
+                        .eq(MallCart::getTenantId, tenantId)
+                        .eq(MallCart::getDeleted, 0)
                         .eq(MallCart::getChecked, true)
         );
 
@@ -154,10 +163,11 @@ public class MallCartServiceImpl implements MallCartService {
             MallProduct product = mallProductMapper.selectOne(
                     new LambdaQueryWrapper<MallProduct>()
                             .eq(MallProduct::getProductId, item.getProductId())
+                            .eq(MallProduct::getTenantId, tenantId)
             );
             if (product != null && product.getStockQuantity() < item.getQuantity()) {
-                throw BusinessException.badRequest("商品库存不足: " + item.getProductName() +
-                        ", 库存: " + product.getStockQuantity() + ", 需要: " + item.getQuantity());
+                throw BusinessException.badRequest("商品库存不足: " + item.getProductName()
+                        + ", 库存: " + product.getStockQuantity() + ", 需要: " + item.getQuantity());
             }
         }
     }

@@ -9,6 +9,7 @@ import cn.aiedge.erp.fixedasset.repository.FixedAssetRepository;
 import cn.aiedge.erp.fixedasset.service.FixedAssetReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FixedAssetReportServiceImpl implements FixedAssetReportService {
 
     private final FixedAssetRepository fixedAssetRepository;
@@ -29,10 +31,14 @@ public class FixedAssetReportServiceImpl implements FixedAssetReportService {
     @Override
     public List<Map<String, Object>> getDepreciationSummary(String year) {
         String yearStr = (year != null) ? year : String.valueOf(LocalDate.now().getYear());
-        List<FixedAssetDepreciation> records = depreciationRepository.findAll();
+        List<FixedAssetDepreciation> records = depreciationRepository.findAll().stream()
+            .filter(r -> !r.isDeleted())
+            .collect(Collectors.toList());
 
         // Group by period (month)
-        List<FixedAsset> allAssets = fixedAssetRepository.findAll();
+        List<FixedAsset> allAssets = fixedAssetRepository.findAll().stream()
+            .filter(a -> !a.isDeleted())
+            .collect(Collectors.toList());
         BigDecimal totalOriginalValue = allAssets.stream()
             .map(a -> a.getOriginalValue() != null ? a.getOriginalValue() : BigDecimal.ZERO)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -76,11 +82,17 @@ public class FixedAssetReportServiceImpl implements FixedAssetReportService {
     public List<Map<String, Object>> getAssetLedger(String assetCode, String departmentId) {
         List<FixedAsset> assets;
         if (assetCode != null && !assetCode.isBlank()) {
-            assets = fixedAssetRepository.findByAssetCode(assetCode).stream().collect(Collectors.toList());
+            assets = fixedAssetRepository.findByAssetCode(assetCode)
+                .filter(a -> !a.isDeleted())
+                .map(List::of).orElseGet(List::of);
         } else if (departmentId != null && !departmentId.isBlank()) {
-            assets = fixedAssetRepository.findByDepartmentId(departmentId);
+            assets = fixedAssetRepository.findByDepartmentId(departmentId).stream()
+                .filter(a -> !a.isDeleted())
+                .collect(Collectors.toList());
         } else {
-            assets = fixedAssetRepository.findAll();
+            assets = fixedAssetRepository.findAll().stream()
+                .filter(a -> !a.isDeleted())
+                .collect(Collectors.toList());
         }
 
         return assets.stream().map(a -> {
@@ -103,7 +115,9 @@ public class FixedAssetReportServiceImpl implements FixedAssetReportService {
 
     @Override
     public List<Map<String, Object>> getAgeAnalysis() {
-        List<FixedAsset> assets = fixedAssetRepository.findAll();
+        List<FixedAsset> assets = fixedAssetRepository.findAll().stream()
+            .filter(a -> !a.isDeleted())
+            .collect(Collectors.toList());
         LocalDate now = LocalDate.now();
 
         List<Map<String, Object>> ageGroups = new ArrayList<>();
@@ -155,8 +169,12 @@ public class FixedAssetReportServiceImpl implements FixedAssetReportService {
 
     @Override
     public List<Map<String, Object>> getCategorySummary() {
-        List<FixedAsset> assets = fixedAssetRepository.findAll();
-        List<FixedAssetCategory> categories = categoryRepository.findAll();
+        List<FixedAsset> assets = fixedAssetRepository.findAll().stream()
+            .filter(a -> !a.isDeleted())
+            .collect(Collectors.toList());
+        List<FixedAssetCategory> categories = categoryRepository.findAll().stream()
+            .filter(c -> !c.isDeleted())
+            .collect(Collectors.toList());
 
         Map<Long, String> categoryMap = categories.stream()
             .collect(Collectors.toMap(FixedAssetCategory::getId, FixedAssetCategory::getCategoryName));

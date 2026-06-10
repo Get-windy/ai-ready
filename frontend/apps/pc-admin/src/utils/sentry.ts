@@ -113,7 +113,7 @@ export async function initSentry(app: App, router?: Router): Promise<void> {
   // 未配置 DSN 时跳过
   if (!dsn || dsn === '' || dsn === 'VITE_SENTRY_DSN_PLACEHOLDER') {
     if (import.meta.env.DEV) {
-      console.log('[Sentry] DSN 未配置，跳过初始化。请在 .env.development 中设置 VITE_SENTRY_DSN')
+      console.warn('[Sentry] DSN 未配置，跳过初始化。请在 .env.development 中设置 VITE_SENTRY_DSN')
     }
     return
   }
@@ -236,7 +236,7 @@ export async function initSentry(app: App, router?: Router): Promise<void> {
     Sentry.setTag('environment', environment)
 
     sentryInitialized = true
-    console.log(`[Sentry] 初始化完成 (env: ${environment}, release: ${release})`)
+    console.warn(`[Sentry] 初始化完成 (env: ${environment}, release: ${release})`)
   } catch (error) {
     console.warn('[Sentry] 初始化失败（SDK 可能未安装，运行 pnpm add @sentry/vue）:', error)
     sentryInitialized = false

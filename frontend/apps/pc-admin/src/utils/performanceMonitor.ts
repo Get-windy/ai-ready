@@ -43,7 +43,7 @@ export function trackPageLoad(): void {
     // 开发环境控制台输出
     if (import.meta.env.DEV) {
       const formattedValue = unit === 'score' ? value.toFixed(4) : `${Math.round(value)}${unit}`
-      console.log(`[WebVitals] ${metric}: ${formattedValue}`)
+      console.warn(`[WebVitals] ${metric}: ${formattedValue}`)
     }
   }
 
@@ -216,7 +216,7 @@ export function trackUserAction(
   addSentryBreadcrumb(action, data, 'user-action')
 
   if (import.meta.env.DEV) {
-    console.log(`[UserAction] ${action}`, data || '')
+    console.warn(`[UserAction] ${action}`, data || '')
   }
 }
 
@@ -267,7 +267,7 @@ export function setupRouteTracking(router: Router): void {
     }
 
     if (import.meta.env.DEV) {
-      console.log(`[Route] ${fromPath} → ${toPath} (${duration}ms)`)
+      console.warn(`[Route] ${fromPath} → ${toPath} (${duration}ms)`)
     }
   })
 
@@ -315,7 +315,7 @@ export function trackCustomMetric(
   unit: string = 'ms'
 ): void {
   if (import.meta.env.DEV) {
-    console.log(`[Metric] ${name}: ${value}${unit}`)
+    console.warn(`[Metric] ${name}: ${value}${unit}`)
   }
 
   addSentryBreadcrumb(

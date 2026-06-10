@@ -4,7 +4,12 @@
     <div v-if="showToolbar" class="table-toolbar">
       <div class="toolbar-left">
         <a-space>
-          <a-button v-if="showAdd" type="primary" @click="emit('add')">
+          <a-button
+            v-if="showAdd && (!addPermission || hasPermission(addPermission))"
+            ref="addBtnRef"
+            type="primary"
+            @click="debounceClick('add', () => emit('add'))"
+          >
             <template #icon><PlusOutlined /></template>
             {{ addText }}
           </a-button>
@@ -13,7 +18,7 @@
       </div>
       <div class="toolbar-right">
         <a-space>
-          <a-tooltip title="筛选面板">
+          <a-tooltip title="筛选面板 (Ctrl+F)">
             <a-button
               :type="showFilterPanel ? 'primary' : 'default'"
               size="small"
@@ -24,6 +29,7 @@
             </a-button>
           </a-tooltip>
           <a-input-search
+            ref="searchInputRef"
             v-if="showSearch"
             v-model:value="searchKeyword"
             :placeholder="searchPlaceholder"
@@ -32,13 +38,13 @@
             allow-clear
             @search="handleSearch"
           />
-          <a-tooltip title="刷新">
-            <a-button size="small" @click="emit('refresh')">
+          <a-tooltip title="刷新 (F5)">
+            <a-button size="small" @click="debounceClick('refresh', () => emit('refresh'))">
               <template #icon><ReloadOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="showExport" title="导出">
-            <a-button size="small" @click="emit('export')">
+          <a-tooltip v-if="showExport && (!exportPermission || hasPermission(exportPermission))" title="导出">
+            <a-button size="small" @click="debounceClick('export', () => emit('export'))">
               <template #icon><ExportOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -90,14 +96,14 @@
     </div>
 
     <!-- 批量操作栏 -->
-    <div v-if="selectedRows.length > 0" class="batch-bar">
+    <div v-if="realSelectedRows.length > 0" class="batch-bar">
       <a-space>
-        <span class="batch-info">已选择 {{ selectedRows.length }} 项</span>
-        <a-button v-if="showBatchDelete" danger size="small" @click="handleBatchDelete">
+        <span class="batch-info">已选择 {{ realSelectedRows.length }} 项</span>
+        <a-button v-if="showBatchDelete && (!deletePermission || hasPermission(deletePermission))" danger size="small" @click="handleBatchDelete">
           <template #icon><DeleteOutlined /></template>
           批量删除
         </a-button>
-        <slot name="batch-actions" :selected-rows="selectedRows" />
+        <slot name="batch-actions" :selected-rows="realSelectedRows" />
         <a-button type="link" size="small" @click="clearSelection">取消选择</a-button>
       </a-space>
     </div>
@@ -130,13 +136,19 @@
       @checkbox-all="handleCheckboxAll"
       @sort-change="handleSortChange"
       @cell-click="handleCellClick"
+      @cell-dblclick="handleCellDblClick"
     >
       <!-- 列定义：使用 v-for + v-bind 替代 :columns 动态 prop -->
       <vxe-column
         v-for="col in vxeColumns"
         :key="col.field || col.type"
         v-bind="col"
-      />
+      >
+        <!-- 数值列右对齐 + 等宽数字 -->
+        <template v-if="col.align === 'right'" #default="{ row, column }">
+          <span class="cell-number">{{ row[col.field] ?? '-' }}</span>
+        </template>
+      </vxe-column>
 
       <!-- 操作列插槽 -->
       <template #action_default="{ row, $rowIndex }">
@@ -185,6 +197,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, type PropType } from 'vue'
+import { message, Modal } from 'ant-design-vue'
 
 import {
   PlusOutlined,
@@ -195,6 +208,16 @@ import {
   InboxOutlined,
 } from '@ant-design/icons-vue'
 import type { VxeTableInstance, VxeTablePropTypes } from 'vxe-table'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 // ========== Props ==========
 const props = defineProps({
@@ -223,6 +246,14 @@ const props = defineProps({
 
   // 默认排序
   defaultSort: { type: Object as PropType<{ field: string; order: string }>, default: undefined },
+
+  // 权限标识
+  addPermission: { type: String, default: '' },
+  deletePermission: { type: String, default: '' },
+  exportPermission: { type: String, default: '' },
+
+  // 空行填充（表格数据不足时填充空白行以保持视觉完整）
+  minEmptyRows: { type: Number, default: 20 },
 })
 
 const emit = defineEmits<{
@@ -239,14 +270,20 @@ const emit = defineEmits<{
   'sort-change': [field: string, order: string]
   'filter-change': [filters: Record<string, any>]
   'cell-click': [record: any, column: any]
+  'cell-dblclick': [record: any, column: any]
 }>()
 
 // ========== State ==========
 const tableRef = ref<VxeTableInstance>()
+const searchInputRef = ref<any>(null)
+const addBtnRef = ref<any>(null)
 const searchKeyword = ref('')
 const showFilterPanel = ref(false)
 const selectedRows = ref<any[]>([])
 const filterValues = reactive<Record<string, any>>({})
+
+// 过滤掉空行后的真实选中行
+const realSelectedRows = computed(() => selectedRows.value.filter(r => !r.__empty_row))
 
 // 分页
 const currentPage = ref(props.pagination?.current || 1)
@@ -353,8 +390,8 @@ const tableData = computed(() => {
     deduped.push(item)
   }
 
-  // 空行填充（最少 20 行以保证表格视觉完整）
-  const minRows = 20
+  // 空行填充（保证表格视觉完整）
+  const minRows = props.minEmptyRows
   const emptyCount = Math.max(0, minRows - deduped.length)
   for (let i = 0; i < emptyCount; i++) {
     deduped.push({
@@ -380,8 +417,8 @@ const footerMethod = computed<VxeTablePropTypes.FooterMethod>(() => {
       } else if (index === (props.selectable ? 1 : 0)) {
         row.push('合计')
       } else {
-        // 查找对应的汇总数据
-        const summaryItem = props.summaryData?.find((s: any) => s.label && col.field)
+        // 查找对应的汇总数据（按列标题匹配）
+        const summaryItem = props.summaryData?.find((s: any) => s.label === col.title)
         if (summaryItem) {
           if (summaryItem.type === 'currency') {
             row.push(`¥${Number(summaryItem.value).toFixed(2)}`)
@@ -426,13 +463,15 @@ function handlePageChange(page: number, size: number) {
 }
 
 function handleCheckboxChange({ records }: any) {
-  selectedRows.value = records
-  emit('selection-change', records, records.map(r => r[props.rowKey]))
+  const real = records.filter((r: any) => !r.__empty_row)
+  selectedRows.value = real
+  emit('selection-change', real, real.map(r => r[props.rowKey]))
 }
 
 function handleCheckboxAll({ records }: any) {
-  selectedRows.value = records
-  emit('selection-change', records, records.map(r => r[props.rowKey]))
+  const real = records.filter((r: any) => !r.__empty_row)
+  selectedRows.value = real
+  emit('selection-change', real, real.map(r => r[props.rowKey]))
 }
 
 function handleSortChange({ property, order }: any) {
@@ -447,9 +486,38 @@ function handleCellClick({ row, column }: any) {
   }
 }
 
+function handleCellDblClick({ row, column }: any) {
+  if (!row.__empty_row) {
+    emit('cell-dblclick', row, column)
+  }
+}
+
+function hasPermission(permission: string): boolean {
+  // 如果未传入权限标识，默认允许
+  if (!permission) return true
+  // 尝试从全局权限列表中检查（需项目已注入 $permissions）
+  const app = (window as any).__app?.config?.globalProperties
+  if (app?.$permissions) {
+    return app.$permissions.includes(permission)
+  }
+  // 若无权限系统，默认放行
+  return true
+}
+
 function handleBatchDelete() {
-  if (selectedRows.value.length === 0) return
-  emit('batch-delete', selectedRows.value.map(r => r[props.rowKey]))
+  if (realSelectedRows.value.length === 0) return
+  const count = realSelectedRows.value.length
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除选中的 ${count} 项吗？此操作不可撤销。`,
+    okText: '确认删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: () => {
+      emit('batch-delete', realSelectedRows.value.map(r => r[props.rowKey]))
+      message.success(`已删除 ${count} 项`)
+    },
+  })
 }
 
 function clearSelection() {
@@ -489,10 +557,37 @@ function updateTableHeight() {
   })
 }
 
+// ========== 键盘快捷键 ==========
+function handleKeydown(e: KeyboardEvent) {
+  // Ctrl+F / F3 → 聚焦搜索框
+  if ((e.ctrlKey && e.key === 'f') || e.key === 'F3') {
+    e.preventDefault()
+    if (searchInputRef.value) {
+      searchInputRef.value.focus()
+    }
+    return
+  }
+  // Ctrl+N → 新增
+  if (e.ctrlKey && e.key === 'n') {
+    e.preventDefault()
+    if (props.showAdd && (!props.addPermission || hasPermission(props.addPermission))) {
+      debounceClick('add', () => emit('add'))
+    }
+    return
+  }
+  // F5 → 刷新
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', () => emit('refresh'))
+    return
+  }
+}
+
 // ========== 暴露方法 ==========
 defineExpose({
   clearSelection,
   selectedRows,
+  searchKeyword,
   getTableRef: () => tableRef.value,
   refresh: () => emit('refresh'),
 })
@@ -515,6 +610,9 @@ onMounted(() => {
       filterValues[f.key] = f.defaultValue ?? undefined
     }
   })
+
+  // 键盘快捷键
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
@@ -522,6 +620,7 @@ onUnmounted(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 // 监听分页变化
@@ -711,7 +810,7 @@ watch(() => props.pagination, (p) => {
   background: #f5f5f5 !important;
   font-weight: 600 !important;
   padding: 5px 10px !important;
-  border-top: 2px solid #d9d9d9 !important;
+  border-top: 2px solid #b0b0b0 !important;
   border-right: 1px solid #e0e0e0 !important;
 }
 
@@ -719,4 +818,10 @@ watch(() => props.pagination, (p) => {
   border-left: 1px solid #e0e0e0 !important;
 }
 
+/* 等宽数字（数值列） */
+.cell-number {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 </style>

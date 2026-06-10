@@ -38,6 +38,7 @@ public class PositionController {
 
     @Operation(summary = "获取岗位列表")
     @GetMapping("/list")
+    @RequiresPermission("position:list")
     public ApiResponse<List<PositionVO>> list() {
         return ApiResponse.ok(positionService.listAll());
     }
@@ -99,6 +100,7 @@ public class PositionController {
 
     @Operation(summary = "根据部门获取岗位")
     @GetMapping("/dept/{deptId}")
+    @RequiresPermission("position:list")
     public ApiResponse<List<PositionVO>> getByDeptId(@PathVariable Long deptId) {
         return ApiResponse.ok(positionService.getByDeptId(deptId));
     }

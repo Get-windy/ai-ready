@@ -4,6 +4,7 @@ import cn.aiedge.finance.dto.*;
 import cn.aiedge.finance.service.IFinancialStatementService;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/finance/statement")
 @Tag(name = "财务报表管理", description = "财务报表相关操作接口")
+@SaCheckLogin
 public class FinancialStatementController {
 
     private final IFinancialStatementService financialStatementService;

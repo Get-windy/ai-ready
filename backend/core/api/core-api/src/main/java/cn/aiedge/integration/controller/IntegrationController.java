@@ -2,6 +2,7 @@ package cn.aiedge.integration.controller;
 
 import cn.aiedge.integration.model.*;
 import cn.aiedge.integration.service.IntegrationService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/integration")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "系统集成", description = "第三方系统集成和数据同步")
 public class IntegrationController {
 

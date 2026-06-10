@@ -16,7 +16,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -138,6 +139,16 @@ import {
 } from '@ant-design/icons-vue'
 import { purchaseStatsApi } from '@/api/erp'
 import { hasPermission } from '@/utils/permission'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -185,11 +196,12 @@ async function fetchStats() {
   statsError.value = false
   try {
     const res = await purchaseStatsApi.get()
-    const data = res.data
-    orderCount.value = data?.totalOrders ?? data?.monthOrderCount ?? 0
-    inquiryCount.value = data?.pendingInquiryCount ?? 0
-    inboundCount.value = data?.pendingInboundCount ?? 0
-    paymentCount.value = data?.pendingPaymentCount ?? 0
+    const data = res.data || {}
+    orderCount.value = data.totalOrders ?? 0
+    // backend returns: status_0=draft, status_1=pending, status_4=completed, etc.
+    inquiryCount.value = (data.status_1 || 0) + (data.status_0 || 0)  // 待审批+草稿
+    inboundCount.value = data.status_2 || 0  // 已审批待入库
+    paymentCount.value = data.status_3 || 0  // 待付款
   } catch (err) {
     statsError.value = true
     console.warn('[采购] 加载统计数据失败', err)
@@ -237,7 +249,7 @@ function handleKeydown(e: KeyboardEvent) {
   // F5 刷新
   if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
     e.preventDefault()
-    handleRefresh()
+    debounceClick('refresh', handleRefresh)
   }
   // Ctrl+N 新建
   if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
@@ -487,5 +499,21 @@ defineExpose({ handleQuery: handleRefresh })
   .stat-card {
     flex: 1 1 45%;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

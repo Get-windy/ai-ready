@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAsset;
@@ -9,17 +10,21 @@ import cn.aiedge.erp.fixedasset.repository.FixedAssetRepository;
 import cn.aiedge.erp.fixedasset.service.FixedAssetService;
 import cn.aiedge.erp.fixedasset.service.depreciation.DepreciationContext;
 import cn.hutool.core.util.IdUtil;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +52,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
             asset.setNetValue(asset.getOriginalValue());
         }
         asset.setAccumulatedDepreciation(BigDecimal.ZERO);
+        asset.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         asset = fixedAssetRepository.save(asset);
         return toDTO(asset);
     }
@@ -57,6 +63,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
         FixedAsset asset = fixedAssetRepository.findById(id)
             .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
         updateEntity(asset, dto);
+        asset.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         asset = fixedAssetRepository.save(asset);
         return toDTO(asset);
     }
@@ -67,6 +74,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
         FixedAsset asset = fixedAssetRepository.findById(id)
             .orElseThrow(() -> BusinessException.notFound("固定资产不存在: " + id));
         asset.markAsDeleted();
+        asset.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         fixedAssetRepository.save(asset);
     }
 
@@ -80,18 +88,36 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Override
     public Page<FixedAssetDTO> getPage(String assetCode, String assetName, Long categoryId, String status,
                                        String departmentId, String keyword, Pageable pageable) {
-        // For production, use Specification. For simplicity, use findAll with Pageable.
-        // In a real project, replace with JpaSpecificationExecutor.
-        Page<FixedAsset> page;
-        if (assetCode != null || assetName != null || categoryId != null || status != null
-            || departmentId != null || keyword != null) {
-            // Use repository with filters via custom query methods
-            // For this implementation, we fetch all and filter in memory
-            // In production, implement proper specification query
-            page = fixedAssetRepository.findAll(pageable);
-        } else {
-            page = fixedAssetRepository.findAll(pageable);
-        }
+        Specification<FixedAsset> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("deleted"), false));
+            if (StringUtils.hasText(assetCode)) {
+                predicates.add(cb.like(root.get("assetCode"), "%" + assetCode + "%"));
+            }
+            if (StringUtils.hasText(assetName)) {
+                predicates.add(cb.like(root.get("assetName"), "%" + assetName + "%"));
+            }
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("categoryId"), categoryId));
+            }
+            if (StringUtils.hasText(status)) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (StringUtils.hasText(departmentId)) {
+                predicates.add(cb.equal(root.get("departmentId"), departmentId));
+            }
+            if (StringUtils.hasText(keyword)) {
+                String pattern = "%" + keyword + "%";
+                predicates.add(cb.or(
+                    cb.like(root.get("assetCode"), pattern),
+                    cb.like(root.get("assetName"), pattern),
+                    cb.like(root.get("brand"), pattern),
+                    cb.like(root.get("specification"), pattern)
+                ));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<FixedAsset> page = fixedAssetRepository.findAll(spec, pageable);
         return page.map(this::toDTO);
     }
 
@@ -124,6 +150,7 @@ public class FixedAssetServiceImpl implements FixedAssetService {
         asset.setAccumulatedDepreciation(result.get("accumulatedDepreciation"));
         asset.setNetValue(result.get("netValue"));
         asset.setMonthlyDepreciation(result.get("periodAmount"));
+        asset.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         asset = fixedAssetRepository.save(asset);
 
         return toDTO(asset);
@@ -148,10 +175,10 @@ public class FixedAssetServiceImpl implements FixedAssetService {
     @Override
     public Map<String, Object> getStatistics() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalCount", fixedAssetRepository.count());
-        stats.put("activeCount", fixedAssetRepository.countByStatus("active"));
-        stats.put("draftCount", fixedAssetRepository.countByStatus("draft"));
-        stats.put("disposedCount", fixedAssetRepository.countByStatus("disposed"));
+        stats.put("totalCount", fixedAssetRepository.countNotDeleted());
+        stats.put("activeCount", fixedAssetRepository.countByStatusAndNotDeleted("active"));
+        stats.put("draftCount", fixedAssetRepository.countByStatusAndNotDeleted("draft"));
+        stats.put("disposedCount", fixedAssetRepository.countByStatusAndNotDeleted("disposed"));
         stats.put("totalOriginalValue", fixedAssetRepository.sumOriginalValue());
         stats.put("totalNetValue", fixedAssetRepository.sumNetValue());
         stats.put("totalAccumulatedDepreciation", fixedAssetRepository.sumAccumulatedDepreciation());

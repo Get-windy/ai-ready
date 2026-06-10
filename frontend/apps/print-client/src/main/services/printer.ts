@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import Store from 'electron-store'
+import { renderTemplateToHtml, TemplateJson } from './formatEngine'
 
 interface PrinterInfo {
   name: string
@@ -14,15 +15,11 @@ interface PrintOptions {
   silent?: boolean
   printBackground?: boolean
   color?: boolean
-  margins?: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
+  margins?: { top: number; bottom: number; left: number; right: number }
   pageSize?: string
   copies?: number
   duplex?: boolean
+  printerName?: string
 }
 
 interface PrintResult {
@@ -52,22 +49,20 @@ class PrinterService {
 
   public async getPrinterList(): Promise<PrinterInfo[]> {
     const webContents = this.mainWindow?.webContents
-    if (!webContents) {
-      return []
-    }
+    if (!webContents) return []
 
     try {
-      const printers = webContents.getPrintersAsync ? 
-        await webContents.getPrintersAsync() : 
-        (webContents as any).getPrinters()
+      const printers: any[] = webContents.getPrintersAsync
+        ? await webContents.getPrintersAsync()
+        : (webContents as any).getPrinters()
 
-      this.printerList = printers.map((printer: any) => ({
-        name: printer.name,
-        displayName: printer.displayName || printer.name,
-        description: printer.description || '',
-        status: this.mapPrinterStatus(printer.status),
-        isDefault: printer.isDefault,
-        options: printer.options || {}
+      this.printerList = printers.map((p: any) => ({
+        name: p.name,
+        displayName: p.displayName || p.name,
+        description: p.description || '',
+        status: this.mapPrinterStatus(p.status),
+        isDefault: p.isDefault,
+        options: p.options || {}
       }))
 
       return this.printerList
@@ -87,10 +82,23 @@ class PrinterService {
     }
   }
 
+  /**
+   * 使用格式化引擎渲染模板 JSON 为 HTML 并打印
+   */
+  public async printFromTemplate(
+    taskId: string,
+    templateJson: TemplateJson,
+    dataJson: Record<string, any>,
+    options?: PrintOptions
+  ): Promise<PrintResult> {
+    const html = renderTemplateToHtml(templateJson, dataJson)
+    return this.printHTML(taskId, html, options)
+  }
+
   public async print(taskId: string, content: string, options?: PrintOptions): Promise<PrintResult> {
-    const printerName = options?.silent ? 
-      (this.defaultPrinter || this.getDefaultPrinterName()) : 
-      undefined
+    const printerName = options?.silent
+      ? (this.defaultPrinter || this.getDefaultPrinterName())
+      : undefined
 
     const startTime = Date.now()
     this.printingTasks.set(taskId, { startTime, printerName: printerName || 'default' })
@@ -114,94 +122,27 @@ class PrinterService {
       const duration = Date.now() - startTime
       this.printingTasks.delete(taskId)
 
-      return {
-        success: true,
-        printerName: printerName || 'default',
-        taskId,
-        duration
-      }
+      return { success: true, printerName: printerName || 'default', taskId, duration }
     } catch (error: any) {
       const duration = Date.now() - startTime
       this.printingTasks.delete(taskId)
-
-      return {
-        success: false,
-        printerName: printerName || 'default',
-        taskId,
-        error: error.message,
-        duration
-      }
-    }
-  }
-
-  public async printPDF(taskId: string, pdfPath: string, options?: PrintOptions): Promise<PrintResult> {
-    const printerName = this.defaultPrinter || this.getDefaultPrinterName()
-    const startTime = Date.now()
-
-    try {
-      this.printingTasks.set(taskId, { startTime, printerName })
-
-      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-        const win = new BrowserWindow({
-          show: false,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true
-          }
-        })
-
-        await win.loadFile(pdfPath)
-        
-        await win.webContents.print({
-          silent: true,
-          printerName,
-          printBackground: true,
-          copies: options?.copies ?? 1
-        })
-
-        win.close()
-      }
-
-      const duration = Date.now() - startTime
-      this.printingTasks.delete(taskId)
-
-      return {
-        success: true,
-        printerName,
-        taskId,
-        duration
-      }
-    } catch (error: any) {
-      const duration = Date.now() - startTime
-      this.printingTasks.delete(taskId)
-
-      return {
-        success: false,
-        printerName,
-        taskId,
-        error: error.message,
-        duration
-      }
+      return { success: false, printerName: printerName || 'default', taskId, error: error.message, duration }
     }
   }
 
   public async printHTML(taskId: string, htmlContent: string, options?: PrintOptions): Promise<PrintResult> {
     const printerName = this.defaultPrinter || this.getDefaultPrinterName()
     const startTime = Date.now()
+    this.printingTasks.set(taskId, { startTime, printerName })
+
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true }
+    })
 
     try {
-      this.printingTasks.set(taskId, { startTime, printerName })
-
-      const win = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true
-        }
-      })
-
       await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
-      
+
       await win.webContents.print({
         silent: true,
         printerName,
@@ -211,27 +152,42 @@ class PrinterService {
         copies: options?.copies ?? 1
       })
 
-      win.close()
-
       const duration = Date.now() - startTime
       this.printingTasks.delete(taskId)
-
-      return {
-        success: true,
-        printerName,
-        taskId,
-        duration
-      }
+      return { success: true, printerName, taskId, duration }
     } catch (error: any) {
       const duration = Date.now() - startTime
       this.printingTasks.delete(taskId)
+      return { success: false, printerName, taskId, error: error.message, duration }
+    } finally {
+      if (!win.isDestroyed()) {
+        win.close()
+      }
+    }
+  }
 
-      return {
-        success: false,
-        printerName,
-        taskId,
-        error: error.message,
-        duration
+  /**
+   * 截取模板 HTML 渲染截图（用于截图确认流程）
+   */
+  public async captureScreenshot(
+    templateJson: TemplateJson,
+    dataJson: Record<string, any>
+  ): Promise<string> {
+    const html = renderTemplateToHtml(templateJson, dataJson)
+
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true }
+    })
+
+    try {
+      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+      const image = await win.webContents.capturePage()
+      return image.toDataURL()
+    } finally {
+      if (!win.isDestroyed()) {
+        win.close()
       }
     }
   }
@@ -245,88 +201,37 @@ class PrinterService {
     if (this.defaultPrinter) {
       return this.printerList.find(p => p.name === this.defaultPrinter) || null
     }
-    
-    const systemDefault = this.printerList.find(p => p.isDefault)
-    return systemDefault || null
+    return this.printerList.find(p => p.isDefault) || null
   }
 
   private getDefaultPrinterName(): string {
-    const defaultPrinter = this.getDefaultPrinter()
-    return defaultPrinter?.name || ''
-  }
-
-  public getPrinterStatus(printerName: string): PrinterInfo | null {
-    return this.printerList.find(p => p.name === printerName) || null
+    return this.getDefaultPrinter()?.name || ''
   }
 
   public isPrinting(): boolean {
     return this.printingTasks.size > 0
   }
 
-  public getPrintingTasks(): string[] {
-    return Array.from(this.printingTasks.keys())
-  }
-
-  public async testPrint(printerName: string): Promise<PrintResult> {
-    const testContent = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            p { color: #666; }
-            .timestamp { color: #999; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <h1>打印测试页</h1>
-          <p>打印机: ${printerName}</p>
-          <p>客户端: ${app.getName()}</p>
-          <p class="timestamp">时间: ${new Date().toLocaleString()}</p>
-        </body>
-      </html>
-    `
-
-    return this.printHTML(`test-${Date.now()}`, testContent, { printerName })
-  }
-
   private setupIpcHandlers(): void {
-    ipcMain.handle('printer-list', async () => {
-      return await this.getPrinterList()
-    })
-
-    ipcMain.handle('printer-print', async (_event, taskId: string, content: string, options?: PrintOptions) => {
-      return await this.print(taskId, content, options)
-    })
-
-    ipcMain.handle('printer-print-pdf', async (_event, taskId: string, pdfPath: string, options?: PrintOptions) => {
-      return await this.printPDF(taskId, pdfPath, options)
-    })
-
-    ipcMain.handle('printer-print-html', async (_event, taskId: string, htmlContent: string, options?: PrintOptions) => {
-      return await this.printHTML(taskId, htmlContent, options)
-    })
-
+    ipcMain.handle('printer-list', async () => await this.getPrinterList())
+    ipcMain.handle('printer-print-html', async (_event, taskId: string, htmlContent: string, options?: PrintOptions) =>
+      await this.printHTML(taskId, htmlContent, options)
+    )
+    ipcMain.handle('printer-print-template', async (_event, taskId: string, templateJson: TemplateJson, dataJson: Record<string, any>, options?: PrintOptions) =>
+      await this.printFromTemplate(taskId, templateJson, dataJson, options)
+    )
     ipcMain.handle('printer-set-default', async (_event, printerName: string) => {
       this.setDefaultPrinter(printerName)
       return { success: true, defaultPrinter: printerName }
     })
-
-    ipcMain.handle('printer-get-default', async () => {
-      return this.getDefaultPrinter()
-    })
-
-    ipcMain.handle('printer-status', async (_event, printerName: string) => {
-      return this.getPrinterStatus(printerName)
-    })
-
-    ipcMain.handle('printer-is-printing', async () => {
-      return { isPrinting: this.isPrinting(), tasks: this.getPrintingTasks() }
-    })
-
-    ipcMain.handle('printer-test', async (_event, printerName: string) => {
-      return await this.testPrint(printerName)
-    })
+    ipcMain.handle('printer-get-default', async () => this.getDefaultPrinter())
+    ipcMain.handle('printer-is-printing', async () => ({
+      isPrinting: this.isPrinting(),
+      tasks: Array.from(this.printingTasks.keys())
+    }))
+    ipcMain.handle('printer-capture', async (_event, templateJson: TemplateJson, dataJson: Record<string, any>) =>
+      await this.captureScreenshot(templateJson, dataJson)
+    )
   }
 }
 

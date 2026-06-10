@@ -97,13 +97,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { stockApi, inboundApi, outboundApi, type StockItem } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const router = useRouter(); const route = useRoute()
 const data = ref<StockItem | null>(null); const loading = ref(false); const error = ref<string | null>(null)
@@ -200,5 +210,18 @@ const handleOutboundSubmit = async () => {
     outboundSubmitting.value = false
   }
 }
-onMounted(() => fetchDetail())
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchDetail); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleInbound); return }
+}
+
+onMounted(() => {
+  fetchDetail()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>

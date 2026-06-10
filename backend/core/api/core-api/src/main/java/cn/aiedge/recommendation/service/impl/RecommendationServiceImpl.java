@@ -6,6 +6,7 @@ import cn.aiedge.recommendation.model.RecommendationResponse;
 import cn.aiedge.recommendation.service.RecommendationService;
 import cn.aiedge.recommendation.mapper.UserBehaviorMapper;
 import cn.aiedge.recommendation.mapper.RecommendationMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
  * @author AI-Ready Team
  * @since 1.0.0
  */
+@Slf4j
 @Service
 public class RecommendationServiceImpl implements RecommendationService {
 
@@ -272,7 +274,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     public void updateRecommendationModel(Long tenantId) {
         // 实际项目中这里会使用机器学习算法来训练推荐模型
         // 例如使用协同过滤、矩阵分解或深度学习算法
-        System.out.println("Updating recommendation model for tenant: " + tenantId);
+        log.info("Updating recommendation model for tenant: " + tenantId);
         
         // 可以考虑使用定时任务定期调用此方法
         // 或者基于数据变化阈值触发模型更新

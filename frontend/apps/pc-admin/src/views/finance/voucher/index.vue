@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -82,6 +82,7 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -89,6 +90,9 @@
         </span>
       </template>
 
+      <template #statusCell="{ record }">
+        <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
+      </template>
       <template #action="{ record }">
         <a-space :size="4">
           <a-tooltip title="查看详情">
@@ -96,34 +100,31 @@
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="record.status === 0" title="审核">
+          <a-tooltip v-if="record.status === 'draft'" title="审核">
             <a-button type="link" size="small" @click="handleAudit(record)">
               <template #icon><CheckCircleOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="record.status === 1" title="过账">
+          <a-tooltip v-if="record.status === 'audited'" title="过账">
             <a-button type="link" size="small" @click="handlePost(record)">
               <template #icon><SendOutlined /></template>
             </a-button>
           </a-tooltip>
+          <PrintButton :record="record" :business-id="record.id" business-type="voucher" button-type="link" button-size="small" tooltip="打印" />
           <a-dropdown trigger="click">
             <a-button type="link" size="small" class="action-more-btn">
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
               <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.status === 0" key="audit">
+                <a-menu-item v-if="record.status === 'draft'" key="audit">
                   <CheckCircleOutlined /> 审核
                 </a-menu-item>
-                <a-menu-item v-if="record.status === 1" key="post">
+                <a-menu-item v-if="record.status === 'audited'" key="post">
                   <SendOutlined /> 过账
                 </a-menu-item>
-                <a-menu-item v-if="record.status === 2" key="reverse">
+                <a-menu-item v-if="record.status === 'posted'" key="reverse">
                   <RollbackOutlined /> 冲销
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="print">
-                  <PrinterOutlined /> 打印
                 </a-menu-item>
               </a-menu>
             </template>
@@ -133,28 +134,37 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的凭证，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无凭证数据，点击右上角「新增凭证」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的凭证，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无凭证数据，点击右上角「新增凭证」开始创建
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
 
       <!-- 新增凭证弹窗 -->
-      <a-modal
-        v-model:open="addModalVisible"
+      <FullScreenDetail
+        :visible="addModalVisible"
         title="新增凭证"
-        :confirm-loading="addModalLoading"
+        :save-loading="addModalLoading"
+        :show-save-and-new="true"
         width="900px"
-        centered
-        :maskClosable="false"
-        @ok="handleAddModalOk"
-        @cancel="handleAddModalCancel"
+        @save="handleAddModalOk"
+        @close="handleAddFormClose"
+        @save-and-new="handleAddFormSaveAndNew"
       >
         <a-form
           ref="addFormRef"
@@ -171,12 +181,13 @@
                   style="width: 100%"
                   format="YYYY-MM-DD"
                   placeholder="选择日期"
+                  size="small"
                 />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="年度">
-                <a-input :value="addForm.fiscalYear" disabled />
+                <a-input :value="addForm.fiscalYear" disabled size="small" />
               </a-form-item>
             </a-col>
           </a-row>
@@ -242,7 +253,7 @@
             </template>
           </VxeTableList>
         </div>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 查看详情弹窗 -->
       <a-modal
@@ -302,19 +313,16 @@
           </VxeTableList>
 
           <div class="detail-modal-footer">
-            <a-button v-if="currentVoucher.status === 0" type="primary" @click="handleAudit(currentVoucher)">
+            <a-button v-if="currentVoucher.status === 'draft'" type="primary" @click="handleAudit(currentVoucher)">
               审核
             </a-button>
-            <a-button v-if="currentVoucher.status === 1" type="primary" @click="handlePost(currentVoucher)">
+            <a-button v-if="currentVoucher.status === 'audited'" type="primary" @click="handlePost(currentVoucher)">
               过账
             </a-button>
-            <a-button v-if="currentVoucher.status === 2" type="primary" danger @click="handleReverse(currentVoucher)">
+            <a-button v-if="currentVoucher.status === 'posted'" type="primary" danger @click="handleReverse(currentVoucher)">
               冲销
             </a-button>
-            <a-button @click="handlePrint(currentVoucher)">
-              <template #icon><PrinterOutlined /></template>
-              打印
-            </a-button>
+            <PrintButton :business-id="currentVoucher.id" business-type="voucher" button-size="small" tooltip="打印" />
             <a-button @click="detailVisible = false">关闭</a-button>
           </div>
         </template>
@@ -335,6 +343,7 @@
               v-model:value="reverseReason"
               placeholder="请输入冲销原因"
               :rows="3"
+              size="small"
             />
           </a-form-item>
         </a-form>
@@ -344,18 +353,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   SearchOutlined, PlusOutlined, DeleteOutlined, EyeOutlined,
   CheckCircleOutlined, SendOutlined, RollbackOutlined, EllipsisOutlined,
-  InboxOutlined, PrinterOutlined, EditOutlined, DollarOutlined, ReloadOutlined, SyncOutlined
+  InboxOutlined, EditOutlined, DollarOutlined, ReloadOutlined, SyncOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { voucherApi } from '@/api/finance'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 interface VoucherEntry {
   tempId?: number
@@ -372,7 +389,7 @@ interface Voucher {
   voucherDate: string
   fiscalYear: number
   fiscalPeriod: number
-  status: number
+  status: string
   debitTotal: number
   creditTotal: number
   createdBy: string
@@ -382,6 +399,7 @@ interface Voucher {
 
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<Voucher[]>([])
 const addModalVisible = ref(false)
 const addModalLoading = ref(false)
@@ -400,7 +418,7 @@ const refreshLoading = ref(false)
 const searchForm = reactive({
   fiscalYear: dayjs().year(),
   fiscalPeriod: undefined as number | undefined,
-  status: undefined as number | undefined,
+  status: undefined as string | undefined,
   voucherNo: ''
 })
 
@@ -419,31 +437,31 @@ const hasActiveFilters = computed(() => {
 
 // ── 统计数据 ────────────────────────────────────────────
 const statusCounts = computed(() => {
-  const draft = tableData.value.filter(r => r.status === 0).length
-  const audited = tableData.value.filter(r => r.status === 1).length
-  const posted = tableData.value.filter(r => r.status === 2).length
-  const reversed = tableData.value.filter(r => r.status === 3).length
+  const draft = tableData.value.filter(r => r.status === 'draft').length
+  const audited = tableData.value.filter(r => r.status === 'audited').length
+  const posted = tableData.value.filter(r => r.status === 'posted').length
+  const reversed = tableData.value.filter(r => r.status === 'reversed').length
   return { draft, audited, posted, reversed }
 })
 
 const totalDebit = computed(() => {
-  return tableData.value.filter(r => r.status === 2).reduce((sum, r) => sum + r.debitTotal, 0)
+  return tableData.value.filter(r => r.status === 'posted').reduce((sum, r) => sum + r.debitTotal, 0)
 })
 
 const filterFields = [
   { key: 'fiscalYear', label: '年度', type: 'input' as const, placeholder: '年度', defaultValue: dayjs().year() },
   { key: 'fiscalPeriod', label: '期间', type: 'select' as const, options: Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 })), placeholder: '期间' },
   { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '草稿', value: 0 },
-    { label: '已审核', value: 1 },
-    { label: '已过账', value: 2 },
-    { label: '已冲销', value: 3 }
+    { label: '草稿', value: 'draft' },
+    { label: '已审核', value: 'audited' },
+    { label: '已过账', value: 'posted' },
+    { label: '已冲销', value: 'reversed' }
   ]},
   { key: 'voucherNo', label: '凭证号', type: 'input' as const, placeholder: '凭证号' }
 ]
 
-const statusColorMap: Record<number, string> = { 0: 'default', 1: 'processing', 2: 'success', 3: 'error' }
-const statusLabelMap: Record<number, string> = { 0: '草稿', 1: '已审核', 2: '已过账', 3: '已冲销' }
+const statusColorMap: Record<string, string> = { draft: 'default', audited: 'processing', posted: 'success', reversed: 'error' }
+const statusLabelMap: Record<string, string> = { draft: '草稿', audited: '已审核', posted: '已过账', reversed: '已冲销' }
 
 // vxe-table 列定义
 const vxeColumns = computed(() => [
@@ -469,13 +487,7 @@ const vxeColumns = computed(() => [
     align: 'right',
     formatter: ({ cellValue }: any) => `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
   },
-  {
-    field: 'status',
-    title: '状态',
-    width: 100,
-    align: 'center',
-    formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${statusColorMap[cellValue] || 'default'}">${statusLabelMap[cellValue] || '未知'}</span>`,
-  },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
   { field: 'createdBy', title: '制单人', width: 100 },
   { field: 'action', title: '操作', width: 180, fixed: 'right', type: 'action' },
 ])
@@ -506,6 +518,36 @@ const addFormRules = {
   voucherDate: [{ required: true, message: '请选择凭证日期', trigger: 'change' }]
 }
 
+const initialFormSnapshot = ref('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({
+    voucherDate: addForm.voucherDate,
+    fiscalYear: addForm.fiscalYear,
+    entries: addForm.entries.map(e => ({ ...e }))
+  })
+}
+const formDirty = computed(() => {
+  const current = JSON.stringify({
+    voucherDate: addForm.voucherDate,
+    fiscalYear: addForm.fiscalYear,
+    entries: addForm.entries.map(e => ({ ...e }))
+  })
+  return current !== initialFormSnapshot.value
+})
+
+onBeforeRouteLeave((to, from, next) => {
+  if (addModalVisible.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的修改，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 function formatAmount(val: number): string {
   if (val === undefined || val === null) return '0.00'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -531,9 +573,11 @@ const fetchData = async () => {
       lastUpdated.value = new Date().toISOString()
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    hasError.value = false
   } catch (err) {
     console.warn('加载凭证数据失败', err)
     message.error('加载凭证数据失败')
+    hasError.value = true
   } finally {
     loading.value = false
     refreshLoading.value = false
@@ -570,6 +614,7 @@ const handleAdd = () => {
   addForm.entries = []
   entryTempIdCounter = 0
   addModalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleAddEntry = () => {
@@ -628,6 +673,34 @@ const handleAddModalOk = async () => {
 const handleAddModalCancel = () => {
   addModalVisible.value = false
   addFormRef.value?.resetFields()
+}
+
+function handleAddFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的修改，确定要关闭吗？',
+      onOk: () => { addModalVisible.value = false }
+    })
+  } else {
+    addModalVisible.value = false
+  }
+}
+
+let _savedAndNew = false
+function handleAddFormSaveAndNew() {
+  _savedAndNew = true
+  handleAddModalOk().then(() => {
+    if (_savedAndNew && !addModalVisible.value) {
+      _savedAndNew = false
+      addForm.voucherDate = undefined
+      addForm.fiscalYear = dayjs().year()
+      addForm.entries = []
+      entryTempIdCounter = 0
+      addModalVisible.value = true
+      nextTick(() => saveFormSnapshot())
+    }
+  })
 }
 
 const handleAudit = async (record: Voucher) => {
@@ -709,16 +782,11 @@ const handleView = async (record: Voucher) => {
   }
 }
 
-const handlePrint = (record: Voucher) => {
-  message.info(`打印凭证: ${record.voucherNo}`)
-}
-
 const handleActionMenuClick = (key: string, record: Voucher) => {
   switch (key) {
     case 'audit': handleAudit(record); break
     case 'post': handlePost(record); break
     case 'reverse': handleReverse(record); break
-    case 'print': handlePrint(record); break
   }
 }
 
@@ -741,7 +809,26 @@ const handleExport = () => {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleParentCreate() { handleAdd() }
+
+function handleEditVoucher(e: CustomEvent) {
+  const data = e.detail
+  if (!data?.entries) return
+  addForm.voucherDate = data.voucherDate ? dayjs(data.voucherDate) : undefined
+  addForm.fiscalYear = data.fiscalYear || dayjs().year()
+  addForm.entries = (data.entries || []).map((entry: any) => ({
+    tempId: ++entryTempIdCounter,
+    summary: entry.summary || '',
+    subjectName: entry.subjectName || entry.subject || '',
+    debitAmount: entry.debitAmount || 0,
+    creditAmount: entry.creditAmount || 0
+  }))
+  addModalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 // 定时刷新（30s）
@@ -751,6 +838,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:edit-voucher', handleEditVoucher)
+  window.addEventListener('finance:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -763,6 +853,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:edit-voucher', handleEditVoucher)
+  window.removeEventListener('finance:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -776,6 +869,11 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.finance-voucher-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -965,5 +1063,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 30%;
     min-width: 100px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

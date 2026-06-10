@@ -2,12 +2,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Sidebar, SidebarItem, Grid, GridItem, showLoadingToast, closeToast } from 'vant'
-import { api } from '@/api'
+import { api, type CategoryItem } from '@/api'
 
 const router = useRouter()
 
-const categories = ref<any[]>([])
-const subCategories = ref<any[]>([])
+const categories = ref<CategoryItem[]>([])
+const subCategories = ref<CategoryItem[]>([])
 const activeCategory = ref(0)
 
 onMounted(async () => {

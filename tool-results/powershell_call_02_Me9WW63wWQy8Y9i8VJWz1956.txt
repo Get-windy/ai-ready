@@ -1,0 +1,1439 @@
+I:\AI-Ready\frontend\apps\pc-admin\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\apps\pc-admin\node_modules\parse5\node_modules\entities\src\decode.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\node_modules\parse5\node_modules\entities\src\encode.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\node_modules\parse5\node_modules\entities\src\escape.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\node_modules\parse5\node_modules\entities\src\index.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\components\Charts\__tests__\Charts.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\views\erp\purchase-exchange\__tests__\ExchangeApproveModal.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\views\erp\purchase-exchange\__tests__\ExchangeFormModal.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\views\erp\purchase-exchange\__tests__\index.spec.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\views\system\department\index.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\views\system\position\index.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\components\common.component.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\stores\user.store.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\ui-consistency\ui-consistency.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\utils\helper.util.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\accessibility.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\form-validation.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\permission.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\responsive-layout.test.ts
+I:\AI-Ready\frontend\apps\pc-admin\src\__tests__\user-management-ui.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@adobe+css-tools@4.5.0\node_modules\@adobe\css-tools\src\utils\stringSearch.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-backgrounds@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-backgrounds@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-controls@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-controls@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-docs@8.6.14_@types+react@19.2.15_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-docs@8.6.14_@types+react@19.2.15_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-essentials@8.6.14_@types+react@19.2.15_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-essentials@8.6.14_@types+react@19.2.15_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-interactions@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-interactions@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-links@8.6.18_react@19.2.6_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-links@8.6.18_react@19.2.6_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-outline@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+addon-outline@8.6.14_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+blocks@8.6.14_react-dom@19.2.6_react@19.2.6_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+blocks@8.6.14_react-dom@19.2.6_react@19.2.6_storybook@8.6.18\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+builder-vite@8.6.18_storybook@8.6.18_vite@5.4.21\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+builder-vite@8.6.18_storybook@8.6.18_vite@5.4.21\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.14_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.15_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+test@8.6.18_storybook@8.6.18\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+vue3@8.6.18_storybook@8.6.18_vue@3.5.34\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@storybook+vue3@8.6.18_storybook@8.6.18_vue@3.5.34\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@adobe\css-tools\src\utils\stringSearch.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\@testing-library+jest-dom@6.5.0\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\ajv@6.15.0\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\node_modules\.pnpm\ajv@8.20.0\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\node_modules\.pnpm\json-schema-traverse@0.4.1\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\node_modules\.pnpm\json-schema-traverse@1.0.0\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@adobe\css-tools\src\utils\stringSearch.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\bun\bun-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\jest\jest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\jest-globals\jest-globals-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-custom-expect-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@testing-library\jest-dom\types\__tests__\vitest\vitest-types.test.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\json-schema-traverse\spec\index.spec.js
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\vue-inbrowser-compiler-independent-utils\src\cleanName.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\vue-inbrowser-compiler-independent-utils\src\getDefaultExample.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\vue-inbrowser-compiler-independent-utils\src\styleScoper.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\vue-inbrowser-compiler-independent-utils\src\transformOneImport.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\ts-dedent@2.2.0\node_modules\ts-dedent\src\__tests__\index.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\ts-dedent@2.2.0\node_modules\ts-dedent\src\__tests__\issue-21.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-docgen-api@4.79.2_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\cleanName.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-docgen-api@4.79.2_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\getDefaultExample.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-docgen-api@4.79.2_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\styleScoper.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-docgen-api@4.79.2_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\transformOneImport.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-inbrowser-compiler-independent-utils@4.71.1_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\cleanName.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-inbrowser-compiler-independent-utils@4.71.1_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\getDefaultExample.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-inbrowser-compiler-independent-utils@4.71.1_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\styleScoper.spec.ts
+I:\AI-Ready\frontend\node_modules\.pnpm\vue-inbrowser-compiler-independent-utils@4.71.1_vue@3.5.34\node_modules\vue-inbrowser-compiler-independent-utils\src\transformOneImport.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\approval-flow.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\login.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\navigation.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\purchase-flow.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\stock-flow.spec.ts
+I:\AI-Ready\frontend\tests\e2e\specs\user-management.spec.ts
+
+[stderr]
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@ampproject\remapping����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...oject\remapping:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antfu\install-pkg����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...tfu\install-pkg:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\algorithm����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@antv\algorithm:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\component����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@antv\component:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\event-emitter����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...v\event-emitter:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\expr����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\@antv\expr:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\@antv\g:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g-canvas����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@antv\g-canvas:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g-lite����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@antv\g-lite:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g-math����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@antv\g-math:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g-plugin-dragndrop����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...lugin-dragndrop:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\g6����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\@antv\g6:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\graphlib����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@antv\graphlib:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\hierarchy����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@antv\hierarchy:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\layout����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@antv\layout:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\scale����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\@antv\scale:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\util����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\@antv\util:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@antv\vendor����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@antv\vendor:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-annotate-as-pure����һ��
+�֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...nnotate-as-pure:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-create-class-features-p
+lugin����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...features-plugin:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-member-expression-to-fu
+nctions����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...on-to-functions:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-optimise-call-expressio
+n����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...call-expression:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-replace-supers����һ����
+��
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...-replace-supers:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\helper-skip-transparent-expres
+sion-wrappers����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ession-wrappers:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\plugin-syntax-jsx����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ugin-syntax-jsx:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\plugin-syntax-typescript����һ
+���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ntax-typescript:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\plugin-transform-modules-commo
+njs����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules-commonjs:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\plugin-transform-typescript����
+һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...form-typescript:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@babel\preset-typescript����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...eset-typescript:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@iconify\types����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@iconify\types:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@iconify\utils����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@iconify\utils:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@pkgr\core����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\@pkgr\core:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@polka\url����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\@polka\url:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\chai����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\@types\chai:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\chai-subset����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...pes\chai-subset:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-array����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-array:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-color����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-color:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-dispatch����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...pes\d3-dispatch:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-dsv����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@types\d3-dsv:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-ease����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@types\d3-ease:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-fetch����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-fetch:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-force����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-force:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-format����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...types\d3-format:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-geo����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@types\d3-geo:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-hierarchy����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\d3-hierarchy:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-interpolate����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\d3-interpolate:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-path����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@types\d3-path:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-quadtree����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...pes\d3-quadtree:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-random����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...types\d3-random:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-scale����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-scale:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-scale-chromatic����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...scale-chromatic:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-shape����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-shape:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-time����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@types\d3-time:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\d3-timer����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@types\d3-timer:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@types\geojson����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@types\geojson:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\astro����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@unocss\astro:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\cli����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\@unocss\cli:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\config����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\@unocss\config:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\core����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@unocss\core:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\extractor-arbitrary-variants��
+��һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...itrary-variants:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\inspector����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...nocss\inspector:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\postcss����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...@unocss\postcss:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-attributify����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...set-attributify:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-icons����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ss\preset-icons:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-mini����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...css\preset-mini:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-tagify����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\preset-tagify:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-typography����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...eset-typography:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-uno����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ocss\preset-uno:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-web-fonts����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...reset-web-fonts:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\preset-wind����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...css\preset-wind:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\reset����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@unocss\reset:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\rule-utils����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ocss\rule-utils:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\scope����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@unocss\scope:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\transformer-attributify-jsx��
+��һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...attributify-jsx:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\transformer-attributify-jsx-b
+abel����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...utify-jsx-babel:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\transformer-compile-class����
+һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...r-compile-class:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\transformer-directives����һ��
+�֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...rmer-directives:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\transformer-variant-group����
+һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...r-variant-group:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@unocss\vite����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\@unocss\vite:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@vitest\ui����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\@vitest\ui:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\@vue\tsconfig����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\@vue\tsconfig:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\base64-arraybuffer����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...e64-arraybuffer:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\bubblesets-js����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\bubblesets-js:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\color-string����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\color-string:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\comlink����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\comlink:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\consola����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\consola:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\css-line-break����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\css-line-break:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\cssstyle����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\cssstyle:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-array����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-array:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-binarytree����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\d3-binarytree:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-color����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-color:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-dispatch����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\d3-dispatch:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-dsv����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\d3-dsv:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-ease����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\d3-ease:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-fetch����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-fetch:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-force����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-force:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-force-3d����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\d3-force-3d:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-format����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\d3-format:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-geo����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\d3-geo:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-geo-projection����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...-geo-projection:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-hierarchy����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\d3-hierarchy:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-interpolate����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\d3-interpolate:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-octree����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\d3-octree:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-path����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\d3-path:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-quadtree����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\d3-quadtree:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-random����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\d3-random:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-regression����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\d3-regression:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-scale����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-scale:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-scale-chromatic����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...scale-chromatic:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-shape����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-shape:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-time����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\d3-time:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-time-format����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\d3-time-format:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\d3-timer����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\d3-timer:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\dagre����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...e_modules\dagre:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\defu����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...de_modules\defu:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\destr����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...e_modules\destr:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\duplexer����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\duplexer:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\fast-diff����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\fast-diff:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\fecha����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...e_modules\fecha:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\fflate����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\fflate:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\gl-matrix����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\gl-matrix:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\graphlib����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\graphlib:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\gzip-size����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\gzip-size:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\happy-dom����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\happy-dom:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\html2canvas����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\html2canvas:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\http-proxy-agent����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ttp-proxy-agent:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\iconv-lite����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ules\iconv-lite:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\internmap����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\internmap:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\is-any-array����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\is-any-array:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\jiti����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...de_modules\jiti:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\kolorist����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\kolorist:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ml-array-max����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\ml-array-max:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ml-array-min����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\ml-array-min:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ml-array-rescale����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...l-array-rescale:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ml-matrix����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\ml-matrix:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\mrmime����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\mrmime:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\node-fetch-native����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...de-fetch-native:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\nwsapi����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\nwsapi:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\ofetch����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\ofetch:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\package-manager-detector����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...anager-detector:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\perfect-debounce����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...erfect-debounce:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\psl����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...ode_modules\psl:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\querystringify����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\querystringify:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\requires-port����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...s\requires-port:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\rrweb-cssom����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...les\rrweb-cssom:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\rw����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...node_modules\rw:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\safer-buffer����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...es\safer-buffer:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\simple-swizzle����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...\simple-swizzle:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\sirv����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...de_modules\sirv:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\svg-path-parser����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...svg-path-parser:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\synckit����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...modules\synckit:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\text-segmentation����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...xt-segmentation:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\tinyexec����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\tinyexec:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\totalist����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\totalist:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\unconfig����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...odules\unconfig:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\unocss����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro..._modules\unocss:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\url-parse����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...dules\url-parse:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\utrie����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...e_modules\utrie:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\.pnpm\node_modules\whatwg-encoding����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...whatwg-encoding:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\@vue\eslint-config-prettier����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...config-prettier:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\@vue\eslint-config-typescript����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...nfig-typescript:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\eslint-config-prettier����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...config-prettier:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\eslint-plugin-prettier����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...plugin-prettier:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+Get-ChildItem : δ���ҵ�·����I:\AI-Ready\frontend\node_modules\prettier-linter-helpers����һ���֡�
+����λ�� ��:1 �ַ�: 1
++ Get-ChildItem -Path "I:\AI-Ready\frontend" -Recurse -Include "*.spec. ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ReadError: (I:\AI-Ready\fro...-linter-helpers:String) [Get-ChildItem], DirectoryNotFound 
+   Exception
+    + FullyQualifiedErrorId : DirIOError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 

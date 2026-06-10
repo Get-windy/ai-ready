@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -59,15 +59,29 @@
       :show-search="false"
       :selectable="true"
       add-text="新增用户"
+      add-permission="system:user:create"
       @add="handleAdd"
       @edit="handleEdit"
       @delete="handleDelete"
       @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+      @cell-dblclick="handleView"
     >
+      <template #empty>
+        <a-empty v-if="!hasError" description="暂无数据" />
+        <a-result v-else status="error" title="数据加载失败">
+          <template #extra>
+            <a-button type="primary" @click="debounceClick('refresh', fetchData)">
+              <template #icon><ReloadOutlined /></template>
+              重新加载
+            </a-button>
+          </template>
+        </a-result>
+      </template>
+
       <template #usernameCell="{ record }">
         <a-space>
           <a-avatar :src="record.avatar" :size="32">
@@ -95,20 +109,20 @@
 
       <template #action="{ record }">
         <a-space>
-          <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-          <a-button type="link" size="small" @click="handleAssignRole(record)">分配角色</a-button>
+          <a-button type="link" size="small" v-permission="'system:user:update'" @click="handleEdit(record)">编辑</a-button>
+          <a-button type="link" size="small" v-permission="'system:role:assign'" @click="handleAssignRole(record)">分配角色</a-button>
           <a-dropdown>
             <a-button type="link" size="small">更多<DownOutlined /></a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item @click="handleResetPassword(record)">
+                <a-menu-item v-permission="'system:user:update'" @click="handleResetPassword(record)">
                   <KeyOutlined /> 重置密码
                 </a-menu-item>
-                <a-menu-item @click="handleToggleStatus(record)">
+                <a-menu-item v-permission="'system:user:update'" @click="handleToggleStatus(record)">
                   <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
                 </a-menu-item>
                 <a-menu-divider />
-                <a-menu-item danger @click="handleDelete(record)">
+                <a-menu-item danger v-permission="'system:user:delete'" @click="handleDelete(record)">
                   <DeleteOutlined /> 删除
                 </a-menu-item>
               </a-menu>
@@ -119,7 +133,7 @@
     </VxeTableList>
 
     <!-- 用户表单弹窗 -->
-    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="submittingLoading" width="600px" @ok="handleModalOk" @cancel="handleModalCancel">
+    <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
       <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="用户名" name="username">
           <a-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="isEdit" />
@@ -144,10 +158,12 @@
           </a-radio-group>
         </a-form-item>
         <a-form-item label="用户类型" name="userType">
-          <a-select v-model:value="formState.userType" placeholder="请选择用户类型">
-            <a-select-option :value="0">系统用户</a-select-option>
-            <a-select-option :value="1">企业用户</a-select-option>
-            <a-select-option :value="2">代理用户</a-select-option>
+          <a-select v-model:value="formState.userType" size="small" placeholder="请选择用户类型">
+            <a-select-option
+              v-for="opt in userTypeOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="状态" name="status">
@@ -157,7 +173,7 @@
           </a-radio-group>
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 分配角色弹窗 -->
     <a-modal v-model:open="roleModalVisible" title="分配角色" :confirm-loading="roleModalLoading" @ok="handleRoleModalOk">
@@ -168,21 +184,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted, h } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
+import { dictItemApi } from '@/api/dict'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 import { useUserStore } from '@/stores/user'
 import { PageContainer } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 const userStore = useUserStore()
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const searchForm = reactive({ username: '', phone: '', status: undefined as number | undefined, tenantId: undefined as number | undefined })
@@ -235,6 +255,22 @@ const modalTitle = computed(() => isEdit.value ? '编辑用户' : '新增用户'
 const isEdit = ref(false)
 const formRef = ref<FormInstance>()
 
+// ── 用户类型选项（从API加载） ──────────────────────────
+const userTypeOptions = ref<{ label: string; value: number }[]>([])
+
+async function loadUserTypeOptions() {
+  try {
+    const res = await dictItemApi.getByDictCode('USER_TYPE')
+    if (res.data) {
+      userTypeOptions.value = res.data
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+    }
+  } catch (err) {
+    console.warn('[用户管理] 加载用户类型失败', err)
+  }
+}
+
 const formState = reactive({ id: 0, username: '', nickname: '', password: '', email: '', phone: '', gender: 0, userType: 2, tenantId: userStore.tenantId, status: 0 })
 const formRules = {
   username: { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -250,6 +286,42 @@ const roleList = ref<{ key: string; title: string }[]>([])
 const targetRoleKeys = ref<string[]>([])
 const currentUserId = ref(0)
 
+// ── debounceClick ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: () => void) {
+  if (clickLocks.get(key)) return
+  clickLocks.set(key, true)
+  try { fn() } finally { setTimeout(() => clickLocks.set(key, false), 300) }
+}
+
+// ── Keyboard shortcuts ─────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData) }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+}
+
+// ── Form dirty tracking ────────────────────────────────────
+const initialFormSnapshot = ref('')
+const watchReady = ref(false)
+const formDirty = computed(() => {
+  if (!watchReady.value) return false
+  return initialFormSnapshot.value !== JSON.stringify(formState)
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify(formState)
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开', content: '当前表单未保存，确定要离开吗？', okText: '确定', cancelText: '取消',
+      onOk() { next() }, onCancel() { next(false) }
+    })
+  } else { next() }
+})
+
 const tenantList = ref<TenantInfo[]>([])
 const tenantMap = computed(() => {
   const map: Record<number, string> = {}
@@ -263,10 +335,12 @@ const loadTenants = async () => {
 
 const fetchData = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await userApi.getPage({ tenantId: userStore.tenantId, ...searchForm, pageNum: pagination.current, pageSize: pagination.pageSize })
     if (res.data) { tableData.value = res.data.records; pagination.total = res.data.total }
   } catch (err) {
+    hasError.value = true
     console.warn('[系统管理] 加载用户数据失败', err)
     tableData.value = []
     pagination.total = 0
@@ -287,12 +361,14 @@ const handleAdd = () => {
   isEdit.value = false
   Object.assign(formState, { id: 0, username: '', nickname: '', password: '', email: '', phone: '', gender: 0, userType: 2, tenantId: userStore.tenantId, status: 0 })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
 }
 
 const handleEdit = (record: UserInfo) => {
   isEdit.value = true
   Object.assign(formState, { id: record.id, username: record.username, nickname: record.nickname, email: record.email, phone: record.phone, gender: record.gender, userType: record.userType, tenantId: record.tenantId, status: record.status })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
 }
 
 const handleModalOk = async () => {
@@ -307,7 +383,31 @@ const handleModalOk = async () => {
   } catch (error: any) { console.warn('[用户管理] 提交用户表单失败', error); if (error) message.error(error?.message || '操作失败') }
 }
 
-const handleModalCancel = () => { modalVisible.value = false; formRef.value?.resetFields() }
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭', content: '当前表单未保存，确定要关闭吗？', okText: '确定', cancelText: '取消',
+      onOk() { modalVisible.value = false; watchReady.value = false; formRef.value?.resetFields() }
+    })
+  } else {
+    modalVisible.value = false
+    watchReady.value = false
+    formRef.value?.resetFields()
+  }
+}
+
+const handleFormSaveAndNew = async () => {
+  try {
+    const result = await withSubmitLock(async () => {
+      await formRef.value?.validate()
+      await userApi.create(formState as any)
+      message.success('创建成功')
+      fetchData()
+      handleAdd()
+    })
+    void result
+  } catch (error: any) { if (error) message.error(error?.message || '操作失败') }
+}
 
 const handleDelete = (record: UserInfo) => {
   const savedRecord = { ...record }
@@ -383,7 +483,9 @@ const handleToggleStatus = async (record: UserInfo) => {
 
 const handleAssignRole = async (record: UserInfo) => {
   currentUserId.value = record.id
-  const res = await roleApi.getPage({ tenantId: userStore.tenantId, size: 100 })
+  // 根据当前用户类型过滤角色 scope：系统用户看到 PLATFORM，租户用户看到 TENANT
+  const scope = userStore.isSystemUser ? 'PLATFORM' : 'TENANT'
+  const res = await roleApi.getPage({ tenantId: userStore.tenantId, scope, size: 100 })
   if (res.data) roleList.value = res.data.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
   try {
     const userRes = await userApi.getById(record.id)
@@ -398,12 +500,20 @@ const handleRoleModalOk = async () => {
 }
 
 const filterRoleOption = (input: string, option: any) => option.title.toLowerCase().includes(input.toLowerCase())
-const getUserTypeColor = (type: number) => { const colors: Record<number, string> = { 0: 'gold', 1: 'blue', 2: 'green' }; return colors[type] || 'default' }
-const getUserTypeName = (type: number) => { const names: Record<number, string> = { 0: '系统用户', 1: '企业用户', 2: '代理用户' }; return names[type] || '未知' }
+const userTypeColorPalette = ['gold', 'blue', 'green']
+const getUserTypeColor = (type: number) => {
+  const idx = userTypeOptions.value.findIndex(o => o.value === type)
+  return idx >= 0 ? userTypeColorPalette[idx % userTypeColorPalette.length] : 'default'
+}
+const getUserTypeName = (type: number) => {
+  const found = userTypeOptions.value.find(o => o.value === type)
+  return found ? found.label : '未知'
+}
 
 onMounted(() => {
   fetchData()
   loadTenants()
+  loadUserTypeOptions()
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -412,11 +522,13 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: fetchData })
@@ -470,6 +582,11 @@ defineExpose({ handleQuery: fetchData })
   min-height: 0;
 }
 
+.user-management > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
 /* 统计卡片 */
 .stat-cards {
   display: flex;
@@ -518,5 +635,37 @@ defineExpose({ handleQuery: fetchData })
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.user-management :deep(.ant-input-sm),
+.user-management :deep(.ant-input-number-sm),
+.user-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.user-management :deep(.ant-picker-small),
+.user-management :deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+.user-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+.user-management :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── FullScreenDetail form compact overrides ── */
+.fsd-body .ant-form-item {
+  margin-bottom: 12px !important;
+}
+.fsd-body .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+.fsd-body .ant-input,
+.fsd-body .ant-input-password,
+.fsd-body .ant-input-number,
+.fsd-body .ant-select,
+.fsd-body .ant-picker,
+.fsd-body .ant-tree-select,
+.fsd-body .ant-cascader-picker {
+  min-height: 28px !important;
+  font-size: 13px !important;
+}
+.fsd-body .ant-form-item-label > label {
+  font-size: 13px !important;
 }
 </style>

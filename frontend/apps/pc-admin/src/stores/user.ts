@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { userApi, type UserInfo, type LoginForm, type LoginResponse } from '@/api/user'
 import { menuApi, type MenuInfo } from '@/api/menu'
+import { tenantModuleApi } from '@/api/tenantModule'
+import { getSseClient, destroySseClient } from '@/utils/sseClient'
 
 interface UserState {
   token: string
@@ -12,6 +14,8 @@ interface UserState {
   permissions: string[]
   roles: string[]
   menus: MenuInfo[]
+  billTypes: string[]
+  validModuleCodes: string[]
 }
 
 export const useUserStore = defineStore('user', {
@@ -24,7 +28,9 @@ export const useUserStore = defineStore('user', {
     userInfo: null,
     permissions: [],
     roles: [],
-    menus: []
+    menus: [],
+    billTypes: [],
+    validModuleCodes: []
   }),
 
   getters: {
@@ -46,6 +52,27 @@ export const useUserStore = defineStore('user', {
       this.menus = []
     },
 
+    /**
+     * 建立 SSE 通知连接，监听服务端推送的缓存失效事件
+     */
+    connectSse() {
+      const token = this.token || localStorage.getItem('token')
+      if (!token) return
+      const sse = getSseClient()
+      sse.on('cache-invalidate', () => {
+        console.info('[SSE] 收到缓存失效通知，重新加载权限数据...')
+        if (this.userInfo) {
+          this.getUserInfo()
+        }
+      })
+      sse.connect(token)
+    },
+
+    /** 断开 SSE 连接（登出时调用） */
+    disconnectSse() {
+      destroySseClient()
+    },
+
     async login(loginForm: LoginForm) {
       try {
         const res = await userApi.login(loginForm)
@@ -59,6 +86,8 @@ export const useUserStore = defineStore('user', {
           localStorage.setItem('tenantId', String(res.data.tenantId || 1))
           localStorage.setItem('tenantName', res.data.tenantName || '')
           localStorage.setItem('userTenants', JSON.stringify(res.data.tenants || []))
+          // 登录成功后建立 SSE 通知连接
+          this.connectSse()
           return true
         }
         return false
@@ -76,11 +105,27 @@ export const useUserStore = defineStore('user', {
           this.userId = res.data.userId
           this.permissions = res.data.permissions || []
           this.roles = res.data.roles || []
+          this.billTypes = res.data.billTypes || []
         }
         // 菜单由 loadDynamicRoutes() 负责加载，避免重复赋值导致 a-menu 重渲染崩溃
+
+        // 加载当前租户的有效模块编码（用于路由守卫模块校验）
+        this.loadValidModuleCodes()
+
+        // 建立 SSE 通知连接（页面刷新后重新连接）
+        this.connectSse()
       } catch (error) {
         console.error('获取用户信息失败:', error)
         this.logout()
+      }
+    },
+
+    async loadValidModuleCodes() {
+      try {
+        const res = await tenantModuleApi.getValidModuleCodes(this.tenantId || 1)
+        this.validModuleCodes = res.data || []
+      } catch {
+        this.validModuleCodes = []
       }
     },
 
@@ -96,11 +141,15 @@ export const useUserStore = defineStore('user', {
         this.userInfo = null
         this.permissions = []
         this.roles = []
+        this.billTypes = []
+        this.validModuleCodes = []
         this.menus = []
         localStorage.removeItem('token')
         localStorage.removeItem('tenantId')
         localStorage.removeItem('tenantName')
         localStorage.removeItem('userTenants')
+        // 断开 SSE 通知连接
+        this.disconnectSse()
       }
     },
 
@@ -122,6 +171,36 @@ export const useUserStore = defineStore('user', {
 
     hasAnyRole(roles: string[]): boolean {
       return roles.some(r => this.hasRole(r))
+    },
+
+    /**
+     * 检查路由对应的模块是否对当前租户有效
+     * @param routePath 路由路径（如 "sale/order"）
+     * @returns true=模块有效或无需校验
+     */
+    hasValidModule(routePath: string): boolean {
+      // 系统用户不限制模块
+      if (this.isSystemUser) return true
+      // 没有模块限制数据时放行（避免影响未配置模块的租户）
+      if (!this.validModuleCodes || this.validModuleCodes.length === 0) return true
+
+      const parts = routePath.replace(/^\/+/, '').split('/').filter(Boolean)
+      if (parts.length === 0) return true
+
+      // 取路径首段作为 moduleKey（如 "sale/order" → "sale"）
+      const moduleKey = parts[0]
+
+      // 检查精确匹配
+      if (this.validModuleCodes.includes(moduleKey)) return true
+
+      // 检查前缀匹配（如 "sale:order" 匹配 "sale"）
+      let prefix = moduleKey
+      while (prefix.includes(':')) {
+        prefix = prefix.substring(0, prefix.lastIndexOf(':'))
+        if (this.validModuleCodes.includes(prefix)) return true
+      }
+
+      return false
     }
   },
 

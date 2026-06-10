@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchProfile">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchProfile)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -27,7 +27,7 @@
     </div>
     <a-result v-else-if="profileError" status="warning" title="加载个人信息失败">
       <template #extra>
-        <a-button type="primary" @click="fetchProfile">重试</a-button>
+        <a-button type="primary" @click="debounceClick('retry', fetchProfile)">重试</a-button>
       </template>
     </a-result>
     <div v-else class="profile-page">
@@ -65,7 +65,7 @@
 
             <a-divider />
 
-            <a-button block @click="showEditProfile = true">
+            <a-button block @click="debounceClick('editProfile', handleOpenEditProfile)">
               <template #icon><EditOutlined /></template>
               编辑资料
             </a-button>
@@ -84,25 +84,25 @@
               :wrapper-col="{ span: 14 }"
             >
               <a-form-item label="当前密码" name="oldPassword">
-                <a-input-password
+                <a-input-password size="small"
                   v-model:value="passwordForm.oldPassword"
                   placeholder="请输入当前密码"
                 />
               </a-form-item>
               <a-form-item label="新密码" name="newPassword">
-                <a-input-password
+                <a-input-password size="small"
                   v-model:value="passwordForm.newPassword"
                   placeholder="请输入新密码"
                 />
               </a-form-item>
               <a-form-item label="确认密码" name="confirmPassword">
-                <a-input-password
+                <a-input-password size="small"
                   v-model:value="passwordForm.confirmPassword"
                   placeholder="请再次输入新密码"
                 />
               </a-form-item>
               <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="passwordLoading" @click="handleChangePassword">
+                <a-button type="primary" :loading="passwordLoading" @click="debounceClick('changePassword', handleChangePassword)">
                   修改密码
                 </a-button>
               </a-form-item>
@@ -120,6 +120,7 @@
                 <a-select
                   v-model:value="preferenceForm.language"
                   style="width: 100%"
+                  size="small"
                   @change="handlePreferenceChange"
                 >
                   <a-select-option value="zh-CN">简体中文</a-select-option>
@@ -201,7 +202,7 @@
                 </a-space>
               </a-form-item>
               <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="preferenceLoading" @click="handleSavePreferences">
+                <a-button type="primary" :loading="preferenceLoading" @click="debounceClick('savePreference', handleSavePreferences)">
                   保存偏好设置
                 </a-button>
               </a-form-item>
@@ -212,13 +213,7 @@
     </div>
 
     <!-- 编辑个人资料弹窗 -->
-    <a-modal
-      v-model:open="showEditProfile"
-      title="编辑个人资料"
-      :confirm-loading="profileSaving"
-      width="500px"
-      @ok="handleSaveProfile"
-    >
+    <FullScreenDetail :visible="showEditProfile" title="编辑个人资料" :save-loading="profileSaving" @save="handleSaveProfile" @close="handleProfileClose">
       <a-form
         ref="profileFormRef"
         :model="profileForm"
@@ -241,13 +236,13 @@
           </a-upload>
         </a-form-item>
         <a-form-item label="昵称" name="nickname">
-          <a-input v-model:value="profileForm.nickname" placeholder="请输入昵称" />
+          <a-input v-model:value="profileForm.nickname" size="small" placeholder="请输入昵称" />
         </a-form-item>
         <a-form-item label="邮箱" name="email">
-          <a-input v-model:value="profileForm.email" placeholder="请输入邮箱" />
+          <a-input v-model:value="profileForm.email" size="small" placeholder="请输入邮箱" />
         </a-form-item>
         <a-form-item label="手机号" name="phone">
-          <a-input v-model:value="profileForm.phone" placeholder="请输入手机号" />
+          <a-input v-model:value="profileForm.phone" size="small" placeholder="请输入手机号" />
         </a-form-item>
         <a-form-item label="性别" name="gender">
           <a-radio-group v-model:value="profileForm.gender">
@@ -257,14 +252,15 @@
           </a-radio-group>
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, UploadProps } from 'ant-design-vue'
 import {
   EditOutlined,
@@ -276,6 +272,16 @@ import {
 } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import { profileApi, type ProfileInfo, type PreferenceSettings } from '@/api/profile'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 // ══════════════════════════════════════════════════════════
 // 用户信息
@@ -415,6 +421,11 @@ const profileFormRules = {
   phone: { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
 }
 
+const handleOpenEditProfile = () => {
+  showEditProfile.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady.value = true })
+}
+
 const handleSaveProfile = async () => {
   try {
     await profileFormRef.value?.validate()
@@ -423,11 +434,53 @@ const handleSaveProfile = async () => {
     message.success('个人资料更新成功')
     await fetchProfile()
     showEditProfile.value = false
+    watchReady.value = false
   } catch (err) {
     console.warn('[个人中心] 更新个人资料失败', err)
     message.error('保存失败')
   } finally {
     profileSaving.value = false
+  }
+}
+
+// ── Form dirty tracking (profile form) ─────────────────────
+const initialFormSnapshot = ref('')
+const watchReady = ref(false)
+const formDirty = computed(() => {
+  if (!watchReady.value) return false
+  return initialFormSnapshot.value !== JSON.stringify(profileForm)
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify(profileForm)
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开', content: '当前表单未保存，确定要离开吗？', okText: '确定', cancelText: '取消',
+      onOk() { next() }, onCancel() { next(false) }
+    })
+  } else { next() }
+})
+
+// ── 键盘快捷键 ────────────────────────────
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', fetchProfile)
+  }
+}
+
+const handleProfileClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭', content: '当前表单未保存，确定要关闭吗？', okText: '确定', cancelText: '取消',
+      onOk() { showEditProfile.value = false; watchReady.value = false }
+    })
+  } else {
+    showEditProfile.value = false
+    watchReady.value = false
   }
 }
 
@@ -494,6 +547,8 @@ const fetchPreferences = async () => {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
+function handleParentCreate() { handleAdd() }
+
 onMounted(() => {
   fetchProfile()
   fetchPreferences()
@@ -506,11 +561,15 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('profile:create', handleParentCreate)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('profile:create', handleParentCreate)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery: fetchProfile })
@@ -617,5 +676,26 @@ defineExpose({ handleQuery: fetchProfile })
 
 .color-block:hover {
   transform: scale(1.1);
+}
+
+/* ── FullScreenDetail form compact overrides ── */
+.fsd-body .ant-form-item {
+  margin-bottom: 12px !important;
+}
+.fsd-body .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+.fsd-body .ant-input,
+.fsd-body .ant-input-password,
+.fsd-body .ant-input-number,
+.fsd-body .ant-select,
+.fsd-body .ant-picker,
+.fsd-body .ant-tree-select,
+.fsd-body .ant-cascader-picker {
+  min-height: 28px !important;
+  font-size: 13px !important;
+}
+.fsd-body .ant-form-item-label > label {
+  font-size: 13px !important;
 }
 </style>

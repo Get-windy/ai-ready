@@ -6,6 +6,8 @@ import cn.aiedge.base.entity.SysRolePermission;
 import cn.aiedge.base.mapper.SysRoleMapper;
 import cn.aiedge.base.mapper.SysRoleMenuMapper;
 import cn.aiedge.base.mapper.SysRolePermissionMapper;
+import cn.aiedge.base.mapper.SysUserRoleMapper;
+import cn.aiedge.base.security.StpInterfaceImpl;
 import cn.aiedge.base.service.SysRoleService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -33,6 +35,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
 
     private final SysRolePermissionMapper rolePermissionMapper;
     private final SysRoleMenuMapper roleMenuMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
+    private final StpInterfaceImpl stpInterface;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,6 +77,11 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
         if (permissionIds == null || permissionIds.isEmpty()) {
             // 清空角色权限
             rolePermissionMapper.deleteByRoleId(roleId);
+            // 清除所有拥有该角色的用户权限缓存
+            List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(roleId);
+            for (Long uid : userIds) {
+                stpInterface.clearUserPermissionCache(uid);
+            }
             log.info("清空角色权限: roleId={}", roleId);
             return;
         }
@@ -102,6 +111,15 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
             rolePermissionMapper.batchInsert(rolePermissions);
         }
 
+        // 清除所有拥有该角色的用户权限缓存
+        List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(roleId);
+        for (Long uid : userIds) {
+            stpInterface.clearUserPermissionCache(uid);
+        }
+        if (!userIds.isEmpty()) {
+            log.info("已清除 {} 个用户的权限缓存: roleId={}", userIds.size(), roleId);
+        }
+
         log.info("分配权限成功: roleId={}, permissionIds={}", roleId, permissionIds);
     }
 
@@ -115,6 +133,11 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
         if (menuIds == null || menuIds.isEmpty()) {
             // 清空角色菜单
             roleMenuMapper.deleteByRoleId(roleId);
+            // 清除所有拥有该角色的用户权限缓存
+            List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(roleId);
+            for (Long uid : userIds) {
+                stpInterface.clearUserPermissionCache(uid);
+            }
             log.info("清空角色菜单: roleId={}", roleId);
             return;
         }
@@ -144,7 +167,82 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole>
             roleMenuMapper.batchInsert(roleMenus);
         }
 
+        // 清除所有拥有该角色的用户权限缓存（菜单变更影响路由访问）
+        List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(roleId);
+        for (Long uid : userIds) {
+            stpInterface.clearUserPermissionCache(uid);
+        }
+        if (!userIds.isEmpty()) {
+            log.info("已清除 {} 个用户的权限缓存: roleId={}", userIds.size(), roleId);
+        }
+
         log.info("分配菜单成功: roleId={}, menuIds={}", roleId, menuIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void copyPermissions(Long targetRoleId, Long sourceRoleId) {
+        // 1. 校验两个角色都存在
+        SysRole targetRole = getById(targetRoleId);
+        if (targetRole == null) {
+            throw new RuntimeException("目标角色不存在");
+        }
+        SysRole sourceRole = getById(sourceRoleId);
+        if (sourceRole == null) {
+            throw new RuntimeException("源角色不存在");
+        }
+
+        // 2. 获取源角色的权限ID列表
+        List<Long> permissionIds = baseMapper.selectPermissionIdsByRoleId(sourceRoleId);
+
+        // 3. 获取源角色的菜单ID列表
+        List<Long> menuIds = baseMapper.selectMenuIdsByRoleId(sourceRoleId);
+
+        // 4. 删除目标角色原有权限和菜单关联
+        rolePermissionMapper.deleteByRoleId(targetRoleId);
+        roleMenuMapper.deleteByRoleId(targetRoleId);
+
+        // 5. 复制权限
+        if (permissionIds != null && !permissionIds.isEmpty()) {
+            List<SysRolePermission> rolePermissions = permissionIds.stream()
+                    .distinct()
+                    .map(permissionId -> {
+                        SysRolePermission rp = new SysRolePermission();
+                        rp.setRoleId(targetRoleId);
+                        rp.setPermissionId(permissionId);
+                        rp.setTenantId(targetRole.getTenantId());
+                        return rp;
+                    })
+                    .toList();
+            rolePermissionMapper.batchInsert(rolePermissions);
+        }
+
+        // 6. 复制菜单
+        if (menuIds != null && !menuIds.isEmpty()) {
+            List<SysRoleMenu> roleMenus = menuIds.stream()
+                    .distinct()
+                    .map(menuId -> {
+                        SysRoleMenu rm = new SysRoleMenu();
+                        rm.setRoleId(targetRoleId);
+                        rm.setMenuId(menuId);
+                        rm.setTenantId(targetRole.getTenantId());
+                        return rm;
+                    })
+                    .toList();
+            roleMenuMapper.batchInsert(roleMenus);
+        }
+
+        // 7. 清除目标角色所有用户的权限缓存
+        List<Long> userIds = sysUserRoleMapper.selectUserIdsByRoleId(targetRoleId);
+        for (Long uid : userIds) {
+            stpInterface.clearUserPermissionCache(uid);
+        }
+        if (!userIds.isEmpty()) {
+            log.info("已清除 {} 个用户的权限缓存: roleId={}", userIds.size(), targetRoleId);
+        }
+
+        log.info("复制角色权限成功: targetRoleId={}, sourceRoleId={}, permissions={}, menus={}",
+                targetRoleId, sourceRoleId, permissionIds.size(), menuIds.size());
     }
 
     @Override

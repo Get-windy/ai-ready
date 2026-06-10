@@ -5,6 +5,7 @@ import cn.aiedge.base.entity.SysOperLog;
 import cn.aiedge.base.service.SysLoginLogService;
 import cn.aiedge.base.service.SysOperLogService;
 import cn.aiedge.base.vo.Result;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,6 +43,7 @@ public class LogManageController {
 
     @GetMapping("/oper/page")
     @Operation(summary = "分页查询操作日志")
+    @SaCheckPermission("log:oper:list")
     public Result<Page<SysOperLog>> pageOperLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -57,18 +59,21 @@ public class LogManageController {
 
     @GetMapping("/oper/{id}")
     @Operation(summary = "获取操作日志详情")
+    @SaCheckPermission("log:oper:detail")
     public Result<SysOperLog> getOperLog(@PathVariable Long id) {
         return Result.ok(operLogService.getById(id));
     }
 
     @GetMapping("/oper/recent/{userId}")
     @Operation(summary = "获取用户最近操作日志")
+    @SaCheckPermission("log:oper:list")
     public Result<List<SysOperLog>> getRecentOperLogs(@PathVariable Long userId, @RequestParam(defaultValue = "10") int limit) {
         return Result.ok(operLogService.getRecentLogs(userId, limit));
     }
 
     @GetMapping("/oper/stats/module")
     @Operation(summary = "获取模块统计")
+    @SaCheckPermission("log:oper:stats")
     public Result<List<Map<String, Object>>> getModuleStats(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime) {
@@ -77,6 +82,7 @@ public class LogManageController {
 
     @GetMapping("/oper/stats/user")
     @Operation(summary = "获取用户操作统计")
+    @SaCheckPermission("log:oper:stats")
     public Result<List<Map<String, Object>>> getUserStats(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
@@ -86,6 +92,7 @@ public class LogManageController {
 
     @GetMapping("/oper/export")
     @Operation(summary = "导出操作日志")
+    @SaCheckPermission("log:oper:export")
     public void exportOperLogs(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String module,
@@ -127,6 +134,7 @@ public class LogManageController {
 
     @DeleteMapping("/oper/clean")
     @Operation(summary = "清理历史操作日志")
+    @SaCheckPermission("log:oper:delete")
     public Result<Integer> cleanOperLogs(@RequestParam(defaultValue = "90") int days) {
         return Result.ok(operLogService.cleanLogs(days));
     }
@@ -135,6 +143,7 @@ public class LogManageController {
 
     @GetMapping("/login/page")
     @Operation(summary = "分页查询登录日志")
+    @SaCheckPermission("log:login:list")
     public Result<Page<SysLoginLog>> pageLoginLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -149,18 +158,21 @@ public class LogManageController {
 
     @GetMapping("/login/{id}")
     @Operation(summary = "获取登录日志详情")
+    @SaCheckPermission("log:login:detail")
     public Result<SysLoginLog> getLoginLog(@PathVariable Long id) {
         return Result.ok(loginLogService.getById(id));
     }
 
     @GetMapping("/login/recent/{userId}")
     @Operation(summary = "获取用户最近登录记录")
+    @SaCheckPermission("log:login:list")
     public Result<List<SysLoginLog>> getRecentLoginLogs(@PathVariable Long userId, @RequestParam(defaultValue = "10") int limit) {
         return Result.ok(loginLogService.getRecentLogins(userId, limit));
     }
 
     @GetMapping("/login/stats/daily")
     @Operation(summary = "获取每日登录统计")
+    @SaCheckPermission("log:login:stats")
     public Result<List<Map<String, Object>>> getDailyLoginStats(
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime) {
@@ -169,6 +181,7 @@ public class LogManageController {
 
     @GetMapping("/login/abnormal")
     @Operation(summary = "检测异常登录")
+    @SaCheckPermission("log:login:stats")
     public Result<List<Map<String, Object>>> detectAbnormalLogin(
             @RequestParam(defaultValue = "5") int threshold,
             @RequestParam(defaultValue = "30") int minutes) {
@@ -177,6 +190,7 @@ public class LogManageController {
 
     @GetMapping("/login/export")
     @Operation(summary = "导出登录日志")
+    @SaCheckPermission("log:login:export")
     public void exportLoginLogs(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) Integer loginResult,

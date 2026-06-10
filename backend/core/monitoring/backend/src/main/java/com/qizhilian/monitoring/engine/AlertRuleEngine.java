@@ -267,13 +267,17 @@ public class AlertRuleEngine {
             if (channels != null) {
                 try {
                     rule.setNotificationChannels(objectMapper.writeValueAsString(channels));
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.warn("序列化通知渠道失败", e);
+                }
             }
             List<String> receivers = (List<String>) notify.get("receivers");
             if (receivers != null) {
                 try {
                     rule.setNotificationReceivers(objectMapper.writeValueAsString(receivers));
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.warn("序列化通知接收者失败", e);
+                }
             }
         }
 

@@ -22,4 +22,6 @@ public interface BudgetAdjustmentService {
     BudgetAdjustmentDTO reject(Long id, String comment);
 
     List<BudgetAdjustmentDTO> exportList(Long budgetId, String status, String adjustmentType);
+
+    void delete(Long id);
 }

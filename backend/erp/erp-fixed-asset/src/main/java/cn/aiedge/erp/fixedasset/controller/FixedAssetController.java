@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.controller;
 
+import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.erp.fixedasset.dto.ApiResponse;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDTO;
 import cn.aiedge.erp.fixedasset.service.FixedAssetService;
@@ -29,6 +30,7 @@ public class FixedAssetController {
 
     @Operation(summary = "创建固定资产")
     @PostMapping
+    @RequiresPermission("erp:fixed-asset:asset:create")
     public ApiResponse<FixedAssetDTO> create(@Valid @RequestBody FixedAssetDTO dto) {
         FixedAssetDTO result = fixedAssetService.create(dto);
         return ApiResponse.success("固定资产创建成功", result);
@@ -36,6 +38,7 @@ public class FixedAssetController {
 
     @Operation(summary = "更新固定资产")
     @PutMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:asset:update")
     public ApiResponse<FixedAssetDTO> update(
             @Parameter(description = "资产ID") @PathVariable Long id,
             @Valid @RequestBody FixedAssetDTO dto) {
@@ -45,6 +48,7 @@ public class FixedAssetController {
 
     @Operation(summary = "删除固定资产")
     @DeleteMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:asset:delete")
     public ApiResponse<Void> delete(
             @Parameter(description = "资产ID") @PathVariable Long id) {
         fixedAssetService.delete(id);
@@ -53,6 +57,7 @@ public class FixedAssetController {
 
     @Operation(summary = "获取固定资产详情")
     @GetMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:asset:query")
     public ApiResponse<FixedAssetDTO> getById(
             @Parameter(description = "资产ID") @PathVariable Long id) {
         FixedAssetDTO result = fixedAssetService.getById(id);
@@ -61,6 +66,7 @@ public class FixedAssetController {
 
     @Operation(summary = "分页查询固定资产")
     @GetMapping("/page")
+    @RequiresPermission("erp:fixed-asset:asset:list")
     public ApiResponse<Page<FixedAssetDTO>> getPage(
             @Parameter(description = "资产编码") @RequestParam(required = false) String assetCode,
             @Parameter(description = "资产名称") @RequestParam(required = false) String assetName,
@@ -77,6 +83,7 @@ public class FixedAssetController {
 
     @Operation(summary = "计提折旧")
     @PostMapping("/{id}/depreciate")
+    @RequiresPermission("erp:fixed-asset:asset:depreciate")
     public ApiResponse<FixedAssetDTO> depreciate(
             @Parameter(description = "资产ID") @PathVariable Long id) {
         FixedAssetDTO result = fixedAssetService.depreciate(id);
@@ -85,6 +92,7 @@ public class FixedAssetController {
 
     @Operation(summary = "获取资产统计")
     @GetMapping("/statistics")
+    @RequiresPermission("erp:fixed-asset:asset:query")
     public ApiResponse<Map<String, Object>> getStatistics() {
         Map<String, Object> statistics = fixedAssetService.getStatistics();
         return ApiResponse.success(statistics);
@@ -92,6 +100,7 @@ public class FixedAssetController {
 
     @Operation(summary = "批量删除固定资产")
     @DeleteMapping("/batch")
+    @RequiresPermission("erp:fixed-asset:asset:delete")
     public ApiResponse<Void> batchDelete(@RequestBody List<Long> ids) {
         fixedAssetService.batchDelete(ids);
         return ApiResponse.success("批量删除成功", null);
@@ -99,6 +108,7 @@ public class FixedAssetController {
 
     @Operation(summary = "导出固定资产列表")
     @GetMapping("/export")
+    @RequiresPermission("erp:fixed-asset:asset:export")
     public ApiResponse<List<FixedAssetDTO>> export(
             @Parameter(description = "资产编码") @RequestParam(required = false) String assetCode,
             @Parameter(description = "资产名称") @RequestParam(required = false) String assetName,

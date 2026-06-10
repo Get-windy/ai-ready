@@ -1,6 +1,7 @@
 package cn.aiedge.recommendation.controller;
 
 import cn.aiedge.recommendation.entity.UserBehavior;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.recommendation.model.RecommendationRequest;
 import cn.aiedge.recommendation.model.RecommendationResponse;
 import cn.aiedge.recommendation.service.RecommendationService;
@@ -18,6 +19,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/recommendation")
+@SaCheckLogin
 public class RecommendationController {
 
     @Autowired

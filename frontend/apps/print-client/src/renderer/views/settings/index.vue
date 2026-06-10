@@ -20,32 +20,65 @@ const settings = ref({
   notifyOnFail: true
 })
 
+const authState = ref({
+  isLoggedIn: false,
+  username: '',
+  tenantName: '',
+  clientName: ''
+})
+
 const printers = ref<any[]>([])
 const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>('disconnected')
 const saving = ref(false)
+const autoStartEnabled = ref(false)
 
 onMounted(async () => {
   const savedSettings = await window.electronAPI.settings.get()
   settings.value = { ...settings.value, ...savedSettings }
-  
+
   printers.value = await window.electronAPI.printers.getPrinters()
-  
+
   connectionStatus.value = await window.electronAPI.connection.getStatus()
+
+  // 加载认证状态
+  const state = await window.electronAPI.auth.getAuthState()
+  authState.value = {
+    isLoggedIn: state.isLoggedIn,
+    username: state.username || '',
+    tenantName: state.tenantName || '',
+    clientName: state.clientName || ''
+  }
+
+  // 加载开机自启设置
+  autoStartEnabled.value = await window.electronAPI.app.getAutoStart()
 })
 
 const handleSave = async () => {
   saving.value = true
   try {
     await window.electronAPI.settings.save(settings.value)
-    
+
     if (settings.value.serverUrl) {
       await window.electronAPI.connection.connect(settings.value.serverUrl)
     }
-    
+
     message.success('设置已保存')
   } finally {
     saving.value = false
   }
+}
+
+const handleToggleAutoStart = async () => {
+  autoStartEnabled.value = !autoStartEnabled.value
+  await window.electronAPI.app.setAutoStart(autoStartEnabled.value)
+  message.success(autoStartEnabled.value ? '已开启开机自启' : '已关闭开机自启')
+}
+
+const handleLogout = async () => {
+  const serverUrl = await window.electronAPI.settings.getSetting('serverUrl') as string
+  await window.electronAPI.auth.logout(serverUrl || '')
+  message.success('已退出登录')
+  router.push('/login')
 }
 
 const handleTestConnection = async () => {
@@ -121,6 +154,45 @@ const handleDisconnect = async () => {
         </div>
       </Card>
       
+      <Card title="账号信息" class="settings-card">
+        <div class="account-info">
+          <div class="info-row">
+            <span class="label">登录账号</span>
+            <span class="value">{{ authState.username || '-' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">所属租户</span>
+            <span class="value">{{ authState.tenantName || '-' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">客户端名称</span>
+            <span class="value">{{ authState.clientName || '未配置' }}</span>
+          </div>
+          <div class="button-group">
+            <Button @click="handleLogout">退出登录</Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="启动设置" class="settings-card">
+        <div class="toggle-row">
+          <span class="label">开机自动启动</span>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              :checked="autoStartEnabled"
+              @change="handleToggleAutoStart"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span class="label">自动登录</span>
+          <span class="value-hint">{{ authState.isLoggedIn ? '已启用（记住密码）' : '未启用' }}</span>
+        </div>
+        <p class="settings-hint">开启后，电脑开机时打印客户端将自动启动并连接服务器</p>
+      </Card>
+
       <Card title="打印机设置" class="settings-card">
         <Select
           label="默认打印机"
@@ -280,5 +352,84 @@ const handleDisconnect = async () => {
 
 .save-section {
   margin-top: 24px;
+}
+
+/* 账号信息 */
+.account-info {
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+
+    .label {
+      font-size: 14px;
+      color: #969799;
+    }
+
+    .value {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+  }
+}
+
+/* 开关样式 */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #dcdfe6;
+    border-radius: 24px;
+    transition: 0.3s;
+
+    &::before {
+      content: '';
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+  }
+
+  input:checked + .toggle-slider {
+    background-color: #07c160;
+  }
+
+  input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+  }
+}
+
+.value-hint {
+  font-size: 13px;
+  color: #969799;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: #c0c4cc;
+  margin: 4px 0 0;
+  line-height: 1.5;
 }
 </style>

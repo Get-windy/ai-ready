@@ -3,6 +3,7 @@ package cn.aiedge.agent.service;
 import cn.aiedge.agent.entity.AgentCallLog;
 import cn.aiedge.agent.mapper.AgentCallLogMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.util.Map;
 /**
  * Agent调用审计服务
  */
+@Slf4j
 @Service
 public class AgentAuditService {
 
@@ -55,7 +57,7 @@ public class AgentAuditService {
             callLogMapper.insert(log);
         } catch (Exception e) {
             // 记录日志失败不影响主流程
-            e.printStackTrace();
+            log.error("记录调用日志失败, requestId={}", requestId, e);
         }
     }
 

@@ -24,6 +24,11 @@ public class RoleQueryRequest {
     private String roleType;
 
     /**
+     * 角色作用域：PLATFORM-平台级 TENANT-租户级
+     */
+    private String scope;
+
+    /**
      * 状态
      */
     private Integer status;

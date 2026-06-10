@@ -55,6 +55,12 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: { title: '注册', requiresAuth: false }
   },
   {
+    path: '/tenant-register',
+    name: 'TenantRegister',
+    component: () => import('@/views/login/tenant-register.vue'),
+    meta: { title: '企业注册', requiresAuth: false }
+  },
+  {
     path: '/403',
     name: 'Forbidden',
     component: () => import('@/views/error/403.vue'),

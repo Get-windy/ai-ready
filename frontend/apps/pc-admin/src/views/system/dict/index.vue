@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchTypeData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTypeData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -71,15 +71,28 @@
         :selectable="false"
         add-text="新增类型"
         @add="handleAddType"
-        @refresh="fetchTypeData"
+        @refresh="debounceClick('refresh', fetchTypeData)"
         @page-change="handleTypePageChange"
         @filter-change="handleFilterChange"
+        @cell-dblclick="handleView"
       >
         <template #toolbar-actions>
-          <a-button type="primary" @click="handleAddType">
+          <a-button type="primary" v-permission="'system:dict:create'" @click="handleAddType">
             <template #icon><PlusOutlined /></template>
             新增类型
           </a-button>
+        </template>
+
+        <template #empty>
+          <a-empty v-if="!hasError" description="暂无数据" />
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchTypeData)()">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
         </template>
 
         <template #statusCell="{ record }">
@@ -90,10 +103,10 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleEditType(record)">
+            <a-button type="link" size="small" v-permission="'system:dict:update'" @click="handleEditType(record)">
               编辑
             </a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteTypeConfirm(record)">
+            <a-button type="link" size="small" danger v-permission="'system:dict:delete'" @click="handleDeleteTypeConfirm(record)">
               删除
             </a-button>
           </a-space>
@@ -103,7 +116,7 @@
           <div class="expanded-content">
             <div class="expanded-header">
               <span class="expanded-title">字典项列表</span>
-              <a-button type="primary" size="small" @click="handleAddItem(record)">
+              <a-button type="primary" size="small" v-permission="'system:dict:create'" @click="handleAddItem(record)">
                 <template #icon><PlusOutlined /></template>
                 新增字典项
               </a-button>
@@ -125,10 +138,10 @@
 
               <template #actionCell="{ record: itemRecord }">
                 <a-space>
-                  <a-button type="link" size="small" @click="handleEditItem(record, itemRecord)">
+                  <a-button type="link" size="small" v-permission="'system:dict:update'" @click="handleEditItem(record, itemRecord)">
                     编辑
                   </a-button>
-                  <a-button type="link" size="small" danger @click="handleDeleteItemConfirm(record, itemRecord)">
+                  <a-button type="link" size="small" danger v-permission="'system:dict:delete'" @click="handleDeleteItemConfirm(record, itemRecord)">
                     删除
                   </a-button>
                 </a-space>
@@ -139,13 +152,14 @@
       </VxeTableList>
 
       <!-- 字典类型表单弹窗 -->
-      <a-modal
-        v-model:open="typeModalVisible"
+      <FullScreenDetail
+        :visible="typeModalVisible"
         :title="typeModalTitle"
-        :confirm-loading="typeModalLoading"
-        width="500px"
-        @ok="handleTypeModalOk"
-        @cancel="handleTypeModalCancel"
+        :save-loading="typeModalLoading"
+        :show-save-and-new="!isTypeEdit"
+        @save="handleTypeModalOk"
+        @close="handleTypeFormClose"
+        @save-and-new="handleTypeFormSaveAndNew"
       >
         <a-form
           ref="typeFormRef"
@@ -181,16 +195,17 @@
             />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 字典项表单弹窗 -->
-      <a-modal
-        v-model:open="itemModalVisible"
+      <FullScreenDetail
+        :visible="itemModalVisible"
         :title="itemModalTitle"
-        :confirm-loading="itemModalLoading"
-        width="500px"
-        @ok="handleItemModalOk"
-        @cancel="handleItemModalCancel"
+        :save-loading="itemModalLoading"
+        :show-save-and-new="!isItemEdit"
+        @save="handleItemModalOk"
+        @close="handleItemFormClose"
+        @save-and-new="handleItemFormSaveAndNew"
       >
         <a-form
           ref="itemFormRef"
@@ -227,19 +242,44 @@
             </a-radio-group>
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, BookOutlined, UnorderedListOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, BookOutlined, UnorderedListOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/dict'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
+// ── 离开守卫 ────────────────────────────────────────────
+const formDirty = ref(false)
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
+})
 
 // ==================== 字典类型相关 ====================
 
@@ -264,6 +304,7 @@ const typePagination = reactive({
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -309,6 +350,15 @@ const typeFormState = reactive({
   remark: ''
 })
 
+// ── 类型表单脏检测 ─────────────────────────────────────
+const initialTypeFormSnapshot = ref('')
+let watchReadyType = false
+const typeFormDirty = computed(() => {
+  if (!watchReadyType) return false
+  return JSON.stringify(typeFormState) !== initialTypeFormSnapshot.value
+})
+function saveTypeFormSnapshot() { initialTypeFormSnapshot.value = JSON.stringify(typeFormState) }
+
 const typeFormRules = {
   dictCode: { required: true, message: '请输入类型编码', trigger: 'blur' },
   dictName: { required: true, message: '请输入类型名称', trigger: 'blur' }
@@ -317,6 +367,7 @@ const typeFormRules = {
 // 数据加载
 const fetchTypeData = async () => {
   typeLoading.value = true
+  hasError.value = false
   try {
     const res = await dictTypeApi.getPage({
       ...typeSearchForm,
@@ -328,6 +379,7 @@ const fetchTypeData = async () => {
       typePagination.total = res.data.total
     }
   } catch (error) {
+    hasError.value = true
     typeTableData.value = []
     typePagination.total = 0
     console.warn('[字典管理] 加载字典类型失败')
@@ -372,6 +424,8 @@ const handleAddType = () => {
   isTypeEdit.value = false
   Object.assign(typeFormState, { id: 0, dictCode: '', dictName: '', status: 'ENABLED', remark: '' })
   typeModalVisible.value = true
+  nextTick(() => { saveTypeFormSnapshot(); watchReadyType = true })
+  updateFormDirty()
 }
 
 // 编辑类型
@@ -385,6 +439,8 @@ const handleEditType = (record: DictType) => {
     remark: record.remark
   })
   typeModalVisible.value = true
+  nextTick(() => { saveTypeFormSnapshot(); watchReadyType = true })
+  updateFormDirty()
 }
 
 // 删除类型
@@ -432,9 +488,28 @@ const handleTypeModalOk = async () => {
   }
 }
 
-const handleTypeModalCancel = () => {
-  typeModalVisible.value = false
-  typeFormRef.value?.resetFields()
+const handleTypeFormClose = () => {
+  if (typeFormDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { typeModalVisible.value = false; typeFormRef.value?.resetFields(); updateFormDirty() },
+    })
+  } else {
+    typeModalVisible.value = false
+    typeFormRef.value?.resetFields()
+    updateFormDirty()
+  }
+}
+
+const handleTypeFormSaveAndNew = () => {
+  handleTypeModalOk()
+}
+
+function updateFormDirty() {
+  formDirty.value = typeFormDirty.value || itemFormDirty.value
 }
 
 // ==================== 字典项相关 ====================
@@ -465,6 +540,15 @@ const itemFormState = reactive({
   sortOrder: 0,
   status: 'ENABLED'
 })
+
+// ── 字典项表单脏检测 ─────────────────────────────────
+const initialItemFormSnapshot = ref('')
+let watchReadyItem = false
+const itemFormDirty = computed(() => {
+  if (!watchReadyItem) return false
+  return JSON.stringify(itemFormState) !== initialItemFormSnapshot.value
+})
+function saveItemFormSnapshot() { initialItemFormSnapshot.value = JSON.stringify(itemFormState) }
 
 const itemFormRules = {
   itemCode: { required: true, message: '请输入字典项编码', trigger: 'blur' },
@@ -506,6 +590,8 @@ const handleAddItem = (typeRecord: DictType) => {
     status: 'ENABLED'
   })
   itemModalVisible.value = true
+  nextTick(() => { saveItemFormSnapshot(); watchReadyItem = true })
+  updateFormDirty()
 }
 
 // 编辑字典项
@@ -521,6 +607,8 @@ const handleEditItem = (typeRecord: DictType, itemRecord: DictItem) => {
     status: itemRecord.status
   })
   itemModalVisible.value = true
+  nextTick(() => { saveItemFormSnapshot(); watchReadyItem = true })
+  updateFormDirty()
 }
 
 // 删除字典项
@@ -579,13 +667,43 @@ const handleItemModalOk = async () => {
   }
 }
 
-const handleItemModalCancel = () => {
-  itemModalVisible.value = false
-  itemFormRef.value?.resetFields()
+const handleItemFormClose = () => {
+  if (itemFormDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { itemModalVisible.value = false; itemFormRef.value?.resetFields(); updateFormDirty() },
+    })
+  } else {
+    itemModalVisible.value = false
+    itemFormRef.value?.resetFields()
+    updateFormDirty()
+  }
+}
+
+const handleItemFormSaveAndNew = () => {
+  handleItemModalOk()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchTypeData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    handleAddType()
+  }
 }
 
 onMounted(() => {
   fetchTypeData()
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTypeData()
@@ -597,6 +715,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -649,6 +768,11 @@ defineExpose({ handleQuery: fetchTypeData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.dict-management > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -705,11 +829,6 @@ defineExpose({ handleQuery: fetchTypeData })
   color: #1890ff;
 }
 
-/* 表格网格边框 - 主表 */
-
-
-
-
 /* 嵌套表格网格边框 */
 :deep(.expanded-content .ant-table-thead > tr > th) {
   border-top: 1px solid #d9d9d9 !important;
@@ -739,4 +858,12 @@ defineExpose({ handleQuery: fetchTypeData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

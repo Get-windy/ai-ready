@@ -56,6 +56,7 @@
       @selection-change="handleSelectionChange"
       :show-export="true"
       @export="handleExport"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -94,32 +95,61 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的盘点单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无盘点单，点击「新建盘点」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的盘点单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无盘点单，点击「新建盘点」开始创建
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="盘点单详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="盘点单号">{{ currentRecord.checkNo }}</a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="盘点日期">{{ currentRecord.checkDate }}</a-descriptions-item>
-        <a-descriptions-item label="盘点状态"><a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="盘点人">{{ currentRecord.checkerName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="盘点数量">{{ currentRecord.checkQuantity || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="差异数量"><a-tag :color="currentRecord.diffQuantity > 0 ? 'blue' : (currentRecord.diffQuantity < 0 ? 'red' : 'green')">{{ currentRecord.diffQuantity || '-' }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <!-- 详情抽屉 -->
+    <a-drawer
+      v-model:open="detailVisible"
+      :title="detailData?.checkNo || '盘点单详情'"
+      placement="right"
+      width="90vw"
+      @close="handleDetailClose"
+    >
+      <template #extra>
+        <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+          <template #icon><ReloadOutlined /></template>
+        </a-button>
+      </template>
+
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small" style="margin-bottom: 16px">
+            <a-descriptions-item label="盘点单号">{{ detailData.checkNo }}</a-descriptions-item>
+            <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+            <a-descriptions-item label="盘点日期">{{ detailData.checkDate }}</a-descriptions-item>
+            <a-descriptions-item label="盘点状态"><a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="盘点人">{{ detailData.checkerName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="盘点数量">{{ detailData.checkQuantity || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="差异数量"><a-tag :color="(detailData.diffQuantity || 0) > 0 ? 'blue' : ((detailData.diffQuantity || 0) < 0 ? 'red' : 'green')">{{ detailData.diffQuantity ?? '-' }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(currentRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建盘点弹窗 -->
@@ -129,7 +159,7 @@
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="盘点仓库" name="warehouseId">
-              <a-select v-model:value="addForm.warehouseId" placeholder="请选择仓库" :options="warehouseOptions" @change="handleWarehouseChange" />
+              <a-select v-model:value="addForm.warehouseId" size="small" placeholder="请选择仓库" :options="warehouseOptions" @change="handleWarehouseChange" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -141,7 +171,7 @@
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="产品类别" name="categoryId">
-              <a-select v-model:value="addForm.categoryId" placeholder="请选择产品类别筛选（可选）" :options="categoryOptions" allow-clear />
+              <a-select v-model:value="addForm.categoryId" size="small" placeholder="请选择产品类别筛选（可选）" :options="categoryOptions" allow-clear />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -171,7 +201,7 @@
           {{ record.quantity || 0 }} {{ record.unit || '' }}
         </template>
         <template #actualQtyCell="{ record, rowIndex }">
-          <a-input-number v-model:value="checkItems[rowIndex].actualQty" :min="0" style="width: 100%" placeholder="实盘数量" />
+          <a-input-number v-model:value="checkItems[rowIndex].actualQty" :min="0" size="small" style="width: 100%" placeholder="实盘数量" />
         </template>
         <template #diffCell="{ record, rowIndex }">
           <a-tag :color="getDiffColor(rowIndex)">{{ getDiffText(rowIndex) }}</a-tag>
@@ -186,7 +216,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined,
-  ClockCircleOutlined, WarningOutlined, FileTextOutlined, CheckOutlined
+  ClockCircleOutlined, WarningOutlined, FileTextOutlined, CheckOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { stockCheckApi } from '@/api/erp'
@@ -194,8 +224,19 @@ import { executeBatch } from '@/utils/batchOperations'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -259,8 +300,36 @@ const summaryData = computed(() => {
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
 
+// ── 详情抽屉 ──
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    detailData.value = await stockCheckApi.getById(id) as any
+  } catch (err: any) {
+    console.warn('[库存盘点] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+}
+
+function handleDetailRefresh() {
+  if (currentRecord.value?.id) fetchDetail(currentRecord.value.id)
+}
 
 // ── 新建盘点 ──
 interface CheckItem { id: number; productCode: string; productName: string; specification?: string; unit?: string; categoryId?: number; quantity: number; actualQty: number | null }
@@ -330,16 +399,24 @@ async function fetchData() {
     tableData.value = pageData?.records || []
     pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
   } catch (err) {
     console.warn('[库存盘点] 获取盘点列表失败', err)
     tableData.value = []
     pagination.total = 0
+    hasError.value = true
   }
   finally { loading.value = false }
 }
 
 
-function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+function handleView(record: any) {
+  currentRecord.value = record
+  detailData.value = null
+  detailError.value = null
+  detailVisible.value = true
+  fetchDetail(record.id)
+}
 function handleAdd() {
   currentDraftCheckId = null
   addForm.warehouseId = undefined; addForm.checkDate = dayjs(); addForm.categoryId = undefined
@@ -422,7 +499,7 @@ function handleExport() {
   a.download = `盘点单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  console.warn('[库存盘点] 导出盘点单（客户端模拟）')
+  console.warn('[库存盘点] 导出盘点单')
   message.success('导出成功')
 }
 
@@ -443,6 +520,7 @@ function handleActionMenuClick(key: string, record: any) {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
@@ -465,7 +543,12 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
 
+/* 让 VxeTableList 填满剩余空间 */
+.check-list-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -555,5 +638,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

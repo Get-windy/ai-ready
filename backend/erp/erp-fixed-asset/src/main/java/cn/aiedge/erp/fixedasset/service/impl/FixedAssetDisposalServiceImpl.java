@@ -1,5 +1,7 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDisposalDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAsset;
 import cn.aiedge.erp.fixedasset.model.FixedAssetDisposal;
@@ -13,7 +15,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
+
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 固定资产处置服务实现
@@ -33,6 +41,7 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
             entity.setDisposalNo("FD" + IdUtil.fastSimpleUUID().substring(0, 12).toUpperCase());
         }
         entity.setStatus("draft");
+        entity.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
 
         // Calculate gain/loss
         if (entity.getDisposalAmount() != null && entity.getNetValue() != null) {
@@ -47,8 +56,9 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
     @Transactional
     public FixedAssetDisposalDTO update(Long id, FixedAssetDisposalDTO dto) {
         FixedAssetDisposal entity = disposalRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("处置记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("处置记录不存在: " + id));
         updateEntity(entity, dto);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
 
         if (entity.getDisposalAmount() != null && entity.getNetValue() != null) {
             entity.setGainLoss(entity.getDisposalAmount().subtract(entity.getNetValue()));
@@ -62,7 +72,8 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
     @Transactional
     public void delete(Long id) {
         FixedAssetDisposal entity = disposalRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("处置记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("处置记录不存在: " + id));
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity.markAsDeleted();
         disposalRepository.save(entity);
     }
@@ -70,13 +81,24 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
     @Override
     public FixedAssetDisposalDTO getById(Long id) {
         FixedAssetDisposal entity = disposalRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("处置记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("处置记录不存在: " + id));
         return toDTO(entity);
     }
 
     @Override
     public Page<FixedAssetDisposalDTO> getPage(String disposalNo, String status, Pageable pageable) {
-        Page<FixedAssetDisposal> page = disposalRepository.findAll(pageable);
+        Specification<FixedAssetDisposal> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("deleted"), false));
+            if (StringUtils.hasText(disposalNo)) {
+                predicates.add(cb.like(root.get("disposalNo"), "%" + disposalNo + "%"));
+            }
+            if (StringUtils.hasText(status)) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<FixedAssetDisposal> page = disposalRepository.findAll(spec, pageable);
         return page.map(this::toDTO);
     }
 
@@ -84,9 +106,10 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
     @Transactional
     public FixedAssetDisposalDTO approve(Long id, String comment) {
         FixedAssetDisposal entity = disposalRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("处置记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("处置记录不存在: " + id));
         entity.setStatus("approved");
         entity.setApprovalComment(comment);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = disposalRepository.save(entity);
 
         // Update asset status
@@ -105,9 +128,10 @@ public class FixedAssetDisposalServiceImpl implements FixedAssetDisposalService 
     @Transactional
     public FixedAssetDisposalDTO reject(Long id, String comment) {
         FixedAssetDisposal entity = disposalRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("处置记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("处置记录不存在: " + id));
         entity.setStatus("rejected");
         entity.setApprovalComment(comment);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = disposalRepository.save(entity);
         return toDTO(entity);
     }

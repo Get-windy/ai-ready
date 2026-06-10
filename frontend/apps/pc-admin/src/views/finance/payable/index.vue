@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -75,12 +75,13 @@
             :row-key="'id'"
             :filter-fields="filterFields"
             :show-search="false"
-            :show-export="false"
+            export-permission="finance:payable:list"
             :show-add="false"
             :show-edit="false"
             :show-delete="false"
             :selectable="true"
             @refresh="fetchData"
+            @cell-dblclick="handleView"
             @page-change="handlePageChange"
             @filter-change="handleFilterChange"
             @selection-change="handleSelectionChange"
@@ -90,24 +91,48 @@
                 更新 {{ dayjs(lastUpdated).format('HH:mm') }}
               </span>
             </template>
+            <template #batch-actions>
+              <!-- 预留批量操作 -->
+            </template>
 
             <template #empty>
               <div class="table-empty">
-                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-                <InboxOutlined v-else class="table-empty-icon" />
-                <p v-if="hasActiveFilters" class="table-empty-text">
-                  没有符合条件的应付记录，<a @click="handleResetFilters">清除筛选</a>
-                </p>
-                <p v-else class="table-empty-text">
-                  暂无应付账款数据
-                </p>
+                <template v-if="hasError">
+                  <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                  <p class="table-empty-text">加载失败</p>
+                  <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                    <ReloadOutlined /> 重试
+                  </a-button>
+                </template>
+                <template v-else>
+                  <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+                  <InboxOutlined v-else class="table-empty-icon" />
+                  <p v-if="hasActiveFilters" class="table-empty-text">
+                    没有符合条件的应付记录，<a @click="handleResetFilters">清除筛选</a>
+                  </p>
+                  <p v-else class="table-empty-text">
+                    暂无应付账款数据
+                  </p>
+                </template>
               </div>
             </template>
 
+            <template #statusCell="{ record }">
+              <a-tag :color="statusColorMap[record.status] || 'default'">{{ statusLabelMap[record.status] || '未知' }}</a-tag>
+            </template>
             <template #action="{ record }">
               <a-space :size="0" class="action-cell-inner">
-                <a-tooltip :title="record.status === 2 ? '' : '核销'">
-                  <a-button type="link" size="small" :disabled="record.status === 2" @click="handleWriteOff(record)">
+                <PrintButton
+                  template-type="payable"
+                  :business-id="record.id"
+                  business-type="payable"
+                  button-text=""
+                  button-size="small"
+                  button-type="link"
+                  tooltip="打印"
+                />
+                <a-tooltip :title="record.status === 'written_off' ? '' : '核销'">
+                  <a-button type="link" size="small" :disabled="record.status === 'written_off'" @click="handleWriteOff(record)">
                     <template #icon><CheckCircleOutlined /></template>
                   </a-button>
                 </a-tooltip>
@@ -123,24 +148,24 @@
       </a-tabs>
 
       <!-- 核销弹窗 -->
-      <a-modal
-        v-model:open="writeOffVisible"
+      <FullScreenDetail
+        :visible="writeOffVisible"
         title="应付账款核销"
-        :confirm-loading="writeOffLoading"
-        @ok="handleWriteOffConfirm"
-        @cancel="handleWriteOffCancel"
+        :save-loading="writeOffLoading"
+        @save="handleWriteOffConfirm"
+        @close="handleWriteOffCancel"
       >
         <a-descriptions v-if="writeOffTarget" :column="1" bordered size="small">
           <a-descriptions-item label="供应商">{{ writeOffTarget.supplierName }}</a-descriptions-item>
           <a-descriptions-item label="来源单号">{{ writeOffTarget.sourceNo }}</a-descriptions-item>
           <a-descriptions-item label="应付总额">
-            {{ formatAmount(writeOffTarget.amount) }}
+            {{ formatAmount(writeOffTarget.totalAmount) }}
           </a-descriptions-item>
           <a-descriptions-item label="已核销金额">
-            {{ formatAmount(writeOffTarget.writtenOff) }}
+            {{ formatAmount(writeOffTarget.paidAmount) }}
           </a-descriptions-item>
           <a-descriptions-item label="剩余金额">
-            {{ formatAmount(writeOffTarget.balance) }}
+            {{ formatAmount(writeOffTarget.remainingAmount) }}
           </a-descriptions-item>
         </a-descriptions>
         <a-form layout="vertical" style="margin-top: 16px">
@@ -148,14 +173,15 @@
             <a-input-number
               v-model:value="writeOffAmount"
               :min="0.01"
-              :max="writeOffTarget?.balance || 0"
+              :max="writeOffTarget?.remainingAmount || 0"
               :precision="2"
+              size="small"
               style="width: 100%"
               placeholder="请输入核销金额"
             />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
@@ -172,12 +198,19 @@ import {
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { payableApi } from '@/api/finance'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 const tableRef = ref()
 const activeTab = ref('list')
 const loading = ref(false)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref('')
@@ -187,15 +220,16 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const searchForm = reactive({
   supplierName: '',
-  status: undefined as number | undefined
+  status: undefined as string | undefined
 })
 
 const filterFields = [
   { key: 'supplierName', label: '供应商', type: 'input' as const, placeholder: '供应商名称' },
   { key: 'status', label: '状态', type: 'select' as const, options: [
-    { label: '未核销', value: 0 },
-    { label: '部分核销', value: 1 },
-    { label: '已核销', value: 2 }
+    { label: '未核销', value: 'normal' },
+    { label: '部分核销', value: 'partial' },
+    { label: '逾期', value: 'overdue' },
+    { label: '已核销', value: 'written_off' }
   ]}
 ]
 
@@ -222,30 +256,32 @@ const stats = reactive({
 
 const overdueAmount = computed(() => {
   return tableData.value
-    .filter(r => isOverdue(r.dueDate) && r.balance > 0)
-    .reduce((sum, item) => sum + item.balance, 0)
+    .filter(r => isOverdue(r.dueDate) && (r.remainingAmount || 0) > 0)
+    .reduce((sum, item) => sum + (item.remainingAmount || 0), 0)
 })
 
-const statusColorMap: Record<number, string> = {
-  0: 'warning',
-  1: 'processing',
-  2: 'success'
+const statusColorMap: Record<string, string> = {
+  normal: 'warning',
+  partial: 'processing',
+  overdue: 'error',
+  written_off: 'success'
 }
 
-const statusLabelMap: Record<number, string> = {
-  0: '未核销',
-  1: '部分核销',
-  2: '已核销'
+const statusLabelMap: Record<string, string> = {
+  normal: '未核销',
+  partial: '部分核销',
+  overdue: '逾期',
+  written_off: '已核销'
 }
 
 const columns = computed(() => [
   { title: '来源单号', field: 'sourceNo', width: 150 },
   { title: '供应商', field: 'supplierName', width: 150 },
-  { title: '总额', field: 'amount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
-  { title: '已核销', field: 'writtenOff', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
-  { title: '余额', field: 'balance', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '总额', field: 'totalAmount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '已核销', field: 'paidAmount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
+  { title: '余额', field: 'remainingAmount', width: 120, align: 'right', formatter: ({ cellValue }: any) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '到期日', field: 'dueDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => statusLabelMap[cellValue] || '未知' },
+  { title: '状态', field: 'status', width: 100, align: 'center', slotName: 'statusCell' },
   { title: '操作', type: 'action', width: 120, fixed: 'right' }
 ])
 
@@ -276,15 +312,17 @@ const fetchData = async () => {
       pagination.total = res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       // 更新统计
-      stats.totalAmount = tableData.value.reduce((sum, item) => sum + item.amount, 0)
-      stats.writtenOffAmount = tableData.value.reduce((sum, item) => sum + item.writtenOff, 0)
-      stats.balanceAmount = tableData.value.reduce((sum, item) => sum + item.balance, 0)
+      stats.totalAmount = tableData.value.reduce((sum, item) => sum + (item.totalAmount || 0), 0)
+      stats.writtenOffAmount = tableData.value.reduce((sum, item) => sum + (item.paidAmount || 0), 0)
+      stats.balanceAmount = tableData.value.reduce((sum, item) => sum + (item.remainingAmount || 0), 0)
     }
+    hasError.value = false
   } catch (err) {
     console.warn('[应付账款] 获取数据失败', err)
     message.error('获取应付账款数据失败')
     tableData.value = []
     pagination.total = 0
+    hasError.value = true
   } finally {
     loading.value = false
     refreshLoading.value = false
@@ -300,6 +338,7 @@ const fetchAgingData = async () => {
     }
   } catch (err) {
     console.warn('[应付账款] 获取账龄分析失败', err)
+    message.warning('获取账龄分析数据失败')
   }
 }
 
@@ -337,6 +376,10 @@ const initAgingChart = (data: any) => {
   })
 }
 
+const handleView = (record: any) => {
+  message.info(`查看详情: ${record.supplierName}`)
+}
+
 const handleSearch = () => {
   pagination.current = 1
   fetchData()
@@ -367,7 +410,7 @@ const handleSelectionChange = (rows: any[], ids: any[]) => {
 
 const handleWriteOff = (record: any) => {
   writeOffTarget.value = record
-  writeOffAmount.value = record.balance
+  writeOffAmount.value = record.remainingAmount
   writeOffVisible.value = true
 }
 
@@ -376,7 +419,7 @@ const handleWriteOffConfirm = async () => {
     message.warning('请输入有效的核销金额')
     return
   }
-  if (writeOffAmount.value > (writeOffTarget.value?.balance || 0)) {
+  if (writeOffAmount.value > (writeOffTarget.value?.remainingAmount || 0)) {
     message.warning('核销金额不能大于剩余金额')
     return
   }
@@ -407,8 +450,23 @@ function handleResetFilters() {
   pagination.current = 1; fetchData()
 }
 
+function isInput(el: Element | null): boolean {
+  if (!el) return false
+  const tag = el.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || (el as HTMLElement)?.isContentEditable
+}
+
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); }
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput(e.target as Element | null)) { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleAdd() {
+  // 应付页面无需直接新增
+}
+
+function handleParentCreate() {
+  handleAdd()
 }
 
 const formatAmount = (val: number) => {
@@ -428,6 +486,8 @@ watch(activeTab, (val) => {
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -440,6 +500,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -494,6 +556,11 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   gap: 16px;
+}
+
+.finance-payable-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -582,6 +649,11 @@ defineExpose({ handleQuery: fetchData })
 }
 
 /* 响应式 */
+
+.table-empty-action {
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .stat-cards {
     flex-wrap: wrap;
@@ -590,5 +662,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 30%;
     min-width: 100px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

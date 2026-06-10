@@ -32,7 +32,23 @@
       :show-search="false"
       :show-export="false"
       :show-batch-delete="false"
+      @cell-dblclick="handleView"
     >
+      <template #empty>
+        <div class="table-empty">
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="loadMockData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <InboxOutlined class="table-empty-icon" />
+            <p class="table-empty-text">暂无数据</p>
+          </template>
+        </div>
+      </template>
       <template #amountCell="{ record }">
         <span>¥{{ record.amount?.toFixed(2) }}</span>
       </template>
@@ -64,9 +80,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message } from 'ant-design-vue'
+import { WarningOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons-vue'
 
 interface DifferenceRecord {
   id: number
@@ -77,6 +94,7 @@ interface DifferenceRecord {
 }
 
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<DifferenceRecord[]>([])
 
 const summaryData = reactive({
@@ -122,23 +140,46 @@ const handleAdjust = (record: DifferenceRecord) => {
   message.info(`调整差异: ${record.description}`)
 }
 
+const handleView = (record: DifferenceRecord) => {
+  message.info(`查看差异: ${record.description}`)
+}
+
 const handleIgnore = (record: DifferenceRecord) => {
   message.success(`已忽略差异: ${record.description}`)
 }
 
 loading.value = true
-setTimeout(() => {
-  dataSource.value = [
-    {
-      id: 1,
-      type: '金额不一致',
-      description: '系统与银行流水金额不符',
-      amount: 100,
-      status: 0
-    }
-  ]
-  loading.value = false
-}, 500)
+hasError.value = false
+function loadMockData() {
+  setTimeout(() => {
+    dataSource.value = [
+      {
+        id: 1,
+        type: '金额不一致',
+        description: '系统与银行流水金额不符',
+        amount: 100,
+        status: 0
+      }
+    ]
+    loading.value = false
+  }, 500)
+}
+loadMockData()
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+onMounted(() => {
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', loadMockData)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', loadMockData)
+})
 
 defineExpose({})
 </script>
@@ -146,6 +187,16 @@ defineExpose({})
 <style scoped>
 .difference-handling {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.difference-handling > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片样式 */

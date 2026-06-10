@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchTree">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -176,13 +176,14 @@
     </a-row>
 
     <!-- 科目编辑弹窗 -->
-    <a-modal
-      v-model:open="formVisible"
+    <FullScreenDetail
+      :visible="formVisible"
       :title="isEditing ? '编辑科目' : '新增科目'"
-      :confirm-loading="formSubmitting"
-      width="560px"
-      @ok="handleFormSubmit"
-      @cancel="handleFormCancel"
+      :save-loading="formSubmitting"
+      :show-save-and-new="!isEditing"
+      @save="handleFormSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form
         ref="formRef"
@@ -193,16 +194,16 @@
         size="small"
       >
         <a-form-item label="科目编码" name="code">
-          <a-input v-model:value="formState.code" placeholder="如：1001" />
+          <a-input v-model:value="formState.code" placeholder="如：1001" size="small" />
         </a-form-item>
         <a-form-item label="科目名称" name="name">
-          <a-input v-model:value="formState.name" placeholder="如：库存现金" />
+          <a-input v-model:value="formState.name" placeholder="如：库存现金" size="small" />
         </a-form-item>
         <a-form-item label="科目类型" name="type">
-          <a-select v-model:value="formState.type" :options="typeOptions" placeholder="请选择类型" />
+          <a-select v-model:value="formState.type" :options="typeOptions" placeholder="请选择类型" size="small" />
         </a-form-item>
         <a-form-item label="上级科目">
-          <a-input :value="formState.parentName" disabled placeholder="无（一级科目）" />
+          <a-input :value="formState.parentName" disabled placeholder="无（一级科目）" size="small" />
         </a-form-item>
         <a-form-item label="借贷方向" name="direction">
           <a-radio-group v-model:value="formState.direction">
@@ -214,21 +215,28 @@
           <a-switch v-model:checked="formState.enabled" checked-children="启用" un-checked-children="禁用" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
+import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, SyncOutlined,
   FileTextOutlined, FundOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { accountSubjectApi } from '@/api/finance'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 interface SubjectNode {
   id: number
@@ -302,6 +310,27 @@ const formRules = {
   type: [{ required: true, message: '请选择科目类型', trigger: 'change' }],
   direction: [{ required: true, message: '请选择借贷方向', trigger: 'change' }]
 }
+
+const initialFormSnapshot = ref('')
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formState })
+}
+const formDirty = computed(() => {
+  return JSON.stringify({ ...formState }) !== initialFormSnapshot.value
+})
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formVisible.value && formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的修改，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
 
 // ── 统计数据 ────────────────────────────────────────────
 const totalSubjectCount = computed(() => {
@@ -445,6 +474,7 @@ const resetForm = () => {
 const handleAddRoot = () => {
   resetForm()
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleAddChild = (parent: SubjectNode) => {
@@ -453,6 +483,7 @@ const handleAddChild = (parent: SubjectNode) => {
   formState.parentName = `${parent.subjectCode || parent.code} ${parent.subjectName || parent.name}`
   formState.type = parent.subjectType || parent.type
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleEdit = (subject: SubjectNode) => {
@@ -478,6 +509,7 @@ const handleEdit = (subject: SubjectNode) => {
     formState.parentName = findParent(subjectTree.value)
   }
   formVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 const handleDelete = async (subject: SubjectNode) => {
@@ -494,10 +526,11 @@ const handleDelete = async (subject: SubjectNode) => {
 }
 
 const handleToggleEnabled = async (subject: SubjectNode) => {
+  const newEnabled = !subject.enabled
   try {
-    await accountSubjectApi.toggleEnabled(subject.id)
-    subject.enabled = !subject.enabled
-    message.success(subject.enabled ? '科目已启用' : '科目已禁用')
+    await accountSubjectApi.toggleEnabled(subject.id, newEnabled)
+    subject.enabled = newEnabled
+    message.success(newEnabled ? '科目已启用' : '科目已禁用')
   } catch (err) {
     console.warn('[科目管理] 切换启用状态失败', err)
     message.error('操作失败')
@@ -514,16 +547,11 @@ const handleFormSubmit = async () => {
   formSubmitting.value = true
   try {
     const data = {
-      code: formState.code,
-      name: formState.name,
       subjectCode: formState.code,
       subjectName: formState.name,
-      type: formState.type,
       subjectType: formState.type,
       direction: formState.direction,
-      balanceDirection: formState.direction,
-      enabled: formState.enabled,
-      status: formState.enabled ? 1 : 0,
+      isEnabled: formState.enabled,
       parentId: formState.parentId,
       level: formState.parentId ? 2 : 1
     }
@@ -549,12 +577,45 @@ const handleFormCancel = () => {
   formVisible.value = false
 }
 
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的修改，确定要关闭吗？',
+      onOk: () => { formVisible.value = false }
+    })
+  } else {
+    formVisible.value = false
+  }
+}
+
+let _savedAndNew = false
+function handleFormSaveAndNew() {
+  _savedAndNew = true
+  handleFormSubmit().then(() => {
+    if (_savedAndNew && !formVisible.value) {
+      _savedAndNew = false
+      resetForm()
+      formVisible.value = true
+      nextTick(() => saveFormSnapshot())
+    }
+  })
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchTree); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
 // 定时刷新（30s）
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchTree()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchTree)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTree()
@@ -566,9 +627,17 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchTree)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  handleAddRoot()
+}
 
 defineExpose({ handleQuery: fetchTree })
 </script>
@@ -709,5 +778,20 @@ defineExpose({ handleQuery: fetchTree })
     flex: 1 1 30%;
     min-width: 100px;
   }
+}
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

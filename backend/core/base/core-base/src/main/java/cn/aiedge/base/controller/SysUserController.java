@@ -2,6 +2,7 @@ package cn.aiedge.base.controller;
 
 import cn.aiedge.base.dto.UserDTO;
 import cn.aiedge.base.entity.SysUser;
+import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.SysUserService;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckLogin;
@@ -59,6 +60,7 @@ public class SysUserController {
     @Operation(summary = "创建用户")
     @PostMapping
     @SaCheckPermission("user:create")
+    @OperationLog(module = "用户管理", type = "CREATE", desc = "创建用户")
     public Result<Long> createUser(@RequestBody @Valid UserDTO.Create dto) {
         SysUser user = convertToEntity(dto);
         Long userId = userService.createUser(user);
@@ -145,6 +147,7 @@ public class SysUserController {
     @Operation(summary = "重置密码")
     @PutMapping("/{id}/password/reset")
     @SaCheckPermission("user:reset-password")
+    @OperationLog(module = "用户管理", type = "UPDATE", desc = "重置用户密码")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
         userService.resetPassword(id, newPassword);
         return Result.ok("密码重置成功", null);
@@ -169,9 +172,22 @@ public class SysUserController {
     @Operation(summary = "分配角色")
     @PostMapping("/{id}/roles")
     @SaCheckPermission("user:assign-role")
+    @OperationLog(module = "用户管理", type = "UPDATE", desc = "分配用户角色", saveParams = true)
     public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
         userService.assignRoles(id, roleIds);
         return Result.ok("角色分配成功", null);
+    }
+
+    /**
+     * 批量分配角色
+     */
+    @Operation(summary = "批量分配角色")
+    @PostMapping("/batch-assign-roles")
+    @SaCheckPermission("user:assign-role")
+    @OperationLog(module = "用户管理", type = "UPDATE", desc = "批量分配角色", saveParams = true)
+    public Result<Void> batchAssignRoles(@RequestBody UserDTO.BatchAssignRoles dto) {
+        userService.batchAssignRoles(dto.userIds(), dto.roleIds());
+        return Result.ok("批量角色分配成功", null);
     }
 
     /**
@@ -180,6 +196,7 @@ public class SysUserController {
     @Operation(summary = "更新用户状态")
     @PutMapping("/{id}/status")
     @SaCheckPermission("user:update-status")
+    @OperationLog(module = "用户管理", type = "UPDATE", desc = "更新用户状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         userService.updateUserStatus(id, status);
         return Result.ok("状态更新成功", null);

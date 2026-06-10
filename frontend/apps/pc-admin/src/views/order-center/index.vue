@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="() => fetchData()">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', () => fetchData())">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -81,6 +81,7 @@
           placeholder="订单类型"
           allow-clear
           style="width: 120px"
+          size="small"
           @change="handleFilterTabChange"
           @clear="handleFilterTabClear"
         >
@@ -95,6 +96,7 @@
           placeholder="订单状态"
           allow-clear
           style="width: 120px"
+          size="small"
           @change="handleFilterStatusChange"
           @clear="handleFilterStatusChange"
         >
@@ -285,6 +287,7 @@
           :show-search="false"
           :show-export="false"
           :show-batch-delete="false"
+          @cell-dblclick="handleView"
         >
           <template #orderTypeCell="{ record }">
             <a-tag :color="record.orderType === 'purchase' ? 'blue' : 'green'" class="type-tag">
@@ -329,6 +332,17 @@
                   <template #icon><CopyOutlined /></template>
                 </a-button>
               </a-tooltip>
+
+              <a-divider type="vertical" class="action-divider" />
+
+              <PrintButton
+                :record="record"
+                :business-id="record.id"
+                :business-type="record.orderType === 'purchase' ? 'purchase_order' : 'sale_order'"
+                button-type="link"
+                button-size="small"
+                tooltip="打印"
+              />
 
               <template v-if="record.orderStatus === 0">
                 <a-divider type="vertical" class="action-divider" />
@@ -444,12 +458,22 @@ import {
   ShoppingCartOutlined,
   RocketOutlined,
   ClockCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import { ModuleLayout } from '@ai-ready/components'
 import { purchaseOrderApi } from '@/api/purchase'
 import { salesOrderApi } from '@/api/order'
 import { useUserStore } from '@/stores/user'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 // ── 常量 ──────────────────────────────────────────────────
 
@@ -498,6 +522,7 @@ const router = useRouter()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+const hasError = ref(false)
 const dataSource = ref<UnifiedOrder[]>([])
 const selectedRowKeys = ref<(string | number)[]>([])
 const lastUpdateTime = ref('')
@@ -616,7 +641,7 @@ const columnDefs: ColumnDef[] = [
   { title: '金额', field: 'totalAmount', key: 'totalAmount', width: 130, align: 'right', slotName: 'totalAmountCell' },
   { title: '状态', field: 'orderStatus', key: 'orderStatus', width: 110, slotName: 'orderStatusCell' },
   { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
-  { type: 'action', title: '操作', width: 220, fixed: 'right' }
+  { type: 'action', title: '操作', width: 260, fixed: 'right' }
 ]
 
 const displayColumns = computed(() =>
@@ -776,6 +801,7 @@ function getStatusText(status: number): string {
 
 async function fetchData(append = false) {
   loading.value = true
+  hasError.value = false
   error.value = null
   if (!append) selectedRowKeys.value = []
   try {
@@ -860,6 +886,7 @@ async function fetchData(append = false) {
     pagination.current = params.current
     lastUpdateTime.value = formatTimestamp(new Date())
   } catch (err: any) {
+    hasError.value = true
     error.value = err?.message || '获取数据失败，请稍后重试'
     dataSource.value = []
   } finally {
@@ -1197,10 +1224,26 @@ function handleColumnCheckChange(key: string, e: any) {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
+// ── 父组件事件监听 ─────────────────────────────────────────
+
+function handleParentCreate() { handleCreateOrder() }
+
+// ── 键盘快捷键 ──────────────────────────────────────────────
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', () => fetchData())
+  }
+}
+
 // ── 生命周期 ──────────────────────────────────────────────
 
 onMounted(() => {
   fetchData()
+  window.addEventListener('order-center:create', handleParentCreate)
+  window.addEventListener('order-center:refresh', fetchData)
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -1219,6 +1262,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('order-center:create', handleParentCreate)
+  window.removeEventListener('order-center:refresh', fetchData)
+  document.removeEventListener('keydown', handleKeydown)
   if (resizeObserver) resizeObserver.disconnect()
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
@@ -1480,6 +1526,15 @@ defineExpose({ handleQuery: fetchData })
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.table-container :deep(.vxe-table) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── 订单表格 ───────────────────────────── */

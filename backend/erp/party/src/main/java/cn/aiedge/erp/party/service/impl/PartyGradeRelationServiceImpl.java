@@ -8,6 +8,7 @@ import cn.aiedge.erp.party.service.PartyGradeRelationService;
 import cn.aiedge.erp.party.service.PartyService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class PartyGradeRelationServiceImpl extends ServiceImpl<cn.aiedge.erp.party.mapper.PartyGradeRelationMapper, PartyGradeRelation> implements PartyGradeRelationService {
 
@@ -214,7 +216,7 @@ public class PartyGradeRelationServiceImpl extends ServiceImpl<cn.aiedge.erp.par
             try {
                 checkAndUpdateGrade(relation.getPartyId());
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("批量检查更新等级失败, partyId={}", relation.getPartyId(), e);
             }
         }
     }

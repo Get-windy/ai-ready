@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <PrintButton business-type="fixed_asset_disposal" button-type="link" button-size="small" tooltip="打印处置记录" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:disposal:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -65,13 +66,17 @@
         :table-key="'fixed-asset-disposal-list'"
         :filter-fields="filterFields"
         :show-export="true"
+        export-permission="erp:fixed-asset:disposal:list"
         :selectable="true"
         add-text="新增处置"
+        add-permission="erp:fixed-asset:disposal:create"
+        delete-permission="erp:fixed-asset:disposal:delete"
         @add="showCreateModal"
+        @cell-dblclick="viewDetail"
         @edit="editRecord"
         @delete="handleDelete"
         @batch-delete="handleBatchDelete"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @search="handleSearch"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
@@ -92,7 +97,15 @@
         </template>
 
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="debounceClick('refresh', fetchData)()">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -136,25 +149,30 @@
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)">
+              <a-button type="link" size="small" @click="editRecord(record)" v-permission="'erp:fixed-asset:disposal:update'">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton
+              template-type="disposal"
+              :business-id="record.id"
+              business-type="fixed_asset_disposal"
+              button-text=""
+              button-size="small"
+              button-type="link"
+              tooltip="打印"
+            />
             <a-dropdown trigger="click">
               <a-button type="link" size="small" class="action-more-btn">
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
                 <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'draft'" key="approve">
+                  <a-menu-item v-if="record.status === 'draft'" key="approve" v-permission="'erp:fixed-asset:disposal:approve'">
                     <CheckCircleOutlined /> 审批通过
                   </a-menu-item>
-                  <a-menu-item v-if="record.status === 'draft'" key="reject">
+                  <a-menu-item v-if="record.status === 'draft'" key="reject" v-permission="'erp:fixed-asset:disposal:approve'">
                     <CloseCircleOutlined /> 审批拒绝
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="print">
-                    <PrinterOutlined /> 打印
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item v-if="record.status === 'draft'" key="delete" danger>
@@ -168,27 +186,26 @@
       </VxeTableList>
 
       <!-- Create/Edit Modal -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="isEdit ? '编辑处置申请' : '新增处置申请'"
-        :width="700"
-        centered
-        :maskClosable="false"
-        :confirmLoading="modalLoading"
-        @ok="handleModalOk"
-        @cancel="modalVisible = false"
+        :save-loading="modalLoading"
+        :show-save-and-new="!isEdit"
+        @save="handleModalOk"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
           <a-form-item label="资产编码" required>
-            <a-input v-model:value="formData.assetCode" placeholder="输入资产编码" />
+            <a-input v-model:value="formData.assetCode" placeholder="输入资产编码" size="small" />
           </a-form-item>
           <a-form-item label="资产名称">
-            <a-input v-model:value="formData.assetName" placeholder="资产名称" />
+            <a-input v-model:value="formData.assetName" placeholder="资产名称" size="small" />
           </a-form-item>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="处置类型">
-                <a-select v-model:value="formData.disposalType" placeholder="处置类型">
+                <a-select v-model:value="formData.disposalType" placeholder="处置类型" size="small">
                   <a-select-option value="sale">出售</a-select-option>
                   <a-select-option value="scrap">报废</a-select-option>
                   <a-select-option value="donation">捐赠</a-select-option>
@@ -198,31 +215,31 @@
             </a-col>
             <a-col :span="12">
               <a-form-item label="处置日期">
-                <a-date-picker v-model:value="formData.disposalDate" style="width: 100%" />
+                <a-date-picker v-model:value="formData.disposalDate" style="width: 100%" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="处置金额">
-                <a-input-number v-model:value="formData.disposalAmount" :precision="2" :min="0" style="width: 100%">
+                <a-input-number v-model:value="formData.disposalAmount" :precision="2" :min="0" style="width: 100%" size="small">
                   <template #addonBefore>¥</template>
                 </a-input-number>
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="资产净值">
-                <a-input-number v-model:value="formData.netValue" :precision="2" :min="0" style="width: 100%">
+                <a-input-number v-model:value="formData.netValue" :precision="2" :min="0" style="width: 100%" size="small">
                   <template #addonBefore>¥</template>
                 </a-input-number>
               </a-form-item>
             </a-col>
           </a-row>
           <a-form-item label="处置原因">
-            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入处置原因" />
+            <a-textarea v-model:value="formData.reason" :rows="3" placeholder="请输入处置原因" size="small" />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 详情弹窗 -->
       <a-drawer
@@ -262,10 +279,7 @@
         <div class="detail-modal-footer">
           <a-button v-if="currentRecord?.status === 'draft'" type="primary" @click="handleApprove(currentRecord)">审批通过</a-button>
           <a-button v-if="currentRecord?.status === 'draft'" @click="handleReject(currentRecord)">审批拒绝</a-button>
-          <a-button @click="handlePrint(currentRecord)">
-            <template #icon><PrinterOutlined /></template>
-            打印
-          </a-button>
+          <PrintButton :business-id="currentRecord?.id" business-type="asset_disposal" button-size="small" tooltip="打印" />
           <a-button @click="detailVisible = false">关闭</a-button>
         </div>
       </a-drawer>
@@ -274,19 +288,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, EllipsisOutlined, EyeOutlined, EditOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, PrinterOutlined,
-  ClockCircleOutlined, DollarOutlined, FileTextOutlined, SyncOutlined, ReloadOutlined
+  CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined,
+  ClockCircleOutlined, DollarOutlined, FileTextOutlined, SyncOutlined, ReloadOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { disposalApi } from '@/api/fixed-asset'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
+import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['update-count'])
+const router = useRouter()
 
 const loading = ref(false)
 const modalVisible = ref(false)
@@ -302,6 +320,7 @@ const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -311,6 +330,17 @@ const hasActiveFilters = computed(() => {
 
 const searchFilters = reactive<Record<string, any>>({})
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
+// ── 表单数据 ────────────────────────────────────────────
 const formData = reactive({
   assetCode: '',
   assetName: '',
@@ -320,6 +350,28 @@ const formData = reactive({
   netValue: undefined as any,
   gainLoss: undefined as any,
   reason: '',
+})
+
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formData) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formData) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
 })
 
 const pagination = reactive({
@@ -394,9 +446,28 @@ function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
+function handleParentCreate() {
+  showCreateModal()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    showCreateModal()
+  }
+}
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('fixed-asset:create', handleParentCreate)
   window.addEventListener('fixed-asset:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -408,8 +479,9 @@ onMounted(() => {
   }, 1000)
 })
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
+  hasError.value = false
   const params: any = {
     page: pagination.current - 1,
     size: pagination.pageSize,
@@ -419,23 +491,25 @@ function fetchData() {
   if (searchFilters.status) params.status = searchFilters.status
   if (searchFilters.disposalType) params.disposalType = searchFilters.disposalType
 
-  disposalApi.getPage(params).then((res: any) => {
+  try {
+    const res = await disposalApi.getPage(params)
     if (res.data) {
       tableData.value = res.data.content || res.data.records || []
       pagination.total = res.data.totalElements || res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
-  }).catch(() => {
+  } catch {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[资产处置] 加载处置数据失败')
     message.error('加载处置数据失败')
-  }).finally(() => {
+  } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     refreshLoading.value = false
-  })
+  }
 }
 
 function handleSearch(keyword: string) {
@@ -465,6 +539,7 @@ function showCreateModal() {
     netValue: undefined, gainLoss: undefined, reason: '',
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function editRecord(record: any) {
@@ -472,11 +547,17 @@ function editRecord(record: any) {
   editId.value = record.id
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
-function viewDetail(record: any) {
-  currentRecord.value = record
+async function viewDetail(record: any) {
   detailVisible.value = true
+  try {
+    const res = await disposalApi.getById(record.id)
+    currentRecord.value = res.data
+  } catch {
+    message.error('获取处置详情失败')
+  }
 }
 
 function handleModalOk() {
@@ -495,6 +576,24 @@ function handleModalOk() {
   }).finally(() => {
     modalLoading.value = false
   })
+}
+
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false },
+    })
+  } else {
+    modalVisible.value = false
+  }
+}
+
+function handleFormSaveAndNew() {
+  handleModalOk()
 }
 
 function handleDelete(id: number) {
@@ -520,9 +619,13 @@ function handleBatchDelete() {
     okType: 'danger',
     centered: true,
     onOk: async () => {
-      console.warn('[资产处置] 模拟批量删除成功（无API调用）')
-      message.success('批量删除成功')
-      fetchData()
+      try {
+        await Promise.all(keys.map((id: number) => disposalApi.delete(id)))
+        message.success('批量删除成功')
+        fetchData()
+      } catch (err: any) {
+        message.error(err.message || '批量删除失败')
+      }
     }
   })
 }
@@ -580,19 +683,21 @@ function handleBatchApprove() {
     okText: '确认',
     centered: true,
     onOk: async () => {
-      console.warn('[资产处置] 模拟批量审批成功（无API调用）')
-      message.success(`成功审批 ${keys.length} 条处置申请`)
-      fetchData()
+      try {
+        await Promise.all(keys.map((id: number) => disposalApi.approve(id)))
+        message.success(`成功审批 ${keys.length} 条处置申请`)
+        fetchData()
+      } catch (err: any) {
+        message.error(err.message || '批量审批失败')
+      }
     }
   })
 }
 
 function handleViewAsset(record: any) {
-  message.info(`查看资产详情: ${record.assetCode}`)
-}
-
-function handlePrint(record: any) {
-  message.info(`打印处置单: ${record.disposalNo}`)
+  if (record.assetId) {
+    router.push(`/fixed-asset/asset/detail/${record.assetId}`)
+  }
 }
 
 function handleResetFilters() {
@@ -605,7 +710,6 @@ function handleActionMenuClick(key: string, record: any) {
   switch (key) {
     case 'approve': handleApprove(record); break
     case 'reject': handleReject(record); break
-    case 'print': handlePrint(record); break
     case 'delete':
       Modal.confirm({
         title: '删除处置记录',
@@ -638,12 +742,9 @@ function handleExport() {
   message.success('导出成功')
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showCreateModal() }
-}
-
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
   window.removeEventListener('fixed-asset:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
@@ -696,6 +797,11 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.disposal-list-page :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -758,6 +864,14 @@ defineExpose({ handleQuery: fetchData })
   margin-top: 12px;
 }
 
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
+}
+
 .disposal-no, .asset-code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -800,10 +914,6 @@ defineExpose({ handleQuery: fetchData })
   gap: 8px;
 }
 
-
-
-
-
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards {
@@ -814,4 +924,12 @@ defineExpose({ handleQuery: fetchData })
     min-width: 120px;
   }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

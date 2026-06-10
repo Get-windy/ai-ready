@@ -177,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
@@ -195,6 +195,16 @@ import { logApi } from '@/api/log'
 import { ORDER_STATUS_TEXT, ORDER_STATUS_COLOR } from '@/views/sale/constants/orderStatus'
 import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 function formatFileSize(bytes: number): string {
   if (!bytes || bytes <= 0) return '-'
@@ -608,8 +618,24 @@ watch(() => route.params.id, () => {
   fetchOrderDetail()
 })
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault()
+    debounceClick('refresh', fetchOrderDetail)
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault()
+    handleEdit()
+  }
+}
+
 onMounted(() => {
   fetchOrderDetail()
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -650,5 +676,21 @@ onMounted(() => {
   font-size: 12px;
   margin-left: 8px;
   white-space: nowrap;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

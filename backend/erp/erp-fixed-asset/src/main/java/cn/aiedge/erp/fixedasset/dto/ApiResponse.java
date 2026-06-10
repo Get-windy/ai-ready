@@ -1,17 +1,28 @@
 package cn.aiedge.erp.fixedasset.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
  * API统一响应格式
  */
 @Data
+@Schema(description = "API统一响应格式")
 public class ApiResponse<T> {
 
+    @Schema(description = "是否成功")
     private boolean success;
+
+    @Schema(description = "业务状态码，如 200/400/404/500")
     private String code;
+
+    @Schema(description = "响应消息")
     private String message;
+
+    @Schema(description = "响应数据")
     private T data;
+
+    @Schema(description = "时间戳")
     private Long timestamp;
 
     public ApiResponse() {

@@ -135,6 +135,60 @@ export const LOG_TYPE_MAP: StatusMap = {
   3: { text: '其他', color: 'default' }
 }
 
+/** 费用审批状态（字符串键） */
+export const EXPENSE_APPROVAL_STATUS: StatusMap = {
+  DRAFT: { text: '草稿', color: 'default' },
+  SUBMITTED: { text: '待审批', color: 'blue' },
+  APPROVING: { text: '审批中', color: 'orange' },
+  APPROVED: { text: '已通过', color: 'success' },
+  REJECTED: { text: '已拒绝', color: 'error' },
+  RETURNED: { text: '已退回', color: 'warning' }
+}
+
+/** 费用付款状态（字符串键） */
+export const EXPENSE_PAYMENT_STATUS: StatusMap = {
+  PENDING: { text: '待付款', color: 'orange' },
+  PROCESSING: { text: '处理中', color: 'blue' },
+  COMPLETED: { text: '已付款', color: 'success' },
+  FAILED: { text: '失败', color: 'error' },
+  CANCELLED: { text: '已取消', color: 'default' }
+}
+
+/** 预算使用率状态（基于使用率阈值判定） */
+export const BUDGET_STATUS: StatusMap = {
+  NORMAL: { text: '正常', color: 'success' },
+  WARNING: { text: '警戒', color: 'warning' },
+  OVERRUN: { text: '超支', color: 'error' }
+}
+
+/** 产品启用/停用状态 */
+export const PRODUCT_STATUS: StatusMap = {
+  ENABLED: { text: '启用', color: 'success' },
+  DISABLED: { text: '停用', color: 'error' }
+}
+
+/** 费用报销状态 */
+export const EXPENSE_REIMBURSEMENT_STATUS: StatusMap = {
+  DRAFT: { text: '草稿', color: 'default' },
+  SUBMITTED: { text: '已提交', color: 'blue' },
+  APPROVING: { text: '审批中', color: 'orange' },
+  APPROVED: { text: '已通过', color: 'green' },
+  REJECTED: { text: '已拒绝', color: 'red' },
+  CANCELLED: { text: '已撤回', color: 'default' },
+  WITHDRAWN: { text: '已撤回', color: 'default' }
+}
+
+/** 费用申请状态 */
+export const EXPENSE_APPLICATION_STATUS: StatusMap = {
+  DRAFT: { text: '草稿', color: 'default' },
+  SUBMITTED: { text: '待审批', color: 'blue' },
+  APPROVING: { text: '审批中', color: 'orange' },
+  APPROVED: { text: '已通过', color: 'success' },
+  REJECTED: { text: '已拒绝', color: 'error' },
+  CANCELLED: { text: '已取消', color: 'default' },
+  WITHDRAWN: { text: '已撤回', color: 'default' }
+}
+
 /** 价格审批状态（字符串键） */
 export const PRICE_APPROVAL_STATUS: StatusMap = {
   pending: { text: '待审批', color: 'orange' },
@@ -150,6 +204,45 @@ export const SHIPMENT_STATUS: StatusMap = {
   2: { text: '已出库', color: 'success' }
 }
 
+/** 往来单位状态 */
+export const PARTNER_STATUS: StatusMap = {
+  ENABLED: { text: '启用', color: 'success' },
+  DISABLED: { text: '停用', color: 'error' }
+}
+
+/** 序列号状态 */
+export const SERIAL_STATUS: StatusMap = {
+  AVAILABLE: { text: '可用', color: 'blue' },
+  IN_USE: { text: '使用中', color: 'green' },
+  INSERVICE: { text: '售后中', color: 'orange' },
+  MAINTAINED: { text: '维修中', color: 'red' },
+  SCRAP: { text: '报废', color: 'gray' }
+}
+
+/** 序列号阶段 */
+export const SERIAL_STAGE: StatusMap = {
+  WAREHOUSE: { text: '在库', color: 'blue' },
+  IN_TRANSIT: { text: '在途', color: 'gold' },
+  EOF_CUSTOMER: { text: '终端客户', color: 'green' },
+  IN_SERVICE: { text: '使用中', color: 'orange' },
+  SCRAPPED: { text: '已报废', color: 'gray' }
+}
+
+/** 批次状态 */
+export const BATCH_STATUS: StatusMap = {
+  ACTIVE: { text: '启用', color: 'success' },
+  EXPIRED: { text: '过期', color: 'error' },
+  QUARANTINED: { text: '隔离', color: 'orange' },
+  CANCELLED: { text: '取消', color: 'default' }
+}
+
+/** 质量状态 */
+export const QUALITY_STATUS: StatusMap = {
+  NORMAL: { text: '合格', color: 'success' },
+  QUARANTINED: { text: '隔离', color: 'orange' },
+  DEFECTIVE: { text: '不合格', color: 'error' }
+}
+
 /** 退货状态 */
 export const RETURN_STATUS: StatusMap = {
   0: { text: '待审核', color: 'default' },
@@ -158,11 +251,73 @@ export const RETURN_STATUS: StatusMap = {
   3: { text: '已退款', color: 'success' }
 }
 
-/** 盘点状态 */
+/** 盘点状态（与后端 StockCheckStatus 枚举一致） */
 export const STOCKTAKE_STATUS_ORDER: StatusMap = {
-  0: { text: '待盘点', color: 'default' },
-  1: { text: '盘点中', color: 'processing' },
-  2: { text: '已完成', color: 'success' }
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'processing' },
+  3: { text: '已拒绝', color: 'error' },
+  4: { text: '盘点中', color: 'blue' },
+  5: { text: '进行中', color: 'processing' },
+  6: { text: '已完成', color: 'success' },
+  7: { text: '已调整', color: 'warning' },
+  8: { text: '已取消', color: 'default' }
+}
+
+/** 成本调价状态 */
+export const COST_ADJUST_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'processing' },
+  3: { text: '已执行', color: 'success' },
+  4: { text: '已拒绝', color: 'error' },
+  5: { text: '已取消', color: 'default' }
+}
+
+/** 报溢单状态 */
+export const OVERFLOW_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审核', color: 'processing' },
+  3: { text: '已入库', color: 'success' },
+  4: { text: '已拒绝', color: 'error' },
+  5: { text: '已取消', color: 'default' }
+}
+
+/** 报损单状态 */
+export const DAMAGE_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审核', color: 'processing' },
+  3: { text: '已出库', color: 'success' },
+  4: { text: '已拒绝', color: 'error' },
+  5: { text: '已取消', color: 'default' }
+}
+
+/** 调拨单状态 */
+export const TRANSFER_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审批', color: 'processing' },
+  3: { text: '已执行', color: 'success' },
+  4: { text: '已拒绝', color: 'error' },
+  5: { text: '已取消', color: 'default' }
+}
+
+/** BOM状态 */
+export const BOM_STATUS: StatusMap = {
+  0: { text: '停用', color: 'error' },
+  1: { text: '启用', color: 'success' }
+}
+
+/** 组装单/拆分单状态 */
+export const ASSEMBLE_STATUS: StatusMap = {
+  0: { text: '草稿', color: 'default' },
+  1: { text: '待审批', color: 'orange' },
+  2: { text: '已审核', color: 'processing' },
+  3: { text: '已完成', color: 'success' },
+  4: { text: '已拒绝', color: 'error' },
+  5: { text: '已取消', color: 'default' }
 }
 
 /** 固定资产状态 */

@@ -1,6 +1,7 @@
 package cn.aiedge.monitor.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/monitor/alerts")
 @RequiredArgsConstructor
 @Tag(name = "告警管理", description = "告警管理、通知配置和告警历史接口")
+@SaCheckLogin
 public class AlertManagementController {
 
     // 内存存储（实际应使用数据库）

@@ -1,6 +1,7 @@
 package cn.aiedge.monitor.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/monitor/performance")
 @RequiredArgsConstructor
 @Tag(name = "性能指标分析", description = "性能指标聚合、分析和趋势预测接口")
+@SaCheckLogin
 public class PerformanceMetricsController {
 
     private final List<Map<String, Object>> metricsHistory = Collections.synchronizedList(new ArrayList<>());

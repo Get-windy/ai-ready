@@ -22,7 +22,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="loadPerformances">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadPerformances)()">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -35,6 +35,7 @@
       </div>
     </template>
 
+    <div class="page-content">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card stat-quality">
@@ -103,6 +104,7 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="handleView"
       >
         <template #periodTypeCell="{ record }">
           {{ periodTypeLabel(record.periodType) }}
@@ -122,6 +124,21 @@
         <template #comprehensiveScoreCell="{ record }">
           <span :style="{ color: getScoreColor(record.comprehensiveScore), fontWeight: 600 }">{{ formatScore(record.comprehensiveScore) }}</span>
         </template>
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="loadPerformances" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <InboxOutlined class="table-empty-icon" />
+              <p class="table-empty-text">暂无绩效评估记录</p>
+            </template>
+          </div>
+        </template>
       </VxeTableList>
     </a-card>
 
@@ -133,10 +150,10 @@
     >
       <a-form ref="formRef" :model="evaluateForm" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="评估周期" name="period">
-          <a-input v-model:value="evaluateForm.period" placeholder="如: 2024-01" />
+          <a-input v-model:value="evaluateForm.period" size="small" placeholder="如: 2024-01" />
         </a-form-item>
         <a-form-item label="周期类型" name="periodType">
-          <a-select v-model:value="evaluateForm.periodType">
+          <a-select v-model:value="evaluateForm.periodType" size="small">
             <a-select-option v-for="opt in periodTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
           </a-select>
         </a-form-item>
@@ -153,17 +170,18 @@
           <a-slider v-model:value="evaluateForm.serviceScore" :min="0" :max="100" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="evaluateForm.remark" :rows="2" />
+          <a-textarea v-model:value="evaluateForm.remark" size="small" :rows="2" />
         </a-form-item>
       </a-form>
     </a-modal>
-  </PageContainer>
+  </div>
+</PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined, ReloadOutlined, SyncOutlined, LeftOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined, ReloadOutlined, SyncOutlined, LeftOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
@@ -171,6 +189,16 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
 import request from '@/utils/request'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -206,6 +234,7 @@ const autoRefreshCountdown = ref(0)
 const showEvaluateModal = ref(false)
 const formRef = ref<FormInstance>()
 
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -280,7 +309,15 @@ const getLevelColor = (level: string) => {
   return colors[level] || '#969799'
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadPerformances)(); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleEvaluate(); return }
+}
+
+function handleParentCreate() { handleAdd() }
+
 onMounted(async () => {
+  document.addEventListener('keydown', handleKeydown)
   await Promise.allSettled([loadSupplier(), loadPerformances()])
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -290,11 +327,14 @@ onMounted(async () => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('supplier:create', handleParentCreate)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: loadPerformances })
@@ -313,12 +353,14 @@ const loadSupplier = async () => {
 
 const loadPerformances = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const id = supplierIdNum.value
     if (id === null) return
     const res = await supplierApi.getPerformanceHistory(id)
     performances.value = (res as any)?.data || (res as any) || []
   } catch (err: any) {
+    hasError.value = true
     console.warn('[供应商] 获取绩效记录失败', err)
     message.error(err?.message || '获取绩效记录失败')
     performances.value = []
@@ -373,6 +415,12 @@ const submitEvaluate = async () => {
   }
 }
 
+const handleView = (record: any) => {
+  const row = record?.row ?? record
+  // double-click to view detail - currently navigates back to supplier detail
+  handleBack()
+}
+
 const handleBack = () => {
   router.push(`/supplier/detail/${supplierId}`)
 }
@@ -380,6 +428,32 @@ const handleBack = () => {
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 .performance-header {
   display: flex;
   justify-content: space-between;

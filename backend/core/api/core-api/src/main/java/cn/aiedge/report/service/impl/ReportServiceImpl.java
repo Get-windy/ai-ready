@@ -1,12 +1,17 @@
 package cn.aiedge.report.service.impl;
 
+import cn.aiedge.report.mapper.ReportDefinitionMapper;
 import cn.aiedge.report.model.ReportData;
 import cn.aiedge.report.model.ReportDefinition;
 import cn.aiedge.report.model.ReportDefinition.*;
+import cn.aiedge.report.model.ReportDefinitionEntity;
 import cn.aiedge.report.service.ReportService;
 import cn.aiedge.report.service.ReportDataSourceService;
 import cn.aiedge.report.service.ReportExportService;
 import cn.aiedge.cache.service.CacheService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -33,6 +38,7 @@ public class ReportServiceImpl implements ReportService {
     private final CacheService cacheService;
     private final ReportDataSourceService reportDataSourceService;
     private final ReportExportService reportExportService;
+    private final ReportDefinitionMapper reportDefinitionMapper;
 
     // 缓存Key前缀
     private static final String REPORT_DEF_KEY = "report:definition:";
@@ -66,24 +72,67 @@ public class ReportServiceImpl implements ReportService {
         if (definition != null) {
             return definition;
         }
-        
+
         // 从缓存获取
-        return cacheService.get(REPORT_DEF_KEY + reportId, ReportDefinition.class);
+        definition = cacheService.get(REPORT_DEF_KEY + reportId, ReportDefinition.class);
+        if (definition != null) {
+            return definition;
+        }
+
+        // 从数据库加载并回填缓存
+        try {
+            LambdaQueryWrapper<ReportDefinitionEntity> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(ReportDefinitionEntity::getReportId, reportId);
+            ReportDefinitionEntity entity = reportDefinitionMapper.selectOne(queryWrapper);
+            if (entity != null) {
+                definition = convertEntityToDefinition(entity);
+                if (definition != null) {
+                    cacheService.set(REPORT_DEF_KEY + reportId, definition);
+                }
+                return definition;
+            }
+        } catch (Exception e) {
+            log.error("从数据库加载报表定义失败: reportId={}", reportId, e);
+        }
+
+        return null;
     }
 
     @Override
     public List<ReportDefinition> getReportList(String category, Long tenantId) {
         List<ReportDefinition> result = new ArrayList<>();
-        
+
         // 添加内置报表
         for (ReportDefinition def : BUILTIN_REPORTS.values()) {
             if (category == null || category.equals(def.getCategory())) {
                 result.add(def);
             }
         }
-        
-        // TODO: 从数据库加载自定义报表
-        
+
+        // 从数据库加载自定义报表
+        try {
+            LambdaQueryWrapper<ReportDefinitionEntity> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(ReportDefinitionEntity::getEnabled, true);
+            if (category != null) {
+                queryWrapper.eq(ReportDefinitionEntity::getCategory, category);
+            }
+            if (tenantId != null) {
+                queryWrapper.eq(ReportDefinitionEntity::getTenantId, tenantId);
+            }
+            queryWrapper.orderByAsc(ReportDefinitionEntity::getSortOrder);
+
+            List<ReportDefinitionEntity> entities = reportDefinitionMapper.selectList(queryWrapper);
+            for (ReportDefinitionEntity entity : entities) {
+                ReportDefinition definition = convertEntityToDefinition(entity);
+                if (definition != null) {
+                    result.add(definition);
+                }
+            }
+            log.debug("从数据库加载了 {} 个自定义报表", entities.size());
+        } catch (Exception e) {
+            log.error("从数据库加载自定义报表失败", e);
+        }
+
         return result;
     }
 
@@ -164,12 +213,37 @@ public class ReportServiceImpl implements ReportService {
         if (definition.getReportId() == null) {
             definition.setReportId(UUID.randomUUID().toString());
         }
-        definition.setCreateTime(LocalDateTime.now());
-        definition.setUpdateTime(LocalDateTime.now());
-        
+        LocalDateTime now = LocalDateTime.now();
+        if (definition.getCreateTime() == null) {
+            definition.setCreateTime(now);
+        }
+        definition.setUpdateTime(now);
+
         // 保存到缓存
         cacheService.set(REPORT_DEF_KEY + definition.getReportId(), definition);
-        
+
+        // 同步保存到数据库
+        try {
+            ReportDefinitionEntity entity = convertDefinitionToEntity(definition, tenantId);
+
+            // 检查是否已存在，存在则更新，不存在则插入
+            LambdaQueryWrapper<ReportDefinitionEntity> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(ReportDefinitionEntity::getReportId, definition.getReportId());
+            ReportDefinitionEntity existing = reportDefinitionMapper.selectOne(queryWrapper);
+            if (existing != null) {
+                entity.setId(existing.getId());
+                entity.setCreateTime(existing.getCreateTime());
+                entity.setCreateBy(existing.getCreateBy());
+                reportDefinitionMapper.updateById(entity);
+                log.debug("更新数据库报表定义: reportId={}", definition.getReportId());
+            } else {
+                reportDefinitionMapper.insert(entity);
+                log.debug("插入数据库报表定义: reportId={}", definition.getReportId());
+            }
+        } catch (Exception e) {
+            log.error("保存报表定义到数据库失败: reportId={}", definition.getReportId(), e);
+        }
+
         log.info("保存报表定义: reportId={}", definition.getReportId());
         return definition;
     }
@@ -181,8 +255,19 @@ public class ReportServiceImpl implements ReportService {
             log.warn("不能删除内置报表: {}", reportId);
             return false;
         }
-        
+
         cacheService.delete(REPORT_DEF_KEY + reportId);
+
+        // 从数据库删除（逻辑删除）
+        try {
+            LambdaQueryWrapper<ReportDefinitionEntity> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(ReportDefinitionEntity::getReportId, reportId);
+            reportDefinitionMapper.delete(queryWrapper);
+            log.debug("从数据库删除报表定义: reportId={}", reportId);
+        } catch (Exception e) {
+            log.error("从数据库删除报表定义失败: reportId={}", reportId, e);
+        }
+
         log.info("删除报表定义: reportId={}", reportId);
         return true;
     }
@@ -510,5 +595,75 @@ public class ReportServiceImpl implements ReportService {
             return "\"" + field.replace("\"", "\"\"") + "\"";
         }
         return field;
+    }
+
+    // ==================== 数据库实体与POJO转换 ====================
+
+    /**
+     * 将数据库实体转换为报表定义POJO
+     * <p>
+     * 优先从 definition_json 字段反序列化完整的 ReportDefinition 对象；
+     * 若JSON解析失败，则回退到从实体标量字段构建一个基础定义。
+     */
+    private ReportDefinition convertEntityToDefinition(ReportDefinitionEntity entity) {
+        if (entity == null) return null;
+
+        // 优先从完整JSON反序列化
+        if (entity.getDefinitionJson() != null && !entity.getDefinitionJson().isEmpty()) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                ReportDefinition definition = objectMapper.readValue(entity.getDefinitionJson(), ReportDefinition.class);
+                return definition;
+            } catch (Exception e) {
+                log.warn("反序列化报表定义JSON失败，将回退到字段构建: reportId={}", entity.getReportId(), e);
+            }
+        }
+
+        // JSON解析失败或无JSON时，从实体标量字段构建基础定义
+        ReportDefinition definition = new ReportDefinition();
+        definition.setReportId(entity.getReportId());
+        definition.setReportName(entity.getReportName());
+        definition.setReportCode(entity.getReportCode());
+        definition.setReportType(entity.getReportType());
+        definition.setCategory(entity.getCategory());
+        definition.setDataSourceType(entity.getDataSourceType());
+        definition.setEnabled(entity.getEnabled() != null ? entity.getEnabled() : true);
+        definition.setSortOrder(entity.getSortOrder() != null ? entity.getSortOrder() : 0);
+        definition.setCreateTime(entity.getCreateTime());
+        definition.setUpdateTime(entity.getUpdateTime());
+        definition.setColumns(new ArrayList<>());
+        definition.setParameters(new ArrayList<>());
+        return definition;
+    }
+
+    /**
+     * 将报表定义POJO转换为数据库实体
+     * <p>
+     * 完整的 ReportDefinition 对象（含列定义、参数、图表配置等）
+     * 被序列化为JSON字符串存入 definition_json 字段。
+     */
+    private ReportDefinitionEntity convertDefinitionToEntity(ReportDefinition definition, Long tenantId) {
+        ReportDefinitionEntity entity = new ReportDefinitionEntity();
+        entity.setReportId(definition.getReportId());
+        entity.setReportName(definition.getReportName());
+        entity.setReportCode(definition.getReportCode());
+        entity.setReportType(definition.getReportType());
+        entity.setCategory(definition.getCategory());
+        entity.setDataSourceType(definition.getDataSourceType());
+        entity.setTenantId(tenantId);
+        entity.setEnabled(definition.isEnabled());
+        entity.setSortOrder(definition.getSortOrder());
+        entity.setCreateTime(definition.getCreateTime());
+        entity.setUpdateTime(definition.getUpdateTime());
+
+        // 序列化完整定义为JSON
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            entity.setDefinitionJson(objectMapper.writeValueAsString(definition));
+        } catch (JsonProcessingException e) {
+            log.error("序列化报表定义JSON失败: reportId={}", definition.getReportId(), e);
+        }
+
+        return entity;
     }
 }

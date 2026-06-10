@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <PrintButton business-type="fixed_asset_inventory" button-type="link" button-size="small" tooltip="打印盘点记录" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:inventory:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -66,9 +67,12 @@
         :filter-fields="filterFields"
         :selectable="true"
         add-text="新增盘点"
+        add-permission="erp:fixed-asset:inventory:create"
+        delete-permission="erp:fixed-asset:inventory:delete"
         @add="showCreateModal"
         @edit="editRecord"
-        @refresh="fetchData"
+        @cell-dblclick="viewDetail"
+        @refresh="debounceClick('refresh', fetchData)"
         @search="handleSearch"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
@@ -79,8 +83,19 @@
             更新 {{ dayjs(lastUpdated).format('HH:mm') }}
           </span>
         </template>
+        <template #batch-actions="{ selectedRowKeys }">
+          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+        </template>
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="debounceClick('refresh', fetchData)()">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -113,22 +128,27 @@
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'pending'" title="编辑">
-              <a-button type="link" size="small" @click="editRecord(record)">
+              <a-button type="link" size="small" @click="editRecord(record)" v-permission="'erp:fixed-asset:inventory:update'">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton
+              template-type="inventory"
+              :business-id="record.id"
+              business-type="fixed_asset_inventory"
+              button-text=""
+              button-size="small"
+              button-type="link"
+              tooltip="打印"
+            />
             <a-dropdown trigger="click">
               <a-button type="link" size="small" class="action-more-btn">
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
                 <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                  <a-menu-item v-if="record.status === 'pending'" key="complete">
+                  <a-menu-item v-if="record.status === 'pending'" key="complete" v-permission="'erp:fixed-asset:inventory:update'">
                     <CheckCircleOutlined /> 完成盘点
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="print">
-                    <PrinterOutlined /> 打印
                   </a-menu-item>
                 </a-menu>
               </template>
@@ -138,57 +158,59 @@
       </VxeTableList>
 
       <!-- Create/Edit Modal -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="isEdit ? '编辑盘点记录' : '新增盘点记录'"
-        :width="700"
-        @ok="handleModalOk"
-        :confirmLoading="modalLoading"
+        :save-loading="modalLoading"
+        :show-save-and-new="!isEdit"
+        @save="handleModalOk"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
           <a-form-item label="资产ID" required>
-            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" />
+            <a-input-number v-model:value="formData.assetId" :min="1" style="width: 100%" size="small" />
           </a-form-item>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="资产编码">
-                <a-input v-model:value="formData.assetCode" placeholder="资产编码" />
+                <a-input v-model:value="formData.assetCode" placeholder="资产编码" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="资产名称">
-                <a-input v-model:value="formData.assetName" placeholder="资产名称" />
+                <a-input v-model:value="formData.assetName" placeholder="资产名称" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="盘点日期">
-                <a-date-picker v-model:value="formData.inventoryDate" style="width: 100%" />
+                <a-date-picker v-model:value="formData.inventoryDate" style="width: 100%" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="部门">
-                <a-input v-model:value="formData.departmentName" placeholder="部门名称" />
+                <a-input v-model:value="formData.departmentName" placeholder="部门名称" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="预期位置">
-                <a-input v-model:value="formData.expectedLocation" placeholder="预期位置" />
+                <a-input v-model:value="formData.expectedLocation" placeholder="预期位置" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="实际位置">
-                <a-input v-model:value="formData.actualLocation" placeholder="实际位置" />
+                <a-input v-model:value="formData.actualLocation" placeholder="实际位置" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="预期状态">
-                <a-select v-model:value="formData.expectedStatus" placeholder="预期状态">
+                <a-select v-model:value="formData.expectedStatus" placeholder="预期状态" size="small">
                   <a-select-option value="in_use">使用中</a-select-option>
                   <a-select-option value="idle">闲置</a-select-option>
                   <a-select-option value="maintenance">维修中</a-select-option>
@@ -197,7 +219,7 @@
             </a-col>
             <a-col :span="12">
               <a-form-item label="实际状态">
-                <a-select v-model:value="formData.actualStatus" placeholder="实际状态">
+                <a-select v-model:value="formData.actualStatus" placeholder="实际状态" size="small">
                   <a-select-option value="in_use">使用中</a-select-option>
                   <a-select-option value="idle">闲置</a-select-option>
                   <a-select-option value="maintenance">维修中</a-select-option>
@@ -208,17 +230,17 @@
           <a-row :gutter="16">
             <a-col :span="12">
               <a-form-item label="预期保管人">
-                <a-input v-model:value="formData.expectedCustodian" placeholder="预期保管人" />
+                <a-input v-model:value="formData.expectedCustodian" placeholder="预期保管人" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
               <a-form-item label="实际保管人">
-                <a-input v-model:value="formData.actualCustodian" placeholder="实际保管人" />
+                <a-input v-model:value="formData.actualCustodian" placeholder="实际保管人" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-form-item label="盘点结果">
-            <a-select v-model:value="formData.checkResult" placeholder="选择结果">
+            <a-select v-model:value="formData.checkResult" placeholder="选择结果" size="small">
               <a-select-option value="consistent">一致</a-select-option>
               <a-select-option value="mismatch">不符</a-select-option>
               <a-select-option value="missing">盘亏</a-select-option>
@@ -226,27 +248,28 @@
             </a-select>
           </a-form-item>
           <a-form-item label="备注">
-            <a-textarea v-model:value="formData.remark" :rows="2" />
+            <a-textarea v-model:value="formData.remark" :rows="2" size="small" />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, EyeOutlined, EditOutlined,
   ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined,
-  FileTextOutlined, EllipsisOutlined, PrinterOutlined,
-  SyncOutlined, ReloadOutlined
+  FileTextOutlined, EllipsisOutlined,
+  SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inventoryApi } from '@/api/fixed-asset'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 
 const loading = ref(false)
 const modalVisible = ref(false)
@@ -259,6 +282,7 @@ const lastUpdated = ref('')
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 const selectedRowKeys = ref<number[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -269,6 +293,17 @@ const hasActiveFilters = computed(() => {
 
 const searchFilters = reactive<Record<string, any>>({})
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
+// ── 表单数据 ────────────────────────────────────────────
 const formData = reactive({
   assetId: undefined as number | undefined,
   assetCode: '',
@@ -284,6 +319,28 @@ const formData = reactive({
   actualCustodian: '',
   checkResult: 'consistent',
   remark: '',
+})
+
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formData) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formData) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
 })
 
 const pagination = reactive({
@@ -347,9 +404,29 @@ const resultColorMap: Record<string, string> = {
   consistent: 'green', mismatch: 'orange', missing: 'red', surplus: 'blue',
 }
 
+function handleParentCreate() {
+  showCreateModal()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    showCreateModal()
+  }
+}
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('fixed-asset:create', handleParentCreate)
+  window.addEventListener('fixed-asset:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -362,6 +439,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
   window.removeEventListener('fixed-asset:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
@@ -369,8 +447,9 @@ onUnmounted(() => {
 
 defineExpose({ handleQuery: fetchData })
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
+  hasError.value = false
   const params: any = {
     page: pagination.current - 1,
     size: pagination.pageSize,
@@ -379,20 +458,22 @@ function fetchData() {
   if (searchFilters.status) params.status = searchFilters.status
   if (searchFilters.checkResult) params.checkResult = searchFilters.checkResult
 
-  inventoryApi.getPage(params).then((res: any) => {
+  try {
+    const res = await inventoryApi.getPage(params)
     tableData.value = res.data?.content || res.data?.records || []
     pagination.total = res.data?.totalElements || res.data?.total || 0
     lastUpdated.value = new Date().toISOString()
-  }).catch(() => {
+  } catch {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[盘点管理] 加载盘点数据失败')
     message.error('加载盘点数据失败')
-  }).finally(() => {
+  } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     refreshLoading.value = false
-  })
+  }
 }
 
 function handleSearch() {
@@ -432,6 +513,7 @@ function showCreateModal() {
     remark: '',
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function editRecord(record: any) {
@@ -439,6 +521,7 @@ function editRecord(record: any) {
   editId.value = record.id
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function viewDetail(record: any) {
@@ -446,6 +529,7 @@ function viewDetail(record: any) {
   editId.value = record.id
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 function handleModalOk() {
@@ -466,6 +550,24 @@ function handleModalOk() {
   })
 }
 
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false },
+    })
+  } else {
+    modalVisible.value = false
+  }
+}
+
+function handleFormSaveAndNew() {
+  handleModalOk()
+}
+
 function handleResetFilters() {
   Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined })
   pagination.current = 1; fetchData()
@@ -473,11 +575,24 @@ function handleResetFilters() {
 
 function handleActionMenuClick(key: string, record: any) {
   switch (key) {
+    case 'complete':
+      Modal.confirm({
+        title: '完成盘点',
+        content: `确认完成盘点记录 "${record.inventoryNo}"？`,
+        okText: '确认',
+        centered: true,
+        onOk: async () => {
+          try {
+            await inventoryApi.update(record.id, { ...record, status: 'completed' })
+            message.success('盘点已完成')
+            fetchData()
+          } catch (err: any) {
+            message.error(err.message || '操作失败')
+          }
+        }
+      })
+      break
   }
-}
-
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault() }
 }
 </script>
 
@@ -525,6 +640,11 @@ function handleKeydown(e: KeyboardEvent) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.inventory-list-page :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -587,6 +707,14 @@ function handleKeydown(e: KeyboardEvent) {
   margin-top: 12px;
 }
 
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
+}
+
 .inventory-no {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
@@ -616,4 +744,12 @@ function handleKeydown(e: KeyboardEvent) {
     min-width: 120px;
   }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

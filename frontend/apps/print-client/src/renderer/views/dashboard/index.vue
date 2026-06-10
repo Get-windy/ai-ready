@@ -44,8 +44,8 @@ const loadData = async () => {
   
   printers.value = await window.electronAPI.printers.getPrinters()
   
-  const status = await window.electronAPI.connection.getStatus()
-  connectionStatus.value = status
+  const statusResp = await window.electronAPI.connection.getStatus()
+  connectionStatus.value = statusResp?.isConnected ? 'connected' : 'disconnected'
 }
 
 const handleViewQueue = () => {

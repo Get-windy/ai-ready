@@ -4,6 +4,7 @@ import cn.aiedge.erp.price.engine.optimization.IPriceOptimizationAlgorithm;
 import cn.aiedge.erp.price.engine.optimization.dto.OptimizationRequest;
 import cn.aiedge.erp.price.engine.optimization.dto.OptimizationResult;
 import cn.aiedge.erp.price.engine.optimization.dto.PriceVariable;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.genetics.*;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 /**
  * 遗传算法价格优化实现
  */
+@Slf4j
 @Service
 public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgorithm {
     
@@ -181,7 +183,7 @@ public class GeneticPriceOptimizationAlgorithm implements IPriceOptimizationAlgo
     public void warmUp() {
         // 预加载模型或执行初始化
         fitnessCache.clear();
-        System.out.println("Genetic algorithm warmed up");
+        log.info("Genetic algorithm warmed up");
     }
     
     @Override

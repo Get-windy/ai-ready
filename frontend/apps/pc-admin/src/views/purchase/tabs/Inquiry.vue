@@ -49,6 +49,7 @@
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
     >
       <template #batch-actions>
@@ -60,14 +61,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的询价单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无询价单数据，点击右上角「新建询价」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的询价单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无询价单数据，点击右上角「新建询价」开始创建
+            </p>
+          </template>
         </div>
       </template>
 
@@ -112,9 +122,13 @@
       placement="right"
       width="80vw"
       class="inquiry-detail-drawer"
+      @close="handleDetailClose"
     >
       <template #extra>
         <a-space>
+          <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
           <a-button v-if="currentRecord?.status === 0" type="primary" size="small" @click="handleSendFromDetail">
             <template #icon><SendOutlined /></template>
             发送询价
@@ -126,33 +140,42 @@
         </a-space>
       </template>
 
-      <a-descriptions bordered :column="2" size="small" v-if="currentRecord">
-        <a-descriptions-item label="询价单号">
-          <span class="inquiry-no">{{ currentRecord.inquiryNo }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="询价日期">{{ currentRecord.inquiryDate }}</a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="创建人">{{ currentRecord.creatorName }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '无' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 8 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small">
+            <a-descriptions-item label="询价单号">
+              <span class="inquiry-no">{{ detailData.inquiryNo }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="询价日期">{{ detailData.inquiryDate }}</a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建人">{{ detailData.creatorName }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+          </a-descriptions>
 
-      <a-divider>询价物料</a-divider>
-      <VxeTableList
-        :columns="itemDetailColumns"
-        :data-source="detailItems"
-        :pagination="false"
-        row-key="tempKey"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
-      />
+          <a-divider>询价物料</a-divider>
+          <VxeTableList
+            :columns="itemDetailColumns"
+            :data-source="detailItems"
+            :pagination="false"
+            row-key="tempKey"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          />
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建/编辑询价弹窗 -->
@@ -178,6 +201,7 @@
             <a-form-item label="供应商" name="supplierId" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
               <a-select
                 v-model:value="formData.supplierId"
+                size="small"
                 placeholder="请选择供应商"
                 show-search
                 :filter-option="filterOption"
@@ -191,7 +215,7 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="询价日期" name="inquiryDate" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }">
-              <a-date-picker v-model:value="formData.inquiryDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.inquiryDate" size="small" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="24">
@@ -243,6 +267,7 @@
 defineOptions({ name: 'PurchaseInquiryTab' })
 
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -255,16 +280,30 @@ import {
   InboxOutlined,
   EllipsisOutlined,
   CopyOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  WarningOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inquiryApi } from '@/api/erp'
 import { supplierApi } from '@/api/supplier'
 import { useUserStore } from '@/stores/user'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const userStore = useUserStore()
+const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const selectedRowKeys = ref<number[]>([])
@@ -286,7 +325,7 @@ const vxeColumns = computed(() => [
   { title: '询价单号', field: 'inquiryNo', width: 160 },
   { title: '供应商', field: 'supplierName', width: 140 },
   { title: '询价日期', field: 'inquiryDate', width: 110 },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '创建人', field: 'creatorName', width: 100 },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 140, fixed: 'right' }
@@ -313,14 +352,18 @@ const filterOption = (input: string, option: any) => option.name?.toLowerCase().
 // 详情弹窗
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+const detailItems = ref<any[]>([])
+
 const itemDetailColumns = [
   { title: '物料名称', field: 'productName', width: 150 },
   { title: '规格', field: 'specification', width: 120 },
   { title: '数量', field: 'quantity', width: 80, align: 'right' },
   { title: '单位', field: 'unit', width: 60, align: 'center' }
 ]
-
-const detailItems = ref<any[]>([])
 
 // 表单弹窗
 const formModalVisible = ref(false)
@@ -411,19 +454,51 @@ async function fetchData() {
     const pageData = (res as any).data ?? res
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
+    hasError.value = false
   } catch (e) {
     console.warn('[采购询价] 获取列表失败', e)
     message.error('获取询价单列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally {
     loading.value = false
   }
 }
 
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await inquiryApi.getById(id) as any
+    const data = (res as any).data ?? res
+    detailData.value = data
+    detailItems.value = data.items || []
+  } catch (err: any) {
+    console.warn('[采购询价] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+    detailItems.value = []
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 function handleView(record: any) {
-  currentRecord.value = { ...record, items: record.items || [] }
-  detailItems.value = currentRecord.value.items || []
+  currentRecord.value = record
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+  detailItems.value = []
+}
+
+function handleDetailRefresh() {
+  if (detailRecord.value?.id) fetchDetail(detailRecord.value.id)
 }
 
 function handleAdd() {
@@ -488,10 +563,10 @@ function handleResetFilters() {
 function handleActionMenuClick(key: string, record: any) {
   switch (key) {
     case 'copy':
-      message.info(`复制询价单: ${record.inquiryNo}`)
+      router.push(`/purchase/inquiry/create?copyFrom=${record.id}`)
       break
     case 'quote':
-      message.info(`创建报价: ${record.inquiryNo}`)
+      router.push(`/crm/quotation/create?inquiryId=${record.id}`)
       break
     case 'delete':
       handleDelete(record)
@@ -568,7 +643,7 @@ function handleExport() {
   a.download = `询价单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  console.warn('[采购询价] 导出成功（前端CSV导出，无后端接口）'); message.success('导出成功')
+  message.success('导出成功')
 }
 
 function handleBatchSend() {
@@ -617,10 +692,12 @@ function handleFilterChange(filters: Record<string, any>) {
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
-    handleAdd()
+    debounceClick('add', handleAdd)
   }
 }
 
@@ -628,11 +705,13 @@ onMounted(() => {
   fetchData()
   loadSuppliers()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:create', handleParentCreate)
   refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:create', handleParentCreate)
   if (refreshTimer) clearInterval(refreshTimer)
   clearTimeout(debouncedFetch.value)
 })
@@ -646,6 +725,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-inquiry-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -733,5 +818,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

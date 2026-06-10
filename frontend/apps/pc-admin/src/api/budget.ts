@@ -132,8 +132,14 @@ export const annualBudgetApi = {
   reject(id: number): Promise<ApiResponse<AnnualBudget>> {
     return request.post(`/erp/budget/annual/${id}/reject`)
   },
+  startExec(id: number): Promise<ApiResponse<AnnualBudget>> {
+    return request.post(`/erp/budget/annual/${id}/start-exec`)
+  },
   close(id: number): Promise<ApiResponse<AnnualBudget>> {
     return request.post(`/erp/budget/annual/${id}/close`)
+  },
+  export(params: PageQuery): Promise<ApiResponse<AnnualBudget[]>> {
+    return request.get('/erp/budget/annual/export', params)
   },
 }
 
@@ -191,6 +197,12 @@ export const budgetAdjustmentApi = {
   },
   submit(id: number): Promise<ApiResponse<BudgetAdjustment>> {
     return request.post(`/erp/budget/adjustment/${id}/submit`)
+  },
+  delete(id: number): Promise<ApiResponse<void>> {
+    return request.delete(`/erp/budget/adjustment/${id}`)
+  },
+  export(params: PageQuery): Promise<ApiResponse<BudgetAdjustment[]>> {
+    return request.get('/erp/budget/adjustment/export', params)
   },
   approve(id: number, comment?: string): Promise<ApiResponse<BudgetAdjustment>> {
     return request.post(`/erp/budget/adjustment/${id}/approve`, null, { params: { comment } })

@@ -17,7 +17,7 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
-            <a-button size="small" :loading="refreshLoading" @click="fetchTiers">
+            <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTiers)">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
@@ -94,7 +94,15 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="editTier"
       >
+        <template #empty>
+          <div v-if="hasError" class="table-empty">
+            <WarningOutlined class="table-empty-icon" />
+            <p class="table-empty-text">数据加载异常，请重试</p>
+            <a-button type="primary" @click="fetchTiers"><ReloadOutlined /> 重试</a-button>
+          </div>
+        </template>
         <template #statusCell="{ record }">
           <StatusTag :status="record.status" :map="TIER_STATUS_MAP" />
         </template>
@@ -138,13 +146,13 @@
     >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="层级名称" name="tierName">
-          <a-input v-model:value="formData.tierName" placeholder="如：战略客户价" />
+          <a-input size="small" v-model:value="formData.tierName" placeholder="如：战略客户价" />
         </a-form-item>
         <a-form-item label="层级编码" name="tierCode">
-          <a-input v-model:value="formData.tierCode" placeholder="如：strategic" />
+          <a-input size="small" v-model:value="formData.tierCode" placeholder="如：strategic" />
         </a-form-item>
         <a-form-item label="适用客户等级">
-          <a-select v-model:value="formData.customerLevel" placeholder="选择客户等级" allow-clear>
+          <a-select size="small" v-model:value="formData.customerLevel" placeholder="选择客户等级" allow-clear>
             <a-select-option value="">全部</a-select-option>
             <a-select-option v-for="lv in customerLevels" :key="lv" :value="lv">{{ levelLabel(lv) }}</a-select-option>
           </a-select>
@@ -157,24 +165,24 @@
           </a-radio-group>
         </a-form-item>
         <a-form-item v-if="formData.pricingMode === 'factor'" label="价格系数" name="priceFactor">
-          <a-input-number v-model:value="formData.priceFactor" :min="0" :max="10" :step="0.01" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.priceFactor" :min="0" :max="10" :step="0.01" style="width: 200px" />
           <span style="margin-left: 8px; color: #888">基准价 × 系数</span>
         </a-form-item>
         <a-form-item v-if="formData.pricingMode === 'discount'" label="折扣率(%)" name="discountRate">
-          <a-input-number v-model:value="formData.discountRate" :min="0" :max="100" :step="0.1" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.discountRate" :min="0" :max="100" :step="0.1" style="width: 200px" />
           <span style="margin-left: 8px; color: #888">折扣百分比</span>
         </a-form-item>
         <a-form-item v-if="formData.pricingMode === 'fixed'" label="层级单价" name="tierPrice">
-          <a-input-number v-model:value="formData.tierPrice" :min="0" :precision="2" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.tierPrice" :min="0" :precision="2" style="width: 200px" />
         </a-form-item>
         <a-form-item label="最低数量">
-          <a-input-number v-model:value="formData.minQuantity" :min="0" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.minQuantity" :min="0" style="width: 200px" />
         </a-form-item>
         <a-form-item label="最高数量">
-          <a-input-number v-model:value="formData.maxQuantity" :min="0" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.maxQuantity" :min="0" style="width: 200px" />
         </a-form-item>
         <a-form-item label="优先级">
-          <a-input-number v-model:value="formData.priority" :min="1" style="width: 200px" />
+          <a-input-number size="small" v-model:value="formData.priority" :min="1" style="width: 200px" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -185,12 +193,28 @@
 import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { requiredRule, requiredSelectRule } from '@/utils/formRules'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchTiers); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showAddModal(); return }
+}
 
 interface PriceTier {
   tierId: string
@@ -216,6 +240,7 @@ const customerLevels = ['strategic', 'core', 'normal', 'new']
 const pricingModeCount = computed(() => new Set(tiers.value.map(t => t.pricingMode)).size)
 
 const loading = ref(false)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -275,11 +300,13 @@ function levelLabel(level: string) {
 }
 
 async function fetchTiers() {
+  hasError.value = false
   loading.value = true
   try {
     const res = await request.get('/erp/pricing/tiers/list')
     tiers.value = res?.data || []
   } catch (err) {
+    hasError.value = true
     console.warn('[价格层级] 获取价层列表失败', err)
     message.error('获取价层列表失败')
   } finally {
@@ -288,6 +315,8 @@ async function fetchTiers() {
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
+
+function handleParentCreate() { showAddModal() }
 
 function showAddModal() {
   editingTier.value = null
@@ -347,7 +376,10 @@ async function toggleStatus(tier: PriceTier) {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
   fetchTiers()
+  window.addEventListener("erp:create", handleParentCreate)
+  window.addEventListener("erp:refresh", fetchTiers)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchTiers()
@@ -359,6 +391,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener("erp:create", handleParentCreate)
+  window.removeEventListener("erp:refresh", fetchTiers)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -472,5 +507,45 @@ defineExpose({ handleQuery: fetchTiers })
 
 .summary-value.warning {
   color: #f5222d;
+}
+
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 12px;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-bottom: 16px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

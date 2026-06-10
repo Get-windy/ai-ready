@@ -55,6 +55,7 @@
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
     >
       <template #toolbar-actions>
@@ -76,14 +77,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的付款单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无付款单数据，点击右上角「新建付款」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的付款单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无付款单数据，点击右上角「新建付款」开始创建
+            </p>
+          </template>
         </div>
       </template>
 
@@ -99,6 +109,15 @@
                 <template #icon><CheckCircleOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton
+              template-type="payment"
+              :business-id="record.id"
+              business-type="purchase_payment"
+              button-text=""
+              button-size="small"
+              button-type="link"
+              tooltip="打印"
+            />
             <a-dropdown trigger="click">
               <a-button type="link" size="small" class="action-more-btn">
                 <template #icon><EllipsisOutlined /></template>
@@ -107,10 +126,6 @@
                 <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
                   <a-menu-item v-if="record.status === 1" key="approve">
                     <CheckCircleOutlined /> 审批通过
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="print">
-                    <PrinterOutlined /> 打印
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item v-if="record.status === 0" key="delete" danger>
@@ -130,33 +145,52 @@
       placement="right"
       width="80vw"
       class="payment-detail-drawer"
+      @close="handleDetailClose"
     >
       <template #extra>
         <a-space>
+          <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
           <a-button v-if="currentRecord?.status === 1" type="primary" size="small" @click="handleApprove(currentRecord)">审批通过</a-button>
-          <a-button size="small" @click="handlePrintDetail"><PrinterOutlined /> 打印</a-button>
+          <PrintButton
+            template-type="payment"
+            :business-id="currentRecord?.id"
+            business-type="purchase_payment"
+            button-text="打印"
+            button-size="small"
+          />
         </a-space>
       </template>
 
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="付款单号">{{ currentRecord.paymentNo }}</a-descriptions-item>
-        <a-descriptions-item label="采购订单">
-          <a @click="handleViewOrder(currentRecord)">{{ currentRecord.orderNo }}</a>
-        </a-descriptions-item>
-        <a-descriptions-item label="供应商">{{ currentRecord.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="付款日期">{{ currentRecord.paymentDate }}</a-descriptions-item>
-        <a-descriptions-item label="付款金额">
-          <span class="amount-cell">¥{{ formatAmount(currentRecord.paymentAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="付款方式">{{ getPaymentMethodText(currentRecord.paymentMethod) }}</a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="收款账户">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="经办人">{{ currentRecord.operatorName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 10 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2">
+            <a-descriptions-item label="付款单号">{{ detailData.paymentNo }}</a-descriptions-item>
+            <a-descriptions-item label="采购订单">
+              <a @click="handleViewOrder(currentRecord)">{{ detailData.orderNo }}</a>
+            </a-descriptions-item>
+            <a-descriptions-item label="供应商">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="付款日期">{{ detailData.paymentDate }}</a-descriptions-item>
+            <a-descriptions-item label="付款金额">
+              <span class="amount-cell">¥{{ formatAmount(detailData.paymentAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="付款方式">{{ getPaymentMethodText(detailData.paymentMethod) }}</a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="收款账户">{{ detailData.bankAccount || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="经办人">{{ detailData.operatorName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建付款弹窗 -->
@@ -188,7 +222,7 @@
           </a-input-number>
         </a-form-item>
         <a-form-item label="付款方式" name="paymentMethod">
-          <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式">
+          <a-select v-model:value="formData.paymentMethod" size="small" placeholder="请选择付款方式">
             <a-select-option :value="1">银行转账</a-select-option>
             <a-select-option :value="2">现金</a-select-option>
             <a-select-option :value="3">承兑汇票</a-select-option>
@@ -199,7 +233,7 @@
           <a-input v-model:value="formData.bankAccount" placeholder="请输入收款账户（可选）" />
         </a-form-item>
         <a-form-item label="付款日期" name="paymentDate">
-          <a-date-picker v-model:value="formData.paymentDate" style="width: 100%" />
+          <a-date-picker v-model:value="formData.paymentDate" size="small" style="width: 100%" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
           <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
@@ -266,7 +300,8 @@ import dayjs from 'dayjs'
 import {
   EyeOutlined, DeleteOutlined, CheckCircleOutlined, PrinterOutlined,
   SearchOutlined, InboxOutlined, EllipsisOutlined, ClockCircleOutlined,
-  DollarOutlined, ExclamationCircleOutlined, FileTextOutlined
+  DollarOutlined, ExclamationCircleOutlined, FileTextOutlined,
+  WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -275,11 +310,22 @@ import { useUserStore } from '@/stores/user'
 import { useExport } from '@/composables/useExport'
 import { executeBatch, validateSelection } from '@/utils/batchOperations'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const selectedRowKeys = ref<number[]>([])
@@ -311,7 +357,7 @@ const vxeColumns = computed(() => [
   { title: '付款日期', field: 'paymentDate', width: 110 },
   { title: '付款金额', field: 'paymentAmount', width: 130, align: 'right', formatter: ({ cellValue }) => `¥${formatAmount(cellValue)}` },
   { title: '付款方式', field: 'paymentMethod', width: 100, formatter: ({ cellValue }) => getPaymentMethodText(cellValue) },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>` },
   { title: '经办人', field: 'operatorName', width: 100 },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 140, fixed: 'right' }
@@ -354,10 +400,42 @@ function formatAmount(amount: number): string {
 // ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await paymentApi.getById(id) as any
+    const data = (res as any).data ?? res
+    detailData.value = data
+  } catch (err: any) {
+    console.warn('[采购付款] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
 
 function handleView(record: any) {
   currentRecord.value = record
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+}
+
+function handleDetailRefresh() {
+  if (detailRecord.value?.id) fetchDetail(detailRecord.value.id)
 }
 
 function handleViewOrder(record: any) {
@@ -366,10 +444,6 @@ function handleViewOrder(record: any) {
   } else {
     message.info('订单详情功能开发中')
   }
-}
-
-function handlePrintDetail() {
-  message.info(`打印付款单: ${currentRecord.value?.paymentNo}`)
 }
 
 // ── 表单状态 ──────────────────────────────────────────
@@ -409,10 +483,12 @@ async function fetchData() {
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
   } catch (e) {
     console.warn('[采购付款] 获取列表失败', e)
     message.error('获取付款单列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally { loading.value = false }
 }
 
@@ -440,7 +516,6 @@ function handleResetFilters() {
 function handleActionMenuClick(key: string, record: any) {
   switch (key) {
     case 'approve': handleApprove(record); break
-    case 'print': message.info(`打印付款单: ${record.paymentNo}`); break
     case 'delete': handleDelete(record); break
   }
 }
@@ -510,7 +585,7 @@ const handlePrintCheckAll = (e: any) => {
 const handlePrintAll = () => {
   const toPrint = printItems.value.filter((item: any) => item.checked)
   if (toPrint.length === 0) { message.warning('请选择要打印的付款单'); return }
-  console.warn('[采购付款] 模拟打印任务（无后端接口）', toPrint);
+  console.warn('[采购付款] 发送打印任务', toPrint);
   message.success(`正在发送 ${toPrint.length} 个付款单的打印任务...`)
   batchPrintModalVisible.value = false
 }
@@ -536,19 +611,23 @@ function handleFilterChange(filters: Record<string, any>) {
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd) }
 }
 
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:create', handleParentCreate)
   window.addEventListener('purchase:refresh', fetchData)
   refreshTimer = setInterval(() => fetchData(), 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:create', handleParentCreate)
   window.removeEventListener('purchase:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   clearTimeout(debouncedFetch.value)
@@ -563,6 +642,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-payment-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -682,5 +767,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

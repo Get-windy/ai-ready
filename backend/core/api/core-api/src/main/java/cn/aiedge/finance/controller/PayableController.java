@@ -7,6 +7,7 @@ import cn.aiedge.finance.dto.PayableVO;
 import cn.aiedge.finance.service.IPayableService;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/finance/payable")
 @Tag(name = "应付账款管理", description = "应付账款相关操作接口")
+@SaCheckLogin
 public class PayableController {
 
     private final IPayableService payableService;

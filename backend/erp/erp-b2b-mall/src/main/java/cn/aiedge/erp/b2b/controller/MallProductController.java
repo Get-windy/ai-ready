@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/mall/products")
@@ -42,8 +43,8 @@ public class MallProductController {
 
     @Operation(summary = "商品分类", description = "获取所有商品分类列表")
     @GetMapping("/categories")
-    public ApiResponse<List> getCategories() {
-        List categories = mallProductService.getCategories();
+    public ApiResponse<List<Map<String, Object>>> getCategories() {
+        List<Map<String, Object>> categories = mallProductService.getCategories();
         return ApiResponse.success(categories);
     }
 
@@ -83,8 +84,8 @@ public class MallProductController {
 
     @Operation(summary = "轮播图", description = "获取首页轮播图列表")
     @GetMapping("/banners")
-    public ApiResponse<List> getBanners() {
-        List banners = mallProductService.getBanners();
+    public ApiResponse<List<Map<String, Object>>> getBanners() {
+        List<Map<String, Object>> banners = mallProductService.getBanners();
         return ApiResponse.success(banners);
     }
 }

@@ -140,6 +140,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 
 interface ProductItem {
   id: number
@@ -221,15 +222,14 @@ function handleSearch(value: string) {
     return
   }
   searchLoading.value = true
-  // TODO: 调用产品搜索 API
-  // productApi.search({ keyword: value }).then(res => {
-  //   searchResults.value = res.data || []
-  // }).finally(() => {
-  //   searchLoading.value = false
-  // })
-  setTimeout(() => {
+  request.get('/erp/product/page', { keyword: value, current: 1, size: 20 }).then(res => {
+    searchResults.value = res.data?.records || []
+  }).catch(err => {
+    console.warn('[ProductSelector] 产品搜索失败', err)
+    searchResults.value = []
+  }).finally(() => {
     searchLoading.value = false
-  }, 300)
+  })
 }
 
 function handleSelectChange(value: any) {
@@ -255,15 +255,19 @@ function handleFocus() {
 
 function handleSearchProducts() {
   productLoading.value = true
-  // TODO: 调用产品列表 API
-  // productApi.list({ keyword: searchKeyword.value, category: categoryFilter.value }).then(res => {
-  //   productList.value = res.data?.records || []
-  // }).finally(() => {
-  //   productLoading.value = false
-  // })
-  setTimeout(() => {
+  request.get('/erp/product/page', {
+    keyword: searchKeyword.value || undefined,
+    categoryId: categoryFilter.value,
+    current: 1,
+    size: 1000
+  }).then(res => {
+    productList.value = res.data?.records || []
+  }).catch(err => {
+    console.warn('[ProductSelector] 产品列表查询失败', err)
+    productList.value = []
+  }).finally(() => {
     productLoading.value = false
-  }, 500)
+  })
 }
 
 function handleConfirm() {

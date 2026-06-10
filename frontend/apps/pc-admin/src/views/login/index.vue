@@ -155,6 +155,10 @@
               @click="handleRegister"
             >立即注册</a-button>
           </div>
+          <div class="login-footer" style="margin-top: 4px;">
+            <span class="footer-text">企业用户？</span>
+            <router-link to="/tenant-register" class="enterprise-link">企业注册</router-link>
+          </div>
         </a-form>
       </div>
     </div>

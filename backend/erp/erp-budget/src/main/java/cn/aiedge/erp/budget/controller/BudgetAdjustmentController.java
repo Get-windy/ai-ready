@@ -90,4 +90,11 @@ public class BudgetAdjustmentController {
         List<BudgetAdjustmentDTO> list = budgetAdjustmentService.exportList(budgetId, status, adjustmentType);
         return ApiResponse.success(list);
     }
+
+    @Operation(summary = "删除预算调整")
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@Parameter(description = "调整ID") @PathVariable Long id) {
+        budgetAdjustmentService.delete(id);
+        return ApiResponse.success("删除成功", null);
+    }
 }

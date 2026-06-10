@@ -102,8 +102,16 @@
             :show-search="false"
             :show-export="false"
             :show-batch-delete="false"
+            @cell-dblclick="handleViewDetail"
             @page-change="handlePageChange"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #productCell="{ record }">
               <div class="product-info">
                 <span class="product-name">{{ record.productName }}</span>
@@ -173,7 +181,15 @@
             :show-search="false"
             :show-export="false"
             :show-batch-delete="false"
+            @cell-dblclick="handleViewDetail"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #statusCell="{ record }">
               <a-tag color="green">已生成采购单</a-tag>
             </template>
@@ -195,7 +211,15 @@
             :show-search="false"
             :show-export="false"
             :show-batch-delete="false"
+            @cell-dblclick="handleViewDetail"
           >
+            <template #empty>
+              <div v-if="hasError" class="table-empty">
+                <WarningOutlined class="table-empty-icon" />
+                <p class="table-empty-text">数据加载异常，请重试</p>
+                <a-button type="primary" @click="loadSuggestions"><ReloadOutlined /> 重试</a-button>
+              </div>
+            </template>
             <template #statusCell="{ record }">
               <a-tag color="default">已忽略</a-tag>
             </template>
@@ -214,6 +238,7 @@
       width="80vw"
       :footer="null"
     >
+      <a-spin :spinning="detailLoading">
       <a-descriptions :column="2" bordered>
         <a-descriptions-item label="产品名称">{{ suggestionDetail.productName }}</a-descriptions-item>
         <a-descriptions-item label="产品编码">{{ suggestionDetail.productCode }}</a-descriptions-item>
@@ -239,6 +264,7 @@
 
       <a-divider>销售趋势分析</a-divider>
       <div ref="salesTrendChartRef" class="chart-container"></div>
+      </a-spin>
     </a-drawer>
 
     <a-modal
@@ -274,7 +300,7 @@
           <span>{{ createOrderData.suggestedQty }}件</span>
         </a-form-item>
         <a-form-item label="供应商" name="supplierId">
-          <a-select v-model:value="selectedSupplierId" placeholder="请选择供应商" show-search :filter-option="filterOption">
+          <a-select size="small" v-model:value="selectedSupplierId" placeholder="请选择供应商" show-search :filter-option="filterOption">
             <a-select-option v-for="supplier in supplierList" :key="supplier.id" :value="supplier.id">
               {{ supplier.name }}
             </a-select-option>
@@ -327,13 +353,24 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const loading = ref(false)
+const hasError = ref(false)
 const autoRefreshCountdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -419,6 +456,8 @@ const priorityChartRef = ref<HTMLElement>()
 let salesTrendChart: echarts.ECharts | null = null
 let priorityChart: echarts.ECharts | null = null
 
+function handleParentCreate() { generateSuggestions() }
+
 const handleRefresh = () => {
   autoRefreshCountdown.value = 30
   loadSuggestions()
@@ -426,6 +465,8 @@ const handleRefresh = () => {
 
 onMounted(() => {
   loadSuggestions()
+  window.addEventListener("erp:create", handleParentCreate)
+  window.addEventListener("erp:refresh", loadSuggestions)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadSuggestions()
@@ -437,6 +478,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener("erp:create", handleParentCreate)
+  window.removeEventListener("erp:refresh", loadSuggestions)
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   salesTrendChart?.dispose()
@@ -446,6 +489,7 @@ onUnmounted(() => {
 defineExpose({ handleQuery: loadSuggestions })
 
 const loadSuggestions = async () => {
+  hasError.value = false
   loading.value = true
   try {
     const params = { pageNum: pagination.current, pageSize: pagination.pageSize, status: 'pending' }
@@ -458,6 +502,7 @@ const loadSuggestions = async () => {
     statistics.value.processedCount = processedSuggestions.value.length
     statistics.value.estimatedCost = pendingSuggestions.value.reduce((sum, s) => sum + (s.suggestedQty * s.avgPrice || 0), 0)
   } catch (err: any) {
+    hasError.value = true
     console.warn('[智能补货] 获取补货建议失败', err)
     message.error('获取补货建议失败: ' + (err?.message || ''))
   } finally {
@@ -507,9 +552,23 @@ const handlePageChange = (page: number, size: number) => {
   loadSuggestions()
 }
 
+const detailLoading = ref(false)
+
+const fetchDetail = async (id: number) => {
+  detailLoading.value = true
+  try {
+    const res = await replenishmentApi.getById(id)
+    suggestionDetail.value = res.data || {}
+  } catch (err) {
+    console.warn('[智能补货] 获取详情失败', err)
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 const handleViewDetail = (record: any) => {
-  suggestionDetail.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
   initSalesTrendChart()
 }
 
@@ -787,8 +846,43 @@ const initPriorityChart = () => {
   height: 250px;
 }
 
+/* 表格容器自动撑满 */
+:deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
 
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
 
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 12px;
+}
 
+.table-empty-text {
+  color: #999;
+  margin-bottom: 16px;
+}
 
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
 </style>

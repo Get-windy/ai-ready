@@ -1,11 +1,12 @@
 <template>
-  <a-modal
-    v-model:open="open"
+  <FullScreenDetail
+    :visible="open"
     :title="isEdit ? '编辑换货单' : '新建换货单'"
-    width="900px"
-    :confirm-loading="submitting"
-    @ok="handleSubmit"
-    @cancel="handleCancel"
+    :save-loading="submitting"
+    :show-save-and-new="!isEdit"
+    @close="handleFormClose"
+    @save="handleSubmit"
+    @save-and-new="handleFormSaveAndNew"
   >
     <a-form
       ref="formRef"
@@ -17,6 +18,7 @@
         <a-col :span="12">
           <a-form-item label="原采购订单" name="originalOrderId">
             <a-select
+              size="small"
               v-model:value="formData.originalOrderId"
               placeholder="请选择原采购订单"
               show-search
@@ -36,7 +38,7 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="换货日期" name="exchangeDate">
-            <a-date-picker
+            <a-date-picker size="small"
               v-model:value="formData.exchangeDate"
               style="width: 100%"
             />
@@ -47,7 +49,7 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="换货类型" name="exchangeType">
-            <a-select v-model:value="formData.exchangeType" placeholder="请选择换货类型">
+            <a-select size="small" v-model:value="formData.exchangeType" placeholder="请选择换货类型">
               <a-select-option :value="1">质量问题</a-select-option>
               <a-select-option :value="2">规格不符</a-select-option>
               <a-select-option :value="3">数量错误</a-select-option>
@@ -57,13 +59,13 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="供应商">
-            <a-input v-model:value="selectedOrder.supplierName" disabled />
+            <a-input size="small" v-model:value="selectedOrder.supplierName" disabled />
           </a-form-item>
         </a-col>
       </a-row>
 
       <a-form-item label="换货原因" name="exchangeReason">
-        <a-textarea
+        <a-textarea size="small"
           v-model:value="formData.exchangeReason"
           :rows="3"
           placeholder="请输入换货原因"
@@ -71,7 +73,7 @@
       </a-form-item>
 
       <a-form-item label="备注" name="remark">
-        <a-textarea
+        <a-textarea size="small"
           v-model:value="formData.remark"
           :rows="2"
           placeholder="请输入备注信息"
@@ -94,7 +96,7 @@
         :show-batch-delete="false"
       >
         <template #exchangeQuantityCell="{ record }">
-            <a-input-number
+            <a-input-number size="small"
               v-model:value="record.exchangeQuantity"
               :min="1"
               :max="record.originalQuantity"
@@ -103,7 +105,7 @@
             />
         </template>
         <template #exchangePriceCell="{ record }">
-            <a-input-number
+            <a-input-number size="small"
               v-model:value="record.exchangePrice"
               :min="0"
               :precision="2"
@@ -124,13 +126,14 @@
         <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
       </div>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { FullScreenDetail } from '@/components'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import type { FormInstance } from 'ant-design-vue'
@@ -141,6 +144,16 @@ import {
 } from '@/api/purchase-exchange'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
 import { useUserStore } from '@/stores/user'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 interface FormItem {
   id?: number
@@ -177,12 +190,30 @@ const selectedOrder = reactive({
   supplierName: ''
 })
 
-const open = computed({
-  get: () => props.open,
-  set: (val) => emit('update:open', val)
-})
-
 const isEdit = computed(() => !!props.record)
+
+// ── 表单脏状态追踪 ──────────────────────────────────
+const initialFormSnapshot = ref('')
+
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify(formData, (key, value) => {
+    if (key === 'exchangeDate' && value && typeof (value as any).format === 'function') {
+      return (value as any).format('YYYY-MM-DD')
+    }
+    return value
+  })
+}
+
+const formDirty = computed(() => {
+  if (!initialFormSnapshot.value) return false
+  const current = JSON.stringify(formData, (key, value) => {
+    if (key === 'exchangeDate' && value && typeof (value as any).format === 'function') {
+      return (value as any).format('YYYY-MM-DD')
+    }
+    return value
+  })
+  return current !== initialFormSnapshot.value
+})
 
 const formData = reactive<{
   id?: number
@@ -321,7 +352,7 @@ const handleSubmit = async () => {
     }
 
     emit('success')
-    resetForm()
+    emit('update:open', false)
   } catch (error) {
     console.warn('[采购换货] 提交失败', error)
     message.error('提交失败，请检查表单')
@@ -330,10 +361,71 @@ const handleSubmit = async () => {
   }
 }
 
-// 取消
-const handleCancel = () => {
-  resetForm()
-  open.value = false
+// 保存并新增
+const handleFormSaveAndNew = async () => {
+  try {
+    await formRef.value?.validate()
+
+    if (formData.items.length === 0) {
+      message.error('请添加换货商品')
+      return
+    }
+
+    submitting.value = true
+
+    const submitData: CreateExchangeRequest = {
+      originalOrderId: formData.originalOrderId!,
+      exchangeDate: formData.exchangeDate.format('YYYY-MM-DD'),
+      exchangeReason: formData.exchangeReason,
+      exchangeType: formData.exchangeType,
+      remark: formData.remark,
+      items: formData.items.map(item => ({
+        originalItemId: item.originalItemId,
+        productId: item.productId,
+        exchangeQuantity: item.exchangeQuantity,
+        exchangePrice: item.exchangePrice,
+        warehouseId: item.warehouseId,
+        remark: ''
+      }))
+    }
+
+    if (isEdit.value && props.record) {
+      await purchaseExchangeApi.update(props.record.id, submitData)
+      message.success('更新成功')
+    } else {
+      await purchaseExchangeApi.create(submitData)
+      message.success('创建成功')
+    }
+
+    emit('success')
+    resetForm()
+    nextTick(() => saveFormSnapshot())
+  } catch (error) {
+    console.warn('[采购换货] 提交失败', error)
+    message.error('提交失败，请检查表单')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 关闭（含脏检查）
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '离开确认',
+      content: '当前表单有未保存的更改，确定要关闭吗？',
+      okText: '放弃修改',
+      okType: 'danger',
+      cancelText: '继续编辑',
+      onOk: () => {
+        resetForm()
+        emit('update:open', false)
+      }
+    })
+  } else {
+    resetForm()
+    emit('update:open', false)
+  }
 }
 
 // 重置表单
@@ -350,7 +442,7 @@ const resetForm = () => {
 }
 
 // 监听编辑数据
-watch(() => props.record, (record) => {
+watch(() => props.record, async (record) => {
   if (record) {
     formData.id = record.id
     formData.originalOrderId = record.originalOrderId
@@ -360,7 +452,8 @@ watch(() => props.record, (record) => {
     formData.remark = record.remark
     selectedOrder.supplierName = record.supplierName
     // 加载明细数据
-    loadExchangeItems(record.id)
+    await loadExchangeItems(record.id)
+    nextTick(() => saveFormSnapshot())
   } else {
     resetForm()
   }
@@ -390,6 +483,13 @@ const loadExchangeItems = async (exchangeId: number) => {
     message.error('加载明细失败')
   }
 }
+
+// 打开时保存快照（新建模式）
+watch(() => props.open, (val) => {
+  if (val && !props.record) {
+    nextTick(() => saveFormSnapshot())
+  }
+})
 </script>
 
 <style scoped>
@@ -403,5 +503,21 @@ const loadExchangeItems = async (exchangeId: number) => {
   color: #f5222d;
   font-weight: bold;
   font-size: 20px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

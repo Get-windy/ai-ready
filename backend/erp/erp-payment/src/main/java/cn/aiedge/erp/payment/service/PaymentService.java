@@ -12,7 +12,7 @@ public interface PaymentService extends IService<Payment> {
 
     Payment getByPaymentNo(String paymentNo);
 
-    Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, int pageNum, int pageSize);
+    Page<Payment> pageList(String keyword, Long supplierId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize);
 
     List<Payment> exportList(String keyword, Long supplierId, Long orderId, Integer status);
 
@@ -47,6 +47,13 @@ public interface PaymentService extends IService<Payment> {
     Payment cancel(Long paymentId, String reason);
 
     void calculateTotals(Long paymentId);
+
+    /**
+     * 核销付款单
+     * @param paymentId 付款单ID
+     * @param amount 核销金额
+     */
+    Payment writeOff(Long paymentId, BigDecimal amount);
 
     List<PaymentItem> getItems(Long paymentId);
 

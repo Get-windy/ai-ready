@@ -1,5 +1,7 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetInventoryDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAssetInventory;
 import cn.aiedge.erp.fixedasset.repository.FixedAssetInventoryRepository;
@@ -9,7 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 固定资产盘点服务实现
@@ -28,6 +36,7 @@ public class FixedAssetInventoryServiceImpl implements FixedAssetInventoryServic
             entity.setInventoryNo("FI" + IdUtil.fastSimpleUUID().substring(0, 12).toUpperCase());
         }
         entity.setStatus("pending");
+        entity.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = inventoryRepository.save(entity);
         return toDTO(entity);
     }
@@ -36,8 +45,9 @@ public class FixedAssetInventoryServiceImpl implements FixedAssetInventoryServic
     @Transactional
     public FixedAssetInventoryDTO update(Long id, FixedAssetInventoryDTO dto) {
         FixedAssetInventory entity = inventoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("盘点记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("盘点记录不存在: " + id));
         updateEntity(entity, dto);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = inventoryRepository.save(entity);
         return toDTO(entity);
     }
@@ -45,13 +55,27 @@ public class FixedAssetInventoryServiceImpl implements FixedAssetInventoryServic
     @Override
     public FixedAssetInventoryDTO getById(Long id) {
         FixedAssetInventory entity = inventoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("盘点记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("盘点记录不存在: " + id));
         return toDTO(entity);
     }
 
     @Override
     public Page<FixedAssetInventoryDTO> getPage(String inventoryNo, String status, String checkResult, Pageable pageable) {
-        Page<FixedAssetInventory> page = inventoryRepository.findAll(pageable);
+        Specification<FixedAssetInventory> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("deleted"), false));
+            if (StringUtils.hasText(inventoryNo)) {
+                predicates.add(cb.like(root.get("inventoryNo"), "%" + inventoryNo + "%"));
+            }
+            if (StringUtils.hasText(status)) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (StringUtils.hasText(checkResult)) {
+                predicates.add(cb.equal(root.get("checkResult"), checkResult));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<FixedAssetInventory> page = inventoryRepository.findAll(spec, pageable);
         return page.map(this::toDTO);
     }
 

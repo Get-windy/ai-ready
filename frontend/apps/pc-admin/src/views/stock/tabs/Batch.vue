@@ -51,6 +51,7 @@
       @selection-change="handleSelectionChange"
       :show-export="true"
       @export="handleExport"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -70,33 +71,62 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的批次记录，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无批次记录
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的批次记录，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无批次记录
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="批次详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="批次号">{{ currentRecord.batchNo }}</a-descriptions-item>
-        <a-descriptions-item label="产品编码">{{ currentRecord.productCode }}</a-descriptions-item>
-        <a-descriptions-item label="产品名称">{{ currentRecord.productName }}</a-descriptions-item>
-        <a-descriptions-item label="生产日期">{{ currentRecord.productionDate }}</a-descriptions-item>
-        <a-descriptions-item label="有效期"><a-tag :color="getExpiryColor(currentRecord.expiryDate)">{{ currentRecord.expiryDate }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="getBatchStatusColor(currentRecord.status)">{{ getBatchStatusText(currentRecord.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="库存数量">{{ currentRecord.quantity || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <!-- 详情抽屉 -->
+    <a-drawer
+      v-model:open="detailVisible"
+      :title="detailData?.batchNo || '批次详情'"
+      placement="right"
+      width="90vw"
+      @close="handleDetailClose"
+    >
+      <template #extra>
+        <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+          <template #icon><ReloadOutlined /></template>
+        </a-button>
+      </template>
+
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small" style="margin-bottom: 16px">
+            <a-descriptions-item label="批次号">{{ detailData.batchNo }}</a-descriptions-item>
+            <a-descriptions-item label="产品编码">{{ detailData.productCode }}</a-descriptions-item>
+            <a-descriptions-item label="产品名称">{{ detailData.productName }}</a-descriptions-item>
+            <a-descriptions-item label="生产日期">{{ detailData.productionDate }}</a-descriptions-item>
+            <a-descriptions-item label="有效期"><a-tag :color="getExpiryColor(detailData.expiryDate)">{{ detailData.expiryDate }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="状态"><a-tag :color="getBatchStatusColor(detailData.status)">{{ getBatchStatusText(detailData.status) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="库存数量">{{ detailData.quantity || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="仓库">{{ detailData.warehouseName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(currentRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
   </div>
 </template>
@@ -106,16 +136,27 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   EyeOutlined, SearchOutlined, InboxOutlined,
-  CheckCircleOutlined, WarningOutlined, StopOutlined, TagOutlined
+  CheckCircleOutlined, WarningOutlined, StopOutlined, TagOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { batchApi } from '@/api/erp'
 import dayjs from 'dayjs'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const emit = defineEmits(['update-count'])
 
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -197,8 +238,36 @@ function getExpiryColor(expiryDate: string): string {
   return 'green'
 }
 
+// ── 详情抽屉 ──
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    detailData.value = await batchApi.getById(id) as any
+  } catch (err: any) {
+    console.warn('[批次管理] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+}
+
+function handleDetailRefresh() {
+  if (currentRecord.value?.id) fetchDetail(currentRecord.value.id)
+}
 
 async function fetchData() {
   loading.value = true
@@ -208,18 +277,26 @@ async function fetchData() {
     tableData.value = pageData?.records || []
     pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
     emit('update-count', pagination.total)
   } catch (err) {
     console.warn('[批次管理] 获取批次列表失败', err)
     tableData.value = []
     pagination.total = 0
+    hasError.value = true
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
 
-function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+function handleView(record: any) {
+  currentRecord.value = record
+  detailData.value = null
+  detailError.value = null
+  detailVisible.value = true
+  fetchDetail(record.id)
+}
 
 function handleExport() {
   const headers = ['批次号', '产品编码', '产品名称', '生产日期', '有效期', '状态', '库存数量', '创建时间']
@@ -235,7 +312,6 @@ function handleExport() {
   a.download = `批次报表_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  console.warn('[批次管理] 导出批次列表（客户端模拟）')
   message.success('导出成功')
 }
 
@@ -250,16 +326,19 @@ function handleResetFilters() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleView(tableData.value[0]) }
 }
 
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('stock:refresh', fetchData)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('stock:refresh', fetchData)
 })
 
 defineExpose({ handleQuery: fetchData })
@@ -272,7 +351,12 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
 
+/* 让 VxeTableList 填满剩余空间 */
+.batch-list-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -366,5 +450,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

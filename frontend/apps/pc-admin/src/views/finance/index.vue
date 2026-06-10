@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadDashboard">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadDashboard)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -164,6 +164,12 @@ import dayjs from 'dayjs'
 import { PageContainer } from '@/components'
 import { reportApi } from '@/api/finance'
 
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
+
 const router = useRouter()
 const loading = ref(false)
 const refreshLoading = ref(false)
@@ -201,6 +207,19 @@ const navigateTo = (page: string) => {
   router.push(routes[page])
 }
 
+function handleAdd() {
+  // 仪表盘无需新增操作
+}
+
+function handleParentCreate() {
+  handleAdd()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadDashboard); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
 const loadDashboard = async () => {
   if (loading.value && !refreshLoading.value) return
   loading.value = true
@@ -236,6 +255,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   loadDashboard()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', loadDashboard)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadDashboard()
@@ -247,6 +269,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', loadDashboard)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -503,5 +528,21 @@ defineExpose({ handleQuery: loadDashboard })
   .todo-card {
     flex: 1 1 45%;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

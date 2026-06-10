@@ -1,5 +1,7 @@
 package cn.aiedge.erp.printing.service.impl;
 
+import cn.aiedge.base.security.SecurityContext;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.printing.dto.*;
 import cn.aiedge.erp.printing.entity.PrintLog;
 import cn.aiedge.erp.printing.entity.PrintTask;
@@ -34,20 +36,21 @@ public class PrintTaskServiceImpl implements PrintTaskService {
     private final PrinterMapper printerMapper;
     private final PrintLogMapper logMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final SecurityContext securityContext;
 
     @Override
     @Transactional
     public PrintTask createTask(PrintTaskCreateRequest request, String clientIp) {
         PrintTemplate template = templateMapper.selectById(request.getTemplateId());
         if (template == null) {
-            throw new RuntimeException("模板不存在: " + request.getTemplateId());
+            throw BusinessException.notFound("模板不存在");
         }
         Printer printer = printerMapper.selectById(request.getPrinterId());
         if (printer == null) {
-            throw new RuntimeException("打印机不存在: " + request.getPrinterId());
+            throw BusinessException.notFound("打印机不存在");
         }
         if (!printer.getIsOnline()) {
-            throw new RuntimeException("打印机离线: " + printer.getPrinterName());
+            throw BusinessException.badRequest("打印机离线: " + printer.getPrinterName());
         }
 
         PrintTask task = new PrintTask();
@@ -125,7 +128,8 @@ public class PrintTaskServiceImpl implements PrintTaskService {
 
     @Override
     public List<PrintTask> getPrintQueue() {
-        return taskMapper.selectPendingTasks(100);
+        Long tenantId = securityContext.getCurrentTenantId();
+        return taskMapper.selectPendingTasks(100, tenantId);
     }
 
     @Override
@@ -133,11 +137,15 @@ public class PrintTaskServiceImpl implements PrintTaskService {
     public void cancelTask(Long id) {
         PrintTask task = taskMapper.selectById(id);
         if (task == null) {
-            throw new RuntimeException("任务不存在: " + id);
+            throw BusinessException.notFound("任务不存在");
         }
-        if (!task.getStatus().equals(TaskStatus.PENDING.getCode()) && 
+        Long tenantId = securityContext.getCurrentTenantId();
+        if (tenantId != null && !tenantId.equals(task.getTenantId())) {
+            throw BusinessException.forbidden("无权操作其他租户的任务");
+        }
+        if (!task.getStatus().equals(TaskStatus.PENDING.getCode()) &&
             !task.getStatus().equals(TaskStatus.QUEUED.getCode())) {
-            throw new RuntimeException("任务状态不允许取消: " + task.getStatus());
+            throw BusinessException.badRequest("任务状态不允许取消: " + task.getStatus());
         }
         task.setStatus(TaskStatus.CANCELLED.getCode());
         taskMapper.updateById(task);
@@ -148,13 +156,17 @@ public class PrintTaskServiceImpl implements PrintTaskService {
     public void retryTask(Long id) {
         PrintTask task = taskMapper.selectById(id);
         if (task == null) {
-            throw new RuntimeException("任务不存在: " + id);
+            throw BusinessException.notFound("任务不存在");
+        }
+        Long tenantId = securityContext.getCurrentTenantId();
+        if (tenantId != null && !tenantId.equals(task.getTenantId())) {
+            throw BusinessException.forbidden("无权操作其他租户的任务");
         }
         if (!task.getStatus().equals(TaskStatus.FAILED.getCode())) {
-            throw new RuntimeException("只有失败的任务可以重试");
+            throw BusinessException.badRequest("只有失败的任务可以重试");
         }
         if (task.getRetryCount() >= task.getMaxRetry()) {
-            throw new RuntimeException("已达到最大重试次数");
+            throw BusinessException.badRequest("已达到最大重试次数");
         }
         task.setStatus(TaskStatus.RETRYING.getCode());
         task.setRetryCount(task.getRetryCount() + 1);
@@ -234,14 +246,16 @@ public class PrintTaskServiceImpl implements PrintTaskService {
 
     @Override
     public int getQueueLength() {
-        return taskMapper.countByStatus(TaskStatus.PENDING.getCode()) + 
-               taskMapper.countByStatus(TaskStatus.QUEUED.getCode());
+        Long tenantId = securityContext.getCurrentTenantId();
+        return taskMapper.countByStatus(TaskStatus.PENDING.getCode(), tenantId) +
+               taskMapper.countByStatus(TaskStatus.QUEUED.getCode(), tenantId);
     }
 
     @Override
     @Transactional
     public void processQueue() {
-        List<PrintTask> pendingTasks = taskMapper.selectPendingTasks(10);
+        Long tenantId = securityContext.getCurrentTenantId();
+        List<PrintTask> pendingTasks = taskMapper.selectPendingTasks(10, tenantId);
         for (PrintTask task : pendingTasks) {
             task.setStatus(TaskStatus.QUEUED.getCode());
             taskMapper.updateById(task);

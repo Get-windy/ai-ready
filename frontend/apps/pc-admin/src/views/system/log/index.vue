@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -70,13 +70,14 @@
         :show-batch-delete="false"
         :show-export="true"
         :selectable="false"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
+        @cell-dblclick="handleView"
         @filter-change="handleFilterChange"
         @export="handleExport"
       >
         <template #toolbar-actions>
-          <a-button danger @click="handleClearLogs">
+          <a-button danger v-permission="'log:audit:delete'" @click="handleClearLogs">
             <template #icon><DeleteOutlined /></template>
             清空日志
           </a-button>
@@ -97,6 +98,18 @@
           <span v-else>
             {{ record.costTime }}ms
           </span>
+        </template>
+
+        <template #empty>
+          <a-empty v-if="!hasError" description="暂无数据" />
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
         </template>
 
         <template #action="{ record }">
@@ -151,6 +164,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
+  WarningOutlined,
   DeleteOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
@@ -163,6 +177,16 @@ import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTab
 import { logApi, type OperationLog } from '@/api/log'
 import { PageContainer } from '@/components'
 
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
+
 // 搜索表单
 const searchForm = reactive({
   module: undefined as string | undefined,
@@ -172,6 +196,7 @@ const searchForm = reactive({
 })
 
 const moduleOptions = ref<string[]>([])
+const operationTypeOptions = ref<{ label: string; value: string }[]>([])
 
 // 表格数据
 const tableData = ref<OperationLog[]>([])
@@ -179,6 +204,7 @@ const loading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -223,11 +249,7 @@ const moduleSelectOptions = computed(() =>
 
 const filterFields = computed<FilterField[]>(() => [
   { key: 'module', label: '模块', type: 'select', options: moduleSelectOptions.value, placeholder: '请选择模块' },
-  { key: 'operationType', label: '操作类型', type: 'select', options: [
-    { label: '新增', value: 'ADD' }, { label: '修改', value: 'UPDATE' }, { label: '删除', value: 'DELETE' },
-    { label: '查询', value: 'QUERY' }, { label: '导入', value: 'IMPORT' }, { label: '导出', value: 'EXPORT' },
-    { label: '登录', value: 'LOGIN' }, { label: '登出', value: 'LOGOUT' }, { label: '其他', value: 'OTHER' }
-  ]},
+  { key: 'operationType', label: '操作类型', type: 'select', options: operationTypeOptions.value, placeholder: '请选择操作类型' },
   { key: 'operatorName', label: '操作人', type: 'input', placeholder: '请输入操作人' },
   { key: 'dateRange', label: '日期范围', type: 'dateRange' },
 ])
@@ -239,6 +261,7 @@ const currentLog = ref<OperationLog | null>(null)
 // 数据加载
 const fetchData = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const params: any = {
       ...searchForm,
@@ -257,6 +280,7 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[操作日志] 加载日志数据失败')
@@ -278,6 +302,17 @@ const fetchModules = async () => {
     console.warn('[系统管理] 加载模块列表失败', err)
   }
     message.error('加载模块列表失败')
+}
+
+const fetchOperationTypes = async () => {
+  try {
+    const res = await logApi.getOperationTypes()
+    if (res.data) {
+      operationTypeOptions.value = res.data.map((t: string) => ({ label: t, value: t }))
+    }
+  } catch (err) {
+    console.warn('[系统管理] 加载操作类型列表失败', err)
+  }
 }
 
 // 搜索
@@ -315,9 +350,17 @@ const handlePageChange = (page: number, pageSize: number) => {
 }
 
 // 详情
-const handleDetail = (record: OperationLog) => {
-  currentLog.value = record
+const handleDetail = async (record: OperationLog) => {
   detailVisible.value = true
+  try {
+    const res = await logApi.getById(record.id)
+    if (res.data) {
+      currentLog.value = res.data
+    }
+  } catch (err) {
+    console.warn('[系统管理] 获取日志详情失败', err)
+    currentLog.value = record
+  }
 }
 
 // 清空日志
@@ -379,9 +422,17 @@ const formatJson = (jsonStr: string | undefined) => {
   }
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+}
+
 onMounted(() => {
   fetchData()
   fetchModules()
+  fetchOperationTypes()
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -390,9 +441,11 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -445,6 +498,11 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.log-management > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -509,4 +567,15 @@ defineExpose({ handleQuery: fetchData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+.log-management :deep(.ant-input-sm),
+.log-management :deep(.ant-input-number-sm),
+.log-management :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+.log-management :deep(.ant-picker-small),
+.log-management :deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+.log-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+.log-management :deep(.ant-input-number-sm input) { height: 26px; }
 </style>

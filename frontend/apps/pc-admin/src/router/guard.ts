@@ -31,35 +31,29 @@ export interface RouterGuardOptions {
 /**
  * 设置路由权限守卫
  */
-const G = '[DEBUG:guard]'
-
 export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
   router.beforeEach(async (to, from, next) => {
-    console.log(`${G} beforeEach: from="${from.path}" → to="${to.path}", isLoggedIn=${useUserStore().isLoggedIn}, matched=${to.matched.length}`)
     try {
       const userStore = useUserStore()
 
       // 登录/注册页直接放行
       if (to.path === '/login' || to.path === '/register') {
-        console.log(`${G} 放行登录/注册页: path=${to.path}`)
         next()
         return
       }
 
       // 检查登录状态
       if (!userStore.isLoggedIn) {
-        console.log(`${G} 未登录 -> 跳转登录页`)
+        console.warn('[路由守卫] 未登录 -> 跳转登录页')
         message.warning('请先登录')
         next({ path: '/login', query: { redirect: to.fullPath } })
         return
       }
 
-      console.log(`${G} 已登录, userInfo=${!!userStore.userInfo}, dynamicRoutesLoaded=${dynamicRoutesLoaded}`)
-
       // Token 过期检查（仅对 JWT 格式有效）
       const token = getToken()
       if (token && isTokenExpired(token)) {
-        console.log(`${G} Token已过期 -> 清除状态并跳转登录页`)
+        console.warn('[路由守卫] Token已过期 -> 清除状态并跳转登录页')
         resetDynamicRoutesLoaded()
         message.warning('登录已过期，请重新登录')
         userStore.logout()
@@ -72,7 +66,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
       if (token && !isJWT(token)) {
         const valid = await verifyToken()
         if (!valid) {
-          console.log(`${G} 后端Token验证失败 -> 清除状态并跳转登录页`)
+          console.warn('[路由守卫] 后端Token验证失败 -> 清除状态并跳转登录页')
           resetDynamicRoutesLoaded()
           clearTokenVerifyCache()
           message.warning('登录已过期，请重新登录')
@@ -84,12 +78,14 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 加载用户信息
       if (!userStore.userInfo) {
-        console.log(`${G} 开始加载用户信息 getUserInfo()`)
         try {
           await userStore.getUserInfo()
-          console.log(`${G} getUserInfo() 完成 ✅`)
+          // 密码过期提醒
+          if (userStore.userInfo?.passwordExpired) {
+            message.warning('您的密码已过期，请及时修改密码', 5)
+          }
         } catch (err) {
-          console.log(`${G} getUserInfo() 失败 ❌:`, err)
+          console.warn('[路由守卫] getUserInfo() 失败:', err)
           resetDynamicRoutesLoaded()
           userStore.logout()
           next({ path: '/login', replace: true })
@@ -99,10 +95,8 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 加载动态路由
       if (!dynamicRoutesLoaded) {
-        console.log(`${G} 开始加载动态路由 loadDynamicRoutes()`)
         try {
           const dynamicRoutes = await loadDynamicRoutes()
-          console.log(`${G} 动态路由加载完成 ✅, 数量=${dynamicRoutes.length}`)
           for (const route of dynamicRoutes) {
             // 关键修复：将 Layout 路由与其 children 分开添加
             // 直接 router.addRoute(route) 添加嵌套路由时，子路由可能无法被正确匹配
@@ -128,14 +122,12 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
           dynamicRoutesLoaded = true
 
-          console.log(`${G} 已添加动态路由, 当前路由表:`, router.getRoutes().map(r => `[${String(r.name ?? '?')}] ${r.path}`))
-
           // 重定向到目标页面，利用新添加的动态路由重新解析
           const redirectPath = to.path === '/' || to.path === '/login' ? '/dashboard' : to.fullPath
           next({ path: redirectPath, replace: true })
           return
         } catch (error: any) {
-          console.log(`${G} 动态路由加载失败 ❌:`, error?.message)
+          console.warn('[路由守卫] 动态路由加载失败:', error?.message)
           if (error?.response?.status === 401 || error?.status === 401) {
             message.warning('登录已过期，请重新登录')
             resetDynamicRoutesLoaded()
@@ -151,7 +143,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
 
       // 404 检查
       if (to.matched.length === 0) {
-        console.log(`${G} 404 -> 跳转 /dashboard`)
+        console.warn('[路由守卫] 404 -> 跳转 /dashboard')
         next({ path: '/dashboard', replace: true })
         return
       }

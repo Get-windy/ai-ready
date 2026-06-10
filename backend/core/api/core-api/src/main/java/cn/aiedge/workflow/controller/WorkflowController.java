@@ -5,6 +5,7 @@ import cn.aiedge.workflow.model.ApprovalRecord;
 import cn.aiedge.workflow.model.WorkflowDefinition;
 import cn.aiedge.workflow.model.WorkflowInstance;
 import cn.aiedge.workflow.service.WorkflowService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/workflow")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "审批流程", description = "审批流程发起、审批、查询功能")
 public class WorkflowController {
 

@@ -2,6 +2,7 @@ package cn.aiedge.erp.payment.controller;
 
 import cn.aiedge.erp.payment.dto.ReceiptCreateDTO;
 import cn.aiedge.erp.payment.dto.ReceiptItemDTO;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.payment.dto.ReceiptVO;
 import cn.aiedge.erp.payment.entity.Receipt;
 import cn.aiedge.erp.payment.entity.ReceiptItem;
@@ -37,9 +38,10 @@ public class ReceiptController {
             @Parameter(description = "客户ID") @RequestParam(required = false) Long customerId,
             @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "来源类型") @RequestParam(required = false) String sourceType,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        Page<Receipt> page = receiptService.pageList(keyword, customerId, orderId, status, pageNum, pageSize);
+        Page<Receipt> page = receiptService.pageList(keyword, customerId, orderId, status, sourceType, pageNum, pageSize);
         Page<ReceiptVO> voPage = new Page<>(pageNum, pageSize, page.getTotal());
         voPage.setRecords(page.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
@@ -50,7 +52,7 @@ public class ReceiptController {
     public ReceiptVO getById(@PathVariable Long id) {
         Receipt receipt = receiptService.getById(id);
         if (receipt == null) {
-            throw new RuntimeException("收款单不存在");
+            throw BusinessException.notFound("收款单不存在");
         }
         ReceiptVO vo = convertToVO(receipt);
         vo.setItems(receiptService.getItems(id));
@@ -168,6 +170,14 @@ public class ReceiptController {
     @Operation(summary = "完成核销")
     public ReceiptVO completeVerify(@PathVariable Long id) {
         Receipt receipt = receiptService.completeVerify(id);
+        return convertToVO(receipt);
+    }
+
+    @PostMapping("/{id}/write-off")
+    @Operation(summary = "核销收款单")
+    public ReceiptVO writeOff(@PathVariable Long id, @RequestBody Map<String, BigDecimal> body) {
+        BigDecimal amount = body.getOrDefault("amount", BigDecimal.ZERO);
+        Receipt receipt = receiptService.writeOff(id, amount);
         return convertToVO(receipt);
     }
 

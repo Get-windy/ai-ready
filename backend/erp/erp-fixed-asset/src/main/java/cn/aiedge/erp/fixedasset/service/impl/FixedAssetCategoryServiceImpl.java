@@ -1,5 +1,7 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetCategoryDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAssetCategory;
 import cn.aiedge.erp.fixedasset.repository.FixedAssetCategoryRepository;
@@ -24,6 +26,7 @@ public class FixedAssetCategoryServiceImpl implements FixedAssetCategoryService 
     @Transactional
     public FixedAssetCategoryDTO create(FixedAssetCategoryDTO dto) {
         FixedAssetCategory entity = toEntity(dto);
+        entity.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = categoryRepository.save(entity);
         return toDTO(entity);
     }
@@ -32,8 +35,9 @@ public class FixedAssetCategoryServiceImpl implements FixedAssetCategoryService 
     @Transactional
     public FixedAssetCategoryDTO update(Long id, FixedAssetCategoryDTO dto) {
         FixedAssetCategory entity = categoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("分类不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("分类不存在: " + id));
         updateEntity(entity, dto);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = categoryRepository.save(entity);
         return toDTO(entity);
     }
@@ -42,7 +46,8 @@ public class FixedAssetCategoryServiceImpl implements FixedAssetCategoryService 
     @Transactional
     public void delete(Long id) {
         FixedAssetCategory entity = categoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("分类不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("分类不存在: " + id));
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity.markAsDeleted();
         categoryRepository.save(entity);
     }
@@ -50,20 +55,23 @@ public class FixedAssetCategoryServiceImpl implements FixedAssetCategoryService 
     @Override
     public FixedAssetCategoryDTO getById(Long id) {
         FixedAssetCategory entity = categoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("分类不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("分类不存在: " + id));
         return toDTO(entity);
     }
 
     @Override
     public List<FixedAssetCategoryDTO> getAll() {
         return categoryRepository.findAll().stream()
+            .filter(c -> !c.isDeleted())
             .map(this::toDTO)
             .collect(Collectors.toList());
     }
 
     @Override
     public List<Map<String, Object>> getTree() {
-        List<FixedAssetCategory> all = categoryRepository.findAll();
+        List<FixedAssetCategory> all = categoryRepository.findAll().stream()
+            .filter(c -> !c.isDeleted())
+            .collect(Collectors.toList());
         List<FixedAssetCategory> roots = all.stream()
             .filter(c -> c.getParentId() == null || c.getParentId() == 0)
             .sorted(Comparator.comparingInt(c -> c.getSortOrder() != null ? c.getSortOrder() : 0))

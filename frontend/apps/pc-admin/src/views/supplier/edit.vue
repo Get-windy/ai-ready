@@ -18,36 +18,36 @@
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="供应商编码" name="supplierCode">
-                <a-input v-model:value="form.supplierCode" disabled />
+                <a-input size="small" v-model:value="form.supplierCode" disabled />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="供应商名称" name="supplierName">
-                <a-input v-model:value="form.supplierName" placeholder="请输入供应商名称" />
+                <a-input size="small" v-model:value="form.supplierName" placeholder="请输入供应商名称" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="简称" name="shortName">
-                <a-input v-model:value="form.shortName" placeholder="请输入简称" />
+                <a-input size="small" v-model:value="form.shortName" placeholder="请输入简称" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="供应商类型" name="supplierType">
-                <a-select v-model:value="form.supplierType">
+                <a-select size="small" v-model:value="form.supplierType">
                   <a-select-option v-for="item in typeOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="供应商等级" name="supplierLevel">
-                <a-select v-model:value="form.supplierLevel">
+                <a-select size="small" v-model:value="form.supplierLevel">
                   <a-select-option v-for="level in levelOptions" :key="level" :value="level">{{ level }}级</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="合作状态" name="cooperationStatus">
-                <a-select v-model:value="form.cooperationStatus">
+                <a-select size="small" v-model:value="form.cooperationStatus">
                   <a-select-option v-for="item in statusOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option>
                 </a-select>
               </a-form-item>
@@ -59,32 +59,32 @@
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="联系人" name="contactPerson">
-                <a-input v-model:value="form.contactPerson" placeholder="请输入联系人姓名" />
+                <a-input size="small" v-model:value="form.contactPerson" placeholder="请输入联系人姓名" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="联系电话" name="contactPhone">
-                <a-input v-model:value="form.contactPhone" placeholder="请输入联系电话" />
+                <a-input size="small" v-model:value="form.contactPhone" placeholder="请输入联系电话" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="邮箱" name="email">
-                <a-input v-model:value="form.email" placeholder="请输入邮箱" />
+                <a-input size="small" v-model:value="form.email" placeholder="请输入邮箱" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="省份" name="province">
-                <a-input v-model:value="form.province" placeholder="请输入省份" />
+                <a-input size="small" v-model:value="form.province" placeholder="请输入省份" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="城市" name="city">
-                <a-input v-model:value="form.city" placeholder="请输入城市" />
+                <a-input size="small" v-model:value="form.city" placeholder="请输入城市" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="详细地址" name="address">
-                <a-input v-model:value="form.address" placeholder="请输入详细地址" />
+                <a-input size="small" v-model:value="form.address" placeholder="请输入详细地址" />
               </a-form-item>
             </a-col>
           </a-row>
@@ -94,17 +94,17 @@
           <a-row :gutter="24">
             <a-col :span="8">
               <a-form-item label="开户银行" name="bankName">
-                <a-input v-model:value="form.bankName" placeholder="请输入开户银行" />
+                <a-input size="small" v-model:value="form.bankName" placeholder="请输入开户银行" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="银行账号" name="bankAccount">
-                <a-input v-model:value="form.bankAccount" placeholder="请输入银行账号" />
+                <a-input size="small" v-model:value="form.bankAccount" placeholder="请输入银行账号" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
               <a-form-item label="税号" name="taxNumber">
-                <a-input v-model:value="form.taxNumber" placeholder="请输入纳税人识别号" />
+                <a-input size="small" v-model:value="form.taxNumber" placeholder="请输入纳税人识别号" />
               </a-form-item>
             </a-col>
           </a-row>
@@ -112,7 +112,7 @@
 
         <a-card title="其他信息">
           <a-form-item label="备注" name="remark">
-            <a-textarea v-model:value="form.remark" placeholder="请输入备注信息" :rows="3" />
+            <a-textarea size="small" v-model:value="form.remark" placeholder="请输入备注信息" :rows="3" />
           </a-form-item>
         </a-card>
 
@@ -144,6 +144,16 @@ import { supplierApi } from '@/api/supplier'
 import { requiredRule, phoneRule, emailRule } from '@/utils/formRules'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -272,10 +282,8 @@ const handleCancel = () => {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault()
-    handleSubmit()
-  }
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); /* no-op: form page */ }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit() }
 }
 
 onBeforeRouteLeave((to, from, next) => {
@@ -290,14 +298,18 @@ onBeforeRouteLeave((to, from, next) => {
   })
 })
 
+function handleParentCreate() { handleAdd() }
+
 onMounted(() => {
   loadSupplier()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('supplier:create', handleParentCreate)
   nextTick(() => { watchReady = true })
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: loadSupplier })
@@ -317,4 +329,15 @@ defineExpose({ handleQuery: loadSupplier })
   vertical-align: middle;
   user-select: none;
 }
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
+
 </style>

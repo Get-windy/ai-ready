@@ -1,62 +1,62 @@
 package cn.aiedge.erp.b2b.model;
 
 import com.baomidou.mybatisplus.annotation.TableField;
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
-import java.util.List;
 
+/**
+ * 商城订单
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@Entity
-@Table(name = "mall_order")
+@TableName("mall_order")
 public class MallOrder extends BaseEntity {
 
-    @Column(name = "order_no", length = 64, unique = true, nullable = false)
+    @TableField("order_no")
     private String orderNo;
 
-    @Column(name = "customer_id", length = 64, nullable = false)
-    private String customerId;
+    @TableField("customer_id")
+    private Long customerId;
 
-    @Column(name = "customer_name", length = 100)
+    @TableField("customer_name")
     private String customerName;
 
-    @Column(name = "total_amount", precision = 15, scale = 2)
+    @TableField("total_amount")
     private BigDecimal totalAmount;
 
-    @Column(name = "discount_amount", precision = 15, scale = 2)
+    @TableField("discount_amount")
     private BigDecimal discountAmount;
 
-    @Column(name = "pay_amount", precision = 15, scale = 2)
+    @TableField("pay_amount")
     private BigDecimal payAmount;
 
-    @Column(name = "order_status", length = 30)
+    @TableField("order_status")
     private String orderStatus;
 
-    @Column(name = "payment_method", length = 30)
+    @TableField("payment_method")
     private String paymentMethod;
 
-    @Column(name = "payment_status", length = 30)
+    @TableField("payment_status")
     private String paymentStatus;
 
-    @Column(name = "delivery_status", length = 30)
+    @TableField("delivery_status")
     private String deliveryStatus;
 
-    @Column(name = "consignee", length = 50)
+    @TableField("consignee")
     private String consignee;
 
-    @Column(name = "phone", length = 20)
+    @TableField("phone")
     private String phone;
 
-    @Column(name = "address", length = 500)
+    @TableField("address")
     private String address;
 
-    @Column(name = "remark", length = 500)
+    @TableField("remark")
     private String remark;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @TableField(exist = false)
-    private List<MallOrderItem> orderItems;
+    @TableField("source")
+    private String source;
 }

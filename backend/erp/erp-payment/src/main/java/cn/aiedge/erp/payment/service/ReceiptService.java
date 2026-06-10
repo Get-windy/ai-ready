@@ -14,7 +14,7 @@ public interface ReceiptService extends IService<Receipt> {
 
     Receipt getByReceiptNo(String receiptNo);
 
-    Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, int pageNum, int pageSize);
+    Page<Receipt> pageList(String keyword, Long customerId, Long orderId, Integer status, String sourceType, int pageNum, int pageSize);
 
     List<Receipt> listByCustomerId(Long customerId);
 
@@ -47,6 +47,13 @@ public interface ReceiptService extends IService<Receipt> {
     Receipt cancel(Long receiptId, String reason);
 
     void calculateTotals(Long receiptId);
+
+    /**
+     * 核销收款单
+     * @param receiptId 收款单ID
+     * @param amount 核销金额
+     */
+    Receipt writeOff(Long receiptId, BigDecimal amount);
 
     List<ReceiptItem> getItems(Long receiptId);
 

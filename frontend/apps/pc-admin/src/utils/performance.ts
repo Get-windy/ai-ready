@@ -334,7 +334,7 @@ export function measurePerformance(target: any, propertyKey: string, descriptor:
       const result = await originalMethod.apply(this, args)
       const duration = timer.end()
 
-      console.log(`[Performance] ${propertyKey} executed in ${duration.toFixed(2)}ms`)
+      console.warn(`[Performance] ${propertyKey} executed in ${duration.toFixed(2)}ms`)
       return result
     } catch (error) {
       const duration = timer.end()
@@ -363,7 +363,7 @@ export async function measureAsyncPerformance<T>(
     const duration = timer.end()
 
     const label = name || fn.name || 'anonymous'
-    console.log(`[Performance] ${label} executed in ${duration.toFixed(2)}ms`)
+    console.warn(`[Performance] ${label} executed in ${duration.toFixed(2)}ms`)
 
     return result
   } catch (error) {

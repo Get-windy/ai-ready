@@ -1,7 +1,10 @@
 package cn.aiedge.base.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 /**
  * 用户数据传输对象
@@ -10,7 +13,7 @@ import jakarta.validation.constraints.Size;
  * @author AI-Ready Team
  * @since 1.0.0
  */
-public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.Query, UserDTO.Login {
+public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.Query, UserDTO.Login, UserDTO.BatchAssignRoles {
 
     /**
      * 创建用户DTO
@@ -68,5 +71,15 @@ public sealed interface UserDTO permits UserDTO.Create, UserDTO.Update, UserDTO.
             @NotBlank(message = "密码不能为空")
             String password,
             Long tenantId
+    ) implements UserDTO {}
+
+    /**
+     * 批量分配角色DTO
+     */
+    record BatchAssignRoles(
+            @NotEmpty(message = "用户ID列表不能为空")
+            List<Long> userIds,
+            @NotEmpty(message = "角色ID列表不能为空")
+            List<Long> roleIds
     ) implements UserDTO {}
 }

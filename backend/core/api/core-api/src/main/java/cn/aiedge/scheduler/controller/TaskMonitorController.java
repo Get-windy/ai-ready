@@ -1,6 +1,7 @@
 package cn.aiedge.scheduler.controller;
 
 import cn.aiedge.scheduler.monitor.TaskExecutionTracker;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.scheduler.monitor.TaskExecutionTracker.*;
 import cn.aiedge.scheduler.retry.RetryPolicy;
 import cn.aiedge.scheduler.retry.TaskRetryManager;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/scheduler/monitor")
 @RequiredArgsConstructor
 @Tag(name = "任务监控", description = "任务执行统计与监控")
+@SaCheckLogin
 public class TaskMonitorController {
 
     private final TaskExecutionTracker executionTracker;

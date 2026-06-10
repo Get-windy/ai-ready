@@ -243,6 +243,6 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
     private void closeQuietly(WebSocketSession session) {
         try {
             session.close(CloseStatus.POLICY_VIOLATION);
-        } catch (IOException ignored) {}
-    }
-}
+        } catch (IOException e) {
+            log.warn("关闭WebSocket连接失败", e);
+        }

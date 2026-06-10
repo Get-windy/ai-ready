@@ -2,6 +2,7 @@ package cn.aiedge.gateway.controller;
 
 import cn.aiedge.gateway.service.RouteManagementService;
 import cn.aiedge.base.vo.Result;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/gateway")
+@SaCheckLogin
 public class GatewayManagementController {
 
     @Autowired

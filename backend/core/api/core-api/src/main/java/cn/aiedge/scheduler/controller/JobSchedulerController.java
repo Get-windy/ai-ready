@@ -1,6 +1,7 @@
 package cn.aiedge.scheduler.controller;
 
 import cn.aiedge.scheduler.model.JobConfig;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.scheduler.model.JobLog;
 import cn.aiedge.scheduler.service.JobSchedulerService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -25,6 +26,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/scheduler")
 @RequiredArgsConstructor
+@SaCheckLogin
 public class JobSchedulerController {
 
     private final JobSchedulerService jobSchedulerService;

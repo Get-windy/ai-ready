@@ -6,7 +6,8 @@ export interface RoleInfo {
   tenantId: number
   roleName: string
   roleCode: string
-  roleType: number
+  roleType: number | string
+  scope?: string
   dataScope: number
   sort: number
   status: number
@@ -18,6 +19,7 @@ export interface RoleInfo {
 // 角色查询参数
 export interface RoleQuery {
   tenantId?: number
+  scope?: string
   roleName?: string
   roleCode?: string
   status?: number
@@ -77,9 +79,16 @@ export const roleApi = {
     return request.get(`/role/${id}/menus`)
   },
 
-  // 获取所有角色列表
-  listAll(tenantId?: number): Promise<ApiResponse<RoleInfo[]>> {
-    return request.get('/role/list', { tenantId: tenantId || 1 })
+  // 获取所有角色列表（scope 可选，后端会根据用户上下文自动过滤）
+  listAll(scope?: string): Promise<ApiResponse<RoleInfo[]>> {
+    const params: Record<string, any> = {}
+    if (scope) params.scope = scope
+    return request.get('/role/list', params)
+  },
+
+  // 从源角色复制权限和菜单
+  copyFromRole(id: number, sourceRoleId: number): Promise<ApiResponse<boolean>> {
+    return request.post(`/role/${id}/copy-from/${sourceRoleId}`)
   }
 }
 

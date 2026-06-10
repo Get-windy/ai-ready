@@ -70,6 +70,18 @@ public class SysUser {
     private Integer userType;
 
     /**
+     * 是否超级管理员（数据库唯一约束，最多一个 true）
+     * 超级管理员不可删除、不可降级，拥有系统最高权限
+     */
+    private Boolean isSuperAdmin;
+
+    /**
+     * 是否租户管理员（每租户唯一约束，每租户最多一个 true）
+     * 租户管理员不可删除、不可禁用，拥有该租户最高管理权限
+     */
+    private Boolean isTenantAdmin;
+
+    /**
      * 状态（0-正常 1-禁用 2-锁定）
      */
     private Integer status;
@@ -95,9 +107,20 @@ public class SysUser {
     private String lastLoginIp;
 
     /**
+     * 数据权限范围（ALL-全数据 DEPT-本部门 DEPT_CHILD-本部门及子部门 SELF-仅本人）
+     * 若为空则继承角色 dataScope
+     */
+    private String dataScope;
+
+    /**
      * 登录次数
      */
     private Integer loginCount;
+
+    /**
+     * 密码最后更新时间（用于密码过期校验）
+     */
+    private LocalDateTime passwordUpdateTime;
 
     /**
      * 扩展信息（JSON）

@@ -156,13 +156,16 @@ export const accountingApi = {
     return request.get('/erp/finance/reports/trial-balance', params)
   },
 
-  // ===== 财务报表 =====
+  // ===== 财务报表 (v1, 已废弃, 请使用 reportApi v2 替代) =====
+  /** @deprecated 路径/入参不匹配后端, 请使用 reportApi.getBalanceSheet() */
   getBalanceSheet(accountingPeriod: string): Promise<ApiResponse<any>> {
     return request.get('/erp/finance/reports/balance-sheet', { accountingPeriod })
   },
+  /** @deprecated 路径/入参不匹配后端, 请使用 reportApi.getIncomeStatement() */
   getIncomeStatement(startPeriod: string, endPeriod: string): Promise<ApiResponse<any>> {
     return request.get('/erp/finance/reports/income-statement', { startPeriod, endPeriod })
   },
+  /** @deprecated 路径/入参不匹配后端 */
   getCashFlowStatement(startPeriod: string, endPeriod: string): Promise<ApiResponse<any>> {
     return request.get('/erp/finance/reports/cash-flow', { startPeriod, endPeriod })
   }

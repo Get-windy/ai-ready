@@ -1,5 +1,7 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetDepreciationDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAsset;
 import cn.aiedge.erp.fixedasset.model.FixedAssetDepreciation;
@@ -12,6 +14,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,20 +40,24 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
     @Override
     public FixedAssetDepreciationDTO getById(Long id) {
         FixedAssetDepreciation entity = depreciationRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("折旧记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("折旧记录不存在: " + id));
         return toDTO(entity);
     }
 
     @Override
     public Page<FixedAssetDepreciationDTO> getPage(Long assetId, String period, Pageable pageable) {
-        Page<FixedAssetDepreciation> page;
-        if (assetId != null) {
-            page = depreciationRepository.findAll(pageable); // Simplified
-        } else if (period != null) {
-            page = depreciationRepository.findAll(pageable); // Simplified
-        } else {
-            page = depreciationRepository.findAll(pageable);
-        }
+        Specification<FixedAssetDepreciation> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("deleted"), false));
+            if (assetId != null) {
+                predicates.add(cb.equal(root.get("assetId"), assetId));
+            }
+            if (StringUtils.hasText(period)) {
+                predicates.add(cb.like(root.get("period"), period + "%"));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<FixedAssetDepreciation> page = depreciationRepository.findAll(spec, pageable);
         return page.map(this::toDTO);
     }
 
@@ -73,11 +83,13 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
                 depreciation.setAssetName(asset.getAssetName());
                 depreciation.setAssetCode(asset.getAssetCode());
                 depreciation.setStatus("completed");
+                depreciation.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
                 depreciation = depreciationRepository.save(depreciation);
 
                 asset.setAccumulatedDepreciation(result.get("accumulatedDepreciation"));
                 asset.setNetValue(result.get("netValue"));
                 asset.setMonthlyDepreciation(result.get("periodAmount"));
+                asset.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
                 fixedAssetRepository.save(asset);
 
                 results.add(toDTO(depreciation));
@@ -89,6 +101,7 @@ public class FixedAssetDepreciationServiceImpl implements FixedAssetDepreciation
                 errorRecord.setAssetName(asset.getAssetName());
                 errorRecord.setAssetCode(asset.getAssetCode());
                 errorRecord.setStatus("failed");
+                errorRecord.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
                 errorRecord = depreciationRepository.save(errorRecord);
                 results.add(toDTO(errorRecord));
             }

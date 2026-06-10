@@ -166,13 +166,13 @@
     <a-form :model="addPointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
       <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
       <a-form-item label="增加积分" required>
-        <a-input-number v-model:value="addPointsForm.points" :min="1" style="width: 100%" placeholder="请输入增加积分数" />
+        <a-input-number v-model:value="addPointsForm.points" size="small" :min="1" style="width: 100%" placeholder="请输入增加积分数" />
       </a-form-item>
       <a-form-item label="原因" required>
-        <a-input v-model:value="addPointsForm.reason" placeholder="请输入积分增加原因" />
+        <a-input v-model:value="addPointsForm.reason" size="small" placeholder="请输入积分增加原因" />
       </a-form-item>
       <a-form-item label="日期">
-        <a-date-picker v-model:value="addPointsForm.date" style="width: 100%" />
+        <a-date-picker v-model:value="addPointsForm.date" size="small" style="width: 100%" />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -188,13 +188,13 @@
     <a-form :model="consumePointsForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
       <a-form-item label="当前积分">{{ supplier?.totalPoints ?? 0 }}</a-form-item>
       <a-form-item label="消费积分" required>
-        <a-input-number v-model:value="consumePointsForm.points" :min="1" :max="supplier?.totalPoints ?? 0" style="width: 100%" placeholder="请输入消费积分数" />
+        <a-input-number v-model:value="consumePointsForm.points" size="small" :min="1" :max="supplier?.totalPoints ?? 0" style="width: 100%" placeholder="请输入消费积分数" />
       </a-form-item>
       <a-form-item label="用途" required>
-        <a-input v-model:value="consumePointsForm.reason" placeholder="请输入积分消费用途" />
+        <a-input v-model:value="consumePointsForm.reason" size="small" placeholder="请输入积分消费用途" />
       </a-form-item>
       <a-form-item label="日期">
-        <a-date-picker v-model:value="consumePointsForm.date" style="width: 100%" />
+        <a-date-picker v-model:value="consumePointsForm.date" size="small" style="width: 100%" />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -208,6 +208,16 @@ import { DetailLayout } from '@ai-ready/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { supplierApi, type Supplier } from '@/api/supplier'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -454,12 +464,38 @@ const getQuotationStatusLabel = (status?: number) => {
   return status !== undefined ? (labels[status] || '未知') : '未知'
 }
 
+function handleParentCreate() { handleAdd() }
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); /* no-op: detail page */ }
+}
+
 onMounted(() => {
   loadSupplierDetail()
   loadPerformances()
   loadInquiries()
   loadPointsRecords()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('supplier:create', handleParentCreate)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: loadSupplierDetail })
 </script>
+
+<style scoped>
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
+</style>

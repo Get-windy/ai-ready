@@ -3,6 +3,7 @@ package cn.aiedge.report.controller;
 import cn.aiedge.report.model.ReportData;
 import cn.aiedge.report.model.ReportDefinition;
 import cn.aiedge.report.service.ReportService;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/report")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "报表服务", description = "报表生成、导出、管理功能")
 public class ReportController {
 

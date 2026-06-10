@@ -38,6 +38,7 @@
             v-model:value="searchKeyword"
             placeholder="搜索供应商编码 / 名称..."
             allow-clear
+            size="small"
             @press-enter="handleSearch"
             @input="handleSearchInput"
           >
@@ -50,6 +51,7 @@
             placeholder="供应商等级"
             allow-clear
             style="width: 100%"
+            size="small"
             @change="handleFilterChange"
           >
             <a-select-option value="A">A级</a-select-option>
@@ -64,6 +66,7 @@
             placeholder="合作状态"
             allow-clear
             style="width: 100%"
+            size="small"
             @change="handleFilterChange"
           >
             <a-select-option :value="1">正常合作</a-select-option>
@@ -146,6 +149,7 @@
       </a-row>
     </template>
 
+    <div class="table-wrapper">
     <!-- 错误提示 -->
     <a-alert
       v-if="fetchError"
@@ -175,6 +179,7 @@
       :show-export="false"
       :show-summary="true"
       :summary-data="summaryData"
+      @cell-dblclick="handleView"
       @page-change="handlePageChange"
       @selection-change="handleSelectionChange"
     >
@@ -189,14 +194,25 @@
         </a-button>
       </template>
       <template #empty>
-        <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配供应商">
-          <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-          <a-button @click="handleResetFilters">清除筛选</a-button>
-        </a-empty>
-        <a-empty v-else description="暂无供应商数据">
-          <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-          <a-button type="primary" @click="handleCreate">新增供应商</a-button>
-        </a-empty>
+        <div class="table-empty">
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的供应商记录，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无供应商数据
+            </p>
+          </template>
+        </div>
       </template>
 
       <template #supplierLevel="{ record }">
@@ -257,6 +273,7 @@
         </a-space>
       </template>
     </VxeTableList>
+    </div>
   </PageContainer>
   </ErrorBoundary>
 
@@ -365,13 +382,23 @@ import {
   EditOutlined, EllipsisOutlined, DeleteOutlined,
   ProfileOutlined, BarChartOutlined, DesktopOutlined,
   CheckCircleOutlined, StopOutlined, TeamOutlined,
-  StarOutlined, ExportOutlined, UploadOutlined, ReloadOutlined
+  StarOutlined, ExportOutlined, UploadOutlined, WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { exportCsv } from '@/utils/exportCsv'
 import { supplierApi, type Supplier } from '@/api/supplier'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -383,6 +410,7 @@ const loading = ref(false)
 const portalLoading = ref(false)
 const batchDeleting = ref(false)
 const fetchError = ref(false)
+const hasError = ref(false)
 const autoRefreshCountdown = ref(0)
 let autoRefreshTimer: ReturnType<typeof setInterval> | undefined
 let countdownTimer: ReturnType<typeof setInterval> | undefined
@@ -493,6 +521,7 @@ function handleRefresh() {
 const fetchData = async () => {
   loading.value = true
   fetchError.value = false
+  hasError.value = false
   try {
     const params: Record<string, any> = {
       pageNum: pagination.current,
@@ -508,6 +537,7 @@ const fetchData = async () => {
     lastUpdated.value = new Date().toISOString()
     autoRefreshCountdown.value = 60
   } catch (err: any) {
+    hasError.value = true
     console.warn('[供应商] 获取数据失败', err)
     fetchError.value = true
     message.error(err?.message || '获取数据失败')
@@ -561,6 +591,11 @@ const handleCreate = () => router.push('/supplier/create')
 const handleDetail = (record: Supplier) => router.push(`/supplier/detail/${record.id}`)
 const handleEdit = (record: Supplier) => router.push(`/supplier/edit/${record.id}`)
 const handlePerformance = (record: Supplier) => router.push(`/supplier/performance/${record.id}`)
+
+const handleView = (record: any) => {
+  const row = record?.row ?? record
+  router.push(`/supplier/detail/${row.id}`)
+}
 
 // ── 门户管理（弹窗模式） ──
 const handlePortal = (record: Supplier) => {
@@ -794,26 +829,57 @@ function handleActionMenuClick(key: string, record: Supplier) {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData)() }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate() }
 }
+
+function handleParentCreate() { handleAdd() }
 
 onMounted(() => {
   fetchData()
   fetchStatistics()
   startAutoRefresh()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('supplier:create', handleParentCreate)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
   handleSearchInput.cancel()
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.table-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 /* ── 统计卡片（渐变背景） ──────────────────────────────── */
 .stat-card {
   display: flex;
@@ -947,5 +1013,16 @@ defineExpose({ handleQuery: fetchData })
 
 
 
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 
 </style>

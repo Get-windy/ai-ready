@@ -1,6 +1,7 @@
 package cn.aiedge.mq.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.mq.model.MessageEntity;
 import cn.aiedge.mq.producer.EnhancedMessageProducer;
 import cn.aiedge.mq.service.MessageQueueMonitor;
@@ -29,6 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "消息队列管理", description = "增强版消息队列管理功能")
 @ConditionalOnProperty(prefix = "mq.rabbit", name = "enabled", havingValue = "true")
+@SaCheckLogin
 public class EnhancedMessageQueueController {
 
     private final EnhancedMessageProducer messageProducer;

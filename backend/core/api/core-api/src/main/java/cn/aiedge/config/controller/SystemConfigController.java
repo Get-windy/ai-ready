@@ -3,6 +3,7 @@ package cn.aiedge.config.controller;
 import cn.aiedge.config.model.ConfigChangeLog;
 import cn.aiedge.config.model.SystemConfig;
 import cn.aiedge.config.service.SystemConfigService;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +26,13 @@ public class SystemConfigController {
     private final SystemConfigService configService;
 
     @GetMapping("/list")
+    @SaCheckPermission("system:config:list")
     @Operation(summary = "获取配置列表")
     public ResponseEntity<Map<String, Object>> getConfigList(
             @RequestParam(required = false) String configType,
             @RequestParam(required = false) String configGroup,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         List<SystemConfig> configs = configService.getConfigList(configType, configGroup, tenantId);
         return ResponseEntity.ok(Map.of("configs", configs, "total", configs.size()));
     }
@@ -40,7 +42,7 @@ public class SystemConfigController {
     public ResponseEntity<Map<String, String>> getConfigMap(
             @RequestParam(required = false) String configGroup,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         Map<String, String> configMap = configService.getConfigMap(configGroup, tenantId);
         return ResponseEntity.ok(configMap);
     }
@@ -50,7 +52,7 @@ public class SystemConfigController {
     public ResponseEntity<Map<String, Object>> getConfigValue(
             @PathVariable String configKey,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         SystemConfig config = configService.getConfigByKey(configKey, tenantId);
         if (config == null) {
             return ResponseEntity.notFound().build();
@@ -59,21 +61,23 @@ public class SystemConfigController {
     }
 
     @PostMapping("/save")
+    @SaCheckPermission("system:config:update")
     @Operation(summary = "保存配置")
     public ResponseEntity<Map<String, Object>> saveConfig(
             @RequestBody SystemConfig config,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         SystemConfig saved = configService.saveConfig(config, tenantId);
         return ResponseEntity.ok(Map.of("success", true, "config", saved));
     }
 
     @PostMapping("/save-value")
+    @SaCheckPermission("system:config:update")
     @Operation(summary = "保存配置值")
     public ResponseEntity<Map<String, Object>> saveConfigValue(
             @RequestBody Map<String, String> request,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         String configKey = request.get("configKey");
         String configValue = request.get("configValue");
         configService.saveConfigValue(configKey, configValue, tenantId);
@@ -81,41 +85,45 @@ public class SystemConfigController {
     }
 
     @PostMapping("/batch-save")
+    @SaCheckPermission("system:config:update")
     @Operation(summary = "批量保存配置")
     public ResponseEntity<Map<String, Object>> batchSaveConfigs(
             @RequestBody Map<String, String> configs,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         configService.batchSaveConfigs(configs, tenantId);
         return ResponseEntity.ok(Map.of("success", true, "count", configs.size()));
     }
 
     @DeleteMapping("/{configKey}")
+    @SaCheckPermission("system:config:delete")
     @Operation(summary = "删除配置")
     public ResponseEntity<Map<String, Object>> deleteConfig(
             @PathVariable String configKey,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         boolean success = configService.deleteConfigByKey(configKey, tenantId);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
     @GetMapping("/logs/{configKey}")
+    @SaCheckPermission("system:config:list")
     @Operation(summary = "获取配置变更日志")
     public ResponseEntity<List<ConfigChangeLog>> getConfigChangeLogs(
             @PathVariable String configKey,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         List<ConfigChangeLog> logs = configService.getConfigChangeLogs(configKey, tenantId);
         return ResponseEntity.ok(logs);
     }
 
     @PostMapping("/refresh-cache")
+    @SaCheckPermission("system:config:update")
     @Operation(summary = "刷新配置缓存")
     public ResponseEntity<Map<String, Object>> refreshCache(
             @RequestParam(required = false) String configKey,
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
-        
+
         if (configKey != null) {
             configService.refreshCache(configKey, tenantId);
         } else {
@@ -125,6 +133,7 @@ public class SystemConfigController {
     }
 
     @DeleteMapping("/batch")
+    @SaCheckPermission("system:config:delete")
     @Operation(summary = "批量删除配置")
     public ResponseEntity<Map<String, Object>> batchDelete(
             @RequestBody List<Long> ids,
@@ -134,6 +143,7 @@ public class SystemConfigController {
     }
 
     @GetMapping("/export")
+    @SaCheckPermission("system:config:export")
     @Operation(summary = "导出配置")
     public ResponseEntity<List<SystemConfig>> export(
             @RequestParam(required = false) String configType,

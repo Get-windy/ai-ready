@@ -4,6 +4,7 @@ import cn.aiedge.storage.model.StorageFile;
 import cn.aiedge.storage.preview.FilePreviewService;
 import cn.aiedge.storage.service.FileStorageService;
 import cn.aiedge.storage.validator.FileValidator;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +33,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/storage")
 @RequiredArgsConstructor
+@SaCheckLogin
 @Tag(name = "文件存储", description = "文件上传、下载、预览接口")
 public class FileStorageController {
 

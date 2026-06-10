@@ -1,6 +1,7 @@
 package cn.aiedge.monitor.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.monitor.model.AlertRule;
 import cn.aiedge.monitor.model.SystemMetrics;
 import cn.aiedge.monitor.service.AlertRuleService;
@@ -25,6 +26,7 @@ import java.util.Map;
 @RequestMapping("/api/monitor")
 @RequiredArgsConstructor
 @Tag(name = "系统监控", description = "系统监控和告警管理接口")
+@SaCheckLogin
 public class SystemMonitorController {
 
     private final SystemMonitorService monitorService;

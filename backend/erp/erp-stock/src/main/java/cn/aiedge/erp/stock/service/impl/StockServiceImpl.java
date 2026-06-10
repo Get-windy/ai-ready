@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import java.util.List;
  * @author AI-Ready Team
  * @since 1.0.0
  */
+@Transactional(rollbackFor = Exception.class)
 @Service
 public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements StockService {
 
@@ -143,6 +145,16 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
      * 
      * @return 预警列表 - 只返回库存数量低于预警阈值的商品
      */
+    @Override
+    public Stock getStockByProductId(Long productId) {
+        QueryWrapper<Stock> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("product_id", productId)
+                .eq("deleted", 0)
+                .orderByDesc("create_time")
+                .last("LIMIT 1");
+        return this.getOne(queryWrapper);
+    }
+
     @Override
     public List<Stock> checkStockAlert() {
         // 使用默认配置的预警阈值

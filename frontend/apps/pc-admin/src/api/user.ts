@@ -28,6 +28,8 @@ export interface UserInfo {
   permissions: string[]
   createTime?: string
   updateTime?: string
+  /** 密码是否已过期（需修改密码） */
+  passwordExpired?: boolean
 }
 
 // 租户信息
@@ -137,6 +139,11 @@ export const userApi = {
   // 分配角色
   assignRoles(id: number, roleIds: number[]): Promise<ApiResponse<boolean>> {
     return request.post(`/user/${id}/roles`, roleIds)
+  },
+
+  // 批量分配角色
+  batchAssignRoles(userIds: number[], roleIds: number[]): Promise<ApiResponse<boolean>> {
+    return request.post('/user/batch-assign-roles', { userIds, roleIds })
   },
 
   // 更新用户状态

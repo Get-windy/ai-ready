@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="loadStats">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadStats)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -94,6 +94,12 @@ import { message } from 'ant-design-vue'
 import { BankOutlined, UserOutlined, TeamOutlined, WarningOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { PageContainer } from '@/components'
 import BankReconciliation from './components/BankReconciliation.vue'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 import CustomerReconciliation from './components/CustomerReconciliation.vue'
 import SupplierReconciliation from './components/SupplierReconciliation.vue'
 import DifferenceHandling from './components/DifferenceHandling.vue'
@@ -139,6 +145,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   loadStats()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', loadStats)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadStats()
@@ -150,11 +159,24 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', loadStats)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
 
 defineExpose({ handleQuery: loadStats })
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', loadStats); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
 </script>
 
 <style scoped>
@@ -205,6 +227,8 @@ defineExpose({ handleQuery: loadStats })
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -256,5 +280,21 @@ defineExpose({ handleQuery: loadStats })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

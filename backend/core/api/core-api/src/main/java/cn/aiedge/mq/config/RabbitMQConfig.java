@@ -1,6 +1,7 @@
 package cn.aiedge.mq.config;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -21,6 +22,7 @@ import java.util.Map;
  * @author AI-Ready Team
  * @since 1.0.0
  */
+@Slf4j
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "mq.rabbit")
@@ -76,11 +78,11 @@ public class RabbitMQConfig {
         template.setConfirmCallback((correlationData, ack, cause) -> {
             if (!ack) {
                 // 消息发送失败处理
-                System.err.println("消息发送失败: " + cause);
+                log.error("消息发送失败: " + cause);
             }
         });
         template.setReturnsCallback(returned -> {
-            System.err.println("消息被退回: " + returned.getMessage());
+            log.error("消息被退回: " + returned.getMessage());
         });
         return template;
     }

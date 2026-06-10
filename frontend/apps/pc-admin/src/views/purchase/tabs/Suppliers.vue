@@ -56,6 +56,7 @@
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="(keys: number[]) => { selectedRowKeys = keys }"
     >
       <template #toolbar-actions>
@@ -77,14 +78,23 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无供应商数据，点击右上角「新建供应商」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无供应商数据，点击右上角「新建供应商」开始创建
+            </p>
+          </template>
         </div>
       </template>
 
@@ -137,54 +147,69 @@
       placement="right"
       width="80vw"
       :footer="null"
+      @close="handleDetailClose"
     >
       <template #extra>
-        <a-button @click="handleViewOrders(currentRecord)">查看订单</a-button>
-        <a-button type="primary" @click="handleEdit(currentRecord)">编辑</a-button>
+        <a-space>
+          <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
+          <a-button size="small" @click="handleViewOrders(currentRecord)">查看订单</a-button>
+          <a-button type="primary" size="small" @click="handleEdit(currentRecord)">编辑</a-button>
+        </a-space>
       </template>
 
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="供应商编码">{{ currentRecord.supplierCode }}</a-descriptions-item>
-        <a-descriptions-item label="供应商名称">{{ currentRecord.supplierName }}</a-descriptions-item>
-        <a-descriptions-item label="联系人">{{ currentRecord.contactPerson }}</a-descriptions-item>
-        <a-descriptions-item label="联系电话">{{ currentRecord.contactPhone }}</a-descriptions-item>
-        <a-descriptions-item label="等级">
-          <a-tag :color="getLevelColor(currentRecord.supplierLevel)">{{ getLevelText(currentRecord.supplierLevel) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
-          <a-tag :color="currentRecord.status === 1 ? 'green' : 'default'">
-            {{ currentRecord.status === 1 ? '正常' : '停用' }}
-          </a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="邮箱">{{ currentRecord.email || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="地址">{{ currentRecord.address || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="开户银行">{{ currentRecord.bankName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="银行账号">{{ currentRecord.bankAccount || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="更新时间">{{ currentRecord.updateTime || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2">
+            <a-descriptions-item label="供应商编码">{{ detailData.supplierCode }}</a-descriptions-item>
+            <a-descriptions-item label="供应商名称">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="联系人">{{ detailData.contactPerson }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ detailData.contactPhone }}</a-descriptions-item>
+            <a-descriptions-item label="等级">
+              <a-tag :color="getLevelColor(detailData.supplierLevel)">{{ getLevelText(detailData.supplierLevel) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="detailData.status === 1 ? 'green' : 'default'">
+                {{ detailData.status === 1 ? '正常' : '停用' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="邮箱">{{ detailData.email || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="地址">{{ detailData.address || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="开户银行">{{ detailData.bankName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="银行账号">{{ detailData.bankAccount || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="更新时间">{{ detailData.updateTime || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
 
-      <!-- 合作产品列表 -->
-      <div class="detail-products-section">
-        <div class="detail-products-title">合作产品</div>
-        <VxeTableList
-          :columns="productColumns"
-          :data-source="supplierProducts"
-          :pagination="false"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-        >
-          <template #priceCell="{ record }">
-            <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
+          <!-- 合作产品列表 -->
+          <div class="detail-products-section">
+            <div class="detail-products-title">合作产品</div>
+            <VxeTableList
+              :columns="productColumns"
+              :data-source="supplierProducts"
+              :pagination="false"
+              row-key="id"
+              :show-toolbar="false"
+              :selectable="false"
+              :show-add="false"
+              :show-search="false"
+              :show-export="false"
+              :show-batch-delete="false"
+            >
+              <template #priceCell="{ record }">
+                <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
+              </template>
+            </VxeTableList>
+          </div>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.id)">重试</a-button>
           </template>
-        </VxeTableList>
-      </div>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 批量编辑弹窗 -->
@@ -202,14 +227,14 @@
       <a-alert :message="`已选择 ${selectedRowKeys.length} 个供应商`" type="info" show-icon style="margin-bottom: 16px;" />
       <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
         <a-form-item label="供应商等级">
-          <a-select v-model:value="batchEditData.level" placeholder="请选择等级（留空不修改）" allow-clear>
+          <a-select v-model:value="batchEditData.level" size="small" placeholder="请选择等级（留空不修改）" allow-clear>
             <a-select-option :value="1">A级</a-select-option>
             <a-select-option :value="2">B级</a-select-option>
             <a-select-option :value="3">C级</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="合作状态">
-          <a-select v-model:value="batchEditData.status" placeholder="请选择状态（留空不修改）" allow-clear>
+          <a-select v-model:value="batchEditData.status" size="small" placeholder="请选择状态（留空不修改）" allow-clear>
             <a-select-option :value="1">正常</a-select-option>
             <a-select-option :value="0">停用</a-select-option>
           </a-select>
@@ -264,19 +289,32 @@ import dayjs from 'dayjs'
 import {
   EyeOutlined, EditOutlined, DeleteOutlined, SearchOutlined, InboxOutlined,
   EllipsisOutlined, CheckCircleOutlined, StopOutlined, TeamOutlined,
-  StarOutlined, SwitcherOutlined, FileTextOutlined, AppstoreOutlined
+  StarOutlined, SwitcherOutlined, FileTextOutlined, AppstoreOutlined,
+  WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { supplierApi } from '@/api/supplier'
+import { dictItemApi } from '@/api/dict'
 import { useUserStore } from '@/stores/user'
 import { useExport } from '@/composables/useExport'
 import { executeBatch } from '@/utils/batchOperations'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const { execute: executeExport } = useExport()
 const userStore = useUserStore()
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const selectedRowKeys = ref<number[]>([])
@@ -304,8 +342,8 @@ const vxeColumns = computed(() => [
   { title: '供应商名称', field: 'supplierName', width: 160 },
   { title: '联系人', field: 'contactPerson', width: 100 },
   { title: '联系电话', field: 'contactPhone', width: 120 },
-  { title: '等级', field: 'supplierLevel', width: 80, align: 'center', formatter: ({ cellValue }) => getLevelText(cellValue) },
-  { title: '状态', field: 'status', width: 80, align: 'center', formatter: ({ cellValue }) => cellValue === 1 ? '正常' : '停用' },
+  { title: '等级', field: 'supplierLevel', width: 80, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getLevelColor(cellValue)}">${getLevelText(cellValue)}</span>` },
+  { title: '状态', field: 'status', width: 80, align: 'center', formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${cellValue === 1 ? 'green' : 'default'}">${cellValue === 1 ? '正常' : '停用'}</span>` },
   { title: '创建时间', field: 'createTime', width: 160 },
   { title: '操作', type: 'action', width: 160, fixed: 'right' }
 ])
@@ -341,6 +379,10 @@ function formatAmount(amount: number): string {
 // ── 详情弹窗 ────────────────────────────────────────────
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 const supplierProducts = ref<any[]>([])
 
 const productColumns = [
@@ -351,10 +393,40 @@ const productColumns = [
   { title: '最近采购', field: 'lastOrderDate', width: 100 }
 ]
 
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await supplierApi.getById(id) as any
+    const data = (res as any).data ?? res
+    detailData.value = data
+    supplierProducts.value = data.products || []
+  } catch (err: any) {
+    console.warn('[供应商] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+    supplierProducts.value = []
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 function handleView(record: any) {
   currentRecord.value = record
-  supplierProducts.value = record.products || []
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.id)
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+  supplierProducts.value = []
+}
+
+function handleDetailRefresh() {
+  if (detailRecord.value?.id) fetchDetail(detailRecord.value.id)
 }
 
 function handleViewOrders(record: any) {
@@ -433,11 +505,18 @@ const batchEditData = reactive({
   remark: ''
 })
 
-const transferData = ref([
-  { key: '1', title: '优质供应商' }, { key: '2', title: '长期合作' },
-  { key: '3', title: '战略伙伴' }, { key: '4', title: '紧急备用' },
-  { key: '5', title: '新品开发' }, { key: '6', title: '低优先级' }
-])
+const transferData = ref<{ key: string; title: string }[]>([])
+
+async function loadTagOptions() {
+  try {
+    const res = await dictItemApi.getByDictCode('SUPPLIER_TAG')
+    if (res.data) {
+      transferData.value = res.data.map(item => ({ key: item.itemCode, title: item.itemName }))
+    }
+  } catch (err) {
+    console.warn('[供应商] 加载标签失败', err)
+  }
+}
 
 function handleBatchEdit() {
   if (selectedRowKeys.value.length === 0) { message.warning('请选择供应商'); return }
@@ -489,10 +568,12 @@ async function fetchData() {
     dataSource.value = pageData.records || []
     pagination.total = pageData.total || 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
   } catch (e) {
     console.warn('[供应商] 获取列表失败', e)
     message.error('获取供应商列表失败')
     dataSource.value = []
+    hasError.value = true
   } finally { loading.value = false }
 }
 
@@ -509,14 +590,18 @@ function handleFilterChange(filters: Record<string, any>) {
   debouncedFetch.value = window.setTimeout(() => fetchData(), 400)
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd) }
 }
 
 onMounted(() => {
   fetchData()
+  loadTagOptions()
   refreshTimer = setInterval(() => fetchData(), 30000)
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('purchase:create', handleParentCreate)
   window.addEventListener('purchase:refresh', fetchData)
 })
 
@@ -524,6 +609,7 @@ onUnmounted(() => {
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   clearTimeout(debouncedFetch.value)
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('purchase:create', handleParentCreate)
   window.removeEventListener('purchase:refresh', fetchData)
 })
 
@@ -537,6 +623,12 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+/* 让 VxeTableList 填满剩余空间 */
+.purchase-suppliers-tab > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -653,5 +745,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

@@ -32,6 +32,21 @@ public class SysTenant {
 
     private String address;
 
+    /**
+     * 租户管理员用户ID
+     */
+    private Long adminUserId;
+
+    /**
+     * 租户等级（basic-基础版 professional-专业版 enterprise-企业版）
+     */
+    private String level;
+
+    /**
+     * 到期时间
+     */
+    private LocalDateTime expireTime;
+
     private Integer status;
 
     private String remark;

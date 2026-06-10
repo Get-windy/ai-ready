@@ -37,7 +37,7 @@
             <a-button
               size="small"
               :loading="refreshLoading"
-              @click="handleRefresh"
+              @click="debounceClick('refresh', handleRefresh)"
             >刷新数据</a-button>
           </a-space>
         </div>
@@ -216,6 +216,15 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { dashboardApi, type DashboardStats, type TrendChartData, type TodoItem, type StockAlertItem } from '@/api/dashboard'
 
 const router = useRouter()
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 /** 页面级加载状态 */
 const pageLoading = ref(true)
@@ -462,6 +471,21 @@ const handleRefresh = async () => {
 const handleViewAll = () => router.push('/notification')
 const handleQuickNav = (path: string) => router.push(path)
 
+// ── 键盘快捷键 ──────────────────────────────
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    router.push('/purchase')
+    return
+  }
+}
+
 // ── 生命周期 ──────────────────────────────────────────
 
 const handleResize = () => {
@@ -474,12 +498,14 @@ onMounted(() => {
     startAutoRefresh()
   }
   window.addEventListener('resize', handleResize)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
   stopAutoRefresh()
   chartInstance?.dispose()
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -623,11 +649,11 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: all 0.2s;
   background: #f5f7fa;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #d9d9d9;
 }
 .quick-entry:hover {
   background: #ecf5ff;
-  border-color: #b3d8ff;
+  border-color: #409eff;
   transform: translateY(-2px);
 }
 .quick-entry:focus-visible {

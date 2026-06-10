@@ -1,50 +1,55 @@
 package cn.aiedge.erp.b2b.model;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 
+/**
+ * 商城商品（映射 mall_product 表）
+ * 与 erp_product 通过 product_id 关联
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@Entity
-@Table(name = "mall_product")
+@TableName("mall_product")
 public class MallProduct extends BaseEntity {
 
-    @Column(name = "product_id", length = 64, unique = true, nullable = false)
+    /** 商品编码，关联 erp_product.product_code */
+    @TableField("product_id")
     private String productId;
 
-    @Column(name = "product_code", length = 64)
+    @TableField("product_code")
     private String productCode;
 
-    @Column(name = "product_name", length = 200, nullable = false)
+    @TableField("product_name")
     private String productName;
 
-    @Column(name = "image_url", length = 500)
+    @TableField("image_url")
     private String imageUrl;
 
-    @Column(name = "sale_price", precision = 15, scale = 2)
+    @TableField("sale_price")
     private BigDecimal salePrice;
 
-    @Column(name = "market_price", precision = 15, scale = 2)
+    @TableField("market_price")
     private BigDecimal marketPrice;
 
-    @Column(name = "stock_quantity")
+    @TableField("stock_quantity")
     private Integer stockQuantity;
 
-    @Column(name = "category_id", length = 64)
+    @TableField("category_id")
     private String categoryId;
 
-    @Column(name = "category_name", length = 100)
+    @TableField("category_name")
     private String categoryName;
 
-    @Column(name = "status", length = 20)
+    @TableField("status")
     private String status;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @TableField("description")
     private String description;
 
-    @Column(name = "sales_count")
+    @TableField("sales_count")
     private Integer salesCount = 0;
 }

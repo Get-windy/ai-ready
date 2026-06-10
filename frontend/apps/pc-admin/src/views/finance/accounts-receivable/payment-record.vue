@@ -43,6 +43,7 @@
             v-model:value="queryParams.customerName"
             placeholder="请输入客户名称"
             allow-clear
+            size="small"
           />
         </a-form-item>
         <a-form-item label="收款日期">
@@ -50,6 +51,7 @@
             v-model:value="queryParams.dateRange"
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
+            size="small"
           />
         </a-form-item>
         <a-form-item label="收款方式">
@@ -57,6 +59,7 @@
             v-model:value="queryParams.paymentMethod"
             placeholder="请选择"
             allow-clear
+            size="small"
             style="width: 120px"
           >
             <a-select-option value="cash">
@@ -126,7 +129,22 @@
         :show-export="false"
         :show-batch-delete="false"
         @page-change="handlePageChange"
+        @cell-dblclick="handleView"
       >
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <p class="table-empty-text">暂无数据</p>
+            </template>
+          </div>
+        </template>
         <template #amountCell="{ record }">
           <span class="amount-cell">¥{{ record.amount?.toFixed(2) }}</span>
         </template>
@@ -142,13 +160,7 @@
             >
               查看
             </a-button>
-            <a-button
-              type="link"
-              size="small"
-              @click="handlePrint(record)"
-            >
-              打印
-            </a-button>
+            <PrintButton :record="record" :business-id="record.id" business-type="payment_record" button-type="link" button-size="small" tooltip="打印" />
           </a-space>
         </template>
       </VxeTableList>
@@ -180,11 +192,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ExportOutlined, DollarOutlined, CalendarOutlined, FileTextOutlined, LineChartOutlined } from '@ant-design/icons-vue'
+import { WarningOutlined, ReloadOutlined, SearchOutlined, InboxOutlined, PlusOutlined, ExportOutlined, DollarOutlined, CalendarOutlined, FileTextOutlined, LineChartOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 interface PaymentRecord {
   id: number
@@ -198,6 +216,7 @@ interface PaymentRecord {
 }
 
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<PaymentRecord[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<PaymentRecord | null>(null)
@@ -252,9 +271,29 @@ const getPaymentMethodText = (method: string) => {
   return methods[method] || method
 }
 
+function handleParentCreate() {
+  handleAdd()
+}
+
+function isInput(el: Element | null): boolean {
+  if (!el) return false
+  const tag = el.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || (el as HTMLElement)?.isContentEditable
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput(e.target as Element | null)) { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
 const formatAmount = (val: number) => {
   if (val === undefined || val === null) return '0.00'
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const handleView = (record: PaymentRecord) => {
+  currentRecord.value = record
+  detailVisible.value = true
 }
 
 const handleSearch = () => {
@@ -271,15 +310,6 @@ const handleReset = () => {
 
 const handleAdd = () => {
   message.info('打开新增收款表单')
-}
-
-const handleView = (record: PaymentRecord) => {
-  currentRecord.value = record
-  detailVisible.value = true
-}
-
-const handlePrint = (record: PaymentRecord) => {
-  message.info(`打印收款单: ${record.customerName}`)
 }
 
 const handleExport = () => {
@@ -315,8 +345,10 @@ const fetchData = async () => {
       stats.todayAmount = 0
       stats.totalCount = 0
     }
+    hasError.value = false
   } catch (error) {
     message.error('获取数据失败')
+    hasError.value = true
   } finally {
     loading.value = false
   }
@@ -325,6 +357,18 @@ const fetchData = async () => {
 fetchData()
 
 defineExpose({ handleQuery: fetchData })
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
+})
 </script>
 
 <style scoped>
@@ -335,6 +379,11 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.payment-record-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -410,6 +459,27 @@ defineExpose({ handleQuery: fetchData })
 
 
 /* 响应式 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
+.table-empty-action {
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .stat-cards {
     flex-wrap: wrap;
@@ -418,5 +488,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

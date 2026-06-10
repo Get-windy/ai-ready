@@ -1,5 +1,7 @@
 package cn.aiedge.erp.fixedasset.service.impl;
 
+import cn.aiedge.base.utils.SecurityUtils;
+import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetTransferDTO;
 import cn.aiedge.erp.fixedasset.model.FixedAsset;
 import cn.aiedge.erp.fixedasset.model.FixedAssetTransfer;
@@ -13,7 +15,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 固定资产转移服务实现
@@ -34,6 +42,7 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
         }
         entity.setStatus("draft");
         entity.setTransferTime(LocalDateTime.now());
+        entity.setCreatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = transferRepository.save(entity);
         return toDTO(entity);
     }
@@ -42,8 +51,9 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
     @Transactional
     public FixedAssetTransferDTO update(Long id, FixedAssetTransferDTO dto) {
         FixedAssetTransfer entity = transferRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("转移记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("转移记录不存在: " + id));
         updateEntity(entity, dto);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = transferRepository.save(entity);
         return toDTO(entity);
     }
@@ -52,7 +62,8 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
     @Transactional
     public void delete(Long id) {
         FixedAssetTransfer entity = transferRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("转移记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("转移记录不存在: " + id));
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity.markAsDeleted();
         transferRepository.save(entity);
     }
@@ -60,13 +71,24 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
     @Override
     public FixedAssetTransferDTO getById(Long id) {
         FixedAssetTransfer entity = transferRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("转移记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("转移记录不存在: " + id));
         return toDTO(entity);
     }
 
     @Override
     public Page<FixedAssetTransferDTO> getPage(String transferNo, String status, Pageable pageable) {
-        Page<FixedAssetTransfer> page = transferRepository.findAll(pageable);
+        Specification<FixedAssetTransfer> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("deleted"), false));
+            if (StringUtils.hasText(transferNo)) {
+                predicates.add(cb.like(root.get("transferNo"), "%" + transferNo + "%"));
+            }
+            if (StringUtils.hasText(status)) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<FixedAssetTransfer> page = transferRepository.findAll(spec, pageable);
         return page.map(this::toDTO);
     }
 
@@ -74,9 +96,10 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
     @Transactional
     public FixedAssetTransferDTO approve(Long id, String comment) {
         FixedAssetTransfer entity = transferRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("转移记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("转移记录不存在: " + id));
         entity.setStatus("approved");
         entity.setApprovalComment(comment);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = transferRepository.save(entity);
 
         // Update asset department and custodian
@@ -102,9 +125,10 @@ public class FixedAssetTransferServiceImpl implements FixedAssetTransferService 
     @Transactional
     public FixedAssetTransferDTO reject(Long id, String comment) {
         FixedAssetTransfer entity = transferRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("转移记录不存在: " + id));
+            .orElseThrow(() -> BusinessException.notFound("转移记录不存在: " + id));
         entity.setStatus("rejected");
         entity.setApprovalComment(comment);
+        entity.setUpdatedBy(String.valueOf(SecurityUtils.getCurrentUserId()));
         entity = transferRepository.save(entity);
         return toDTO(entity);
     }

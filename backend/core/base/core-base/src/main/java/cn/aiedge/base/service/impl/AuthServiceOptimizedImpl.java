@@ -1,6 +1,8 @@
 package cn.aiedge.base.service.impl;
 
+import cn.aiedge.base.entity.SysTenant;
 import cn.aiedge.base.entity.User;
+import cn.aiedge.base.mapper.TenantMapper;
 import cn.aiedge.base.service.AuthService;
 import cn.aiedge.base.service.UserService;
 import cn.aiedge.common.dto.auth.LoginRequest;
@@ -35,6 +37,9 @@ public class AuthServiceOptimizedImpl implements AuthService {
     
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private TenantMapper tenantMapper;
 
     private final Cache<String, Integer> loginFailCache = Caffeine.newBuilder()
             .maximumSize(10000)
@@ -80,7 +85,21 @@ public class AuthServiceOptimizedImpl implements AuthService {
         }
 
         clearLoginFailRecord(username);
-        
+
+        // 租户过期/停用检查
+        if (user.getTenantId() != null) {
+            SysTenant tenant = tenantMapper.selectById(user.getTenantId());
+            if (tenant == null || tenant.getDeleted() == 1) {
+                throw BusinessException.badRequest("租户不存在或已被删除");
+            }
+            if (tenant.getStatus() != null && tenant.getStatus() != 0) {
+                throw BusinessException.badRequest("租户已被停用，请联系平台管理员");
+            }
+            if (tenant.getExpireTime() != null && LocalDateTime.now().isAfter(tenant.getExpireTime())) {
+                throw BusinessException.badRequest("租户已过期，请联系平台管理员续费");
+            }
+        }
+
         StpUtil.login(user.getId());
 
         String tokenValue = StpUtil.getTokenValue();

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NavBar, Tabs, Tab, Card, Button, Tag, Steps, Step, Cell, CellGroup, Empty, showLoadingToast, closeToast } from 'vant'
-import { api } from '@/api'
+import { api, type OrderInfo } from '@/api'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -10,7 +10,7 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const activeTab = ref('all')
-const orders = ref<any[]>([])
+const orders = ref<OrderInfo[]>([])
 
 const statusMap = {
   pending: { label: '待付款', color: '#ff976a', step: 0 },
@@ -57,7 +57,8 @@ const handleCancel = async (order: any) => {
     await api.order.cancel(order.id)
     closeToast()
     loadOrders()
-  } finally {
+  } catch (err) {
+    console.warn('[订单列表] 取消订单失败', err)
     closeToast()
   }
 }
@@ -68,7 +69,8 @@ const handleConfirmReceive = async (order: any) => {
     await api.order.confirm(order.id)
     closeToast()
     loadOrders()
-  } finally {
+  } catch (err) {
+    console.warn('[订单列表] 确认收货失败', err)
     closeToast()
   }
 }

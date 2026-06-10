@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NavBar, Swipe, SwipeItem, Cell, CellGroup, Button, Stepper, ActionSheet, showToast, showLoadingToast, closeToast, Dialog } from 'vant'
-import { api } from '@/api'
+import { api, type ProductItem, type SkuItem } from '@/api'
 import { useCartStore } from '@/stores/cart'
 
 const router = useRouter()
@@ -10,10 +10,10 @@ const route = useRoute()
 const cartStore = useCartStore()
 
 const productId = route.params.id as string
-const product = ref<any>(null)
+const product = ref<ProductItem | null>(null)
 const quantity = ref(1)
 const showSkuSelector = ref(false)
-const selectedSku = ref<any>(null)
+const selectedSku = ref<SkuItem | null>(null)
 
 const currentPrice = computed(() => {
   if (selectedSku.value) {
@@ -34,6 +34,8 @@ onMounted(async () => {
   try {
     const res = await api.product.getDetail(productId)
     product.value = res.data
+  } catch (err) {
+    console.warn('[商品详情] 加载失败', err)
   } finally {
     closeToast()
   }

@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -59,20 +59,36 @@
         :show-search="false"
         :selectable="true"
         add-text="新增配置"
+        add-permission="system:config:create"
+        edit-permission="system:config:update"
+        delete-permission="system:config:delete"
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDeleteConfirm"
         @batch-delete="handleBatchDelete"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+        @cell-dblclick="handleView"
       >
         <template #toolbar-actions>
           <a-button @click="handleRefreshCache">
             <template #icon><SyncOutlined /></template>
             刷新缓存
           </a-button>
+        </template>
+
+        <template #empty>
+          <a-empty v-if="!hasError" description="暂无数据" />
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
         </template>
 
         <template #groupNameCell="{ record }">
@@ -99,10 +115,10 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleEdit(record)">
+            <a-button type="link" size="small" v-permission="'system:config:update'" @click="handleEdit(record)">
               编辑
             </a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+            <a-button type="link" size="small" danger v-permission="'system:config:delete'" @click="handleDeleteConfirm(record)">
               删除
             </a-button>
           </a-space>
@@ -110,13 +126,14 @@
       </VxeTableList>
 
       <!-- 配置表单弹窗 -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="modalTitle"
-        :confirm-loading="modalLoading"
-        width="550px"
-        @ok="handleModalOk"
-        @cancel="handleModalCancel"
+        :save-loading="modalLoading"
+        :show-save-and-new="!isEdit"
+        @save="handleModalOk"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form
           ref="formRef"
@@ -153,16 +170,18 @@
             />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
+  WarningOutlined,
   SyncOutlined,
   ReloadOutlined,
   CopyOutlined,
@@ -172,7 +191,7 @@ import {
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { configApi, type ConfigInfo } from '@/api/config'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 
 // 搜索表单
 const searchForm = reactive({
@@ -189,8 +208,19 @@ const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // ── 统计数据 ────────────────────────────────────────────
 const groupCount = computed(() => new Set(tableData.value.map(c => c.groupName)).size)
@@ -240,6 +270,28 @@ const formState = reactive({
   groupName: ''
 })
 
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formState) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formState) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
+})
+
 const formRules = {
   configKey: { required: true, message: '请输入配置键', trigger: 'blur' },
   configValue: { required: true, message: '请输入配置值', trigger: 'blur' },
@@ -249,6 +301,7 @@ const formRules = {
 // 数据加载
 const fetchData = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await configApi.getPage({
       ...searchForm,
@@ -260,6 +313,7 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[系统配置] 加载配置数据失败')
@@ -317,6 +371,7 @@ const handleAdd = () => {
   isEdit.value = false
   Object.assign(formState, { id: 0, configKey: '', configValue: '', description: '', groupName: '' })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 编辑
@@ -330,6 +385,7 @@ const handleEdit = (record: ConfigInfo) => {
     groupName: record.groupName
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 删除
@@ -424,14 +480,47 @@ const handleModalOk = async () => {
   }
 }
 
-const handleModalCancel = () => {
-  modalVisible.value = false
-  formRef.value?.resetFields()
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false; formRef.value?.resetFields() },
+    })
+  } else {
+    modalVisible.value = false
+    formRef.value?.resetFields()
+  }
+}
+
+const handleFormSaveAndNew = () => {
+  handleModalOk()
+}
+
+function handleView(record: any) {
+  handleEdit(record)
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    handleAdd()
+  }
 }
 
 onMounted(() => {
   fetchData()
   fetchGroups()
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -443,6 +532,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -498,6 +588,11 @@ defineExpose({ handleQuery: fetchData })
   min-height: 0;
 }
 
+.config-management > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
 /* 统计卡片 */
 .stat-cards {
   display: flex;
@@ -542,13 +637,17 @@ defineExpose({ handleQuery: fetchData })
   font-style: italic;
 }
 
-
-
-
-
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
 </style>

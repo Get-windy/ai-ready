@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleQuery">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleQuery)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -67,6 +67,7 @@
               v-model:value="queryForm.processName"
               placeholder="请输入流程名称"
               allow-clear
+              size="small"
             />
           </a-form-item>
           <a-form-item label="流程状态">
@@ -74,6 +75,7 @@
               v-model:value="queryForm.status"
               placeholder="请选择状态"
               allow-clear
+              size="small"
               style="width: 120px"
             >
               <a-select-option value="running">
@@ -93,6 +95,7 @@
           <a-form-item label="开始时间">
             <a-range-picker
               v-model:value="queryForm.dateRange"
+              size="small"
               value-format="YYYY-MM-DD"
             />
           </a-form-item>
@@ -113,6 +116,7 @@
         </a-form>
 
         <!-- 数据表格 -->
+        <div class="table-wrapper">
         <VxeTableList
           :columns="vxeColumns"
           :data-source="tableData"
@@ -125,6 +129,7 @@
           :show-search="false"
           :show-export="false"
           :show-batch-delete="false"
+          @cell-dblclick="handleView"
           @page-change="handlePageChange"
         >
           <template #statusCell="{ record }">
@@ -169,7 +174,27 @@
               </template>
             </a-dropdown>
           </template>
+          <template #empty>
+            <div class="table-empty">
+              <template v-if="hasError">
+                <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+                <p class="table-empty-text">加载失败</p>
+                <a-button type="primary" size="small" @click="debounceClick('refresh', handleQuery)()" class="table-empty-action">
+                  <ReloadOutlined /> 重试
+                </a-button>
+              </template>
+              <template v-else>
+                <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+                <InboxOutlined v-else class="table-empty-icon" />
+                <p v-if="hasActiveFilters" class="table-empty-text">
+                  没有符合条件的流程实例，<a @click="handleReset">清除筛选</a>
+                </p>
+                <p v-else class="table-empty-text">暂无流程实例记录</p>
+              </template>
+            </div>
+          </template>
         </VxeTableList>
+        </div>
       </a-card>
 
       <!-- 详情对话框 -->
@@ -180,43 +205,54 @@
         width="80vw"
         :footer="null"
       >
-        <a-descriptions
-          bordered
-          :column="2"
-        >
-          <a-descriptions-item label="实例ID">
-            {{ detailData.instanceId }}
-          </a-descriptions-item>
-          <a-descriptions-item label="流程名称">
-            {{ detailData.processName }}
-          </a-descriptions-item>
-          <a-descriptions-item label="状态">
-            <a-tag :color="getStatusColor(detailData.status)">
-              {{ getStatusLabel(detailData.status) }}
-            </a-tag>
-          </a-descriptions-item>
-          <a-descriptions-item label="发起人">
-            {{ detailData.initiator }}
-          </a-descriptions-item>
-          <a-descriptions-item label="开始时间">
-            {{ detailData.startTime }}
-          </a-descriptions-item>
-          <a-descriptions-item label="结束时间">
-            {{ detailData.endTime }}
-          </a-descriptions-item>
-          <a-descriptions-item
-            label="当前节点"
-            :span="2"
-          >
-            {{ detailData.currentNode }}
-          </a-descriptions-item>
-          <a-descriptions-item
-            label="业务数据"
-            :span="2"
-          >
-            <pre>{{ detailData.businessData }}</pre>
-          </a-descriptions-item>
-        </a-descriptions>
+        <template #extra>
+          <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.instanceId)" :loading="detailLoading" :disabled="!detailRecord">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
+        </template>
+        <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+          <template v-if="detailData">
+            <a-descriptions bordered :column="2">
+              <a-descriptions-item label="实例ID">
+                {{ detailData.instanceId }}
+              </a-descriptions-item>
+              <a-descriptions-item label="流程名称">
+                {{ detailData.processName }}
+              </a-descriptions-item>
+              <a-descriptions-item label="状态">
+                <a-tag :color="getStatusColor(detailData.status)">
+                  {{ getStatusLabel(detailData.status) }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item label="发起人">
+                {{ detailData.initiator }}
+              </a-descriptions-item>
+              <a-descriptions-item label="开始时间">
+                {{ detailData.startTime }}
+              </a-descriptions-item>
+              <a-descriptions-item label="结束时间">
+                {{ detailData.endTime }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="当前节点"
+                :span="2"
+              >
+                {{ detailData.currentNode }}
+              </a-descriptions-item>
+              <a-descriptions-item
+                label="业务数据"
+                :span="2"
+              >
+                <pre>{{ detailData.businessData }}</pre>
+              </a-descriptions-item>
+            </a-descriptions>
+          </template>
+          <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+            <template #extra>
+              <a-button type="primary" size="small" @click="fetchDetail(detailRecord?.instanceId)">重试</a-button>
+            </template>
+          </a-result>
+        </a-skeleton>
       </a-drawer>
 
       <!-- 流程图对话框 -->
@@ -240,11 +276,21 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import { PageContainer } from '@/components'
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // 查询表单
 const queryForm = reactive({
@@ -258,6 +304,7 @@ const tableData = ref<any[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -265,6 +312,10 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 const runningCount = computed(() => tableData.value.filter(r => r.status === 'running').length)
 const completedCount = computed(() => tableData.value.filter(r => r.status === 'completed').length)
 const stoppedCount = computed(() => tableData.value.filter(r => r.status === 'terminated' || r.status === 'suspended').length)
+
+const hasActiveFilters = computed(() => {
+  return queryForm.processName || queryForm.status || queryForm.dateRange?.length > 0
+})
 
 // 表格列定义
 const vxeColumns = [
@@ -292,7 +343,10 @@ const pagination = reactive({
 
 // 详情对话框
 const detailVisible = ref(false)
-const detailData = ref<any>({})
+const detailRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 
 // 流程图对话框
 const flowChartVisible = ref(false)
@@ -303,6 +357,7 @@ const flowChartError = ref<string | null>(null)
 // 查询
 const handleQuery = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await request.get('/workflow/instance/page', {
       params: {
@@ -319,6 +374,7 @@ const handleQuery = async () => {
     tableData.value = records
     pagination.total = total
   } catch (err: any) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[工作流] 查询流程实例失败', err)
@@ -347,12 +403,30 @@ const handlePageChange = (page: number, size: number) => {
 }
 
 // 查看详情
+const handleView = (record: any) => {
+  const row = record?.row ?? record
+  handleViewDetail(row)
+}
+
 const handleViewDetail = (record: any) => {
-  detailData.value = {
-    ...record,
-    businessData: JSON.stringify({ requestId: 'REQ-001', amount: 5000, description: '测试数据' }, null, 2)
-  }
+  detailRecord.value = record
   detailVisible.value = true
+  fetchDetail(record.instanceId)
+}
+
+async function fetchDetail(instanceId: string) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    const res = await request.get('/workflow/instance/detail', { params: { instanceId } })
+    detailData.value = res.data || res
+  } catch (err: any) {
+    console.warn('[工作流] 获取流程实例详情失败', err)
+    detailError.value = err?.message || '获取流程实例详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 // 查看流程图
@@ -431,6 +505,15 @@ const getStatusLabel = (status: string) => {
 }
 
 // 初始加载
+function handleParentCreate() { handleAdd() }
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', handleQuery)()
+  }
+}
+
 onMounted(() => {
   handleQuery()
   autoRefreshCountdown.value = 30
@@ -441,17 +524,47 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  window.addEventListener('workflow:create', handleParentCreate)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  window.removeEventListener('workflow:create', handleParentCreate)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 defineExpose({ handleQuery })
 </script>
 
 <style scoped>
+/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+.table-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 空状态 ── */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
+}
+
 .workflow-monitor-page-header {
   display: flex;
   justify-content: space-between;
@@ -567,4 +680,15 @@ pre {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

@@ -195,4 +195,15 @@ public class BudgetAdjustmentServiceImpl implements BudgetAdjustmentService {
             return dto;
         }).collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        BudgetAdjustment entity = budgetAdjustmentRepository.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("预算调整不存在: " + id));
+        if (!"draft".equals(entity.getStatus())) {
+            throw BusinessException.badRequest("只有草稿状态的调整可以删除");
+        }
+        budgetAdjustmentRepository.deleteById(id);
+    }
 }

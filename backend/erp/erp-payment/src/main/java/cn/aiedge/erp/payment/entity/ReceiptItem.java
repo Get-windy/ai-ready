@@ -41,6 +41,12 @@ public class ReceiptItem {
 
     private Integer verifyStatus;
 
+    /** 关联应收单ID(finance_receivable) */
+    private Long receivableId;
+
+    /** 核销来源类型: order/invoice/receivable */
+    private String sourceType;
+
     private LocalDateTime verifiedTime;
 
     private Long verifiedBy;

@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="handleRefresh">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -30,6 +30,7 @@
             v-model:value="dateRange"
             value-format="YYYY-MM-DD"
             style="width: 240px"
+            size="small"
             @change="handleFilterChange"
           />
           <a-select
@@ -37,6 +38,7 @@
             placeholder="选择仓库"
             allow-clear
             style="width: 160px"
+            size="small"
             @change="handleFilterChange"
           >
             <a-select-option
@@ -47,7 +49,7 @@
               {{ w.name }}
             </a-select-option>
           </a-select>
-          <a-button type="primary" :loading="loading" @click="loadAll">查询</a-button>
+          <a-button type="primary" :loading="loading" @click="debounceClick('query', loadAll)">查询</a-button>
         </a-space>
       </a-card>
 
@@ -113,13 +115,15 @@
         <a-col :xs="24" :md="16">
           <a-card :bordered="false" title="销售趋势" class="chart-card">
             <div ref="trendChartRef" style="height: 320px" />
-            <div v-if="!trendData?.length" class="chart-empty">暂无趋势数据</div>
+            <div v-if="trendError" class="chart-empty chart-error" @click="loadAll">加载失败，点击重试</div>
+            <div v-else-if="!trendData?.length" class="chart-empty">暂无趋势数据</div>
           </a-card>
         </a-col>
         <a-col :xs="24" :md="8">
           <a-card :bordered="false" title="渠道分布" class="chart-card">
             <div ref="pieChartRef" style="height: 320px" />
-            <div v-if="!channelData?.length" class="chart-empty">暂无渠道数据</div>
+            <div v-if="channelError" class="chart-empty chart-error" @click="loadAll">加载失败，点击重试</div>
+            <div v-else-if="!channelData?.length" class="chart-empty">暂无渠道数据</div>
           </a-card>
         </a-col>
       </a-row>
@@ -198,6 +202,15 @@ import { PageContainer } from '@/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type ChannelDistribution, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
 
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 // ── 筛选 ──
 const dateRange = ref<any[]>([])
 const warehouseId = ref<number | undefined>(undefined)
@@ -211,11 +224,13 @@ const overviewLoading = ref(false)
 const trendData = ref<TrendDataPoint[]>([])
 const trendChartRef = ref<HTMLElement | null>(null)
 let trendChartInstance: any = null
+const trendError = ref(false)
 
 // ── 渠道饼图 ──
 const channelData = ref<ChannelDistribution[]>([])
 const pieChartRef = ref<HTMLElement | null>(null)
 let pieChartInstance: any = null
+const channelError = ref(false)
 
 // ── 排行榜 ──
 const customerRankData = ref<CustomerRankItem[]>([])
@@ -262,7 +277,7 @@ function buildParams() {
 }
 
 function handleFilterChange() {
-  loadAll()
+  debounceClick('query', loadAll)
 }
 
 function handleRefresh() {
@@ -301,21 +316,25 @@ async function loadOverview(params: any) {
 }
 
 async function loadTrend(params: any) {
+  trendError.value = false
   try {
     const res = await salesAnalysisApi.getTrend(params)
     trendData.value = res.data || []
   } catch (err) {
     trendData.value = []
+    trendError.value = true
     console.warn('[销售分析] 加载销售趋势失败', err)
   }
 }
 
 async function loadChannel(params: any) {
+  channelError.value = false
   try {
     const res = await salesAnalysisApi.getChannelDistribution(params)
     channelData.value = res.data || []
   } catch (err) {
     channelData.value = []
+    channelError.value = true
     console.warn('[销售分析] 加载渠道分布失败', err)
   }
 }
@@ -420,6 +439,13 @@ async function loadWarehouses() {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)
+  }
+}
+
 onMounted(() => {
   loadWarehouses()
   loadAll()
@@ -431,6 +457,7 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
@@ -438,6 +465,7 @@ onBeforeUnmount(() => {
   pieChartInstance?.dispose()
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -593,6 +621,13 @@ onBeforeUnmount(() => {
   color: #999;
   font-size: 14px;
   z-index: 1;
+}
+.chart-error {
+  color: #ff4d4f;
+  cursor: pointer;
+}
+.chart-error:hover {
+  color: #cf1322;
 }
 
 .rank-row {

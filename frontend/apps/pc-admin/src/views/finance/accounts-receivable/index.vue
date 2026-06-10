@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -77,6 +77,7 @@
         add-text="新增应收"
         @add="handleAdd"
         @refresh="fetchData"
+        @cell-dblclick="handleView"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @export="handleExport"
@@ -88,19 +89,35 @@
           </span>
         </template>
 
+        <template #batch-actions>
+          <!-- batch actions placeholder -->
+        </template>
+
         <template #empty>
           <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的应收记录，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无应收账款数据，点击右上角「新增应收」开始创建
-            </p>
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的应收记录，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">
+                暂无应收账款数据，点击右上角「新增应收」开始创建
+              </p>
+            </template>
           </div>
         </template>
 
+        <template #statusCell="{ record }">
+          <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+        </template>
         <template #action="{ record }">
           <a-space :size="4">
             <a-tooltip title="查看详情">
@@ -108,6 +125,7 @@
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton :record="record" :business-id="record.id" business-type="receivable" button-type="link" button-size="small" tooltip="打印" />
             <a-tooltip v-if="record.status !== 2" title="收款">
               <a-button type="link" size="small" @click="handlePayment(record)">
                 <template #icon><DollarOutlined /></template>
@@ -207,14 +225,12 @@
       </a-modal>
 
       <!-- 收款弹窗 -->
-      <a-modal
-        v-model:open="paymentModalVisible"
+      <FullScreenDetail
+        :visible="paymentModalVisible"
         title="收款"
-        width="500px"
-        centered
-        :confirm-loading="paymentSubmitting"
-        @ok="handlePaymentConfirm"
-        @cancel="paymentModalVisible = false"
+        :save-loading="paymentSubmitting"
+        @save="handlePaymentConfirm"
+        @close="paymentModalVisible = false"
       >
         <a-form :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
           <a-form-item label="客户">
@@ -229,13 +245,14 @@
               :min="0"
               :max="paymentRecord?.unpaidAmount"
               :precision="2"
+              size="small"
               style="width: 100%"
             >
               <template #addonBefore>¥</template>
             </a-input-number>
           </a-form-item>
           <a-form-item label="收款方式">
-            <a-select v-model:value="paymentMethod" placeholder="选择收款方式">
+            <a-select v-model:value="paymentMethod" placeholder="选择收款方式" size="small">
               <a-select-option :value="1">银行转账</a-select-option>
               <a-select-option :value="2">现金</a-select-option>
               <a-select-option :value="3">支票</a-select-option>
@@ -243,13 +260,13 @@
             </a-select>
           </a-form-item>
           <a-form-item label="收款日期">
-            <a-date-picker v-model:value="paymentDate" style="width: 100%" />
+            <a-date-picker v-model:value="paymentDate" size="small" style="width: 100%" />
           </a-form-item>
           <a-form-item label="备注">
-            <a-input v-model:value="paymentRemark" placeholder="备注信息" />
+            <a-input v-model:value="paymentRemark" placeholder="备注信息" size="small" />
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
@@ -265,12 +282,19 @@ import {
   FileTextOutlined, ReloadOutlined, SyncOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { receivableV1Api } from '@/api/finance/receivable'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 const router = useRouter()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
@@ -326,7 +350,7 @@ const columns = computed(() => [
   { title: '应收金额', field: 'amount', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '已收金额', field: 'paidAmount', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
   { title: '未收金额', field: 'unpaidAmount', width: 130, align: 'right', formatter: ({ cellValue }) => cellValue ? `¥${formatAmount(cellValue)}` : '-' },
-  { title: '状态', field: 'status', width: 100, align: 'center', formatter: ({ cellValue }) => getStatusText(cellValue) },
+  { title: '状态', field: 'status', width: 100, align: 'center', slotName: 'statusCell' },
   { title: '到期日期', field: 'dueDate', width: 140 },
   { title: '备注', field: 'remark', minWidth: 100 },
   { title: '操作', type: 'action', width: 160, fixed: 'right' }
@@ -369,6 +393,10 @@ const isOverdue = (dueDate: string, status: number) => {
 
 const handleAdd = () => {
   message.info('打开新增应收表单')
+}
+
+function handleParentCreate() {
+  handleAdd()
 }
 
 const handleView = (record: any) => {
@@ -470,7 +498,6 @@ const handleFilterChange = (filters: Record<string, any>) => {
 
 const handleSelectionChange = (rows: any[], ids: any[]) => {
   // 可以在这里处理选中行的逻辑，例如批量操作
-  console.log('Selected rows:', rows.length)
 }
 
 const handleExport = () => {
@@ -511,17 +538,26 @@ const fetchData = async () => {
       stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    hasError.value = false
   } catch (err) {
     console.warn('获取应收账款数据失败', err)
     message.error('获取数据失败')
+    hasError.value = true
   } finally {
     loading.value = false
     refreshLoading.value = false
   }
 }
 
+function isInput(target: Element | null): boolean {
+  if (!target) return false
+  const tag = target.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable
+}
+
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput(e.target as Element | null)) { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 
 // 定时刷新（30s）
@@ -531,6 +567,8 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -543,6 +581,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -556,6 +596,11 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.accounts-receivable-page > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -740,6 +785,11 @@ defineExpose({ handleQuery: fetchData })
 
 
 /* 响应式 */
+
+.table-empty-action {
+  margin-top: 12px;
+}
+
 @media (max-width: 768px) {
   .stat-cards {
     flex-wrap: wrap;
@@ -748,5 +798,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 30%;
     min-width: 100px;
   }
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

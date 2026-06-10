@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.stock.entity.StockTransfer;
 import cn.aiedge.erp.stock.entity.StockTransferItem;
@@ -24,104 +25,117 @@ public class StockTransferController {
 
     private final StockTransferService transferService;
 
+    @lombok.Data
+    public static class CreateTransferRequest {
+        private Long fromWarehouseId;
+        private Long toWarehouseId;
+        private String remark;
+        private List<StockTransferItem> items;
+    }
+
     @GetMapping("/page")
     @Operation(summary = "分页查询调拨单")
-    public Page<StockTransfer> page(
+    public Result<Page<StockTransfer>> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "调出仓库") @RequestParam(required = false) Long fromWarehouseId,
             @Parameter(description = "调入仓库") @RequestParam(required = false) Long toWarehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return transferService.pageList(keyword, fromWarehouseId, toWarehouseId, status, pageNum, pageSize);
+        return Result.ok(transferService.pageList(keyword, fromWarehouseId, toWarehouseId, status, pageNum, pageSize));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取调拨单详情")
-    public StockTransfer getById(@PathVariable Long id) {
+    public Result<StockTransfer> getById(@PathVariable Long id) {
         StockTransfer transfer = transferService.getById(id);
         if (transfer == null) {
             throw BusinessException.notFound("调拨单不存在");
         }
-        return transfer;
+        return Result.ok(transfer);
     }
 
     @GetMapping("/{id}/items")
     @Operation(summary = "获取调拨明细")
-    public List<StockTransferItem> getItems(@PathVariable Long id) {
-        return transferService.getItems(id);
+    public Result<List<StockTransferItem>> getItems(@PathVariable Long id) {
+        return Result.ok(transferService.getItems(id));
     }
 
     @PostMapping
     @Operation(summary = "创建调拨单")
-    public StockTransfer create(@RequestBody StockTransfer transfer, @RequestBody(required = false) List<StockTransferItem> items) {
+    public Result<StockTransfer> create(@RequestBody CreateTransferRequest request) {
+        StockTransfer transfer = new StockTransfer();
         transfer.setTenantId(1L);
+        transfer.setFromWarehouseId(request.getFromWarehouseId());
+        transfer.setToWarehouseId(request.getToWarehouseId());
+        transfer.setRemark(request.getRemark());
         transfer.setCreateBy(StpUtil.getLoginIdAsLong());
-        return transferService.createTransfer(transfer, items);
+        return Result.ok(transferService.createTransfer(transfer, request.getItems()));
     }
 
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交审批")
-    public StockTransfer submitForApproval(@PathVariable Long id) {
-        return transferService.submitForApproval(id);
+    public Result<StockTransfer> submitForApproval(@PathVariable Long id) {
+        return Result.ok(transferService.submitForApproval(id));
     }
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过")
-    public StockTransfer approve(@PathVariable Long id, @RequestParam(required = false) String note) {
+    public Result<StockTransfer> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
         Long approverId = StpUtil.getLoginIdAsLong();
-        return transferService.approve(id, approverId, note);
+        return Result.ok(transferService.approve(id, approverId, note));
     }
 
     @PostMapping("/{id}/reject")
     @Operation(summary = "审批拒绝")
-    public StockTransfer reject(@PathVariable Long id, @RequestParam String reason) {
-        return transferService.reject(id, reason);
+    public Result<StockTransfer> reject(@PathVariable Long id, @RequestParam String reason) {
+        return Result.ok(transferService.reject(id, reason));
     }
 
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行调拨")
-    public StockTransfer execute(@PathVariable Long id) {
-        return transferService.execute(id);
+    public Result<StockTransfer> execute(@PathVariable Long id) {
+        return Result.ok(transferService.execute(id));
     }
 
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消调拨")
-    public StockTransfer cancel(@PathVariable Long id, @RequestParam String reason) {
-        return transferService.cancel(id, reason);
+    public Result<StockTransfer> cancel(@PathVariable Long id, @RequestParam String reason) {
+        return Result.ok(transferService.cancel(id, reason));
     }
 
     @PostMapping("/{id}/items")
     @Operation(summary = "添加调拨明细")
-    public StockTransferItem addItem(@PathVariable Long id, @RequestBody StockTransferItem item) {
-        return transferService.addItem(id, item);
+    public Result<StockTransferItem> addItem(@PathVariable Long id, @RequestBody StockTransferItem item) {
+        return Result.ok(transferService.addItem(id, item));
     }
 
     @PutMapping("/{id}/items/{itemId}")
     @Operation(summary = "更新调拨明细")
-    public StockTransferItem updateItem(@PathVariable Long itemId, @RequestBody StockTransferItem item) {
-        return transferService.updateItem(itemId, item);
+    public Result<StockTransferItem> updateItem(@PathVariable Long itemId, @RequestBody StockTransferItem item) {
+        return Result.ok(transferService.updateItem(itemId, item));
     }
 
     @DeleteMapping("/{id}/items/{itemId}")
     @Operation(summary = "删除调拨明细")
-    public void removeItem(@PathVariable Long itemId) {
+    public Result<Void> removeItem(@PathVariable Long itemId) {
         transferService.removeItem(itemId);
+        return Result.ok();
     }
 
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除调拨单")
-    public boolean batchDelete(@RequestBody List<Long> ids) {
-        return transferService.removeBatchByIds(ids);
+    public Result<Boolean> batchDelete(@RequestBody List<Long> ids) {
+        return Result.ok(transferService.removeBatchByIds(ids));
     }
 
     @GetMapping("/export")
     @Operation(summary = "导出调拨单列表")
-    public List<StockTransfer> export(
+    public Result<List<StockTransfer>> export(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "调出仓库") @RequestParam(required = false) Long fromWarehouseId,
             @Parameter(description = "调入仓库") @RequestParam(required = false) Long toWarehouseId,
             @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return transferService.exportList(keyword, fromWarehouseId, toWarehouseId, status);
+        return Result.ok(transferService.exportList(keyword, fromWarehouseId, toWarehouseId, status));
     }
 }

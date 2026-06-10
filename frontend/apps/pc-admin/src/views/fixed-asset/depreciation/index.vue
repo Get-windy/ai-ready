@@ -15,7 +15,8 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <PrintButton :record="{ type: 'depreciation' }" business-type="fixed_asset_depreciation" button-type="link" button-size="small" tooltip="打印折旧记录" />
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()" v-permission="'erp:fixed-asset:depreciation:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -58,8 +59,10 @@
         :table-key="'fixed-asset-depreciation-list'"
         :filter-fields="filterFields"
         :show-export="true"
+        export-permission="erp:fixed-asset:depreciation:list"
         :selectable="true"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)()"
+        @cell-dblclick="handleViewAsset"
         @search="handleSearch"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
@@ -70,14 +73,26 @@
           <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
             更新 {{ dayjs(lastUpdated).format('HH:mm') }}
           </span>
-          <a-button type="primary" ghost @click="handleBatchCalculate">
+          <a-button type="primary" ghost @click="handleBatchCalculate" v-permission="'erp:fixed-asset:depreciation:calculate'">
             <template #icon><CalculatorOutlined /></template>
             批量计提折旧
           </a-button>
         </template>
 
+        <template #batch-actions="{ selectedRowKeys }">
+          <span class="batch-info">已选择 {{ selectedRowKeys.length }} 项</span>
+        </template>
+
         <template #empty>
-          <div class="table-empty">
+          <div v-if="hasError" class="table-empty table-empty-error">
+            <WarningOutlined class="table-empty-icon table-empty-icon-error" />
+            <p class="table-empty-text">数据加载失败，请重试</p>
+            <a-button size="small" @click="fetchData">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+          <div v-else class="table-empty">
             <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
             <InboxOutlined v-else class="table-empty-icon" />
             <p v-if="hasActiveFilters" class="table-empty-text">
@@ -112,6 +127,11 @@
             {{ record.status === 'completed' ? '已完成' : '待处理' }}
           </a-tag>
         </template>
+        <template #actionCell="{ record }">
+          <a-space>
+            <a @click="handleViewAsset(record)">查看资产</a>
+          </a-space>
+        </template>
       </VxeTableList>
     </div>
   </PageContainer>
@@ -122,14 +142,26 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, InboxOutlined, CalculatorOutlined, CalendarOutlined,
-  FileTextOutlined, SyncOutlined, ReloadOutlined
+  FileTextOutlined, SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { depreciationApi } from '@/api/fixed-asset'
 import { PageContainer } from '@/components'
+import { useRouter } from 'vue-router'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 const emit = defineEmits(['update-count'])
+const router = useRouter()
 
 const loading = ref(false)
 const tableData = ref<any[]>([])
@@ -139,6 +171,7 @@ const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -180,6 +213,7 @@ const vxeColumns = computed(() => [
   { field: 'netValue', title: '净值', width: 130, align: 'right', slotName: 'netValueCell' },
   { field: 'assetOriginalValue', title: '资产原值', width: 130, align: 'right', slotName: 'assetOriginalValueCell' },
   { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
+  { type: 'action', title: '操作', width: 80, align: 'center', fixed: 'right' },
 ])
 
 const filterFields = [
@@ -195,9 +229,14 @@ function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
+function handleParentCreate() {
+  handleBatchCalculate()
+}
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('fixed-asset:create', handleParentCreate)
   window.addEventListener('fixed-asset:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -209,8 +248,9 @@ onMounted(() => {
   }, 1000)
 })
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
+  hasError.value = false
   const params: any = {
     page: pagination.current - 1,
     size: pagination.pageSize,
@@ -219,23 +259,25 @@ function fetchData() {
   if (searchFilters.period) params.period = searchFilters.period
   if (searchFilters.status) params.status = searchFilters.status
 
-  depreciationApi.getPage(params).then((res: any) => {
+  try {
+    const res = await depreciationApi.getPage(params)
     if (res.data) {
       tableData.value = res.data.content || res.data.records || []
       pagination.total = res.data.totalElements || res.data.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
-  }).catch(() => {
+  } catch {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[折旧记录] 加载折旧数据失败')
     message.error('加载折旧数据失败')
-  }).finally(() => {
+  } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     refreshLoading.value = false
-  })
+  }
 }
 
 function handleSearch(keyword: string) {
@@ -276,7 +318,9 @@ function handleBatchCalculate() {
 }
 
 function handleViewAsset(record: any) {
-  message.info(`查看资产详情: ${record.assetCode}`)
+  if (record.assetId) {
+    router.push(`/fixed-asset/asset/detail/${record.assetId}`)
+  }
 }
 
 function handleResetFilters() {
@@ -305,11 +349,17 @@ function handleExport() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleBatchCalculate() }
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !isInput) {
+    e.preventDefault(); debounceClick('refresh', fetchData)(); return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) { e.preventDefault(); handleBatchCalculate() }
 }
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('fixed-asset:create', handleParentCreate)
   window.removeEventListener('fixed-asset:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
@@ -362,6 +412,11 @@ defineExpose({ handleQuery: fetchData })
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+}
+
+.depreciation-list-page :deep(.vxe-table) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -422,6 +477,14 @@ defineExpose({ handleQuery: fetchData })
 .table-empty-text {
   color: #999;
   margin-top: 12px;
+}
+
+.table-empty-error {
+  padding: 48px 0;
+}
+
+.table-empty-icon-error {
+  color: #faad14;
 }
 
 .asset-code {

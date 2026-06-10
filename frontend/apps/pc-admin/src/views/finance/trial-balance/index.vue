@@ -15,7 +15,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -100,7 +100,23 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        @cell-dblclick="handleView"
       >
+        <template #empty>
+          <div class="table-empty">
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">加载失败</p>
+              <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+                <ReloadOutlined /> 重试
+              </a-button>
+            </template>
+            <template v-else>
+              <InboxOutlined class="table-empty-icon" />
+              <p class="table-empty-text">暂无数据</p>
+            </template>
+          </div>
+        </template>
         <template #subjectNameCell="{ record }">
           <span :style="{ paddingLeft: (record._level || 0) * 20 + 'px' }">
             {{ record.subjectCode }} {{ record.subjectName }}
@@ -115,13 +131,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PageContainer } from '@/components'
 import dayjs from 'dayjs'
-import { accountingApi, type TrialBalanceItem } from '@/api/finance/accounting'
+import * as XLSX from 'xlsx'
+import { reportApi } from '@/api/finance'
+import type { TrialBalanceItem } from '@/api/finance/accounting'
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now(); const last = debounceMap.get(key) || 0
+  if (now - last < delay) return; debounceMap.set(key, now); fn()
+}
 
 const loading = ref(false)
+const hasError = ref(false)
 const refreshLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -191,21 +216,34 @@ async function fetchData() {
   loading.value = true
   refreshLoading.value = true
   try {
-    const period = periodDate.value?.format('YYYY-MM')
-    const res = await accountingApi.getTrialBalance({ accountingPeriod: period })
-    rawItems.value = res.data?.items || []
+    const period = periodDate.value?.format('YYYY-MM') || ''
+    const [year, p] = period.split('-')
+    const res = await reportApi.getTrialBalance({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
+    const items: TrialBalanceItem[] = res.data || []
+    rawItems.value = items
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+
+    // 客户端计算合计数
+    const totalOpeningDebit = items.reduce((s, r) => s + (r.openingDebit || 0), 0)
+    const totalOpeningCredit = items.reduce((s, r) => s + (r.openingCredit || 0), 0)
+    const totalPeriodDebit = items.reduce((s, r) => s + (r.periodDebit || 0), 0)
+    const totalPeriodCredit = items.reduce((s, r) => s + (r.periodCredit || 0), 0)
+    const totalClosingDebit = items.reduce((s, r) => s + (r.closingDebit || 0), 0)
+    const totalClosingCredit = items.reduce((s, r) => s + (r.closingCredit || 0), 0)
+
     totals.value = {
-      totalOpeningDebit: res.data?.totalOpeningDebit || 0,
-      totalOpeningCredit: res.data?.totalOpeningCredit || 0,
-      totalPeriodDebit: res.data?.totalPeriodDebit || 0,
-      totalPeriodCredit: res.data?.totalPeriodCredit || 0,
-      totalClosingDebit: res.data?.totalClosingDebit || 0,
-      totalClosingCredit: res.data?.totalClosingCredit || 0
+      totalOpeningDebit,
+      totalOpeningCredit,
+      totalPeriodDebit,
+      totalPeriodCredit,
+      totalClosingDebit,
+      totalClosingCredit
     }
+    hasError.value = false
   } catch (err) {
     console.warn('获取试算平衡表失败', err)
     message.error('获取试算平衡表失败')
+    hasError.value = true
   } finally {
     loading.value = false
     refreshLoading.value = false
@@ -213,7 +251,29 @@ async function fetchData() {
 }
 
 function handleExport() {
-  message.success('导出功能开发中')
+  if (rawItems.value.length === 0) {
+    message.warning('暂无数据可导出')
+    return
+  }
+  const period = periodDate.value?.format('YYYY-MM') || 'unknown'
+  const sheetData = tableData.value.map((item: any) => ({
+    '科目': item.subjectName || '',
+    '期初借方': item.openingDebit || 0,
+    '期初贷方': item.openingCredit || 0,
+    '本期借方': item.periodDebit || 0,
+    '本期贷方': item.periodCredit || 0,
+    '期末借方': item.closingDebit || 0,
+    '期末贷方': item.closingCredit || 0
+  }))
+  const ws = XLSX.utils.json_to_sheet(sheetData)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '试算平衡表')
+  XLSX.writeFile(wb, `试算平衡表_${period}.xlsx`)
+  message.success('导出成功')
+}
+
+function handleView(record: any) {
+  message.info(`查看科目: ${record.subjectName || record.subjectCode || '-'}`)
 }
 
 // 定时刷新（30s）
@@ -222,6 +282,9 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchData()
+  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', fetchData)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -233,9 +296,22 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', fetchData)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
 
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -291,6 +367,11 @@ defineExpose({ handleQuery: fetchData })
   min-height: 0;
 }
 
+.trial-balance-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
 /* 统计卡片 */
 .stat-cards {
   display: flex;
@@ -343,5 +424,21 @@ defineExpose({ handleQuery: fetchData })
 
 .text-disabled {
   color: var(--color-text-disabled, #bbb);
+}
+
+/* Compact mode overrides */
+:deep(.ant-table-thead > tr > th) {
+  padding: 6px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-table-tbody > tr > td) {
+  padding: 4px 8px !important;
+  font-size: 12px;
+}
+:deep(.ant-card-body) {
+  padding: 12px;
+}
+:deep(.ant-form-item) {
+  margin-bottom: 8px;
 }
 </style>

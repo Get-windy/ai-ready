@@ -1,5 +1,6 @@
 package cn.aiedge.erp.batchsn.controller.advice;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -20,6 +21,7 @@ import java.util.Map;
  * @author team-member
  * @date 2026-05-05
  */
+@Slf4j
 @RestControllerAdvice(basePackages = "cn.aiedge.erp.batchsn.controller")
 public class ApiExceptionHandler {
 
@@ -123,7 +125,7 @@ public class ApiExceptionHandler {
         // errors.put("detail", ex.getMessage());
         
         // 记录错误日志
-        ex.printStackTrace();
+        log.error("未处理的服务器内部异常", ex);
         
         return new ResponseEntity<>(errors, HttpStatus.INTERNAL_SERVER_ERROR);
     }

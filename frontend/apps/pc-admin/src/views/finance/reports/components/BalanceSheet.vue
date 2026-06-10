@@ -23,7 +23,7 @@
     <div class="filter-area">
       <a-form layout="inline">
         <a-form-item label="报表日期">
-          <a-month-picker v-model:value="queryParams.month" format="YYYY-MM" value-format="YYYY-MM" />
+          <a-month-picker v-model:value="queryParams.month" format="YYYY-MM" value-format="YYYY-MM" size="small" />
         </a-form-item>
         <a-form-item>
           <a-button type="primary" @click="handleGenerate" :loading="loading">生成报表</a-button>
@@ -47,9 +47,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import request from '@/utils/request'
+import { reportApi } from '@/api/finance'
+import * as XLSX from 'xlsx'
 
 interface BalanceSheet {
   totalAssets: number
@@ -79,8 +80,19 @@ const handleGenerate = async () => {
   if (!queryParams.month) { message.warning('请选择报表日期'); return }
   loading.value = true
   try {
-    const res = await request.get('/finance/report/balance-sheet', { params: { period: queryParams.month } })
-    balanceSheet.value = (res as any)?.data || balanceSheet.value
+    const [year, p] = queryParams.month.split('-')
+    const res = await reportApi.getBalanceSheet({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
+    if (res.data) {
+      balanceSheet.value = {
+        totalAssets: res.data.totalAssets || 0,
+        totalLiabilities: res.data.totalLiabilities || 0,
+        currentAssets: res.data.currentAssets || 0,
+        currentLiabilities: res.data.currentLiabilities || 0,
+        fixedAssets: res.data.fixedAssets || 0,
+        nonCurrentLiabilities: res.data.nonCurrentLiabilities || 0,
+        equity: res.data.equity || 0
+      }
+    }
     message.success('报表生成成功')
   } catch (err: any) {
     message.error(err?.message || '报表生成失败')
@@ -88,8 +100,40 @@ const handleGenerate = async () => {
 }
 
 const handleExport = () => {
-  message.info('导出功能开发中')
+  const data = balanceSheet.value
+  if (!data.totalAssets && !data.totalLiabilities) {
+    message.warning('暂无数据可导出，请先生成报表')
+    return
+  }
+  const ws = XLSX.utils.json_to_sheet([
+    { '项目': '总资产', '金额': data.totalAssets },
+    { '项目': '总负债', '金额': data.totalLiabilities },
+    { '项目': '流动资产', '金额': data.currentAssets },
+    { '项目': '流动负债', '金额': data.currentLiabilities },
+    { '项目': '固定资产', '金额': data.fixedAssets },
+    { '项目': '非流动负债', '金额': data.nonCurrentLiabilities },
+    { '项目': '所有者权益', '金额': data.equity }
+  ])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '资产负债表')
+  XLSX.writeFile(wb, `资产负债表_${queryParams.month || 'unknown'}.xlsx`)
+  message.success('导出成功')
 }
+
+function handleParentCreate() { handleAdd() }
+function handleAdd() {
+  message.info('创建功能由父组件触发')
+}
+
+onMounted(() => {
+  window.addEventListener('finance:create', handleParentCreate)
+  window.addEventListener('finance:refresh', handleGenerate)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('finance:create', handleParentCreate)
+  window.removeEventListener('finance:refresh', handleGenerate)
+})
 
 defineExpose({})
 </script>

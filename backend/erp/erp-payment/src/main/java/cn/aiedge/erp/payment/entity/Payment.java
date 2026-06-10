@@ -80,6 +80,21 @@ public class Payment {
 
     private String internalNote;
 
+    /** 业务来源类型: purchase/deposit/expense/asset/other */
+    private String sourceType;
+
+    /** 来源业务ID */
+    private Long sourceId;
+
+    /** 来源业务编号 */
+    private String sourceNo;
+
+    /** 关联预付款ID(预付冲抵时) */
+    private Long prePaymentId;
+
+    /** 是否定金冲抵: 0-否 1-是 */
+    private Integer depositFlag;
+
     @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
     private String extInfo;
 

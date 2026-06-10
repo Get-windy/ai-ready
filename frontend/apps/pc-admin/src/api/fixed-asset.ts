@@ -54,6 +54,18 @@ export const inventoryApi = {
   update: (id: number, data: any) => request.put(`/erp/fixed-asset/inventory/${id}`, data)
 }
 
+export const purchaseApi = {
+  getPage: (params: any) => request.get('/erp/fixed-asset/purchase/page', params),
+  getById: (id: number) => request.get(`/erp/fixed-asset/purchase/${id}`),
+  create: (data: any) => request.post('/erp/fixed-asset/purchase', data),
+  update: (id: number, data: any) => request.put(`/erp/fixed-asset/purchase/${id}`, data),
+  delete: (id: number) => request.delete(`/erp/fixed-asset/purchase/${id}`),
+  submit: (id: number) => request.post(`/erp/fixed-asset/purchase/${id}/submit`),
+  approve: (id: number, comment?: string) => request.post(`/erp/fixed-asset/purchase/${id}/approve`, null, { params: { comment } }),
+  reject: (id: number, comment?: string) => request.post(`/erp/fixed-asset/purchase/${id}/reject`, null, { params: { comment } }),
+  accept: (id: number, data: any) => request.post(`/erp/fixed-asset/purchase/${id}/accept`, data)
+}
+
 export const reportApi = {
   getDepreciationSummary: (params?: any) => request.get('/erp/fixed-asset/report/depreciation-summary', params),
   getAssetLedger: (params?: any) => request.get('/erp/fixed-asset/report/asset-ledger', params),

@@ -49,6 +49,7 @@
       @selection-change="handleSelectionChange"
       :show-export="true"
       @export="handleExport"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -87,32 +88,61 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的入库单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无入库单，点击「新建入库」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的入库单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无入库单，点击「新建入库」开始创建
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="入库单详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="入库单号">{{ currentRecord.inboundNo }}</a-descriptions-item>
-        <a-descriptions-item label="入库类型">{{ currentRecord.inboundType }}</a-descriptions-item>
-        <a-descriptions-item label="仓库">{{ currentRecord.warehouseName }}</a-descriptions-item>
-        <a-descriptions-item label="入库日期">{{ currentRecord.inboundDate }}</a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="来源单号">{{ currentRecord.sourceNo || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="经手人">{{ currentRecord.handlerName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <!-- 详情抽屉 -->
+    <a-drawer
+      v-model:open="detailVisible"
+      :title="detailData?.inboundNo || '入库单详情'"
+      placement="right"
+      width="90vw"
+      @close="handleDetailClose"
+    >
+      <template #extra>
+        <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+          <template #icon><ReloadOutlined /></template>
+        </a-button>
+      </template>
+
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small" style="margin-bottom: 16px">
+            <a-descriptions-item label="入库单号">{{ detailData.inboundNo }}</a-descriptions-item>
+            <a-descriptions-item label="入库类型">{{ detailData.inboundType }}</a-descriptions-item>
+            <a-descriptions-item label="仓库">{{ detailData.warehouseName }}</a-descriptions-item>
+            <a-descriptions-item label="入库日期">{{ detailData.inboundDate }}</a-descriptions-item>
+            <a-descriptions-item label="状态"><a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="来源单号">{{ detailData.sourceNo || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="经手人">{{ detailData.handlerName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(currentRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建入库弹窗 -->
@@ -122,25 +152,25 @@
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="采购订单" name="orderNo">
-              <a-select v-model:value="addForm.orderNo" show-search placeholder="请选择采购订单"
+              <a-select v-model:value="addForm.orderNo" size="small" show-search placeholder="请选择采购订单"
                 :options="purchaseOrderOptions" :filter-option="filterOption" allow-clear @change="handleOrderChange" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="入库类型" name="inboundType">
-              <a-select v-model:value="addForm.inboundType" placeholder="请选择入库类型" :options="inboundTypeOptions" />
+              <a-select v-model:value="addForm.inboundType" size="small" placeholder="请选择入库类型" :options="inboundTypeOptions" />
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="入库仓库" name="warehouseId">
-              <a-select v-model:value="addForm.warehouseId" placeholder="请选择仓库" :options="warehouseOptions" />
+              <a-select v-model:value="addForm.warehouseId" size="small" placeholder="请选择仓库" :options="warehouseOptions" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="预计到货日期" name="expectedDate">
-              <a-date-picker v-model:value="addForm.expectedDate" style="width: 100%" placeholder="请选择预计到货日期" />
+              <a-date-picker v-model:value="addForm.expectedDate" size="small" style="width: 100%" placeholder="请选择预计到货日期" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -183,7 +213,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined,
-  ClockCircleOutlined, FileTextOutlined, CheckOutlined
+  ClockCircleOutlined, FileTextOutlined, CheckOutlined, WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { inboundApi } from '@/api/erp'
@@ -191,10 +221,21 @@ import { executeBatch } from '@/utils/batchOperations'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const emit = defineEmits(['update-count'])
 
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -247,8 +288,36 @@ const summaryData = computed(() => {
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
 
+// ── 详情抽屉 ──
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    detailData.value = await inboundApi.getById(id) as any
+  } catch (err: any) {
+    console.warn('[库存入库] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+}
+
+function handleDetailRefresh() {
+  if (currentRecord.value?.id) fetchDetail(currentRecord.value.id)
+}
 
 // ── 新建入库 ──
 interface AddInboundItem { key: number; productId: number | undefined; productName: string; isNew: boolean; expectedQty: number; actualQty: number }
@@ -310,18 +379,26 @@ async function fetchData() {
     tableData.value = pageData?.records || []
     pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
     emit('update-count', pagination.total)
   } catch (err) {
     console.warn('[库存入库] 获取入库单列表失败', err)
     tableData.value = []
     pagination.total = 0
+    hasError.value = true
     emit('update-count', pagination.total)
   }
   finally { loading.value = false }
 }
 
 
-function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+function handleView(record: any) {
+  currentRecord.value = record
+  detailData.value = null
+  detailError.value = null
+  detailVisible.value = true
+  fetchDetail(record.id)
+}
 function handleAdd() {
   addForm.orderNo = undefined; addForm.inboundType = 1; addForm.warehouseId = undefined
   addForm.expectedDate = dayjs(); addForm.remark = ''; addForm.items = []; itemKeyCounter = 0; addVisible.value = true
@@ -373,22 +450,26 @@ function handleBatchApprove() {
   })
 }
 
-function handleExport() {
-  const headers = ['入库单号', '入库类型', '仓库', '入库日期', '状态', '创建时间']
-  const rows = tableData.value.map((row: any) => [
-    row.inboundNo || '', row.inboundType || '', row.warehouseName || '', row.inboundDate || '',
-    getStatusText(row.status), row.createTime || ''
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  window.URL.revokeObjectURL(url)
-  console.warn('[库存入库] 导出入库单（客户端模拟）')
-  message.success('导出成功')
+async function handleExport() {
+  try {
+    const headers = ['入库单号', '入库类型', '仓库', '入库日期', '状态', '创建时间']
+    const rows = tableData.value.map((row: any) => [
+      row.inboundNo || '', row.inboundType || '', row.warehouseName || '', row.inboundDate || '',
+      getStatusText(row.status), row.createTime || ''
+    ])
+    const csv = ['\ufeff' + headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `入库单_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (err: any) {
+    console.warn('[库存入库] 导出失败', err)
+    message.error(err?.message || '导出失败')
+  }
 }
 
 function handleSearch(keyword: string) { searchFilters.keyword = keyword || undefined; pagination.current = 1; fetchData() }
@@ -407,17 +488,22 @@ function handleActionMenuClick(key: string, record: any) {
   }
 }
 
+function handleParentCreate() { handleAdd() }
+
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('stock:create', handleParentCreate)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('stock:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: fetchData })
@@ -430,7 +516,12 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
 
+/* 让 VxeTableList 填满剩余空间 */
+.inbound-list-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -519,5 +610,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

@@ -49,6 +49,7 @@
       @selection-change="handleSelectionChange"
       :show-export="true"
       @export="handleExport"
+      @cell-dblclick="handleView"
     >
       <template #toolbar-actions>
         <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
@@ -87,32 +88,61 @@
 
       <template #empty>
         <div class="table-empty">
-          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-          <InboxOutlined v-else class="table-empty-icon" />
-          <p v-if="hasActiveFilters" class="table-empty-text">
-            没有符合条件的调拨单，<a @click="handleResetFilters">清除筛选</a>
-          </p>
-          <p v-else class="table-empty-text">
-            暂无调拨单，点击「新建调拨」开始创建
-          </p>
+          <template v-if="hasError">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">加载失败</p>
+            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+              <ReloadOutlined /> 重试
+            </a-button>
+          </template>
+          <template v-else>
+            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+            <InboxOutlined v-else class="table-empty-icon" />
+            <p v-if="hasActiveFilters" class="table-empty-text">
+              没有符合条件的调拨单，<a @click="handleResetFilters">清除筛选</a>
+            </p>
+            <p v-else class="table-empty-text">
+              暂无调拨单，点击「新建调拨」开始创建
+            </p>
+          </template>
         </div>
       </template>
     </VxeTableList>
 
-    <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="调拨单详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions bordered :column="2" v-if="currentRecord">
-        <a-descriptions-item label="调拨单号">{{ currentRecord.transferNo }}</a-descriptions-item>
-        <a-descriptions-item label="调出仓库">{{ currentRecord.fromWarehouse }}</a-descriptions-item>
-        <a-descriptions-item label="调入仓库">{{ currentRecord.toWarehouse }}</a-descriptions-item>
-        <a-descriptions-item label="调拨日期">{{ currentRecord.transferDate }}</a-descriptions-item>
-        <a-descriptions-item label="状态"><a-tag :color="getStatusColor(currentRecord.status)">{{ getStatusText(currentRecord.status) }}</a-tag></a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ currentRecord.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="调拨数量">{{ currentRecord.quantity || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="经手人">{{ currentRecord.handlerName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ currentRecord.remark || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <div class="detail-modal-footer"><a-button @click="detailVisible = false">关闭</a-button></div>
+    <!-- 详情抽屉 -->
+    <a-drawer
+      v-model:open="detailVisible"
+      :title="detailData?.transferNo || '调拨单详情'"
+      placement="right"
+      width="90vw"
+      @close="handleDetailClose"
+    >
+      <template #extra>
+        <a-button type="primary" size="small" @click="handleDetailRefresh" :loading="detailLoading">
+          <template #icon><ReloadOutlined /></template>
+        </a-button>
+      </template>
+
+      <a-skeleton active :loading="detailLoading" :paragraph="{ rows: 12 }">
+        <template v-if="detailData">
+          <a-descriptions bordered :column="2" size="small" style="margin-bottom: 16px">
+            <a-descriptions-item label="调拨单号">{{ detailData.transferNo }}</a-descriptions-item>
+            <a-descriptions-item label="调出仓库">{{ detailData.fromWarehouse }}</a-descriptions-item>
+            <a-descriptions-item label="调入仓库">{{ detailData.toWarehouse }}</a-descriptions-item>
+            <a-descriptions-item label="调拨日期">{{ detailData.transferDate }}</a-descriptions-item>
+            <a-descriptions-item label="状态"><a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag></a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="调拨数量">{{ detailData.quantity || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="经手人">{{ detailData.handlerName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</a-descriptions-item>
+          </a-descriptions>
+        </template>
+        <a-result v-else-if="detailError" status="warning" title="加载失败" :sub-title="detailError">
+          <template #extra>
+            <a-button type="primary" size="small" @click="fetchDetail(currentRecord?.id)">重试</a-button>
+          </template>
+        </a-result>
+      </a-skeleton>
     </a-drawer>
 
     <!-- 新建调拨弹窗 -->
@@ -122,24 +152,24 @@
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="调出仓库" name="fromWarehouseId">
-              <a-select v-model:value="addForm.fromWarehouseId" placeholder="请选择调出仓库" :options="warehouseOptions" @change="handleFromWarehouseChange" />
+              <a-select v-model:value="addForm.fromWarehouseId" size="small" placeholder="请选择调出仓库" :options="warehouseOptions" @change="handleFromWarehouseChange" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="调入仓库" name="toWarehouseId">
-              <a-select v-model:value="addForm.toWarehouseId" placeholder="请选择调入仓库" :options="filteredToWarehouseOptions" />
+              <a-select v-model:value="addForm.toWarehouseId" size="small" placeholder="请选择调入仓库" :options="filteredToWarehouseOptions" />
             </a-form-item>
           </a-col>
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="调拨日期" name="transferDate">
-              <a-date-picker v-model:value="addForm.transferDate" style="width: 100%" placeholder="请选择调拨日期" />
+              <a-date-picker v-model:value="addForm.transferDate" size="small" style="width: 100%" placeholder="请选择调拨日期" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="调拨类型" name="transferType">
-              <a-select v-model:value="addForm.transferType" placeholder="请选择调拨类型" :options="transferTypeOptions" />
+              <a-select v-model:value="addForm.transferType" size="small" placeholder="请选择调拨类型" :options="transferTypeOptions" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -179,7 +209,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined, EyeOutlined, DeleteOutlined, CheckCircleOutlined, SearchOutlined, InboxOutlined, EllipsisOutlined,
-  ClockCircleOutlined, SwapOutlined, CheckOutlined
+  ClockCircleOutlined, SwapOutlined, CheckOutlined, WarningOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { stockTransferApi } from '@/api/erp'
@@ -187,8 +217,19 @@ import { executeBatch } from '@/utils/batchOperations'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const tableData = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -249,8 +290,36 @@ const summaryData = computed(() => {
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
 
+// ── 详情抽屉 ──
 const detailVisible = ref(false)
 const currentRecord = ref<any>(null)
+const detailData = ref<any>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    detailData.value = await stockTransferApi.getById(id) as any
+  } catch (err: any) {
+    console.warn('[库存调拨] 获取详情失败', err)
+    detailError.value = err?.message || '获取详情失败'
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = null
+  detailError.value = null
+}
+
+function handleDetailRefresh() {
+  if (currentRecord.value?.id) fetchDetail(currentRecord.value.id)
+}
 
 // ── 新建调拨 ──
 interface AddTransferItem { key: number; productId: number | undefined; productName: string; unit: string; availableQty: number; quantity: number }
@@ -312,16 +381,24 @@ async function fetchData() {
     tableData.value = pageData?.records || []
     pagination.total = pageData?.totalElements ?? pageData?.total ?? 0
     lastUpdated.value = new Date().toISOString()
+    hasError.value = false
   } catch (err) {
     console.warn('[库存调拨] 获取调拨单列表失败', err)
     tableData.value = []
     pagination.total = 0
+    hasError.value = true
   }
   finally { loading.value = false }
 }
 
 
-function handleView(record: any) { currentRecord.value = record; detailVisible.value = true }
+function handleView(record: any) {
+  currentRecord.value = record
+  detailData.value = null
+  detailError.value = null
+  detailVisible.value = true
+  fetchDetail(record.id)
+}
 function handleAdd() {
   addForm.fromWarehouseId = undefined; addForm.toWarehouseId = undefined; addForm.transferDate = dayjs()
   addForm.transferType = 1; addForm.reason = ''; addForm.items = []; itemKeyCounter = 0; addVisible.value = true
@@ -390,7 +467,7 @@ function handleExport() {
   a.download = `调拨单_${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
-  console.warn('[库存调拨] 导出调拨单（客户端模拟）')
+  console.warn('[库存调拨] 导出调拨单')
   message.success('导出成功')
 }
 
@@ -411,6 +488,7 @@ function handleActionMenuClick(key: string, record: any) {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
 }
 
@@ -433,7 +511,12 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+}
 
+/* 让 VxeTableList 填满剩余空间 */
+.transfer-list-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计卡片 */
@@ -527,5 +610,21 @@ defineExpose({ handleQuery: fetchData })
     flex: 1 1 45%;
     min-width: 120px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

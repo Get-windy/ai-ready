@@ -125,7 +125,7 @@
   >
     <a-form :model="followForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
       <a-form-item label="跟进类型" required>
-        <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型">
+        <a-select v-model:value="followForm.followType" placeholder="请选择跟进类型" size="small">
           <a-select-option :value="1">电话</a-select-option>
           <a-select-option :value="2">拜访</a-select-option>
           <a-select-option :value="3">邮件</a-select-option>
@@ -134,17 +134,17 @@
         </a-select>
       </a-form-item>
       <a-form-item label="跟进日期" required>
-        <a-date-picker v-model:value="followForm.followDate" style="width: 100%" placeholder="请选择跟进日期" />
+        <a-date-picker v-model:value="followForm.followDate" style="width: 100%" placeholder="请选择跟进日期" size="small" />
       </a-form-item>
       <a-form-item label="跟进内容" required>
-        <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="5" />
+        <a-textarea v-model:value="followForm.content" placeholder="请输入跟进内容" :rows="5" size="small" />
       </a-form-item>
     </a-form>
   </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
@@ -362,7 +362,18 @@ const handleMergeCustomer = () => {
 const handlePrintSuccess = () => message.success('打印成功')
 const handlePrintError = (err: any) => message.error(`打印失败: ${err?.message || '未知错误'}`)
 
-onMounted(() => fetchCustomerDetail())
+onMounted(() => {
+  fetchCustomerDetail()
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchCustomerDetail)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchCustomerDetail)
+})
+
+function handleParentCreate() { handleFollow() }
 defineExpose({ handleQuery: fetchCustomerDetail })
 </script>
 

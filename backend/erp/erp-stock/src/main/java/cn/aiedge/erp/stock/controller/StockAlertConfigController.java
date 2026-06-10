@@ -1,5 +1,6 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.entity.StockAlertConfig;
 import cn.aiedge.erp.stock.service.StockAlertConfigService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -23,86 +24,89 @@ public class StockAlertConfigController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询预警配置")
-    public Page<StockAlertConfig> page(
+    public Result<Page<StockAlertConfig>> page(
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "仓库ID") @RequestParam(required = false) Long warehouseId,
             @Parameter(description = "是否激活") @RequestParam(required = false) Boolean active,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
-        return stockAlertConfigService.pageList(keyword, warehouseId, active, pageNum, pageSize);
+        return Result.ok(stockAlertConfigService.pageList(keyword, warehouseId, active, pageNum, pageSize));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取预警配置详情")
-    public StockAlertConfig getById(@PathVariable Long id) {
-        return stockAlertConfigService.getById(id);
+    public Result<StockAlertConfig> getById(@PathVariable Long id) {
+        return Result.ok(stockAlertConfigService.getById(id));
     }
 
     @GetMapping("/product/{productId}/warehouse/{warehouseId}")
     @Operation(summary = "根据产品和仓库获取预警配置")
-    public StockAlertConfig getByProductAndWarehouse(
+    public Result<StockAlertConfig> getByProductAndWarehouse(
             @PathVariable Long productId,
             @PathVariable Long warehouseId) {
-        return stockAlertConfigService.getByProductAndWarehouse(productId, warehouseId);
+        return Result.ok(stockAlertConfigService.getByProductAndWarehouse(productId, warehouseId));
     }
 
     @GetMapping("/warehouse/{warehouseId}")
     @Operation(summary = "获取仓库预警配置列表")
-    public List<StockAlertConfig> listByWarehouse(@PathVariable Long warehouseId) {
-        return stockAlertConfigService.listByWarehouse(warehouseId);
+    public Result<List<StockAlertConfig>> listByWarehouse(@PathVariable Long warehouseId) {
+        return Result.ok(stockAlertConfigService.listByWarehouse(warehouseId));
     }
 
     @GetMapping("/active")
     @Operation(summary = "获取所有激活的预警配置")
-    public List<StockAlertConfig> listAllActive() {
-        return stockAlertConfigService.listAllActive();
+    public Result<List<StockAlertConfig>> listAllActive() {
+        return Result.ok(stockAlertConfigService.listAllActive());
     }
 
     @PostMapping
     @Operation(summary = "创建预警配置")
-    public StockAlertConfig create(@RequestBody StockAlertConfig config) {
+    public Result<StockAlertConfig> create(@RequestBody StockAlertConfig config) {
         config.setTenantId(1L);
-        return stockAlertConfigService.createConfig(config);
+        return Result.ok(stockAlertConfigService.createConfig(config));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "更新预警配置")
-    public StockAlertConfig update(@PathVariable Long id, @RequestBody StockAlertConfig config) {
-        return stockAlertConfigService.updateConfig(id, config);
+    public Result<StockAlertConfig> update(@PathVariable Long id, @RequestBody StockAlertConfig config) {
+        return Result.ok(stockAlertConfigService.updateConfig(id, config));
     }
 
     @PostMapping("/{id}/activate")
     @Operation(summary = "激活预警配置")
-    public void activate(@PathVariable Long id) {
+    public Result<Void> activate(@PathVariable Long id) {
         stockAlertConfigService.activateConfig(id);
+        return Result.ok();
     }
 
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "停用预警配置")
-    public void deactivate(@PathVariable Long id) {
+    public Result<Void> deactivate(@PathVariable Long id) {
         stockAlertConfigService.deactivateConfig(id);
+        return Result.ok();
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除预警配置")
-    public void delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id) {
         stockAlertConfigService.removeById(id);
+        return Result.ok();
     }
 
     @GetMapping("/check")
     @Operation(summary = "检查库存预警")
-    public List<StockAlertConfig> checkAlerts() {
-        return stockAlertConfigService.checkAlerts();
+    public Result<List<StockAlertConfig>> checkAlerts() {
+        return Result.ok(stockAlertConfigService.checkAlerts());
     }
 
     @GetMapping("/statistics")
     @Operation(summary = "预警配置统计")
-    public java.util.Map<String, Object> statistics() {
+    public Result<java.util.Map<String, Object>> statistics() {
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         stats.put("totalConfigs", stockAlertConfigService.lambdaQuery()
                 .eq(StockAlertConfig::getDeleted, 0)
                 .count());
         stats.put("activeConfigs", stockAlertConfigService.countActive(1L));
-        return stats;
+        return Result.ok(stats);
     }
 }

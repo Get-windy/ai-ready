@@ -1,6 +1,7 @@
 package cn.aiedge.mq.controller;
 
 import cn.aiedge.mq.model.MessageEntity;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.mq.producer.MessageProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RequestMapping("/api/mq")
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "mq.rabbit", name = "enabled", havingValue = "true")
+@SaCheckLogin
 public class MessageQueueController {
 
     private final MessageProducer messageProducer;

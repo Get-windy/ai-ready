@@ -5,6 +5,7 @@ import cn.aiedge.finance.dto.PaymentQueryRequest;
 import cn.aiedge.finance.dto.PaymentVO;
 import cn.aiedge.finance.service.IPaymentService;
 import cn.aiedge.common.result.ApiResponse;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.aiedge.common.result.PageResult;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/finance/payment")
 @Tag(name = "付款记录管理", description = "付款记录相关操作接口")
+@SaCheckLogin
 public class PaymentController {
 
     private final IPaymentService paymentService;

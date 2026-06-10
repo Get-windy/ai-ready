@@ -14,7 +14,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="fetchData">
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -70,20 +70,36 @@
         :show-export="false"
         :show-batch-delete="false"
         add-text="新增岗位"
+        add-permission="position:create"
+        edit-permission="position:edit"
+        delete-permission="position:delete"
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDelete"
         @batch-delete="handleBatchDelete"
-        @refresh="fetchData"
+        @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+        @cell-dblclick="handleView"
       >
         <template #toolbar-actions>
           <a-button @click="handleCategoryManage">
             <template #icon><AppstoreOutlined /></template>
             分类管理
           </a-button>
+        </template>
+
+        <template #empty>
+          <a-empty v-if="!hasError" description="暂无数据" />
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchData)()">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
         </template>
 
         <template #levelCell="{ record }">
@@ -103,6 +119,7 @@
             <a-button
               type="link"
               size="small"
+              v-permission="'position:edit'"
               @click="handleEdit(record)"
             >
               编辑
@@ -110,6 +127,7 @@
             <a-button
               type="link"
               size="small"
+              v-permission="'position:edit'"
               @click="handleAssignDepartment(record)"
             >
               部门关联
@@ -123,13 +141,14 @@
               </a-button>
               <template #overlay>
                 <a-menu>
-                  <a-menu-item @click="handleToggleStatus(record)">
+                  <a-menu-item @click="handleToggleStatus(record)" v-permission="'position:edit'">
                     <StopOutlined /> {{ record.status === 0 ? '停用' : '启用' }}
                   </a-menu-item>
                   <a-menu-divider />
                   <a-menu-item
                     danger
                     @click="handleDelete(record)"
+                    v-permission="'position:delete'"
                   >
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -141,13 +160,14 @@
       </VxeTableList>
 
       <!-- 岗位表单弹窗 -->
-      <a-modal
-        v-model:open="modalVisible"
+      <FullScreenDetail
+        :visible="modalVisible"
         :title="modalTitle"
-        :confirm-loading="submittingLoading"
-        width="600px"
-        @ok="handleModalOk"
-        @cancel="handleModalCancel"
+        :save-loading="submittingLoading"
+        :show-save-and-new="!isEdit"
+        @save="handleModalOk"
+        @close="handleFormClose"
+        @save-and-new="handleFormSaveAndNew"
       >
         <a-form
           ref="formRef"
@@ -182,6 +202,7 @@
             <a-select
               v-model:value="formState.categoryId"
               placeholder="请选择岗位分类"
+              size="small"
               allow-clear
             >
               <a-select-option
@@ -200,22 +221,13 @@
             <a-select
               v-model:value="formState.level"
               placeholder="请选择岗位级别"
+              size="small"
             >
-              <a-select-option :value="1">
-                初级
-              </a-select-option>
-              <a-select-option :value="2">
-                中级
-              </a-select-option>
-              <a-select-option :value="3">
-                高级
-              </a-select-option>
-              <a-select-option :value="4">
-                专家
-              </a-select-option>
-              <a-select-option :value="5">
-                首席
-              </a-select-option>
+              <a-select-option
+                v-for="opt in levelOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >{{ opt.label }}</a-select-option>
             </a-select>
           </a-form-item>
           <a-form-item
@@ -253,7 +265,7 @@
             </a-radio-group>
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 分类管理弹窗 -->
       <a-modal
@@ -313,12 +325,14 @@
       </a-modal>
 
       <!-- 分类表单弹窗 -->
-      <a-modal
-        v-model:open="categoryFormModalVisible"
+      <FullScreenDetail
+        :visible="categoryFormModalVisible"
         :title="categoryFormTitle"
-        :confirm-loading="categoryFormModalLoading"
-        @ok="handleCategoryFormModalOk"
-        @cancel="handleCategoryFormModalCancel"
+        :save-loading="categoryFormModalLoading"
+        :show-save-and-new="!isCategoryEdit"
+        @save="handleCategoryFormModalOk"
+        @close="handleCategoryFormClose"
+        @save-and-new="handleCategoryFormSaveAndNew"
       >
         <a-form
           ref="categoryFormRef"
@@ -381,15 +395,15 @@
             </a-radio-group>
           </a-form-item>
         </a-form>
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 部门关联弹窗 -->
-      <a-modal
-        v-model:open="departmentModalVisible"
+      <FullScreenDetail
+        :visible="departmentModalVisible"
         title="岗位与部门关联"
-        :confirm-loading="departmentModalLoading"
-        width="600px"
-        @ok="handleDepartmentModalOk"
+        :save-loading="departmentModalLoading"
+        @save="handleDepartmentModalOk"
+        @close="departmentModalVisible = false"
       >
         <div class="department-modal-content">
           <p>当前岗位: <strong>{{ currentPositionName }}</strong></p>
@@ -420,13 +434,14 @@
             show-icon
           />
         </div>
-      </a-modal>
+      </FullScreenDetail>
     </div>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -438,14 +453,32 @@ import {
   SolutionOutlined,
   CheckCircleOutlined,
   SyncOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
+import { dictItemApi } from '@/api/dict'
+
+// ── 岗位级别选项（从API加载） ──────────────────────────
+const levelOptions = ref<{ label: string; value: number }[]>([])
+
+async function loadLevelOptions() {
+  try {
+    const res = await dictItemApi.getByDictCode('POSITION_LEVEL')
+    if (res.data) {
+      levelOptions.value = res.data
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+    }
+  } catch (err) {
+    console.warn('[岗位管理] 加载岗位级别失败', err)
+  }
+}
 
 // 搜索表单
 const userStore = useUserStore()
@@ -465,14 +498,23 @@ const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // ── 统计数据 ────────────────────────────────────────────
 const activeCount = computed(() => tableData.value.filter(r => r.status === 0).length)
 const disabledCount = computed(() => tableData.value.filter(r => r.status === 1).length)
-
-
 
 // 分页配置
 const pagination = reactive({
@@ -527,6 +569,28 @@ const formState = reactive<Partial<PositionInfo>>({
   status: 0
 })
 
+// ── 表单脏检测 ──────────────────────────────────────────
+const initialFormSnapshot = ref('')
+let watchReady = false
+const formDirty = computed(() => {
+  if (!watchReady) return false
+  return JSON.stringify(formState) !== initialFormSnapshot.value
+})
+function saveFormSnapshot() { initialFormSnapshot.value = JSON.stringify(formState) }
+
+// ── 离开守卫 ────────────────────────────────────────────
+onBeforeRouteLeave((to, from, next) => {
+  if (!formDirty.value) { next(); return }
+  Modal.confirm({
+    title: '确认离开',
+    content: '您有未保存的修改，确定要离开吗？',
+    okText: '离开',
+    cancelText: '继续编辑',
+    onOk: () => next(),
+    onCancel: () => next(false),
+  })
+})
+
 const formRules = {
   positionName: { required: true, message: '请输入岗位名称', trigger: 'blur' },
   positionCode: { required: true, message: '请输入岗位编码', trigger: 'blur' },
@@ -562,6 +626,15 @@ const categoryFormState = reactive<Partial<PositionCategory>>({
   status: 0
 })
 
+// ── 分类表单脏检测 ──────────────────────────────────────
+const initialCategoryFormSnapshot = ref('')
+let watchReadyCategory = false
+const categoryFormDirty = computed(() => {
+  if (!watchReadyCategory) return false
+  return JSON.stringify(categoryFormState) !== initialCategoryFormSnapshot.value
+})
+function saveCategoryFormSnapshot() { initialCategoryFormSnapshot.value = JSON.stringify(categoryFormState) }
+
 const categoryFormRules = {
   categoryName: { required: true, message: '请输入分类名称', trigger: 'blur' },
   categoryCode: { required: true, message: '请输入分类编码', trigger: 'blur' },
@@ -578,6 +651,7 @@ const currentPositionName = ref('')
 // 数据加载
 const fetchData = async () => {
   loading.value = true
+  hasError.value = false
   try {
     const res = await positionApi.getPage({
       tenantId: userStore.tenantId,
@@ -590,6 +664,7 @@ const fetchData = async () => {
       pagination.total = res.data.total
     }
   } catch (error) {
+    hasError.value = true
     tableData.value = []
     pagination.total = 0
     console.warn('[岗位管理] 加载岗位数据失败')
@@ -683,6 +758,7 @@ const handleAdd = () => {
     status: 0
   })
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 编辑岗位
@@ -690,6 +766,7 @@ const handleEdit = (record: PositionInfo) => {
   isEdit.value = true
   Object.assign(formState, record)
   modalVisible.value = true
+  nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 提交表单
@@ -717,9 +794,23 @@ const handleModalOk = async () => {
   }
 }
 
-const handleModalCancel = () => {
-  modalVisible.value = false
-  formRef.value?.resetFields()
+const handleFormClose = () => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { modalVisible.value = false; formRef.value?.resetFields() },
+    })
+  } else {
+    modalVisible.value = false
+    formRef.value?.resetFields()
+  }
+}
+
+const handleFormSaveAndNew = () => {
+  handleModalOk()
 }
 
 // 删除岗位
@@ -807,12 +898,14 @@ const handleAddCategory = () => {
     status: 0
   })
   categoryFormModalVisible.value = true
+  nextTick(() => { saveCategoryFormSnapshot(); watchReadyCategory = true })
 }
 
 const handleEditCategory = (record: PositionCategory) => {
   isCategoryEdit.value = true
   Object.assign(categoryFormState, record)
   categoryFormModalVisible.value = true
+  nextTick(() => { saveCategoryFormSnapshot(); watchReadyCategory = true })
 }
 
 const handleCategoryFormModalOk = async () => {
@@ -840,9 +933,23 @@ const handleCategoryFormModalOk = async () => {
   }
 }
 
-const handleCategoryFormModalCancel = () => {
-  categoryFormModalVisible.value = false
-  categoryFormRef.value?.resetFields()
+const handleCategoryFormClose = () => {
+  if (categoryFormDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '您有未保存的修改，确定要关闭吗？',
+      okText: '确定',
+      cancelText: '取消',
+      onOk: () => { categoryFormModalVisible.value = false; categoryFormRef.value?.resetFields() },
+    })
+  } else {
+    categoryFormModalVisible.value = false
+    categoryFormRef.value?.resetFields()
+  }
+}
+
+const handleCategoryFormSaveAndNew = () => {
+  handleCategoryFormModalOk()
 }
 
 const handleDeleteCategory = (record: PositionCategory) => {
@@ -888,20 +995,38 @@ const handleDepartmentModalOk = async () => {
 }
 
 // 辅助函数
+const levelColorPalette = ['green', 'blue', 'orange', 'red', 'purple']
+
 const getLevelColor = (level: number) => {
-  const colors: Record<number, string> = { 1: 'green', 2: 'blue', 3: 'orange', 4: 'red', 5: 'purple' }
-  return colors[level] || 'default'
+  const idx = levelOptions.value.findIndex(o => o.value === level)
+  return idx >= 0 ? levelColorPalette[idx % levelColorPalette.length] : 'default'
 }
 
 const getLevelName = (level: number) => {
-  const names: Record<number, string> = { 1: '初级', 2: '中级', 3: '高级', 4: '专家', 5: '首席' }
-  return names[level] || '未知'
+  const found = levelOptions.value.find(o => o.value === level)
+  return found ? found.label : '未知'
+}
+
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (e.key === 'F5') {
+    e.preventDefault()
+    debounceClick('refresh', fetchData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+    e.preventDefault()
+    handleAdd()
+  }
 }
 
 onMounted(() => {
   fetchData()
   fetchCategoryList()
   fetchDepartmentList()
+  loadLevelOptions()
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     fetchData()
@@ -913,6 +1038,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
@@ -965,6 +1091,11 @@ defineExpose({ handleQuery: fetchData })
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  min-height: 0;
+}
+
+.position-management > :deep(.vxe-table-list-container) {
+  flex: 1;
   min-height: 0;
 }
 
@@ -1021,13 +1152,28 @@ defineExpose({ handleQuery: fetchData })
   font-size: 14px;
 }
 
-
-
-
-
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── FullScreenDetail 内部紧凑样式 ────────────────────── */
+:deep(.fsd-body .ant-form-item) { margin-bottom: 8px; }
+:deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
+:deep(.fsd-body .ant-input), :deep(.fsd-body .ant-input-number), :deep(.fsd-body .ant-select), :deep(.fsd-body .ant-picker), :deep(.fsd-body .ant-cascader-picker) { font-size: 12px; }
+:deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
+:deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
+:deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

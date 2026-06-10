@@ -1,6 +1,7 @@
 package cn.aiedge.storage.chunk;
 
 import cn.aiedge.storage.model.StorageFile;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import java.util.Map;
 @RequestMapping("/api/storage/chunk")
 @RequiredArgsConstructor
 @Tag(name = "分片上传", description = "大文件分片上传接口")
+@SaCheckLogin
 public class ChunkUploadController {
 
     private final ChunkUploadService chunkUploadService;

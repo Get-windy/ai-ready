@@ -1,5 +1,6 @@
 package cn.aiedge.erp.fixedasset.controller;
 
+import cn.aiedge.common.permission.RequiresPermission;
 import cn.aiedge.erp.fixedasset.dto.ApiResponse;
 import cn.aiedge.erp.fixedasset.dto.FixedAssetInventoryDTO;
 import cn.aiedge.erp.fixedasset.service.FixedAssetInventoryService;
@@ -26,6 +27,7 @@ public class FixedAssetInventoryController {
 
     @Operation(summary = "创建盘点记录")
     @PostMapping
+    @RequiresPermission("erp:fixed-asset:inventory:create")
     public ApiResponse<FixedAssetInventoryDTO> create(@Valid @RequestBody FixedAssetInventoryDTO dto) {
         FixedAssetInventoryDTO result = inventoryService.create(dto);
         return ApiResponse.success("盘点记录创建成功", result);
@@ -33,6 +35,7 @@ public class FixedAssetInventoryController {
 
     @Operation(summary = "更新盘点记录")
     @PutMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:inventory:update")
     public ApiResponse<FixedAssetInventoryDTO> update(
             @Parameter(description = "盘点ID") @PathVariable Long id,
             @Valid @RequestBody FixedAssetInventoryDTO dto) {
@@ -42,6 +45,7 @@ public class FixedAssetInventoryController {
 
     @Operation(summary = "分页查询盘点记录")
     @GetMapping("/page")
+    @RequiresPermission("erp:fixed-asset:inventory:list")
     public ApiResponse<Page<FixedAssetInventoryDTO>> getPage(
             @Parameter(description = "盘点单号") @RequestParam(required = false) String inventoryNo,
             @Parameter(description = "状态") @RequestParam(required = false) String status,
@@ -55,6 +59,7 @@ public class FixedAssetInventoryController {
 
     @Operation(summary = "获取盘点记录详情")
     @GetMapping("/{id}")
+    @RequiresPermission("erp:fixed-asset:inventory:query")
     public ApiResponse<FixedAssetInventoryDTO> getById(
             @Parameter(description = "盘点ID") @PathVariable Long id) {
         FixedAssetInventoryDTO result = inventoryService.getById(id);

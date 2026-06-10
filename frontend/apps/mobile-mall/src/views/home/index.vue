@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showLoadingToast, closeToast, showToast } from 'vant'
-import { api } from '@/api'
+import { api, type BannerItem, type CategoryItem, type ProductItem } from '@/api'
 import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryNav from '@/components/home/CategoryNav.vue'
 import BannerSwiper from '@/components/home/BannerSwiper.vue'
@@ -10,10 +10,10 @@ import ProductGrid from '@/components/product/ProductGrid.vue'
 
 const router = useRouter()
 
-const banners = ref<any[]>([])
-const categories = ref<any[]>([])
-const hotProducts = ref<any[]>([])
-const recommendations = ref<any[]>([])
+const banners = ref<BannerItem[]>([])
+const categories = ref<CategoryItem[]>([])
+const hotProducts = ref<ProductItem[]>([])
+const recommendations = ref<ProductItem[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
@@ -32,6 +32,7 @@ onMounted(async () => {
     hotProducts.value = hotRes?.data || (Array.isArray(hotRes) ? hotRes : [])
     recommendations.value = recommendRes?.data || (Array.isArray(recommendRes) ? recommendRes : [])
   } catch (err: any) {
+    console.warn('[首页] 加载数据失败', err)
     banners.value = []
     categories.value = []
     hotProducts.value = []

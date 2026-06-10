@@ -51,12 +51,13 @@
       @view="handleView"
       @delete="handleDelete"
       @batch-delete="handleBatchDelete"
-      @refresh="fetchData"
+      @refresh="debounceClick('refresh', fetchData)"
       @search="handleSearch"
       @page-change="handlePageChange"
       @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @export="handleExport"
+      @cell-dblclick="handleView"
       @selection-change="handleSelectionChange"
     >
     <template #toolbar-actions>
@@ -66,14 +67,25 @@
     </template>
 
     <template #empty>
-      <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配客户">
-        <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-        <a-button @click="handleResetFilters">清除筛选</a-button>
-      </a-empty>
-      <a-empty v-else description="暂无客户数据">
-        <template #image><InboxOutlined style="font-size: 48px; color: #d9d9d9" /></template>
-        <a-button type="primary" @click="handleAdd">新建客户</a-button>
-      </a-empty>
+      <div class="table-empty">
+        <template v-if="hasError">
+          <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+          <p class="table-empty-text">加载失败</p>
+          <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <ReloadOutlined /> 重试
+          </a-button>
+        </template>
+        <template v-else>
+          <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+          <InboxOutlined v-else class="table-empty-icon" />
+          <p v-if="hasActiveFilters" class="table-empty-text">
+            当前筛选条件下无匹配客户，<a @click="handleResetFilters">清除筛选</a>
+          </p>
+          <p v-else class="table-empty-text">
+            暂无客户数据，点击「新建客户」开始创建
+          </p>
+        </template>
+      </div>
     </template>
 
     <template #action="{ record }">
@@ -115,36 +127,36 @@
       <a-row>
         <a-col :span="12">
           <a-form-item label="客户名称" name="customerName" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-input v-model:value="formData.customerName" placeholder="请输入客户名称" />
+            <a-input v-model:value="formData.customerName" placeholder="请输入客户名称" size="small" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="客户编码" name="customerCode" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-input v-model:value="formData.customerCode" placeholder="自动生成或手动输入" />
+            <a-input v-model:value="formData.customerCode" placeholder="自动生成或手动输入" size="small" />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row>
         <a-col :span="12">
           <a-form-item label="联系人" name="contactName" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-input v-model:value="formData.contactName" placeholder="请输入联系人姓名" />
+            <a-input v-model:value="formData.contactName" placeholder="请输入联系人姓名" size="small" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="联系电话" name="contactPhone" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" />
+            <a-input v-model:value="formData.contactPhone" placeholder="请输入联系电话" size="small" />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row>
         <a-col :span="12">
           <a-form-item label="电子邮箱" name="email" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-input v-model:value="formData.email" placeholder="请输入电子邮箱" />
+            <a-input v-model:value="formData.email" placeholder="请输入电子邮箱" size="small" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="客户等级" name="level" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-select v-model:value="formData.level" placeholder="请选择客户等级">
+            <a-select v-model:value="formData.level" placeholder="请选择客户等级" size="small">
               <a-select-option :value="1">A级（重点客户）</a-select-option>
               <a-select-option :value="2">B级（普通客户）</a-select-option>
               <a-select-option :value="3">C级（潜在客户）</a-select-option>
@@ -153,7 +165,7 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="客户类型" name="customerType" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-select v-model:value="formData.customerType" placeholder="请选择客户类型">
+            <a-select v-model:value="formData.customerType" placeholder="请选择客户类型" size="small">
               <a-select-option value="企业">企业</a-select-option>
               <a-select-option value="个人">个人</a-select-option>
               <a-select-option value="政府">政府</a-select-option>
@@ -165,7 +177,7 @@
       <a-row>
         <a-col :span="12">
           <a-form-item label="状态" name="status" :label-col="{ span: 10 }" :wrapper-col="{ span: 14 }">
-            <a-select v-model:value="formData.status" placeholder="请选择状态">
+            <a-select v-model:value="formData.status" placeholder="请选择状态" size="small">
               <a-select-option :value="1">正常</a-select-option>
               <a-select-option :value="0">停用</a-select-option>
             </a-select>
@@ -190,11 +202,21 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { EyeOutlined, EditOutlined, DeleteOutlined, InboxOutlined, SearchOutlined, TeamOutlined, CheckCircleOutlined, StarOutlined, StopOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, EditOutlined, DeleteOutlined, InboxOutlined, SearchOutlined, TeamOutlined, CheckCircleOutlined, StarOutlined, StopOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { customerApi } from '@/api/customer'
 import { useUserStore } from '@/stores/user'
 import { useExport } from '@/composables/useExport'
+
+// ── 防抖工具 ──────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const { execute: executeExport } = useExport()
 
@@ -202,6 +224,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const tableRef = ref()
 const loading = ref(false)
+const hasError = ref(false)
 const dataSource = ref<any[]>([])
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -225,7 +248,7 @@ const vxeColumns = computed(() => [
     { title: '联系人', field: 'contactPerson', width: 100 },
     { title: '联系电话', field: 'phone', width: 120 },
     { title: '等级', field: 'level', width: 80, formatter: ({ cellValue }) => getLevelText(cellValue) },
-    { title: '状态', field: 'status', width: 80, formatter: ({ cellValue }) => cellValue === 1 ? '正常' : '停用' },
+    { title: '状态', field: 'status', width: 80, formatter: ({ cellValue }) => `<span class="ant-tag ant-tag-${cellValue === 1 ? 'green' : 'red'}">${cellValue === 1 ? '正常' : '停用'}</span>` },
     { title: '创建时间', field: 'createTime', width: 160 },
     { title: '操作', field: 'action', width: 120, fixed: 'right', type: 'action' }
   ])
@@ -307,7 +330,8 @@ async function fetchData() {
     dataSource.value = pageData?.records || []
     pagination.total = pageData?.total || 0
     lastUpdated.value = new Date().toISOString()
-  } catch (err) { console.warn('[销售客户] 获取客户列表', err); message.error('获取客户列表失败') }
+    hasError.value = false
+  } catch (err) { console.warn('[销售客户] 获取客户列表', err); hasError.value = true }
   finally { loading.value = false }
 }
 
@@ -345,6 +369,10 @@ function handleAdd() {
   formData.status = 1
   formData.remark = ''
   formModalVisible.value = true
+}
+
+function handleParentCreate() {
+  handleAdd()
 }
 
 async function handleDelete(record: any) {
@@ -436,14 +464,17 @@ onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('sale:refresh', fetchData)
+  window.addEventListener('sale:create', handleParentCreate)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('sale:refresh', fetchData)
+  window.removeEventListener('sale:create', handleParentCreate)
 })
 
 function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleAdd() }
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -456,6 +487,29 @@ defineExpose({ handleQuery: fetchData })
   overflow: hidden;
   min-height: 0;
   padding: 16px;
+}
+
+.customers-page > :deep(.vxe-table-list-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 空状态 */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.table-empty-text {
+  color: #999;
+  margin-top: 12px;
 }
 
 /* 统计卡片 */
@@ -520,5 +574,21 @@ defineExpose({ handleQuery: fetchData })
   .customers-page {
     padding: 8px;
   }
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

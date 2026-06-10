@@ -1,6 +1,7 @@
 package cn.aiedge.erp.controller;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/erp/invoice")
 @Tag(name = "发票管理（临时）", description = "发票管理接口 - 暂未对接真实数据源")
+@SaCheckLogin
 public class InvoicePageController {
 
     @GetMapping("/page")

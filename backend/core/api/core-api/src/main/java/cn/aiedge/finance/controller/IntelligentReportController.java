@@ -9,6 +9,7 @@ import cn.aiedge.finance.dto.*;
 import cn.aiedge.finance.service.IIntelligentReportService;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/finance/intelligent-report")
 @Tag(name = "智能报表管理", description = "智能报表相关操作接口")
+@SaCheckLogin
 public class IntelligentReportController {
 
     private final IIntelligentReportService intelligentReportService;

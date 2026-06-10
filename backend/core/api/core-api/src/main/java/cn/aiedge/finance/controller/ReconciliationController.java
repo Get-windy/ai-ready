@@ -7,6 +7,7 @@ import cn.aiedge.finance.dto.ReconciliationVO;
 import cn.aiedge.finance.service.IReconciliationService;
 import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.common.result.PageResult;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/finance/reconciliation")
 @Tag(name = "对账记录管理", description = "对账记录相关操作接口")
+@SaCheckLogin
 public class ReconciliationController {
 
     private final IReconciliationService reconciliationService;

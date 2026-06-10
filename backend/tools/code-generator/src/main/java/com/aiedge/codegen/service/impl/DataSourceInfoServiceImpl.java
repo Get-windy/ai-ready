@@ -5,6 +5,7 @@ import com.aiedge.codegen.mapper.DataSourceInfoMapper;
 import com.aiedge.codegen.service.DataSourceInfoService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -18,8 +19,9 @@ import java.util.List;
  * 
  * @author AI-Ready
  */
+@Slf4j
 @Service
-public class DataSourceInfoServiceImpl extends ServiceImpl<DataSourceInfoMapper, DataSourceInfo> 
+public class DataSourceInfoServiceImpl extends ServiceImpl<DataSourceInfoMapper, DataSourceInfo>
     implements DataSourceInfoService {
     
     @Override
@@ -49,7 +51,7 @@ public class DataSourceInfoServiceImpl extends ServiceImpl<DataSourceInfoMapper,
             connection.close();
             return true;
         } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            log.error("测试数据库连接失败, url={}", dataSourceInfo.getJdbcUrl(), e);
             return false;
         }
     }

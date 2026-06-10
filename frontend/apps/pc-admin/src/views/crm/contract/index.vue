@@ -8,7 +8,7 @@
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" @click="handleRefresh">
+        <a-button size="small" @click="debounceClick('refresh', handleRefresh)">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
@@ -86,6 +86,7 @@
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
+        @cell-dblclick="handleView"
         @export="handleExport"
       >
         <template #toolbar-actions>
@@ -97,14 +98,24 @@
 
         <template #empty>
           <div class="table-empty">
-            <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
-            <InboxOutlined v-else class="table-empty-icon" />
-            <p v-if="hasActiveFilters" class="table-empty-text">
-              没有符合条件的合同，<a @click="handleResetFilters">清除筛选</a>
-            </p>
-            <p v-else class="table-empty-text">
-              暂无合同数据，点击右上角「新建合同」开始创建
-            </p>
+            <template v-if="hasError">
+              <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+              <p class="table-empty-text">数据加载失败，请重试</p>
+              <a-button type="primary" size="small" @click="fetchData">
+                <template #icon><ReloadOutlined /></template>
+                重试
+              </a-button>
+            </template>
+            <template v-else>
+              <SearchOutlined v-if="hasActiveFilters" class="table-empty-icon" />
+              <InboxOutlined v-else class="table-empty-icon" />
+              <p v-if="hasActiveFilters" class="table-empty-text">
+                没有符合条件的合同，<a @click="handleResetFilters">清除筛选</a>
+              </p>
+              <p v-else class="table-empty-text">
+                暂无合同数据，点击右上角「新建合同」开始创建
+              </p>
+            </template>
           </div>
         </template>
 
@@ -115,6 +126,7 @@
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
+            <PrintButton :record="record" :business-id="record.id" business-type="contract" button-type="link" button-size="small" tooltip="打印" />
             <a-tooltip v-if="record.status === 0" title="编辑">
               <a-button type="link" size="small" @click="handleEdit(record)">
                 <template #icon><EditOutlined /></template>
@@ -147,33 +159,37 @@
             </a-dropdown>
           </a-space>
         </template>
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
+          </template>
       </VxeTableList>
     </ErrorBoundary>
 
     <!-- 合同表单弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <FullScreenDetail
+      :visible="modalVisible"
       :title="modalTitle"
-      width="800px"
-      :confirm-loading="submitLoading"
-      @ok="handleSubmit"
-      @cancel="handleModalCancel"
+      :save-loading="submitLoading"
+      :show-save-and-new="!isEdit"
+      @save="handleSubmit"
+      @close="handleFormClose"
+      @save-and-new="handleFormSaveAndNew"
     >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="合同编号" name="contractNo">
-              <a-input v-model:value="formData.contractNo" placeholder="自动生成" disabled />
+              <a-input v-model:value="formData.contractNo" placeholder="自动生成" disabled size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="合同名称" name="contractName">
-              <a-input v-model:value="formData.contractName" placeholder="请输入合同名称" />
+              <a-input v-model:value="formData.contractName" placeholder="请输入合同名称" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="合同类型" name="contractType">
-              <a-select v-model:value="formData.contractType" placeholder="请选择合同类型">
+              <a-select v-model:value="formData.contractType" placeholder="请选择合同类型" size="small">
                 <a-select-option value="sales">销售合同</a-select-option>
                 <a-select-option value="purchase">采购合同</a-select-option>
                 <a-select-option value="service">服务合同</a-select-option>
@@ -183,29 +199,29 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="客户名称" name="customerId">
-              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption">
+              <a-select v-model:value="formData.customerId" placeholder="请选择客户" show-search :filter-option="filterOption" size="small">
                 <a-select-option v-for="c in customerList" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="开始日期" name="startDate">
-              <a-date-picker v-model:value="formData.startDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.startDate" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="结束日期" name="endDate">
-              <a-date-picker v-model:value="formData.endDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.endDate" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="合同金额" name="contractAmount">
-              <a-input-number v-model:value="formData.contractAmount" :min="0" :precision="2" style="width: 100%" />
+              <a-input-number v-model:value="formData.contractAmount" :min="0" :precision="2" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="付款方式" name="paymentMethod">
-              <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式">
+              <a-select v-model:value="formData.paymentMethod" placeholder="请选择付款方式" size="small">
                 <a-select-option value="once">一次性付款</a-select-option>
                 <a-select-option value="installment">分期付款</a-select-option>
                 <a-select-option value="prepaid">预付款+尾款</a-select-option>
@@ -215,80 +231,94 @@
           </a-col>
           <a-col :span="12">
             <a-form-item label="签订日期" name="signDate">
-              <a-date-picker v-model:value="formData.signDate" style="width: 100%" />
+              <a-date-picker v-model:value="formData.signDate" style="width: 100%" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="签订人" name="signPerson">
-              <a-input v-model:value="formData.signPerson" placeholder="请输入签订人" />
+              <a-input v-model:value="formData.signPerson" placeholder="请输入签订人" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="24">
             <a-form-item label="合同条款" name="terms" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formData.terms" placeholder="请输入合同主要条款" :rows="3" />
+              <a-textarea v-model:value="formData.terms" placeholder="请输入合同主要条款" :rows="3" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="24">
             <a-form-item label="备注" name="remark" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
-              <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
+              <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" size="small" />
             </a-form-item>
           </a-col>
         </a-row>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 详情弹窗 -->
-    <a-drawer v-model:open="detailVisible" title="合同详情" placement="right" width="80vw" :footer="null">
-      <a-descriptions :column="2" bordered size="small">
-        <a-descriptions-item label="合同编号">
-          <span class="contract-no">{{ contractDetail.contractNo }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="合同名称">{{ contractDetail.contractName }}</a-descriptions-item>
-        <a-descriptions-item label="合同类型">{{ contractDetail.contractTypeLabel }}</a-descriptions-item>
-        <a-descriptions-item label="客户名称">{{ contractDetail.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="开始日期">{{ contractDetail.startDate }}</a-descriptions-item>
-        <a-descriptions-item label="结束日期">{{ contractDetail.endDate }}</a-descriptions-item>
-        <a-descriptions-item label="合同金额">
-          <span class="amount-cell">¥{{ formatAmount(contractDetail.contractAmount) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="付款方式">{{ contractDetail.paymentMethodLabel }}</a-descriptions-item>
-        <a-descriptions-item label="签订日期">{{ contractDetail.signDate }}</a-descriptions-item>
-        <a-descriptions-item label="签订人">{{ contractDetail.signPerson }}</a-descriptions-item>
-        <a-descriptions-item label="合同状态">
-          <a-tag :color="getStatusColor(contractDetail.status)">{{ getStatusText(contractDetail.status) }}</a-tag>
-        </a-descriptions-item>
-        <a-descriptions-item label="创建时间">{{ contractDetail.createTime }}</a-descriptions-item>
-        <a-descriptions-item label="合同条款" :span="2">{{ contractDetail.terms || '无' }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ contractDetail.remark || '无' }}</a-descriptions-item>
-      </a-descriptions>
+    <a-drawer v-model:open="detailVisible" title="合同详情" placement="right" width="80vw" :footer="null" @close="handleDetailClose">
+      <a-spin :spinning="detailLoading">
+        <template v-if="detailError">
+          <div class="table-empty">
+            <WarningOutlined class="table-empty-icon" style="color: #faad14" />
+            <p class="table-empty-text">详情数据加载失败</p>
+            <a-button type="primary" size="small" @click="handleDetailRefresh">
+              <template #icon><ReloadOutlined /></template>
+              重试
+            </a-button>
+          </div>
+        </template>
+        <template v-else-if="detailData.id">
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item label="合同编号">
+              <span class="contract-no">{{ detailData.contractNo }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="合同名称">{{ detailData.contractName }}</a-descriptions-item>
+            <a-descriptions-item label="合同类型">{{ detailData.contractTypeLabel }}</a-descriptions-item>
+            <a-descriptions-item label="客户名称">{{ detailData.customerName }}</a-descriptions-item>
+            <a-descriptions-item label="开始日期">{{ detailData.startDate }}</a-descriptions-item>
+            <a-descriptions-item label="结束日期">{{ detailData.endDate }}</a-descriptions-item>
+            <a-descriptions-item label="合同金额">
+              <span class="amount-cell">¥{{ formatAmount(detailData.contractAmount) }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="付款方式">{{ detailData.paymentMethodLabel }}</a-descriptions-item>
+            <a-descriptions-item label="签订日期">{{ detailData.signDate }}</a-descriptions-item>
+            <a-descriptions-item label="签订人">{{ detailData.signPerson }}</a-descriptions-item>
+            <a-descriptions-item label="合同状态">
+              <a-tag :color="getStatusColor(detailData.status)">{{ getStatusText(detailData.status) }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ detailData.createTime }}</a-descriptions-item>
+            <a-descriptions-item label="合同条款" :span="2">{{ detailData.terms || '无' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="2">{{ detailData.remark || '无' }}</a-descriptions-item>
+          </a-descriptions>
 
-      <a-divider>审批流程</a-divider>
-      <a-steps :current="contractDetail.currentStep" status="process" size="small">
-        <a-step title="提交申请" :description="contractDetail.creator" />
-        <a-step title="部门主管审批" :description="contractDetail.departmentApprover" />
-        <a-step title="财务审批" :description="contractDetail.financeApprover" />
-        <a-step title="总经理审批" :description="contractDetail.generalApprover" />
-      </a-steps>
+          <a-divider>审批流程</a-divider>
+          <a-steps :current="detailData.currentStep" status="process" size="small">
+            <a-step title="提交申请" :description="detailData.creator" />
+            <a-step title="部门主管审批" :description="detailData.departmentApprover" />
+            <a-step title="财务审批" :description="detailData.financeApprover" />
+            <a-step title="总经理审批" :description="detailData.generalApprover" />
+          </a-steps>
 
-      <div class="detail-footer">
-        <a-space>
-          <a-button type="primary" @click="handleDownload"><DownloadOutlined /> 下载合同</a-button>
-          <a-button v-if="contractDetail.status >= 5" @click="handleRenewApply">续签申请</a-button>
-        </a-space>
-      </div>
+          <div class="detail-footer">
+            <a-space>
+              <a-button type="primary" @click="handleDownload"><DownloadOutlined /> 下载合同</a-button>
+              <a-button v-if="detailData.status >= 5" @click="handleRenewApply">续签申请</a-button>
+            </a-space>
+          </div>
+        </template>
+      </a-spin>
     </a-drawer>
 
     <!-- 签订弹窗 -->
     <a-modal v-model:open="signModalVisible" title="合同签订" width="500px" :confirm-loading="signLoading" @ok="handleSignSubmit" @cancel="signModalVisible = false">
       <a-form :model="signForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="合同名称">
-          <a-input :value="signForm.contractName" disabled />
+          <a-input :value="signForm.contractName" disabled size="small" />
         </a-form-item>
         <a-form-item label="签订日期" required>
-          <a-date-picker v-model:value="signForm.signDate" style="width: 100%" placeholder="请选择签订日期" />
+          <a-date-picker v-model:value="signForm.signDate" style="width: 100%" placeholder="请选择签订日期" size="small" />
         </a-form-item>
         <a-form-item label="签订人" required>
-          <a-input v-model:value="signForm.signPerson" placeholder="请输入签订人姓名" />
+          <a-input v-model:value="signForm.signPerson" placeholder="请输入签订人姓名" size="small" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -296,12 +326,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import { PageContainer, FullScreenDetail } from '@/components'
 import { contractApi } from '@/api/crm'
 import { customerApi } from '@/api/customer'
 import { exportCsv } from '@/utils/exportCsv'
@@ -318,9 +349,21 @@ import {
   DownloadOutlined,
   HistoryOutlined,
   FileTextOutlined,
+  WarningOutlined,
   StopOutlined,
   DollarOutlined
 } from '@ant-design/icons-vue'
+
+function handleError(err: any) { console.warn('[CRM合同]', err) }
+
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
 
 const tableRef = ref()
 const loading = ref(false)
@@ -331,6 +374,7 @@ const modalVisible = ref(false)
 const detailVisible = ref(false)
 const signModalVisible = ref(false)
 const modalTitle = ref('新建合同')
+const isEdit = ref(false)
 const formRef = ref<FormInstance>()
 const searchFilters = reactive<Record<string, any>>({})
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
@@ -347,7 +391,7 @@ const vxeColumns = computed(() => [
   { field: 'contractAmount', title: '合同金额', width: 130, align: 'right', formatter: ({ cellValue }: any) => `¥${formatAmount(cellValue)}` },
   { field: 'startDate', title: '开始日期', width: 100 },
   { field: 'endDate', title: '结束日期', width: 100 },
-  { field: 'status', title: '状态', width: 100, align: 'center', formatter: ({ cellValue }: any) => getStatusText(cellValue) },
+  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
   { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'action', title: '操作', width: 160, fixed: 'right', type: 'action' }
 ])
@@ -422,6 +466,18 @@ const formData = reactive({
   remark: '',
   attachments: []
 })
+
+// 表单脏数据追踪
+const initialFormSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!modalVisible.value) return false
+  const current = JSON.stringify(formData)
+  return current !== initialFormSnapshot.value
+})
+function saveFormSnapshot() {
+  initialFormSnapshot.value = JSON.stringify({ ...formData })
+}
+
 const formRules = {
   contractName: [{ required: true, message: '请输入合同名称' }],
   contractType: [{ required: true, message: '请选择合同类型' }],
@@ -443,7 +499,38 @@ async function fetchCustomerList() {
     console.warn('[合同管理] 加载客户列表失败')
   }
 }
-const contractDetail = ref<any>({})
+// 详情抽屉
+const detailData = ref<any>({})
+const detailLoading = ref(false)
+const detailError = ref(false)
+
+async function fetchDetail(id: number) {
+  detailLoading.value = true
+  detailError.value = false
+  try {
+    const res = await contractApi.getById(id)
+    detailData.value = res as any
+  } catch (err) {
+    detailError.value = true
+    console.warn('[CRM合同] 获取合同详情失败', err)
+    message.error('获取合同详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function handleDetailClose() {
+  detailVisible.value = false
+  detailData.value = {}
+  detailError.value = false
+}
+
+function handleDetailRefresh() {
+  if (detailData.value.id) {
+    fetchDetail(detailData.value.id)
+  }
+}
+
 const signForm = reactive({ contractId: undefined, contractName: '', signDate: undefined as any, signPerson: '' })
 
 const filterOption = (input: string, option: any) => option.name?.toLowerCase().includes(input.toLowerCase())
@@ -464,14 +551,27 @@ const stopAutoRefresh = () => {
   }
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', handleRefresh); return }
+  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
+}
+
+function handleParentCreate() { handleAdd() }
+
 onMounted(() => {
   fetchData()
   fetchCustomerList()
   startAutoRefresh()
+  window.addEventListener('crm:create', handleParentCreate)
+  window.addEventListener('crm:refresh', fetchData)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
+  window.removeEventListener('crm:create', handleParentCreate)
+  window.removeEventListener('crm:refresh', fetchData)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 function generateContractNo() {
@@ -516,29 +616,25 @@ const handleRefresh = () => {
 }
 
 function handleView(record: any) {
-  contractDetail.value = {
-    ...record,
-    currentStep: record.status >= 5 ? 4 : record.status >= 2 ? 3 : record.status >= 1 ? 2 : 1,
-    creator: '张三',
-    departmentApprover: record.status >= 1 ? '李四' : '',
-    financeApprover: record.status >= 2 ? '王五' : '',
-    generalApprover: record.status >= 3 ? '赵六' : '',
-    paymentMethodLabel: '分期付款'
-  }
+  fetchDetail(record.id)
   detailVisible.value = true
 }
 
 function handleEdit(record: any) {
   modalTitle.value = '编辑合同'
+  isEdit.value = true
   Object.assign(formData, record)
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleAdd() {
   modalTitle.value = '新建合同'
+  isEdit.value = false
   generateContractNo()
   Object.assign(formData, { id: undefined, contractName: '', contractType: undefined, customerId: undefined, startDate: undefined, endDate: undefined, contractAmount: undefined, paymentMethod: undefined, signDate: undefined, signPerson: '', terms: '', remark: '' })
   modalVisible.value = true
+  nextTick(() => saveFormSnapshot())
 }
 
 function handleResetFilters() {
@@ -635,16 +731,16 @@ function handleBatchApprove() {
 }
 
 function handleDownload() {
-  if (contractDetail.value.contractNo) {
-    message.info(`下载合同: ${contractDetail.value.contractNo}`)
+  if (detailData.value.contractNo) {
+    message.info(`下载合同: ${detailData.value.contractNo}`)
   }
 }
 
 function handleRenewApply() {
-  message.info(`续签申请: ${contractDetail.value.contractName}`)
+  message.info(`续签申请: ${detailData.value.contractName}`)
 }
 
-async function handleSubmit() {
+async function handleSubmit(saveAndNew = false) {
   try { await formRef.value?.validate() } catch (err) { console.warn('[CRM合同] 表单验证失败', err); return }
   submitLoading.value = true
   try {
@@ -655,8 +751,15 @@ async function handleSubmit() {
       await contractApi.create(data)
     }
     message.success('保存成功')
-    modalVisible.value = false
-    fetchData()
+    if (saveAndNew) {
+      isEdit.value = false
+      generateContractNo()
+      Object.assign(formData, { id: undefined, contractName: '', contractType: undefined, customerId: undefined, startDate: undefined, endDate: undefined, contractAmount: undefined, paymentMethod: undefined, signDate: undefined, signPerson: '', terms: '', remark: '' })
+      nextTick(() => saveFormSnapshot())
+    } else {
+      modalVisible.value = false
+      fetchData()
+    }
   } catch (err) {
     console.warn('[CRM合同] 保存失败', err)
     message.error('保存失败')
@@ -665,7 +768,21 @@ async function handleSubmit() {
   }
 }
 
-function handleModalCancel() { formRef.value?.resetFields(); modalVisible.value = false }
+function handleFormClose() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单内容尚未保存，确定要关闭吗？',
+      onOk: () => { modalVisible.value = false }
+    })
+    return
+  }
+  modalVisible.value = false
+}
+
+function handleFormSaveAndNew() {
+  handleSubmit(true)
+}
 
 function handleExport() {
   const headers = ['合同编号', '合同名称', '客户名称', '合同类型', '合同金额', '开始日期', '结束日期', '状态', '创建时间']
@@ -697,6 +814,20 @@ function handleFilterChange(filters: Record<string, any>) {
 function handleSelectionChange(rows: any[], ids: any[]) {
   selectedRowKeys.value = ids
 }
+
+onBeforeRouteLeave((to, from, next) => {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单内容尚未保存，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 defineExpose({ handleQuery: fetchData })
 </script>
 
@@ -833,4 +964,20 @@ defineExpose({ handleQuery: fetchData })
 
 
 
+/* 让 VxeTableList 填满剩余空间 */
+.vxe-table-list-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px; line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
+:deep(.ant-input-number-sm input) { height: 26px; }
 </style>

@@ -1,6 +1,7 @@
 package cn.aiedge.monitor.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.*;
 @RequestMapping("/api/monitor")
 @RequiredArgsConstructor
 @Tag(name = "监控数据API", description = "Sprint 27+1测试环境监控数据统一API入口")
+@SaCheckLogin
 public class MonitorDataApiController {
 
     /**

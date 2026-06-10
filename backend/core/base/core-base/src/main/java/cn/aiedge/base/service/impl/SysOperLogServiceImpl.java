@@ -3,6 +3,8 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.entity.SysOperLog;
 import cn.aiedge.base.mapper.SysOperLogMapper;
 import cn.aiedge.base.service.SysOperLogService;
+import cn.aiedge.common.exception.BusinessException;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -11,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * 操作日志服务实现
@@ -139,10 +143,61 @@ public class SysOperLogServiceImpl extends ServiceImpl<SysOperLogMapper, SysOper
         return result;
     }
 
+    // ==================== 防删除保护 ====================
+    // 审计日志不可删除，防止篡改审计记录
+    // 仅可通过 cleanLogs() 进行受控的定时清理
+
+    @Override
+    public boolean removeById(Serializable id) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean removeByIds(Collection<?> list) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean remove(Wrapper<SysOperLog> queryWrapper) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean removeById(Serializable id, boolean useFill) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean removeByIds(Collection<?> list, boolean useFill) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean remove(Wrapper<SysOperLog> queryWrapper, boolean useFill) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean removeById(Function<? super Function<String, Object>, ? extends Serializable> idFunc) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    @Override
+    public boolean removeById(Function<? super Function<String, Object>, ? extends Serializable> idFunc, boolean useFill) {
+        throw BusinessException.badRequest("审计日志不可删除");
+    }
+
+    // ==================== 可控清理 ====================
+
     @Override
     public int cleanLogs(int days) {
+        if (days < 30) {
+            throw BusinessException.badRequest("日志保留天数不能少于30天");
+        }
         LocalDateTime threshold = LocalDateTime.now().minusDays(days);
-        return baseMapper.cleanLogsBeforeDate(threshold.toString());
+        int deleted = baseMapper.cleanLogsBeforeDate(threshold.toString());
+        log.info("清理历史审计日志: days={}, threshold={}, deleted={}", days, threshold, deleted);
+        return deleted;
     }
 
     @Override

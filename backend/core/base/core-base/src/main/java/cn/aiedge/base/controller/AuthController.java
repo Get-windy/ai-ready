@@ -42,6 +42,8 @@ public class AuthController {
     private final cn.aiedge.base.security.StpInterfaceImpl stpInterface;
     private final TenantMapper tenantMapper;
     private final cn.aiedge.base.security.SecurityContext securityContext;
+    private final cn.aiedge.base.service.RoleBillTypeService roleBillTypeService;
+    private final cn.aiedge.base.security.LoginAttemptService loginAttemptService;
 
     /**
      * 获取验证码
@@ -174,6 +176,14 @@ public class AuthController {
                 return Result.fail(401, "租户不存在或已禁用");
             }
 
+            // 检查账户是否被锁定（连续登录失败）
+            if (loginAttemptService.isLocked(dto.username(), tenantId)) {
+                long remaining = loginAttemptService.getLockRemainingSeconds(dto.username(), tenantId);
+                String msg = "账户已被临时锁定，请" + (remaining / 60 + 1) + "分钟后再试";
+                log.warn("登录失败（账户已锁定）: username={}, remaining={}s", dto.username(), remaining);
+                return Result.fail(401, msg);
+            }
+
             // 设置临时租户上下文，避免多租户拦截器注入 tenant_id=0
             securityContext.setTempTenantId(tenantId);
 
@@ -181,6 +191,15 @@ public class AuthController {
             try {
                 // 执行登录
                 token = userService.login(dto.username(), dto.password(), tenantId, loginIp);
+                // 登录成功，清除失败记录
+                loginAttemptService.clearFailedAttempts(dto.username(), tenantId);
+            } catch (Exception loginException) {
+                // 登录失败，记录失败次数
+                int attempts = loginAttemptService.recordFailedAttempt(dto.username(), tenantId);
+                int remaining = LoginAttemptService.MAX_ATTEMPTS - attempts;
+                log.warn("登录失败: username={}, attempts={}, remaining={}",
+                        dto.username(), attempts, Math.max(0, remaining));
+                throw loginException;
             } finally {
                 // 清除临时租户上下文
                 securityContext.clearTempTenantId();
@@ -316,9 +335,12 @@ public class AuthController {
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);
         result.put("username", StpUtil.getSession().getString("username"));
+        result.put("tenantId", StpUtil.getSession().get("tenantId"));
         result.put("roles", StpUtil.getRoleList());
         result.put("permissions", StpUtil.getPermissionList());
-        
+        result.put("billTypes", roleBillTypeService.getUserBillTypes(userId));
+        result.put("passwordExpired", StpUtil.getSession().get("passwordExpired"));
+
         return Result.ok(result);
     }
 

@@ -1,31 +1,41 @@
 package cn.aiedge.erp.b2b.model;
 
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import jakarta.persistence.*;
+import lombok.experimental.Accessors;
+
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * MyBatis-Plus 基础实体
+ * 所有商城实体继承此类，提供公共字段
+ */
 @Data
-@MappedSuperclass
-public abstract class BaseEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+@Accessors(chain = true)
+public abstract class BaseEntity implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
-    @Column(name = "created_by", length = 50)
-    private String createdBy;
+    @TableField(fill = FieldFill.INSERT)
+    private Long tenantId;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createBy;
 
-    @Column(name = "updated_by", length = 50)
-    private String updatedBy;
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updateBy;
 
-    @Column(name = "deleted")
-    private Boolean deleted = false;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
 
-    @Column(name = "tenant_id", length = 50)
-    private String tenantId;
+    @TableLogic
+    @TableField("deleted")
+    private Integer deleted;
 }

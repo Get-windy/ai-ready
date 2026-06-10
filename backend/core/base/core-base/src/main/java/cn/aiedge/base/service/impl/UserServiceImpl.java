@@ -93,23 +93,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (getByUsername(request.getUsername()) != null) {
             throw BusinessException.badRequest("用户名已存在");
         }
-        
+
         // 校验手机号唯一性
         if (StringUtils.hasText(request.getPhone()) && getByPhone(request.getPhone()) != null) {
             throw BusinessException.badRequest("手机号已被使用");
         }
-        
+
         // 校验邮箱唯一性
         if (StringUtils.hasText(request.getEmail()) && getByEmail(request.getEmail()) != null) {
             throw BusinessException.badRequest("邮箱已被使用");
         }
+
+        // 禁止通过普通创建接口创建超级管理员（必须通过专用接口）
+        if (Boolean.TRUE.equals(request.getIsSuperAdmin())) {
+            throw BusinessException.badRequest("不能通过此接口创建超级管理员");
+        }
+
+        // 密码复杂度校验
+        validatePasswordComplexity(request.getPassword());
 
         // 创建用户
         User user = new User();
         BeanUtils.copyProperties(request, user);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setIsSuperAdmin(false);
-        
+
         save(user);
         
         // 分配角色
@@ -209,16 +217,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
-        
+
         // 验证旧密码
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw BusinessException.badRequest("原密码错误");
         }
-        
+
+        // 密码复杂度校验
+        validatePasswordComplexity(newPassword);
+
         // 更新密码
         user.setPassword(passwordEncoder.encode(newPassword));
         updateById(user);
-        
+
         log.info("修改密码成功: {}", user.getUsername());
     }
 
@@ -229,12 +240,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null) {
             throw BusinessException.notFound("用户不存在");
         }
-        
+
+        // 密码复杂度校验
+        validatePasswordComplexity(newPassword);
+
         // 重置密码
         user.setPassword(passwordEncoder.encode(newPassword));
         updateById(user);
-        
+
         log.info("重置密码成功: {}", user.getUsername());
+    }
+
+    /**
+     * 密码复杂度校验
+     * 规则：长度 >= 8，需包含字母、数字、特殊字符中的至少两类
+     */
+    private void validatePasswordComplexity(String password) {
+        if (password == null || password.length() < 8) {
+            throw BusinessException.badRequest("密码长度不能少于8位");
+        }
+        int categoryCount = 0;
+        if (password.matches(".*[a-zA-Z].*")) categoryCount++;
+        if (password.matches(".*\\d.*")) categoryCount++;
+        if (password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*")) categoryCount++;
+        if (categoryCount < 2) {
+            throw BusinessException.badRequest("密码必须包含字母、数字、特殊字符中的至少两种");
+        }
     }
 
     @Override
@@ -258,6 +289,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignRoles(Long userId, List<Long> roleIds) {
+        // 参数校验
+        if (userId == null) {
+            throw BusinessException.badRequest("用户ID不能为空");
+        }
+
+        // 查询目标用户
+        User targetUser = getById(userId);
+
+        // 角色作用域校验（基于当前操作用户的安全上下文）
+        if (!CollectionUtils.isEmpty(roleIds) && targetUser != null) {
+            Collection<Role> roles = roleMapper.selectBatchIds(roleIds);
+            if (roles.size() != roleIds.size()) {
+                throw BusinessException.notFound("部分角色不存在");
+            }
+            Map<Long, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getId, r -> r));
+            // 判断当前操作用户是否有租户上下文
+            boolean isTenantContext = cn.dev33.satoken.stp.StpUtil.isLogin()
+                && cn.dev33.satoken.stp.StpUtil.getSession().get("tenantId") != null;
+            for (Long roleId : roleIds) {
+                Role role = roleMap.get(roleId);
+                if (role == null) continue;
+                if ("PLATFORM".equals(role.getScope()) && isTenantContext) {
+                    throw BusinessException.forbidden(
+                        "不能将平台级角色「" + role.getRoleName() + "」分配给租户用户");
+                }
+            }
+        }
+
         // 删除原有角色
         userRoleMapper.deleteByUserId(userId);
         
