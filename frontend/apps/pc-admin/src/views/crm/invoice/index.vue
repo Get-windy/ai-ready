@@ -23,7 +23,15 @@
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && tableData.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -94,6 +102,7 @@
         :summary-data="summaryData"
         :show-export="true"
         :selectable="true"
+        :min-empty-rows="12"
         add-text="新建发票"
         @add="handleAdd"
         @refresh="fetchData"
@@ -113,7 +122,7 @@
             <template v-if="hasError">
               <WarningOutlined class="table-empty-icon" style="color: #faad14" />
               <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData">
+              <a-button type="primary" size="small" @click="fetchData as any">
                 <template #icon><ReloadOutlined /></template>
                 重试
               </a-button>
@@ -125,26 +134,33 @@
                 没有符合条件的发票，<a @click="handleResetFilters">清除筛选</a>
               </p>
               <p v-else class="table-empty-text">
-                暂无发票数据，点击右上角「新建发票」开始创建
+                暂无发票数据
               </p>
+              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                <a-button type="primary" v-permission="'crm:invoice:create'" @click="handleAdd">
+                  <template #icon><PlusOutlined /></template>
+                  新建第一张发票
+                </a-button>
+              </div>
             </template>
           </div>
         </template>
 
         <template #action="{ record }">
           <a-space :size="4">
-            <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'draft'" title="开具"><a-button type="link" size="small" @click="handleIssue(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
-            <a-tooltip v-if="record.status === 'issued'" title="发送"><a-button type="link" size="small" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="查看"><a-button type="link" size="small" v-permission="'crm:invoice:view'" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="编辑"><a-button type="link" size="small" v-permission="'crm:invoice:edit'" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
+            <a-tooltip v-if="record.status === 'draft'" title="开具"><a-button type="link" size="small" v-permission="'crm:invoice:issue'" @click="handleIssue(record)"><template #icon><FileProtectOutlined /></template></a-button></a-tooltip>
+            <a-tooltip v-if="record.status === 'issued'" title="发送"><a-button type="link" size="small" v-permission="'crm:invoice:send'" @click="handleSend(record)"><template #icon><SendOutlined /></template></a-button></a-tooltip>
             <PrintButton v-if="record.status === 'issued'" template-type="invoice" :business-id="record.id" business-type="invoice" button-text="" button-size="small" @print-success="handlePrintSuccess(record)" @print-error="handlePrintError" />
-            <a-tooltip v-if="record.status === 'issued'" title="作废"><a-button type="link" danger size="small" @click="handleCancelConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
+            <a-tooltip v-if="record.status === 'issued'" title="作废"><a-button type="link" danger size="small" v-permission="'crm:invoice:cancelconfirm'" @click="handleCancelConfirm(record)"><template #icon><DeleteOutlined /></template></a-button></a-tooltip>
           </a-space>
         </template>
           <template #statusCell="{ record }">
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
       </VxeTableList>
+      </template>
     </ErrorBoundary>
 
     <FullScreenDetail
@@ -152,6 +168,7 @@
       :title="modalTitle"
       :save-loading="submitLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleSubmit"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -198,7 +215,7 @@
           <div class="table-empty">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" @click="handleDetailRefresh">
+            <a-button type="primary" size="small" v-permission="'crm:invoice:detailrefresh'" @click="handleDetailRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -232,7 +249,8 @@ import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, SendOutlined, FileProtectOutlined, ReloadOutlined, SyncOutlined, SearchOutlined, InboxOutlined, WarningOutlined, FileTextOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import type { FormInstance } from 'ant-design-vue'
 import { invoiceApi } from '@/api/crm'
@@ -384,7 +402,7 @@ const formTaxAmount = computed(() => { const amt = formData.amount || 0; const r
 const formTotalAmount = computed(() => { const amt = formData.amount || 0; return amt + formTaxAmount.value })
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData) }
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); debounceClick('refresh', fetchData as any)}
   if (e.ctrlKey && e.key === 'n') { e.preventDefault(); debounceClick('add', handleAdd); return }
 }
 
@@ -400,16 +418,16 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -717,4 +735,57 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

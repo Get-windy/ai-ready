@@ -16,7 +16,7 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
+          <a-button size="small" :loading="refreshLoading" v-permission="'purchase:order:refresh'" @click="debounceClick('refresh', handleRefresh)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -36,7 +36,7 @@
       <template v-else-if="statsError">
         <a-alert type="warning" message="统计数据加载失败" show-icon closable style="margin-bottom: 16px;">
           <template #action>
-            <a-button size="small" @click="handleRefresh">重试</a-button>
+            <a-button size="small" v-permission="'purchase:order:refresh'" @click="handleRefresh">重试</a-button>
           </template>
         </a-alert>
       </template>
@@ -123,7 +123,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import OrdersTab from './tabs/Orders.vue'
 import InquiryTab from './tabs/Inquiry.vue'
@@ -516,4 +516,39 @@ defineExpose({ handleQuery: handleRefresh })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

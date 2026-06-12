@@ -225,7 +225,7 @@ const handleReport = async () => {
   
   try {
     await reportError({
-      type: 'manual',
+      type: 'manual' as any,
       error: props.error || new Error('User reported error'),
       timestamp: new Date().toISOString(),
       url: window.location.href,

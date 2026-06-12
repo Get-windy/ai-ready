@@ -225,7 +225,7 @@ describe('Position Management', () => {
       mockConfirm.mockImplementation(({ onOk }) => {
         onOk && onOk()
       })
-      window.Modal = { confirm: mockConfirm } as any
+      (window as any).Modal = { confirm: mockConfirm } as any
 
       vi.mocked(positionApi.delete).mockResolvedValue({ code: 200, data: true } as any)
 

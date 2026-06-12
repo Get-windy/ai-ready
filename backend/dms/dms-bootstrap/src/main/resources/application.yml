@@ -1,0 +1,100 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /api/dms
+
+spring:
+  application:
+    name: dms-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ai_ready?currentSchema=dms
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId}] - %msg%n"
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: cn.aiedge.dms.**.entity
+  global-config:
+    db-config:
+      id-type: AUTO
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+
+# Sa-Token
+sa-token:
+  token-name: Authorization
+  timeout: 2592000
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  is-login: false
+  token-style: uuid
+  is-read-cookie: false
+  is-read-head: true
+
+# Knife4j
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  packages-to-scan: cn.aiedge.dms
+
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 配送管理系统接口
+
+# DMS 外部系统配置
+dms:
+  erp:
+    base-url: http://localhost:8080/api/erp
+  wms:
+    base-url: http://localhost:8081/api/wms
+  callback:
+    base-url: http://dms-service:8082/api/dms/callback
+    secret: dms-callback-secret-change-in-production
+  map:
+    amap:
+      api-key: ${AMAP_API_KEY:}
+      # 高德地图 Web API Key，从 https://lbs.amap.com 获取
+    tencent:
+      api-key: ${TENCENT_MAP_API_KEY:}
+      # 腾讯地图 Web Service Key，从 https://lbs.qq.com 获取
+    baidu:
+      api-key: ${BAIDU_MAP_API_KEY:}
+      # 百度地图 Web API Key，从 https://lbsyun.baidu.com 获取
+    default-provider: amap     # 默认地图服务提供商：amap/tencent/baidu
+  work-hours:
+    enabled: true                  # 是否启用上班时段控制
+    start: "08:00"                 # 上班时间
+    end: "18:00"                   # 下班时间
+  location:
+    report-interval-background: 300000    # 后台模式上报间隔 5 分钟 (ms)
+    report-interval-foreground: 15000     # 前台模式上报间隔 15 秒 (ms)
+    deviation-threshold: 500              # 定位偏差阈值 (米)
+    track-retention-days: 90              # 轨迹保留天数
+  verification:
+    separation-threshold: 100             # 人车位置分离阈值（米）
+    stay-threshold-minutes: 30            # 异常滞留判定时间（分钟）
+    consecutive-alert-threshold: 3        # 连续几次异常产生告警（防误报）
+    verify-interval-seconds: 60           # 核验频率（秒）
+    binding-timeout-hours: 12             # 绑定超时未交车阈值（小时）
+  event:
+    retry-intervals: 10000,30000,60000    # 重试间隔 (ms)
+    max-retries: 3                        # 最大重试次数
+    scan-interval: 10000                  # 扫描间隔 (ms)

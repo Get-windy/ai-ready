@@ -49,10 +49,14 @@ public class SyncConfigServiceImpl implements SyncConfigService {
     // ==================== 获取当前租户 ====================
 
     private Long getCurrentTenantId() {
-        // 从 SaToken 中获取当前租户ID
-        Object tenantId = StpUtil.getExtra("tenantId");
-        if (tenantId instanceof Number) {
-            return ((Number) tenantId).longValue();
+        // 从 SaToken 会话中获取当前租户ID
+        try {
+            Object tenantId = StpUtil.getSession().get("tenantId");
+            if (tenantId instanceof Number) {
+                return ((Number) tenantId).longValue();
+            }
+        } catch (Exception e) {
+            // 忽略未登录异常
         }
         // 默认租户（单租户模式）
         return 1L;

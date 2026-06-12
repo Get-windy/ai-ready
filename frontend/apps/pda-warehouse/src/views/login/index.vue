@@ -37,17 +37,18 @@ const handleLogin = async () => {
   showLoadingToast({ message: '登录中...', forbidClick: true, duration: 0 })
   
   try {
-    const res = await api.auth.login({
-      phone: form.value.phone,
-      password: form.value.password
-    })
-    
-    userStore.setUser(res.data)
-    userStore.setToken(res.data?.token)
-    
-    Dialog.alert({ message: '登录成功' }).then(() => {
+    const res = await api.auth.login(form.value.phone, form.value.password) as any
+
+    // 假设后端返回 { data: { token, ...user } }
+    const userData = res?.data || res
+    if (userData?.token) {
+      userStore.setUser(userData)
+      userStore.setToken(userData.token)
+      showToast('登录成功')
       router.replace('/task')
-    })
+    } else {
+      showToast('登录失败：返回数据异常')
+    }
   } catch (err: any) {
     showToast(err?.response?.data?.message || err?.message || '登录失败，请检查网络连接')
   } finally {
@@ -70,7 +71,7 @@ const handleLogin = async () => {
     <div class="login-form">
       <Form @submit="handleLogin">
         <Field
-          v-model="form.phone"
+          v-model:value="form.phone"
           label="手机号"
           placeholder="请输入手机号"
           type="tel"
@@ -79,7 +80,7 @@ const handleLogin = async () => {
         />
         
         <Field
-          v-model="form.password"
+          v-model:value="form.password"
           label="密码"
           placeholder="请输入密码"
           :type="showPassword ? 'text' : 'password'"

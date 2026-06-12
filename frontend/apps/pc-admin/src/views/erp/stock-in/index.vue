@@ -22,6 +22,9 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </a-space>
         </div>
       </div>
@@ -87,11 +90,11 @@
       <!-- 操作按钮 -->
       <div class="action-area">
         <a-space>
-          <a-button type="primary" @click="handleCreate">
+          <a-button v-permission="'stock:inbound:create'" type="primary" @click="handleCreate">
             <template #icon><PlusOutlined /></template>
             新建入库单
           </a-button>
-          <a-button @click="handleExport">
+          <a-button v-permission="'stock:inbound:export'" @click="debounceClick('export', handleExport)">
             <template #icon><ExportOutlined /></template>
             导出
           </a-button>
@@ -173,7 +176,7 @@
           <a-table
             :dataSource="detailData.items"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             row-key="id"
             bordered
@@ -288,7 +291,7 @@
       <a-table
         :dataSource="createForm.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="tempId"
         style="margin-bottom: 12px;"
@@ -355,7 +358,9 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, ExportOutlined, ReloadOutlined, SyncOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -440,7 +445,7 @@ const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'inboundNo', label: '入库单号', type: 'input', placeholder: '请输入入库单号' },
   { name: 'purchaseOrderNo', label: '采购订单', type: 'input', placeholder: '请输入采购订单号' },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择',
@@ -460,7 +465,7 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'inboundNo', title: '入库单号', width: 150 },
   { field: 'purchaseOrderNo', title: '采购订单', width: 150 },
   { field: 'supplierName', title: '供应商', width: 150 },
@@ -561,7 +566,7 @@ const itemColumns = [
   { title: '操作', dataIndex: 'action', width: 60 }
 ]
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'productSpec', width: 100 },
@@ -984,6 +989,41 @@ defineExpose({ handleQuery: fetchData })
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

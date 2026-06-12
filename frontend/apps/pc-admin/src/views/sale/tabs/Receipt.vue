@@ -104,7 +104,7 @@
             <template #icon><EllipsisOutlined /></template>
           </a-button>
           <template #overlay>
-            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+            <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
               <a-menu-item v-if="record.status === 1" key="approve">
                 <CheckCircleOutlined /> 审批
               </a-menu-item>
@@ -262,7 +262,7 @@ const receiptFormVisible = ref(false)
 const receiptFormSubmitting = ref(false)
 const receiptFormRef = ref<FormInstance>()
 const receiptFormData = reactive({ orderNo: '', customerName: '', receiptAmount: 0, receiptMethod: undefined as string | undefined, receiptDate: undefined as any, bankAccount: '', remark: '' })
-const receiptFormRules = {
+const receiptFormRules: any = {
   orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }],
   customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
   receiptAmount: [{ required: true, type: 'number' as const, message: '请输入收款金额', trigger: 'blur' }],
@@ -514,4 +514,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

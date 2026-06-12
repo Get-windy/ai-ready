@@ -122,7 +122,7 @@
       :cell-config="{ height: 32 }"
       :header-cell-config="{ height: 32 }"
       :checkbox-config="{ highlight: true, range: true }"
-      :sort-config="{ trigger: 'cell', defaultSort: defaultSort }"
+      :sort-config="{ trigger: 'cell', defaultSort: defaultSort as any }"
       :footer-config="{ show: showSummary, footerMethod: footerMethod }"
       :scroll-y="{ enabled: true, gt: 20 }"
       :scroll-x="{ enabled: true, gt: 10 }"
@@ -142,25 +142,42 @@
       <vxe-column
         v-for="col in vxeColumns"
         :key="col.field || col.type"
-        v-bind="col"
+        v-bind="col as any"
       >
+        <!-- 有 slots 属性的列：渲染父组件传入的插槽 -->
+        <template v-if="col.slots?.default" #default="{ row, $rowIndex }">
+          <slot :name="col.slots.default" :record="row" :index="$rowIndex">
+            <span>{{ row[col.field] ?? '-' }}</span>
+          </slot>
+        </template>
         <!-- 数值列右对齐 + 等宽数字 -->
-        <template v-if="col.align === 'right'" #default="{ row, column }">
+        <template v-else-if="col.align === 'right'" #default="{ row, column }">
           <span class="cell-number">{{ row[col.field] ?? '-' }}</span>
+        </template>
+        <!-- 有formatter的列：使用v-html渲染HTML内容 -->
+        <template v-else-if="col.formatter" #default="{ row, column, $rowIndex }">
+          <span v-html="col.formatter({ cellValue: row[col.field], row, $rowIndex, column })"></span>
         </template>
       </vxe-column>
 
-      <!-- 操作列插槽 -->
+      <!-- 操作列插槽（兼容外部定义的方式） -->
       <template #action_default="{ row, $rowIndex }">
         <slot name="action" :record="row" :index="$rowIndex">
           <span>-</span>
         </slot>
       </template>
 
-      <!-- 自定义列插槽 -->
-      <template v-for="slotName in customSlotColumns" :key="slotName" #[`custom_${slotName}`]="{ row, $rowIndex }">
+      <!-- 自定义列插槽（兼容外部定义的方式） -->
+      <template v-for="slotName in customSlotColumns" :key="slotName" #[slotName]="{ row, $rowIndex }">
         <slot :name="slotName" :record="row" :index="$rowIndex">
           <span>-</span>
+        </slot>
+      </template>
+
+      <!-- 全局 bodyCell 插槽（转发到 vxe-table） -->
+      <template #[dynamicBodyCellSlot]="{ row, rowIndex, column, columnIndex }">
+        <slot name="bodyCell" :record="row" :index="rowIndex" :column="column" :column-index="columnIndex">
+          <span></span>
         </slot>
       </template>
 
@@ -194,6 +211,10 @@
     </div>
   </div>
 </template>
+
+<script lang="ts">
+export type { FilterField } from '@/components/TableList/TableList.vue'
+</script>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick, type PropType } from 'vue'
@@ -343,15 +364,19 @@ const vxeColumns = computed<VxeColumnDef[]>(() => {
     }
 
     // 操作列特殊处理
-    if (col.type === 'action' || col.key === 'action' || col.dataIndex === 'action') {
+    if (col.type === 'action' || col.key === 'action' || col.dataIndex === 'action' || col.field === '_action') {
       vxeCol.width = col.width || 120
       vxeCol.fixed = col.fixed || 'right'
       // 操作列使用插槽
       vxeCol.slots = { default: 'action_default' }
     }
-    // 自定义列插槽
+    // 自定义列插槽 - 支持 slotName 和 slots 两种方式，保留原始插槽名
     else if (col.slotName) {
-      vxeCol.slots = { default: `custom_${col.slotName}` }
+      vxeCol.slots = { default: col.slotName }
+    }
+    else if (col.slots && col.slots.default) {
+      // 直接保留原始插槽名，不添加前缀
+      vxeCol.slots = col.slots
     }
 
     cols.push(vxeCol)
@@ -360,12 +385,20 @@ const vxeColumns = computed<VxeColumnDef[]>(() => {
   return cols
 })
 
-// 收集所有自定义列插槽名称
+// 收集所有自定义列插槽名称 - 支持 slotName 和 slots.default 两种方式
 const customSlotColumns = computed(() => {
   const columnList = Array.isArray(props.columns) ? props.columns : []
-  return columnList
-    .filter((col: any) => col.slotName && col.type !== 'action' && col.key !== 'action')
-    .map((col: any) => col.slotName)
+  const slots = columnList
+    .filter((col: any) => {
+      // 排除操作列和已经有内部模板处理的列
+      const isActionCol = col.type === 'action' || col.key === 'action' || col.dataIndex === 'action' || col.field === '_action'
+      if (isActionCol) return false
+      // 包含 slotName 或 slots.default 的列
+      return col.slotName || (col.slots && col.slots.default)
+    })
+    .map((col: any) => col.slotName || col.slots?.default)
+  // 去重
+  return [...new Set(slots)]
 })
 
 // ========== 数据处理 ==========
@@ -557,6 +590,9 @@ function updateTableHeight() {
   })
 }
 
+// 用于 vxe-table bodyCell 插槽的动态名称（绕过类型检查）
+const dynamicBodyCellSlot = 'bodyCell' as any
+
 // ========== 键盘快捷键 ==========
 function handleKeydown(e: KeyboardEvent) {
   // Ctrl+F / F3 → 聚焦搜索框
@@ -718,6 +754,19 @@ watch(() => props.pagination, (p) => {
   color: #333;
 }
 
+/* 禁用文本选中（操作区） */
+:deep(.vxe-table--body-wrapper),
+:deep(.vxe-table--header-wrapper) {
+  user-select: none;
+}
+
+/* 数据行按需启用选中 */
+:deep(.vxe-table--body .vxe-body--row:not(.vxe-body--row--stripe)) .vxe-body--column {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 表头样式：深色边框 + 背景 */
 :deep(.vxe-table--header .vxe-header--row) {
   height: 32px !important;
@@ -759,15 +808,15 @@ watch(() => props.pagination, (p) => {
   border-bottom: 1px solid #d9d9d9 !important;
 }
 
-/* 固定列分隔线（阴影） */
+/* 固定列分隔线（2px solid #c0c0c0） */
 :deep(.vxe-table--fixed-left-wrapper::after) {
   content: '';
   position: absolute;
   top: 0;
-  right: 0;
-  width: 6px;
+  right: -1px;
+  width: 2px;
   height: 100%;
-  background: linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  background: #c0c0c0;
   pointer-events: none;
   z-index: 10;
 }
@@ -776,10 +825,10 @@ watch(() => props.pagination, (p) => {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  width: 6px;
+  left: -1px;
+  width: 2px;
   height: 100%;
-  background: linear-gradient(270deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+  background: #c0c0c0;
   pointer-events: none;
   z-index: 10;
 }

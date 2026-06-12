@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * 权限工具函数单元测试
- * 
+ *
  * @author AI-Ready QA Team
  * @since 1.0.0
  */

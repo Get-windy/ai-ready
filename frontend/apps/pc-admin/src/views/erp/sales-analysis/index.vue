@@ -25,8 +25,13 @@
             刷新
           </a-button>
         </a-tooltip>
+        <span class="shortcut-hints">
+          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新建</span>
+          <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+        </span>
         <a-tooltip title="Ctrl+N 新建分析">
-          <a-button size="small" @click="debounceClick('create', handleCreate)">
+          <a-button size="small" v-permission="'erp:sales:create'" @click="debounceClick('create', handleCreate)">
             <template #icon><PlusOutlined /></template>
             新建
           </a-button>
@@ -200,7 +205,7 @@
               <VxeTableList
                 :columns="customerRankVxeColumns"
                 :data-source="customerRankData"
-                :pagination="false"
+                :pagination="noPagination"
                 row-key="rank"
                 :show-toolbar="false"
                 :selectable="false"
@@ -266,7 +271,7 @@
               <VxeTableList
                 :columns="productRankVxeColumns"
                 :data-source="productRankData"
-                :pagination="false"
+                :pagination="noPagination"
                 row-key="rank"
                 :show-toolbar="false"
                 :selectable="false"
@@ -334,7 +339,7 @@
               <VxeTableList
                 :columns="salespersonRankVxeColumns"
                 :data-source="salespersonRankData"
-                :pagination="false"
+                :pagination="noPagination"
                 row-key="rank"
                 :show-toolbar="false"
                 :selectable="false"
@@ -402,7 +407,7 @@
               <VxeTableList
                 :columns="regionVxeColumns"
                 :data-source="regionData"
-                :pagination="false"
+                :pagination="noPagination"
                 row-key="name"
                 :show-toolbar="false"
                 :selectable="false"
@@ -449,7 +454,7 @@
     </div>
     <!-- 新建分析对话框 -->
     <a-modal
-      v-model:visible="showCreateModal"
+      v-model:open="showCreateModal"
       title="新建分析"
       ok-text="创建"
       cancel-text="取消"
@@ -464,7 +469,7 @@
 
     <!-- 导出报表对话框 -->
     <a-modal
-      v-model:visible="showExportModal"
+      v-model:open="showExportModal"
       title="导出报表"
       ok-text="导出"
       cancel-text="取消"
@@ -481,7 +486,7 @@
         <a-form-item label="日期范围">
           <a-range-picker
             v-model:value="exportOptions.dateRange"
-            placeholder="默认使用当前筛选日期"
+            :placeholder="['默认使用当前筛选日期', '默认使用当前筛选日期']"
             style="width: 100%"
           />
         </a-form-item>
@@ -500,7 +505,7 @@
 
     <!-- 下钻明细抽屉 -->
     <a-drawer
-      v-model:visible="drillDownVisible"
+      v-model:open="drillDownVisible"
       :title="drillDownTitle"
       placement="right"
       width="560"
@@ -514,7 +519,7 @@
           v-if="drillDownData.length > 0"
           :columns="drillDownColumns"
           :data-source="drillDownData"
-          :pagination="false"
+          :pagination="noPagination"
           row-key="productName"
           :show-toolbar="false"
           :selectable="false"
@@ -554,8 +559,10 @@ import {
   WarningOutlined,
   PlusOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
-import type { SearchField } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
@@ -686,6 +693,9 @@ const drillDownTitle = ref('')
 const drillDownLoading = ref(false)
 const drillDownData = ref<DrillDownItem[]>([])
 
+// ── 无分页标记 ─────────────────────────────────────
+const noPagination: any = false
+
 // ── 分区块错误状态 ──────────────────────────────────
 const sectionErrors = reactive<Record<string, boolean>>({
   summary: false,
@@ -749,7 +759,7 @@ const hasChartData = computed(() => !chartLoading.value && !hasError.value)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 // 表格列配置
-const customerRankVxeColumns = computed(() => [
+const customerRankVxeColumns: any = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
   { field: 'name', title: '客户名称', width: 150 },
   { field: 'customerType', title: '客户类型', width: 100, align: 'center', slotName: 'customerTypeCell' },
@@ -758,7 +768,7 @@ const customerRankVxeColumns = computed(() => [
   { field: 'growth', title: '同比增长', width: 100, align: 'right', slotName: 'growthCell' },
 ])
 
-const productRankVxeColumns = computed(() => [
+const productRankVxeColumns: any = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
   { field: 'name', title: '产品名称', width: 150 },
   { field: 'trend', title: '趋势', width: 80, align: 'center', slotName: 'trendCell' },
@@ -767,7 +777,7 @@ const productRankVxeColumns = computed(() => [
   { field: 'margin', title: '毛利率', width: 150, slotName: 'marginCell' },
 ])
 
-const salespersonRankVxeColumns = computed(() => [
+const salespersonRankVxeColumns: any = computed(() => [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
   { field: 'name', title: '销售人员', width: 130 },
   { field: 'trend', title: '趋势', width: 80, align: 'center', slotName: 'trendCell' },
@@ -776,7 +786,7 @@ const salespersonRankVxeColumns = computed(() => [
   { field: 'targetRate', title: '目标达成率', width: 150, slotName: 'targetRateCell' },
 ])
 
-const regionVxeColumns = computed(() => [
+const regionVxeColumns: any = computed(() => [
   { field: 'name', title: '区域', width: 120 },
   { field: 'orderCount', title: '订单数', width: 100, align: 'right' },
   { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },
@@ -837,7 +847,7 @@ const loadOptions = async () => {
 }
 
 // ── 构建查询参数 ──────────────────────────────────────
-const buildParams = () => ({
+const buildParams = (): any => ({
   warehouseId: selectedWarehouse.value,
   salespersonId: selectedSalesperson.value ? String(selectedSalesperson.value) : undefined,
   customerType: selectedCustomerType.value,
@@ -1065,7 +1075,7 @@ const confirmExportWithOptions = () => {
 }
 
 // ── 下钻查看明细 ──────────────────────────────────────
-const showDrillDown = async (title: string, params?: SalesAnalysisQuery & { salespersonId?: string; productName?: string; customerName?: string }) => {
+const showDrillDown = async (title: string, params?: any) => {
   drillDownTitle.value = title
   drillDownVisible.value = true
   drillDownLoading.value = true
@@ -1486,7 +1496,7 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
   await loadOptions()
   loadData()
-  window.addEventListener("erp:refresh", loadData)
+  window.addEventListener("erp:refresh", () => loadData())
   window.addEventListener('resize', handleResize)
 })
 
@@ -1655,6 +1665,40 @@ onUnmounted(() => {
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

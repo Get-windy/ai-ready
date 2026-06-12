@@ -117,7 +117,7 @@
     <!-- 销售趋势图表 -->
     <a-card title="销售趋势" size="small" :loading="chartLoading">
       <template #extra>
-        <a-radio-group v-model:value="chartType" size="small" @change="initChart">
+        <a-radio-group v-model:value="chartType" size="small" @change="() => initChart()">
           <a-radio-button value="bar">柱状图</a-radio-button>
           <a-radio-button value="line">折线图</a-radio-button>
         </a-radio-group>
@@ -132,7 +132,7 @@
           :columns="detailVxeColumns"
           :data-source="detailData"
           :loading="loading"
-          :pagination="false"
+          :pagination="false as any"
           row-key="date"
           :show-toolbar="false"
           :selectable="false"
@@ -186,7 +186,7 @@ const filterExpanded = ref<string[]>([])
 const chartType = ref<'bar' | 'line'>('bar')
 
 const queryParams = reactive({
-  dateRange: [] as string[],
+  dateRange: [] as any,
   salespersonId: undefined as number | undefined,
   warehouseId: undefined as number | undefined
 })
@@ -214,7 +214,7 @@ const warehouses = ref<{ id: number; name: string }[]>([
   { id: 2, name: '上海仓库' }
 ])
 
-const detailVxeColumns = [
+const detailVxeColumns: any = [
   { field: 'date', title: '日期', width: 120 },
   { field: 'sales', title: '销售额', width: 140, align: 'right', slotName: 'salesCell' },
   { field: 'orderCount', title: '订单数', width: 100, align: 'right' },

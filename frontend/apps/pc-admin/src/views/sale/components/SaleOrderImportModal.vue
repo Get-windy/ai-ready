@@ -46,7 +46,7 @@
       <VxeTableList
         :columns="previewVxeColumns"
         :data-source="parsedRows.slice(0, 10)"
-        :pagination="false"
+        :pagination="false as any"
         row-key="__rowIndex"
         :show-toolbar="false"
         :selectable="false"
@@ -105,7 +105,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { message } from 'ant-design-vue'
 import { InboxOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'

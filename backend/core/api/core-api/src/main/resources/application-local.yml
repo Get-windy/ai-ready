@@ -12,6 +12,7 @@ spring:
     exclude:
       - org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration
       - org.springframework.cloud.gateway.config.GatewayMetricsAutoConfiguration
+      - org.optaplanner.spring.boot.autoconfigure.OptaPlannerAutoConfiguration
   application:
     name: ai-ready-gateway
     
@@ -71,11 +72,30 @@ spring:
       hibernate:
         format_sql: false
 
+  # SQL初始化配置
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+
+  # 本地开发禁用 Flyway（使用 sql.init 的 schema.sql 替代）
+  flyway:
+    enabled: false
+
   # H2 Console (仅用于开发调试)
   h2:
     console:
       enabled: true
       path: /h2-console
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
 
 # 网关特定配置（简化版）
 gateway:
@@ -90,6 +110,12 @@ gateway:
   monitor:
     enable-access-log: false
     enable-metrics: false
+
+# 本地开发禁用非关键定时任务
+print:
+  scheduler:
+    auto-confirm:
+      enabled: false
 
 # 限流配置
 ai-ready:

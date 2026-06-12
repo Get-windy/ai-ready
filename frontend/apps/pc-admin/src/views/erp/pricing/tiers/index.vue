@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="tiers-header">
@@ -21,6 +22,9 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </a-space>
         </div>
       </div>
@@ -86,7 +90,7 @@
         :columns="vxeColumns"
         :data-source="tiers"
         :loading="loading"
-        :pagination="{ pageSize: 10, total: tiers.length, showSizeChanger: true, showQuickJumper: true }"
+        :pagination="{ pageSize: 10, total: tiers.length, showSizeChanger: true, showQuickJumper: true } as any"
         row-key="tierId"
         :show-toolbar="false"
         :selectable="false"
@@ -187,6 +191,7 @@
       </a-form>
     </a-modal>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -194,7 +199,8 @@ import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -211,6 +217,8 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 }
 
 // ── 键盘快捷键 ──────────────────────────────────────────
+function handleError(err: unknown) { console.warn('[价格层级] ErrorBoundary 捕获异常:', err) }
+
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchTiers); return }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showAddModal(); return }
@@ -258,7 +266,7 @@ const inactiveTierCount = computed(() => tiers.value.filter(t => t.status !== 'a
 
 const tableRef = ref()
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'tierName', title: '层级名称', width: 130 },
   { field: 'tierCode', title: '层级编码', width: 120 },
   { field: 'customerLevel', title: '客户等级', width: 110, slotName: 'customerLevelCell' },
@@ -531,6 +539,40 @@ defineExpose({ handleQuery: fetchTiers })
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

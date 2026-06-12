@@ -1,7 +1,7 @@
 package cn.aiedge.base.log.config;
 
 import cn.aiedge.base.log.aspect.OperationLogAspect;
-import cn.aiedge.base.log.service.SystemLogService;
+import cn.aiedge.base.service.SysOperLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -28,8 +28,8 @@ public class LogConfig {
      */
     @Bean
     @ConditionalOnMissingBean(OperationLogAspect.class)
-    public OperationLogAspect operationLogAspect(SystemLogService systemLogService, ObjectMapper objectMapper) {
-        return new OperationLogAspect(systemLogService, objectMapper);
+    public OperationLogAspect operationLogAspect(SysOperLogService sysOperLogService, ObjectMapper objectMapper) {
+        return new OperationLogAspect(sysOperLogService, objectMapper);
     }
 
     /**

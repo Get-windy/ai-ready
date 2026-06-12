@@ -52,4 +52,14 @@ public interface ProductService extends IService<Product> {
      * @return 是否成功
      */
     boolean batchUpdatePrices(List<cn.aiedge.erp.stock.dto.BatchPriceUpdateDTO.PriceItem> items);
+
+    /**
+     * 导出产品列表(不含分页)
+     *
+     * @param categoryId 分类ID(可选)
+     * @param keyword    关键字(可选)
+     * @param status     状态(可选)
+     * @return 产品列表
+     */
+    List<Product> exportList(Long categoryId, String keyword, String status);
 }

@@ -135,6 +135,21 @@ export const shopTemplateApi = {
   }
 }
 
+// ── 商城商品 ──
+export interface MallProduct {
+  id?: number
+  productId: string
+  productName: string
+  imageUrl: string
+  salePrice: number
+  marketPrice: number
+  categoryName: string
+  status: string
+  description?: string
+  stockQuantity?: number
+  salesCount?: number
+}
+
 // ── 商城商品管理 ──
 export const mallProductApi = {
   /** 分页查询 */

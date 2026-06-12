@@ -72,7 +72,7 @@
         :columns="detailVxeColumns"
         :data-source="order?.details || []"
         row-key="id"
-        :pagination="false"
+        :pagination="false as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"
@@ -158,7 +158,7 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 const router = useRouter()
 const route = useRoute()
 
-const order = ref<PurchaseOrder | null>(null)
+const order = ref<any>(null)
 const formModalVisible = ref(false)
 const inboundModalVisible = ref(false)
 const inboundSubmitting = ref(false)
@@ -200,18 +200,18 @@ const relatedDocuments = computed(() => {
   const docs = []
   if (order.value?.inboundNo) {
     docs.push({
-      id: order.value.inboundId,
+      id: (order.value as any).inboundId,
       type: '入库单',
-      no: order.value.inboundNo,
-      status: order.value.inboundStatus
+      no: (order.value as any).inboundNo,
+      status: (order.value as any).inboundStatus
     })
   }
   if (order.value?.paymentNo) {
     docs.push({
-      id: order.value.paymentId,
+      id: (order.value as any).paymentId,
       type: '付款单',
-      no: order.value.paymentNo,
-      status: order.value.paymentStatus
+      no: (order.value as any).paymentNo,
+      status: (order.value as any).paymentStatus
     })
   }
   return docs
@@ -262,7 +262,7 @@ const getStatusType = (status: number) => {
 const fetchOrderDetail = async () => {
   const orderId = route.params.id as string
   try {
-    const res = await purchaseOrderApi.getById(Number(orderId))
+    const res = await (purchaseOrderApi as any).getById(Number(orderId))
     order.value = res.data
   } catch (error) {
     console.warn('[采购订单详情] 获取失败', error)

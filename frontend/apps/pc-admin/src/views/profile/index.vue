@@ -18,41 +18,23 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
       </div>
     </template>
 
-    <div v-if="profileLoading && !userInfo.username" class="profile-loading">
-      <a-skeleton active :paragraph="{ rows: 4 }" />
-    </div>
-    <a-result v-else-if="profileError" status="warning" title="加载个人信息失败">
-      <template #extra>
-        <a-button type="primary" @click="debounceClick('retry', fetchProfile)">重试</a-button>
-      </template>
-    </a-result>
-    <div v-else class="profile-page">
-      <a-row :gutter="16">
-        <!-- 左侧：用户信息卡片 -->
-        <a-col :xs="24" :lg="8">
-          <a-card :bordered="false" class="profile-card">
-            <div class="profile-header">
-              <a-avatar :src="userInfo.avatar" :size="80">
-                {{ userInfo.nickname?.charAt(0) || userInfo.username?.charAt(0) }}
-              </a-avatar>
-              <h2 class="profile-name">{{ userInfo.nickname || userInfo.username }}</h2>
-              <p class="profile-username">@{{ userInfo.username }}</p>
-            </div>
-
-            <a-divider />
-
-            <a-descriptions :column="1" size="small" :colon="false" class="profile-desc">
-              <a-descriptions-item label="角色">
-                <a-tag v-for="role in userInfo.roleNames" :key="role" color="blue">
-                  {{ role }}
-                </a-tag>
-                <span v-if="!userInfo.roleNames?.length" style="color: #999">未分配</span>
-              </a-descriptions-item>
-              <a-descriptions-item label="部门">
+    <ErrorBoundary>
+      <div class="profile-page">
+        <a-row :gutter="16">
+          <a-col :xs="24" :lg="8">
+            <a-card :bordered="false" class="profile-card">
+              <a-descriptions bordered :column="1" size="small">
+                <a-descriptions-item label="用户名">
+                  {{ userInfo.username || '-' }}
+                </a-descriptions-item>
+                <a-descriptions-item label="部门">
                 {{ userInfo.deptName || '未分配' }}
               </a-descriptions-item>
               <a-descriptions-item label="手机">
@@ -65,7 +47,7 @@
 
             <a-divider />
 
-            <a-button block @click="debounceClick('editProfile', handleOpenEditProfile)">
+            <a-button block v-permission="'profile:view:openeditprofile'" @click="debounceClick('editProfile', handleOpenEditProfile)">
               <template #icon><EditOutlined /></template>
               编辑资料
             </a-button>
@@ -102,7 +84,7 @@
                 />
               </a-form-item>
               <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="passwordLoading" @click="debounceClick('changePassword', handleChangePassword)">
+                <a-button type="primary" :loading="passwordLoading" v-permission="'profile:view:changepassword'" @click="debounceClick('changePassword', handleChangePassword)">
                   修改密码
                 </a-button>
               </a-form-item>
@@ -202,7 +184,7 @@
                 </a-space>
               </a-form-item>
               <a-form-item :wrapper-col="{ offset: 6, span: 14 }">
-                <a-button type="primary" :loading="preferenceLoading" @click="debounceClick('savePreference', handleSavePreferences)">
+                <a-button type="primary" :loading="preferenceLoading" v-permission="'profile:view:savepreferences'" @click="debounceClick('savePreference', handleSavePreferences)">
                   保存偏好设置
                 </a-button>
               </a-form-item>
@@ -253,6 +235,7 @@
         </a-form-item>
       </a-form>
     </FullScreenDetail>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
@@ -270,9 +253,10 @@ import {
   ReloadOutlined,
   SyncOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { profileApi, type ProfileInfo, type PreferenceSettings } from '@/api/profile'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 const debounceMap = new Map<string, number>()
 function debounceClick(key: string, fn: () => void, delay = 300) {
@@ -327,16 +311,16 @@ const validateConfirmPassword = (_rule: any, value: string) => {
 }
 
 const passwordRules = {
-  oldPassword: { required: true, message: '请输入当前密码', trigger: 'blur' },
+  oldPassword: { required: true, message: '请输入当前密码', trigger: 'blur', type: 'string' },
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { required: true, message: '请输入新密码', trigger: 'blur', type: 'string' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur', type: 'string' }
   ],
   confirmPassword: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    { required: true, message: '请再次输入新密码', trigger: 'blur', type: 'string' },
     { validator: validateConfirmPassword, trigger: 'blur' }
   ]
-}
+} as any
 
 const handleChangePassword = async () => {
   try {
@@ -418,8 +402,8 @@ const profileForm = reactive({
 
 const profileFormRules = {
   email: { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
-  phone: { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
-}
+  phone: { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur', type: 'string' }
+} as any
 
 const handleOpenEditProfile = () => {
   showEditProfile.value = true
@@ -513,10 +497,10 @@ const fetchProfile = async () => {
     if (res.data) {
       Object.assign(userInfo, res.data)
       Object.assign(profileForm, {
-        nickname: res.data.nickname,
-        email: res.data.email,
-        phone: res.data.phone,
-        gender: res.data.gender
+        nickname: res.nickname,
+        email: res.email,
+        phone: res.phone,
+        gender: res.gender
       })
     }
     lastUpdateTime.value = dayjs().format('HH:mm:ss')
@@ -547,7 +531,7 @@ const fetchPreferences = async () => {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { /* no add action for profile */ }
 
 onMounted(() => {
   fetchProfile()
@@ -698,4 +682,55 @@ defineExpose({ handleQuery: fetchProfile })
 .fsd-body .ant-form-item-label > label {
   font-size: 13px !important;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

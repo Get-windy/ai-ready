@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="report-page-header">
@@ -20,6 +21,10 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+
+                <span class="shortcut-hints">
+                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                </span>
         </div>
       </div>
     </template>
@@ -72,7 +77,7 @@
       <a-card class="report-tabs-card">
         <a-tabs v-model:activeKey="activeTab">
           <a-tab-pane key="summary" tab="折旧汇总">
-            <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+            <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!loading" class="tab-empty-icon" />
@@ -94,7 +99,7 @@
                 <a-button type="primary" @click="fetchLedger" v-permission="'erp:fixed-asset:report:query'">查询</a-button>
               </a-form-item>
             </a-form>
-            <VxeTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 }" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+            <VxeTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 } as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
           </a-tab-pane>
 
           <a-tab-pane key="age" tab="账龄分析">
@@ -106,7 +111,7 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="账龄明细">
-                  <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+                  <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!ageLoading" class="tab-empty-icon" />
@@ -128,7 +133,7 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="分类明细">
-                  <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+                  <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!categoryLoading" class="tab-empty-icon" />
@@ -145,10 +150,12 @@
       </template>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { reportApi } from '@/api/fixed-asset'
 import VChart from 'vue-echarts'
@@ -161,7 +168,7 @@ import {
   SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 
 use([CanvasRenderer, PieChart, BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent])
 
@@ -386,6 +393,8 @@ function fetchCategorySummary(): Promise<any> {
     categoryLoading.value = false
   })
 }
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -546,4 +555,54 @@ function fetchCategorySummary(): Promise<any> {
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

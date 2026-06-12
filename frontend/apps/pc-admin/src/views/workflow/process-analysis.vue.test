@@ -65,7 +65,7 @@
             <VxeTableList
               :columns="processDurationVxeColumns"
               :data-source="processDurationData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
@@ -117,7 +117,7 @@
             <VxeTableList
               :columns="nodeDurationVxeColumns"
               :data-source="nodeDurationData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
@@ -166,7 +166,7 @@
             <VxeTableList
               :columns="efficiencyVxeColumns"
               :data-source="efficiencyData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"

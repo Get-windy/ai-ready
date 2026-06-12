@@ -44,7 +44,7 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import {
   purchaseExchangeApi,
   type PurchaseExchange

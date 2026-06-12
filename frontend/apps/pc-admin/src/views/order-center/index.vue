@@ -19,29 +19,7 @@
             刷新
           </a-button>
         </div>
-      </div>
-    </template>
-    <ModuleLayout
-    :breadcrumb-items="breadcrumbItems"
-    :selected-count="selectedRowKeys.length"
-    :current-page="pagination.current"
-    :page-size="pagination.pageSize"
-    :total-items="filteredTotal"
-    :loading="loading"
-    :error="error"
-    :empty="!loading && !error && filteredTotal === 0"
-    :empty-text="emptyContextText"
-    search-placeholder="搜索订单号 / 客户 / 供应商..."
-    :search-value="searchKeyword"
-    :show-pagination="false"
-    @search-input="handleSearchInput"
-    @search-submit="handleSearchSubmit"
-    @clear-selection="handleClearSelection"
-    @retry="handleRetry"
-  >
-    <template #breadcrumb>
-      <div class="order-breadcrumb">
-        <span class="order-breadcrumb-subtitle">统一管理采购与销售订单</span>
+
       </div>
     </template>
 
@@ -159,7 +137,7 @@
           type="primary"
           danger
           :loading="batchDeleting"
-          @click="handleBatchDelete"
+ v-permission="'order:center:batchdelete'" @click="handleBatchDelete"
         >
           <template #icon><DeleteOutlined /></template>
           批量删除
@@ -167,7 +145,7 @@
         <a-button
           size="small"
           :loading="batchExporting"
-          @click="handleBatchExport"
+ v-permission="'order:center:batchexport'" @click="handleBatchExport"
         >
           <template #icon><DownloadOutlined /></template>
           批量导出
@@ -181,7 +159,7 @@
         <span style="color: #999; font-size: 14px;">
           {{ isEmptyDueToFilter ? '没有匹配的订单，请调整筛选条件' : '还没有订单，创建第一笔订单开始使用吧' }}
         </span>
-        <a-button v-if="!isEmptyDueToFilter" type="primary" size="large" @click="handleCreateOrder">
+        <a-button v-if="!isEmptyDueToFilter" type="primary" size="large" v-permission="'order:center:createorder'" @click="handleCreateOrder">
           <template #icon><PlusOutlined /></template>
           新建订单
         </a-button>
@@ -194,6 +172,7 @@
 
     <!-- ── 列表内容 ───────────────────────────── -->
     <template #list-view>
+      <ErrorBoundary>
       <!-- 统计卡片（加载中显示骨架，避免旧数据闪烁） -->
       <a-row :gutter="[16, 16]" class="stat-row">
         <template v-if="loading && dataSource.length > 0">
@@ -279,7 +258,7 @@
           :columns="displayColumns"
           :data-source="displayData"
           row-key="_rowKey"
-          :pagination="false"
+          :pagination="false as any"
           :loading="loading"
           :show-toolbar="false"
           :selectable="false"
@@ -320,7 +299,7 @@
           <template #action="{ record }">
             <a-space :size="0" class="action-cell">
               <a-tooltip title="查看详情">
-                <a-button type="link" size="small" class="action-btn" @click="handleView(record)">
+                <a-button type="link" size="small" class="action-btn" v-permission="'order:center:view'" @click="handleView(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -328,7 +307,7 @@
               <a-divider type="vertical" class="action-divider" />
 
               <a-tooltip title="复制订单号">
-                <a-button type="link" size="small" class="action-btn" @click="handleCopyOrderNo(record)">
+                <a-button type="link" size="small" class="action-btn" v-permission="'order:center:copyorderno'" @click="handleCopyOrderNo(record)">
                   <template #icon><CopyOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -347,7 +326,7 @@
               <template v-if="record.orderStatus === 0">
                 <a-divider type="vertical" class="action-divider" />
                 <a-tooltip title="提交审批">
-                  <a-button type="link" size="small" class="action-btn action-btn--submit" @click="handleQuickSubmit(record)">
+                  <a-button type="link" size="small" class="action-btn action-btn--submit" v-permission="'order:center:quicksubmit'" @click="handleQuickSubmit(record)">
                     提交
                   </a-button>
                 </a-tooltip>
@@ -356,7 +335,7 @@
               <template v-else-if="record.orderStatus === 1">
                 <a-divider type="vertical" class="action-divider" />
                 <a-tooltip title="审批通过">
-                  <a-button type="link" size="small" class="action-btn action-btn--approve" @click="handleQuickApprove(record)">
+                  <a-button type="link" size="small" class="action-btn action-btn--approve" v-permission="'order:center:quickapprove'" @click="handleQuickApprove(record)">
                     审批
                   </a-button>
                 </a-tooltip>
@@ -365,7 +344,7 @@
               <template v-else-if="record.orderStatus === 2 || record.orderStatus === 4">
                 <a-divider type="vertical" class="action-divider" />
                 <a-tooltip title="取消订单">
-                  <a-button type="link" size="small" class="action-btn action-btn--cancel" @click="handleQuickCancel(record)">
+                  <a-button type="link" size="small" class="action-btn action-btn--cancel" v-permission="'order:center:quickcancel'" @click="handleQuickCancel(record)">
                     取消
                   </a-button>
                 </a-tooltip>
@@ -388,8 +367,6 @@
           />
         </div>
       </div>
-    </template>
-  </ModuleLayout>
 
   <!-- 新建订单类型选择 -->
   <a-modal
@@ -434,6 +411,8 @@
 
   <!-- 回到顶部 -->
   <a-back-top :visibility-height="400" />
+  </ErrorBoundary>
+  </template>
   </PageContainer>
 </template>
 
@@ -442,7 +421,8 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from
 import dayjs from 'dayjs'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import {
   EyeOutlined,
@@ -632,6 +612,7 @@ interface ColumnDef {
   ellipsis?: boolean
   fixed?: 'left' | 'right'
   slotName?: string
+  type?: string
 }
 
 const columnDefs: ColumnDef[] = [
@@ -641,7 +622,7 @@ const columnDefs: ColumnDef[] = [
   { title: '金额', field: 'totalAmount', key: 'totalAmount', width: 130, align: 'right', slotName: 'totalAmountCell' },
   { title: '状态', field: 'orderStatus', key: 'orderStatus', width: 110, slotName: 'orderStatusCell' },
   { title: '创建时间', field: 'createTime', key: 'createTime', width: 170 },
-  { type: 'action', title: '操作', width: 260, fixed: 'right' }
+  { type: 'action', key: 'action', title: '操作', width: 260, fixed: 'right' }
 ]
 
 const displayColumns = computed(() =>
@@ -831,7 +812,7 @@ async function fetchData(append = false) {
           keyword: params.keyword,
           startDate: params.startDate,
           endDate: params.endDate
-        })
+        } as any)
         const records = res.data?.records || (res as any).records || []
         records.forEach((o: any) => {
           allOrders.push({
@@ -1235,14 +1216,20 @@ function handleKeydown(e: KeyboardEvent) {
     e.preventDefault()
     debounceClick('refresh', () => fetchData())
   }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault()
+    window.dispatchEvent(new CustomEvent('order-center:create'))
+  }
 }
 
 // ── 生命周期 ──────────────────────────────────────────────
 
+const _onRefresh = () => fetchData()
+
 onMounted(() => {
   fetchData()
-  window.addEventListener('order-center:create', handleParentCreate)
-  window.addEventListener('order-center:refresh', fetchData)
+  ;(window as any).addEventListener('order-center:create', handleParentCreate)
+  ;(window as any).addEventListener('order-center:refresh', _onRefresh)
   document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
@@ -1262,8 +1249,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('order-center:create', handleParentCreate)
-  window.removeEventListener('order-center:refresh', fetchData)
+  ;(window as any).removeEventListener('order-center:create', handleParentCreate)
+  ;(window as any).removeEventListener('order-center:refresh', _onRefresh)
   document.removeEventListener('keydown', handleKeydown)
   if (resizeObserver) resizeObserver.disconnect()
   if (refreshTimer) clearInterval(refreshTimer)
@@ -1667,4 +1654,55 @@ defineExpose({ handleQuery: fetchData })
 .create-type-icon--sales {
   color: #52c41a;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

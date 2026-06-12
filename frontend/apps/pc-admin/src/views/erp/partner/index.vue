@@ -23,6 +23,11 @@
                 <template #icon><ReloadOutlined /></template>
                 刷新
               </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+              </span>
             </a-space>
           </div>
         </div>
@@ -72,7 +77,7 @@
             <a-tree
               v-if="categoryTree.length"
               :tree-data="categoryTree"
-              :selected-keys="[selectedCategoryId ? [selectedCategoryId] : []]"
+              :selected-keys="selectedCategoryId ? [selectedCategoryId] : []"
               :field-names="{ children: 'children', title: 'categoryName', key: 'id' }"
               @select="onCategorySelect"
               block-node
@@ -91,7 +96,7 @@
               @reset="handleReset"
             />
             <a-space>
-              <a-button type="primary" size="small" @click="router.push('/erp/partner/create')">
+              <a-button type="primary" size="small" v-permission="'erp:partner:create'" @click="router.push('/erp/partner/create')">
                 <template #icon><PlusOutlined /></template>
                 新增单位
               </a-button>
@@ -128,11 +133,11 @@
             <template #action="{ record }">
               <a-space :size="4">
                 <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-                <a-button type="link" size="small" @click="router.push(`/erp/partner/${record.id}`)">编辑</a-button>
-                <a-button type="link" size="small" @click="handleToggleStatus(record)">
+                <a-button type="link" size="small" v-permission="'erp:partner:edit'" @click="router.push(`/erp/partner/${record.id}`)">编辑</a-button>
+                <a-button type="link" size="small" v-permission="'erp:partner:toggle-status'" @click="handleToggleStatus(record)">
                   {{ record.status === 'ENABLED' ? '停用' : '启用' }}
                 </a-button>
-                <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
+                <a-button type="link" size="small" v-permission="'erp:partner:delete'" danger @click="handleDelete(record)">删除</a-button>
               </a-space>
             </template>
           </VxeTableList>
@@ -195,7 +200,9 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal, Empty } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
@@ -240,7 +247,7 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 const list = ref<Partner[]>([])
 const selectedType = ref('ALL')
 const selectedCategoryId = ref<number>(0)
-const categoryTree = ref<PartnerCategory[]>([])
+const categoryTree = ref<any[]>([])
 
 const statistics = ref<StatSummary>({ total: 0, enabled: 0, disabled: 0, creditTotal: 0 })
 
@@ -254,7 +261,7 @@ const pagination = reactive({
 
 const tableRef = ref()
 
-const searchFields = [
+const searchFields: any = [
   { key: 'keyword', label: '编码/名称/联系人/电话', type: 'input', span: 2 },
   { key: 'status', label: '状态', type: 'select', span: 1, options: [
       { value: '', label: '全部' },
@@ -272,7 +279,7 @@ const typeTreeData = [
   { title: '其他', key: 'OTHER' },
 ]
 
-const vxeColumns = [
+const vxeColumns: any = [
   { type: 'seq', title: '#', width: 50 },
   { field: 'partnerCode', title: '编码', width: 110 },
   { field: 'partnerName', title: '单位名称', minWidth: 140 },
@@ -566,5 +573,55 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0 0 12px 0;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
 }
 </style>

@@ -18,12 +18,26 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
       </div>
+
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && tableData.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -94,6 +108,7 @@
         :summary-data="summaryData"
         :show-export="true"
         :selectable="true"
+        :min-empty-rows="12"
         add-text="新建供应商"
         @add="handleAdd"
         @refresh="fetchData"
@@ -101,7 +116,7 @@
         @page-change="handlePageChange"
         @sort-change="handleSortChange"
         @filter-change="handleFilterChange"
-        @selection-change="handleSelectionChange"
+        <!-- selection-change: handler not defined (removed) -->
         @cell-dblclick="handleView"
         @export="handleExport"
       >
@@ -113,7 +128,7 @@
             <template v-if="hasError">
               <WarningOutlined class="table-empty-icon" style="color: #faad14" />
               <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData">
+              <a-button type="primary" size="small" @click="fetchData as any">
                 <template #icon><ReloadOutlined /></template>
                 重试
               </a-button>
@@ -125,18 +140,24 @@
                 没有符合条件的供应商，<a @click="handleResetFilters">清除筛选</a>
               </p>
               <p v-else class="table-empty-text">
-                暂无供应商数据，点击右上角「新建供应商」开始创建
+                暂无供应商数据
               </p>
+              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                <a-button type="primary" v-permission="'crm:supplier:create'" @click="handleAdd">
+                  <template #icon><PlusOutlined /></template>
+                  新建第一个供应商
+                </a-button>
+              </div>
             </template>
           </div>
         </template>
 
         <template #action="{ record }">
           <a-space :size="4">
-            <a-tooltip title="查看"><a-button type="link" size="small" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="编辑"><a-button type="link" size="small" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="产品"><a-button type="link" size="small" @click="handleProducts(record)"><template #icon><ShoppingOutlined /></template></a-button></a-tooltip>
-            <a-tooltip title="评估"><a-button type="link" size="small" @click="handleEvaluate(record)"><template #icon><StarOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="查看"><a-button type="link" size="small" v-permission="'crm:supplier:view'" @click="handleView(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="编辑"><a-button type="link" size="small" v-permission="'crm:supplier:edit'" @click="handleEdit(record)"><template #icon><EditOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="产品"><a-button type="link" size="small" v-permission="'crm:supplier:products'" @click="handleProducts(record)"><template #icon><ShoppingOutlined /></template></a-button></a-tooltip>
+            <a-tooltip title="评估"><a-button type="link" size="small" v-permission="'crm:supplier:evaluate'" @click="handleEvaluate(record)"><template #icon><StarOutlined /></template></a-button></a-tooltip>
             <a-dropdown>
               <a-button type="link" size="small" @click.prevent><template #icon><MoreOutlined /></template></a-button>
               <template #overlay>
@@ -150,6 +171,7 @@
           </a-space>
         </template>
       </VxeTableList>
+      </template>
     </ErrorBoundary>
 
     <FullScreenDetail
@@ -157,6 +179,7 @@
       :title="modalTitle"
       :save-loading="submitLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleSubmit"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -208,7 +231,7 @@
           <div class="table-empty">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" @click="handleDetailRefresh">
+            <a-button type="primary" size="small" v-permission="'crm:supplier:detailrefresh'" @click="handleDetailRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -242,7 +265,7 @@
             <a-col :span="6"><a-statistic title="综合评分" :value="detailData.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
           </a-row>
           <a-divider>最近采购订单</a-divider>
-          <VxeTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <VxeTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
             <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
           </VxeTableList>
@@ -251,7 +274,7 @@
     </a-drawer>
 
     <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
-      <VxeTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+      <VxeTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
         <template #priceCell="{ record }"><span class="amount">¥{{ formatAmount(record.price) }}</span></template>
         <template #statusCell="{ record }"><a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">{{ record.status }}</a-tag></template>
       </VxeTableList>
@@ -278,19 +301,19 @@
 
     <a-modal v-model:open="portalModalVisible" :title="`供应商门户 - ${portalInfo.supplierName}`" width="550px" :footer="null">
       <a-descriptions :column="1" bordered size="small">
-        <a-descriptions-item label="门户地址"><a-space><span>{{ portalInfo.portalUrl }}</span><a-button type="link" size="small" @click="handleCopyPortalUrl"><template #icon><CopyOutlined /></template>复制</a-button></a-space></a-descriptions-item>
+        <a-descriptions-item label="门户地址"><a-space><span>{{ portalInfo.portalUrl }}</span><a-button type="link" size="small" v-permission="'crm:supplier:copyportalurl'" @click="handleCopyPortalUrl"><template #icon><CopyOutlined /></template>复制</a-button></a-space></a-descriptions-item>
         <a-descriptions-item label="登录账号">{{ portalInfo.account }}</a-descriptions-item>
         <a-descriptions-item label="登录密码">{{ portalInfo.password }}</a-descriptions-item>
       </a-descriptions>
       <a-divider />
       <a-space style="width:100%;justify-content:flex-end">
-        <a-button @click="handleResetPortalPassword">重置密码</a-button>
-        <a-button type="primary" @click="handleOpenPortal">打开门户</a-button>
+        <a-button v-permission="'crm:supplier:resetportalpassword'" @click="handleResetPortalPassword">重置密码</a-button>
+        <a-button type="primary" v-permission="'crm:supplier:openportal'" @click="handleOpenPortal">打开门户</a-button>
       </a-space>
     </a-modal>
 
     <a-modal v-model:open="contactsModalVisible" :title="contactsModalTitle" width="700px" :footer="null">
-      <VxeTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+      <VxeTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
         <template #isPrimaryCell="{ record }"><a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">{{ record.isPrimary }}</a-tag></template>
       </VxeTableList>
     </a-modal>
@@ -302,9 +325,11 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SyncOutlined, WarningOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
+
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { supplierApi } from '@/api/supplier'
 import type { FormInstance } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
@@ -483,7 +508,7 @@ const contactsVxeColumns = [
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
     e.preventDefault()
-    debounceClick('refresh', fetchData)
+    debounceClick('refresh', fetchData as any)
     return
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -505,16 +530,16 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -849,4 +874,57 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

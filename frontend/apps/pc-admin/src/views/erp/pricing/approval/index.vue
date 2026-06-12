@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="approval-header">
@@ -21,6 +22,10 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 申请</span>
+            </span>
           </a-space>
         </div>
       </div>
@@ -76,7 +81,7 @@
 
     <a-card :bordered="false" style="flex: 1; overflow: hidden;" :bodyStyle="{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 57px)' }">
       <template #extra>
-        <a-button type="primary" @click="handleApply">
+        <a-button v-permission="'pricing:approval:create'" type="primary" @click="handleApply">
           <template #icon><PlusOutlined /></template>
           申请价格变更
         </a-button>
@@ -121,8 +126,8 @@
             </template>
             <template #action="{ record }">
               <a-space :size="4">
-                <a-button size="small" type="primary" @click="handleApprove(record)">通过</a-button>
-                <a-button size="small" danger @click="handleReject(record)">拒绝</a-button>
+                <a-button v-permission="'pricing:approval:approve'" size="small" type="primary" @click="handleApprove(record)">通过</a-button>
+                <a-button v-permission="'pricing:approval:reject'" size="small" danger @click="handleReject(record)">拒绝</a-button>
                 <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
               </a-space>
             </template>
@@ -135,7 +140,7 @@
             :loading="loading"
             :show-toolbar="false"
             :selectable="false"
-            :pagination="false"
+            :pagination="false as any"
             @cell-dblclick="handleView"
           >
             <template #empty>
@@ -169,7 +174,7 @@
             :loading="loading"
             :show-toolbar="false"
             :selectable="false"
-            :pagination="false"
+            :pagination="false as any"
             @cell-dblclick="handleView"
           >
             <template #empty>
@@ -203,7 +208,7 @@
             :loading="loading"
             :show-toolbar="false"
             :selectable="false"
-            :pagination="false"
+            :pagination="false as any"
             @cell-dblclick="handleView"
           >
             <template #empty>
@@ -366,13 +371,15 @@
       </a-descriptions>
     </a-drawer>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
@@ -431,7 +438,7 @@ const applyForm = reactive({
   customerId: undefined as number | undefined,
   newPrice: undefined as number | undefined,
   approvalType: undefined as string | undefined,
-  effectiveRange: [] as any[],
+  effectiveRange: [] as any,
   approvalReason: ''
 })
 
@@ -470,7 +477,7 @@ const pendingTableRef = ref()
 
 // ── VxeTableList 列定义 ──────────────────────────────────
 
-const pendingVxeColumns = computed(() => [
+const pendingVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品', width: 150 },
   { field: 'customerName', title: '客户', width: 120 },
   { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
@@ -481,7 +488,7 @@ const pendingVxeColumns = computed(() => [
   { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
 ])
 
-const processedVxeColumns = computed(() => [
+const processedVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品', width: 150 },
   { field: 'customerName', title: '客户', width: 120 },
   { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
@@ -489,7 +496,7 @@ const processedVxeColumns = computed(() => [
   { field: 'approver', title: '审批人', width: 160, slotName: 'approverCell' },
 ])
 
-const myVxeColumns = computed(() => [
+const myVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品', width: 150 },
   { field: 'customerName', title: '客户', width: 120 },
   { field: 'priceChange', title: '价格变更', width: 200, slotName: 'priceChange' },
@@ -683,6 +690,8 @@ const handleView = async (record: PriceApproval) => {
 const formatDate = (date: string) => date ? date.split('T')[0] : ''
 const filterOption = (input: string, option: { name?: string }) =>
   option?.name?.toLowerCase?.().includes(input.toLowerCase()) ?? false
+
+function handleError(err: unknown) { console.warn('[价格审批] ErrorBoundary 捕获异常:', err) }
 
 const getApprovalTypeText = (type: string) => {
   return {
@@ -899,6 +908,40 @@ defineExpose({ handleQuery: loadData })
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

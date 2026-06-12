@@ -72,14 +72,14 @@ export function useFormPersistence<T extends Record<string, any>>(
     
     if (opts.include && opts.include.length > 0) {
       for (const field of opts.include) {
-        if (data.hasOwnProperty(field)) {
-          filtered[field] = data[field]
+        if ((data as Record<string, any>).hasOwnProperty(field)) {
+          ;(filtered as Record<string, any>)[field] = data[field]
         }
       }
     } else if (opts.exclude && opts.exclude.length > 0) {
       for (const key of Object.keys(data)) {
         if (!opts.exclude.includes(key)) {
-          filtered[key] = data[key]
+          ;(filtered as Record<string, any>)[key] = (data as Record<string, any>)[key]
         }
       }
     } else {
@@ -402,12 +402,12 @@ export function useFormDraft<T extends Record<string, any>>(
   const createDraft = (title?: string) => {
     const draft = {
       id: `draft_${Date.now()}`,
-      data: cloneDeep(formData.value),
+      data: cloneDeep(formData.value) as Partial<T>,
       timestamp: Date.now(),
       title: title || `草稿 ${drafts.value.length + 1}`
     }
-    
-    drafts.value.push(draft)
+
+    drafts.value.push(draft as any)
     
     // 保持最大数量限制
     if (drafts.value.length > opts.maxDrafts) {

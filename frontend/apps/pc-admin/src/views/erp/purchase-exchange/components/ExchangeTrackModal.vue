@@ -48,7 +48,7 @@
           :columns="itemVxeColumns"
           :data-source="items"
           :loading="loading"
-          :pagination="false"
+          :pagination="false as any"
           row-key="id"
           :show-toolbar="false"
           :selectable="false"
@@ -68,7 +68,7 @@
           :columns="approvalVxeColumns"
           :data-source="approvalRecords"
           :loading="loading"
-          :pagination="false"
+          :pagination="false as any"
           row-key="id"
           :show-toolbar="false"
           :selectable="false"
@@ -268,9 +268,9 @@ const loadTrackData = async (exchangeId: number) => {
   try {
     const res = await purchaseExchangeApi.getTracking(exchangeId)
     if (res.data) {
-      items.value = res.data.items
-      approvalRecords.value = res.data.approvalRecords
-      timeline.value = res.data.timeline
+      items.value = res.items
+      approvalRecords.value = res.approvalRecords
+      timeline.value = res.timeline
     }
   } catch (error) {
     console.warn('[采购换货] 跟踪API不可用，使用本地数据', error)

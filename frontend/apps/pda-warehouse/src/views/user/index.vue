@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, Cell, CellGroup, Avatar, Button, Dialog, Field, showDialog, showToast } from 'vant'
+import { NavBar, Cell, CellGroup, Button, Field, Dialog, showToast } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -47,17 +47,17 @@ const handleLogout = () => {
     message: '确定要退出登录吗？'
   }).then(() => {
     userStore.logout()
-    router.push('/login')
-  }).catch((err) => { console.error('退出登录操作失败:', err) })
+    router.replace('/login')
+  }).catch(() => {})
 }
 
 const handleMenuClick = (item: any) => {
   if (item.path) {
     router.push(item.path)
   } else {
-    showDialog({
+    Dialog.alert({
       title: '帮助中心',
-      message: '如有疑问，请联系仓库管理员\n\n联系电话：400-888-0001\n工作时间：周一至周五 9:00-18:00\n\n常见问题：\n1. 如何开始拣货作业？扫描库位条码后按系统指引操作即可\n2. 如何提交异常报告？在作业详情页点击"异常上报"\n3. 如何查看历史数据？进入"作业历史"查看过往记录',
+      message: '如有疑问，请联系仓库管理员\n\n联系电话：400-888-0001\n工作时间：周一至周五 9:00-18:00',
       confirmButtonText: '我知道了'
     })
   }
@@ -89,14 +89,11 @@ const saveProfile = () => {
 
 <template>
   <div class="user-page">
+    <NavBar title="个人中心" />
+
     <div class="user-header">
       <div v-if="userStore.isLoggedIn" class="user-info">
-        <Avatar 
-          :src="userStore.user?.avatar" 
-          size="60"
-        >
-          {{ userStore.user?.nickname?.charAt(0) || 'W' }}
-        </Avatar>
+        <div class="avatar">{{ userStore.user?.nickname?.charAt(0) || 'W' }}</div>
         <div class="user-detail">
           <div class="user-name">{{ userStore.user?.nickname || '仓库员' }}</div>
           <div class="user-level">
@@ -111,15 +108,15 @@ const saveProfile = () => {
           编辑
         </Button>
       </div>
-      
+
       <div v-else class="login-prompt">
-        <Avatar size="60">W</Avatar>
+        <div class="avatar">W</div>
         <div class="prompt-text">
           <div class="prompt-title">登录/注册</div>
           <div class="prompt-desc">登录后查看作业数据</div>
         </div>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           size="small"
           @click="router.push('/login')"
         >
@@ -127,7 +124,7 @@ const saveProfile = () => {
         </Button>
       </div>
     </div>
-    
+
     <div class="stats-card">
       <div class="stats-header">今日作业</div>
       <div class="stats-row">
@@ -140,9 +137,9 @@ const saveProfile = () => {
           <div class="stat-label">已完成</div>
         </div>
       </div>
-      
+
       <div class="stats-divider"></div>
-      
+
       <div class="stats-header">累计数据</div>
       <div class="stats-row">
         <div class="stat-item">
@@ -155,9 +152,9 @@ const saveProfile = () => {
         </div>
       </div>
     </div>
-    
+
     <CellGroup inset class="menu-group">
-      <Cell 
+      <Cell
         v-for="item in menuItems"
         :key="item.title"
         :icon="item.icon"
@@ -166,7 +163,7 @@ const saveProfile = () => {
         @click="handleMenuClick(item)"
       />
     </CellGroup>
-    
+
     <div v-if="userStore.isLoggedIn" class="logout-section">
       <Button
         block
@@ -179,7 +176,7 @@ const saveProfile = () => {
     </div>
 
     <!-- 编辑资料弹窗 -->
-    <van-dialog
+    <Dialog
       v-model:show="showProfileEdit"
       title="编辑资料"
       show-cancel-button
@@ -187,20 +184,20 @@ const saveProfile = () => {
     >
       <div class="edit-form">
         <Field
-          v-model="profileForm.nickname"
+          v-model:value="profileForm.nickname"
           label="昵称"
           placeholder="请输入昵称"
           maxlength="20"
         />
         <Field
-          v-model="profileForm.phone"
+          v-model:value="profileForm.phone"
           label="手机号"
           placeholder="请输入手机号"
           type="tel"
           maxlength="11"
         />
       </div>
-    </van-dialog>
+    </Dialog>
   </div>
 </template>
 
@@ -215,23 +212,23 @@ const saveProfile = () => {
   padding: 20px 16px;
   background: linear-gradient(135deg, #07c160, #39b54a);
   color: #fff;
-  
+
   .user-info {
     display: flex;
     align-items: center;
-    
+
     .user-detail {
       flex: 1;
       margin-left: 16px;
-      
+
       .user-name {
         font-size: 18px;
         font-weight: 600;
       }
-      
+
       .user-level {
         margin-top: 4px;
-        
+
         .level-tag {
           font-size: 12px;
           padding: 2px 8px;
@@ -241,20 +238,20 @@ const saveProfile = () => {
       }
     }
   }
-  
+
   .login-prompt {
     display: flex;
     align-items: center;
-    
+
     .prompt-text {
       flex: 1;
       margin-left: 16px;
-      
+
       .prompt-title {
         font-size: 18px;
         font-weight: 600;
       }
-      
+
       .prompt-desc {
         font-size: 14px;
         margin-top: 4px;
@@ -264,35 +261,49 @@ const saveProfile = () => {
   }
 }
 
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .stats-card {
   margin: -20px 16px 16px;
   padding: 16px;
   background: #fff;
   border-radius: 8px;
-  
+
   .stats-header {
     font-size: 14px;
     color: #969799;
     margin-bottom: 12px;
   }
-  
+
   .stats-row {
     display: flex;
     justify-content: space-around;
-    
+
     .stat-item {
       text-align: center;
-      
+
       .stat-value {
         font-size: 24px;
         font-weight: 600;
         color: #333;
-        
+
         &.success {
           color: #07c160;
         }
       }
-      
+
       .stat-label {
         font-size: 12px;
         color: #969799;
@@ -300,7 +311,7 @@ const saveProfile = () => {
       }
     }
   }
-  
+
   .stats-divider {
     height: 1px;
     background: #eee;

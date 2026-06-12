@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -34,12 +35,31 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
     public Page<SaleExchange> pageList(String keyword, Long customerId, Integer status, Integer exchangeType,
                                        String startDate, String endDate, int pageNum, int pageSize) {
         LambdaQueryWrapper<SaleExchange> wrapper = new LambdaQueryWrapper<>();
+
+        // 转换日期字符串为 LocalDateTime，避免 PostgreSQL 类型不匹配
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDateTime.parse(startDate + "T00:00:00");
+            } catch (Exception e) {
+                startDateTime = LocalDate.parse(startDate).atStartOfDay();
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDateTime.parse(endDate + "T23:59:59");
+            } catch (Exception e) {
+                endDateTime = LocalDate.parse(endDate).atTime(23, 59, 59);
+            }
+        }
+
         wrapper.like(keyword != null, SaleExchange::getExchangeNo, keyword)
                 .eq(customerId != null, SaleExchange::getCustomerId, customerId)
                 .eq(status != null, SaleExchange::getStatus, status)
                 .eq(exchangeType != null, SaleExchange::getExchangeType, exchangeType)
-                .ge(startDate != null, SaleExchange::getCreateTime, startDate)
-                .le(endDate != null, SaleExchange::getCreateTime, endDate)
+                .ge(startDateTime != null, SaleExchange::getCreateTime, startDateTime)
+                .le(endDateTime != null, SaleExchange::getCreateTime, endDateTime)
                 .orderByDesc(SaleExchange::getCreateTime);
         return this.page(new Page<>(pageNum, pageSize), wrapper);
     }
@@ -48,12 +68,31 @@ public class SaleExchangeServiceImpl extends ServiceImpl<SaleExchangeMapper, Sal
     public List<SaleExchange> exportList(String keyword, Long customerId, Integer status, Integer exchangeType,
                                          String startDate, String endDate) {
         LambdaQueryWrapper<SaleExchange> wrapper = new LambdaQueryWrapper<>();
+
+        // 转换日期字符串为 LocalDateTime
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDateTime.parse(startDate + "T00:00:00");
+            } catch (Exception e) {
+                startDateTime = LocalDate.parse(startDate).atStartOfDay();
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDateTime.parse(endDate + "T23:59:59");
+            } catch (Exception e) {
+                endDateTime = LocalDate.parse(endDate).atTime(23, 59, 59);
+            }
+        }
+
         wrapper.like(keyword != null, SaleExchange::getExchangeNo, keyword)
                 .eq(customerId != null, SaleExchange::getCustomerId, customerId)
                 .eq(status != null, SaleExchange::getStatus, status)
                 .eq(exchangeType != null, SaleExchange::getExchangeType, exchangeType)
-                .ge(startDate != null, SaleExchange::getCreateTime, startDate)
-                .le(endDate != null, SaleExchange::getCreateTime, endDate)
+                .ge(startDateTime != null, SaleExchange::getCreateTime, startDateTime)
+                .le(endDateTime != null, SaleExchange::getCreateTime, endDateTime)
                 .orderByDesc(SaleExchange::getCreateTime);
         return this.baseMapper.selectList(wrapper);
     }

@@ -58,8 +58,8 @@ export const install = (app: App, options = {}): void => {
   }
 };
 
-// 导出所有组件的类型
-export * from './types';
+// 导出所有组件的类型（排除与 layout/types 冲突的 BreadcrumbItem / TabItem）
+export type { Size, Type, Direction, Position, ButtonProps, InputProps, TableColumn, DialogProps, LayoutProps, PaginationProps, FormItemProps, FormRule, SelectOption, DatePickerProps, IconProps, StepItem, NotificationOptions, MessageBoxOptions, LoadingOptions, Supplier, PurchaseOrder, PurchaseOrderItem, InventoryItem, FinancialRecord, ApiResponse, PaginatedResponse, QueryParams, ComponentEmit, ComponentRef, ThemeConfig, LocaleMessages, LocaleConfig, Permission, User, FormItemProps as FormItemType } from './types';
 
 export default {
   install,

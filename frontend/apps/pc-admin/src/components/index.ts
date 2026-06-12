@@ -6,7 +6,16 @@ export { default as PageContainer } from './PageContainer/PageContainer.vue'
 
 // 表格列表组件
 export { default as TableList } from './TableList/TableList.vue'
-export type { TableColumn, PaginationConfig } from './TableList/TableList.vue'
+export type { TableColumn } from './TableList/TableList.vue'
+export type PaginationConfig = {
+  current?: number
+  pageSize?: number
+  total?: number
+  showSizeChanger?: boolean
+  showQuickJumper?: boolean
+  pageSizeOptions?: string[]
+  showTotal?: boolean | ((total: number, range: [number, number]) => string)
+}
 
 // 搜索栏组件
 export { default as SearchBar } from './SearchBar/SearchBar.vue'

@@ -29,7 +29,7 @@
         :columns="itemVxeColumns"
         :data-source="data?.items || []"
         row-key="id"
-        :pagination="false"
+        :pagination="false as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"
@@ -41,7 +41,7 @@
           ¥{{ record.amount?.toFixed(2) }}
         </template>
       </VxeTableList>
-      <a-empty v-if="!data?.items || data.items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
+      <a-empty v-if="!data?.items || (data as any).items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
     </template>
   </DetailLayout>
 </template>
@@ -69,7 +69,7 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 
 const router = useRouter(); const route = useRoute()
 let refreshTimer: ReturnType<typeof setInterval> | null = null
-const data = ref<PurchaseInbound | null>(null)
+const data = ref<any>(null)
 const loading = ref(false); const error = ref<string | null>(null); const activeTab = ref('basic')
 const breadcrumbItems = computed(() => [{ text: '采购管理', path: '/purchase?tab=inbound' }, { text: '入库单', path: '/purchase?tab=inbound' }, { text: data.value?.inboundNo || '' }])
 const tabs = computed(() => [

@@ -1,5 +1,15 @@
 server:
-  port: 0
+  port: 5657
 spring:
   application:
     name: erp-b2b-mall
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devdb
+    username: devuser
+    password: devuser123
+    driver-class-name: org.postgresql.Driver

@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="accounts-payable-header">
@@ -19,6 +20,10 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          </span>
         </div>
       </div>
     </template>
@@ -58,6 +63,7 @@
 
       <VxeTableList
         ref="tableRef"
+        :min-empty-rows="12"
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
@@ -68,6 +74,8 @@
         :show-export="true"
         :selectable="true"
         add-text="新增应付"
+        add-permission="finance:payable:create"
+        export-permission="finance:payable:export"
         @add="handleAdd"
         @refresh="fetchData"
         @cell-dblclick="handleView"
@@ -114,13 +122,13 @@
         <template #action="{ record }">
           <a-space :size="4">
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'finance:payable:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <PrintButton :record="record" :business-id="record.id" business-type="payable" button-type="link" button-size="small" tooltip="打印" />
             <a-tooltip v-if="record.status !== 2" title="付款">
-              <a-button type="link" size="small" @click="handlePayment(record)">
+              <a-button type="link" size="small" v-permission="'finance:payable:payment'" @click="handlePayment(record)">
                 <template #icon><DollarOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -129,7 +137,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="paymentHistory">
                     <HistoryOutlined /> 付款记录
                   </a-menu-item>
@@ -144,12 +152,10 @@
       </VxeTableList>
 
       <!-- 详情弹窗 -->
-      <a-modal
-        v-model:open="detailVisible"
+      <FullScreenDetail
+        :visible="detailVisible"
         title="应付账款详情"
-        width="800px"
-        centered
-        :footer="null"
+        @close="detailVisible = false"
       >
         <a-descriptions bordered :column="2" v-if="currentRecord">
           <a-descriptions-item label="供应商名称">
@@ -185,7 +191,7 @@
           <VxeTableList
             :columns="paymentColumns"
             :data-source="paymentRecords"
-            :pagination="false"
+            :pagination="false as any"
             row-key="id"
             :show-toolbar="false"
             :selectable="false"
@@ -200,14 +206,53 @@
           </VxeTableList>
         </div>
 
-        <div class="detail-modal-footer">
-          <a-button v-if="currentRecord?.status !== 2" type="primary" @click="handlePayment(currentRecord)">
+        <div style="margin-top:16px;text-align:right">
+          <a-button v-if="currentRecord?.status !== 2" type="primary" v-permission="'finance:payable:payment'" @click="handlePayment(currentRecord)">
             <template #icon><DollarOutlined /></template>
             付款
           </a-button>
-          <a-button @click="detailVisible = false">关闭</a-button>
         </div>
-      </a-modal>
+      </FullScreenDetail>
+
+      <!-- 新增应付 -->
+      <FullScreenDetail
+        :visible="addModalVisible"
+        title="新增应付账款"
+        :save-loading="addSubmitting"
+        :dirty="addFormDirty"
+        show-save-and-new
+        @save="handleAddConfirm(false)"
+        @save-and-new="handleAddConfirm(true)"
+        @close="handleAddCancel"
+      >
+        <a-form ref="addFormRef" :model="addFormState" :rules="addFormRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }">
+          <a-form-item label="供应商" name="supplierId">
+            <a-select
+              v-model:value="addFormState.supplierId"
+              placeholder="请选择供应商"
+              size="small"
+              show-search
+              :filter-option="(input: string, option: any) => option.children?.toLowerCase().includes(input.toLowerCase())"
+            >
+              <a-select-option v-for="s in supplierOptions" :key="s.id" :value="s.id">{{ s.name }}</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="应付金额" name="amount">
+            <a-input-number v-model:value="addFormState.amount" :min="0" :precision="2" size="small" style="width:100%">
+              <template #addonBefore>¥</template>
+            </a-input-number>
+          </a-form-item>
+          <a-form-item label="到期日期" name="dueDate">
+            <a-date-picker v-model:value="addFormState.dueDate" size="small" style="width:100%" />
+          </a-form-item>
+          <a-form-item label="订单号" name="orderNo">
+            <a-input v-model:value="addFormState.orderNo" placeholder="关联订单号（可选）" size="small" />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addFormState.remark" placeholder="备注信息" :rows="3" />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
 
       <!-- 付款弹窗 -->
       <FullScreenDetail
@@ -253,10 +298,12 @@
       </FullScreenDetail>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -266,7 +313,9 @@ import {
   FileTextOutlined, ReloadOutlined, SyncOutlined, HistoryOutlined, BellOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import { payableApi } from '@/api/finance'
 import request from '@/utils/request'
 
 const debounceMap = new Map<string, number>()
@@ -286,6 +335,29 @@ const lastUpdateTime = ref('')
 const lastUpdated = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
+
+const addModalVisible = ref(false)
+const addSubmitting = ref(false)
+const addFormRef = ref()
+const addFormState = reactive({
+  supplierId: undefined as number | undefined,
+  amount: undefined as number | undefined,
+  dueDate: undefined as any,
+  orderNo: '',
+  remark: ''
+})
+const addFormRules = {
+  supplierId: [{ required: true, message: '请选择供应商', trigger: 'change' }],
+  amount: [{ required: true, message: '请输入应付金额', trigger: 'blur' }],
+  dueDate: [{ required: true, message: '请选择到期日期', trigger: 'change' }]
+} as any
+const supplierOptions = ref<{ id: number; name: string }[]>([])
+const initialAddSnapshot = ref('')
+
+const addFormDirty = computed(() => {
+  if (!addModalVisible.value) return false
+  return JSON.stringify({ ...addFormState }) !== initialAddSnapshot.value
+})
 
 const queryParams = reactive({
   supplierName: '',
@@ -373,8 +445,57 @@ function handleParentCreate() {
   handleAdd()
 }
 
-const handleAdd = () => {
-  message.info('打开新增应付表单')
+const handleAdd = async () => {
+  addFormState.supplierId = undefined
+  addFormState.amount = undefined
+  addFormState.dueDate = undefined
+  addFormState.orderNo = ''
+  addFormState.remark = ''
+  initialAddSnapshot.value = JSON.stringify({ ...addFormState })
+  // 加载供应商选项
+  try {
+    const res = await request.get('/finance/supplier/list', { pageSize: 999 })
+    supplierOptions.value = (res.data?.records || res.data || []).map((s: any) => ({ id: s.id, name: s.name || s.supplierName }))
+  } catch { supplierOptions.value = [] }
+  addModalVisible.value = true
+}
+
+const handleAddConfirm = async (stay: boolean) => {
+  try {
+    await addFormRef.value?.validate()
+  } catch { return }
+  addSubmitting.value = true
+  try {
+    await request.post('/finance/payable/create', {
+      supplierId: addFormState.supplierId,
+      amount: addFormState.amount,
+      dueDate: addFormState.dueDate?.format?.('YYYY-MM-DD') || addFormState.dueDate,
+      orderNo: addFormState.orderNo || undefined,
+      remark: addFormState.remark
+    })
+    message.success('新增应付账款成功')
+    if (stay) {
+      addFormState.supplierId = undefined
+      addFormState.amount = undefined
+      addFormState.dueDate = undefined
+      addFormState.orderNo = ''
+      addFormState.remark = ''
+      initialAddSnapshot.value = JSON.stringify({ ...addFormState })
+      addFormRef.value?.resetFields()
+    } else {
+      addModalVisible.value = false
+    }
+    fetchData()
+  } catch (err) {
+    console.warn('[应付账款] 新增失败', err)
+    message.error('新增失败')
+  } finally {
+    addSubmitting.value = false
+  }
+}
+
+const handleAddCancel = () => {
+  addModalVisible.value = false
 }
 
 const handleView = (record: any) => {
@@ -459,22 +580,32 @@ const handleSelectionChange = (rows: any[], ids: any[]) => {
   // 可以在这里处理选中行的逻辑，例如批量操作
 }
 
-const handleExport = () => {
-  const headers = ['供应商名称', '订单号', '应付金额', '已付金额', '未付金额', '状态', '到期日期', '备注']
-  const rows = dataSource.value.map(r => [
-    r.supplierName || '', r.orderNo || '', formatAmount(r.amount), formatAmount(r.paidAmount),
-    formatAmount(r.unpaidAmount), getStatusText(r.status), r.dueDate || '', r.remark || ''
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `应付账款_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  window.URL.revokeObjectURL(url)
-  console.warn('[应付账款] 导出成功', dataSource.value.length)
-  message.success('导出成功')
+const handleExport = async () => {
+  try {
+    const res = await request.get('/finance/payable/export', {
+      supplierName: queryParams.supplierName || undefined,
+      status: queryParams.status
+    })
+    const list = res.data || res.rows || []
+    if (!list.length) { message.info('没有可导出的数据'); return }
+    const headers = ['供应商名称', '订单号', '应付金额', '已付金额', '未付金额', '状态', '到期日期', '备注']
+    const rows = list.map((r: any) => [
+      r.supplierName || '', r.orderNo || '', formatAmount(r.amount), formatAmount(r.paidAmount),
+      formatAmount(r.unpaidAmount), getStatusText(r.status), r.dueDate || '', r.remark || ''
+    ])
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `应付账款_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success(`导出成功，共 ${list.length} 条`)
+  } catch (err) {
+    console.warn('[应付账款] 导出失败', err)
+    message.error('导出失败')
+  }
 }
 
 const fetchData = async () => {
@@ -488,13 +619,20 @@ const fetchData = async () => {
       pageSize: pagination.pageSize
     })
     if (res.data?.records) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total || 0
+      dataSource.value = res.records
+      pagination.total = res.total || 0
       lastUpdated.value = new Date().toISOString()
       lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
-      stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
-      stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
-      stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
+      // 优先使用后端返回的汇总数据
+      if (res.totalAmount !== undefined) {
+        stats.totalAmount = res.totalAmount
+        stats.paidAmount = res.totalPaidAmount || 0
+        stats.unpaidAmount = res.totalUnpaidAmount || 0
+      } else {
+        stats.totalAmount = dataSource.value.reduce((sum, item) => sum + item.amount, 0)
+        stats.paidAmount = dataSource.value.reduce((sum, item) => sum + item.paidAmount, 0)
+        stats.unpaidAmount = dataSource.value.reduce((sum, item) => sum + item.unpaidAmount, 0)
+      }
     } else {
       console.warn('应付账款列表接口返回数据结构异常', res.data)
     }
@@ -513,7 +651,7 @@ const fetchData = async () => {
 function isInput(target: Element | null): boolean {
   if (!target) return false
   const tag = target.tagName.toLowerCase()
-  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || (target as HTMLElement).isContentEditable
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -549,6 +687,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -715,15 +855,6 @@ defineExpose({ handleQuery: fetchData })
   font-weight: 500;
   margin-bottom: 8px;
 }
-
-.detail-modal-footer {
-  text-align: right;
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .list-update-timestamp {
   font-size: 12px;
   color: var(--color-text-tertiary, #bbb);
@@ -733,16 +864,6 @@ defineExpose({ handleQuery: fetchData })
   line-height: 32px;
   vertical-align: middle;
 }
-
-
-
-
-
-/* 详情弹窗表格网格边框 */
-
-
-
-
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards {
@@ -769,4 +890,55 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

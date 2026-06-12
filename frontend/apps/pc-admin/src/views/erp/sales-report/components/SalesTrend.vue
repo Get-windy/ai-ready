@@ -130,7 +130,7 @@
           :columns="trendVxeColumns"
           :data-source="trendData"
           :loading="loading"
-          :pagination="false"
+          :pagination="false as any"
           row-key="period"
           :show-toolbar="false"
           :selectable="false"
@@ -192,7 +192,7 @@ const filterExpanded = ref<string[]>([])
 const chartMode = ref<'line' | 'bar' | 'area'>('area')
 
 const queryParams = reactive({
-  dateRange: [] as string[],
+  dateRange: [] as any,
   type: 'daily',
   compareType: 'yoy'
 })

@@ -75,6 +75,14 @@ public class UnifiedPermissionCacheService {
     public List<String> getPermissions(Long userId) {
         if (userId == null) return new ArrayList<>();
 
+        // 超级管理员角色检查：拥有所有权限
+        List<String> roles = getRoles(userId);
+        if (roles != null && roles.contains("SUPER_ADMIN")) {
+            List<String> allPerms = new ArrayList<>();
+            allPerms.add("*");  // 通配符权限，表示拥有所有权限
+            return allPerms;
+        }
+
         // L1: 本地缓存
         List<String> perms = permissionLocalCache.getIfPresent(userId);
         if (perms != null) {

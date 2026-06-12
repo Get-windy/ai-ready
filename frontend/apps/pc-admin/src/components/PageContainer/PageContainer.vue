@@ -6,6 +6,9 @@
       'page-container--padded': bodyPadding
     }]"
   >
+    <!-- 网络重连横幅 -->
+    <ReconnectBanner />
+
     <!-- 顶部区域：面包屑/标题 -->
     <slot name="header">
       <div v-if="title || $slots.headerContent" class="page-container__header">
@@ -38,6 +41,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import ReconnectBanner from '@/components/ReconnectBanner/ReconnectBanner.vue'
 
 defineProps<{
   title?: string

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NavBar, Form, Field, Button, CellGroup, Popup, DatetimePicker, showLoadingToast, closeToast, showToast, Dialog } from 'vant'
+import { NavBar, Form, Field, Button, CellGroup, Popup, showLoadingToast, closeToast, showToast, Dialog } from 'vant'
 import { api } from '@/api'
 
 const router = useRouter()

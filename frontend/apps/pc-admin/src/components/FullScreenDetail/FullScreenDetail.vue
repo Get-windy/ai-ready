@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch, computed } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import { CloseOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons-vue'
@@ -54,6 +54,8 @@ const props = defineProps<{
   dirty?: boolean
   /** 是否在关闭时确认（脏数据时自动启用） */
   confirmOnClose?: boolean
+  /** 顶部偏移量，避免遮盖标签导航栏（默认48px适配标签栏高度） */
+  topOffset?: number
 }>()
 
 const emit = defineEmits<{
@@ -61,6 +63,8 @@ const emit = defineEmits<{
   save: []
   'save-and-new': []
 }>()
+
+const topOffset = computed(() => props.topOffset ?? 48)
 
 // ── 脏检查确认 ──────────────────────────────────────
 function confirmIfDirty(): Promise<boolean> {
@@ -136,11 +140,11 @@ function handleSaveAndNew() {
 <style scoped>
 .fullscreen-detail-overlay {
   position: fixed;
-  top: 0;
+  top: v-bind(topOffset + 'px');
   left: 0;
   width: 100vw;
-  height: 100vh;
-  z-index: 99;
+  height: calc(100vh - v-bind(topOffset + 'px'));
+  z-index: 90;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   justify-content: center;

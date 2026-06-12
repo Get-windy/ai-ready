@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NavBar, Cell, CellGroup, Avatar, Button, Dialog } from 'vant'
+import { NavBar, Cell, CellGroup, Button, Dialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()

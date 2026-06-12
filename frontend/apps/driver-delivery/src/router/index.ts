@@ -95,7 +95,25 @@ const routes: RouteRecordRaw[] = [
     name: 'Login',
     component: () => import('@/views/login/index.vue'),
     meta: { title: '登录', showTabBar: false }
-  }
+  },
+  {
+    path: '/inspection',
+    name: 'Inspection',
+    component: () => import('@/views/inspection/index.vue'),
+    meta: { title: '出车验车', showTabBar: false }
+  },
+  {
+    path: '/binding',
+    name: 'Binding',
+    component: () => import('@/views/binding/index.vue'),
+    meta: { title: '车辆绑定', showTabBar: false }
+  },
+  {
+    path: '/handover',
+    name: 'Handover',
+    component: () => import('@/views/handover/index.vue'),
+    meta: { title: '交车', showTabBar: false }
+  },
 ]
 
 const router = createRouter({

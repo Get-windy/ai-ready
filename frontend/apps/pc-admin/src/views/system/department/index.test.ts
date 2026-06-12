@@ -395,7 +395,7 @@ describe('Department Management - Main Page', () => {
       mockConfirm.mockImplementation(({ onOk }) => {
         onOk && onOk()
       })
-      window.Modal = { confirm: mockConfirm } as any
+      (window as any).Modal = { confirm: mockConfirm } as any
 
       vi.mocked(departmentApi.delete).mockResolvedValue({ code: 200, data: true } as any)
       vi.mocked(departmentApi.getTree).mockResolvedValue({ code: 200, data: [] } as any)
@@ -639,7 +639,7 @@ describe('Department Management - Personnel Page', () => {
       mockConfirm.mockImplementation(({ onOk }) => {
         onOk && onOk()
       })
-      window.Modal = { confirm: mockConfirm } as any
+      (window as any).Modal = { confirm: mockConfirm } as any
 
       await wrapper.vm.handleRemove(user)
 

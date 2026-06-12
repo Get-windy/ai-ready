@@ -9,14 +9,26 @@
         </div>
         <div class="page-header__right">
           <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="page-header__countdown">{{ autoRefreshCountdown }}s后自动刷新</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-button size="small" @click="debounceClick('refresh', fetchData)">
             <ReloadOutlined /> 刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+          </span>
         </div>
       </div>
     </template>
 
+    <!-- 骨架加载 -->
+    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
+    </a-skeleton>
+
+    <template v-if="!refreshLoading">
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px">
       <a-col :xs="12" :sm="12" :md="6">
@@ -70,7 +82,7 @@
           <a-select-option value="CANCELLED">已取消</a-select-option>
         </a-select>
         <a-tooltip title="导出">
-          <a-button size="small" @click="handleExport">
+          <a-button v-permission="'erp:expense:payment:list'" size="small" @click="debounceClick('export', handleExport)">
             <template #icon><ExportOutlined /></template>
           </a-button>
         </a-tooltip>
@@ -90,6 +102,7 @@
       :show-toolbar="false"
       :show-add="false"
       :show-search="false"
+      :min-empty-rows="12"
       @page-change="onPageChange"
     >
       <template #empty>
@@ -109,25 +122,25 @@
     </VxeTableList>
 
     <!-- 新增付款弹窗 -->
-    <a-modal v-model:open="createModalVisible" title="新增付款" width="560px" :confirm-loading="createLoading" @ok="handleCreateOk" @cancel="handleCreateCancel">
+    <a-modal v-model:open="createModalVisible" title="新增付款" width="560px" :confirm-loading="createLoading" :destroy-on-close="true" @ok="handleCreateOk" @cancel="handleCreateCancel">
       <a-form ref="createFormRef" :model="createForm" :rules="createRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
         <a-form-item label="业务类型" name="businessType">
-          <a-select v-model:value="createForm.businessType" placeholder="请选择业务类型" @change="handleBusinessTypeChange">
+          <a-select v-model:value="createForm.businessType" size="small" placeholder="请选择业务类型" @change="handleBusinessTypeChange">
             <a-select-option value="APPLICATION">费用申请</a-select-option>
             <a-select-option value="REIMBURSEMENT">费用报销</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="业务单据" name="businessId">
-          <a-select v-model:value="createForm.businessId" placeholder="请选择业务单据" :options="businessOptions" show-search :filter-option="(input: string, option: any) => option.label?.includes(input)" :loading="businessLoading" />
+          <a-select v-model:value="createForm.businessId" size="small" placeholder="请选择业务单据" :options="businessOptions" show-search :filter-option="(input: string, option: any) => option.label?.includes(input)" :loading="businessLoading" />
         </a-form-item>
         <a-form-item label="收款人" name="payeeName">
-          <a-input v-model:value="createForm.payeeName" placeholder="请输入收款人" />
+          <a-input v-model:value="createForm.payeeName" size="small" placeholder="请输入收款人" />
         </a-form-item>
         <a-form-item label="付款金额" name="paymentAmount">
-          <a-input-number v-model:value="createForm.paymentAmount" :min="0.01" :precision="2" style="width: 100%" placeholder="请输入付款金额" />
+          <a-input-number v-model:value="createForm.paymentAmount" size="small" :min="0.01" :precision="2" style="width: 100%" placeholder="请输入付款金额" />
         </a-form-item>
         <a-form-item label="支付方式" name="paymentMethod">
-          <a-select v-model:value="createForm.paymentMethod" placeholder="请选择支付方式">
+          <a-select v-model:value="createForm.paymentMethod" size="small" placeholder="请选择支付方式">
             <a-select-option value="BANK_TRANSFER">银行转账</a-select-option>
             <a-select-option value="CASH">现金</a-select-option>
             <a-select-option value="CHECK">支票</a-select-option>
@@ -136,13 +149,14 @@
           </a-select>
         </a-form-item>
         <a-form-item label="付款日期" name="paymentDate">
-          <a-date-picker v-model:value="createForm.paymentDate" style="width: 100%" placeholder="请选择付款日期" />
+          <a-date-picker v-model:value="createForm.paymentDate" size="small" style="width: 100%" placeholder="请选择付款日期" />
         </a-form-item>
         <a-form-item label="备注" name="remark">
-          <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息（选填）" />
+          <a-textarea v-model:value="createForm.remark" size="small" :rows="2" placeholder="备注信息（选填）" />
         </a-form-item>
       </a-form>
     </a-modal>
+    </template>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -150,13 +164,14 @@
 <script setup lang="ts">
 defineOptions({ name: 'ExpensePaymentConfirm' })
 
-import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar } from '@/components'
-import type { SearchField } from '@/components'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
@@ -207,6 +222,7 @@ function formatAmount(v: unknown): string {
 
 const router = useRouter()
 const loading = ref(false)
+const refreshLoading = ref(false)
 const dataList = ref<FeePaymentRecord[]>([])
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -232,7 +248,7 @@ const searchForm = reactive<SearchParams>({
   dateRange: null
 })
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   {
     name: 'keyword',
     label: '关键词',
@@ -256,6 +272,7 @@ const createLoading = ref(false)
 const createFormRef = ref<FormInstance>()
 const businessLoading = ref(false)
 const businessOptions = ref<Array<{ label: string; value: number }>>([])
+const formDirty = ref(false)
 
 const createForm = reactive<CreatePaymentForm>({
   businessType: '',
@@ -285,7 +302,7 @@ async function loadBusinessOptions(): Promise<void> {
   try {
     const api = createForm.businessType === 'APPLICATION' ? feeApplicationApi : feeReimbursementApi
     const res = await api.page({ pageNum: 1, pageSize: 200, status: 'APPROVED' })
-    const records = res.data.records || []
+    const records = res.records || []
     businessOptions.value = records.map((item: any) => ({
       label: `${item.applicationNo || item.reimbursementNo} - ${item.applicationTitle || item.reimbursementTitle || ''}`,
       value: item.id
@@ -310,7 +327,12 @@ function showCreateModal(): void {
   createForm.paymentMethod = 'BANK_TRANSFER'
   createForm.paymentDate = undefined
   createForm.remark = ''
+  formDirty.value = false
   createModalVisible.value = true
+}
+
+function onFormChange(): void {
+  formDirty.value = true
 }
 
 async function handleCreateOk(): Promise<void> {
@@ -347,11 +369,19 @@ function handleCreateCancel(): void {
   createModalVisible.value = false
 }
 
+// ── 表单脏追踪 ─────────────────────────────────────────────
+
+watch(createForm, () => {
+  if (createModalVisible.value) {
+    formDirty.value = true
+  }
+}, { deep: true })
+
 const confirmingId = ref<number | null>(null)
 
 // ── 列定义 ───────────────────────────────────────────────
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'paymentNo', title: '付款单号', width: 160 },
   { field: 'businessNo', title: '业务单号', width: 150 },
   { field: 'businessType', title: '类型', width: 80 },
@@ -397,6 +427,15 @@ function onPageChange(page: number, pageSize: number): void {
   pagination.current = page
   pagination.pageSize = pageSize
   fetchData()
+}
+
+async function handleRefresh(): Promise<void> {
+  refreshLoading.value = true
+  try {
+    await Promise.all([fetchData(), fetchStats()])
+  } finally {
+    refreshLoading.value = false
+  }
 }
 
 async function fetchStats(): Promise<void> {
@@ -607,4 +646,82 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 自动刷新徽章 ────────────────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+/* ── vxe-table 表头 2px 边框 ──────────────────── */
+:deep(.vxe-header--row) {
+  border-top: 2px solid #e8e8e8;
+}
+:deep(.vxe-header--column) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态包装样式 ────────────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
 </style>

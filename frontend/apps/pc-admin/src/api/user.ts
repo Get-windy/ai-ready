@@ -12,6 +12,8 @@ export interface LoginResponse {
 
 // 用户信息
 export interface UserInfo {
+  /** 用户ID（从用户管理API返回） */
+  id: number
   userId: number
   username: string
   nickname?: string

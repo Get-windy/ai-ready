@@ -223,7 +223,7 @@
       :custom-row="customRowFn"
       :locale="tableLocale"
       @change="handleTableChange"
-      @resize-column="handleColumnResize"
+      @resize-column="handleColumnResize as any"
     >
       <!-- 自定义列插槽 / 主体单元格渲染 -->
       <template #bodyCell="{ column, record, index }">
@@ -232,16 +232,16 @@
           <span class="empty-placeholder">&nbsp;</span>
         </template>
         <!-- 自定义插槽列 -->
-        <template v-else-if="column.slotName">
+        <template v-else-if="(column as any).slotName">
           <slot
-            :name="column.slotName"
+            :name="(column as any).slotName"
             :record="record"
             :index="index"
             :column="column"
           />
         </template>
         <!-- 操作列 -->
-        <template v-else-if="column.type === 'action'">
+        <template v-else-if="(column as any).type === 'action'">
           <div class="action-cell-inner">
             <slot name="action" :record="record" :index="index">
               <a-space :size="4">
@@ -271,40 +271,40 @@
           </div>
         </template>
         <!-- 状态列 -->
-        <template v-else-if="column.type === 'status'">
+        <template v-else-if="(column as any).type === 'status'">
           <span class="status-cell-inner">
-            <a-tag :color="getStatusColor(record[column.dataIndex], column.statusMap)">
-              {{ getStatusText(record[column.dataIndex], column.statusMap) }}
+            <a-tag :color="getStatusColor(record[(column as any).dataIndex], (column as any).statusMap)">
+              {{ getStatusText(record[(column as any).dataIndex], (column as any).statusMap) }}
             </a-tag>
           </span>
         </template>
         <!-- 日期列 -->
-        <template v-else-if="column.type === 'date'">
-          <span :title="formatDate(record[column.dataIndex], column.dateFormat)">
-            {{ formatDate(record[column.dataIndex], column.dateFormat) }}
+        <template v-else-if="(column as any).type === 'date'">
+          <span :title="formatDate(record[(column as any).dataIndex], (column as any).dateFormat)">
+            {{ formatDate(record[(column as any).dataIndex], (column as any).dateFormat) }}
           </span>
         </template>
         <!-- 金额列 -->
-        <template v-else-if="column.type === 'currency'">
+        <template v-else-if="(column as any).type === 'currency'">
           <span class="currency-value">
-            ¥{{ formatNumber(record[column.dataIndex], 'currency') }}
+            ¥{{ formatNumber(record[(column as any).dataIndex], 'currency') }}
           </span>
         </template>
         <!-- 数字列 -->
-        <template v-else-if="column.type === 'number'">
+        <template v-else-if="(column as any).type === 'number'">
           <span class="number-value">
-            {{ formatNumber(record[column.dataIndex], column.numberFormat) }}
+            {{ formatNumber(record[(column as any).dataIndex], (column as any).numberFormat) }}
           </span>
         </template>
         <!-- 省略文本 -->
-        <template v-else-if="column.type === 'ellipsis'">
-          <a-tooltip :title="record[column.dataIndex]">
-            <span class="ellipsis-text">{{ record[column.dataIndex] }}</span>
+        <template v-else-if="(column as any).type === 'ellipsis'">
+          <a-tooltip :title="record[(column as any).dataIndex]">
+            <span class="ellipsis-text">{{ record[(column as any).dataIndex] }}</span>
           </a-tooltip>
         </template>
         <!-- 链接列 -->
-        <template v-else-if="column.type === 'link'">
-          <a class="cell-link" @click="handleCellClick(record, column)">{{ record[column.dataIndex] }}</a>
+        <template v-else-if="(column as any).type === 'link'">
+          <a class="cell-link" @click="handleCellClick(record, column as any)">{{ record[(column as any).dataIndex] }}</a>
         </template>
       </template>
 
@@ -602,7 +602,7 @@ watch(() => props.columns, (cols) => {
   editableColumns.value.sort((a, b) => (a._sortOrder ?? 0) - (b._sortOrder ?? 0))
 }, { immediate: true })
 
-const processedColumns = computed(() => {
+const processedColumns = computed((): any[] => {
   return editableColumns.value
     .filter(col => !col._hidden)
     .map(col => {
@@ -617,8 +617,6 @@ const processedColumns = computed(() => {
       // 移除内部属性
       delete base._hidden
       delete base._sortOrder
-      delete base.slotName
-      delete base.statusMap
       return base
     })
 })
@@ -839,7 +837,7 @@ function handleSaveView() {
   message.success('视图已保存')
 }
 
-function handleViewSelect({ key }: { key: string }) {
+function handleViewSelect({ key }: Record<string, any>) {
   if (key === '__manage__') {
     showManageViewModal.value = true
     return
@@ -950,7 +948,7 @@ function updateScrollY() {
 
   // 分页区域（AntDV 分页在表格内部，但 AntDV 4 会把分页放在表格底部的 ant-table-pagination 中）
   // 分页高度大约 48px（含 padding）
-  const hasPagination = props.pagination !== false && props.pagination !== undefined
+  const hasPagination = (props as any).pagination !== false && props.pagination !== undefined
   if (hasPagination) occupiedHeight += 48 + 1 // +1 for border-top
 
   // 额外预留边距
@@ -1003,10 +1001,7 @@ onUnmounted(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
-  if (colWidthObserver) {
-    colWidthObserver.disconnect()
-    colWidthObserver = null
-  }
+  // colWidthObserver cleanup removed (observer was never instantiated)
 })
 
 // ========== 汇总行处理 ==========

@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="erp-dashboard-header">
@@ -14,10 +15,16 @@
             <a-badge :status="loading ? 'processing' : 'success'" />
             <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
           </span>
-          <a-button size="small" :loading="loading" @click="loadData">
+          <span class="auto-refresh-badge" v-if="autoRefreshCountdown > 0">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="loading" @click="debounceClick('refresh', loadData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -78,7 +85,7 @@
                 <a-button type="link" size="small" @click="navigateTo(record.path)">查看</a-button>
               </template>
             </template>
-            <template #empty>
+            <template #emptyText>
               <a-empty description="暂无待处理事项" />
             </template>
           </a-table>
@@ -86,14 +93,17 @@
       </a-col>
     </a-row>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
+import type { ColumnsType } from 'ant-design-vue/es/table'
 import {
   ReloadOutlined,
+  SyncOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
   SwapOutlined,
@@ -109,7 +119,8 @@ import {
   LineChartOutlined,
   DollarOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
 import { INBOUND_STATUS, SHIPMENT_STATUS, STOCKTAKE_STATUS_ORDER, RETURN_STATUS } from '@/utils/statusConfig'
@@ -158,17 +169,17 @@ const quickTips = [
   { text: 'F5 刷新当前列表数据', color: 'cyan' },
 ]
 
-const pendingColumns = [
-  { title: '类型', key: 'type', width: 100 },
+const pendingColumns: ColumnsType<any> = [
+  { title: '类型', key: 'type', dataIndex: 'type', width: 100 },
   { title: '单号', dataIndex: 'code', key: 'code', width: 160 },
-  { title: '摘要', dataIndex: 'summary', key: 'summary', minWidth: 150 },
-  { title: '状态', key: 'status', width: 100 },
+  { title: '摘要', dataIndex: 'summary', key: 'summary', width: 150 },
+  { title: '状态', key: 'status', dataIndex: 'status', width: 100 },
   { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
-  { title: '操作', key: 'action', width: 80, fixed: 'right' },
+  { title: '操作', key: 'action', dataIndex: 'action', width: 80, fixed: 'right' },
 ]
 
 interface PendingItem {
-  id: number
+  id: number | string
   type: string
   typeLabel: string
   typeColor: string
@@ -198,12 +209,12 @@ async function loadData() {
       stocktakeRes,
       returnRes
     ] = await Promise.allSettled([
-      request.get('/erp/product/list', { params: { pageSize: 1 } }),
-      request.get('/erp/partner/list', { params: { pageSize: 1 } }),
-      request.get('/erp/purchase/inbound/page', { params: { pageSize: 999, status: 0 } }),
-      request.get('/erp/sale/outbound/page', { params: { pageSize: 999, status: 0 } }),
-      request.get('/erp/stock/check/page', { params: { pageSize: 999, status: 0 } }),
-      request.get('/erp/sale/return/page', { params: { pageSize: 999, status: 0 } }),
+      request.get('/erp/product/list', { pageSize: 1 }),
+      request.get('/erp/partner/list', { pageSize: 1 }),
+      request.get('/erp/purchase/inbound/page', { pageSize: 999, status: 0 }),
+      request.get('/erp/sale/outbound/page', { pageSize: 999, status: 0 }),
+      request.get('/erp/stock/check/page', { pageSize: 999, status: 0 }),
+      request.get('/erp/sale/return/page', { pageSize: 999, status: 0 }),
     ])
 
     // 更新 KPI
@@ -318,8 +329,44 @@ async function loadData() {
   }
 }
 
+// ── 防抖 ──────────────────────────────────────────────
+const debounceMap = new Map<string, number>()
+function debounceClick(key: string, fn: () => void, delay = 300) {
+  const now = Date.now()
+  const last = debounceMap.get(key) || 0
+  if (now - last < delay) return
+  debounceMap.set(key, now)
+  fn()
+}
+
+// ── 自动刷新 ──────────────────────────────────────────
+const autoRefreshCountdown = ref(0)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 键盘快捷键 ────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault(); debounceClick('refresh', loadData); return
+  }
+}
+
+function handleError(err: any) {
+  console.warn('[ERP仪表盘] ErrorBoundary 捕获异常:', err)
+}
+
 onMounted(() => {
   loadData()
+  autoRefreshCountdown.value = 300
+  refreshTimer = setInterval(() => { loadData(); autoRefreshCountdown.value = 300 }, 300000)
+  countdownTimer = setInterval(() => { if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value-- }, 1000)
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -428,4 +475,55 @@ onMounted(() => {
   font-weight: 600;
   font-size: 14px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

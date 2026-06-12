@@ -19,6 +19,12 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <!-- 快捷键提示 -->
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 入库</span>
+            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+          </span>
         </div>
       </div>
     </template>
@@ -83,23 +89,23 @@
       <!-- 操作按钮 -->
       <div class="action-area">
         <a-space>
-          <a-button type="primary" @click="handleInbound">
+          <a-button type="primary" v-permission="'erp:stock:inbound'" @click="handleInbound">
             <template #icon><LoginOutlined /></template>
             入库
           </a-button>
-          <a-button @click="handleOutbound">
+          <a-button v-permission="'erp:stock:outbound'" @click="handleOutbound">
             <template #icon><LogoutOutlined /></template>
             出库
           </a-button>
-          <a-button @click="handleStocktake">
+          <a-button v-permission="'erp:stock:stocktake'" @click="handleStocktake">
             <template #icon><AuditOutlined /></template>
             盘点
           </a-button>
-          <a-button @click="handleLock">
+          <a-button v-permission="'erp:stock:lock'" @click="handleLock">
             <template #icon><LockOutlined /></template>
             锁定
           </a-button>
-          <a-button @click="handleExport">
+          <a-button v-permission="'erp:stock:export'" @click="debounceClick('export', handleExport)">
             <template #icon><ExportOutlined /></template>
             导出
           </a-button>
@@ -141,9 +147,9 @@
         <template #action="{ record }">
           <a-space :size="4">
             <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
-            <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+            <a-button type="link" size="small" v-permission="'erp:stock:edit'" @click="handleEdit(record)">编辑</a-button>
             <a-button type="link" size="small" @click="handleStockLog(record)">库存明细</a-button>
-            <a-dropdown>
+            <a-dropdown v-permission="'erp:stock:lock'">
               <a-button type="link" size="small">
                 库存操作 <DownOutlined />
               </a-button>
@@ -170,7 +176,7 @@
         :data-source="stockLogs"
         :show-toolbar="false"
         :selectable="false"
-        :pagination="false"
+        :pagination="false as any"
         :show-add="false"
         :show-search="false"
         :show-export="false"
@@ -211,10 +217,10 @@
         <a-form-item label="商品编码">{{ editForm.productCode }}</a-form-item>
         <a-form-item label="商品名称">{{ editForm.productName }}</a-form-item>
         <a-form-item label="最低库存">
-          <a-input-number v-model:value="editForm.minStock" :min="0" style="width: 100%" />
+          <a-input-number size="small" v-model:value="editForm.minStock" :min="0" style="width: 100%" />
         </a-form-item>
         <a-form-item label="最高库存">
-          <a-input-number v-model:value="editForm.maxStock" :min="0" style="width: 100%" />
+          <a-input-number size="small" v-model:value="editForm.maxStock" :min="0" style="width: 100%" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -232,7 +238,7 @@
           <span style="color: #faad14;">{{ lockForm.frozenQuantity }}</span>
         </a-form-item>
         <a-form-item label="冻结数量" required>
-          <a-input-number v-model:value="lockForm.quantity" :min="1" :max="lockForm.availableQuantity" style="width: 100%" placeholder="输入冻结数量" />
+          <a-input-number size="small" v-model:value="lockForm.quantity" :min="1" :max="lockForm.availableQuantity" style="width: 100%" placeholder="输入冻结数量" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -247,7 +253,7 @@
           <span style="color: #faad14; font-weight: bold;">{{ lockForm.frozenQuantity }}</span>
         </a-form-item>
         <a-form-item label="解冻数量" required>
-          <a-input-number v-model:value="lockForm.quantity" :min="1" :max="lockForm.frozenQuantity" style="width: 100%" placeholder="输入解冻数量" />
+          <a-input-number size="small" v-model:value="lockForm.quantity" :min="1" :max="lockForm.frozenQuantity" style="width: 100%" placeholder="输入解冻数量" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -262,7 +268,9 @@ import { message, Modal } from 'ant-design-vue'
 import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, LockOutlined, UnlockOutlined, DownOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import { stockApi } from '@/api/erp'
 import request from '@/utils/request'
@@ -503,7 +511,7 @@ const editForm = reactive({
   maxStock: 999999
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'productCode', title: '商品编码', width: 130 },
   { field: 'productName', title: '商品名称', width: 150 },
   { field: 'specification', title: '规格', width: 100 },
@@ -519,7 +527,7 @@ const vxeColumns = computed(() => [
   { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
 ])
 
-const logVxeColumns = computed(() => [
+const logVxeColumns: any = computed(() => [
   { field: 'type', title: '类型', width: 80, slotName: 'typeCell' },
   { field: 'quantity', title: '数量', width: 80 },
   { field: 'orderNo', title: '关联单号', width: 160 },
@@ -543,11 +551,12 @@ const fetchData = async () => {
     })
     tableData.value = res.records || []
     pagination.total = res.total || 0
-    // 更新统计
-    statistics.value.totalSku = tableData.value.length
-    statistics.value.lowStockCount = tableData.value.filter(r => r.quantity < (r.minStock ?? 0)).length
-    statistics.value.overStockCount = tableData.value.filter(r => r.quantity > (r.maxStock ?? 999999)).length
-    statistics.value.normalCount = tableData.value.filter(r => r.quantity >= (r.minStock ?? 0) && r.quantity <= (r.maxStock ?? 999999)).length
+    // 更新统计（low/over 从当前页估算，实际应依赖后端 /erp/stock/alert）
+    const allRows = res.records || []
+    statistics.value.totalSku = res.total || 0
+    statistics.value.lowStockCount = allRows.filter(r => r.quantity < (r.minStock ?? 0)).length
+    statistics.value.overStockCount = allRows.filter(r => r.quantity > (r.maxStock ?? 999999)).length
+    statistics.value.normalCount = allRows.filter(r => r.quantity >= (r.minStock ?? 0) && r.quantity <= (r.maxStock ?? 999999)).length
     lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   } catch (err: any) {
     hasError.value = true
@@ -820,6 +829,40 @@ onUnmounted(() => {
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

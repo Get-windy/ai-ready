@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 @Tag(name = "仓库管理", description = "仓库查询接口")
 @RestController
-@RequestMapping("/api/warehouse")
+@RequestMapping("/api/erp/warehouse")
 @RequiredArgsConstructor
 public class WarehouseController {
 

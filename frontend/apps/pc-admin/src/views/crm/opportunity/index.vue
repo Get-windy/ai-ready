@@ -23,12 +23,25 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
-      </div>
+
+          </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && tableData.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -121,8 +134,8 @@
             </a-col>
             <a-col :span="4" class="filter-actions">
               <a-space>
-                <a-button type="primary" :loading="loading" @click="handleSearch">查询</a-button>
-                <a-button @click="handleReset">重置</a-button>
+                <a-button type="primary" :loading="loading" v-permission="'crm:opportunity:search'" @click="handleSearch">查询</a-button>
+                <a-button v-permission="'crm:opportunity:reset'" @click="handleReset">重置</a-button>
               </a-space>
             </a-col>
           </a-row>
@@ -193,6 +206,7 @@
           :filter-fields="filterFields"
           :show-export="true"
           :selectable="true"
+          :min-empty-rows="12"
           add-text="新建商机"
           @add="handleAdd"
           @refresh="fetchData"
@@ -207,7 +221,7 @@
               <template v-if="hasError">
                 <WarningOutlined class="table-empty-icon" style="color: #faad14" />
                 <p class="table-empty-text">数据加载失败，请重试</p>
-                <a-button type="primary" size="small" @click="fetchData">
+                <a-button type="primary" size="small" @click="fetchData as any">
                   <template #icon><ReloadOutlined /></template>
                   重试
                 </a-button>
@@ -219,8 +233,14 @@
                   没有符合条件的商机，<a @click="handleResetFilters">清除筛选</a>
                 </p>
                 <p v-else class="table-empty-text">
-                  暂无商机数据，点击右上角「新建商机」开始创建
+                  暂无商机数据
                 </p>
+                <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                  <a-button type="primary" v-permission="'crm:opportunity:create'" @click="handleAdd">
+                    <template #icon><PlusOutlined /></template>
+                    新建第一个商机
+                  </a-button>
+                </div>
               </template>
             </div>
           </template>
@@ -228,22 +248,22 @@
           <template #action="{ record }">
             <a-space :size="4">
               <a-tooltip title="查看详情">
-                <a-button type="link" size="small" @click="handleView(record)">
+                <a-button type="link" size="small" v-permission="'crm:opportunity:view'" @click="handleView(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip title="编辑">
-                <a-button type="link" size="small" @click="handleEdit(record)">
+                <a-button type="link" size="small" v-permission="'crm:opportunity:edit'" @click="handleEdit(record)">
                   <template #icon><EditOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip title="移动阶段">
-                <a-button type="link" size="small" @click="handleMove(record)">
+                <a-button type="link" size="small" v-permission="'crm:opportunity:move'" @click="handleMove(record)">
                   <template #icon><SwapRightOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip v-if="record.stage === 'closing'" title="转订单">
-                <a-button type="link" size="small" @click="handleConvert(record)">
+                <a-button type="link" size="small" v-permission="'crm:opportunity:convert'" @click="handleConvert(record)">
                   <template #icon><FileProtectOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -252,7 +272,7 @@
                   <template #icon><MoreOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                     <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
                     <a-menu-item key="quotation"><FileTextOutlined /> 创建报价</a-menu-item>
                     <a-menu-divider />
@@ -280,7 +300,7 @@
           </a-col>
         </a-row>
         <a-card title="阶段详情统计" size="small" style="margin-top: 16px">
-          <VxeTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <VxeTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #amountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
             </template>
@@ -290,6 +310,7 @@
           </VxeTableList>
         </a-card>
       </template>
+      </template>
     </ErrorBoundary>
 
     <!-- 商机表单弹窗 -->
@@ -298,6 +319,7 @@
       :title="modalTitle"
       :save-loading="submitLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleSubmit"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -386,7 +408,7 @@
           <div class="table-empty">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" @click="handleDetailRefresh">
+            <a-button type="primary" size="small" v-permission="'crm:opportunity:detailrefresh'" @click="handleDetailRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -429,7 +451,7 @@
           </a-timeline>
 
           <a-divider>关联报价单</a-divider>
-          <VxeTableList :columns="quotationVxeColumns" :data-source="detailData.quotations" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <VxeTableList :columns="quotationVxeColumns" :data-source="detailData.quotations" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #totalAmountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
             </template>
@@ -467,7 +489,8 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import * as echarts from 'echarts'
 import { opportunityApi } from '@/api/crm'
 import { exportCsv } from '@/utils/exportCsv'
@@ -740,8 +763,8 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -750,8 +773,8 @@ onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer)
   stageChart?.dispose()
   trendChart?.dispose()
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -1312,4 +1335,57 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

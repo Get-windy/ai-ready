@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -43,12 +44,31 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     public Page<SaleOrderDTO> pageOrders(Page<SaleOrder> page, Long tenantId, String orderNo,
                                           Long customerId, Integer status, String startDate, String endDate) {
         LambdaQueryWrapper<SaleOrder> wrapper = new LambdaQueryWrapper<>();
+
+        // 转换日期字符串为 LocalDate，避免 PostgreSQL 类型不匹配
+        LocalDate startLocalDate = null;
+        LocalDate endLocalDate = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startLocalDate = LocalDate.parse(startDate);
+            } catch (Exception e) {
+                log.warn("无法解析startDate: {}", startDate);
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endLocalDate = LocalDate.parse(endDate);
+            } catch (Exception e) {
+                log.warn("无法解析endDate: {}", endDate);
+            }
+        }
+
         wrapper.eq(SaleOrder::getTenantId, tenantId)
-               .like(orderNo != null, SaleOrder::getOrderNo, orderNo)
+               .like(orderNo != null && !orderNo.isEmpty(), SaleOrder::getOrderNo, orderNo)
                .eq(customerId != null, SaleOrder::getCustomerId, customerId)
                .eq(status != null, SaleOrder::getStatus, status)
-               .ge(startDate != null, SaleOrder::getOrderDate, startDate)
-               .le(endDate != null, SaleOrder::getOrderDate, endDate)
+               .ge(startLocalDate != null, SaleOrder::getOrderDate, startLocalDate)
+               .le(endLocalDate != null, SaleOrder::getOrderDate, endLocalDate)
                .orderByDesc(SaleOrder::getCreateTime);
 
         Page<SaleOrder> result = page(page, wrapper);

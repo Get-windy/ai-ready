@@ -38,7 +38,7 @@ const buttonClass = computed(() => {
 
 const loadTemplates = async () => {
   try {
-    const data = await window.electronAPI?.templates?.getByType?.(props.templateType)
+    const data = await (window as any).electronAPI?.templates?.getByType?.(props.templateType)
     templates.value = data || []
     if (templates.value.length > 0) {
       selectedTemplate.value = templates.value.find(t => t.isDefault) || templates.value[0]
@@ -69,7 +69,7 @@ const handlePrint = async () => {
 const executePrint = async () => {
   loading.value = true
   try {
-    const result = await window.electronAPI?.print?.execute?.({
+    const result = await (window as any).electronAPI?.print?.execute?.({
       templateId: selectedTemplate.value?.id,
       templateType: props.templateType,
       businessId: props.businessId,
@@ -94,7 +94,7 @@ const handlePreview = async () => {
   
   loading.value = true
   try {
-    const content = await window.electronAPI?.print?.preview?.({
+    const content = await (window as any).electronAPI?.print?.preview?.({
       templateId: selectedTemplate.value?.id,
       templateType: props.templateType,
       businessId: props.businessId,

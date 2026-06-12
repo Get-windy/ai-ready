@@ -552,11 +552,60 @@ html, body {
   .no-print {
     display: none !important;
   }
-  
+
   body {
     background: #fff !important;
     color: #000 !important;
   }
+
+  /* 表格打印优化 */
+  .ant-table {
+    font-size: 10px !important;
+  }
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 4px 6px !important;
+  }
+  .ant-pagination,
+  .ant-breadcrumb,
+  .ant-btn,
+  .page-header__right .shortcut-hints,
+  .auto-refresh-badge,
+  .update-time {
+    display: none !important;
+  }
+  .page-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .page-container__body {
+    overflow: visible !important;
+  }
+
+  /* DMS 列表页特定打印隐藏 */
+  .dms-action-column,
+  [class*="page-header__right"] > *:not(.page-header__left) {
+    display: none !important;
+  }
+}
+
+/* ==================== DMS 表格空状态 ==================== */
+
+.dms-table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0;
+}
+.dms-table-empty-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #909399;
+}
+.dms-table-empty-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
 }
 
 /* ==================== 无障碍支持 ==================== */

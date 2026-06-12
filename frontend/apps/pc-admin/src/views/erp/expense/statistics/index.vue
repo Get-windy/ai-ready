@@ -9,24 +9,25 @@
         </div>
         <div class="page-header__right">
           <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="page-header__countdown">{{ autoRefreshCountdown }}s后自动刷新</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-space :size="12">
-            <a-tooltip title="F5: 刷新 | Ctrl+E: 导出 | Ctrl+N: 新建">
-              <a-button size="small" type="text" class="shortcut-hint-btn">
-                <template #icon><KeyOutlined /></template>
-              </a-button>
-            </a-tooltip>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+            </span>
             <a-tooltip title="开启后显示去年同期的同比数据" placement="bottom">
               <a-switch v-model:checked="showComparison" size="small" checked-children="同比" un-checked-children="同比" />
             </a-tooltip>
             <PrintButton page-code="erp/expense/statistics" button-size="small" tooltip="打印" />
             <a-tooltip title="导出 (Ctrl+E)">
-              <a-button size="small" @click="handleExport">
+              <a-button v-permission="'erp:expense:statistics:list'" size="small" @click="debounceClick('export', handleExport)">
                 <template #icon><ExportOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip title="刷新数据 (F5)">
-              <a-button size="small" :loading="summaryLoading || detailLoading" @click="debounceClick('refresh', handleRefresh)">
+              <a-button v-permission="'erp:expense:statistics:refresh'" size="small" :loading="summaryLoading || detailLoading" @click="debounceClick('refresh', handleRefresh)">
                 <ReloadOutlined /> 刷新
               </a-button>
             </a-tooltip>
@@ -35,6 +36,11 @@
       </div>
     </template>
 
+    <!-- 骨架加载 -->
+    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 12 }">
+    </a-skeleton>
+
+    <template v-if="!refreshLoading">
     <!-- 6. 按区域错误提示 -->
     <template v-if="sectionErrors.summary">
       <a-alert
@@ -150,7 +156,7 @@
           :columns="deptColumns"
           :data-source="deptData"
           :loading="detailLoading"
-          :pagination="false"
+          :pagination="false as any"
           :show-toolbar="false"
           :show-summary="true"
           :summary-data="deptSummaryData"
@@ -195,7 +201,7 @@
           :columns="typeColumns"
           :data-source="typeData"
           :loading="detailLoading"
-          :pagination="false"
+          :pagination="false as any"
           :show-toolbar="false"
           :show-summary="true"
           :summary-data="typeSummaryData"
@@ -215,6 +221,7 @@
         </VxeTableList>
       </a-tab-pane>
     </a-tabs>
+    </template>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -229,11 +236,14 @@ import {
   KeyOutlined,
   LineChartOutlined,
   ArrowUpOutlined,
-  ArrowDownOutlined
+  ArrowDownOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
 import * as echarts from 'echarts'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -336,6 +346,7 @@ const EXPENSE_TYPE_OPTIONS = [
 // ── 状态管理 ─────────────────────────────────────────────
 
 const summaryLoading = ref(false)
+const refreshLoading = ref(false)
 const detailLoading = ref(false)
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
@@ -789,9 +800,13 @@ function handleReset(): void {
   })
 }
 
-function handleRefresh(): void {
-  fetchSummary()
-  fetchData()
+async function handleRefresh(): Promise<void> {
+  refreshLoading.value = true
+  try {
+    await Promise.all([fetchSummary(), fetchData()])
+  } finally {
+    refreshLoading.value = false
+  }
 }
 
 function handleTabChange(): void {
@@ -1083,4 +1098,82 @@ onUnmounted(() => {
   font-weight: 600 !important;
   border-top: 2px solid #1890ff !important;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 自动刷新徽章 ────────────────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+/* ── vxe-table 表头 2px 边框 ──────────────────── */
+:deep(.vxe-header--row) {
+  border-top: 2px solid #e8e8e8;
+}
+:deep(.vxe-header--column) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态包装样式 ────────────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
 </style>

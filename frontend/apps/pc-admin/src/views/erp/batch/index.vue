@@ -26,9 +26,15 @@
             <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template> 刷新
             </a-button>
-            <a-button size="small" @click="handleExport">
+            <a-button size="small" @click="debounceClick('export', handleExport)">
               <template #icon><DownloadOutlined /></template> 导出
             </a-button>
+            <!-- 快捷键提示 -->
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </span>
           </div>
         </div>
       </div>
@@ -76,7 +82,7 @@
         <!-- 操作按钮行 -->
         <div class="action-bar">
           <a-space>
-            <a-button type="primary" @click="handleCreate">
+            <a-button type="primary" v-permission="'erp:batch:create'" @click="handleCreate">
               <template #icon><PlusOutlined /></template>
               新建批次
             </a-button>
@@ -84,7 +90,7 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
-            <a-button v-if="hasSelected" danger @click="handleBatchStatusChange">
+            <a-button v-if="hasSelected" v-permission="'erp:batch:update-status'" danger @click="handleBatchStatusChange">
               <template #icon><SwapOutlined /></template>
               批量状态变更 ({{ selectedIds.length }})
             </a-button>
@@ -105,7 +111,7 @@
             <a-table
               :dataSource="expiringBatches"
               :columns="expiryColumns"
-              :pagination="false"
+              :pagination="false as any"
               size="small"
               :loading="expiryLoading"
               row-key="id"
@@ -134,12 +140,7 @@
             :data="tableData"
             :loading="loading"
             :height="tableHeight"
-            row-key="id"
-            border
-            resizable
-            stripe
-            auto-resize
-            :row-config="{ height: 44 }"
+            :row-config="{ keyField: 'id', height: 44 }"
             :header-config="{ height: 40 }"
             :column-config="{ minWidth: 80 }"
             :checkbox-config="{ highlight: true, range: true }"
@@ -191,11 +192,11 @@
               <template #default="{ row }">
                 <a-space :size="4" wrap>
                   <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
-                  <a-button type="link" size="small" @click="handleInbound(row)">入库</a-button>
-                  <a-button type="link" size="small" @click="handleOutbound(row)">出库</a-button>
-                  <a-button type="link" size="small" @click="handleQualityInspection(row)">质检</a-button>
-                  <a-button type="link" size="small" @click="handleStatusChange(row)">状态</a-button>
-                  <a-button type="link" size="small" danger @click="handleDelete(row)">删除</a-button>
+                  <a-button type="link" size="small" v-permission="'erp:batch:inbound'" @click="handleInbound(row)">入库</a-button>
+                  <a-button type="link" size="small" v-permission="'erp:batch:outbound'" @click="handleOutbound(row)">出库</a-button>
+                  <a-button type="link" size="small" v-permission="'erp:batch:inspect'" @click="handleQualityInspection(row)">质检</a-button>
+                  <a-button type="link" size="small" v-permission="'erp:batch:update-status'" @click="handleStatusChange(row)">状态</a-button>
+                  <a-button type="link" size="small" v-permission="'erp:batch:delete'" danger @click="handleDelete(row)">删除</a-button>
                 </a-space>
               </template>
             </vxe-column>
@@ -237,7 +238,7 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="批次号" name="batchNo">
-            <a-input v-model:value="createForm.batchNo" placeholder="请输入批次号" />
+            <a-input size="small" v-model:value="createForm.batchNo" placeholder="请输入批次号" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
@@ -257,7 +258,7 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="商品编码">
-            <a-input v-model:value="createForm.productCode" disabled />
+            <a-input size="small" v-model:value="createForm.productCode" disabled />
           </a-form-item>
         </a-col>
         <a-col :span="12">
@@ -269,19 +270,19 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="生产日期" name="productionDate">
-            <a-date-picker v-model:value="createForm.productionDate" style="width: 100%" value-format="YYYY-MM-DD" />
+            <a-date-picker size="small" v-model:value="createForm.productionDate" style="width: 100%" value-format="YYYY-MM-DD" />
           </a-form-item>
         </a-col>
         <a-col :span="12">
           <a-form-item label="到期日期" name="expirationDate">
-            <a-date-picker v-model:value="createForm.expirationDate" style="width: 100%" value-format="YYYY-MM-DD" />
+            <a-date-picker size="small" v-model:value="createForm.expirationDate" style="width: 100%" value-format="YYYY-MM-DD" />
           </a-form-item>
         </a-col>
       </a-row>
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="来源类型" name="sourceType">
-            <a-select v-model:value="createForm.sourceType" placeholder="请选择" allow-clear>
+            <a-select size="small" v-model:value="createForm.sourceType" placeholder="请选择" allow-clear>
               <a-select-option value="PURCHASE">采购入库</a-select-option>
               <a-select-option value="PRODUCTION">生产入库</a-select-option>
               <a-select-option value="TRANSFER">调拨入库</a-select-option>
@@ -317,7 +318,7 @@
         <a-descriptions-item label="商品名称">{{ currentRecord?.productName }}</a-descriptions-item>
       </a-descriptions>
       <a-form-item label="仓库" name="warehouseId">
-        <a-select v-model:value="inboundForm.warehouseId" placeholder="请选择仓库" show-search :filter-option="filterWarehouseOption">
+        <a-select size="small" v-model:value="inboundForm.warehouseId" placeholder="请选择仓库" show-search :filter-option="filterWarehouseOption">
           <a-select-option v-for="w in warehouseOptions" :key="w.id" :value="w.id">
             {{ w.warehouseName }}
           </a-select-option>
@@ -542,11 +543,13 @@ import {
   SyncOutlined,
   DownloadOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { BATCH_STATUS, QUALITY_STATUS } from '@/utils/statusConfig'
-import type { SearchField } from '@/components'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import { batchApi, type BatchNumber } from '@/api/erp/batch'
 import request from '@/utils/request'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
@@ -663,7 +666,7 @@ const searchForm = reactive<Record<string, any>>({
   status: undefined
 })
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   {
     name: 'batchNo',
     label: '批次号',
@@ -769,6 +772,7 @@ const statusChangeRules: Record<string, any[]> = {
 // 详情
 const detailVisible = ref(false)
 const detailLoading = ref(false)
+const tableRef = ref<any>(null)
 const detailData = ref<BatchNumber | null>(null)
 
 // 商品选择
@@ -777,7 +781,7 @@ const productSearchKeyword = ref('')
 const productLoading = ref(false)
 const productOptions = ref<any[]>([])
 
-const productColumns = [
+const productColumns: any = [
   { title: '商品编码', dataIndex: 'productCode', width: 130 },
   { title: '商品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'specification', width: 120 },
@@ -803,7 +807,7 @@ function filterWarehouseOption(input: string, option: any) {
 // 临期预警表格列
 // ════════════════════════════════════════════════════════════════
 
-const expiryColumns = [
+const expiryColumns: any = [
   { title: '批次号', dataIndex: 'batchNo', width: 150 },
   { title: '商品编码', dataIndex: 'productCode', width: 120 },
   { title: '商品名称', dataIndex: 'productName', width: 150 },
@@ -1449,6 +1453,40 @@ onUnmounted(() => {
 .quantity-zero {
   color: #f5222d;
   font-weight: 500;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 表格区域 ── */

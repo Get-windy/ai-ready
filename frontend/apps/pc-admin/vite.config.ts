@@ -107,6 +107,17 @@ export default defineConfig({
       'Expires': '0'
     },
     proxy: {
+      '/api/erp/mall': {
+        target: 'http://localhost:5657',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            proxyRes.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+            proxyRes.headers['Pragma'] = 'no-cache';
+            proxyRes.headers['Expires'] = '0';
+          });
+        },
+      },
       '/api': {
         target: 'http://localhost:5655',
         changeOrigin: true,

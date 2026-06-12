@@ -4,7 +4,7 @@ import cn.aiedge.base.entity.SysRole;
 import cn.aiedge.base.entity.SysRoleBillType;
 import cn.aiedge.base.mapper.SysRoleBillTypeMapper;
 import cn.aiedge.base.security.RbacService;
-import cn.aiedge.base.security.SecurityUtils;
+import cn.aiedge.base.utils.SecurityUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

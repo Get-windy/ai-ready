@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="sales-analysis-header">
@@ -18,187 +19,172 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
 
-    <div class="sales-analysis">
-      <!-- 筛选栏 -->
-      <a-card class="filter-card" :bordered="false">
-        <a-space wrap>
-          <a-range-picker
-            v-model:value="dateRange"
-            value-format="YYYY-MM-DD"
-            style="width: 240px"
-            size="small"
-            @change="handleFilterChange"
-          />
-          <a-select
-            v-model:value="warehouseId"
-            placeholder="选择仓库"
-            allow-clear
-            style="width: 160px"
-            size="small"
-            @change="handleFilterChange"
-          >
-            <a-select-option
-              v-for="w in warehouses"
-              :key="w.id"
-              :value="w.id"
-            >
-              {{ w.name }}
-            </a-select-option>
-          </a-select>
-          <a-button type="primary" :loading="loading" @click="debounceClick('query', loadAll)">查询</a-button>
-        </a-space>
-      </a-card>
-
-      <!-- 统计卡片骨架 -->
-      <template v-if="overviewLoading && !overview">
-        <a-row :gutter="16" class="stat-row">
-          <a-col v-for="i in 4" :key="i" :xs="12" :sm="12" :md="6">
-            <a-card :bordered="false" class="stat-skeleton">
-              <a-skeleton active :paragraph="{ rows: 1 }" :title="{ width: '60%' }" />
-            </a-card>
-          </a-col>
-        </a-row>
-      </template>
-      <a-row v-else :gutter="16" class="stat-row">
-        <a-col :xs="12" :sm="12" :md="6">
-          <div class="stat-card stat-card--blue">
-            <div class="stat-card-icon">
-              <DollarOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">销售总额</div>
-              <div class="stat-card-value">{{ formatAmount(overview?.totalAmount || 0) }}</div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :xs="12" :sm="12" :md="6">
-          <div class="stat-card stat-card--green">
-            <div class="stat-card-icon">
-              <FileTextOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">订单数量</div>
-              <div class="stat-card-value">{{ overview?.orderCount || 0 }}</div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :xs="12" :sm="12" :md="6">
-          <div class="stat-card stat-card--orange">
-            <div class="stat-card-icon">
-              <BarChartOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">平均客单价</div>
-              <div class="stat-card-value">{{ formatAmount(overview?.avgOrderAmount || 0) }}</div>
-            </div>
-          </div>
-        </a-col>
-        <a-col :xs="12" :sm="12" :md="6">
-          <div class="stat-card stat-card--purple">
-            <div class="stat-card-icon">
-              <PercentageOutlined />
-            </div>
-            <div class="stat-card-content">
-              <div class="stat-card-title">毛利率</div>
-              <div class="stat-card-value">{{ ((overview?.grossMargin || 0) * 100).toFixed(1) }}%</div>
-            </div>
-          </div>
-        </a-col>
+    <!-- 骨架加载 -->
+    <div v-if="loading" class="skeleton-loading">
+      <a-skeleton :paragraph="{ rows: 2 }" active />
+      <div style="height: 16px" />
+      <a-row :gutter="16">
+        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
+        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
+        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
+        <a-col :span="6"><a-card><a-skeleton active /></a-card></a-col>
       </a-row>
-
-      <!-- 图表区域 -->
-      <a-row :gutter="16" class="chart-row">
-        <a-col :xs="24" :md="16">
-          <a-card :bordered="false" title="销售趋势" class="chart-card">
-            <div ref="trendChartRef" style="height: 320px" />
-            <div v-if="trendError" class="chart-empty chart-error" @click="loadAll">加载失败，点击重试</div>
-            <div v-else-if="!trendData?.length" class="chart-empty">暂无趋势数据</div>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :md="8">
-          <a-card :bordered="false" title="渠道分布" class="chart-card">
-            <div ref="pieChartRef" style="height: 320px" />
-            <div v-if="channelError" class="chart-empty chart-error" @click="loadAll">加载失败，点击重试</div>
-            <div v-else-if="!channelData?.length" class="chart-empty">暂无渠道数据</div>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <!-- 排行榜 -->
-      <a-row :gutter="16" class="rank-row">
-        <a-col :xs="24" :md="12">
-          <a-card :bordered="false" title="客户排行 TOP10" class="rank-card">
-            <VxeTableList
-              :columns="customerRankVxeCols"
-              :data-source="customerRankData"
-              :pagination="false"
-              :loading="rankLoading"
-              row-key="rank"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-            >
-              <template #rankCell="{ record }">
-                <a-tag :color="record.rank <= 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
-              </template>
-              <template #growthCell="{ record }">
-                <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#f5222d' }">
-                  {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
-                </span>
-              </template>
-              <template #totalAmountCell="{ record }">
-                ¥{{ record.totalAmount.toFixed(2) }}
-              </template>
-            </VxeTableList>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :md="12">
-          <a-card :bordered="false" title="产品排行 TOP10" class="rank-card">
-            <VxeTableList
-              :columns="productRankVxeCols"
-              :data-source="productRankData"
-              :pagination="false"
-              :loading="rankLoading"
-              row-key="rank"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-            >
-              <template #rankCell="{ record }">
-                <a-tag :color="record.rank <= 3 ? 'gold' : 'default'">{{ record.rank }}</a-tag>
-              </template>
-              <template #marginCell="{ record }">
-                <span :style="{ color: record.margin >= 0.2 ? '#52c41a' : '#faad14' }">
-                  {{ (record.margin * 100).toFixed(1) }}%
-                </span>
-              </template>
-              <template #totalAmountCell="{ record }">
-                ¥{{ record.totalAmount.toFixed(2) }}
-              </template>
-            </VxeTableList>
-          </a-card>
-        </a-col>
-      </a-row>
+      <div style="height: 16px" />
+      <a-skeleton :paragraph="{ rows: 6 }" active />
     </div>
+
+    <template v-if="!loading">
+    <!-- 筛选条件 -->
+    <a-card size="small" class="filter-card">
+      <a-space wrap>
+        <a-date-picker v-model:value="dateRange[0]" picker="month" placeholder="开始月份" size="small" style="width: 140px" @change="handleFilterChange" />
+        <a-date-picker v-model:value="dateRange[1]" picker="month" placeholder="结束月份" size="small" style="width: 140px" @change="handleFilterChange" />
+        <a-select v-model:value="warehouseId" placeholder="选择仓库" allow-clear size="small" style="width: 160px" @change="handleFilterChange">
+          <a-select-option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</a-select-option>
+        </a-select>
+      </a-space>
+    </a-card>
+
+    <!-- KPI 卡片 -->
+    <a-row :gutter="16" class="stat-row">
+      <a-col :span="6">
+        <div class="stat-card stat-card--blue">
+          <div class="stat-card-icon"><DollarOutlined /></div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">销售总额</div>
+            <div class="stat-card-value">{{ overview?.totalAmount ? formatAmount(overview.totalAmount) : '¥0.00' }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="stat-card stat-card--green">
+          <div class="stat-card-icon"><FileTextOutlined /></div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">订单总数</div>
+            <div class="stat-card-value">{{ overview?.orderCount || 0 }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="stat-card stat-card--orange">
+          <div class="stat-card-icon"><BarChartOutlined /></div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">平均客单价</div>
+            <div class="stat-card-value">{{ overview?.avgOrderAmount ? formatAmount(overview.avgOrderAmount) : '¥0.00' }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="6">
+        <div class="stat-card stat-card--purple">
+          <div class="stat-card-icon"><PercentageOutlined /></div>
+          <div class="stat-card-content">
+            <div class="stat-card-title">同比增长</div>
+            <div class="stat-card-value">{{ overview?.grossMargin ? (overview.grossMargin * 100).toFixed(1) + '%' : '0.0%' }}</div>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <!-- 图表区域 -->
+    <a-row :gutter="16" class="chart-row">
+      <a-col :span="16">
+        <a-card title="销售趋势" class="chart-card">
+          <div ref="trendChartRef" style="height: 280px"></div>
+          <div v-if="trendError" class="chart-empty chart-error" @click="loadTrend(buildParams())">
+            <WarningOutlined /> 趋势数据加载失败，点击重试
+          </div>
+          <div v-if="!trendData.length && !trendError" class="chart-empty">暂无趋势数据</div>
+        </a-card>
+      </a-col>
+      <a-col :span="8">
+        <a-card title="渠道分布" class="chart-card">
+          <div ref="pieChartRef" style="height: 280px"></div>
+          <div v-if="channelError" class="chart-empty chart-error" @click="loadChannel(buildParams())">
+            <WarningOutlined /> 渠道数据加载失败，点击重试
+          </div>
+          <div v-if="!channelData.length && !channelError" class="chart-empty">暂无渠道数据</div>
+        </a-card>
+      </a-col>
+    </a-row>
+
+    <!-- 排行榜 -->
+    <a-row :gutter="16" class="rank-row">
+      <a-col :span="12">
+        <a-card title="客户排行 TOP10" class="rank-card">
+          <VxeTableList
+            :data-source="customerRankData"
+            :columns="customerRankVxeCols"
+            :loading="rankLoading"
+            :pagination="false as any"
+            row-key="rank"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #rankCell="{ record }">
+              <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
+            </template>
+            <template #totalAmountCell="{ record }">
+              <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
+            </template>
+            <template #growthCell="{ record }">
+              <span :style="{ color: record.growth >= 0 ? '#52c41a' : '#ff4d4f' }">
+                {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
+              </span>
+            </template>
+          </VxeTableList>
+        </a-card>
+      </a-col>
+      <a-col :span="12">
+        <a-card title="产品排行 TOP10" class="rank-card">
+          <VxeTableList
+            :data-source="productRankData"
+            :columns="productRankVxeCols"
+            :loading="rankLoading"
+            :pagination="false as any"
+            row-key="rank"
+            :show-toolbar="false"
+            :selectable="false"
+            :show-add="false"
+            :show-search="false"
+            :show-export="false"
+            :show-batch-delete="false"
+          >
+            <template #rankCell="{ record }">
+              <span :class="['rank-badge', record.rank <= 3 ? 'rank-top' : '']">{{ record.rank }}</span>
+            </template>
+            <template #totalAmountCell="{ record }">
+              <span class="amount-cell">{{ formatAmount(record.totalAmount) }}</span>
+            </template>
+            <template #marginCell="{ record }">
+              <span>{{ (record.margin * 100).toFixed(1) }}%</span>
+            </template>
+          </VxeTableList>
+        </a-card>
+      </a-col>
+    </a-row>
+  </template>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { DollarOutlined, FileTextOutlined, BarChartOutlined, PercentageOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type ChannelDistribution, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
 
@@ -467,6 +453,8 @@ onBeforeUnmount(() => {
   if (countdownTimer) clearInterval(countdownTimer)
   document.removeEventListener('keydown', handleKeydown)
 })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -532,6 +520,30 @@ onBeforeUnmount(() => {
 }
 .stat-skeleton :deep(.ant-card-body) {
   padding: 12px 16px;
+}
+
+.amount-cell {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f5f5f5;
+  color: #666;
+}
+
+.rank-badge.rank-top {
+  background: #fff7e6;
+  color: #fa8c16;
 }
 
 /* ── 统计卡片（渐变背景） ──────────────────────── */
@@ -638,4 +650,65 @@ onBeforeUnmount(() => {
 .rank-card {
   border-radius: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

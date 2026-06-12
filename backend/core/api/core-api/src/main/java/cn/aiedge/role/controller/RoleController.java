@@ -33,7 +33,6 @@ public class RoleController {
     }
 
     @Operation(summary = "获取所有角色列表")
-    @SaCheckPermission("system:role:list")
     @GetMapping("/list")
     public ApiResponse<List<RoleDetailVO>> listAll(
             @Parameter(description = "角色作用域过滤（PLATFORM/TENANT）") @RequestParam(required = false) String scope) {

@@ -15,8 +15,8 @@ export interface DictType {
 export interface DictItem {
   id: number
   dictTypeId: number
-  itemCode: string
-  itemName: string
+  itemValue: string
+  itemText: string
   sortOrder: number
   status: string // "ENABLED": 启用, "DISABLED": 禁用
   createTime?: string
@@ -35,8 +35,8 @@ export interface DictTypeQuery {
 // 字典项查询参数
 export interface DictItemQuery {
   dictTypeId: number
-  itemCode?: string
-  itemName?: string
+  itemValue?: string
+  itemText?: string
   status?: string
 }
 
@@ -56,8 +56,8 @@ export interface DictTypeUpdateRequest extends DictTypeSaveRequest {
 // 字典项保存请求
 export interface DictItemSaveRequest {
   dictTypeId: number
-  itemCode: string
-  itemName: string
+  itemValue: string
+  itemText: string
   sortOrder: number
   status: string
 }

@@ -35,6 +35,12 @@ public class StockSplitController {
         private List<StockSplitItem> items;
     }
 
+    @lombok.Data
+    public static class SplitCreateRequest {
+        private StockSplit split;
+        private List<StockSplitItem> items;
+    }
+
     @GetMapping("/page")
     @Operation(summary = "分页查询拆分单")
     public Result<Page<StockSplit>> page(
@@ -103,12 +109,12 @@ public class StockSplitController {
     @PostMapping("/{id}/execute")
     @Operation(summary = "执行拆分（扣减原料库存，增加子件库存）")
     public Result<StockSplit> execute(@PathVariable Long id) {
-        return splitService.execute(id);
+        return Result.ok(splitService.execute(id));
     }
 
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消拆分单")
     public Result<StockSplit> cancel(@PathVariable Long id, @RequestParam String reason) {
-        return splitService.cancel(id, reason);
+        return Result.ok(splitService.cancel(id, reason));
     }
 }

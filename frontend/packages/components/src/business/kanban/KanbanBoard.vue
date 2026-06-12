@@ -312,7 +312,7 @@ const onCardModalOk = async () => {
     }
     emit('card-update', updatedCard as KanbanCard)
   } else if (currentColumn.value) {
-    emit('card-add', cardForm.value, currentColumn.value)
+    emit('card-add', cardForm.value as any, currentColumn.value)
   }
 
   cardModalVisible.value = false
@@ -379,9 +379,9 @@ const setupDragDrop = () => {
   const columnsEl = document.querySelectorAll('.kanban-column-body')
 
   columnsEl.forEach(columnEl => {
-    columnEl.addEventListener('dragover', (e: Event) => {
+    columnEl.addEventListener('dragover', (e: any) => {
       e.preventDefault()
-      (e as DragEvent).dataTransfer!.dropEffect = 'move'
+      e.dataTransfer!.dropEffect = 'move'
       columnEl.classList.add('drag-over')
     })
 

@@ -68,8 +68,29 @@ export const permission: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding) {
     const { value, modifiers } = binding
     const userStore = useUserStore()
-    const userPermissions = userStore.permissions
 
+    // 如果 permissions 还未加载，等待并重新检查
+    if (!userStore.permissions || userStore.permissions.length === 0) {
+      // 暂时隐藏，等待权限加载
+      applyNoPermission(el, !!modifiers.disabled)
+
+      // 监听 store 变化
+      const unsubscribe = userStore.$subscribe((mutation, state) => {
+        if (state.permissions && state.permissions.length > 0) {
+          const hasPermission = checkPermission(value, state.permissions)
+          if (hasPermission) {
+            removeNoPermission(el, !!modifiers.disabled)
+          } else {
+            applyNoPermission(el, !!modifiers.disabled)
+          }
+          unsubscribe() // 只检查一次
+        }
+      })
+
+      return
+    }
+
+    const userPermissions = userStore.permissions
     if (value) {
       const hasPermission = checkPermission(value, userPermissions)
       if (!hasPermission) {
@@ -85,7 +106,7 @@ export const permission: Directive = {
     const userStore = useUserStore()
     const userPermissions = userStore.permissions
 
-    if (value) {
+    if (value && userPermissions && userPermissions.length > 0) {
       const hasPermission = checkPermission(value, userPermissions)
       if (!hasPermission) {
         applyNoPermission(el, !!modifiers.disabled)

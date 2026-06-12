@@ -7,7 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration;
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.cloud.gateway.config.GatewayAutoConfiguration;
@@ -60,7 +59,14 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.payment",
     "cn.aiedge.erp.pricing",
     "cn.aiedge.crm",
-    "cn.aiedge.notification"
+    "cn.aiedge.erp.b2b",
+    "cn.aiedge.notification",
+    "cn.aiedge.dict",
+    "cn.aiedge.integration",
+    "cn.aiedge.wms",
+    "cn.aiedge.audit",
+    "cn.aiedge.erp.expense",
+    "cn.aiedge.erp.fixedasset"
 }, exclude = {
     JpaRepositoriesAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
@@ -68,8 +74,7 @@ import io.swagger.v3.oas.annotations.info.License;
     GatewayClassPathWarningAutoConfiguration.class,
     SecurityAutoConfiguration.class,
     UserDetailsServiceAutoConfiguration.class,
-    ManagementWebSecurityAutoConfiguration.class,
-    FlywayAutoConfiguration.class
+    ManagementWebSecurityAutoConfiguration.class
 })
 @MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.erp.supplier.repository"},
             nameGenerator = FullyQualifiedBeanNameGenerator.class)

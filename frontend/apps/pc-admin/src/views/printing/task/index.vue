@@ -28,14 +28,20 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
-          <a-button type="primary" size="small" @click="handleOpenExecuteChain">
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
+          <a-button type="primary" size="small" v-permission="'printing:task:openexecutechain'" @click="handleOpenExecuteChain">
             <template #icon><SendOutlined /></template>
             执行打印链
           </a-button>
         </div>
+
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="task-management">
       <!-- 统计卡片 -->
       <div class="stat-cards">
@@ -95,6 +101,7 @@
         :show-delete="false"
         :show-batch-delete="false"
         :selectable="false"
+        :min-empty-rows="12"
         @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
@@ -148,7 +155,7 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleViewDetail(record)">
+            <a-button type="link" size="small" v-permission="'printing:task:viewdetail'" @click="handleViewDetail(record)">
               详情
             </a-button>
             <a-button
@@ -156,7 +163,7 @@
               type="link"
               size="small"
               danger
-              @click="handleCancelTask(record)"
+ v-permission="'printing:task:canceltask'" @click="handleCancelTask(record)"
             >
               取消
             </a-button>
@@ -164,7 +171,7 @@
               v-if="record.screenshotId != null && record.screenshotStatus === 'PENDING'"
               type="link"
               size="small"
-              @click="handleConfirmScreenshot(record)"
+ v-permission="'printing:task:confirmscreenshot'" @click="handleConfirmScreenshot(record)"
             >
               确认截图
             </a-button>
@@ -172,7 +179,7 @@
               v-if="record.screenshotStatus === 'FAILED'"
               type="link"
               size="small"
-              @click="handleRetryScreenshot(record)"
+ v-permission="'printing:task:retryscreenshot'" @click="handleRetryScreenshot(record)"
             >
               重新截图
             </a-button>
@@ -185,11 +192,11 @@
         :visible="detailVisible"
         :title="`任务详情 - ${detailData?.taskCode || ''}`"
         :footer="null"
-        :width="700"
+        :width="700 as any"
         @cancel="handleDetailClose"
       >
         <a-spin :spinning="detailLoading">
-          <a-descriptions bordered column="2" size="small" v-if="detailData">
+          <a-descriptions bordered :column="2" size="small" v-if="detailData">
             <a-descriptions-item label="任务编号" :span="2">
               <a-typography-text copyable>{{ detailData.taskCode }}</a-typography-text>
             </a-descriptions-item>
@@ -284,6 +291,7 @@
         </a-form>
       </a-modal>
     </div>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
@@ -305,7 +313,8 @@ import {
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { printingApi, type PrintTaskVO, type PrintTaskQuery, type PrintExecuteRequest, type PrintChainVO } from '@/api/printing'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 // ── 状态映射 ────────────────────────────────────────────
 const statusColorMap: Record<string, string> = {
@@ -443,7 +452,7 @@ const executeForm = reactive<PrintExecuteRequest & { documentId?: number }>({
 const executeFormRules = {
   chainId: { required: true, message: '请选择打印链', trigger: 'change', type: 'number' as const },
   dataJson: { required: true, message: '请输入打印数据 JSON', trigger: 'blur' }
-}
+} as any
 
 // ── 数据加载 ────────────────────────────────────────────
 const buildQueryParams = (): PrintTaskQuery => {
@@ -473,8 +482,8 @@ const fetchData = async () => {
   try {
     const res = await printingApi.getTasks(buildQueryParams())
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -614,7 +623,7 @@ const fetchChains = async () => {
   try {
     const res = await printingApi.getChains({ page: 1, size: 999 })
     if (res.data) {
-      chainOptions.value = res.data.records
+      chainOptions.value = res.records
     }
   } catch (err) {
     console.warn('[打印任务] 加载打印链列表失败', err)
@@ -819,4 +828,70 @@ defineExpose({ handleQuery: fetchData })
 @media (max-width: 768px) {
   .stat-card { flex: 1 1 45%; }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

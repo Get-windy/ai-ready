@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/api'
 
 interface User {
   id: number
@@ -49,18 +48,6 @@ export const useUserStore = defineStore('warehouse-user', () => {
     }
   }
 
-  const updateProfile = async (data: Partial<User>) => {
-    if (!user.value) return
-    try {
-      await api.user.updateProfile(data)
-      user.value = { ...user.value, ...data }
-      localStorage.setItem('warehouse_user', JSON.stringify(user.value))
-    } catch {
-      user.value = { ...user.value, ...data }
-      localStorage.setItem('warehouse_user', JSON.stringify(user.value))
-    }
-  }
-
   return {
     user,
     token,
@@ -69,6 +56,5 @@ export const useUserStore = defineStore('warehouse-user', () => {
     setToken,
     logout,
     init,
-    updateProfile
   }
 })

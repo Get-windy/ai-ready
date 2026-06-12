@@ -87,9 +87,14 @@ public class SysRoleController {
         return Result.ok(result);
     }
 
+    @Operation(summary = "获取所有角色列表")
+    @GetMapping("/list")
+    public Result<List<SysRole>> listAll() {
+        return Result.ok(roleService.list());
+    }
+
     @Operation(summary = "获取角色详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("role:detail")
     public Result<SysRole> getRoleDetail(@PathVariable Long id) {
         SysRole role = roleService.getById(id);
         return Result.ok(role);
@@ -97,7 +102,6 @@ public class SysRoleController {
 
     @Operation(summary = "获取角色权限")
     @GetMapping("/{id}/permissions")
-    @SaCheckPermission("role:detail")
     public Result<List<Long>> getRolePermissions(@PathVariable Long id) {
         List<Long> permissionIds = roleService.getRolePermissionIds(id);
         return Result.ok(permissionIds);

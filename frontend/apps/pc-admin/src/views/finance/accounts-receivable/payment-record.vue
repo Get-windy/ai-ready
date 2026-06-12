@@ -96,6 +96,7 @@
     <div class="action-area">
       <a-space>
         <a-button
+          v-permission="'finance:receivable:create'"
           type="primary"
           @click="handleAdd"
         >
@@ -104,7 +105,7 @@
           </template>
           新增收款
         </a-button>
-        <a-button @click="handleExport">
+        <a-button v-permission="'finance:receivable:export'" @click="handleExport">
           <template #icon>
             <ExportOutlined />
           </template>
@@ -154,6 +155,7 @@
         <template #action="{ record }">
           <a-space>
             <a-button
+              v-permission="'finance:receivable:view'"
               type="link"
               size="small"
               @click="handleView(record)"
@@ -213,6 +215,7 @@ interface PaymentRecord {
   paymentDate: string
   operator: string
   remark: string
+  bankAccount?: string
 }
 
 const loading = ref(false)
@@ -224,7 +227,7 @@ const tableRef = ref()
 
 const queryParams = reactive({
   customerName: '',
-  dateRange: [] as string[],
+  dateRange: [] as any,
   paymentMethod: undefined as string | undefined
 })
 
@@ -333,11 +336,11 @@ const fetchData = async () => {
       }
     })
     if (res.data?.records) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total || 0
-      stats.totalAmount = res.data.totalAmount ?? tableData.value.reduce((sum, item) => sum + item.amount, 0)
-      stats.todayAmount = res.data.todayAmount ?? 0
-      stats.totalCount = res.data.totalCount ?? pagination.total
+      tableData.value = res.records
+      pagination.total = res.total || 0
+      stats.totalAmount = res.totalAmount ?? tableData.value.reduce((sum, item) => sum + item.amount, 0)
+      stats.todayAmount = res.todayAmount ?? 0
+      stats.totalCount = res.totalCount ?? pagination.total
     } else {
       tableData.value = []
       pagination.total = 0
@@ -505,4 +508,55 @@ onUnmounted(() => {
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

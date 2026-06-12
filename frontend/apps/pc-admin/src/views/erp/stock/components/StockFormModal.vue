@@ -76,7 +76,7 @@
       <VxeTableList
         :columns="itemVxeColumns"
         :data-source="formData.items"
-        :pagination="false"
+        :pagination="false as any"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -86,7 +86,7 @@
         :show-batch-delete="false"
       >
         <template #productIdCell="{ record, index }">
-          <a-select size="small" v-model:value="record.productId" placeholder="请选择商品" show-search :filter-option="filterOption" style="width: 100%" @change="(val) => handleProductChange(val, index)">
+          <a-select size="small" v-model:value="record.productId" placeholder="请选择商品" show-search :filter-option="filterOption" style="width: 100%" @change="(val: any) => handleProductChange(val, index)">
             <a-select-option v-for="product in productList" :key="product.id" :value="product.id">
               {{ product.name }} ({{ product.code }})
             </a-select-option>
@@ -127,7 +127,7 @@ import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { optionsApi } from '@/api/options'
@@ -208,7 +208,7 @@ const formData = reactive<StockFormData>({
   items: [{ id: '1', productId: undefined, productCode: '', productName: '', batchNo: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
 })
 
-const formRules = {
+const formRules: Record<string, any> = {
   warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }],
   orderDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
   operatorId: [{ required: true, message: '请选择经办人', trigger: 'change' }]

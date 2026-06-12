@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, safeStorage } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/runtime'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 import ElectronLog from 'electron-log'
 import PrinterService from './services/printer'

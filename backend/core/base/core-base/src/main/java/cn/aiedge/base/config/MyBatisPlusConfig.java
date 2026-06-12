@@ -1,6 +1,6 @@
 package cn.aiedge.base.config;
 
-import cn.aiedge.base.security.SecurityContext;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
@@ -11,10 +11,8 @@ import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerIntercept
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import org.apache.ibatis.reflection.MetaObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -36,12 +34,53 @@ public class MyBatisPlusConfig {
         "sys_role_menu",          // 角色菜单分配系统级
         "sys_permission",         // 权限定义系统级
         "sys_role_permission",    // 角色权限分配系统级
-        "sys_permission_template" // 权限模板系统级
+        "sys_permission_template", // 权限模板系统级
+        "sys_user_tenant",        // 用户租户关联表（登录时需要无租户过滤查询）
+        "sys_user",               // 用户表（登录时需要无租户过滤查询）
+        "sys_login_log",          // 登录日志表
+        "flyway_schema_history"   // Flyway迁移历史表
     ));
 
-    @Autowired(required = false)
-    @Lazy
-    private SecurityContext securityContext;
+    /** 临时租户ID（ThreadLocal）- 用于登录等未认证场景 */
+    private static final ThreadLocal<Long> TEMP_TENANT_ID = new ThreadLocal<>();
+
+    /**
+     * 设置临时租户ID（用于登录流程等未认证场景）
+     */
+    public static void setTempTenantId(Long tenantId) {
+        TEMP_TENANT_ID.set(tenantId);
+    }
+
+    /**
+     * 清除临时租户ID
+     */
+    public static void clearTempTenantId() {
+        TEMP_TENANT_ID.remove();
+    }
+
+    /**
+     * 获取当前租户ID
+     */
+    public static Long getCurrentTenantIdValue() {
+        // 1. 优先使用临时租户ID（用于登录等未认证场景）
+        Long tempTenantId = TEMP_TENANT_ID.get();
+        if (tempTenantId != null) {
+            return tempTenantId;
+        }
+        // 2. 从 Sa-Token Session 获取（登录时存入）
+        try {
+            if (StpUtil.isLogin()) {
+                Object sessionTenantId = StpUtil.getSession().get("tenantId");
+                if (sessionTenantId != null) {
+                    return Long.parseLong(sessionTenantId.toString());
+                }
+            }
+        } catch (Exception ignored) {
+            // session 不可用时忽略
+        }
+        // 3. 未登录时返回 null（不注入租户条件）
+        return null;
+    }
 
     /**
      * 分页插件 + 租户隔离插件
@@ -60,15 +99,12 @@ public class MyBatisPlusConfig {
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
             public Expression getTenantId() {
-                // 从安全上下文获取当前租户ID
-                if (securityContext != null) {
-                    Long tenantId = securityContext.getCurrentTenantId();
-                    if (tenantId != null) {
-                        return new LongValue(tenantId);
-                    }
+                Long tenantId = getCurrentTenantIdValue();
+                // 未登录或无法获取时不注入租户条件（返回null让MyBatis-Plus跳过）
+                if (tenantId == null) {
+                    return null;
                 }
-                // 未登录或无法获取时返回默认租户（防止全表扫描）
-                return new LongValue(0);
+                return new LongValue(tenantId);
             }
 
             @Override
@@ -104,9 +140,9 @@ public class MyBatisPlusConfig {
             public void insertFill(MetaObject metaObject) {
                 this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
                 this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
-                // 自动填充 tenantId（从安全上下文）
-                if (metaObject.hasSetter("tenantId") && securityContext != null) {
-                    Long tenantId = securityContext.getCurrentTenantId();
+                // 自动填充 tenantId（从当前租户ID获取）
+                if (metaObject.hasSetter("tenantId")) {
+                    Long tenantId = getCurrentTenantIdValue();
                     if (tenantId != null) {
                         metaObject.setValue("tenantId", tenantId);
                     }

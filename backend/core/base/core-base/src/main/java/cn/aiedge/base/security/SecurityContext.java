@@ -1,5 +1,6 @@
 package cn.aiedge.base.security;
 
+import cn.aiedge.base.config.MyBatisPlusConfig;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.service.SysUserService;
 import cn.dev33.satoken.stp.StpUtil;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * 安全上下文工具类
  * 提供当前登录用户信息获取
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -20,23 +21,17 @@ public class SecurityContext {
     private final SysUserService userService;
 
     /**
-     * 临时租户ID（ThreadLocal）
-     * 用于登录等未认证场景下，暂存当前操作的租户ID，避免多租户拦截器注入 tenant_id=0
-     */
-    private static final ThreadLocal<Long> TEMP_TENANT_ID = new ThreadLocal<>();
-
-    /**
      * 设置临时租户ID（用于登录流程等未认证场景）
      */
     public void setTempTenantId(Long tenantId) {
-        TEMP_TENANT_ID.set(tenantId);
+        MyBatisPlusConfig.setTempTenantId(tenantId);
     }
 
     /**
      * 清除临时租户ID
      */
     public void clearTempTenantId() {
-        TEMP_TENANT_ID.remove();
+        MyBatisPlusConfig.clearTempTenantId();
     }
 
     /**
@@ -76,7 +71,7 @@ public class SecurityContext {
      */
     public Long getCurrentTenantId() {
         // 1. 优先使用临时租户ID（用于登录等未认证场景，避免递归查询）
-        Long tempTenantId = TEMP_TENANT_ID.get();
+        Long tempTenantId = MyBatisPlusConfig.getCurrentTenantIdValue();
         if (tempTenantId != null) {
             return tempTenantId;
         }

@@ -172,17 +172,14 @@ public class SysOperLogServiceImpl extends ServiceImpl<SysOperLogMapper, SysOper
         throw BusinessException.badRequest("审计日志不可删除");
     }
 
-    @Override
     public boolean remove(Wrapper<SysOperLog> queryWrapper, boolean useFill) {
         throw BusinessException.badRequest("审计日志不可删除");
     }
 
-    @Override
     public boolean removeById(Function<? super Function<String, Object>, ? extends Serializable> idFunc) {
         throw BusinessException.badRequest("审计日志不可删除");
     }
 
-    @Override
     public boolean removeById(Function<? super Function<String, Object>, ? extends Serializable> idFunc, boolean useFill) {
         throw BusinessException.badRequest("审计日志不可删除");
     }

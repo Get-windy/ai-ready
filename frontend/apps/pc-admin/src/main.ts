@@ -119,7 +119,7 @@ async function bootstrap() {
     if (state.userId && state.token) {
       setSentryUser({
         id: state.userId,
-        username: state.userInfo?.username || state.username,
+        username: state.userInfo?.username || '',
         tenantId: state.tenantId,
       })
     } else if (!state.token) {

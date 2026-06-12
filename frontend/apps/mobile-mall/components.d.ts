@@ -16,6 +16,5 @@ declare module 'vue' {
     SearchBar: typeof import('./src/components/common/SearchBar.vue')['default']
     TabBar: typeof import('./src/components/layout/TabBar.vue')['default']
     VanIcon: typeof import('vant/es')['Icon']
-    VanPopup: typeof import('vant/es')['Popup']
   }
 }

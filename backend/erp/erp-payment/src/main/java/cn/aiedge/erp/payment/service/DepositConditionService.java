@@ -3,6 +3,7 @@ package cn.aiedge.erp.payment.service;
 import cn.aiedge.erp.payment.entity.DepositCondition;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface DepositConditionService extends IService<DepositCondition> {

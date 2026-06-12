@@ -1,5 +1,5 @@
 <template>
-  <PageContainer full-height>
+  <ErrorBoundary @error="handleError"><PageContainer full-height>
     <template #header>
       <div class="workflow-analysis-page-header">
         <div class="workflow-analysis-page-header-left">
@@ -18,7 +18,12 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
+
       </div>
     </template>
 
@@ -65,13 +70,14 @@
             <VxeTableList
               :columns="processDurationVxeColumns"
               :data-source="processDurationData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
               :show-search="false"
               :show-export="false"
               :show-batch-delete="false"
+              :min-empty-rows="12"
             >
               <template #empty>
                 <div class="table-empty">
@@ -117,13 +123,14 @@
             <VxeTableList
               :columns="nodeDurationVxeColumns"
               :data-source="nodeDurationData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
               :show-search="false"
               :show-export="false"
               :show-batch-delete="false"
+              :min-empty-rows="12"
             >
               <template #empty>
                 <div class="table-empty">
@@ -166,13 +173,14 @@
             <VxeTableList
               :columns="efficiencyVxeColumns"
               :data-source="efficiencyData"
-              :pagination="false"
+              :pagination="false as any"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
               :show-search="false"
               :show-export="false"
               :show-batch-delete="false"
+              :min-empty-rows="12"
             >
               <template #completionRateCell="{ record }">
                 <a-progress
@@ -230,7 +238,7 @@
       </a-row>
     </div>
   </div>
-</PageContainer>
+</PageContainer></ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -239,7 +247,8 @@ import { message } from 'ant-design-vue'
 import { SyncOutlined, ReloadOutlined, WarningOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -253,6 +262,8 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
 
 // ── 自动刷新 ────────────────────────────────────────────
 const hasError = ref(false)
+
+function handleError(err: any) { console.warn('[工作流] 流程分析出错', err); hasError.value = true }
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
@@ -330,7 +341,7 @@ const nodeDurationData = ref([
 ])
 
 // 审批效率数据
-const reportDateRange = ref<any[]>([])
+const reportDateRange = ref<any>([])
 const efficiencyVxeColumns = [
   { field: 'date', title: '日期', width: 120 },
   { field: 'totalTasks', title: '总任务数', width: 100, align: 'center' },
@@ -413,8 +424,8 @@ const handleRefresh = async () => {
   try {
     const res = await request.get('/workflow/analysis/refresh')
     if (res.data) {
-      if (res.data.statistics) {
-        const stats = res.data.statistics
+      if (res.statistics) {
+        const stats = res.statistics
         statisticCards.value = [
           { title: '流程实例总数', value: stats.totalInstances || 0, suffix: '个' },
           { title: '运行中实例', value: stats.runningInstances || 0, suffix: '个' },
@@ -422,11 +433,11 @@ const handleRefresh = async () => {
           { title: '平均处理时长', value: stats.avgDuration || 0, suffix: '天' }
         ]
       }
-      if (res.data.processDuration) {
-        processDurationData.value = res.data.processDuration
+      if (res.processDuration) {
+        processDurationData.value = res.processDuration
       }
-      if (res.data.nodeDuration) {
-        nodeDurationData.value = res.data.nodeDuration
+      if (res.nodeDuration) {
+        nodeDurationData.value = res.nodeDuration
       }
     }
     console.warn('[工作流] 操作成功: 数据刷新成功')
@@ -451,7 +462,7 @@ const handleReportDateChange = async () => {
       }
     })
     if (res.data?.records?.length) {
-      efficiencyData.value = res.data.records
+      efficiencyData.value = res.records
     }
     console.warn('[工作流] 操作成功: 报表数据加载成功')
     message.success('报表数据加载成功')
@@ -468,7 +479,7 @@ const getProgressColor = (percentage: number) => {
   return '#f5222d'
 }
 
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { handleRefresh() }
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
@@ -608,4 +619,48 @@ defineExpose({ handleQuery: handleRefresh })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 ──────────────────────── */
+.empty-state-wrapper { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
+.empty-state-icon { font-size: 48px; color: #d9d9d9; }
+.empty-state-text { color: #999; margin-top: 12px; }
+.empty-state-action { margin-top: 12px; }
+
+/* ── vxe-table 表头 2px 边框 ─────── */
+:deep(.vxe-table .vxe-header--row) { border-top: 2px solid #e8e8e8; }
+
 </style>

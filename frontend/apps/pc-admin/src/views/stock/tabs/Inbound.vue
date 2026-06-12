@@ -77,7 +77,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="delete" danger>
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -182,26 +182,26 @@
       <div style="margin-bottom: 12px">
         <a-button type="dashed" size="small" @click="addInboundItem"><template #icon><PlusOutlined /></template>添加明细</a-button>
       </div>
-      <VxeTableList :data-source="addForm.items" :pagination="false" row-key="key"
+      <VxeTableList :data-source="addForm.items" :pagination="false as any" row-key="key"
         :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
         :show-export="false" :show-batch-delete="false" :columns="addItemColumns">
         <template #isNewCell="{ record }">
           <a-tag v-if="record.isNew" color="green">新增</a-tag><span v-else>-</span>
         </template>
-        <template #productNameCell="{ record, rowIndex }">
-          <a-select v-model:value="addForm.items[rowIndex].productId" show-search placeholder="选择产品"
+        <template #productNameCell="{ record, index }">
+          <a-select v-model:value="addForm.items[index].productId" show-search placeholder="选择产品"
             :options="productOptions" style="width: 100%" size="small"
-            @change="(val: number) => handleItemProductChange(rowIndex, val)" />
+            @change="(val: number) => handleItemProductChange(index, val)" />
         </template>
-        <template #expectedQtyCell="{ record, rowIndex }">
-          <a-input-number v-model:value="addForm.items[rowIndex].expectedQty" :min="1" style="width: 100%" size="small" />
+        <template #expectedQtyCell="{ record, index }">
+          <a-input-number v-model:value="addForm.items[index].expectedQty" :min="1" style="width: 100%" size="small" />
         </template>
-        <template #actualQtyCell="{ record, rowIndex }">
-          <a-input-number v-model:value="addForm.items[rowIndex].actualQty"
+        <template #actualQtyCell="{ record, index }">
+          <a-input-number v-model:value="addForm.items[index].actualQty"
             :min="record.isNew ? 1 : 0" style="width: 100%" size="small" />
         </template>
-        <template #actionCell="{ record, rowIndex }">
-          <a-button type="link" danger size="small" @click="removeInboundItem(rowIndex)">删除</a-button>
+        <template #actionCell="{ record, index }">
+          <a-button type="link" danger size="small" @click="removeInboundItem(index)">删除</a-button>
         </template>
       </VxeTableList>
     </a-modal>
@@ -326,7 +326,7 @@ const addVisible = ref(false)
 const addSubmitting = ref(false)
 const addFormRef = ref<FormInstance>()
 const addForm = reactive({ orderNo: undefined as string | undefined, inboundType: 1, warehouseId: undefined as number | undefined, expectedDate: dayjs(), remark: '', items: [] as AddInboundItem[] })
-const addFormRules = { warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }], expectedDate: [{ required: true, message: '请选择预计到货日期', trigger: 'change' }] }
+const addFormRules: any = { warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }], expectedDate: [{ required: true, message: '请选择预计到货日期', trigger: 'change' }] }
 const inboundTypeOptions = [
   { value: 1, label: '采购入库' }, { value: 2, label: '退货入库' },
   { value: 3, label: '调拨入库' }, { value: 4, label: '其他入库' }
@@ -627,4 +627,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

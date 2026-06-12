@@ -18,12 +18,25 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
-      </div>
+
+          </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && tableData.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -86,6 +99,7 @@
         :filter-fields="filterFields"
         :show-export="true"
         :selectable="true"
+        :min-empty-rows="12"
         add-text="新建报价"
         @add="handleAdd"
         @refresh="fetchData"
@@ -97,7 +111,7 @@
         @export="handleExport"
       >
         <template #toolbar-actions>
-          <a-button size="small" @click="handleBatchSend">
+          <a-button size="small" v-permission="'crm:quotation:batchsend'" @click="handleBatchSend">
             <template #icon><SendOutlined /></template>
             批量发送
           </a-button>
@@ -108,7 +122,7 @@
             <template v-if="hasError">
               <WarningOutlined class="table-empty-icon" style="color: #faad14" />
               <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData">
+              <a-button type="primary" size="small" @click="fetchData as any">
                 <template #icon><ReloadOutlined /></template>
                 重试
               </a-button>
@@ -120,8 +134,14 @@
                 没有符合条件的报价，<a @click="handleResetFilters">清除筛选</a>
               </p>
               <p v-else class="table-empty-text">
-                暂无报价数据，点击右上角「新建报价」开始创建
+                暂无报价数据
               </p>
+              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                <a-button type="primary" v-permission="'crm:quotation:create'" @click="handleAdd">
+                  <template #icon><PlusOutlined /></template>
+                  新建第一个报价
+                </a-button>
+              </div>
             </template>
           </div>
         </template>
@@ -129,22 +149,22 @@
         <template #action="{ record }">
           <a-space :size="4">
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'crm:quotation:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
+              <a-button type="link" size="small" v-permission="'crm:quotation:edit'" @click="handleEdit(record)">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="发送">
-              <a-button type="link" size="small" @click="handleSend(record)">
+              <a-button type="link" size="small" v-permission="'crm:quotation:send'" @click="handleSend(record)">
                 <template #icon><SendOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'accepted'" title="转订单">
-              <a-button type="link" size="small" @click="handleConvert(record)">
+              <a-button type="link" size="small" v-permission="'crm:quotation:convert'" @click="handleConvert(record)">
                 <template #icon><FileProtectOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -162,7 +182,7 @@
                 <template #icon><MoreOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="copy"><CopyOutlined /> 复制报价</a-menu-item>
                   <a-menu-item key="download"><DownloadOutlined /> 下载PDF</a-menu-item>
                   <a-menu-item key="history"><HistoryOutlined /> 版本历史</a-menu-item>
@@ -177,6 +197,7 @@
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
       </VxeTableList>
+      </template>
     </ErrorBoundary>
 
     <!-- 报价表单弹窗 -->
@@ -185,6 +206,7 @@
       :title="modalTitle"
       :save-loading="submitLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleSubmit"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -240,7 +262,7 @@
         </a-row>
 
         <a-divider>报价明细</a-divider>
-        <VxeTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <VxeTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
           <template #productNameCell="{ record }">
             <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
           </template>
@@ -309,7 +331,7 @@
           <div class="table-empty">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" @click="handleDetailRefresh">
+            <a-button type="primary" size="small" v-permission="'crm:quotation:detailrefresh'" @click="handleDetailRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -338,7 +360,7 @@
           </a-descriptions>
 
           <a-divider>报价明细</a-divider>
-          <VxeTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <VxeTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #subtotalCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
             </template>
@@ -349,9 +371,9 @@
 
           <div class="detail-footer">
             <a-space>
-              <a-button type="primary" @click="handleDownloadPDF"><DownloadOutlined /> 下载PDF</a-button>
-              <a-button v-if="detailData.status === 'accepted'" type="primary" @click="handleConvertFromDetail">转为订单</a-button>
-              <a-button v-if="detailData.status === 'draft'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
+              <a-button type="primary" v-permission="'crm:quotation:downloadpdf'" @click="handleDownloadPDF"><DownloadOutlined /> 下载PDF</a-button>
+              <a-button v-if="detailData.status === 'accepted'" type="primary" v-permission="'crm:quotation:convertfromdetail'" @click="handleConvertFromDetail">转为订单</a-button>
+              <a-button v-if="detailData.status === 'draft'" v-permission="'crm:quotation:sendfromdetail'" @click="handleSendFromDetail"><SendOutlined /> 发送报价</a-button>
             </a-space>
           </div>
         </template>
@@ -367,7 +389,8 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { quotationApi } from '@/api/erp'
 import { exportCsv } from '@/utils/exportCsv'
 import dayjs from 'dayjs'
@@ -609,16 +632,16 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -1068,4 +1091,57 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

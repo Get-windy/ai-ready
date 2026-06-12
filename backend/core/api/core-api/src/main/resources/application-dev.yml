@@ -13,7 +13,7 @@ spring:
       - org.optaplanner.spring.boot.autoconfigure.OptaPlannerAutoConfiguration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
   datasource:
     url: jdbc:postgresql://localhost:5432/devdb
@@ -26,9 +26,11 @@ spring:
       database: 0
   sql:
     init:
-      mode: always
+      mode: never
   redis:
     enabled: true
+  flyway:
+    enabled: false
 
 eureka:
   client:

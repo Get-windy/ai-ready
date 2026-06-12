@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="writeoff-page-header">
@@ -19,6 +20,9 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -61,6 +65,7 @@
         <a-tab-pane key="receipt" tab="收款核销">
           <VxeTableList
             ref="tableRef"
+            :min-empty-rows="12"
             :columns="receiptColumns"
             :data-source="receiptTableData"
             :loading="loading"
@@ -113,7 +118,7 @@
             <template #receiptAction="{ record }">
               <a-space :size="0" class="action-cell-inner">
                 <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
-                  <a-button type="link" size="small" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'receipt')">
+                  <a-button type="link" size="small" v-permission="'finance:writeoff:edit'" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'receipt')">
                     <template #icon><CheckCircleOutlined /></template>
                     核销
                   </a-button>
@@ -185,7 +190,7 @@
             <template #paymentAction="{ record }">
               <a-space :size="0" class="action-cell-inner">
                 <a-tooltip :title="(record.unwrittenOff || 0) <= 0 ? '已全额核销' : '核销'">
-                  <a-button type="link" size="small" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'payment')">
+                  <a-button type="link" size="small" v-permission="'finance:writeoff:edit'" :disabled="(record.unwrittenOff || 0) <= 0" @click="handleWriteOff(record, 'payment')">
                     <template #icon><CheckCircleOutlined /></template>
                     核销
                   </a-button>
@@ -207,6 +212,7 @@
         :visible="writeOffVisible"
         :title="writeOffType === 'receipt' ? '收款核销' : '付款核销'"
         :save-loading="writeOffLoading"
+        :dirty="writeOffFormDirty"
         @save="handleWriteOffConfirm"
         @close="handleWriteOffCancel"
       >
@@ -243,11 +249,14 @@
       </FullScreenDetail>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, InboxOutlined,
   DollarOutlined, ExclamationCircleOutlined, WarningOutlined, FileTextOutlined,
@@ -255,7 +264,8 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { receiptApi, paymentApi } from '@/api/finance'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
@@ -355,6 +365,12 @@ const writeOffTarget = ref<any>(null)
 const writeOffAmount = ref(0)
 const writeOffType = ref<'receipt' | 'payment'>('receipt')
 
+const initialWriteOffSnapshot = ref('')
+const writeOffFormDirty = computed(() => {
+  if (!writeOffVisible.value) return false
+  return JSON.stringify(writeOffAmount.value) !== initialWriteOffSnapshot.value
+})
+
 const fetchData = async () => {
   loading.value = true
   refreshLoading.value = true
@@ -393,10 +409,10 @@ const fetchReceiptData = async () => {
 
   const res = await receiptApi.getPage(params)
   if (res.data) {
-    receiptTableData.value = res.data.records || res.data.list || []
-    pagination.total = res.data.total || 0
+    receiptTableData.value = res.records || (res.data as any).list || []
+    pagination.total = res.total || 0
     lastUpdated.value = new Date().toISOString()
-    updateStats(receiptTableData.value)
+    updateStats(receiptTableData.value, res.data)
   }
 }
 
@@ -411,17 +427,23 @@ const fetchPaymentData = async () => {
 
   const res = await paymentApi.getPage(params)
   if (res.data) {
-    paymentTableData.value = res.data.records || res.data.list || []
-    pagination.total = res.data.total || 0
+    paymentTableData.value = res.records || (res.data as any).list || []
+    pagination.total = res.total || 0
     lastUpdated.value = new Date().toISOString()
-    updateStats(paymentTableData.value)
+    updateStats(paymentTableData.value, res.data)
   }
 }
 
-const updateStats = (data: any[]) => {
-  stats.totalAmount = data.reduce((sum, item) => sum + (item.amount || 0), 0)
-  stats.writtenOffAmount = data.reduce((sum, item) => sum + (item.writtenOff || 0), 0)
-  stats.balanceAmount = data.reduce((sum, item) => sum + (item.unwrittenOff || 0), 0)
+const updateStats = (data: any[], backendSummary?: any) => {
+  if (backendSummary?.totalAmount !== undefined) {
+    stats.totalAmount = backendSummary.totalAmount
+    stats.writtenOffAmount = backendSummary.totalWrittenOff || 0
+    stats.balanceAmount = backendSummary.totalUnwrittenOff || 0
+  } else {
+    stats.totalAmount = data.reduce((sum, item) => sum + (item.amount || 0), 0)
+    stats.writtenOffAmount = data.reduce((sum, item) => sum + (item.writtenOff || 0), 0)
+    stats.balanceAmount = data.reduce((sum, item) => sum + (item.unwrittenOff || 0), 0)
+  }
 }
 
 const handleTabChange = () => {
@@ -500,6 +522,7 @@ const handleWriteOff = (record: any, type: 'receipt' | 'payment') => {
   writeOffType.value = type
   writeOffTarget.value = record
   writeOffAmount.value = record.unwrittenOff || 0
+  initialWriteOffSnapshot.value = JSON.stringify(writeOffAmount.value)
   writeOffVisible.value = true
 }
 
@@ -555,6 +578,19 @@ const formatAmount = (val: number) => {
   return Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+onBeforeRouteLeave((to, from, next) => {
+  if (writeOffVisible.value && writeOffFormDirty.value) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '当前表单有未保存的修改，确定要离开吗？',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
+
 onMounted(() => {
   fetchData()
   document.addEventListener('keydown', handleKeydown)
@@ -579,6 +615,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -753,4 +791,55 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

@@ -73,7 +73,7 @@ const selectedKeys = ref([currentLocale.value])
 const supportedLocales = getSupportedLocales()
 
 // 当前语言信息
-const currentLocaleInfo = computed(() => getLocaleInfo(currentLocale.value))
+const currentLocaleInfo = computed(() => getLocaleInfo(currentLocale.value) as any)
 
 // 监听语言变化
 watch(currentLocale, (newLocale) => {
@@ -92,12 +92,12 @@ function handleLocaleChanged(event: CustomEvent) {
   
   // 显示成功消息
   message.success(
-    (getLocaleInfo(locale)?.name || locale)
+    (getLocaleInfo(locale)?.labelNative || locale)
   )
 }
 
 // 处理语言切换
-async function handleLocaleChange({ key }: { key: string }) {
+async function handleLocaleChange({ key }: Record<string, any>) {
   const newLocale = key as LocaleCode
   
   if (newLocale === currentLocale.value) {
@@ -117,7 +117,7 @@ async function handleLocaleChange({ key }: { key: string }) {
     window.dispatchEvent(new CustomEvent('locale:changed', { detail: { locale: newLocale } }))
     
     message.success(
-      (getLocaleInfo(newLocale)?.name || newLocale)
+      (getLocaleInfo(newLocale)?.labelNative || newLocale)
     )
   } catch (error) {
     message.error('Language switch failed')

@@ -4,7 +4,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/devdb
+    url: jdbc:postgresql://localhost:5432/devdb?useUnicode=true&characterEncoding=UTF-8
     username: devuser
     password: [REDACTED]
     driver-class-name: org.postgresql.Driver

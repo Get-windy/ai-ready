@@ -150,12 +150,9 @@ export class WorkerManager {
         }
       })
 
-      this.worker?.postMessage({
-        type: 'task',
-        id: taskId,
-        data,
-        type
-      } as WorkerMessage<T>)
+      const payload: any = { id: taskId, data }
+      if (type !== undefined) payload.type = type
+      this.worker?.postMessage(payload)
     })
   }
 
@@ -346,10 +343,7 @@ export const dataProcess = {
    */
   filter: async <T>(items: T[], predicate: (item: T) => boolean) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], T[]>({
-      items,
-      predicate
-    }, 'filter')
+    return worker.execute({ items, predicate } as any, 'filter')
   },
 
   /**
@@ -357,10 +351,7 @@ export const dataProcess = {
    */
   map: async <T, R>(items: T[], mapper: (item: T) => R) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], R[]>({
-      items,
-      mapper
-    }, 'map')
+    return worker.execute({ items, mapper } as any, 'map')
   },
 
   /**
@@ -368,11 +359,7 @@ export const dataProcess = {
    */
   reduce: async <T, R>(items: T[], reducer: (acc: R, item: T) => R, initialValue: R) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<{ items: T[], reducer: (acc: R, item: T) => R, initialValue: R }, R>({
-      items,
-      reducer,
-      initialValue
-    }, 'reduce')
+    return worker.execute({ items, reducer, initialValue } as any, 'reduce')
   },
 
   /**
@@ -380,10 +367,7 @@ export const dataProcess = {
    */
   sort: async <T>(items: T[], comparer: (a: T, b: T) => number) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], T[]>({
-      items,
-      comparer
-    }, 'sort')
+    return worker.execute({ items, comparer } as any, 'sort')
   },
 
   /**
@@ -391,10 +375,7 @@ export const dataProcess = {
    */
   groupBy: async <T, K extends string | number>(items: T[], keyGetter: (item: T) => K) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], Record<K, T[]>>({
-      items,
-      keyGetter
-    }, 'groupBy')
+    return worker.execute({ items, keyGetter } as any, 'groupBy')
   },
 
   /**
@@ -402,10 +383,7 @@ export const dataProcess = {
    */
   chunk: async <T>(items: T[], size: number) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], T[][]>({
-      items,
-      size
-    }, 'chunk')
+    return worker.execute({ items, size } as any, 'chunk')
   },
 
   /**
@@ -413,10 +391,7 @@ export const dataProcess = {
    */
   search: async <T extends Record<string, any>>(items: T[], query: string) => {
     const worker = DataProcessingWorkerManager.getInstance()
-    return worker.execute<T[], T[]>({
-      items,
-      query
-    }, 'search')
+    return worker.execute({ items, query } as any, 'search')
   }
 }
 

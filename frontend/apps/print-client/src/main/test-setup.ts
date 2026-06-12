@@ -159,7 +159,7 @@ vi.mock('node-printer', () => ({
 // ═══════════════════════════════════════════════════════════════
 // @electron-toolkit/runtime mock
 // ═══════════════════════════════════════════════════════════════
-vi.mock('@electron-toolkit/runtime', () => ({
+vi.mock('@electron-toolkit/utils', () => ({
   electronApp: {
     setAppUserModelId: vi.fn()
   },

@@ -99,7 +99,7 @@ export const LazyImage = defineComponent({
     // 加载图片
     const loadImage = () => {
       if (visible.value && !loaded.value && !error.value) {
-        const img = new Image()
+        const img = new window.Image()
 
         img.onload = () => {
           loaded.value = true
@@ -229,7 +229,7 @@ export const LazyImage = defineComponent({
 export function preloadImages(images: string[]): Promise<void[]> {
   const promises = images.map((src) => {
     return new Promise<void>((resolve, reject) => {
-      const img = new Image()
+      const img = new window.Image()
       img.onload = () => resolve()
       img.onerror = () => reject(new Error(`Failed to preload image: ${src}`))
       img.src = src

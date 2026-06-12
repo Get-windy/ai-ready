@@ -89,8 +89,8 @@ public class PrintLogServiceImpl implements PrintLogService {
 
     @Override
     public PrintStatisticsDTO getStatistics(String startDate, String endDate, String groupBy) {
-        LocalDateTime startTime = startDate != null ? LocalDate.parse(startDate).atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
-        LocalDateTime endTime = endDate != null ? LocalDate.parse(endDate).atTime(LocalTime.MAX) : LocalDateTime.now();
+        LocalDateTime startTime = startDate != null && !startDate.isEmpty() ? LocalDate.parse(startDate).atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
+        LocalDateTime endTime = endDate != null && !endDate.isEmpty() ? LocalDate.parse(endDate).atTime(LocalTime.MAX) : LocalDateTime.now();
 
         PrintStatisticsDTO dto = new PrintStatisticsDTO();
 
@@ -125,8 +125,8 @@ public class PrintLogServiceImpl implements PrintLogService {
 
     @Override
     public byte[] exportLogs(String startDate, String endDate, String format) {
-        LocalDateTime startTime = startDate != null ? LocalDate.parse(startDate).atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
-        LocalDateTime endTime = endDate != null ? LocalDate.parse(endDate).atTime(LocalTime.MAX) : LocalDateTime.now();
+        LocalDateTime startTime = startDate != null && !startDate.isEmpty() ? LocalDate.parse(startDate).atStartOfDay() : LocalDate.now().minusDays(30).atStartOfDay();
+        LocalDateTime endTime = endDate != null && !endDate.isEmpty() ? LocalDate.parse(endDate).atTime(LocalTime.MAX) : LocalDateTime.now();
 
         LambdaQueryWrapper<PrintLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.ge(PrintLog::getPrintTime, startTime)

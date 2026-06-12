@@ -4,6 +4,7 @@ import cn.aiedge.erp.monitor.service.MetricCollectorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -18,6 +19,7 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
+@Profile("!local")
 @EnableScheduling
 @RequiredArgsConstructor
 public class MetricCollectorConfig {

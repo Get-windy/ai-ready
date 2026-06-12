@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.aiedge</groupId>
+        <artifactId>ai-ready-backend</artifactId>
+        <version>0.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>cn.aiedge.wms</groupId>
+    <artifactId>wms</artifactId>
+    <packaging>pom</packaging>
+
+    <name>WMS 仓储管理模块</name>
+    <description>仓储管理系统（增值服务模块）</description>
+
+    <modules>
+        <module>wms-common</module>
+        <module>wms-warehouse</module>
+        <module>wms-receipt</module>
+        <module>wms-putaway</module>
+        <module>wms-pick</module>
+        <module>wms-ship</module>
+        <module>wms-inventory</module>
+        <module>wms-move</module>
+        <module>wms-check</module>
+        <module>wms-event</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>core-common</artifactId>
+        </dependency>
+    </dependencies>
+</project>

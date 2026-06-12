@@ -13,7 +13,7 @@
       :d="connectionPath"
       :stroke="strokeColor"
       :stroke-width="strokeWidth"
-      :fill="none"
+      fill="none"
       :stroke-dasharray="strokeDasharray"
       class="connection-path"
     />
@@ -41,7 +41,7 @@
       :d="connectionPath"
       :stroke="connectionStyle.selectedColor"
       :stroke-width="connectionStyle.width + 4"
-      :fill="none"
+      fill="none"
       class="connection-highlight"
       style="opacity: 0.3"
     />

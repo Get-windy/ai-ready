@@ -27,7 +27,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -104,10 +106,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw BusinessException.badRequest("邮箱已被使用");
         }
 
-        // 禁止通过普通创建接口创建超级管理员（必须通过专用接口）
-        if (Boolean.TRUE.equals(request.getIsSuperAdmin())) {
-            throw BusinessException.badRequest("不能通过此接口创建超级管理员");
-        }
+        // UserCreateRequest 无 isSuperAdmin 字段，普通创建接口无法创建超级管理员
+        // 无需额外校验
 
         // 密码复杂度校验
         validatePasswordComplexity(request.getPassword());

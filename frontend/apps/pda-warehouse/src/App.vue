@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useUserStore } from '@/stores/user'
 import TabBar from '@/components/layout/TabBar.vue'
-
-const userStore = useUserStore()
 
 const tabBarItems = [
   { key: 'task', icon: 'todo-list-o', text: '任务', path: '/task' },

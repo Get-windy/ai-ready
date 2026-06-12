@@ -5,14 +5,18 @@
       <div class="page-header">
         <a-breadcrumb>
           <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item><router-link to="/erp/mall">商城管理</router-link></a-breadcrumb-item>
+          <a-breadcrumb-item><router-link to="/mall">商城管理</router-link></a-breadcrumb-item>
           <a-breadcrumb-item>轮播图管理</a-breadcrumb-item>
         </a-breadcrumb>
         <div class="page-header__right">
-          <span v-if="lastUpdateTime" style="font-size: 12px; color: #999;">更新于: {{ lastUpdateTime }}</span>
+          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
           <a-space :size="8">
             <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
               <SyncOutlined /> {{ autoRefreshCountdown }}s
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
             </span>
             <a-tooltip title="F5: 刷新 | Ctrl+N: 新增">
               <a-button size="small" @click="debounceClick('refresh', fetchData)">
@@ -29,7 +33,7 @@
       :columns="vxeColumns"
       :data-source="tableDataSource"
       :loading="loading"
-      :pagination="false"
+      :pagination="false as any"
       :row-key="'id'"
       :show-search="false"
       add-text="新增轮播图"
@@ -96,7 +100,7 @@
           <a-input v-model:value="formState.imageUrl" placeholder="请输入图片URL" />
         </a-form-item>
         <a-form-item label="标题" name="title">
-          <a-input v-model:value="formState.title" placeholder="请输入标题" maxlength="200" />
+          <a-input v-model:value="formState.title" placeholder="请输入标题" :maxlength="200" />
         </a-form-item>
         <a-row :gutter="24">
           <a-col :span="12">
@@ -144,7 +148,8 @@ import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { shopBannerApi, type ShopBanner } from '@/api/erp/mall'
 
 const loading = ref(false)
@@ -152,7 +157,7 @@ const hasError = ref(false)
 const tableData = ref<ShopBanner[]>([])
 const tableDataSource = tableData
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'sortOrder', title: '排序', width: 70, align: 'center' },
   { field: 'imageUrl', title: '图片', width: 120, slotName: 'imageCell' },
   { field: 'title', title: '标题', width: 200, showOverflow: 'tooltip' },
@@ -206,7 +211,7 @@ const formState = reactive<ShopBanner>({
   status: 1
 })
 
-const formRules = {
+const formRules: Record<string, any> = {
   imageUrl: { required: true, message: '请输入图片URL', trigger: 'blur' }
 }
 
@@ -352,4 +357,55 @@ defineExpose({ fetchData })
   color: #52c41a;
   white-space: nowrap;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

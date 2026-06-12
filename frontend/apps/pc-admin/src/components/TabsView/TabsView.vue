@@ -109,7 +109,7 @@ function handleContextMenu(e: MouseEvent) {
   }
 }
 
-function handleContextAction({ key }: { key: string }) {
+function handleContextAction({ key }: Record<string, any>) {
   const tab = contextTab.value
   if (!tab) return
 

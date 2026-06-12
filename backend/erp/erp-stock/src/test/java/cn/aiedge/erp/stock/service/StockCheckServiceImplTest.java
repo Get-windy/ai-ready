@@ -157,8 +157,8 @@ class StockCheckServiceImplTest {
             assertNotNull(result);
             assertEquals(1, result.getTotalItems());
             verify(checkItemMapper).insert(any(StockCheckItem.class));
-            verify(checkMapper).updateById(argThat(c ->
-                    ((StockCheck) c).getTotalItems() == 1));
+            verify(checkMapper).updateById(argThat((StockCheck c) ->
+                    c.getTotalItems() == 1));
         }
     }
 
@@ -174,8 +174,8 @@ class StockCheckServiceImplTest {
         StockCheck result = checkService.updateCheck(1L, update);
 
         assertNotNull(result);
-        verify(checkMapper).updateById(argThat(c ->
-                ((StockCheck) c).getWarehouseId() == 20L));
+        verify(checkMapper).updateById(argThat((StockCheck c) ->
+                c.getWarehouseId() == 20L));
     }
 
     @Test
@@ -270,10 +270,10 @@ class StockCheckServiceImplTest {
         StockCheck result = checkService.adjust(1L);
 
         assertEquals(5, result.getStatus()); // ADJUSTED
-        verify(stockMapper).updateById(argThat(s ->
-                ((Stock) s).getQuantity().compareTo(new BigDecimal("55")) == 0)); // 50+5
-        verify(checkItemMapper).updateById(argThat(i ->
-                ((StockCheckItem) i).getStatus() == 2));
+        verify(stockMapper).updateById(argThat((Stock s) ->
+                s.getQuantity().compareTo(new BigDecimal("55")) == 0)); // 50+5
+        verify(checkItemMapper).updateById(argThat((StockCheckItem i) ->
+                i.getStatus() == 2));
     }
 
     @Test
@@ -353,18 +353,17 @@ class StockCheckServiceImplTest {
 
         checkService.calculateTotals(1L);
 
-        verify(checkMapper).updateById(argThat(c -> {
-            StockCheck s = (StockCheck) c;
-            return s.getTotalItems() == 1
+        verify(checkMapper).updateById(argThat((StockCheck s) ->
+            s.getTotalItems() == 1
                     && s.getCheckedItems() == 1
-                    && s.getDiffItems() == 1;
-        }));
+                    && s.getDiffItems() == 1
+        ));
     }
 
     @Test
     @DisplayName("获取差异项数量")
     void testGetDiffItemCount() {
-        when(checkItemMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(3);
+        when(checkItemMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(3L);
 
         Integer count = checkService.getDiffItemCount(1L);
         assertEquals(3, count);

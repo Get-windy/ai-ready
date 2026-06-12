@@ -76,16 +76,16 @@ export const useUserStore = defineStore('user', {
     async login(loginForm: LoginForm) {
       try {
         const res = await userApi.login(loginForm)
-        if (res.data && res.data.token) {
-          this.token = res.data.token
-          this.userId = res.data.userId || 0
-          this.tenantId = res.data.tenantId || 1
-          this.tenantName = res.data.tenantName || ''
-          this.userTenants = res.data.tenants || []
-          localStorage.setItem('token', res.data.token)
-          localStorage.setItem('tenantId', String(res.data.tenantId || 1))
-          localStorage.setItem('tenantName', res.data.tenantName || '')
-          localStorage.setItem('userTenants', JSON.stringify(res.data.tenants || []))
+        if (res && res.token) {
+          this.token = res.token
+          this.userId = res.userId || 0
+          this.tenantId = res.tenantId || 1
+          this.tenantName = res.tenantName || ''
+          this.userTenants = res.tenants || []
+          localStorage.setItem('token', res.token)
+          localStorage.setItem('tenantId', String(res.tenantId || 1))
+          localStorage.setItem('tenantName', res.tenantName || '')
+          localStorage.setItem('userTenants', JSON.stringify(res.tenants || []))
           // 登录成功后建立 SSE 通知连接
           this.connectSse()
           return true
@@ -100,12 +100,12 @@ export const useUserStore = defineStore('user', {
     async getUserInfo() {
       try {
         const res = await userApi.getUserInfo()
-        if (res.data) {
-          this.userInfo = res.data
-          this.userId = res.data.userId
-          this.permissions = res.data.permissions || []
-          this.roles = res.data.roles || []
-          this.billTypes = res.data.billTypes || []
+        if (res) {
+          this.userInfo = res
+          this.userId = res.userId
+          this.permissions = res.permissions || []
+          this.roles = res.roles || []
+          this.billTypes = (res as Record<string, any>).billTypes || []
         }
         // 菜单由 loadDynamicRoutes() 负责加载，避免重复赋值导致 a-menu 重渲染崩溃
 

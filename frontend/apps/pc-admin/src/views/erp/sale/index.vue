@@ -22,6 +22,12 @@
               <template #icon><ReloadOutlined /></template>
             </a-button>
           </a-tooltip>
+          <!-- 快捷键提示 -->
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+          </span>
         </a-space>
       </template>
 
@@ -82,6 +88,7 @@
       :show-summary="true"
       :summary-data="summaryData"
       add-text="新增"
+      add-permission="sale:order:create"
       @add="handleAdd"
       @refresh="fetchData"
       @export="handleExport"
@@ -116,12 +123,20 @@
           @refresh="fetchData"
         />
       </template>
+      <!-- 工具栏操作 -->
+      <template #toolbar-actions>
+        <a-tooltip title="导出 (Ctrl+E)">
+          <a-button size="small" v-permission="'sale:order:list'" @click="handleExport">
+            <template #icon><ExportOutlined /></template>
+          </a-button>
+        </a-tooltip>
+      </template>
       <!-- 操作列自定义 -->
       <template #action="{ record }">
         <a-space :size="4">
           <!-- 提交审批 -->
           <a-tooltip v-if="record.status === OrderStatus.DRAFT" title="提交审批 (仅草稿可提交)">
-            <a-button type="link" size="small" @click="handleSubmit(record)">
+            <a-button type="link" size="small" v-permission="'sale:order:submit'" @click="handleSubmit(record)">
               提交
             </a-button>
           </a-tooltip>
@@ -130,7 +145,7 @@
           </a-tooltip>
           <!-- 审批 -->
           <a-tooltip v-if="record.status === OrderStatus.PENDING" title="审批订单 (仅待审批可操作)">
-            <a-button type="link" size="small" @click="handleApprove(record)">
+            <a-button type="link" size="small" v-permission="'sale:order:approve'" @click="handleApprove(record)">
               审批
             </a-button>
           </a-tooltip>
@@ -153,7 +168,7 @@
           </a-tooltip>
           <!-- 取消（使用 Modal.confirm 替代 a-popconfirm） -->
           <a-tooltip v-if="record.status < OrderStatus.COMPLETED && record.status !== OrderStatus.CANCELLED" title="取消订单 (未完成状态可取消)">
-            <a-button type="link" size="small" danger @click="handleCancelClick(record)">取消</a-button>
+            <a-button type="link" size="small" v-permission="'sale:order:cancel'" danger @click="handleCancelClick(record)">取消</a-button>
           </a-tooltip>
           <a-tooltip v-else title="已完成或已取消，不可操作">
             <a-button type="link" size="small" disabled danger>取消</a-button>
@@ -206,7 +221,7 @@
           v-if="detailData?.details && detailData.details.length > 0"
           :columns="detailColumns"
           :data-source="detailData.details"
-        :pagination="false"
+        :pagination="false as any"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -317,6 +332,21 @@
         </a-form-item>
       </a-form>
     </a-modal>
+    <!-- 拒绝弹窗 -->
+    <a-modal
+      v-model:open="rejectVisible"
+      title="拒绝订单"
+      :width="450"
+      :confirm-loading="false"
+      destroy-on-close
+      @ok="handleRejectSubmit"
+    >
+      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+        <a-form-item label="原因">
+          <a-textarea size="small" v-model:value="rejectReason" :rows="4" placeholder="请输入拒绝原因（必填）" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -326,11 +356,13 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { salesOrderApi, OrderStatus, type SalesOrder } from '@/api/order'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -388,6 +420,9 @@ const formLoading = ref(false)
 const isEdit = ref(false)
 const editingId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
+const rejectVisible = ref(false)
+const rejectRecord = ref<SalesOrder | null>(null)
+const rejectReason = ref('')
 
 const batchEditVisible = ref(false)
 const batchEditLoading = ref(false)
@@ -398,7 +433,7 @@ const customerOptions = ref<{ id: number; name: string }[]>([])
 
 // ── 搜索配置 ────────────────────────────────────────
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'orderNo', label: '订单号', type: 'input', placeholder: '请输入订单号' },
   { name: 'customerId', label: '客户', type: 'select', placeholder: '请选择客户', options: [] },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [] },
@@ -435,7 +470,7 @@ const pagination = reactive({
 
 // ── 表格列配置 ────────────────────────────────────────
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'orderNo', title: '订单号', width: 140 },
   { field: 'customerName', title: '客户名称', width: 160, showOverflow: 'tooltip' },
   { field: 'orderDate', title: '订单日期', width: 110 },
@@ -452,7 +487,7 @@ const vxeColumns = computed(() => [
 
 // ── 订单明细列配置 ────────────────────────────────────────
 
-const detailColumns = [
+const detailColumns: any = [
   { title: '产品编码', field: 'productCode', width: 120 },
   { title: '产品名称', field: 'productName', width: 180 },
   { title: '数量', field: 'quantity', width: 80, align: 'right' },
@@ -513,8 +548,8 @@ const fetchData = async () => {
       pageSize: pagination.pageSize
     })
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
       lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
     }
   } catch (error: any) {
@@ -535,7 +570,7 @@ const handleError = (error: Error) => {
 
 // 离开拦截（表单未保存时提醒）
 const hasUnsavedChanges = computed(() => {
-  return formVisible.value && formRef.value?.isFieldTouched?.()
+  return formVisible.value && (formRef.value as any)?.isFieldTouched?.()
 })
 
 onBeforeRouteLeave((to, from, next) => {
@@ -713,25 +748,26 @@ const handleApprove = async (record: SalesOrder) => {
         message.error(error?.response?.data?.message || '审批失败')
       }
     },
-    onCancel: async () => {
-      Modal.confirm({
-        title: '拒绝订单',
-        content: '请输入拒绝原因',
-        okText: '确认拒绝',
-        cancelText: '取消',
-        onOk: async () => {
-          try {
-            await salesOrderApi.reject(record.id, '不符合要求')
-            message.success('已拒绝')
-            fetchData()
-          } catch (error: any) {
-            console.warn('[销售订单] 拒绝失败', error)
-            message.error(error?.response?.data?.message || '操作失败')
-          }
-        }
-      })
+    onCancel: () => {
+      rejectRecord.value = record
+      rejectReason.value = ''
+      rejectVisible.value = true
     }
   })
+}
+
+const handleRejectSubmit = async () => {
+  if (!rejectRecord.value) return
+  try {
+    await salesOrderApi.reject(rejectRecord.value.id, rejectReason.value || '无原因')
+    message.success('已拒绝')
+    rejectVisible.value = false
+    rejectRecord.value = null
+    fetchData()
+  } catch (error: any) {
+    console.warn('[销售订单] 拒绝失败', error)
+    message.error(error?.response?.data?.message || '操作失败')
+  }
 }
 
 const handleCancelClick = (record: SalesOrder) => {
@@ -901,7 +937,7 @@ onMounted(() => {
 async function loadCustomerOptions() {
   try {
     const { customerApi } = await import('@/api/customer')
-    const res = await customerApi.getOptions()
+    const res = await (customerApi as any).getOptions()
     customerOptions.value = (res.data || res || []).map((c: any) => ({ id: c.id, name: c.name }))
   } catch (e) {
     console.warn('[销售订单] 加载客户选项失败', e)
@@ -1012,5 +1048,39 @@ async function loadCustomerOptions() {
 }
 :deep(.ant-input-number-sm input) {
   height: 26px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 </style>

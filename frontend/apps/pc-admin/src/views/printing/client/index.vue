@@ -12,14 +12,23 @@
         </div>
         <div class="client-page-header-right">
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="client-management">
       <!-- 统计卡片 -->
       <div class="stat-cards">
@@ -65,13 +74,14 @@
         :show-search="false"
         :selectable="true"
         add-text="注册客户端"
+        :min-empty-rows="12"
         @add="handleAdd"
         @delete="handleDeleteConfirm"
         @batch-delete="handleBatchDelete"
         @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
-        @selection-change="(_rows: any, ids: any) => { selectedRowKeys.value = ids as number[] }"
+        @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
       >
         <template #statusCell="{ record }">
           <a-tag :color="getStatusColor(record.status)">
@@ -91,7 +101,7 @@
               type="link"
               size="small"
               class="copy-btn"
-              @click="handleCopy(record.clientCode)"
+ v-permission="'printing:client:copy'" @click="handleCopy(record.clientCode)"
             >
               <CopyOutlined />
             </a-button>
@@ -105,7 +115,7 @@
               type="link"
               size="small"
               class="copy-btn"
-              @click="handleCopy(record.authKey)"
+ v-permission="'printing:client:copy'" @click="handleCopy(record.authKey)"
             >
               <CopyOutlined />
             </a-button>
@@ -126,10 +136,10 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleResetKey(record)">
+            <a-button type="link" size="small" v-permission="'printing:client:resetkey'" @click="handleResetKey(record)">
               重置密钥
             </a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+            <a-button type="link" size="small" danger v-permission="'printing:client:deleteconfirm'" @click="handleDeleteConfirm(record)">
               删除
             </a-button>
           </a-space>
@@ -168,6 +178,7 @@
         </a-form>
       </FullScreenDetail>
     </div>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
@@ -182,17 +193,21 @@ import {
   DesktopOutlined,
   CheckCircleOutlined,
   MinusCircleOutlined,
-  StopOutlined
+  StopOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { printingApi, type PrintClientVO } from '@/api/printing'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 // ── 表格数据 ────────────────────────────────────────────
 const tableData = ref<PrintClientVO[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 const hasError = ref(false)
 
 // ── 防抖工具 ────────────────────────────────────────────
@@ -345,7 +360,7 @@ onBeforeRouteLeave((to, from, next) => {
 // 表单校验规则
 const formRules = {
   clientName: { required: true, message: '请输入客户端名称', trigger: 'blur' }
-}
+} as any
 
 // ── 数据加载 ────────────────────────────────────────────
 const fetchData = async () => {
@@ -359,10 +374,10 @@ const fetchData = async () => {
     if (filterValues.status) {
       params.status = filterValues.status
     }
-    const res = await printingApi.getClients(params)
+    const res = await printingApi.getClients(params as any)
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -569,12 +584,25 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -702,4 +730,83 @@ defineExpose({ handleQuery: fetchData })
 :deep(.fsd-body .ant-form-item-label > label) { font-size: 12px; height: 28px; }
 :deep(.fsd-body .ant-input) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 自动刷新倒计时 ──────────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

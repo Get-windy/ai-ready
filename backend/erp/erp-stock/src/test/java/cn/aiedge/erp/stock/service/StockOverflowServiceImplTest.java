@@ -49,7 +49,7 @@ class StockOverflowServiceImplTest {
         testOverflow.setOverflowNo("OF20260610TEST01");
         testOverflow.setWarehouseId(10L);
         testOverflow.setOverflowDate(java.time.LocalDate.now());
-        testOverflow.setSourceType(1);
+        testOverflow.setSourceType("1");
         testOverflow.setStatus(0);
         testOverflow.setTotalQuantity(new BigDecimal("50"));
         testOverflow.setTotalAmount(new BigDecimal("5000"));
@@ -124,7 +124,7 @@ class StockOverflowServiceImplTest {
             StockOverflow overflow = new StockOverflow();
             overflow.setWarehouseId(10L);
             overflow.setOverflowDate(java.time.LocalDate.now());
-            overflow.setSourceType(1);
+            overflow.setSourceType("1");
             overflow.setRemark("测试报溢");
 
             StockOverflowItem item = new StockOverflowItem();
@@ -158,7 +158,7 @@ class StockOverflowServiceImplTest {
             StockOverflow overflow = new StockOverflow();
             overflow.setWarehouseId(10L);
             overflow.setOverflowDate(java.time.LocalDate.now());
-            overflow.setSourceType(1);
+            overflow.setSourceType("1");
 
             StockOverflow result = overflowService.createOverflow(overflow, null);
 
@@ -167,7 +167,7 @@ class StockOverflowServiceImplTest {
             assertEquals(BigDecimal.ZERO, result.getTotalAmount());
             assertEquals(0, result.getTotalItems());
             verify(overflowMapper).insert(any(StockOverflow.class));
-            verify(overflowItemMapper, never()).insert(any());
+            verify(overflowItemMapper, never()).insert(any(StockOverflowItem.class));
         }
     }
 
@@ -179,7 +179,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.submitForApproval(1L);
 
         assertEquals(1, result.getStatus());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 1));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 1));
     }
 
     @Test
@@ -201,7 +201,7 @@ class StockOverflowServiceImplTest {
 
         assertEquals(2, result.getStatus());
         assertEquals(200L, result.getApprovedBy());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 2));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 2));
     }
 
     @Test
@@ -222,7 +222,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.reject(1L, "库存不符");
 
         assertEquals(4, result.getStatus());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 4));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 4));
     }
 
     @Test
@@ -234,7 +234,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.execute(1L);
 
         assertEquals(3, result.getStatus());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 3));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 3));
     }
 
     @Test
@@ -246,7 +246,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.cancel(1L, "不再需要");
 
         assertEquals(5, result.getStatus());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 5));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 5));
     }
 
     @Test
@@ -258,7 +258,7 @@ class StockOverflowServiceImplTest {
         StockOverflow result = overflowService.cancel(1L, "业务调整");
 
         assertEquals(5, result.getStatus());
-        verify(overflowMapper).updateById(argThat(o -> o.getStatus() == 5));
+        verify(overflowMapper).updateById(argThat((StockOverflow o) -> o.getStatus() == 5));
     }
 
     @Test

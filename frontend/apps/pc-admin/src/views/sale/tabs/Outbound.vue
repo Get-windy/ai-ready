@@ -70,7 +70,7 @@
         <template v-if="hasError">
           <WarningOutlined class="table-empty-icon" style="color: #faad14" />
           <p class="table-empty-text">加载失败</p>
-          <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+          <a-button type="primary" size="small" @click="fetchData as any" class="table-empty-action">
             <ReloadOutlined /> 重试
           </a-button>
         </template>
@@ -104,7 +104,7 @@
             <template #icon><EllipsisOutlined /></template>
           </a-button>
           <template #overlay>
-            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+            <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
               <a-menu-item v-if="record.status === 1" key="approve">
                 <CheckCircleOutlined /> 审批
               </a-menu-item>
@@ -176,7 +176,7 @@
             <template #icon><PlusOutlined /></template>添加产品
           </a-button>
         </div>
-        <VxeTableList :data-source="formData.items" :pagination="false" row-key="key"
+        <VxeTableList :data-source="formData.items" :pagination="false as any" row-key="key"
           :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
           :show-export="false" :show-batch-delete="false" :columns="itemColumns">
           <template #productNameCell="{ record }">
@@ -188,8 +188,8 @@
           <template #unitCell="{ record }">
             <a-input v-model:value="record.unit" placeholder="单位" size="small" />
           </template>
-          <template #actionCell="{ record, rowIndex }">
-            <a-button type="link" danger size="small" @click="removeItem(rowIndex)" :disabled="formData.items.length <= 1">删除</a-button>
+          <template #actionCell="{ record, index }">
+            <a-button type="link" danger size="small" @click="removeItem(index)" :disabled="formData.items.length <= 1">删除</a-button>
           </template>
         </VxeTableList>
       </a-form-item>
@@ -289,7 +289,7 @@ const formSubmitting = ref(false)
 const formRef = ref<FormInstance>()
 const formData = reactive({ orderNo: '', customerName: '', warehouseName: '', outboundDate: undefined as any, trackingNo: '', carrier: '', items: [] as OutboundItem[], remark: '' })
 const defaultItem = (): OutboundItem => ({ key: Date.now() + Math.random(), productName: '', quantity: 1, unit: '' })
-const formRules = { orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }], customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }], warehouseName: [{ required: true, message: '请输入仓库名称', trigger: 'blur' }], outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }] }
+const formRules: any = { orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }], customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }], warehouseName: [{ required: true, message: '请输入仓库名称', trigger: 'blur' }], outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }] }
 const itemColumns = [
   { title: '产品名称', field: 'productName', slotName: 'productNameCell' },
   { title: '数量', field: 'quantity', width: 100, slotName: 'quantityCell' },
@@ -339,7 +339,7 @@ function handleDelete(record: any) {
     centered: true,
     onOk: async () => {
       try {
-        await outboundApi.delete(record.id)
+        await (outboundApi as any).delete(record.id)
         message.success('删除成功')
         fetchData()
       } catch (err) { console.warn('[销售出库] 删除出库单', err); message.error('删除失败') }
@@ -353,7 +353,7 @@ function handleResetFilters() {
   fetchData()
 }
 async function handleBatchDelete(ids: number[]) {
-  const result = await executeBatch(ids, (id) => outboundApi.delete(id), '批量删除')
+  const result = await executeBatch(ids, (id) => (outboundApi as any).delete(id), '批量删除')
   if (result.successCount > 0) fetchData()
 }
 
@@ -563,4 +563,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

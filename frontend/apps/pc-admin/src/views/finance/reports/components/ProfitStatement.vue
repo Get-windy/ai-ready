@@ -71,12 +71,12 @@ const handleGenerate = async () => {
     const res = await reportApi.getIncomeStatement({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p), startMonth: parseInt(p), endMonth: parseInt(p) })
     if (res.data) {
       profitStatement.value = {
-        revenue: res.data.revenue || 0,
-        cost: res.data.cost || 0,
-        grossProfit: res.data.grossProfit || 0,
-        operatingExpenses: res.data.operatingExpenses || 0,
-        operatingProfit: res.data.operatingProfit || 0,
-        netProfit: res.data.netProfit || 0
+        revenue: res.revenue || 0,
+        cost: res.cost || 0,
+        grossProfit: res.grossProfit || 0,
+        operatingExpenses: res.operatingExpenses || 0,
+        operatingProfit: res.operatingProfit || 0,
+        netProfit: res.netProfit || 0
       }
     }
     message.success('报表生成成功')

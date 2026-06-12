@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -34,12 +35,32 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
     public Page<PurchaseExchange> pageList(String keyword, Long supplierId, Integer status, Integer exchangeType,
                                            String startDate, String endDate, int pageNum, int pageSize) {
         LambdaQueryWrapper<PurchaseExchange> wrapper = new LambdaQueryWrapper<>();
+
+        // 转换日期字符串为 LocalDateTime，避免 PostgreSQL 类型不匹配
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDateTime.parse(startDate + "T00:00:00");
+            } catch (Exception e) {
+                // 如果解析失败，尝试其他格式
+                startDateTime = LocalDate.parse(startDate).atStartOfDay();
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDateTime.parse(endDate + "T23:59:59");
+            } catch (Exception e) {
+                endDateTime = LocalDate.parse(endDate).atTime(23, 59, 59);
+            }
+        }
+
         wrapper.like(keyword != null, PurchaseExchange::getExchangeNo, keyword)
                 .eq(supplierId != null, PurchaseExchange::getSupplierId, supplierId)
                 .eq(status != null, PurchaseExchange::getStatus, status)
                 .eq(exchangeType != null, PurchaseExchange::getExchangeType, exchangeType)
-                .ge(startDate != null, PurchaseExchange::getCreateTime, startDate)
-                .le(endDate != null, PurchaseExchange::getCreateTime, endDate)
+                .ge(startDateTime != null, PurchaseExchange::getCreateTime, startDateTime)
+                .le(endDateTime != null, PurchaseExchange::getCreateTime, endDateTime)
                 .orderByDesc(PurchaseExchange::getCreateTime);
         return this.page(new Page<>(pageNum, pageSize), wrapper);
     }
@@ -48,12 +69,31 @@ public class PurchaseExchangeServiceImpl extends ServiceImpl<PurchaseExchangeMap
     public List<PurchaseExchange> exportList(String keyword, Long supplierId, Integer status, Integer exchangeType,
                                              String startDate, String endDate) {
         LambdaQueryWrapper<PurchaseExchange> wrapper = new LambdaQueryWrapper<>();
+
+        // 转换日期字符串为 LocalDateTime
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDateTime.parse(startDate + "T00:00:00");
+            } catch (Exception e) {
+                startDateTime = LocalDate.parse(startDate).atStartOfDay();
+            }
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDateTime.parse(endDate + "T23:59:59");
+            } catch (Exception e) {
+                endDateTime = LocalDate.parse(endDate).atTime(23, 59, 59);
+            }
+        }
+
         wrapper.like(keyword != null, PurchaseExchange::getExchangeNo, keyword)
                 .eq(supplierId != null, PurchaseExchange::getSupplierId, supplierId)
                 .eq(status != null, PurchaseExchange::getStatus, status)
                 .eq(exchangeType != null, PurchaseExchange::getExchangeType, exchangeType)
-                .ge(startDate != null, PurchaseExchange::getCreateTime, startDate)
-                .le(endDate != null, PurchaseExchange::getCreateTime, endDate)
+                .ge(startDateTime != null, PurchaseExchange::getCreateTime, startDateTime)
+                .le(endDateTime != null, PurchaseExchange::getCreateTime, endDateTime)
                 .orderByDesc(PurchaseExchange::getCreateTime);
         return this.baseMapper.selectList(wrapper);
     }

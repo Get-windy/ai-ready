@@ -1,269 +1,266 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { NavBar, Card, Button, Tag, Empty, showLoadingToast, closeToast, showToast } from 'vant'
+import { useRouter, useRoute } from 'vue-router'
+import { NavBar, Field, Button, Card, Tag, Dialog, showLoadingToast, closeToast, showToast } from 'vant'
 import { api } from '@/api'
 
 const router = useRouter()
+const route = useRoute()
 
-interface ReceiveTask {
-  id: string
-  taskNo: string
-  supplierName: string
-  purchaseOrderNo: string
-  itemCount: number
-  receivedCount: number
-  status: 'pending' | 'in_progress' | 'completed'
-  priority: 'high' | 'normal' | 'low'
-  createTime: string
-  deadline: string
-  warehouse: string
-  location: string
-}
-
-const receiveTasks = ref<ReceiveTask[]>([])
-const loading = ref(false)
-
-const statusMap = {
-  pending: { label: '待收货', color: '#969799' },
-  in_progress: { label: '收货中', color: '#1988fa' },
-  completed: { label: '已完成', color: '#07c160' }
-}
-
-const priorityMap = {
-  high: { label: '紧急', color: '#f44' },
-  normal: { label: '普通', color: '#1988fa' },
-  low: { label: '低', color: '#969799' }
-}
+const taskId = Number(route.query.taskId) || 0
+const scanCode = ref('')
+const scannedItems = ref<any[]>([])
+const scanning = ref(false)
 
 onMounted(async () => {
-  loadReceiveTasks()
+  if (!taskId) {
+    showToast('请从收货任务中选择')
+  }
 })
 
-const loadReceiveTasks = async () => {
-  loading.value = true
-  showLoadingToast({ message: '加载中...', forbidClick: true })
-  
+const handleScan = async () => {
+  if (!scanCode.value) {
+    Dialog.alert({ message: '请输入或扫描条码' })
+    return
+  }
+
+  if (!taskId) {
+    Dialog.alert({ message: '请先选择收货任务' })
+    return
+  }
+
+  scanning.value = true
+  showLoadingToast({ message: '验证中...', forbidClick: true })
+
   try {
-    const res = await api.receive.getTasks()
-    receiveTasks.value = res.data || [
-      {
-        id: '1',
-        taskNo: 'RC202401001',
-        supplierName: '供应商A',
-        purchaseOrderNo: 'PO202401001',
-        itemCount: 50,
-        receivedCount: 0,
-        status: 'pending',
-        priority: 'high',
-        createTime: '2024-01-15 10:00',
-        deadline: '2024-01-15 18:00',
-        warehouse: '主仓库',
-        location: 'A区'
-      },
-      {
-        id: '2',
-        taskNo: 'RC202401002',
-        supplierName: '供应商B',
-        purchaseOrderNo: 'PO202401002',
-        itemCount: 30,
-        receivedCount: 15,
-        status: 'in_progress',
-        priority: 'normal',
-        createTime: '2024-01-15 09:00',
-        deadline: '2024-01-15 17:00',
-        warehouse: '主仓库',
-        location: 'B区'
-      }
-    ]
+    const res = await api.receive.scanProduct(taskId, scanCode.value)
+    showToast('扫码成功')
+
+    scannedItems.value.push({
+      barcode: scanCode.value,
+      productName: (res as any)?.productName || '未知商品',
+      quantity: (res as any)?.quantity || 1,
+      location: (res as any)?.location || '',
+      status: 'success'
+    })
+  } catch {
+    scannedItems.value.push({
+      barcode: scanCode.value,
+      productName: '扫描失败',
+      quantity: 1,
+      location: '',
+      status: 'error'
+    })
+    showToast('商品验证失败')
   } finally {
-    loading.value = false
+    scanning.value = false
+    scanCode.value = ''
     closeToast()
   }
 }
 
-const handleStartReceive = async (task: ReceiveTask) => {
-  showLoadingToast({ message: '开始收货...', forbidClick: true })
-  try {
-    await api.receive.start(task.id)
-    showToast({ type: 'success', message: '开始收货' })
-    router.push(`/receive/${task.id}`)
-  } finally {
-    closeToast()
+const handleConfirmReceive = async () => {
+  if (scannedItems.value.length === 0) {
+    Dialog.alert({ message: '请先扫码收货' })
+    return
   }
+
+  Dialog.confirm({
+    title: '确认收货',
+    message: `已扫描 ${scannedItems.value.length} 件商品，确认收货？`
+  }).then(async () => {
+    showLoadingToast({ message: '确认中...', forbidClick: true })
+    try {
+      await api.receive.confirmReceive(taskId)
+      showToast('收货确认成功')
+      router.back()
+    } catch (err) {
+      console.error('[收货] 确认失败', err)
+      showToast('操作失败')
+    } finally {
+      closeToast()
+    }
+  }).catch(() => {})
 }
 
-const handleScanReceive = () => {
-  router.push('/receive/scan')
-}
-
-const handleViewDetail = (task: ReceiveTask) => {
-  router.push(`/receive/${task.id}`)
-}
-
-const getProgress = (task: ReceiveTask) => {
-  return Math.round((task.receivedCount / task.itemCount) * 100)
+const handleClearItems = () => {
+  Dialog.confirm({
+    title: '清空列表',
+    message: '确定清空已扫描的商品列表？'
+  }).then(() => {
+    scannedItems.value = []
+  }).catch(() => {})
 }
 </script>
 
 <template>
-  <div class="receive-page">
-    <NavBar title="收货任务">
-      <template #right>
-        <Button size="small" type="primary" @click="handleScanReceive">
-          扫码
+  <div class="scan-page">
+    <NavBar
+      title="扫码收货"
+      left-arrow
+      @click-left="router.back()"
+    />
+
+    <div class="scan-input">
+      <Field
+        v-model:value="scanCode"
+        placeholder="请输入或扫描条码"
+        clearable
+        @keyup.enter="handleScan"
+      >
+        <template #button>
+          <Button
+            size="small"
+            type="primary"
+            :loading="scanning"
+            @click="handleScan"
+          >
+            扫码
+          </Button>
+        </template>
+      </Field>
+    </div>
+
+    <div class="scan-result">
+      <div class="result-header">
+        <span class="header-title">已扫描商品</span>
+        <span class="header-count">{{ scannedItems.length }} 件</span>
+        <Button
+          v-if="scannedItems.length > 0"
+          size="small"
+          type="default"
+          @click="handleClearItems"
+        >
+          清空
         </Button>
-      </template>
-    </NavBar>
-    
-    <div class="receive-list">
-      <Empty v-if="receiveTasks.length === 0 && !loading" description="暂无收货任务" />
-      
-      <Card 
-        v-for="task in receiveTasks"
-        :key="task.id"
-        class="receive-card"
+      </div>
+
+      <div v-if="scannedItems.length === 0" class="empty-result">
+        请扫描商品条码
+      </div>
+
+      <Card
+        v-for="(item, index) in scannedItems"
+        :key="index"
+        class="item-card"
       >
         <template #title>
-          <div class="card-header">
-            <span class="task-no">{{ task.taskNo }}</span>
-            <Tag :color="statusMap[task.status].color">
-              {{ statusMap[task.status].label }}
-            </Tag>
-            <Tag :color="priorityMap[task.priority].color">
-              {{ priorityMap[task.priority].label }}
+          <div class="item-header">
+            <span class="item-barcode">{{ item.barcode }}</span>
+            <Tag :color="item.status === 'success' ? '#07c160' : '#f44'">
+              {{ item.status === 'success' ? '成功' : '异常' }}
             </Tag>
           </div>
         </template>
-        
+
         <template #desc>
-          <div class="card-info">
+          <div class="item-info">
             <div class="info-row">
-              <span class="label">供应商:</span>
-              <span class="value">{{ task.supplierName }}</span>
+              <span class="label">商品:</span>
+              <span class="value">{{ item.productName }}</span>
             </div>
             <div class="info-row">
-              <span class="label">采购单:</span>
-              <span class="value">{{ task.purchaseOrderNo }}</span>
+              <span class="label">数量:</span>
+              <span class="value">{{ item.quantity }}</span>
             </div>
             <div class="info-row">
-              <span class="label">仓库:</span>
-              <span class="value">{{ task.warehouse }} {{ task.location }}</span>
+              <span class="label">库位:</span>
+              <span class="value">{{ item.location || '-' }}</span>
             </div>
-            <div class="info-row">
-              <span class="label">商品数:</span>
-              <span class="value">{{ task.itemCount }} 件</span>
-            </div>
-            <div class="info-row">
-              <span class="label">已收货:</span>
-              <span class="value">{{ task.receivedCount }} 件</span>
-            </div>
-            <div class="info-row">
-              <span class="label">截止:</span>
-              <span class="value deadline">{{ task.deadline }}</span>
-            </div>
-          </div>
-          
-          <div v-if="task.status !== 'pending'" class="progress-bar">
-            <div class="progress-fill" :style="{ width: getProgress(task) + '%' }"></div>
-          </div>
-        </template>
-        
-        <template #footer>
-          <div class="card-actions">
-            <Button 
-              v-if="task.status === 'pending'"
-              type="primary" 
-              size="small"
-              @click="handleStartReceive(task)"
-            >
-              开始收货
-            </Button>
-            <Button 
-              v-if="task.status === 'in_progress'"
-              type="primary" 
-              size="small"
-              @click="handleScanReceive"
-            >
-              扫码收货
-            </Button>
-            <Button 
-              type="default" 
-              size="small"
-              @click="handleViewDetail(task)"
-            >
-              详情
-            </Button>
           </div>
         </template>
       </Card>
+    </div>
+
+    <div class="scan-actions">
+      <Button
+        block
+        type="primary"
+        :disabled="scannedItems.length === 0"
+        @click="handleConfirmReceive"
+      >
+        确认收货
+      </Button>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.receive-page {
+.scan-page {
   min-height: 100vh;
   background: #f7f8fa;
-  padding-bottom: 60px;
 }
 
-.receive-list {
+.scan-input {
   padding: 12px;
+  background: #fff;
 }
 
-.receive-card {
-  margin-bottom: 12px;
-  
-  .card-header {
+.scan-result {
+  padding: 12px;
+
+  .result-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    
-    .task-no {
+    margin-bottom: 12px;
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .header-count {
+      font-size: 14px;
+      color: #969799;
+    }
+  }
+
+  .empty-result {
+    text-align: center;
+    padding: 40px 20px;
+    color: #969799;
+  }
+}
+
+.item-card {
+  margin-bottom: 8px;
+
+  .item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .item-barcode {
       font-size: 14px;
       font-weight: 600;
     }
   }
-  
-  .card-info {
+
+  .item-info {
     .info-row {
       display: flex;
       margin-top: 4px;
-      
+
       .label {
-        width: 70px;
+        width: 50px;
         color: #969799;
       }
-      
+
       .value {
         color: #333;
-        
-        &.deadline {
-          color: #ff976a;
-        }
       }
     }
   }
-  
-  .progress-bar {
-    height: 4px;
-    background: #ebedf0;
-    border-radius: 2px;
-    margin-top: 12px;
-    overflow: hidden;
-    
-    .progress-fill {
-      height: 100%;
-      background: #07c160;
-      transition: width 0.3s;
-    }
-  }
-  
-  .card-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
+}
+
+.scan-actions {
+  padding: 12px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
 }
 </style>

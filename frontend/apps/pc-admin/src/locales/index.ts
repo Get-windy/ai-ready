@@ -164,8 +164,8 @@ export async function setI18nLanguage(locale: LocaleCode): Promise<void> {
   // 触发语言切换前事件
   window.dispatchEvent(new CustomEvent('locale:before-change', { detail: { locale } }))
   
-  // 设置语言
-  i18n.global.locale.value = locale
+  // 设置语言（LocaleCode 比 i18n locale 类型宽，此处已验证过 locale 合法性）
+  i18n.global.locale.value = locale as 'zh-CN' | 'en-US'
   
   // 保存到本地存储
   localStorage.setItem('locale', locale)

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 商城订单
@@ -59,4 +60,8 @@ public class MallOrder extends BaseEntity {
 
     @TableField("source")
     private String source;
+
+    /** 订单明细（非数据库字段） */
+    @TableField(exist = false)
+    private List<MallOrderItem> orderItems;
 }

@@ -4,7 +4,7 @@ import cn.aiedge.erp.stock.dto.BatchPriceUpdateDTO;
 import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.service.ProductService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -28,9 +28,9 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     @Override
     public List<Product> getProductList() {
-        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
-                .eq(Product::getDeleted, 0)
-                .orderByDesc(Product::getCreateTime);
+        QueryWrapper<Product> wrapper = new QueryWrapper<Product>()
+                .eq("deleted", 0)
+                .orderByDesc("create_time");
         return this.list(wrapper);
     }
 
@@ -39,29 +39,26 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                                           Integer pageNum, Integer pageSize) {
         Page<Product> page = new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 20);
 
-        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
-                .eq(Product::getDeleted, 0);
+        QueryWrapper<Product> wrapper = new QueryWrapper<Product>();
 
         // 分类筛选
         if (categoryId != null && categoryId > 0) {
-            wrapper.eq(Product::getCategoryId, categoryId);
+            wrapper.eq("p.category_id", categoryId);
         }
 
         // 关键字搜索(编码/名称/规格)
         if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(Product::getProductCode, keyword)
+            wrapper.and(w -> w.like("p.product_code", keyword)
                     .or()
-                    .like(Product::getProductName, keyword)
+                    .like("p.product_name", keyword)
                     .or()
-                    .like(Product::getSpec, keyword));
+                    .like("p.spec", keyword));
         }
 
         // 状态筛选
         if (StringUtils.hasText(status)) {
-            wrapper.eq(Product::getStatus, status);
+            wrapper.eq("p.status", status);
         }
-
-        wrapper.orderByDesc(Product::getCreateTime);
 
         return baseMapper.selectProductPage(page, wrapper);
     }
@@ -96,6 +93,31 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         product.setId(id);
         product.setStatus(status);
         return updateById(product);
+    }
+
+    @Override
+    public List<Product> exportList(Long categoryId, String keyword, String status) {
+        QueryWrapper<Product> wrapper = new QueryWrapper<Product>()
+                .eq("deleted", 0);
+
+        if (categoryId != null && categoryId > 0) {
+            wrapper.eq("category_id", categoryId);
+        }
+
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like("product_code", keyword)
+                    .or()
+                    .like("product_name", keyword)
+                    .or()
+                    .like("spec", keyword));
+        }
+
+        if (StringUtils.hasText(status)) {
+            wrapper.eq("status", status);
+        }
+
+        wrapper.orderByDesc("create_time");
+        return this.list(wrapper);
     }
 
     @Override

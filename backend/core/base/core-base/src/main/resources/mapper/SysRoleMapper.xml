@@ -32,7 +32,7 @@
     <select id="selectRolesByUserId" resultMap="BaseResultMap">
         SELECT sr.*
         FROM sys_role sr
-        INNER JOIN sysUserRole sur ON sr.id = sur.role_id
+        INNER JOIN sys_user_role sur ON sr.id = sur.role_id
         WHERE sur.user_id = #{userId}
           AND sr.deleted = 0
         ORDER BY sr.sort ASC

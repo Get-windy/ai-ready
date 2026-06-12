@@ -95,10 +95,10 @@ class PrintTaskServiceImplTest {
             assertNotNull(result);
             assertNotNull(result.getTaskCode());
             assertEquals(TaskStatus.PENDING.getCode(), result.getStatus());
-            verify(taskMapper).insert(argThat(t ->
+            verify(taskMapper).insert(argThat((PrintTask t) ->
                     t.getTemplateId().equals(1L) && t.getPrinterId().equals(1L)
             ));
-            verify(rabbitTemplate).convertAndSend(eq("print.queue"), any());
+            verify(rabbitTemplate).convertAndSend(eq("print.queue"), anyLong());
         }
 
         @Test
@@ -164,7 +164,7 @@ class PrintTaskServiceImplTest {
 
             service.cancelTask(1L);
 
-            verify(taskMapper).updateById(argThat(t ->
+            verify(taskMapper).updateById(argThat((PrintTask t) ->
                     t.getStatus().equals(TaskStatus.CANCELLED.getCode())
             ));
         }
@@ -175,7 +175,7 @@ class PrintTaskServiceImplTest {
             when(taskMapper.selectById(999L)).thenReturn(null);
 
             assertThrows(BusinessException.class, () -> service.cancelTask(999L));
-            verify(taskMapper, never()).updateById(any());
+            verify(taskMapper, never()).updateById(any(PrintTask.class));
         }
 
         @Test
@@ -188,7 +188,7 @@ class PrintTaskServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.cancelTask(1L));
             assertTrue(ex.getMessage().contains("无权操作"));
-            verify(taskMapper, never()).updateById(any());
+            verify(taskMapper, never()).updateById(any(PrintTask.class));
         }
 
         @Test
@@ -200,7 +200,7 @@ class PrintTaskServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.cancelTask(1L));
             assertTrue(ex.getMessage().contains("不允许取消"));
-            verify(taskMapper, never()).updateById(any());
+            verify(taskMapper, never()).updateById(any(PrintTask.class));
         }
     }
 
@@ -230,12 +230,12 @@ class PrintTaskServiceImplTest {
 
             service.retryTask(1L);
 
-            verify(taskMapper).updateById(argThat(t ->
+            verify(taskMapper).updateById(argThat((PrintTask t) ->
                     t.getStatus().equals(TaskStatus.RETRYING.getCode())
                             && t.getRetryCount() == 1
                             && t.getErrorMessage() == null
             ));
-            verify(rabbitTemplate).convertAndSend(eq("print.queue"), any());
+            verify(rabbitTemplate).convertAndSend(eq("print.queue"), anyLong());
         }
 
         @Test
@@ -248,7 +248,7 @@ class PrintTaskServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.retryTask(1L));
             assertTrue(ex.getMessage().contains("只有失败"));
-            verify(taskMapper, never()).updateById(any());
+            verify(taskMapper, never()).updateById(any(PrintTask.class));
         }
 
         @Test
@@ -260,7 +260,7 @@ class PrintTaskServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.retryTask(1L));
             assertTrue(ex.getMessage().contains("最大重试次数"));
-            verify(taskMapper, never()).updateById(any());
+            verify(taskMapper, never()).updateById(any(PrintTask.class));
         }
     }
 

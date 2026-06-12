@@ -172,6 +172,7 @@ import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import SaleOrderImportModal from '../components/SaleOrderImportModal.vue'
 import { saleOrderApi } from '@/api/erp'
 import { useExport } from '@/composables/useExport'
+const { execute: executeExport } = useExport()
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -229,7 +230,11 @@ const vxeColumns = computed(() => {
       title: '状态',
       width: 100,
       align: 'center',
-      formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`,
+      formatter: ({ cellValue }: any) => {
+        // 空值不渲染
+        if (cellValue === undefined || cellValue === null) return ''
+        return `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`
+      },
     },
     { field: 'salesmanName', title: '销售员', width: 100 },
     { field: 'createTime', title: '创建时间', width: 160 },
@@ -320,16 +325,16 @@ async function fetchData() {
       size: pagination.pageSize,
       ...searchFilters
     }
-    const res = await saleOrderApi.getPage(params)
-    dataSource.value = res.data?.records || []
-    const total = res.data?.total || 0
+    const res: any = await saleOrderApi.getPage(params)
+    dataSource.value = res.data?.records || res.records || []
+    const total = res.data?.total || res.total || 0
     pagination.total = total
     if (total > 500) {
       message.info(`当前共 ${total} 条记录，建议添加筛选条件缩小范围`, 3)
     }
     lastUpdated.value = new Date().toISOString()
     if (searchFilters.keyword || Object.keys(searchFilters).some(k => k !== 'sortField' && k !== 'sortOrder' && searchFilters[k])) {
-      message.info(`共找到 ${res.data?.total || 0} 条匹配结果`)
+      message.info(`共找到 ${res.data?.total || res.total || 0} 条匹配结果`)
     }
     hasError.value = false
   } catch (error) {
@@ -737,4 +742,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

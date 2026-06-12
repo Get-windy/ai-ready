@@ -42,8 +42,8 @@ describe('ExchangeApproveModal', () => {
 
     const wrapper = mount(ExchangeApproveModal, {
       props: {
-        visible: true,
-        record: mockRecord
+        open: true,
+        record: mockRecord as any
       }
     })
 
@@ -67,8 +67,8 @@ describe('ExchangeApproveModal', () => {
 
     const wrapper = mount(ExchangeApproveModal, {
       props: {
-        visible: true,
-        record: mockRecord
+        open: true,
+        record: mockRecord as any
       }
     })
 
@@ -82,12 +82,12 @@ describe('ExchangeApproveModal', () => {
   it('defaults to approve', () => {
     const wrapper = mount(ExchangeApproveModal, {
       props: {
-        visible: true,
+        open: true,
         record: {
           id: 1,
           exchangeNo: 'EX202604250001',
           status: ExchangeStatus.PENDING_APPROVAL
-        }
+        } as any
       }
     })
 
@@ -98,12 +98,12 @@ describe('ExchangeApproveModal', () => {
   it('resets form on cancel', async () => {
     const wrapper = mount(ExchangeApproveModal, {
       props: {
-        visible: true,
+        open: true,
         record: {
           id: 1,
           exchangeNo: 'EX202604250001',
           status: ExchangeStatus.PENDING_APPROVAL
-        }
+        } as any
       }
     })
 

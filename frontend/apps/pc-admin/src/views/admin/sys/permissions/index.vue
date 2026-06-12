@@ -199,7 +199,7 @@ import PermissionConfigPanel from '@/components/PermissionConfigPanel/index.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { roleApi } from '@/api/role'
 import { useUserStore } from '@/stores/user'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 
 // ==================== 通用 ====================
 const userStore = useUserStore()
@@ -265,7 +265,7 @@ const loadDefData = async () => {
       }
       fix(res.data)
       defData.value = res.data
-      defExpanded.value = res.data.filter((x: any) => x.permissionType === 0).map((x: any) => x.id)
+      defExpanded.value = res.filter((x: any) => x.permissionType === 0).map((x: any) => x.id)
     }
   } catch {
     defError.value = true
@@ -300,9 +300,9 @@ const defForm = reactive({
 })
 
 const defRules = {
-  permissionName: { required: true, message: '请输入权限名称', trigger: 'blur' },
-  permissionCode: [{ required: true, message: '请输入权限编码', trigger: 'blur' }, { pattern: /^[a-zA-Z0-9:_-]+$/, message: '编码格式不正确', trigger: 'blur' }],
-  permissionType: { required: true, message: '请选择权限类型', trigger: 'change' },
+  permissionName: { required: true, message: '请输入权限名称', trigger: 'blur', type: 'string' } as any,
+  permissionCode: [{ required: true, message: '请输入权限编码', trigger: 'blur', type: 'string' }, { pattern: /^[a-zA-Z0-9:_-]+$/, message: '编码格式不正确', trigger: 'blur', type: 'string' }] as any,
+  permissionType: { required: true, message: '请选择权限类型', trigger: 'change', type: 'string' } as any,
 }
 
 const loadParentTree = async () => {
@@ -375,4 +375,55 @@ const getIcon = (name: string) => iconMap[name] || null
 .stat-card-icon { font-size: 24px; color: rgba(0,0,0,0.15); }
 .def-drawer-body { height: 100%; display: flex; flex-direction: column; }
 .def-drawer-body > :deep(.vxe-table-list-container) { flex: 1; min-height: 0; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="user-page-header">
@@ -14,10 +15,14 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
+          <a-button size="small" :loading="refreshLoading" v-permission="'system:user:query'" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          </span>
         </div>
       </div>
     </template>
@@ -48,7 +53,9 @@
         </div>
       </div>
 
+    <a-skeleton v-if="loading && tableDataSource.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
     <VxeTableList
+      v-else
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -58,6 +65,7 @@
       :filter-fields="filterFields"
       :show-search="false"
       :selectable="true"
+      :min-empty-rows="12"
       add-text="新增用户"
       add-permission="system:user:create"
       @add="handleAdd"
@@ -67,19 +75,29 @@
       @refresh="debounceClick('refresh', fetchData)"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
-      @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+      @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
       @cell-dblclick="handleView"
     >
       <template #empty>
-        <a-empty v-if="!hasError" description="暂无数据" />
-        <a-result v-else status="error" title="数据加载失败">
-          <template #extra>
-            <a-button type="primary" @click="debounceClick('refresh', fetchData)">
-              <template #icon><ReloadOutlined /></template>
-              重新加载
+        <div class="empty-state-wrapper">
+          <a-empty v-if="!hasError" description="暂无用户数据">
+            <template #image>
+              <TeamOutlined style="font-size: 48px; color: #d9d9d9;" />
+            </template>
+            <a-button type="primary" size="small" v-permission="'system:user:create'" @click="handleAdd">
+              <template #icon><PlusOutlined /></template>
+              新增第一个用户
             </a-button>
-          </template>
-        </a-result>
+          </a-empty>
+          <a-result v-else status="error" title="数据加载失败">
+            <template #extra>
+              <a-button type="primary" @click="debounceClick('refresh', fetchData)">
+                <template #icon><ReloadOutlined /></template>
+                重新加载
+              </a-button>
+            </template>
+          </a-result>
+        </div>
       </template>
 
       <template #usernameCell="{ record }">
@@ -133,7 +151,7 @@
     </VxeTableList>
 
     <!-- 用户表单弹窗 -->
-    <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
+    <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" :dirty="formDirty" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
       <a-form ref="formRef" :model="formState" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="用户名" name="username">
           <a-input v-model:value="formState.username" placeholder="请输入用户名" :disabled="isEdit" />
@@ -181,21 +199,23 @@
     </a-modal>
   </div>
 </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted, h } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, PlusOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { dictItemApi } from '@/api/dict'
 import { useSubmitLock, useOptimisticUpdate } from '@/composables'
 import { useUserStore } from '@/stores/user'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 const userStore = useUserStore()
@@ -264,7 +284,7 @@ async function loadUserTypeOptions() {
     if (res.data) {
       userTypeOptions.value = res.data
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
     }
   } catch (err) {
     console.warn('[用户管理] 加载用户类型失败', err)
@@ -272,7 +292,7 @@ async function loadUserTypeOptions() {
 }
 
 const formState = reactive({ id: 0, username: '', nickname: '', password: '', email: '', phone: '', gender: 0, userType: 2, tenantId: userStore.tenantId, status: 0 })
-const formRules = {
+const formRules: any = {
   username: { required: true, message: '请输入用户名', trigger: 'blur' },
   nickname: { required: true, message: '请输入昵称', trigger: 'blur' },
   password: { required: true, message: '请输入密码', min: 6, trigger: 'blur' },
@@ -338,7 +358,7 @@ const fetchData = async () => {
   hasError.value = false
   try {
     const res = await userApi.getPage({ tenantId: userStore.tenantId, ...searchForm, pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (res.data) { tableData.value = res.data.records; pagination.total = res.data.total }
+    if (res.data) { tableData.value = res.records; pagination.total = res.total }
   } catch (err) {
     hasError.value = true
     console.warn('[系统管理] 加载用户数据失败', err)
@@ -485,18 +505,18 @@ const handleAssignRole = async (record: UserInfo) => {
   currentUserId.value = record.id
   // 根据当前用户类型过滤角色 scope：系统用户看到 PLATFORM，租户用户看到 TENANT
   const scope = userStore.isSystemUser ? 'PLATFORM' : 'TENANT'
-  const res = await roleApi.getPage({ tenantId: userStore.tenantId, scope, size: 100 })
-  if (res.data) roleList.value = res.data.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
+  const res = await roleApi.getPage({ tenantId: userStore.tenantId, scope, size: 100 } as any)
+  if (res.data) roleList.value = res.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
   try {
     const userRes = await userApi.getById(record.id)
-    targetRoleKeys.value = userRes.data?.roleIds ? userRes.data.roleIds.map(String) : []
+    targetRoleKeys.value = (userRes.data as any)?.roleIds ? (userRes.data as any).roleIds.map(String) : []
   } catch (err) { console.warn('[系统管理] 获取用户角色失败', err); targetRoleKeys.value = [] }
   roleModalVisible.value = true
 }
 
 const handleRoleModalOk = async () => {
   roleModalLoading.value = true
-  try { await userApi.assignRoles(currentUserId.value, targetRoleKeys.value); message.success('分配成功'); roleModalVisible.value = false } finally { roleModalLoading.value = false }
+  try { await userApi.assignRoles(currentUserId.value, targetRoleKeys.value.map(Number)); message.success('分配成功'); roleModalVisible.value = false } finally { roleModalLoading.value = false }
 }
 
 const filterRoleOption = (input: string, option: any) => option.title.toLowerCase().includes(input.toLowerCase())
@@ -532,6 +552,10 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+// 查看详情
+const handleView = (record: any) => {}
 </script>
 
 <style scoped>
@@ -577,7 +601,6 @@ defineExpose({ handleQuery: fetchData })
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   overflow: hidden;
   min-height: 0;
 }
@@ -591,7 +614,16 @@ defineExpose({ handleQuery: fetchData })
 .stat-cards {
   display: flex;
   gap: 16px;
-  margin-bottom: 16px;
+  padding: 16px 0 16px 0;
+  flex-shrink: 0;
+}
+
+.empty-state-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  width: 100%;
 }
 
 .stat-card {
@@ -668,4 +700,44 @@ defineExpose({ handleQuery: fetchData })
 .fsd-body .ant-form-item-label > label {
   font-size: 13px !important;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── vxe-table 表头 2px 粗边框 ──────────────────── */
+.user-management :deep(.vxe-table-list-container .vxe-header--row .vxe-header--column) {
+  border-bottom: 2px solid #d0d5dd !important;
+}
+
 </style>

@@ -20,10 +20,13 @@
           <span v-if="autoRefreshEnabled && autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="loading" @click="handleRefresh">
+          <a-button size="small" :loading="loading" v-permission="'erp:shipment:refresh'" @click="handleRefresh">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -80,7 +83,7 @@
     <SearchBar
       :fields="searchFields"
       :loading="loading"
-      @search="handleSearch"
+      @search="(e: any) => handleSearch(e)"
       @reset="handleReset"
     />
 
@@ -95,11 +98,13 @@
         :filter-fields="filterFields"
         :selectable="true"
         :show-export="true"
+        export-permission="shipment:export"
         add-text="新建出库单"
+        add-permission="shipment:create"
         @add="handleCreate"
-        @refresh="fetchData"
+        @refresh="() => fetchData()"
         @export="handleExport"
-        @search="handleSearch"
+        @search="(e: any) => handleSearch(e)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
@@ -126,7 +131,7 @@
           <div v-if="hasError" class="table-empty">
             <WarningOutlined class="table-empty-icon" />
             <p class="table-empty-text">数据加载异常，请重试</p>
-            <a-button type="primary" @click="fetchData"><ReloadOutlined /> 重试</a-button>
+            <a-button type="primary" @click="() => fetchData()"><ReloadOutlined /> 重试</a-button>
           </div>
           <EmptyState v-else title="暂无数据" description="暂无出库单数据" size="small" :show-actions="false" />
         </template>
@@ -134,17 +139,17 @@
         <template #action="{ record }">
           <a-space>
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'erp:shipment:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 0" title="审核">
-              <a-button type="link" size="small" @click="handleApprove(record)">
+              <a-button type="link" size="small" v-permission="'erp:shipment:approve'" @click="handleApprove(record)">
                 <template #icon><CheckCircleOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 1" title="出库">
-              <a-button type="link" size="small" @click="handleShip(record)">
+              <a-button type="link" size="small" v-permission="'erp:shipment:ship'" @click="handleShip(record)">
                 <template #icon><ExportOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -163,7 +168,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
                   <a-menu-item key="edit" v-if="record.status === 0">
                     <EditOutlined /> 编辑
                   </a-menu-item>
@@ -187,11 +192,11 @@
       title="出库单详情"
       placement="right"
       width="80vw"
-      @update:open="(v) => { if (!v) editMode.value = false }"
+      @update:open="(v: boolean) => { if (!v) editMode = false }"
     >
       <template #extra>
         <a-space>
-          <a-button v-if="detailData?.status === 0 && !editMode" size="small" @click="handleStartEdit">编辑</a-button>
+          <a-button v-if="detailData?.status === 0 && !editMode" size="small" v-permission="'erp:shipment:startedit'" @click="handleStartEdit">编辑</a-button>
           <PrintButton :business-id="detailData?.id" business-type="shipment" button-size="small" tooltip="打印" />
         </a-space>
       </template>
@@ -284,7 +289,7 @@
         <a-table
           :data-source="detailDataItems"
           :columns="detailItemColumns"
-          :pagination="false"
+          :pagination="false as any"
           size="small"
           bordered
           row-key="id"
@@ -300,15 +305,15 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <template v-if="editMode">
-            <a-button @click="handleCancelEdit">取消</a-button>
-            <a-button type="primary" @click="handleSaveEdit">保存</a-button>
+            <a-button v-permission="'erp:shipment:canceledit'" @click="handleCancelEdit">取消</a-button>
+            <a-button type="primary" v-permission="'erp:shipment:saveedit'" @click="handleSaveEdit">保存</a-button>
           </template>
           <template v-else>
             <a-button @click="detailVisible = false">关闭</a-button>
-            <a-button v-if="detailData?.status === 0" type="primary" @click="handleApprove(detailData)">
+            <a-button v-if="detailData?.status === 0" type="primary" v-permission="'erp:shipment:approve'" @click="handleApprove(detailData)">
               审核
             </a-button>
-            <a-button v-if="detailData?.status === 1" type="primary" @click="handleShip(detailData)">
+            <a-button v-if="detailData?.status === 1" type="primary" v-permission="'erp:shipment:ship'" @click="handleShip(detailData)">
               出库
             </a-button>
             <PrintButton
@@ -476,7 +481,7 @@
         <a-table
           :data-source="createForm.items"
           :columns="itemFormColumns"
-          :pagination="false"
+          :pagination="false as any"
           row-key="tempId"
           size="small"
           bordered
@@ -492,7 +497,7 @@
                 :filter-option="false"
                 :options="productOptions"
                 :loading="productLoading"
-                @search="(val) => handleProductSearch(val, index)"
+                @search="(val: any) => handleProductSearch(val)"
                 @change="(val) => handleProductChange(val, index)"
               >
                 <template #option="{ label, productCode, productName, productSpec }">
@@ -531,7 +536,7 @@
                 type="link"
                 danger
                 size="small"
-                @click="handleRemoveItem(index)"
+ v-permission="'erp:shipment:removeitem'" @click="handleRemoveItem(index)"
                 :disabled="createForm.items.length <= 1"
               >
                 <template #icon><MinusCircleOutlined /></template>
@@ -540,7 +545,7 @@
             </template>
           </template>
         </a-table>
-        <a-button type="dashed" block style="margin-top: 8px;" @click="handleAddItem">
+        <a-button type="dashed" block style="margin-top: 8px;" v-permission="'erp:shipment:additem'" @click="handleAddItem">
           <template #icon><PlusOutlined /></template>
           添加商品行
         </a-button>
@@ -563,7 +568,7 @@
         <!-- 提交按钮 -->
         <a-form-item>
           <div style="display: flex; justify-content: flex-end; gap: 8px;">
-            <a-button @click="handleCreateFormCancel">取消</a-button>
+            <a-button v-permission="'erp:shipment:createformcancel'" @click="handleCreateFormCancel">取消</a-button>
             <a-button type="primary" html-type="submit" :loading="createFormSubmitting">提交</a-button>
           </div>
         </a-form-item>
@@ -578,7 +583,9 @@ import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { SHIPMENT_STATUS } from '@/utils/statusConfig'
@@ -717,7 +724,7 @@ const detailDataItems = computed(() => {
   return detailData.value?.items || []
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'shipmentNo', title: '出库单号', width: 150 },
   { field: 'orderNo', title: '销售订单', width: 150 },
   { field: 'customerName', title: '客户名称', width: 150 },
@@ -729,7 +736,7 @@ const vxeColumns = computed(() => [
   { type: 'action', title: '操作', width: 200, fixed: 'right' },
 ])
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', key: 'productName', width: 200 },
   { title: '规格', dataIndex: 'productSpec', key: 'productSpec', width: 120 },
@@ -750,7 +757,7 @@ const filterFields = [
   ]}
 ]
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'shipmentNo', label: '出库单号', type: 'input', placeholder: '请输入出库单号' },
   { name: 'orderNo', label: '销售订单', type: 'input', placeholder: '请输入订单号' },
   { name: 'customerName', label: '客户名称', type: 'input', placeholder: '请输入客户名称' },
@@ -970,7 +977,7 @@ function handleProductChange(val: any, index: number) {
 }
 
 // ── 出库明细 ──────────────────────────────────────────
-const itemFormColumns = [
+const itemFormColumns: any = [
   { title: '商品', key: 'product', width: 250 },
   { title: '数量', key: 'quantity', width: 100 },
   { title: '单价', key: 'unitPrice', width: 120 },
@@ -1141,7 +1148,7 @@ const handleDelete = async (record: Shipment) => {
   }
 }
 
-const handleActionMenuClick = (key: string, record: Shipment) => {
+const handleActionMenuClick = (key: any, record: Shipment) => {
   switch (key) {
     case 'edit':
       handleView(record)
@@ -1280,15 +1287,15 @@ const fetchData = async (silent = false) => {
     const res = await request.get('/erp/sale/outbound/page', { params })
     if (res.data) {
       // 如果 API 返回了统计数据，优先使用（如 totalCount, pendingCount 等）
-      if (res.data.totalCount !== undefined) {
-        serverStats.total = res.data.totalCount || 0
-        serverStats.pending = res.data.pendingCount || 0
-        serverStats.processing = res.data.processingCount || 0
-        serverStats.completed = res.data.completedCount || 0
+      if (res.totalCount !== undefined) {
+        serverStats.total = res.totalCount || 0
+        serverStats.pending = res.pendingCount || 0
+        serverStats.processing = res.processingCount || 0
+        serverStats.completed = res.completedCount || 0
       }
-      if (res.data.records) {
-        dataSource.value = res.data.records
-        pagination.total = res.data.total || 0
+      if (res.records) {
+        dataSource.value = res.records
+        pagination.total = res.total || 0
       } else {
         dataSource.value = []
         pagination.total = 0
@@ -1315,7 +1322,7 @@ onMounted(() => {
   loadWarehouses()
   loadCustomers()
   window.addEventListener("erp:create", handleParentCreate)
-  window.addEventListener("erp:refresh", fetchData)
+  window.addEventListener("erp:refresh", () => fetchData())
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     if (autoRefreshEnabled.value) {
@@ -1545,6 +1552,41 @@ onUnmounted(() => {
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

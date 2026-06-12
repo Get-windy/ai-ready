@@ -25,10 +25,13 @@ function buildServiceWorker(): Plugin {
       console.log('\n[build-sw] 编译 Service Worker…')
 
       try {
-        // 使用 esbuild 编译 (与 Vite 共享依赖)
+        // 查找本地 esbuild 安装路径
+        const esbuildPath = resolve(__dirname, '../../node_modules/.bin/esbuild')
+        const esbuildCmd = fs.existsSync(esbuildPath) ? `"${esbuildPath}"` : 'npx esbuild'
+
         execSync(
           [
-            'npx esbuild',
+            esbuildCmd,
             `"${swSource}"`,
             '--bundle',
             '--format=iife',
@@ -50,6 +53,7 @@ function buildServiceWorker(): Plugin {
         // 兜底: 如果 esbuild 不可用，使用 public/sw.js 直接复制
         const swFallback = resolve(__dirname, 'public/sw.js')
         if (fs.existsSync(swFallback)) {
+          fs.mkdirSync(resolve(__dirname, 'dist'), { recursive: true })
           fs.copyFileSync(swFallback, swOutput)
           console.log('[build-sw] 使用备用 public/sw.js 完成')
         }

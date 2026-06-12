@@ -21,7 +21,8 @@
                 :placeholder="item.placeholder || `请选择${item.label}`"
                 :options="item.options"
                 :allow-clear="item.allowClear !== false"
-                style="min-width: 200px"
+                size="small"
+                style="min-width: 160px"
                 @change="handleFieldChange(item.name, $event)"
               />
             </template>
@@ -29,7 +30,8 @@
               <a-range-picker
                 v-model:value="searchForm[item.name]"
                 :placeholder="['开始日期', '结束日期']"
-                style="min-width: 260px"
+                size="small"
+                style="min-width: 220px"
                 @change="handleDateRangeChange(item.name, $event)"
               />
             </template>
@@ -38,6 +40,7 @@
                 v-model:value="searchForm[item.name]"
                 :placeholder="item.placeholder || `请输入${item.label}`"
                 :allow-clear="item.allowClear !== false"
+                size="small"
                 @press-enter="handleSearch"
               />
             </template>
@@ -45,7 +48,8 @@
               <a-input-number
                 v-model:value="searchForm[item.name]"
                 :placeholder="`请输入${item.label}`"
-                :style="{ width: '160px' }"
+                size="small"
+                :style="{ width: '140px' }"
                 :allow-clear="item.allowClear !== false"
               />
             </template>
@@ -66,16 +70,18 @@
           <a-button
             type="primary"
             html-type="submit"
+            size="small"
             :loading="loading"
           >
             搜索
           </a-button>
-          <a-button @click="handleReset">
+          <a-button size="small" @click="handleReset">
             重置
           </a-button>
           <a-button
             v-if="expandable"
             type="link"
+            size="small"
             @click="isExpanded = !isExpanded"
           >
             {{ isExpanded ? '收起' : '展开' }} <span v-if="expandedFields.length > 0">({{ expandedFields.length }})</span>
@@ -103,6 +109,7 @@
               <a-select
                 v-model:value="searchForm[item.name]"
                 :options="item.options"
+                size="small"
                 :allow-clear="true"
                 style="width: 100%"
                 @change="handleFieldChange(item.name, $event)"
@@ -111,6 +118,7 @@
             <template v-else-if="item.type === 'date-range'">
               <a-range-picker
                 v-model:value="searchForm[item.name]"
+                size="small"
                 style="width: 100%"
               />
             </template>
@@ -118,6 +126,7 @@
               <a-input
                 v-model:value="searchForm[item.name]"
                 :placeholder="`请输入${item.label}`"
+                size="small"
                 :allow-clear="true"
               />
             </template>
@@ -227,7 +236,7 @@ const handleFieldChange = (field: string, value: any) => {
 }
 
 // 日期范围变化处理
-const handleDateRangeChange = (field: string, dates: [string, string]) => {
+const handleDateRangeChange = (field: string, dates: any) => {
   if (dates && dates.length === 2) {
     searchForm.value[`${field}_start`] = dates[0]
     searchForm.value[`${field}_end`] = dates[1]
@@ -264,21 +273,25 @@ const handleClearAll = () => {
 
 <style scoped>
 .search-bar-container {
-  padding: 16px;
-  background: #fff;
+  padding: 10px 12px;
+  background: #fafafa;
   border-radius: 4px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #e8e8e8;
+}
+
+.search-bar-container :deep(.ant-form-item) {
+  margin-bottom: 0;
 }
 
 .expanded-fields {
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
 .result-count {
   display: flex;
   justify-content: space-between;
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid #f0f0f0;
 }
 

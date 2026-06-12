@@ -130,9 +130,9 @@
       </div>
 
       <VxeTableList
-        :columns="itemVxeColumns"
+        :columns="itemColumns"
         :data-source="formData.items"
-        :pagination="false"
+        :pagination="false as any"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -201,7 +201,7 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -271,7 +271,7 @@ const formData = reactive({
   items: [] as OrderItem[]
 })
 
-const formRules = {
+const formRules: any = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
   orderDate: [{ required: true, message: '请选择订单日期', trigger: 'change' }],
   deliveryDate: [

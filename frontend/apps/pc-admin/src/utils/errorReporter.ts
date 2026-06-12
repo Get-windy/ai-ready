@@ -114,9 +114,9 @@ export function initErrorReporter(app: {
     if (event.target !== window) {
       const target = event.target as HTMLElement
 
-      console.error('[Resource Error]', target.src || target.href)
+      console.error('[Resource Error]', (target as HTMLImageElement).src || (target as HTMLLinkElement).href)
 
-      const errorMsg = `Resource load failed: ${target.src || target.href}`
+      const errorMsg = `Resource load failed: ${(target as HTMLImageElement).src || (target as HTMLLinkElement).href}`
 
       // 1) 上报 Sentry
       captureException(errorMsg, {

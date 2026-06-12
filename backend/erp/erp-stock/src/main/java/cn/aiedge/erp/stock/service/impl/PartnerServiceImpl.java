@@ -74,4 +74,25 @@ public class PartnerServiceImpl extends ServiceImpl<PartnerMapper, Partner> impl
         wrapper.last("LIMIT 50");
         return list(wrapper);
     }
+
+    @Override
+    public List<Partner> getPartnerList(String partnerType, String status, Integer pageSize) {
+        LambdaQueryWrapper<Partner> wrapper = new LambdaQueryWrapper<Partner>()
+                .eq(Partner::getDeleted, 0);
+        if (StringUtils.hasText(partnerType)) {
+            wrapper.eq(Partner::getPartnerType, partnerType);
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(Partner::getStatus, status);
+        } else {
+            wrapper.eq(Partner::getStatus, "ENABLED");
+        }
+        wrapper.orderByDesc(Partner::getCreateTime);
+        if (pageSize != null && pageSize > 0) {
+            wrapper.last("LIMIT " + pageSize);
+        } else {
+            wrapper.last("LIMIT 200");
+        }
+        return list(wrapper);
+    }
 }

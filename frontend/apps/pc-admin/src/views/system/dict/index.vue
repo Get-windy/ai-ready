@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="dict-page-header">
@@ -13,6 +14,10 @@
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTypeData)()">
             <template #icon><ReloadOutlined /></template>
@@ -55,6 +60,8 @@
         </div>
       </div>
 
+      <a-skeleton active v-if="typeLoading && typeTableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+
       <VxeTableList
         ref="tableRef"
         :columns="vxeColumns"
@@ -62,6 +69,7 @@
         :loading="typeLoading"
         :pagination="typePagination"
         :row-key="'id'"
+        :min-empty-rows="12"
         :filter-fields="filterFields"
         :show-search="false"
         :show-add="false"
@@ -124,7 +132,7 @@
             <VxeTableList
               :data-source="dictItemMap[record.id] || []"
               :loading="itemLoadingMap[record.id]"
-              :pagination="false"
+              :pagination="false as any"
               row-key="id"
               :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
               :show-export="false" :show-batch-delete="false"
@@ -155,6 +163,7 @@
       <FullScreenDetail
         :visible="typeModalVisible"
         :title="typeModalTitle"
+        :dirty="typeFormDirty"
         :save-loading="typeModalLoading"
         :show-save-and-new="!isTypeEdit"
         @save="handleTypeModalOk"
@@ -201,6 +210,7 @@
       <FullScreenDetail
         :visible="itemModalVisible"
         :title="itemModalTitle"
+        :dirty="itemFormDirty"
         :save-loading="itemModalLoading"
         :show-save-and-new="!isItemEdit"
         @save="handleItemModalOk"
@@ -214,16 +224,16 @@
           :label-col="{ span: 6 }"
           :wrapper-col="{ span: 16 }"
         >
-          <a-form-item label="字典项编码" name="itemCode">
+          <a-form-item label="字典项值" name="itemValue">
             <a-input
-              v-model:value="itemFormState.itemCode"
-              placeholder="请输入字典项编码"
+              v-model:value="itemFormState.itemValue"
+              placeholder="请输入字典项值"
             />
           </a-form-item>
-          <a-form-item label="字典项名称" name="itemName">
+          <a-form-item label="字典项文本" name="itemText">
             <a-input
-              v-model:value="itemFormState.itemName"
-              placeholder="请输入字典项名称"
+              v-model:value="itemFormState.itemText"
+              placeholder="请输入字典项文本"
             />
           </a-form-item>
           <a-form-item label="排序" name="sortOrder">
@@ -245,17 +255,20 @@
       </FullScreenDetail>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined, BookOutlined, UnorderedListOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/dict'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -359,7 +372,7 @@ const typeFormDirty = computed(() => {
 })
 function saveTypeFormSnapshot() { initialTypeFormSnapshot.value = JSON.stringify(typeFormState) }
 
-const typeFormRules = {
+const typeFormRules: any = {
   dictCode: { required: true, message: '请输入类型编码', trigger: 'blur' },
   dictName: { required: true, message: '请输入类型名称', trigger: 'blur' }
 }
@@ -375,8 +388,8 @@ const fetchTypeData = async () => {
       pageSize: typePagination.pageSize
     })
     if (res.data) {
-      typeTableData.value = res.data.records
-      typePagination.total = res.data.total
+      typeTableData.value = res.records
+      typePagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -518,8 +531,8 @@ const dictItemMap = reactive<Record<number, DictItem[]>>({})
 const itemLoadingMap = reactive<Record<number, boolean>>({})
 
 const itemColumns: any[] = [
-  { title: '字典项编码', field: 'itemCode', width: 150 },
-  { title: '字典项名称', field: 'itemName', width: 180 },
+  { title: '字典项值', field: 'itemValue', width: 150 },
+  { title: '字典项文本', field: 'itemText', width: 180 },
   { title: '排序', field: 'sortOrder', width: 80 },
   { title: '状态', field: 'status', width: 80, slotName: 'statusCell' },
   { title: '操作', field: 'action', width: 130, slotName: 'actionCell' }
@@ -535,8 +548,8 @@ const itemModalTitle = computed(() => isItemEdit.value ? '编辑字典项' : '�
 const itemFormState = reactive({
   id: 0,
   dictTypeId: 0,
-  itemCode: '',
-  itemName: '',
+  itemValue: '',
+  itemText: '',
   sortOrder: 0,
   status: 'ENABLED'
 })
@@ -550,9 +563,9 @@ const itemFormDirty = computed(() => {
 })
 function saveItemFormSnapshot() { initialItemFormSnapshot.value = JSON.stringify(itemFormState) }
 
-const itemFormRules = {
-  itemCode: { required: true, message: '请输入字典项编码', trigger: 'blur' },
-  itemName: { required: true, message: '请输入字典项名称', trigger: 'blur' },
+const itemFormRules: any = {
+  itemValue: { required: true, message: '请输入字典项值', trigger: 'blur' },
+  itemText: { required: true, message: '请输入字典项文本', trigger: 'blur' },
   sortOrder: { required: true, message: '请输入排序号', trigger: 'blur' }
 }
 
@@ -584,8 +597,8 @@ const handleAddItem = (typeRecord: DictType) => {
   Object.assign(itemFormState, {
     id: 0,
     dictTypeId: typeRecord.id,
-    itemCode: '',
-    itemName: '',
+    itemValue: '',
+    itemText: '',
     sortOrder: 0,
     status: 'ENABLED'
   })
@@ -601,8 +614,8 @@ const handleEditItem = (typeRecord: DictType, itemRecord: DictItem) => {
   Object.assign(itemFormState, {
     id: itemRecord.id,
     dictTypeId: typeRecord.id,
-    itemCode: itemRecord.itemCode,
-    itemName: itemRecord.itemName,
+    itemValue: itemRecord.itemValue,
+    itemText: itemRecord.itemText,
     sortOrder: itemRecord.sortOrder,
     status: itemRecord.status
   })
@@ -615,7 +628,7 @@ const handleEditItem = (typeRecord: DictType, itemRecord: DictItem) => {
 const handleDeleteItemConfirm = (typeRecord: DictType, itemRecord: DictItem) => {
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除字典项 "${itemRecord.itemName}" 吗？此操作不可撤销。`,
+    content: `确定要删除字典项 "${itemRecord.itemText}" 吗？此操作不可撤销。`,
     okText: '确认删除',
     okType: 'danger',
     cancelText: '取消',
@@ -721,6 +734,10 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchTypeData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+// 查看详情
+const handleView = (record: any) => {}
 </script>
 
 <style scoped>
@@ -853,6 +870,14 @@ defineExpose({ handleQuery: fetchTypeData })
   border-left: 1px solid #e0e0e0 !important;
 }
 
+/* ── VxeTable 表头边框线 2px ─────────────────────────── */
+:deep(.vxe-table .vxe-header--row th) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+:deep(.vxe-table .vxe-header--row th:not(:last-child)) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
@@ -866,4 +891,55 @@ defineExpose({ handleQuery: fetchTypeData })
 :deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
 :deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

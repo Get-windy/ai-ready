@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="permission-page-header">
@@ -10,11 +11,21 @@
           <h2 class="permission-page-header-title">权限配置</h2>
         </div>
         <div class="permission-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
+          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchDefData)()">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
           <a-button size="small" v-permission="'system:permission:create'" @click="showPermissionDefDrawer = true">
             <template #icon><SettingOutlined /></template>
             管理权限定义
           </a-button>
-          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
         </div>
       </div>
     </template>
@@ -70,6 +81,8 @@
           </div>
         </div>
 
+        <a-skeleton active v-if="defLoading && permissionDefData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+
         <VxeTableList
           ref="defTableRef"
           :columns="defVxeColumns"
@@ -77,6 +90,7 @@
           :loading="defLoading"
           :pagination="null as any"
           row-key="id"
+          :min-empty-rows="12"
           :filter-fields="defFilterFields"
           :show-search="false"
           :show-add="false"
@@ -217,15 +231,18 @@
       </a-drawer>
     </a-drawer>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   PlusOutlined, ExpandOutlined, SafetyOutlined,
   MenuOutlined, ControlOutlined, ApiOutlined, SettingOutlined,
+  SyncOutlined, ReloadOutlined,
   UserOutlined, DashboardOutlined, FileTextOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
@@ -233,11 +250,25 @@ import PermissionConfigPanel from '@/components/PermissionConfigPanel/index.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { useUserStore } from '@/stores/user'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 
 // ==================== 通用 ====================
 const userStore = useUserStore()
 const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ── 防抖工具 ────────────────────────────────────────────
+const clickLocks = new Map<string, boolean>()
+function debounceClick(key: string, fn: (...args: any[]) => any) {
+  return (...args: any[]) => {
+    if (clickLocks.get(key)) return
+    clickLocks.set(key, true)
+    try { fn(...args) } finally { setTimeout(() => clickLocks.delete(key), 300) }
+  }
+}
 
 // ==================== PermissionConfigPanel Props ====================
 const fetchRoles = async () => {
@@ -313,14 +344,18 @@ const fetchDefData = async () => {
       }
       fixIds(res.data)
       permissionDefData.value = res.data
-      defExpandedKeys.value = res.data.filter((item: any) => item.permissionType === 0).map((item: any) => item.id)
+      defExpandedKeys.value = res.filter((item: any) => item.permissionType === 0).map((item: any) => item.id)
     }
   } catch (err) {
     defHasError.value = true
     permissionDefData.value = []
     console.warn('[权限定义] 加载失败', err)
     message.error('加载权限数据失败')
-  } finally { defLoading.value = false }
+  } finally {
+    defLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
+  }
 }
 
 const handleDefFilterChange = (filters: Record<string, any>) => {
@@ -350,7 +385,7 @@ const defFormState = ref({
   sort: 0, visible: 1, status: 0
 })
 
-const defFormRules = {
+const defFormRules: any = {
   permissionName: { required: true, message: '请输入权限名称', trigger: 'blur' },
   permissionCode: [
     { required: true, message: '请输入权限编码', trigger: 'blur' },
@@ -425,9 +460,34 @@ const apiDefCount = computed(() => { const r: PermissionInfo[] = []; const w = (
 const iconMap: Record<string, any> = { UserOutlined, SettingOutlined, DashboardOutlined, FileTextOutlined, ApiOutlined }
 const getIcon = (iconName: string) => iconMap[iconName] || null
 
+// ── 键盘快捷键 ──────────────────────────────────────────
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+    e.preventDefault()
+    debounceClick('refresh', fetchDefData)()
+  }
+}
+
 onMounted(() => {
   fetchDefData()
+  document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchDefData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -436,6 +496,17 @@ onMounted(() => {
 .permission-page-header-title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
 .permission-page-header-right { display: flex; align-items: center; gap: 12px; }
 .update-time { font-size: 12px; color: #999; }
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
 
 /* 统计卡片（抽屉内） */
 .stat-cards { display: flex; gap: 12px; padding: 12px 16px; }
@@ -451,8 +522,67 @@ onMounted(() => {
 .permission-def-drawer-body { height: 100%; display: flex; flex-direction: column; }
 .permission-def-drawer-body > :deep(.vxe-table-list-container) { flex: 1; min-height: 0; }
 
+/* ── VxeTable 表头边框线 2px ─────────────────────────── */
+.permission-def-drawer-body :deep(.vxe-table .vxe-header--row th) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+.permission-def-drawer-body :deep(.vxe-table .vxe-header--row th:not(:last-child)) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

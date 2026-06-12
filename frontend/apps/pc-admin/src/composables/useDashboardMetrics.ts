@@ -10,7 +10,7 @@
  * watch(() => metrics.data.value, (val) => { dashboardData.value = val })
  * ```
  */
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, unref } from 'vue'
 import { useWebSocket } from './useWebSocket'
 import type { WsResponse, DashboardMetricsData, MetricUpdate } from '@/types/websocket'
 
@@ -64,8 +64,8 @@ export function useDashboardMetrics(): DashboardMetricsState {
 
       case 'METRIC_UPDATE':
         // 单个指标更新
-        if (data.metric) {
-          const metric = data.metric as MetricUpdate
+        if ((data as any).metric) {
+          const metric = (data as any).metric as MetricUpdate
           metricHistory.value.unshift(metric)
           if (metricHistory.value.length > 100) {
             metricHistory.value = metricHistory.value.slice(0, 100)
@@ -102,10 +102,10 @@ export function useDashboardMetrics(): DashboardMetricsState {
   }
 
   return {
-    connected: ws.isConnected,
-    data: dashboardData,
-    metricHistory,
-    lastUpdate,
+    connected: unref(ws.isConnected),
+    data: unref(dashboardData) as DashboardMetricsData | null,
+    metricHistory: unref(metricHistory) as MetricUpdate[],
+    lastUpdate: unref(lastUpdate) as string | null,
     refresh,
     disconnect: ws.disconnect,
     reconnect: ws.reconnect,

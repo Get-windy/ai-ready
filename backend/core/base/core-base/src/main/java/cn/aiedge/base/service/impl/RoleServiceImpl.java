@@ -3,7 +3,7 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.entity.*;
 import cn.aiedge.base.mapper.*;
 import cn.aiedge.base.security.StpInterfaceImpl;
-import cn.aiedge.base.security.SecurityUtils;
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.service.RoleService;
 import cn.aiedge.base.service.SysOperLogService;
 import cn.aiedge.common.dto.role.*;

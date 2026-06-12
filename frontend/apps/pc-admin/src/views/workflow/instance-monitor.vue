@@ -1,5 +1,5 @@
 <template>
-  <PageContainer full-height>
+  <ErrorBoundary @error="handleError"><PageContainer full-height>
     <template #header>
       <div class="workflow-monitor-page-header">
         <div class="workflow-monitor-page-header-left">
@@ -15,9 +15,11 @@
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleQuery)()">
-            <template #icon><ReloadOutlined /></template>
-            刷新
+            <ReloadOutlined /> 刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -129,6 +131,7 @@
           :show-search="false"
           :show-export="false"
           :show-batch-delete="false"
+          :min-empty-rows="12"
           @cell-dblclick="handleView"
           @page-change="handlePageChange"
         >
@@ -138,14 +141,14 @@
             </a-tag>
           </template>
           <template #action="{ record }">
-            <a-button
+            <a-button v-permission="'workflow:instance:view'"
               type="link"
               size="small"
               @click="handleViewDetail(record)"
             >
               查看详情
             </a-button>
-            <a-button
+            <a-button v-permission="'workflow:instance:diagram'"
               type="link"
               size="small"
               @click="handleViewFlowChart(record)"
@@ -153,7 +156,7 @@
               流程图
             </a-button>
             <a-dropdown v-if="record.status === 'running'">
-              <a-button
+              <a-button v-permission="'workflow:instance:intervene'"
                 type="link"
                 size="small"
               >
@@ -270,7 +273,7 @@
         </div>
       </a-modal>
     </div>
-  </PageContainer>
+  </PageContainer></ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -280,7 +283,8 @@ import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, S
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -296,7 +300,7 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
 const queryForm = reactive({
   processName: '',
   status: undefined as string | undefined,
-  dateRange: [] as any[]
+  dateRange: [] as any
 })
 
 // 表格数据
@@ -306,6 +310,8 @@ const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
 const hasError = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+function handleError(err: any) { console.warn('[工作流] 流程实例监控出错', err); hasError.value = true }
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 统计数据 ────────────────────────────────────────────
@@ -441,9 +447,9 @@ const handleViewFlowChart = async (record: any) => {
       params: { instanceId: record.instanceId }
     })
     if (res.data?.svg) {
-      flowChartImage.value = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(res.data.svg)))
+      flowChartImage.value = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(res.svg)))
     } else if (res.data?.imageUrl) {
-      flowChartImage.value = res.data.imageUrl
+      flowChartImage.value = res.imageUrl
     } else {
       flowChartError.value = '暂无可用的流程图'
     }
@@ -505,7 +511,7 @@ const getStatusLabel = (status: string) => {
 }
 
 // 初始加载
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { handleQuery() }
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
@@ -691,4 +697,48 @@ pre {
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 ──────────────────────── */
+.empty-state-wrapper { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
+.empty-state-icon { font-size: 48px; color: #d9d9d9; }
+.empty-state-text { color: #999; margin-top: 12px; }
+.empty-state-action { margin-top: 12px; }
+
+/* ── vxe-table 表头 2px 边框 ─────── */
+:deep(.vxe-table .vxe-header--row) { border-top: 2px solid #e8e8e8; }
+
 </style>

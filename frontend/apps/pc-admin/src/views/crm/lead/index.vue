@@ -18,12 +18,25 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
-      </div>
+
+          </div>
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && dataSource.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && dataSource.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -86,6 +99,7 @@
         :filter-fields="filterFields"
         :show-export="true"
         :selectable="true"
+        :min-empty-rows="12"
         add-text="新建线索"
         @add="handleAdd"
         @refresh="fetchData"
@@ -97,22 +111,22 @@
         @export="handleExport"
       >
         <template #toolbar-actions>
-          <a-button size="small" @click="handleBatchAssign">
+          <a-button size="small" v-permission="'crm:lead:batchassign'" @click="handleBatchAssign">
             <template #icon><TeamOutlined /></template>
             批量分配
           </a-button>
-          <a-button size="small" @click="handleImport">
+          <a-button size="small" v-permission="'crm:lead:import'" @click="handleImport">
             <template #icon><ImportOutlined /></template>
             导入线索
           </a-button>
         </template>
 
         <template #batch-actions>
-          <a-button size="small" type="primary" ghost @click="handleBatchAssign">
+          <a-button size="small" type="primary" ghost v-permission="'crm:lead:batchassign'" @click="handleBatchAssign">
             <template #icon><TeamOutlined /></template>
             批量分配
           </a-button>
-          <a-button size="small" @click="handleBatchConvert">
+          <a-button size="small" v-permission="'crm:lead:batchconvert'" @click="handleBatchConvert">
             <template #icon><SwapRightOutlined /></template>
             批量转化
           </a-button>
@@ -123,7 +137,7 @@
             <template v-if="hasError">
               <WarningOutlined class="table-empty-icon" style="color: #faad14" />
               <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData">
+              <a-button type="primary" size="small" @click="fetchData as any">
                 <template #icon><ReloadOutlined /></template>
                 重试
               </a-button>
@@ -135,8 +149,14 @@
                 没有符合条件的线索，<a @click="handleResetFilters">清除筛选</a>
               </p>
               <p v-else class="table-empty-text">
-                暂无线索数据，点击右上角「新建线索」开始创建
+                暂无线索数据
               </p>
+              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                <a-button type="primary" v-permission="'crm:lead:create'" @click="handleAdd">
+                  <template #icon><PlusOutlined /></template>
+                  新建第一个线索
+                </a-button>
+              </div>
             </template>
           </div>
         </template>
@@ -144,22 +164,22 @@
         <template #action="{ record }">
           <a-space :size="4">
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'crm:lead:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
+              <a-button type="link" size="small" v-permission="'crm:lead:edit'" @click="handleEdit(record)">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip title="分配">
-              <a-button type="link" size="small" @click="handleAssign(record)">
+              <a-button type="link" size="small" v-permission="'crm:lead:assign'" @click="handleAssign(record)">
                 <template #icon><TeamOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status < 2" title="转化为客户">
-              <a-button type="link" size="small" @click="handleConvert(record)">
+              <a-button type="link" size="small" v-permission="'crm:lead:convert'" @click="handleConvert(record)">
                 <template #icon><SwapRightOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -168,7 +188,7 @@
                 <template #icon><MoreOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="follow"><MessageOutlined /> 添加跟进</a-menu-item>
                   <a-menu-item key="history"><HistoryOutlined /> 跟进记录</a-menu-item>
                   <a-menu-divider />
@@ -182,6 +202,7 @@
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
       </VxeTableList>
+      </template>
     </ErrorBoundary>
 
     <!-- 线索表单弹窗 -->
@@ -190,6 +211,7 @@
       :title="modalTitle"
       :save-loading="modalLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleModalOk"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -302,7 +324,8 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { leadApi } from '@/api/crm'
 import { exportCsv } from '@/utils/exportCsv'
 import {
@@ -322,7 +345,8 @@ import {
   SyncOutlined,
   CheckCircleOutlined,
   StarOutlined,
-  WarningOutlined
+  WarningOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
 
 function handleError(err: any) { console.warn('[CRM线索]', err) }
@@ -436,7 +460,7 @@ async function fetchData(silent = false) {
       source: searchFilters.source,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
-    })
+    } as any)
     const result = res as any
     dataSource.value = (result.records || result.data?.records || []) as Lead[]
     pagination.total = result.total ?? result.data?.total ?? 0
@@ -609,9 +633,9 @@ function saveFormSnapshot() {
 }
 
 const formRules = {
-  name: [{ required: true, message: '请输入线索名称', trigger: 'blur' }],
-  companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }]
-}
+  name: [{ required: true, message: '请输入线索名称', trigger: 'blur', type: 'string' }],
+  companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur', type: 'string' }]
+} as any
 
 async function handleModalOk(saveAndNew = false) {
   try { await formRef.value?.validate() } catch (err) { console.warn('[CRM线索] 表单验证失败', err); return }
@@ -724,16 +748,16 @@ onMounted(() => {
   countdownTimer = setInterval(() => {
     if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
   }, 1000)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -923,4 +947,57 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

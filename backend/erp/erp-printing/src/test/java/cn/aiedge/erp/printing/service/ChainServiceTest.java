@@ -6,6 +6,7 @@ import cn.aiedge.erp.printing.entity.v2.*;
 import cn.aiedge.erp.printing.engine.ExpressionEvaluator;
 import cn.aiedge.erp.printing.engine.FormatEngine;
 import cn.aiedge.erp.printing.engine.FormatEngineImpl;
+import cn.aiedge.erp.printing.engine.FormulaValidationResult;
 import cn.aiedge.erp.printing.mapper.*;
 import cn.aiedge.erp.printing.mq.PrintTaskProducer;
 import cn.aiedge.erp.printing.service.impl.ChainExecutorServiceImpl;
@@ -14,6 +15,7 @@ import cn.aiedge.erp.printing.service.impl.PrintClientServiceImpl;
 import cn.aiedge.erp.printing.service.impl.ScreenshotServiceImpl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.core.AmqpAdmin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,8 @@ class ChainServiceTest {
     @Mock
     private SysPrintTaskMapper taskMapper;
     @Mock
+    private AmqpAdmin amqpAdmin;
+    @Mock
     private SysScreenshotTaskMapper screenshotMapper;
     @Mock
     private PrintTaskProducer taskProducer;
@@ -66,7 +70,7 @@ class ChainServiceTest {
         formatEngine = new FormatEngineImpl(evaluator, objectMapper);
 
         chainService = new PrintChainServiceImpl(chainMapper, chainItemMapper, templateMapper, clientMapper);
-        clientService = new PrintClientServiceImpl(clientMapper);
+        clientService = new PrintClientServiceImpl(clientMapper, amqpAdmin);
         screenshotService = new ScreenshotServiceImpl(
                 screenshotMapper, templateMapper, formatEngine, objectMapper, redisCache
         );
@@ -184,7 +188,7 @@ class ChainServiceTest {
         executorService.executeStep(1L);
 
         // 验证状态被标记为 QUEUED 而非 PRINTING
-        verify(taskMapper).updateById(argThat(t ->
+        verify(taskMapper).updateById(argThat((SysPrintTask t) ->
                 "QUEUED".equals(t.getStatus())
         ));
         verify(taskProducer, never()).sendTaskToClient(any(), anyLong());
@@ -214,7 +218,7 @@ class ChainServiceTest {
         executorService.executeStep(1L);
 
         // 验证状态被标记为 PRINTING
-        verify(taskMapper).updateById(argThat(t ->
+        verify(taskMapper).updateById(argThat((SysPrintTask t) ->
                 "PRINTING".equals(t.getStatus())
         ));
         // 验证 MQ 消息已发送

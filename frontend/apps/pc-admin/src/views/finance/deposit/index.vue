@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="deposit-page-header">
@@ -19,6 +20,10 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          </span>
         </div>
       </div>
     </template>
@@ -61,6 +66,7 @@
         <a-tab-pane key="customer" tab="客户定金">
           <VxeTableList
             ref="tableRef"
+            :min-empty-rows="12"
             :columns="customerColumns"
             :data-source="customerTableData"
             :loading="loading"
@@ -115,7 +121,7 @@
             </template>
             <template #action="{ record }">
               <a-space :size="0" class="action-cell-inner">
-                <a-button type="link" size="small" @click="handleView(record)">
+                <a-button type="link" size="small" v-permission="'finance:deposit:view'" @click="handleView(record)">
                   查看
                 </a-button>
                 <PrintButton
@@ -187,7 +193,7 @@
             </template>
             <template #action="{ record }">
               <a-space :size="0" class="action-cell-inner">
-                <a-button type="link" size="small" @click="handleView(record)">
+                <a-button type="link" size="small" v-permission="'finance:deposit:view'" @click="handleView(record)">
                   查看
                 </a-button>
                 <PrintButton
@@ -203,10 +209,12 @@
       </a-tabs>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, InboxOutlined,
@@ -215,7 +223,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { preReceiptApi, prePaymentApi } from '@/api/finance'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
@@ -379,10 +387,10 @@ const fetchCustomerData = async () => {
 
   const res = await preReceiptApi.getPage(params)
   if (res.data) {
-    customerTableData.value = res.data.records || res.data.list || []
-    pagination.total = res.data.total || 0
+    customerTableData.value = res.records || (res.data as any).list || []
+    pagination.total = res.total || 0
     lastUpdated.value = new Date().toISOString()
-    updateStats(customerTableData.value)
+    updateStats(customerTableData.value, res.data)
   }
 }
 
@@ -398,17 +406,23 @@ const fetchSupplierData = async () => {
 
   const res = await prePaymentApi.getPage(params)
   if (res.data) {
-    supplierTableData.value = res.data.records || res.data.list || []
-    pagination.total = res.data.total || 0
+    supplierTableData.value = res.records || (res.data as any).list || []
+    pagination.total = res.total || 0
     lastUpdated.value = new Date().toISOString()
-    updateStats(supplierTableData.value)
+    updateStats(supplierTableData.value, res.data)
   }
 }
 
-const updateStats = (data: any[]) => {
-  stats.totalAmount = data.reduce((sum, item) => sum + (item.amount || 0), 0)
-  stats.usedAmount = data.reduce((sum, item) => sum + (item.usedAmount || 0), 0)
-  stats.remainingAmount = data.reduce((sum, item) => sum + (item.remainingAmount || 0), 0)
+const updateStats = (data: any[], backendSummary?: any) => {
+  if (backendSummary?.totalAmount !== undefined) {
+    stats.totalAmount = backendSummary.totalAmount
+    stats.usedAmount = backendSummary.totalUsedAmount || 0
+    stats.remainingAmount = backendSummary.totalRemainingAmount || 0
+  } else {
+    stats.totalAmount = data.reduce((sum, item) => sum + (item.amount || 0), 0)
+    stats.usedAmount = data.reduce((sum, item) => sum + (item.usedAmount || 0), 0)
+    stats.remainingAmount = data.reduce((sum, item) => sum + (item.remainingAmount || 0), 0)
+  }
 }
 
 const handleTabChange = () => {
@@ -528,6 +542,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -697,4 +713,55 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

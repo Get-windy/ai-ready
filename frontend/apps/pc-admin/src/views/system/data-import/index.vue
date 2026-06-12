@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="page-header">
@@ -12,6 +13,17 @@
           <p class="page-desc">绑定外部系统账号，将数据自动同步到当前租户</p>
         </div>
         <div class="page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <a-button size="small" :loading="refreshLoading" v-permission="'system:dataimport:query'" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
           <a-button type="primary" v-permission="'system:dataimport:create'" @click="showCreateDrawer">
             <template #icon><PlusOutlined /></template>
             新建导入配置
@@ -21,7 +33,8 @@
     </template>
 
     <!-- 配置列表 -->
-    <div class="config-list" v-if="!loading">
+    <a-skeleton v-if="loading && configs.length === 0" active :paragraph="{ rows: 6 }" style="padding: 20px;" />
+    <div class="config-list" v-else>
       <!-- 无数据 -->
       <a-empty v-if="configs.length === 0 && !hasError" description="暂无导入配置">
         <template #extra>
@@ -59,7 +72,7 @@
             <div class="card-status">
               <a-switch
                 :checked="item.status === 1"
-                @change="(checked) => toggleStatus(item.id, checked)"
+                @change="(checked: any) => toggleStatus(item.id, checked as boolean)"
               />
             </div>
           </div>
@@ -115,10 +128,6 @@
           </div>
         </a-card>
       </div>
-    </div>
-
-    <div v-else class="loading-container">
-      <a-spin size="large" />
     </div>
 
     <!-- 新建/编辑抽屉 -->
@@ -203,9 +212,9 @@
           <a-checkbox-group v-model:value="selectedBillTypes">
             <a-checkbox
               v-for="item in billTypeItems"
-              :key="item.itemCode"
-              :value="item.itemCode"
-            >{{ item.itemName }}</a-checkbox>
+              :key="item.itemValue"
+              :value="item.itemValue"
+            >{{ item.itemText }}</a-checkbox>
           </a-checkbox-group>
         </a-form-item>
 
@@ -222,10 +231,12 @@
       </template>
     </a-drawer>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined, ApiOutlined, CloudOutlined, WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
@@ -267,6 +278,11 @@ interface SourceOption {
 const loading = ref(false)
 const hasError = ref(false)
 const configs = ref<SyncConfig[]>([])
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 const drawerVisible = ref(false)
 const editingId = ref<number | null>(null)
 const saving = ref(false)
@@ -277,7 +293,7 @@ const billTypeItems = ref<DictItem[]>([])
 const billTypeLabelMap = computed(() => {
   const map: Record<string, string> = {}
   billTypeItems.value.forEach(item => {
-    map[item.itemCode] = item.itemName
+    map[item.itemValue] = item.itemText
   })
   return map
 })
@@ -300,7 +316,7 @@ const defaultForm = {
 
 const formData = reactive({ ...defaultForm })
 
-const formRules = {
+const formRules: any = {
   sourceType: [{ required: true, message: '请选择导入系统' }],
   sourceUsername: [{ required: true, message: '请输入登录账号' }],
   sourcePassword: [{ required: true, message: '请输入登录密码' }],
@@ -336,7 +352,7 @@ async function loadBillTypes() {
 async function loadSources() {
   sourcesLoading.value = true
   try {
-    const res = await request.get('/api/v1/sync-config/sources')
+    const res = await request.get('/v1/sync-config/sources')
     sourceOptions.value = (res.data || []).map((s: any) => ({
       label: s.systemName,
       value: s.systemCode,
@@ -349,18 +365,26 @@ async function loadSources() {
   }
 }
 
+// ── 刷新 ──────────────────────────────────────────────
+const handleRefresh = () => {
+  refreshLoading.value = true
+  loadConfigs()
+}
+
 // 加载配置列表
 async function loadConfigs() {
   loading.value = true
   hasError.value = false
   try {
-    const res = await request.get('/api/v1/sync-config')
+    const res = await request.get('/v1/sync-config')
     configs.value = res.data || []
   } catch (e) {
     hasError.value = true
     console.error('加载配置列表失败:', e)
   } finally {
     loading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
+    refreshLoading.value = false
   }
 }
 
@@ -417,10 +441,10 @@ async function saveConfig() {
     formData.billTypes = JSON.stringify(selectedBillTypes.value)
 
     if (editingId.value) {
-      await request.put(`/api/v1/sync-config/${editingId.value}`, formData)
+      await request.put(`/v1/sync-config/${editingId.value}`, formData)
       message.success('更新成功')
     } else {
-      await request.post('/api/v1/sync-config', formData)
+      await request.post('/v1/sync-config', formData)
       message.success('创建成功')
     }
 
@@ -436,7 +460,7 @@ async function saveConfig() {
 // 删除
 async function deleteConfig(id: number) {
   try {
-    await request.delete(`/api/v1/sync-config/${id}`)
+    await request.delete(`/v1/sync-config/${id}`)
     message.success('删除成功')
     await loadConfigs()
   } catch (e: any) {
@@ -447,7 +471,7 @@ async function deleteConfig(id: number) {
 // 启用/禁用
 async function toggleStatus(id: number, enabled: boolean) {
   try {
-    await request.post(`/api/v1/sync-config/${id}/toggle`, null, {
+    await request.post(`/v1/sync-config/${id}/toggle`, null, {
       params: { enabled },
     })
     message.success(enabled ? '已启用' : '已禁用')
@@ -460,11 +484,11 @@ async function toggleStatus(id: number, enabled: boolean) {
 // 测试连接
 async function testConnection(id: number) {
   try {
-    const res = await request.post(`/api/v1/sync-config/${id}/test`)
-    if (res.data?.connected) {
-      message.success(`连接成功 (${res.data.latency}ms)`)
+    const res = await request.post(`/v1/sync-config/${id}/test`)
+    if (res?.connected) {
+      message.success(`连接成功 (${res?.latency}ms)`)
     } else {
-      message.error(res.data?.message || '连接失败')
+      message.error(res?.message || '连接失败')
     }
   } catch (e: any) {
     message.error(e?.message || '连接测试失败')
@@ -474,7 +498,7 @@ async function testConnection(id: number) {
 // 触发同步
 async function triggerSync(id: number, syncType: string) {
   try {
-    const res = await request.post(`/api/v1/sync-config/${id}/sync`, null, {
+    const res = await request.post(`/v1/sync-config/${id}/sync`, null, {
       params: { syncType },
     })
     if (res.data?.success) {
@@ -497,11 +521,23 @@ onMounted(async () => {
   await loadBillTypes()
   await loadConfigs()
   document.addEventListener('keydown', handleKeydown)
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    loadConfigs()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
 })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -608,6 +644,19 @@ onUnmounted(() => {
   height: 300px;
 }
 
+.update-time { font-size: 12px; color: #999; }
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
 .config-list :deep(.ant-input-sm),
 .config-list :deep(.ant-input-number-sm),
@@ -618,4 +667,39 @@ onUnmounted(() => {
 }
 .config-list :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 .config-list :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

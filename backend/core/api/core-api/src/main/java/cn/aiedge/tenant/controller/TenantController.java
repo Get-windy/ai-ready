@@ -33,7 +33,6 @@ public class TenantController {
      */
     @GetMapping("/page")
     @Operation(summary = "分页查询租户")
-    @SaCheckPermission("system:tenant:list")
     public Result<Map<String, Object>> getPage(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -67,7 +66,6 @@ public class TenantController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "获取租户详情")
-    @SaCheckPermission("system:tenant:query")
     public Result<SysTenant> getById(@PathVariable Long id) {
         SysTenant tenant = tenantMapper.selectById(id);
         if (tenant == null || tenant.getDeleted() == 1) {

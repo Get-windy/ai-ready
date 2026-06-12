@@ -1,12 +1,12 @@
 <template>
   <a-table
     ref="tableRef"
-    :columns="columns"
+    :columns="columns as any"
     :data-source="data"
     :row-key="rowKey"
     :loading="loading"
     :bordered="bordered"
-    :size="size"
+    :size="size as any"
     :show-header="showHeader"
     :pagination="paginationConfig"
     :row-selection="rowSelectionConfig"
@@ -104,7 +104,7 @@ const paginationConfig = computed(() => {
       onChange: (page: number) => {
         emit('page-change', page)
         if (props.pagination && typeof props.pagination === 'object') {
-          props.pagination.onChange?.(page)
+          props.pagination.onChange?.(page, props.pagination.pageSize || 10)
         }
       },
       onShowSizeChange: (current: number, size: number) => {
@@ -126,9 +126,9 @@ const rowSelectionConfig = computed(() => {
       emit('selection-change', selectedRowKeys, selectedRows)
       props.rowSelection?.onChange?.(selectedRowKeys, selectedRows)
     },
-    onSelect: (record: any, selected: boolean, selectedRows: any[]) => {
+    onSelect: (record: any, selected: boolean, selectedRows: any[], nativeEvent?: Event) => {
       emit('select', record, selected, selectedRows)
-      props.rowSelection?.onSelect?.(record, selected, selectedRows)
+      props.rowSelection?.onSelect?.(record, selected, selectedRows, nativeEvent!)
     },
     onSelectAll: (selected: boolean, selectedRows: any[], changeRows: any[]) => {
       emit('select-all', selected, selectedRows, changeRows)

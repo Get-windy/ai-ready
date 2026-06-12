@@ -24,10 +24,14 @@
                 <template #icon><ReloadOutlined /></template>
                 刷新
               </a-button>
-              <a-button size="small" @click="handleExport">
+              <a-button size="small" v-permission="'erp:serial:export'" @click="debounceClick('export', handleExport)">
                 <template #icon><DownloadOutlined /></template>
                 导出
               </a-button>
+              <span class="shortcut-hints">
+                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+              </span>
             </a-space>
           </div>
         </div>
@@ -80,7 +84,7 @@
           size="small"
           align="center"
           height="auto"
-          row-key="id"
+          :row-config="{ keyField: 'id' }"
         >
           <template #empty>
             <EmptyState v-if="loading" image="no-data" title="加载中..." description="" :show-actions="false" size="small" />
@@ -119,7 +123,7 @@
                 <a-button type="link" size="small" @click="showDetail(row.id)"><EyeOutlined /> 详情</a-button>
                 <a-button type="link" size="small" @click="showDetail(row.id)"><EditOutlined /> 追溯</a-button>
                 <PrintButton :record="row" :business-id="row.id" business-type="serial" button-type="link" button-size="small" tooltip="打印" />
-                <a-button type="link" size="small" danger @click="handleDelete(row)"><DeleteOutlined /> 删除</a-button>
+                <a-button type="link" size="small" v-permission="'erp:serial:delete'" danger @click="handleDelete(row)"><DeleteOutlined /> 删除</a-button>
               </a-space>
             </template>
           </vxe-column>
@@ -133,7 +137,7 @@
             :page-size-options="['10', '20', '50', '100']"
             show-size-changer
             show-quick-jumper
-            show-total
+            :show-total="(total, range) => `共 ${total} 条`"
             size="small"
             @change="onPageChange"
           />
@@ -151,7 +155,10 @@ import { ref, computed, onMounted, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, EyeOutlined, EditOutlined, SyncOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import { PageContainer, ErrorBoundary, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { SERIAL_STATUS, SERIAL_STAGE } from '@/utils/statusConfig'
 import { serialApi, type SerialNumber } from '@/api/erp/batch'
@@ -208,7 +215,7 @@ const pagination = reactive({
   showTotal: true,
 })
 
-const searchFields = [
+const searchFields: any = [
   { key: 'serialNo', label: '序列号', type: 'input', span: 1 },
   { key: 'productCode', label: '产品编码', type: 'input', span: 1 },
   { key: 'batchNo', label: '批次号', type: 'input', span: 1 },
@@ -390,4 +397,55 @@ onUnmounted(() => {
   justify-content: flex-end;
   padding-top: 12px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

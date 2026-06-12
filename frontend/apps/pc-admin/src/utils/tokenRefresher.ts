@@ -79,7 +79,7 @@ export async function refreshToken(): Promise<string> {
     throw new Error('No token available for refresh')
   }
 
-  const response = await fetch('/api/auth/refresh-token', {
+  const response = await fetch('/api/auth/refresh', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

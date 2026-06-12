@@ -63,7 +63,7 @@ class StockTransferServiceImplTest {
         item.setProductName("调拨产品");
         item.setQuantity(new BigDecimal("100"));
         item.setUnitCost(new BigDecimal("50"));
-        item.setAmount(new BigDecimal("5000"));
+        item.setLineAmount(new BigDecimal("5000"));
         testItems.add(item);
     }
 
@@ -75,7 +75,7 @@ class StockTransferServiceImplTest {
         when(transferMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class)))
                 .thenReturn(expectedPage);
 
-        Page<StockTransfer> result = transferService.pageList(null, null, null, null, null, 1, 10);
+        Page<StockTransfer> result = transferService.pageList(null, null, null, null, 1, 10);
         assertNotNull(result);
         assertEquals(1, result.getRecords().size());
     }
@@ -132,7 +132,7 @@ class StockTransferServiceImplTest {
 
             assertNotNull(result);
             assertEquals(0, result.getTotalItems());
-            verify(transferItemMapper, never()).insert(any());
+            verify(transferItemMapper, never()).insert(any(StockTransferItem.class));
         }
     }
 

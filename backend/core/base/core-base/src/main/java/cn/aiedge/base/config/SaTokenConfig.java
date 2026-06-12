@@ -29,10 +29,15 @@ public class SaTokenConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SecurityInterceptor(stpInterface))
                 .addPathPatterns("/**")
                 .excludePathPatterns(
+                        "/auth/login",
                         "/api/auth/login",
+                        "/auth/captcha",
                         "/api/auth/captcha",
+                        "/auth/captcha/**",
                         "/api/auth/captcha/**",
+                        "/auth/check",
                         "/api/auth/check",
+                        "/auth/user/login",
                         "/api/user/login",
                         "/api/user/register",
                         "/api/tenant/register",
@@ -44,6 +49,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/customer/**",
                         "/api/v1/mall/auth/**",
                         "/api/error-report/**",
+                        "/api/sse/**",
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",
@@ -57,10 +63,15 @@ public class SaTokenConfig implements WebMvcConfigurer {
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
                 .addPathPatterns("/**")
                 .excludePathPatterns(
+                        "/auth/login",
                         "/api/auth/login",
+                        "/auth/captcha",
                         "/api/auth/captcha",
+                        "/auth/captcha/**",
                         "/api/auth/captcha/**",
+                        "/auth/check",
                         "/api/auth/check",
+                        "/auth/user/login",
                         "/api/user/login",
                         "/api/user/register",
                         "/api/tenant/register",
@@ -72,6 +83,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/api/customer/**",
                         "/api/v1/mall/auth/**",
                         "/api/error-report/**",
+                        "/api/sse/**",
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",

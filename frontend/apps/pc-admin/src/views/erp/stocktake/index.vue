@@ -1,5 +1,5 @@
 <template>
-  <ErrorBoundary @reset="fetchData">
+  <ErrorBoundary @reset="fetchData" @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="stocktake-header">
@@ -17,6 +17,9 @@
               <span v-if="lastUpdateTime" class="update-time">
                 数据更新: {{ lastUpdateTime }}
               </span>
+            </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
             </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
@@ -96,7 +99,7 @@
     >
       <template #toolbar-actions>
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        <a-button size="small" @click="handleExport">
+        <a-button size="small" v-permission="'erp:stock:export'" @click="handleExport">
           <template #icon><DownloadOutlined /></template>
           导出
         </a-button>
@@ -123,13 +126,13 @@
       <template #action="{ record }">
         <a-space>
           <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
           <!-- 草稿 -> 编辑 -->
           <a-tooltip v-if="record.status === 0" title="编辑">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -156,7 +159,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="(e) => handleActionMenuClick(e.key, record)">
                 <a-menu-item key="delete">
                   <DeleteOutlined /> 删除
                 </a-menu-item>
@@ -202,7 +205,7 @@
           <a-table
             :data-source="detailItems"
             :columns="detailColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             bordered
             row-key="id"
@@ -211,7 +214,7 @@
       </a-spin>
       <template #footer v-if="detailData">
         <a-space>
-          <a-button v-if="detailData.status === 0" @click="handleEdit(detailData)">
+          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:edit'" @click="handleEdit(detailData)">
             <template #icon><EditOutlined /></template>
             编辑
           </a-button>
@@ -312,6 +315,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -337,7 +341,7 @@ import {
   AuditOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
@@ -366,6 +370,7 @@ interface Stocktake {
 }
 
 const userStore = useUserStore()
+const router = useRouter()
 const loading = ref(false)
 const hasError = ref(false)
 const refreshLoading = ref(false)
@@ -405,7 +410,7 @@ const hasActiveFilters = computed(() => {
 // 数据源
 const tableDataSource = dataSource
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'stocktakeNo', title: '盘点单号', width: 150 },
   { field: 'warehouseName', title: '仓库', width: 120 },
   { field: 'stocktakeDate', title: '盘点日期', width: 120 },
@@ -479,7 +484,7 @@ const createForm = reactive({
   warehouseId: undefined as number | undefined,
   checkDate: dayjs().format('YYYY-MM-DD'),
   checkType: 1,
-  checkerName: userStore?.realName || userStore?.username || '',
+  checkerName: (userStore as any)?.realName || (userStore as any)?.username || '',
   supervisorName: '',
   remark: ''
 })
@@ -494,7 +499,7 @@ const handleCreate = () => {
   createForm.warehouseId = undefined
   createForm.checkDate = dayjs().format('YYYY-MM-DD')
   createForm.checkType = 1
-  createForm.checkerName = userStore?.realName || userStore?.username || ''
+  createForm.checkerName = (userStore as any)?.realName || (userStore as any)?.username || ''
   createForm.supervisorName = ''
   createForm.remark = ''
   createModalVisible.value = true
@@ -541,10 +546,10 @@ const handleCreateCancel = () => {
   createModalVisible.value = false
 }
 
-const detailData = ref<Stocktake | null>(null)
+const detailData = ref<any>(null)
 const detailLoading = ref(false)
 const detailItems = ref<any[]>([])
-const detailColumns = [
+const detailColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', key: 'productCode' },
   { title: '产品名称', dataIndex: 'productName', key: 'productName' },
   { title: '规格', dataIndex: 'productSpec', key: 'productSpec' },
@@ -623,7 +628,7 @@ const handleDelete = async (record: Stocktake) => {
   }
 }
 
-const handleActionMenuClick = (key: string, record: Stocktake) => {
+const handleActionMenuClick = (key: any, record: Stocktake) => {
   if (key === 'delete') {
     Modal.confirm({
       title: '确认删除',
@@ -724,7 +729,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('erp:create', handleParentCreate)
-  window.addEventListener('erp:refresh', fetchData)
+  window.addEventListener('erp:refresh', () => fetchData())
   loadWarehouses()
   fetchData()
   autoRefreshCountdown.value = 30
@@ -740,12 +745,10 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('erp:create', handleParentCreate)
-  window.removeEventListener('erp:refresh', fetchData)
+  window.removeEventListener('erp:refresh', () => fetchData())
   if (refreshTimer) clearInterval(refreshTimer)
   if (countdownTimer) clearInterval(countdownTimer)
 })
-
-defineExpose({ handleQuery: fetchData })
 
 const fetchData = async () => {
   hasError.value = false
@@ -759,7 +762,7 @@ const fetchData = async () => {
       pageSize: pagination.pageSize
     }})
     if (res.data?.records) {
-      dataSource.value = res.data.records.map((item) => ({
+      dataSource.value = res.records.map((item) => ({
         id: item.id,
         stocktakeNo: item.checkNo,
         warehouseName: item.warehouseName,
@@ -771,13 +774,13 @@ const fetchData = async () => {
         operator: item.creatorName || '',
         remark: item.remark || ''
       }))
-      pagination.total = res.data.total || 0
+      pagination.total = res.total || 0
       // 优先使用 API 返回的全局统计数据，避免仅基于当前页计算
-      if (res.data.totalCount !== undefined) {
-        statistics.value.totalCount = res.data.totalCount
-        statistics.value.pendingCount = res.data.pendingCount || 0
-        statistics.value.processingCount = res.data.processingCount || 0
-        statistics.value.completedCount = res.data.completedCount || 0
+      if (res.totalCount !== undefined) {
+        statistics.value.totalCount = res.totalCount
+        statistics.value.pendingCount = res.pendingCount || 0
+        statistics.value.processingCount = res.processingCount || 0
+        statistics.value.completedCount = res.completedCount || 0
       } else {
         statistics.value.totalCount = dataSource.value.length
         statistics.value.pendingCount = dataSource.value.filter(item => item.status === 0).length
@@ -799,6 +802,8 @@ const fetchData = async () => {
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
+
+defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
@@ -959,6 +964,41 @@ const fetchData = async () => {
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

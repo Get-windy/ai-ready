@@ -12,7 +12,7 @@
     <!-- 节点主体 -->
     <g
       class="flow-node-body"
-      :style="nodeStyle"
+      :style="nodeStyle as any"
     >
       <!-- 根据节点类型渲染不同形状 -->
       <template v-if="node.type === 'start' || node.type === 'end'">

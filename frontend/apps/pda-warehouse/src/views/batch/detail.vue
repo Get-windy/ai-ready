@@ -59,18 +59,18 @@ const statusMap = {
 }
 
 const qualityMap = {
-  qualified: { label: '合格', color: '#07c160', icon: '✓' },
-  pending: { label: '待检', color: '#1988fa', icon: '?' },
-  rejected: { label: '不合格', color: '#f44', icon: '✗' }
+  qualified: { label: '合格', color: '#07c160', icon: '✓', bg: '#e8f7e8' },
+  pending: { label: '待检', color: '#1988fa', icon: '?', bg: '#e8f0fe' },
+  rejected: { label: '不合格', color: '#f44', icon: '✗', bg: '#ffe8e8' }
 }
 
 const actionTypeMap = {
-  inbound: { label: '入库', color: '#07c160' },
-  outbound: { label: '出库', color: '#1988fa' },
-  transfer: { label: '转移', color: '#ff976a' },
-  check: { label: '质检', color: '#1988fa' },
-  lock: { label: '锁定', color: '#969799' },
-  unlock: { label: '解锁', color: '#07c160' }
+  inbound: { label: '入库', color: '#07c160', bg: '#e8f7e8' },
+  outbound: { label: '出库', color: '#1988fa', bg: '#e8f0fe' },
+  transfer: { label: '转移', color: '#ff976a', bg: '#fff3e0' },
+  check: { label: '质检', color: '#1988fa', bg: '#e8f0fe' },
+  lock: { label: '锁定', color: '#969799', bg: '#f7f8fa' },
+  unlock: { label: '解锁', color: '#07c160', bg: '#e8f7e8' }
 }
 
 const daysUntilExpiry = computed(() => {

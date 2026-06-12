@@ -64,61 +64,13 @@ const loadBatches = async () => {
     }
   } catch (error) {
     batches.value = []
+    console.error('[批次] 加载失败', error)
   } finally {
     loading.value = false
   }
 }
 
-const getMockBatches = (): BatchInfo[] => [
-  {
-    id: '1',
-    batchNo: 'B20240115001',
-    productId: 'P001',
-    productName: '优质大米',
-    productCode: 'SP001',
-    quantity: 500,
-    productionDate: '2024-01-15',
-    expiryDate: '2025-01-15',
-    supplierId: 'S001',
-    supplierName: '东北粮仓',
-    status: 'normal',
-    locationCode: 'A-01-01',
-    qualityStatus: 'qualified',
-    remark: ''
-  },
-  {
-    id: '2',
-    batchNo: 'B20240110002',
-    productId: 'P002',
-    productName: '食用油',
-    productCode: 'SP002',
-    quantity: 200,
-    productionDate: '2024-01-10',
-    expiryDate: '2024-06-10',
-    supplierId: 'S002',
-    supplierName: '金龙鱼',
-    status: 'warning',
-    locationCode: 'A-02-03',
-    qualityStatus: 'qualified',
-    remark: '临期预警'
-  },
-  {
-    id: '3',
-    batchNo: 'B20231215003',
-    productId: 'P003',
-    productName: '调味品',
-    productCode: 'SP003',
-    quantity: 100,
-    productionDate: '2023-12-15',
-    expiryDate: '2024-03-15',
-    supplierId: 'S003',
-    supplierName: '海天味业',
-    status: 'expired',
-    locationCode: 'B-01-02',
-    qualityStatus: 'rejected',
-    remark: '已过期需处理'
-  }
-]
+
 
 const handleScan = () => {
   scanMode.value = true

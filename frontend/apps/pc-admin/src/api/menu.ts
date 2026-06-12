@@ -17,6 +17,9 @@ export interface MenuInfo {
   visible: number
   keepAlive?: number
   external?: number
+  bizFlowTag?: string
+  displayGroup?: number
+  linkIcon?: string
   remark?: string
   createTime?: string
   updateTime?: string
@@ -46,6 +49,9 @@ export interface MenuSaveRequest {
   keepAlive?: number
   external?: number
   remark?: string
+  bizFlowTag?: string
+  displayGroup?: number
+  linkIcon?: string
 }
 
 // 菜单更新请求
@@ -59,82 +65,74 @@ export interface RoleMenuAssignRequest {
   menuIds: number[]
 }
 
-// 菜单API
+// 菜单API - 对齐后端 RESTful Controller
 export const menuApi = {
-  // 获取菜单树
+  // 获取菜单树（管理用）
   getTree(params?: MenuQuery): Promise<ApiResponse<MenuInfo[]>> {
     const userStore = useUserStore()
     return request.get('/menu/tree', { ...params, tenantId: userStore.tenantId })
   },
 
-  // 获取所有菜单
-  getAll(): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get('/menu/all')
+  // 获取菜单列表（扁平）
+  getList(tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
+    return request.get('/menu/list', { tenantId })
   },
 
   // 获取菜单详情
   getById(id: number): Promise<ApiResponse<MenuInfo>> {
-    return request.get(`/menu/detail/${id}`)
+    return request.get(`/menu/${id}`)
   },
 
   // 创建菜单
-  create(data: MenuSaveRequest, operatorId: number): Promise<ApiResponse<MenuInfo>> {
-    return request.post('/menu/create', data, { params: { operatorId } })
+  create(data: MenuSaveRequest): Promise<ApiResponse<MenuInfo>> {
+    return request.post('/menu', data)
   },
 
   // 更新菜单
-  update(data: MenuUpdateRequest, operatorId: number): Promise<ApiResponse<MenuInfo>> {
-    return request.put('/menu/update', data, { params: { operatorId } })
+  update(id: number, data: MenuSaveRequest): Promise<ApiResponse<MenuInfo>> {
+    return request.put(`/menu/${id}`, data)
   },
 
   // 删除菜单
-  delete(id: number, operatorId: number): Promise<ApiResponse<void>> {
-    return request.delete(`/menu/delete/${id}`, { params: { operatorId } })
-  },
-
-  // 批量删除菜单
-  batchDelete(ids: number[], operatorId: number): Promise<ApiResponse<void>> {
-    return request.post('/menu/batch-delete', ids, { params: { operatorId } })
+  delete(id: number): Promise<ApiResponse<void>> {
+    return request.delete(`/menu/${id}`)
   },
 
   // 更新菜单状态
-  updateStatus(id: number, status: number, operatorId: number): Promise<ApiResponse<void>> {
-    return request.post(`/menu/update-status/${id}`, null, { params: { status, operatorId } })
-  },
-
-  // 移动菜单
-  move(menuId: number, newParentId: number, operatorId: number): Promise<ApiResponse<MenuInfo>> {
-    return request.post(`/menu/move/${menuId}`, null, { params: { newParentId, operatorId } })
+  updateStatus(id: number, status: number): Promise<ApiResponse<void>> {
+    return request.put(`/menu/${id}/status`, null, { params: { status } })
   },
 
   // 更新菜单排序
-  updateSortOrder(menuIds: number[], operatorId: number): Promise<ApiResponse<void>> {
-    return request.post('/menu/update-sort', menuIds, { params: { operatorId } })
+  updateSort(id: number, sort: number): Promise<ApiResponse<void>> {
+    return request.put(`/menu/${id}/sort`, null, { params: { sort } })
   },
 
-  // 验证菜单编码
-  validateMenuCode(menuCode: string, excludeId?: number): Promise<ApiResponse<boolean>> {
-    return request.get('/menu/validate-code', { menuCode, excludeId })
+  // 验证菜单编码是否存在
+  validateMenuCode(menuCode: string, tenantId: number, excludeId?: number): Promise<ApiResponse<boolean>> {
+    const params: Record<string, any> = { menuCode, tenantId }
+    if (excludeId !== undefined) params.excludeId = excludeId
+    return request.get('/menu/check-code', params)
   },
 
-  // 获取用户菜单
-  getUserMenus(userId: number): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get(`/menu/user/${userId}`)
+  // 获取用户菜单树
+  getUserMenus(userId?: number): Promise<ApiResponse<MenuInfo[]>> {
+    const params: Record<string, any> = {}
+    if (userId) params.userId = userId
+    return request.get('/menu/user/tree', params)
   },
 
-  // 获取用户客户端菜单
-  getUserClientMenus(userId: number, clientType: string, tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get(`/menu/user/client/${clientType}`, { userId, tenantId })
+  // 按客户端类型获取用户菜单（动态路由用）
+  getUserClientMenus(clientType: string, userId?: number, tenantId?: number): Promise<ApiResponse<MenuInfo[]>> {
+    const params: Record<string, any> = {}
+    if (userId) params.userId = userId
+    if (tenantId) params.tenantId = tenantId
+    return request.get(`/menu/user/client/${clientType}`, params)
   },
 
-  // 获取角色菜单
-  getRoleMenus(roleId: number): Promise<ApiResponse<MenuInfo[]>> {
-    return request.get(`/menu/role/${roleId}`)
-  },
-
-  // 分配角色菜单
-  assignRoleMenus(roleId: number, menuIds: number[], operatorId: number): Promise<ApiResponse<void>> {
-    return request.post(`/menu/assign-role-menus/${roleId}`, menuIds, { params: { operatorId } })
+  // 获取子菜单列表
+  getChildren(parentId: number, tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
+    return request.get(`/menu/children/${parentId}`, { tenantId })
   }
 }
 

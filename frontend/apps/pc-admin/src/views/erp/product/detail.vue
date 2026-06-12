@@ -12,6 +12,9 @@
       </div>
       <div class="detail-header__right">
         <a-space>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+S</kbd> 保存</span>
+          </span>
           <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
           <PrintButton page-code="erp/product" button-size="small" button-type="default" />
           <a-button @click="goBack">取消</a-button>
@@ -190,9 +193,9 @@
             max-height="300"
           >
             <vxe-column type="seq" title="#" width="50" />
-            <vxe-column field="productGradeId" title="产品等级" width="140" :edit-render="{ name: 'select', options: gradeSelectOptions }" />
-            <vxe-column field="price" title="价格(元)" width="160" :edit-render="{ name: 'input', type: 'number', props: { precision: 2, min: 0 } }" />
-            <vxe-column field="minOrderQty" title="起订量" width="100" :edit-render="{ name: 'input', type: 'number', props: { min: 0 } }" />
+            <vxe-column field="productGradeId" title="产品等级" width="140" :edit-render="({ name: 'select', options: gradeSelectOptions } as any)" />
+            <vxe-column field="price" title="价格(元)" width="160" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
+            <vxe-column field="minOrderQty" title="起订量" width="100" :edit-render="({ name: 'input', type: 'number', props: { min: 0 } } as any)" />
             <vxe-column field="_action" title="操作" width="80">
               <template #default="{ row, rowIndex }">
                 <a-button type="link" size="small" danger @click="removeGradePriceRow(rowIndex)">删除</a-button>
@@ -335,24 +338,9 @@ function resetDirty() {
   takeFormSnapshot()
 }
 
-// 深度监听表单变化
-watch(form, () => { markDirty() }, { deep: true })
-
-// 路由离开守卫 — 捕获 SPA 内导航
-onBeforeRouteLeave((_to, _from, next) => {
-  if (isDirty.value) {
-    Modal.confirm({
-      title: '未保存的更改',
-      content: '当前有未保存的修改，确定要离开吗？',
-      okText: '离开',
-      cancelText: '继续编辑',
-      onOk: () => next(),
-      onCancel: () => next(false)
-    })
-  } else {
-    next()
-  }
-})
+// ── 折叠面板与扩展标签状态 ──
+const collapseKeys = ref<string[]>([])
+const extTabKey = ref('attributes')
 
 // ── 表单数据 ──
 const form = reactive({
@@ -408,8 +396,28 @@ interface GradePriceRow {
   productGradeId: number | undefined
   price: number
   minOrderQty: number
+  _isNew?: boolean
 }
 const gradePriceList = ref<GradePriceRow[]>([])
+
+// 深度监听表单变化
+watch(form, () => { markDirty() }, { deep: true })
+
+// 路由离开守卫 — 捕获 SPA 内导航
+onBeforeRouteLeave((_to, _from, next) => {
+  if (isDirty.value) {
+    Modal.confirm({
+      title: '未保存的更改',
+      content: '当前有未保存的修改，确定要离开吗？',
+      okText: '离开',
+      cancelText: '继续编辑',
+      onOk: () => next(),
+      onCancel: () => next(false)
+    })
+  } else {
+    next()
+  }
+})
 
 const gradeSelectOptions = computed(() =>
   grades.value.map(g => ({ label: g.gradeName, value: g.id }))
@@ -474,8 +482,8 @@ async function loadProduct(id: number) {
     const [prices] = await Promise.all([
       productGradePriceApi.getByProduct(id),
       inventoryModeApi.get().then(mode => { inventoryMode.value = mode }).catch(() => {}),
-      request.get(`/erp/stock/by-product/${id}`).then((res: unknown) => {
-        if (res && res.id) stockInfo.value = res
+      request.get(`/erp/stock/by-product/${id}`).then((res: any) => {
+        if ((res as any)?.id) stockInfo.value = res
       }).catch(() => {})
     ])
     gradePriceList.value = (prices || []).map(p => ({
@@ -604,7 +612,7 @@ defineExpose({ fetchData: () => init() })
 
 <style scoped>
 .product-detail-fullscreen {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: #f5f6fa;
@@ -644,6 +652,46 @@ defineExpose({ fetchData: () => init() })
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* ── 快捷键提示 ── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 .detail-body {

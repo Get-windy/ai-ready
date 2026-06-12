@@ -110,6 +110,10 @@ public class ApiResponse<T> implements Serializable {
     /**
      * 失败响应
      */
+    public static <T> ApiResponse<T> fail(String message) {
+        return error(message);
+    }
+
     public static <T> ApiResponse<T> error(String message) {
         return new ApiResponse<>(500, message, null, false);
     }

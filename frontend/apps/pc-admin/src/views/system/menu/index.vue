@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="menu-page-header">
@@ -13,6 +14,10 @@
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', loadMenuTree)()">
             <template #icon><ReloadOutlined /></template>
@@ -55,6 +60,8 @@
         </div>
       </div>
 
+      <a-skeleton active v-if="loading && menuTree.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+
     <VxeTableList
       ref="tableRef"
       :columns="vxeColumns"
@@ -62,6 +69,7 @@
       :loading="loading"
       :pagination="null as any"
       :row-key="'id'"
+      :min-empty-rows="12"
       :filter-fields="filterFields"
       :show-search="false"
       :show-add="false"
@@ -116,6 +124,16 @@
         <a-tag v-if="record.visible === 1" color="green">显示</a-tag>
         <a-tag v-else>隐藏</a-tag>
       </template>
+      <template #bizFlowTagCell="{ record }">
+        <a-tag v-if="record.bizFlowTag" :color="getBizFlowTagColor(record.bizFlowTag)">
+          {{ getBizFlowTagLabel(record.bizFlowTag) }}
+        </a-tag>
+        <span v-else class="text-muted">—</span>
+      </template>
+      <template #displayGroupCell="{ record }">
+        <a-tag v-if="record.displayGroup === 1" color="blue">展示分组</a-tag>
+        <a-tag v-else color="green">路由目录</a-tag>
+      </template>
 
       <template #action="{ record }">
         <a-button type="link" size="small" v-permission="'system:permission:create'" @click="handleAddChild(record)">
@@ -137,6 +155,7 @@
     <FullScreenDetail
       :visible="dialogVisible"
       :title="dialogTitle"
+      :dirty="formDirty"
       :save-loading="submitLoading"
       :show-save-and-new="!formData.id"
       @save="handleSubmit"
@@ -234,6 +253,34 @@
             placeholder="请输入备注"
           />
         </a-form-item>
+
+        <a-form-item label="业务流向">
+          <a-select
+            v-model:value="formData.bizFlowTag"
+            placeholder="请选择业务流向（可选）"
+            allow-clear
+          >
+            <a-select-option
+              v-for="opt in bizFlowTagOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</a-select-option>
+          </a-select>
+        </a-form-item>
+
+        <a-form-item label="展示分组">
+          <a-radio-group v-model:value="formData.displayGroup">
+            <a-radio :value="0">正常路由目录</a-radio>
+            <a-radio :value="1">纯展示分组（Sidebar分组标题，不生成路由嵌套）</a-radio>
+          </a-radio-group>
+        </a-form-item>
+
+        <a-form-item label="链接图标">
+          <a-input
+            v-model:value="formData.linkIcon"
+            placeholder="外链/快捷方式图标名，如 LinkOutlined"
+          />
+        </a-form-item>
       </a-form>
     </FullScreenDetail>
 
@@ -270,13 +317,16 @@
     </FullScreenDetail>
   </div>
 </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import type { FormInstance, Rule } from 'ant-design-vue'
+import type { FormInstance } from 'ant-design-vue'
+// Rule type not available, using any
 import {
   PlusOutlined,
   EditOutlined,
@@ -291,15 +341,14 @@ import {
   WarningOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
 import roleApi from '@/api/role'
 import { dictItemApi } from '@/api/dict'
 import { useSubmitLock } from '@/composables'
-import { useUserStore } from '@/stores/user'
 import * as Icons from '@ant-design/icons-vue'
 
-const userStore = useUserStore()
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
@@ -382,6 +431,9 @@ const vxeColumns = computed(() => [
   { field: 'sortOrder', title: '排序', width: 80, align: 'center' },
   { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
   { field: 'visible', title: '显示', width: 80, align: 'center', slotName: 'visibleCell' },
+  { field: 'bizFlowTag', title: '业务流向', width: 100, align: 'center', slotName: 'bizFlowTagCell' },
+  { field: 'displayGroup', title: '展示分组', width: 100, align: 'center', slotName: 'displayGroupCell' },
+  { field: 'linkIcon', title: '链接图标', width: 100, showOverflow: 'tooltip' },
   { type: 'action', title: '操作', width: 280, fixed: 'right' }
 ])
 
@@ -394,7 +446,7 @@ async function loadMenuTypes() {
     if (res.data) {
       menuTypeOptions.value = res.data
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
     }
   } catch (err) {
     console.warn('[菜单管理] 加载菜单类型失败', err)
@@ -414,6 +466,55 @@ const iconComponent = (iconName: string) => {
   return (Icons as any)[iconName] || null
 }
 
+// 业务流向选项（供表单下拉选择）
+const bizFlowTagOptions = [
+  { value: '', label: '无' },
+  { value: 'sales', label: '销售管理' },
+  { value: 'purchase', label: '采购管理' },
+  { value: 'warehouse', label: '仓库管理' },
+  { value: 'wms', label: 'WMS仓储' },
+  { value: 'delivery', label: '配送管理' },
+  { value: 'customer', label: '客户关系' },
+  { value: 'finance', label: '财务管理' },
+  { value: 'expense', label: '费用管理' },
+  { value: 'asset', label: '资产管理' },
+  { value: 'budget', label: '预算管理' },
+  { value: 'mall', label: '商城管理' },
+  { value: 'orders', label: '订单中心' },
+  { value: 'workflow', label: '工作流' },
+  { value: 'product', label: '产品数据' },
+  { value: 'printing', label: '打印管理' },
+  { value: 'system', label: '系统管理' }
+]
+
+// 业务流向标签颜色映射
+const bizFlowTagColorMap: Record<string, string> = {
+  sales: 'blue',
+  purchase: 'cyan',
+  warehouse: 'orange',
+  wms: 'purple',
+  delivery: 'geekblue',
+  customer: 'green',
+  finance: 'red',
+  expense: 'volcano',
+  asset: 'gold',
+  budget: 'lime',
+  mall: 'magenta',
+  orders: 'blue',
+  workflow: 'cyan',
+  product: 'green',
+  printing: 'purple',
+  system: 'geekblue'
+}
+
+function getBizFlowTagLabel(tag: string): string {
+  return bizFlowTagOptions.find(o => o.value === tag)?.label || tag
+}
+
+function getBizFlowTagColor(tag: string): string {
+  return bizFlowTagColorMap[tag] || 'default'
+}
+
 // 表单数据
 const formData = reactive<MenuUpdateRequest>({
   id: 0,
@@ -430,11 +531,14 @@ const formData = reactive<MenuUpdateRequest>({
   visible: 1,
   keepAlive: 0,
   external: 0,
-  remark: ''
+  remark: '',
+  bizFlowTag: '',
+  displayGroup: 0,
+  linkIcon: ''
 })
 
 // 表单验证规则
-const formRules: Record<string, Rule[]> = {
+const formRules: any = {
   menuType: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
   menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
   menuCode: [{ required: true, message: '请输入权限标识', trigger: 'blur' }],
@@ -532,7 +636,10 @@ const handleEdit = (row: MenuInfo) => {
     visible: row.visible,
     keepAlive: row.keepAlive || 0,
     external: row.external || 0,
-    remark: row.remark || ''
+    remark: row.remark || '',
+    bizFlowTag: row.bizFlowTag || '',
+    displayGroup: row.displayGroup ?? 0,
+    linkIcon: row.linkIcon || ''
   })
   dialogVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
@@ -547,7 +654,7 @@ const handleDelete = async (row: MenuInfo) => {
     cancelText: '取消',
     okType: 'danger',
     onOk: async () => {
-      const res = await menuApi.delete(row.id, userStore.userId)
+      const res = await menuApi.delete(row.id)
       if (res.code === 200) {
         message.success('删除成功')
         loadMenuTree()
@@ -569,7 +676,7 @@ const handleSubmit = async () => {
     const result = await withSubmitLock(async () => {
       let res
       if (formData.id) {
-        res = await menuApi.update(formData, userStore.userId)
+        res = await menuApi.update(formData.id, formData)
       } else {
         const saveData: MenuSaveRequest = {
           parentId: formData.parentId,
@@ -587,7 +694,10 @@ const handleSubmit = async () => {
           external: formData.external,
           remark: formData.remark
         }
-        res = await menuApi.create(saveData, userStore.userId)
+        if (formData.bizFlowTag) saveData.bizFlowTag = formData.bizFlowTag
+        if (formData.displayGroup !== undefined) saveData.displayGroup = formData.displayGroup
+        if (formData.linkIcon) saveData.linkIcon = formData.linkIcon
+        res = await menuApi.create(saveData)
       }
 
       if (res.code === 200) {
@@ -628,7 +738,7 @@ const handleFormSaveAndNew = () => {
 // 状态变更
 const handleStatusChange = async (row: MenuInfo, status: number) => {
   try {
-    const res = await menuApi.updateStatus(row.id, status, userStore.userId)
+    const res = await menuApi.updateStatus(row.id, status)
     if (res.code === 200) {
       message.success('状态更新成功')
     } else {
@@ -657,14 +767,8 @@ const handleAssignRole = async (row: MenuInfo) => {
     console.warn('[系统管理] 获取角色列表失败', error)
   }
 
-  try {
-    const res = await menuApi.getRoleMenus(row.id)
-    if (res.code === 200) {
-      // 根据实际API返回调整
-    }
-  } catch (error) {
-    console.warn('[系统管理] 获取菜单角色失败', error)
-  }
+  // TODO: 获取已分配此菜单的角色ID列表用于预选中
+  // 需要后端提供 GET /api/role/menu/{menuId} 端点
 }
 
 // 提交角色分配
@@ -702,6 +806,9 @@ const resetForm = () => {
   formData.keepAlive = 0
   formData.external = 0
   formData.remark = ''
+  formData.bizFlowTag = ''
+  formData.displayGroup = 0
+  formData.linkIcon = ''
   formRef.value?.clearValidate()
 }
 
@@ -741,6 +848,10 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: loadMenuTree })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+// 查看详情
+const handleView = (record: any) => {}
 </script>
 
 <style scoped>
@@ -840,6 +951,14 @@ defineExpose({ handleQuery: loadMenuTree })
   font-size: 16px;
 }
 
+/* ── VxeTable 表头边框线 2px ─────────────────────────── */
+.menu-management :deep(.vxe-table .vxe-header--row th) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+.menu-management :deep(.vxe-table .vxe-header--row th:not(:last-child)) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
@@ -853,4 +972,55 @@ defineExpose({ handleQuery: loadMenuTree })
 :deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
 :deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

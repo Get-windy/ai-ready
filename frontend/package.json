@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter './apps/*' dev",
-    "build": "pnpm --filter './apps/*' build",
+    "build": "pnpm run build:all",
+    "build:all": "pnpm --filter driver-delivery --filter mobile-admin --filter mobile-mall --filter ai-ready-admin --filter pda-warehouse --filter print-client build",
     "lint": "eslint .",
     "lint:style": "stylelint '**/*.{css,scss,vue}' --fix",
     "test": "vitest",
@@ -17,13 +18,13 @@
     "analyze:pc-admin": "cd apps/pc-admin && npx vite build --mode analyze",
     "prepare": "husky"
   },
-  "dependencies": {},
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "@types/node": "^18.x",
     "eslint": "^8.x",
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
+    "playwright": "^1.60.0",
     "stylelint": "^16.0.0",
     "stylelint-config-standard": "^37.0.0",
     "stylelint-config-standard-vue": "^1.0.0",

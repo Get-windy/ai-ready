@@ -70,6 +70,18 @@ public class DictTypeController {
         return dictTypeService.getByDictCode(dictCode);
     }
 
+    @GetMapping("/page")
+    @Operation(summary = "分页查询字典类型")
+    public Map<String, Object> page(
+            @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
+            @Parameter(description = "字典类型编码") @RequestParam(required = false) String dictCode,
+            @Parameter(description = "字典类型名称") @RequestParam(required = false) String dictName,
+            @Parameter(description = "状态") @RequestParam(required = false) String status,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int pageSize) {
+        return list(tenantId, dictCode, dictName, status, page, pageSize);
+    }
+
     @GetMapping("/list")
     @Operation(summary = "查询字典类型列表")
     public Map<String, Object> list(

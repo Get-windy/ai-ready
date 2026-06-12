@@ -23,6 +23,9 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
           </a-space>
         </div>
       </div>
@@ -88,10 +91,10 @@
       <!-- 操作按钮 -->
       <div class="action-area">
         <a-space>
-          <a-button type="primary" @click="handleCreate">
+          <a-button v-permission="'purchase:exchange:create'" type="primary" @click="handleCreate">
             <template #icon><PlusOutlined /></template>新建换货单
           </a-button>
-          <a-button @click="handleExport">
+          <a-button v-permission="'purchase:exchange:export'" @click="debounceClick('export', handleExport)">
             <template #icon><ExportOutlined /></template>导出
           </a-button>
         </a-space>
@@ -159,7 +162,9 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, SyncOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import type { Dayjs } from 'dayjs'
@@ -263,7 +268,7 @@ const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'exchangeNo', label: '换货单号', type: 'input', placeholder: '请输入换货单号' },
   { name: 'originalOrderNo', label: '原采购订单', type: 'input', placeholder: '请输入原采购订单号' },
   { name: 'supplierId', label: '供应商', type: 'select', placeholder: '请选择供应商', options: [] },
@@ -298,7 +303,7 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'exchangeNo', title: '换货单号', width: 180 },
   { field: 'originalOrderNo', title: '原采购订单', width: 180 },
   { field: 'supplierName', title: '供应商', width: 120 },
@@ -458,7 +463,7 @@ const handleExport = () => {
   const rows = dataSource.value.map((row: PurchaseExchange) => [
     row.exchangeNo || '', row.originalOrderNo || '', row.supplierName || '', row.exchangeDate || '',
     getExchangeTypeText(row.exchangeType), row.totalAmount?.toFixed(2) || '',
-    getStatusText(row.status), row.createdByName || '', row.createTime || ''
+    getStatusText(row.status, RETURN_EXCHANGE_STATUS), row.createdByName || '', row.createTime || ''
   ])
   exportCsv(headers, rows, '采购换货单')
 }
@@ -652,6 +657,40 @@ defineExpose({ handleQuery: fetchData })
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

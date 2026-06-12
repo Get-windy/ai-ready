@@ -49,7 +49,7 @@ class StockCostAdjustServiceImplTest {
         testAdjust.setWarehouseId(10L);
         testAdjust.setAdjustType(1);
         testAdjust.setStatus(0);
-        testAdjust.setReasonType(1);
+        testAdjust.setReasonType("1");
         testAdjust.setReasonDesc("市场波动");
         testAdjust.setTotalAdjustAmount(BigDecimal.ZERO);
         testAdjust.setApplicantId(100L);
@@ -95,8 +95,8 @@ class StockCostAdjustServiceImplTest {
             StockCostAdjust adjust = new StockCostAdjust();
             adjust.setWarehouseId(10L);
             adjust.setAdjustType(1);
-            adjust.setAdjustDate(java.time.LocalDate.now());
-            adjust.setReasonType(2);
+            adjust.setAdjustDate(java.time.LocalDateTime.now());
+            adjust.setReasonType("2");
             adjust.setReasonDesc("供应商调价");
 
             StockCostAdjustItem item = new StockCostAdjustItem();
@@ -128,8 +128,8 @@ class StockCostAdjustServiceImplTest {
         assertEquals(3, result.getStatus());
         // 价差 = (12 - 10) * 100 = 200
         assertEquals(new BigDecimal("200.00"), result.getTotalAdjustAmount());
-        verify(adjustItemMapper).updateById(argThat(item ->
-                ((StockCostAdjustItem) item).getDiffAmount().compareTo(new BigDecimal("200")) == 0));
+        verify(adjustItemMapper).updateById(argThat((StockCostAdjustItem item) ->
+                item.getDiffAmount().compareTo(new BigDecimal("200")) == 0));
     }
 
     @Test

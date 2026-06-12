@@ -84,13 +84,13 @@ const handleGenerate = async () => {
     const res = await reportApi.getBalanceSheet({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
     if (res.data) {
       balanceSheet.value = {
-        totalAssets: res.data.totalAssets || 0,
-        totalLiabilities: res.data.totalLiabilities || 0,
-        currentAssets: res.data.currentAssets || 0,
-        currentLiabilities: res.data.currentLiabilities || 0,
-        fixedAssets: res.data.fixedAssets || 0,
-        nonCurrentLiabilities: res.data.nonCurrentLiabilities || 0,
-        equity: res.data.equity || 0
+        totalAssets: res.totalAssets || 0,
+        totalLiabilities: res.totalLiabilities || 0,
+        currentAssets: res.currentAssets || 0,
+        currentLiabilities: res.currentLiabilities || 0,
+        fixedAssets: res.fixedAssets || 0,
+        nonCurrentLiabilities: res.nonCurrentLiabilities || 0,
+        equity: res.equity || 0
       }
     }
     message.success('报表生成成功')

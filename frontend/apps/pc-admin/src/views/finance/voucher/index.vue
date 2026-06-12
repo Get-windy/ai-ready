@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="voucher-header">
@@ -19,6 +20,10 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          </span>
         </div>
       </div>
     </template>
@@ -65,6 +70,7 @@
 
           <VxeTableList
       ref="tableRef"
+      :min-empty-rows="12"
       :columns="vxeColumns"
       :data-source="tableData"
       :loading="loading"
@@ -96,17 +102,17 @@
       <template #action="{ record }">
         <a-space :size="4">
           <a-tooltip title="查看详情">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button v-permission="'finance:voucher:view'" type="link" size="small" @click="handleView(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 'draft'" title="审核">
-            <a-button type="link" size="small" @click="handleAudit(record)">
+            <a-button v-permission="'finance:voucher:audit'" type="link" size="small" @click="handleAudit(record)">
               <template #icon><CheckCircleOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 'audited'" title="过账">
-            <a-button type="link" size="small" @click="handlePost(record)">
+            <a-button v-permission="'finance:voucher:post'" type="link" size="small" @click="handlePost(record)">
               <template #icon><SendOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -116,14 +122,14 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
-                <a-menu-item v-if="record.status === 'draft'" key="audit">
+              <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
+                <a-menu-item v-permission="'finance:voucher:audit'" v-if="record.status === 'draft'" key="audit">
                   <CheckCircleOutlined /> 审核
                 </a-menu-item>
-                <a-menu-item v-if="record.status === 'audited'" key="post">
+                <a-menu-item v-permission="'finance:voucher:post'" v-if="record.status === 'audited'" key="post">
                   <SendOutlined /> 过账
                 </a-menu-item>
-                <a-menu-item v-if="record.status === 'posted'" key="reverse">
+                <a-menu-item v-permission="'finance:voucher:reverse'" v-if="record.status === 'posted'" key="reverse">
                   <RollbackOutlined /> 冲销
                 </a-menu-item>
               </a-menu>
@@ -204,7 +210,7 @@
           <VxeTableList
             :columns="entryColumns"
             :data-source="addForm.entries"
-            :pagination="false"
+            :pagination="false as any"
             row-key="tempId"
             :show-toolbar="false"
             :selectable="false"
@@ -239,7 +245,7 @@
                 placeholder="0.00"
               />
             </template>
-            <template #actionCell="{ record, rowIndex }">
+            <template #actionCell="{ record, rowIndex }: any">
               <a-button type="link" size="small" danger @click="handleRemoveEntry(rowIndex)">
                 <DeleteOutlined />
               </a-button>
@@ -288,7 +294,7 @@
           <VxeTableList
             :columns="entryViewColumns"
             :data-source="currentVoucher.entries || []"
-            :pagination="false"
+            :pagination="false as any"
             row-key="id"
             :show-toolbar="false"
             :selectable="false"
@@ -350,10 +356,12 @@
       </a-modal>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -365,7 +373,8 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { voucherApi } from '@/api/finance'
 
 const debounceMap = new Map<string, number>()
@@ -516,7 +525,7 @@ const addForm = reactive({
 
 const addFormRules = {
   voucherDate: [{ required: true, message: '请选择凭证日期', trigger: 'change' }]
-}
+} as any
 
 const initialFormSnapshot = ref('')
 function saveFormSnapshot() {
@@ -568,8 +577,8 @@ const fetchData = async () => {
 
     const res = await voucherApi.getPage(params)
     if (res.data) {
-      tableData.value = res.data.records || res.data.list || []
-      pagination.total = res.data.total || 0
+      tableData.value = res.records || res.list || []
+      pagination.total = res.total || 0
       lastUpdated.value = new Date().toISOString()
     }
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
@@ -861,6 +870,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -1080,4 +1091,55 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

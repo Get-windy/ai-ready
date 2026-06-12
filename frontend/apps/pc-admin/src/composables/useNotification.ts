@@ -54,8 +54,8 @@ export function useNotification() {
       unreadCount.value = countRes.data?.total ?? 0
 
       const listRes = await notificationApi.getList({ pageNum: 1, pageSize: 10 })
-      if (listRes.data && Array.isArray(listRes.data)) {
-        notifications.value = listRes.data.map((n: NotificationInfo) => ({
+      if (res && Array.isArray(res)) {
+        notifications.value = res.map((n: NotificationInfo) => ({
           id: String(n.id),
           type: mapApiType(n.type),
           title: n.title,

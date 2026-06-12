@@ -160,7 +160,7 @@ export function preloadImages(
   
   return new Promise((resolve, reject) => {
     const queue = [...urls]
-    const loading = new Set<Promise<string>>()
+    const loading = new Set<Promise<any>>()
     
     const loadNext = () => {
       while (queue.length > 0 && loading.size < concurrency) {

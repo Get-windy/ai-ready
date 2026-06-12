@@ -246,3 +246,5 @@ public class MessageWebSocketHandler extends TextWebSocketHandler {
         } catch (IOException e) {
             log.warn("关闭WebSocket连接失败", e);
         }
+    }
+}

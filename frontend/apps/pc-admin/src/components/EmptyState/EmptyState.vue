@@ -106,15 +106,19 @@ const emit = defineEmits<{
   'add': []
 }>()
 
+// 使用 Fallback 图标组件（SVG 全局变量可能不存在）
+import { InboxOutlined, WarningOutlined, LockOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
+
 // 计算图片组件
 const imageComponent = computed(() => {
+  // 尝试使用全局 SVG 变量，如果不存在则使用 fallback
   const images: Record<string, object> = {
-    'default': Standard中图,
-    'simple': EmptySimple,
-    'error': NetworkError,
-    'permission': NoPermission,
-    'no-data': NoData,
-    'custom': Standard中图
+    'default': typeof Standard中图 !== 'undefined' ? Standard中图 : InboxOutlined,
+    'simple': typeof EmptySimple !== 'undefined' ? EmptySimple : InboxOutlined,
+    'error': typeof NetworkError !== 'undefined' ? NetworkError : WarningOutlined,
+    'permission': typeof NoPermission !== 'undefined' ? NoPermission : LockOutlined,
+    'no-data': typeof NoData !== 'undefined' ? NoData : FileSearchOutlined,
+    'custom': typeof Standard中图 !== 'undefined' ? Standard中图 : InboxOutlined
   }
 
   return images[props.image] || images['default']

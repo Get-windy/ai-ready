@@ -53,18 +53,18 @@
       @export="handleExport"
     >
       <template #toolbar-actions>
-        <a-button size="small" :loading="importLoading" @click="debounceClick('import', handleImport)">
+        <a-button v-permission="'purchase:order:import'" size="small" :loading="importLoading" @click="debounceClick('import', handleImport)">
           <template #icon><ImportOutlined /></template>
           导入
         </a-button>
       </template>
 
       <template #batch-actions="{ selectedRows }">
-        <a-button size="small" type="primary" ghost @click="handleBatchApprove(selectedRows)">
+        <a-button v-permission="'purchase:order:approve'" size="small" type="primary" ghost @click="handleBatchApprove(selectedRows)">
           <template #icon><CheckCircleOutlined /></template>
           批量审批
         </a-button>
-        <a-button size="small" @click="handleBatchClose(selectedRows)">
+        <a-button v-permission="'purchase:order:close'" size="small" @click="handleBatchClose(selectedRows)">
           <template #icon><StopOutlined /></template>
           批量关闭
         </a-button>
@@ -96,7 +96,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                 <a-menu-item v-if="record.status === 0" key="submit">
                   <CheckCircleOutlined /> 提交审核
                 </a-menu-item>
@@ -682,4 +682,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

@@ -98,7 +98,7 @@
           :columns="vxeColumns"
           :data-source="dataSource"
           :loading="loading"
-          :pagination="false"
+          :pagination="false as any"
           row-key="id"
           :show-toolbar="false"
           :selectable="false"
@@ -163,12 +163,12 @@ const chartRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
 
 const queryParams = reactive({
-  dateRange: [] as string[],
+  dateRange: [] as any,
   category: undefined as string | undefined,
   rankLimit: 10
 })
 
-const vxeColumns = [
+const vxeColumns: any = [
   { field: 'rank', title: '排名', width: 80, align: 'center', slotName: 'rankCell' },
   { field: 'name', title: '商品名称', width: 200, slotName: 'nameCell' },
   { field: 'totalAmount', title: '销售总额', width: 140, align: 'right', slotName: 'totalAmountCell' },

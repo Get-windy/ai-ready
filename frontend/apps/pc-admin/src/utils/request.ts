@@ -14,6 +14,7 @@ NProgress.configure({ showSpinner: false, minimum: 0.1 })
 
 /** 统一响应结构 */
 export interface ApiResponse<T = any> {
+  success: boolean
   code: number
   message: string
   data: T
@@ -111,13 +112,17 @@ service.interceptors.request.use(
       console.warn(`${R} Token已过期, 尝试刷新: ${url}`)
       return refreshTokenAndRetry((newToken) => {
         config.headers.Authorization = `Bearer ${newToken}`
-        return config
+        return Promise.resolve(config)
       })
     }
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // 添加 tenantId 请求头（从 localStorage 或默认值获取）
+    const tenantId = localStorage.getItem('tenantId') || '1'
+    config.headers.tenantId = tenantId
 
     // 请求开始：启动进度条
     NProgress.start()
@@ -177,7 +182,7 @@ service.interceptors.response.use(
     const { code, message: msg, data } = response.data
 
     if (code === 200) {
-      return response.data as any
+      return data as any
     }
 
     // 业务错误：401 → Token 刷新 或 被踢下线
@@ -248,7 +253,7 @@ service.interceptors.response.use(
       const shouldRetry = userConfig.shouldRetry ?? defaultRetryConfig.shouldRetry
       const retryCondition = userConfig.retryCondition ?? defaultRetryConfig.retryCondition
 
-      const isRetryAllowed = shouldRetry(config)
+      const isRetryAllowed = shouldRetry(config as InternalAxiosRequestConfig)
       const matchesRetryCondition = retryCondition(error)
       const retryCount = config._retryCount || 0
 
@@ -382,6 +387,10 @@ export const request = {
       } else {
         // 这是 params
         params = paramsOrOptions
+        // 兼容 { params: { ... } } 包装模式（部分代码误用了这种写法）
+        if (params && typeof params === 'object' && 'params' in params && !opts?.params) {
+          params = params.params
+        }
         opts = options
       }
     } else {

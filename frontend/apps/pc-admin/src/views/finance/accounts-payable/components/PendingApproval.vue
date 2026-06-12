@@ -111,7 +111,7 @@ function handleParentCreate() {
 function isInput(target: Element | null): boolean {
   if (!target) return false
   const tag = target.tagName.toLowerCase()
-  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || (target as HTMLElement).isContentEditable
 }
 
 function handleKeydown(e: KeyboardEvent) {

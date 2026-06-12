@@ -26,6 +26,7 @@
     "lodash-es": "^4.17.21",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
+    "playwright": "^1.60.0",
     "vue": "^3.4.0",
     "vue-echarts": "^8.0.1",
     "vue-i18n": "^9.14.5",

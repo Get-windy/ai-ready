@@ -40,6 +40,27 @@ export interface SalesOrder {
   createTime: string
   updateTime: string
   details?: OrderDetail[]
+  // 扩展字段（API 返回的可选数据）
+  paymentMethod?: string
+  paymentStatus?: number
+  paidAmount?: number
+  attachments?: string[]
+  submitTime?: string
+  submitterName?: string
+  approveTime?: string
+  approverName?: string
+  shipTime?: string
+  shipperName?: string
+  completeTime?: string
+  outboundId?: number
+  outboundNo?: string
+  outboundStatus?: number
+  receiptId?: number
+  receiptNo?: string
+  receiptStatus?: number
+  invoiceId?: number
+  invoiceNo?: string
+  invoiceStatus?: number
 }
 
 /**
@@ -53,13 +74,39 @@ export interface PurchaseOrder {
   supplierName: string
   orderDate: string
   deliveryDate: string
+  expectedDate: string
   status: number
   totalAmount: number
+  taxAmount: number
+  totalAmountWithTax: number
   purchaser: string
   purchaserId: number
   remark: string
   createTime: string
   updateTime: string
+  details?: PurchaseOrderDetail[]
+  // 扩展字段
+  paymentMethod?: string
+  paymentStatus?: number
+  paymentId?: number
+  paymentNo?: string
+  paidAmount?: number
+  inboundNo?: string
+  inboundStatus?: number
+  submitTime?: string
+  submitterName?: string
+}
+
+/**
+ * 采购订单明细
+ */
+export interface PurchaseOrderDetail {
+  id: number
+  productId: number
+  productName: string
+  quantity: number
+  price: number
+  amount: number
 }
 
 /**

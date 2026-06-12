@@ -18,11 +18,17 @@ public interface ProductMapper extends BaseMapper<Product> {
     /**
      * 分页查询产品(带分类名和等级名)
      */
-    @Select("SELECT p.*, pc.category_name, pg.grade_name " +
+    @Select("<script>" +
+            "SELECT p.*, pc.category_name, pg.grade_name " +
             "FROM erp_product p " +
             "LEFT JOIN erp_product_category pc ON p.category_id = pc.id AND pc.deleted = 0 " +
             "LEFT JOIN erp_product_grade pg ON p.product_grade_id = pg.id AND pg.deleted = 0 " +
-            "${ew.customSqlSegment}")
+            "WHERE p.deleted = 0 " +
+            "<if test='ew != null and ew.sqlSegment != null and ew.sqlSegment != \"\"'>" +
+            "AND ${ew.sqlSegment}" +
+            "</if>" +
+            "ORDER BY p.create_time DESC" +
+            "</script>")
     @Results(id = "productWithRelation", value = {
             @Result(column = "id", property = "id"),
             @Result(column = "category_name", property = "categoryName"),

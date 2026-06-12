@@ -11,14 +11,24 @@
           <h2 class="chain-page-header-title">打印链管理</h2>
         </div>
         <div class="chain-page-header-right">
+          <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="chain-management">
       <VxeTableList
         ref="tableRef"
@@ -31,6 +41,7 @@
         :show-search="false"
         :selectable="false"
         add-text="新增打印链"
+        :min-empty-rows="12"
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDeleteConfirm"
@@ -50,7 +61,7 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleEdit(record)">
+            <a-button type="link" size="small" v-permission="'printing:chain:edit'" @click="handleEdit(record)">
               编辑
             </a-button>
             <a-button
@@ -60,7 +71,7 @@
             >
               {{ record.status === 'ACTIVE' ? '禁用' : '启用' }}
             </a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">
+            <a-button type="link" size="small" danger v-permission="'printing:chain:deleteconfirm'" @click="handleDeleteConfirm(record)">
               删除
             </a-button>
           </a-space>
@@ -132,7 +143,7 @@
                 v-if="formState.items.length > 0"
                 :data-source="formState.items"
                 :columns="stepColumns"
-                :pagination="false"
+                :pagination="false as any"
                 :row-key="'_key'"
                 size="small"
                 bordered
@@ -150,7 +161,7 @@
                       :options="templateOptions"
                       show-search
                       option-filter-prop="label"
-                      @change="onStepTemplateChange(record)"
+                      @change="onStepTemplateChange(record as any)"
                     />
                   </template>
                   <template v-else-if="column.key === 'clientId'">
@@ -161,7 +172,7 @@
                       :options="clientOptions"
                       show-search
                       option-filter-prop="label"
-                      @change="onStepClientChange(record)"
+                      @change="onStepClientChange(record as any)"
                     />
                   </template>
                   <template v-else-if="column.key === 'printerName'">
@@ -176,7 +187,7 @@
                       placeholder="请选择模式"
                       style="width: 100%"
                       :options="screenshotModeOptions"
-                      @change="onScreenshotModeChange(record)"
+                      @change="onScreenshotModeChange(record as any)"
                     />
                   </template>
                   <template v-else-if="column.key === 'screenshotConfirmTimeout'">
@@ -209,6 +220,7 @@
         </a-form>
       </FullScreenDetail>
     </div>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
@@ -217,9 +229,11 @@ import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { printingApi } from '@/api/printing'
 import type {
   PrintChainVO,
@@ -274,7 +288,7 @@ const stepColumns = [
   { title: '截图模式', key: 'screenshotMode', width: 130 },
   { title: '确认超时(秒)', key: 'screenshotConfirmTimeout', width: 110 },
   { title: '操作', key: 'action', width: 60, align: 'center' },
-]
+] as any
 
 // ────────────────────────────
 // 状态
@@ -284,6 +298,8 @@ const tableRef = ref<any>(null)
 const tableData = ref<PrintChainVO[]>([])
 const loading = ref(false)
 const refreshLoading = ref(false)
+const lastUpdateTime = ref('')
+const autoRefreshCountdown = ref(0)
 
 // 模板 & 客户端选项（用于步骤编辑器的选择器）
 const templateOptions = ref<{ label: string; value: number }[]>([])
@@ -406,7 +422,7 @@ const formRules = {
   pageCode: { required: true, message: '请输入页面编码', trigger: 'blur' },
   chainName: { required: true, message: '请输入打印链名称', trigger: 'blur' },
   sortOrder: { type: 'number' as const, message: '排序号必须为数字', trigger: 'blur' },
-}
+} as any
 
 // ────────────────────────────
 // 数据加载
@@ -421,8 +437,8 @@ const fetchData = async () => {
       pageCode: searchForm.pageCode,
     })
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     tableData.value = []
@@ -431,6 +447,7 @@ const fetchData = async () => {
   } finally {
     loading.value = false
     refreshLoading.value = false
+    lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
   }
 }
 
@@ -438,7 +455,7 @@ const fetchTemplateOptions = async () => {
   try {
     const res = await printingApi.getTemplates({ page: 1, size: 9999 })
     if (res.data) {
-      templateOptions.value = res.data.records.map((t: PrintTemplateVO) => ({
+      templateOptions.value = res.records.map((t: PrintTemplateVO) => ({
         label: t.templateName,
         value: t.templateId,
       }))
@@ -452,7 +469,7 @@ const fetchClientOptions = async () => {
   try {
     const res = await printingApi.getClients({ page: 1, size: 9999 })
     if (res.data) {
-      clientOptions.value = res.data.records.map((c: PrintClientVO) => ({
+      clientOptions.value = res.records.map((c: PrintClientVO) => ({
         label: c.clientName,
         value: c.clientId,
       }))
@@ -750,14 +767,27 @@ function handleKeydown(e: KeyboardEvent) {
 // 生命周期
 // ────────────────────────────
 
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   fetchData()
   fetchTemplateOptions()
   fetchClientOptions()
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
+    fetchData()
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+  if (countdownTimer) clearInterval(countdownTimer)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -842,4 +872,89 @@ defineExpose({ handleQuery: fetchData })
 :deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
 :deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 更新时间显示 ──────────────────────── */
+.update-time {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ── 自动刷新倒计时 ──────────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

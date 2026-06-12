@@ -51,7 +51,7 @@ public class TenantRegistrationController {
     @SaCheckLogin
     @SaCheckPermission("system:tenant:approve")
     @Operation(summary = "审批通过租户", description = "系统管理员审批通过租户注册申请，自动初始化租户环境")
-    public Result<Void> approve(@PathVariable Long id,
+    public Result<String> approve(@PathVariable Long id,
                                 @RequestBody(required = false) TenantRegisterDTO.Approve dto) {
         registrationService.approve(id, dto);
         return Result.ok("租户已审批通过");
@@ -64,7 +64,7 @@ public class TenantRegistrationController {
     @SaCheckLogin
     @SaCheckPermission("system:tenant:approve")
     @Operation(summary = "驳回租户注册", description = "系统管理员驳回租户注册申请")
-    public Result<Void> reject(@PathVariable Long id,
+    public Result<String> reject(@PathVariable Long id,
                                @Valid @RequestBody TenantRegisterDTO.Reject dto) {
         registrationService.reject(id, dto);
         return Result.ok("租户注册已驳回");

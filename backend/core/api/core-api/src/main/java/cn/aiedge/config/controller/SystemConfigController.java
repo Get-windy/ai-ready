@@ -25,6 +25,19 @@ public class SystemConfigController {
 
     private final SystemConfigService configService;
 
+    @GetMapping("/page")
+    @SaCheckPermission("system:config:list")
+    @Operation(summary = "分页查询配置")
+    public ResponseEntity<Map<String, Object>> getConfigPage(
+            @RequestParam(required = false) String configType,
+            @RequestParam(required = false) String configGroup,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
+        List<SystemConfig> configs = configService.getConfigList(configType, configGroup, tenantId);
+        return ResponseEntity.ok(Map.of("records", configs, "total", configs.size(), "current", pageNum, "size", pageSize, "pages", 1L));
+    }
+
     @GetMapping("/list")
     @SaCheckPermission("system:config:list")
     @Operation(summary = "获取配置列表")

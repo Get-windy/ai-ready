@@ -1,0 +1,231 @@
+{
+  "timestamp": "2026-06-12T00:36:44.563Z",
+  "summary": {
+    "totalPages": 20,
+    "totalErrors": 11,
+    "errorTypes": {
+      "auth": 1,
+      "api": 10
+    }
+  },
+  "errors": [
+    {
+      "type": "auth",
+      "page": "/login",
+      "message": "登录失败: 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.339Z"
+    },
+    {
+      "type": "api",
+      "page": "/api/menu/user/client/pc-admin",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.356Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/sys/user/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.570Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/sys/role/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.785Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/sys/menu/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.001Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/erp/product/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.215Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/erp/partner/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.431Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/erp/stock/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.649Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/crm/customer/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.865Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/finance/receivable/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:44.081Z",
+      "status": 500
+    },
+    {
+      "type": "api",
+      "page": "/api/system/config/list",
+      "message": "服务器错误 (500): 系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:44.293Z",
+      "status": 500
+    }
+  ],
+  "pageResults": [
+    {
+      "endpoint": "/api/menu/user/client/pc-admin",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.355Z"
+    },
+    {
+      "endpoint": "/api/sys/user/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.570Z"
+    },
+    {
+      "endpoint": "/api/sys/role/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:42.784Z"
+    },
+    {
+      "endpoint": "/api/sys/menu/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.001Z"
+    },
+    {
+      "endpoint": "/api/erp/product/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.215Z"
+    },
+    {
+      "endpoint": "/api/erp/partner/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.431Z"
+    },
+    {
+      "endpoint": "/api/erp/stock/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.649Z"
+    },
+    {
+      "endpoint": "/api/crm/customer/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:43.864Z"
+    },
+    {
+      "endpoint": "/api/finance/receivable/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:44.080Z"
+    },
+    {
+      "endpoint": "/api/system/config/list",
+      "status": 500,
+      "success": false,
+      "message": "系统异常，请稍后重试",
+      "timestamp": "2026-06-12T00:36:44.292Z"
+    },
+    {
+      "page": "/",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.507Z"
+    },
+    {
+      "page": "/login",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.513Z"
+    },
+    {
+      "page": "/dashboard",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.519Z"
+    },
+    {
+      "page": "/sale",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.527Z"
+    },
+    {
+      "page": "/purchase",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.535Z"
+    },
+    {
+      "page": "/stock",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.541Z"
+    },
+    {
+      "page": "/erp/product",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.546Z"
+    },
+    {
+      "page": "/crm/customer",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.550Z"
+    },
+    {
+      "page": "/finance",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.555Z"
+    },
+    {
+      "page": "/system/user",
+      "status": 200,
+      "success": true,
+      "hasContent": true,
+      "timestamp": "2026-06-12T00:36:44.559Z"
+    }
+  ]
+}

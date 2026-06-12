@@ -16,6 +16,7 @@ import cn.aiedge.erp.b2b.model.ShopConfig;
 import cn.aiedge.erp.b2b.model.ShopTemplate;
 import cn.aiedge.erp.b2b.model.ShopUser;
 import cn.aiedge.erp.b2b.service.MallAdminService;
+import cn.aiedge.base.security.SecurityContext;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -37,9 +38,10 @@ public class MallAdminServiceImpl implements MallAdminService {
     private final MallProductMapper mallProductMapper;
     private final MallOrderMapper mallOrderMapper;
     private final MallOrderItemMapper mallOrderItemMapper;
+    private final SecurityContext securityContext;
 
     private Long getCurrentTenantId() {
-        return StpUtil.getLoginIdAsLong();
+        return securityContext.getCurrentTenantId();
     }
 
     // ==================== 商城配置 ====================

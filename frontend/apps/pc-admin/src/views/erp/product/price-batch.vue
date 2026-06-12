@@ -18,25 +18,23 @@
             <a-button size="small" :loading="loading" @click="debounceClick('refresh', fetchProducts)">
               <ReloadOutlined /> 刷新
             </a-button>
+          
+                <span class="shortcut-hints">
+                  <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                </span>
           </a-space>
         </div>
       </div>
-    </template>
 
-    <!-- ==================== 公式计算面板 ==================== -->
-    <a-card class="formula-card" :class="{ 'formula-card--collapsed': formulaCollapsed }">
-      <div class="formula-header" @click="formulaCollapsed = !formulaCollapsed">
-        <span class="formula-title">
-          <FunctionOutlined /> 自动计算公式
-          <a-tag v-if="!formulaCollapsed" color="blue" style="margin-left: 8px;">预览模式</a-tag>
-        </span>
         <a-space>
           <a-button v-permission="'erp:product:batch-price'" v-if="!formulaCollapsed" type="primary" size="small" :disabled="selectedKeys.length === 0" @click.stop="applyFormula">
             <CheckOutlined /> 应用到选中行 ({{ selectedKeys.length }})
           </a-button>
           <CaretDownOutlined :class="{ 'rotate-180': formulaCollapsed }" style="transition: transform 0.2s;" />
         </a-space>
-      </div>
+      </template>
+
+      <!-- PageContainer 默认插槽内容 -->
       <div v-show="!formulaCollapsed" class="formula-body">
         <a-row :gutter="16" align="middle">
           <a-col :span="4">
@@ -145,7 +143,6 @@
           </div>
         </div>
       </div>
-    </a-card>
 
     <!-- ==================== 查询栏 ==================== -->
     <div class="search-bar">
@@ -287,7 +284,7 @@ import {
   FunctionOutlined, CaretDownOutlined, EyeOutlined,
   CheckOutlined, FileTextOutlined, SyncOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { productApi, type Product } from '@/api/erp/product'
 import type { VxeTableInstance, VxeTableEvents } from 'vxe-table'
 
@@ -509,12 +506,12 @@ function applyFormula() {
 }
 
 // ── vxe-table 选中事件 ──
-const handleCheckboxChange: VxeTableEvents['checkboxChange'] = (params) => {
+const handleCheckboxChange = (params: any) => {
   selectedKeys.value = params.checkedRows.map((r: { id: number }) => r.id)
   selectedRows.value = params.checkedRows as ProductRow[]
 }
 
-const handleCheckboxAll: VxeTableEvents['checkboxAll'] = (params) => {
+const handleCheckboxAll = (params: any) => {
   if (params.checked) {
     selectedKeys.value = products.value.map(r => r.id)
     selectedRows.value = [...products.value]
@@ -602,7 +599,7 @@ async function fetchProducts() {
       status: statusFilter.value || undefined,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
-    })
+    } as any)
     products.value = (res.records || []).map(r => ({ ...r, _dirty: false }))
     pagination.total = res.total || 0
     lastUpdateTime.value = new Date().toLocaleString('zh-CN')
@@ -840,4 +837,39 @@ defineExpose({ fetchData: fetchProducts })
   color: #999;
   white-space: nowrap;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

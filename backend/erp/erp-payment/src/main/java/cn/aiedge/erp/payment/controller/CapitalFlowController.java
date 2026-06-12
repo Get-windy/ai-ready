@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,8 +32,8 @@ public class CapitalFlowController {
             @Parameter(description = "方向: IN/OUT") @RequestParam(required = false) String direction,
             @Parameter(description = "对方类型") @RequestParam(required = false) String partyType,
             @Parameter(description = "对方ID") @RequestParam(required = false) Long partyId,
-            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDateTime startDate,
-            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDateTime endDate,
+            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDate endDate,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int pageNum,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") int pageSize) {
         Page<CapitalFlow> page = capitalFlowService.pageList(flowType, direction, partyType, partyId,
@@ -50,8 +50,8 @@ public class CapitalFlowController {
             @Parameter(description = "方向: IN/OUT") @RequestParam(required = false) String direction,
             @Parameter(description = "对方类型") @RequestParam(required = false) String partyType,
             @Parameter(description = "对方ID") @RequestParam(required = false) Long partyId,
-            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDateTime startDate,
-            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDateTime endDate) {
+            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDate endDate) {
         return capitalFlowService.exportList(flowType, direction, partyType, partyId, startDate, endDate)
                 .stream().map(this::convertToDTO).collect(Collectors.toList());
     }
@@ -59,11 +59,9 @@ public class CapitalFlowController {
     @GetMapping("/statistics")
     @Operation(summary = "资金流水统计")
     public java.util.Map<String, Object> statistics(
-            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDateTime startDate,
-            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDateTime endDate) {
-        List<CapitalFlow> allFlows = capitalFlowService.lambdaQuery()
-                .eq(CapitalFlow::getDeleted, 0)
-                .list();
+            @Parameter(description = "开始日期") @RequestParam(required = false) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) LocalDate endDate) {
+        List<CapitalFlow> allFlows = capitalFlowService.list();
         java.math.BigDecimal totalIn = allFlows.stream()
                 .filter(f -> "IN".equals(f.getDirection()))
                 .map(CapitalFlow::getAmount)

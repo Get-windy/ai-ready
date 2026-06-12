@@ -10,6 +10,7 @@ import cn.aiedge.erp.stock.mapper.PricingRuleConfigMapper;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.mapper.PartnerMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -140,7 +141,7 @@ public class PricingController {
     @PostMapping("/price-memory")
     public Result<Boolean> recordPrice(@RequestBody PriceMemory priceMemory) {
         // 取消旧的最新标记
-        priceMemoryMapper.update(null, new QueryWrapper<PriceMemory>()
+        priceMemoryMapper.update(null, new UpdateWrapper<PriceMemory>()
                 .eq("product_id", priceMemory.getProductId())
                 .eq("partner_id", priceMemory.getPartnerId())
                 .eq("biz_type", priceMemory.getBizType())

@@ -1,5 +1,6 @@
 <template>
-  <div class="template-designer">
+  <ErrorBoundary>
+    <div class="template-designer">
     <!-- 顶部工具栏 -->
     <div class="designer-toolbar">
       <div class="toolbar-left">
@@ -43,14 +44,14 @@
       </div>
       <div class="toolbar-right">
         <a-space>
-          <a-button @click="handlePreview">
+          <a-button v-permission="'printing:designer:preview'" @click="handlePreview">
             <template #icon><EyeOutlined /></template>
             预览
           </a-button>
-          <a-button @click="handleSaveDraft">
+          <a-button v-permission="'printing:designer:savedraft'" @click="handleSaveDraft">
             保存草稿
           </a-button>
-          <a-button type="primary" @click="handlePublish">
+          <a-button type="primary" v-permission="'printing:designer:publish'" @click="handlePublish">
             发布
           </a-button>
         </a-space>
@@ -129,8 +130,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <div class="comp-content label-content">{{ comp.content || '标签' }}</div>
               <div v-if="selectedIndex === idx" class="resize-handle" @mousedown.stop="startResize($event, idx)" />
@@ -141,8 +142,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <div class="comp-content field-content">{{ comp.field || '字段名' }}</div>
               <div v-if="selectedIndex === idx" class="resize-handle" @mousedown.stop="startResize($event, idx)" />
@@ -153,8 +154,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <div class="comp-content table-content">
                 <table style="width: 100%; height: 100%; border-collapse: collapse;">
@@ -179,8 +180,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <div class="comp-content barcode-content">
                 <svg :width="comp.w" :height="comp.h" viewBox="0 0 100 40">
@@ -198,8 +199,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <div class="comp-content image-content">
                 <img v-if="comp.src" :src="comp.src" style="width: 100%; height: 100%; object-fit: contain;" alt="" />
@@ -213,8 +214,8 @@
               class="designer-component"
               :class="{ selected: selectedIndex === idx }"
               :style="getComponentStyle(comp)"
-              @mousedown.stop="onComponentMouseDown(idx, $event)"
-              @contextmenu.stop.prevent="onContextMenu($event, idx)"
+              @mousedown.stop="(e: any) => onComponentMouseDown(idx, e)"
+              @contextmenu.stop.prevent="(e: any) => onContextMenu(e, idx)"
             >
               <hr style="margin: 0; border-top: 1px solid #333;" />
               <div v-if="selectedIndex === idx" class="resize-handle" @mousedown.stop="startResize($event, idx)" />
@@ -398,7 +399,7 @@
     <a-menu
       v-if="contextMenuVisible"
       :style="{ position: 'fixed', left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px', zIndex: 1000 }"
-      @click="onContextMenuClick"
+      @click="onContextMenuClick as any"
     >
       <a-menu-item key="delete">
         <DeleteOutlined /> 删除
@@ -414,6 +415,7 @@
       </a-menu-item>
     </a-menu>
   </div>
+</ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -438,6 +440,7 @@ import {
   FontColorsOutlined,
 } from '@ant-design/icons-vue'
 import { printingApi } from '@/api/printing'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -677,7 +680,7 @@ function onDrop(event: DragEvent) {
 let dragState: { idx: number; startX: number; startY: number; compX: number; compY: number } | null = null
 let resizeState: { idx: number; startX: number; startY: number; compW: number; compH: number } | null = null
 
-function onComponentMouseDown(idx: number, event: MouseEvent) {
+function onComponentMouseDown(idx: number, event: any) {
   if (event.button !== 0) return
   const comp = templateJson.components[idx]
   dragState = {
@@ -849,7 +852,7 @@ function onLayerSelect(idx: number) {
 
 // ── 纸张设置 ────────────────────────────────────────────
 
-function getComponentStyle(comp: DesignerComponent) {
+function getComponentStyle(comp: DesignerComponent): any {
   const scale = zoomLevel.value / 100
   const pxPerMm = 3.75 * scale
   return {
@@ -994,7 +997,58 @@ function generateLocalPreview(): string {
     .page { position: relative; width: ${w}px; min-height: ${h}px;
             padding: ${templateJson.marginTop * pxPerMm}px ${templateJson.marginRight * pxPerMm}px ${templateJson.marginBottom * pxPerMm}px ${templateJson.marginLeft * pxPerMm}px;
             box-sizing: border-box; }
-  </style></head><body><div class="page">${componentsHtml}</div></body></html>`
+  
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+</style></head><body><div class="page">${componentsHtml}</div></body></html>`
 }
 
 async function showNamePrompt(): Promise<string | null> {
@@ -1018,7 +1072,7 @@ async function showNamePrompt(): Promise<string | null> {
   })
 }
 
-function h(tag: string, attrs: any, children?: any) {
+function h(tag: string, attrs: any, children?: any): any {
   // Simple stub - for Modal content rendering
   return { tag, attrs, children }
 }

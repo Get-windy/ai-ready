@@ -264,7 +264,10 @@ export function useFeatureFlags() {
 
   const result: Record<string, ReturnType<typeof computed<boolean>>> = {}
   for (const key of Object.keys(flags)) {
-    result[key] = computed(() => service.isEnabled(key, context))
+    result[key] = computed({
+      get: () => service.isEnabled(key, context),
+      set: () => {}
+    })
   }
 
   return result as Record<string, ComputedRef<boolean>>

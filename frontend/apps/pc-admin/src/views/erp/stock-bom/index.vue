@@ -18,6 +18,9 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
@@ -79,17 +82,17 @@
       <template #action="{ record }">
         <a-space :size="4">
           <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 0" title="启用">
-            <a-button type="link" size="small" style="color: #52c41a;" @click="handleEnable(record)">
+            <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:enable'" @click="handleEnable(record)">
               <template #icon><CheckOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-else-if="record.status === 1" title="停用">
-            <a-button type="link" size="small" style="color: #ff4d4f;" @click="handleDisable(record)">
+            <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:disable'" @click="handleDisable(record)">
               <template #icon><StopOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -98,7 +101,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
                 <a-menu-item key="edit" :disabled="record.status === 1">
                   <EditOutlined /> 编辑
                 </a-menu-item>
@@ -136,7 +139,7 @@
           <a-table
             :data-source="detailItems"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             bordered
             row-key="id"
@@ -153,11 +156,11 @@
       <template #footer v-if="detailData">
         <a-space>
           <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" type="primary" @click="handleEnable(detailData)">
+          <a-button v-if="detailData.status === 0" type="primary" v-permission="'erp:stock:enable'" @click="handleEnable(detailData)">
             <template #icon><CheckOutlined /></template>
             启用
           </a-button>
-          <a-button v-if="detailData.status === 1" danger @click="handleDisable(detailData)">
+          <a-button v-if="detailData.status === 1" danger v-permission="'erp:stock:disable'" @click="handleDisable(detailData)">
             <template #icon><StopOutlined /></template>
             停用
           </a-button>
@@ -232,7 +235,7 @@
       <a-table
         :data-source="createForm.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="tempId"
         style="margin-bottom: 12px;"
@@ -294,7 +297,7 @@ import {
   EllipsisOutlined, EyeOutlined, EditOutlined, CheckOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
@@ -380,7 +383,7 @@ const filterFields = computed(() => [
   ]}
 ])
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'bomNo', title: 'BOM编号', width: 150 },
   { field: 'bomName', title: 'BOM名称', width: 160 },
   { field: 'productCode', title: '成品编码', width: 120 },
@@ -485,7 +488,7 @@ const itemColumns = [
   { title: '操作', dataIndex: 'action', width: 60 }
 ]
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'spec', width: 100 },
@@ -898,6 +901,41 @@ defineExpose({ handleQuery: fetchData })
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

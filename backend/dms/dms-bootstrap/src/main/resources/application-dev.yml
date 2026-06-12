@@ -1,0 +1,21 @@
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ai_ready_dev?currentSchema=dms
+    username: postgres
+    password: postgres
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    cn.aiedge.dms: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+
+dms:
+  erp:
+    base-url: http://localhost:8080/api/erp
+  wms:
+    base-url: http://localhost:8081/api/wms

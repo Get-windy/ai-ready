@@ -9,11 +9,15 @@
         </div>
         <div class="page-header__right">
           <span v-if="lastUpdateTime" class="update-time">更新于: {{ lastUpdateTime }}</span>
-          <a-button size="small" @click="handleExport">
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+          </span>
+          <a-button v-permission="'pricing:export'" size="small" @click="debounceClick('export', handleExport)">
             <template #icon><ExportOutlined /></template>
             导出
           </a-button>
-          <a-button size="small" @click="handleImport">
+          <a-button v-permission="'pricing:import'" size="small" @click="handleImport">
             <template #icon><ImportOutlined /></template>
             导入
           </a-button>
@@ -94,15 +98,15 @@
         <a-card :title="`等级价格配置 - ${selectedGrade?.gradeName || ''}`" size="small">
           <template #extra>
             <a-space>
-              <a-button size="small" @click="handleExport">
+              <a-button v-permission="'pricing:export'" size="small" @click="debounceClick('export', handleExport)">
                 <template #icon><ExportOutlined /></template>
                 导出
               </a-button>
-              <a-button size="small" @click="handleImport">导入</a-button>
-              <a-button size="small" @click="handleShowComparison">对比等级</a-button>
-              <a-button size="small" @click="showSeasonalAdjustmentModal">季节性调价</a-button>
-              <a-button size="small" @click="showChangeHistoryDrawer = true">变更记录</a-button>
-              <a-button type="primary" size="small" :loading="saving" @click="handleSave">保存配置</a-button>
+              <a-button v-permission="'pricing:import'" size="small" @click="handleImport">导入</a-button>
+              <a-button v-permission="'pricing:compare'" size="small" @click="handleShowComparison">对比等级</a-button>
+              <a-button v-permission="'pricing:seasonal'" size="small" @click="showSeasonalAdjustmentModal">季节性调价</a-button>
+              <a-button v-permission="'pricing:history'" size="small" @click="showChangeHistoryDrawer = true">变更记录</a-button>
+              <a-button v-permission="'pricing:save'" type="primary" size="small" :loading="saving" @click="handleSave">保存配置</a-button>
             </a-space>
           </template>
           <EmptyState
@@ -151,7 +155,7 @@
                   <template #default="{ row }">{{ row.gradeOriginalPrice ? '¥' + row.gradeOriginalPrice.toFixed(2) : '-' }}</template>
                 </vxe-column>
                 <vxe-column field="price" title="客户等级售价" width="140" align="right" sortable
-                  :edit-render="{ name: 'input', type: 'number', props: { precision: 2, min: 0 } }">
+                  :edit-render="{ name: 'input', props: { type: 'number', precision: 2, min: 0 } }">
                   <template #default="{ row }">
                     <span :style="getPriceStyle(row)">{{ row.price != null ? '¥' + row.price.toFixed(2) : '-' }}</span>
                   </template>
@@ -207,6 +211,7 @@
         </a-form-item>
         <a-form-item label="调整值">
           <a-input-number v-model:value="adjustmentValue"
+            size="small"
             :precision="adjustmentType === 'fixed' ? 2 : 1"
             :min="0.01"
             :max="adjustmentType === 'fixed' ? 99999 : 100"
@@ -347,7 +352,7 @@
     <a-modal v-model:visible="seasonalAdjustmentVisible" title="季节性调价" @ok="applySeasonalAdjustment" destroy-on-close>
       <a-form layout="vertical">
         <a-form-item label="调价比例（%）">
-          <a-input-number v-model:value="seasonalPercentage" :min="0.1" :max="999" :precision="1" style="width: 100%" placeholder="输入调价百分比（正数为涨价）" />
+          <a-input-number v-model:value="seasonalPercentage" :min="0.1" :max="999" :precision="1" size="small" style="width: 100%" placeholder="输入调价百分比（正数为涨价）" />
         </a-form-item>
         <a-form-item label="生效等级">
           <a-checkbox-group v-model:value="seasonalGradeIds">
@@ -358,7 +363,7 @@
           </a-checkbox-group>
         </a-form-item>
         <a-form-item label="生效日期">
-          <a-date-picker v-model:value="seasonalEffectiveDate" value-format="YYYY-MM-DD" style="width: 100%" placeholder="选择生效日期" />
+          <a-date-picker v-model:value="seasonalEffectiveDate" value-format="YYYY-MM-DD" size="small" style="width: 100%" placeholder="选择生效日期" />
         </a-form-item>
         <a-alert
           v-if="seasonalPercentage > 0 && seasonalTargetCount > 0"
@@ -376,7 +381,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { ExportOutlined, SyncOutlined, ImportOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -481,7 +488,7 @@ const autoRefreshCountdown = ref(0)
 let refreshTimer: number | undefined
 let countdownTimer: number | undefined
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { field: 'keyword', placeholder: '搜索产品编码/名称', width: 220 },
 ]
 
@@ -683,8 +690,8 @@ async function loadProductGradePrices() {
   }
 }
 
-function onGradeSelect({ key }: { key: string }) {
-  selectedGradeKeys.value = [key]
+function onGradeSelect(e: any) {
+  selectedGradeKeys.value = [e.key]
   searchText.value = ''
   selectedRowIds.value = []
   loadProductGradePrices()
@@ -1022,7 +1029,8 @@ async function handleShowComparison(): Promise<void> {
       if (!productGradePriceMap.has(gp.productId)) {
         productGradePriceMap.set(gp.productId, new Map())
       }
-      productGradePriceMap.get(gp.productId)!.set(gp.gradeId, gp.price)
+      const g: any = gp
+      productGradePriceMap.get(g.productId)!.set(g.gradeId, g.price)
     })
 
     // Get all products
@@ -1258,4 +1266,55 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown); stop
   margin-top: 16px;
   text-align: right;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

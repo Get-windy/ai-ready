@@ -1,16 +1,20 @@
 package cn.aiedge.base.websocket;
 
-import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.exception.NotLoginException;
 
 /**
  * SSE 通知控制器
@@ -35,18 +39,30 @@ public class SseNotificationController {
     /**
      * 建立 SSE 连接（需登录）
      * <p>
-     * 前端通过 EventSource 连接此端点，建立连接后服务端可主动推送事件。
+     * 前端通过 EventSource 连接此端点（token 通过 URL 查询参数传递，
+     * 因为 EventSource API 不支持自定义请求头），建立连接后服务端可主动推送事件。
      * 主要事件类型：
      * - {@code connected} — 连接建立确认
      * - {@code cache-invalidate} — 缓存失效通知，前端应重新加载权限/角色
      * </p>
      */
     @GetMapping(value = "/notifications", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @SaCheckLogin
     @Operation(summary = "建立 SSE 通知连接", hidden = true)
-    public SseEmitter subscribe() {
-        Long userId = StpUtil.getLoginIdAsLong();
-        log.debug("用户 {} 请求建立 SSE 连接", userId);
-        return sseService.createEmitter(userId);
+    public SseEmitter subscribe(@RequestParam("token") String token, HttpServletRequest request) {
+        try {
+            // EventSource API 不支持自定义请求头，token 通过 URL 参数传递
+            Object loginId = StpUtil.getLoginIdByToken(token);
+            if (loginId != null) {
+                Long userId = Long.valueOf(loginId.toString());
+                log.debug("用户 {} 请求建立 SSE 连接", userId);
+                return sseService.createEmitter(userId);
+            }
+        } catch (NotLoginException e) {
+            log.debug("SSE token无效: {}", e.getMessage());
+        }
+        // token无效时返回空 SSE 流（正常 complete 避免 500 控制台错误）
+        SseEmitter emitter = new SseEmitter(0L);
+        emitter.complete();
+        return emitter;
     }
 }

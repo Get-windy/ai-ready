@@ -50,7 +50,7 @@ class StockSplitServiceImplTest {
         testSplit.setProductCode("P001");
         testSplit.setProductName("成品A");
         testSplit.setSplitQuantity(new BigDecimal("5"));
-        testSplit.setTotalCost(new BigDecimal("2500"));
+        testSplit.setOutputTotalCost(new BigDecimal("2500"));
         testSplit.setStatus(0);
         testSplit.setCreateTime(LocalDateTime.now());
     }

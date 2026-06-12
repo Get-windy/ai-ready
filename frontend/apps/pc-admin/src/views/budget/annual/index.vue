@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="annual-page-header">
@@ -18,6 +19,12 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>Ctrl+F</kbd> 搜索</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>F3</kbd> 搜索</span>
+          </span>
         </div>
       </div>
     </template>
@@ -55,6 +62,9 @@
         </div>
       </div>
 
+      <!-- 骨架屏 -->
+      <a-skeleton v-if="loading && tableData.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
+
       <VxeTableList
         ref="tableRef"
         :columns="vxeColumns"
@@ -67,6 +77,7 @@
         :show-export="true"
         :show-summary="true"
         :summary-data="summaryData"
+        :min-empty-rows="12"
         add-text="新建预算"
         @add="handleAdd"
         @cell-dblclick="handleView"
@@ -79,11 +90,11 @@
         @batch-delete="handleBatchDelete"
       >
         <template #batch-actions="{ selectedRows: rows }">
-          <a-button size="small" @click="handleBatchSubmit(rows)" :disabled="!canBatchSubmit(rows)">
+          <a-button size="small" v-permission="'budget:plan:batchsubmit'" @click="handleBatchSubmit(rows)" :disabled="!canBatchSubmit(rows)">
             <template #icon><CheckCircleOutlined /></template>
             批量提交
           </a-button>
-          <a-button size="small" @click="handleBatchDelete(rows)" :disabled="rows.length === 0">
+          <a-button size="small" v-permission="'budget:plan:batchdelete'" @click="handleBatchDelete(rows)" :disabled="rows.length === 0">
             <template #icon><DeleteOutlined /></template>
             批量删除
           </a-button>
@@ -104,12 +115,12 @@
         <template #action="{ record }">
           <a-space :size="0" class="action-cell-inner">
             <a-tooltip title="查看">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'budget:plan:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 'draft'" title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
+              <a-button type="link" size="small" v-permission="'budget:plan:edit'" @click="handleEdit(record)">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -119,7 +130,7 @@
                   <template #icon><EllipsisOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                     <a-menu-item v-if="record.status === 'draft'" key="submit">
                       <CheckCircleOutlined /> 提交
                     </a-menu-item>
@@ -174,6 +185,7 @@
         :title="isEdit ? '编辑年度预算' : '新建年度预算'"
         :save-loading="submitLoading"
         :show-save-and-new="!isEdit"
+        :dirty="formDirty"
         @close="handleFormClose"
         @save="handleFormSubmit"
         @save-and-new="handleFormSaveAndNew"
@@ -224,7 +236,7 @@
           <VxeTableList
             :data-source="formData.items"
             :columns="itemColumns"
-            :pagination="false"
+            :pagination="false as any"
             row-key="rowKey"
             :show-toolbar="false"
             :selectable="false"
@@ -262,7 +274,7 @@
         <VxeTableList
           :data-source="templateList"
           :columns="templateVxeColumns"
-          :pagination="false"
+          :pagination="false as any"
           :loading="templateLoading"
           row-key="id"
           :show-toolbar="false"
@@ -276,10 +288,12 @@
       </a-modal>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRoute } from 'vue-router'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
@@ -290,7 +304,8 @@ import {
   SearchOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { annualBudgetApi, budgetTemplateApi, type AnnualBudget, type BudgetItem } from '@/api/budget'
 
 const route = useRoute()
@@ -334,7 +349,7 @@ const hasActiveFilters = computed(() => {
 const tableRef = ref()
 const tableData = ref<AnnualBudget[]>([])
 const loading = ref(false)
-const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
+const pagination = ref({ current: 1, pageSize: 20, total: 0 })
 const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
@@ -513,18 +528,18 @@ const loadData = async () => {
       fiscalYear: searchFilters.fiscalYear || undefined,
       departmentId: searchFilters.departmentId || undefined,
       status: searchFilters.status || undefined,
-      pageNum: pagination.current - 1,
-      pageSize: pagination.pageSize,
+      pageNum: pagination.value.current - 1,
+      pageSize: pagination.value.pageSize,
     })
-    if (res.success) {
-      tableData.value = res.data.records || []
-      pagination.total = res.data.total || 0
+    if (res.code === 200) {
+      tableData.value = res.records || []
+      pagination.value.total = res.total || 0
     }
   } catch {
     hasError.value = true
     console.warn('[年度预算] 加载数据失败')
     tableData.value = []
-    pagination.total = 0
+    pagination.value.total = 0
   } finally {
     loading.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN')
@@ -532,11 +547,11 @@ const loadData = async () => {
   }
 }
 
-const handleSearch = () => { pagination.current = 1; loadData() }
+const handleSearch = () => { pagination.value.current = 1; loadData() }
 
 function handleFilterChange(filters: Record<string, any>) {
   Object.assign(searchFilters, filters)
-  pagination.current = 1
+  pagination.value.current = 1
   loadData()
 }
 
@@ -546,15 +561,15 @@ const handleSelectionChange = (rows: AnnualBudget[], ids: number[]) => {
 }
 
 const handlePageChange = (page: number, size: number) => {
-  pagination.current = page
-  pagination.pageSize = size
+  pagination.value.current = page
+  pagination.value.pageSize = size
   loadData()
 }
 
 function handleResetFilters() {
   Object.keys(searchFilters).forEach(k => { searchFilters[k] = undefined as any })
   searchFilters.keyword = ''
-  pagination.current = 1
+  pagination.value.current = 1
   loadData()
 }
 
@@ -586,7 +601,7 @@ const handleAdd = () => {
 const handleEdit = async (record: AnnualBudget) => {
   try {
     const res = await annualBudgetApi.getById(record.id)
-    if (res.success) {
+    if (res.code === 200) {
       const d = res.data
       formData.id = d.id
       formData.budgetNo = d.budgetNo
@@ -615,15 +630,8 @@ const handleView = (record: AnnualBudget) => {
 
 // ── 表单操作 ────────────────────────────────────────────
 function handleFormClose() {
-  if (formRef.value && formDirty.value) {
-    Modal.confirm({
-      title: '确认关闭',
-      content: '当前表单有未保存的内容，确定关闭吗？',
-      onOk: () => { formVisible.value = false }
-    })
-  } else {
-    formVisible.value = false
-  }
+  // FullScreenDetail handles dirty confirmation via :dirty prop
+  formVisible.value = false
 }
 
 async function handleFormSaveAndNew() {
@@ -752,8 +760,8 @@ async function handleExport() {
       departmentId: searchFilters.departmentId || undefined,
       status: searchFilters.status || undefined,
     })
-    if (res.success && res.data?.length) {
-      const csv = res.data.map((r: any) => `${r.budgetNo},${r.departmentName},${r.fiscalYear},${r.totalAmount},${r.status},${r.createdAt}`).join('\n')
+    if (res.code === 200 && res.data?.length) {
+      const csv = res.map((r: any) => `${r.budgetNo},${r.departmentName},${r.fiscalYear},${r.totalAmount},${r.status},${r.createdAt}`).join('\n')
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -822,7 +830,7 @@ const handleCreateFromTemplate = async () => {
   templateSelectedKeys.value = []
   try {
     const res = await budgetTemplateApi.listByYear(new Date().getFullYear())
-    if (res.success) {
+    if (res.code === 200) {
       templateList.value = res.data || []
     }
     templateModalVisible.value = true
@@ -844,7 +852,7 @@ const handleTemplateSelectOk = async () => {
   templateModalVisible.value = false
   try {
     const res = await budgetTemplateApi.getById(templateId)
-    if (res.success) {
+    if (res.code === 200) {
       const t = res.data
       resetForm()
       formData.templateId = t.id
@@ -899,7 +907,7 @@ onMounted(() => {
     const editId = Number(route.query.edit)
     if (editId) {
       annualBudgetApi.getById(editId).then(res => {
-        if (res.success) handleEdit(res.data)
+        if (res.code === 200) handleEdit(res.data)
       })
     }
   }
@@ -926,6 +934,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: loadData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -1076,4 +1086,54 @@ defineExpose({ handleQuery: loadData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态包装 ──────────────────────── */
+.empty-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  min-height: 120px;
+}
+
+/* ── 表头 2px 分割线 ──────────────────────── */
+.annual-management :deep(.vxe-table-list-container .vxe-header--row .vxe-header--column) {
+  border-bottom: 2px solid #d0d5dd !important;
+}
+
 </style>

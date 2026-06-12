@@ -46,6 +46,15 @@ public class PartnerController {
         return Result.ok(partnerService.search(keyword, partnerType));
     }
 
+    @Operation(summary = "获取往来单位列表(不分页)")
+    @GetMapping("/list")
+    public Result<List<Partner>> list(
+            @RequestParam(required = false) String partnerType,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, defaultValue = "200") Integer pageSize) {
+        return Result.ok(partnerService.getPartnerList(partnerType, status, pageSize));
+    }
+
     @Operation(summary = "新增往来单位")
     @PostMapping
     public Result<Boolean> create(@RequestBody Partner partner) {

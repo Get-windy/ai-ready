@@ -16,6 +16,11 @@
           <a-button size="small" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+          </span>
         </a-space>
       </template>
 
@@ -72,6 +77,7 @@
         :filter-fields="filterFields"
         :selectable="true"
         add-text="新建采购单"
+        add-permission="purchase:order:create"
         @add="handleCreate"
         @refresh="fetchData"
         @search="handleSearch"
@@ -82,7 +88,7 @@
       >
         <template #toolbar-actions>
           <a-tooltip title="导出">
-            <a-button size="small" @click="handleExport">
+            <a-button v-permission="'purchase:order:export'" size="small" @click="debounceClick('export', handleExport)">
               <template #icon><ExportOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -112,17 +118,17 @@
           <template v-else-if="column.type === 'action'">
             <a-space>
               <a-tooltip title="查看">
-                <a-button type="link" size="small" @click="handleView(record)">
+                <a-button v-permission="'purchase:order:detail'" type="link" size="small" @click="handleView(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip v-if="record.status === 0" title="提交审批">
-                <a-button type="link" size="small" @click="handleSubmit(record)">
+                <a-button v-permission="'purchase:order:submit'" type="link" size="small" @click="handleSubmit(record)">
                   <template #icon><SendOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip v-if="record.status === 1" title="审批通过">
-                <a-button type="link" size="small" @click="handleApprove(record)">
+                <a-button v-permission="'purchase:order:approve'" type="link" size="small" @click="handleApprove(record)">
                   <template #icon><CheckCircleOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -160,7 +166,7 @@
         <a-table
           :data-source="detailItems"
           :columns="detailItemColumns"
-          :pagination="false"
+          :pagination="false as any"
           size="small"
           bordered
           row-key="id"
@@ -185,10 +191,10 @@
             button-type="default"
           />
           <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData?.status === 0" type="primary" @click="handleSubmit(detailData)">
+          <a-button v-if="detailData?.status === 0" v-permission="'purchase:order:submit'" type="primary" @click="handleSubmit(detailData)">
             <SendOutlined /> 提交审批
           </a-button>
-          <a-button v-if="detailData?.status === 1" type="primary" @click="handleApprove(detailData)">
+          <a-button v-if="detailData?.status === 1" v-permission="'purchase:order:approve'" type="primary" @click="handleApprove(detailData)">
             <CheckCircleOutlined /> 审批通过
           </a-button>
         </div>
@@ -213,6 +219,7 @@
                 v-model:value="createForm.supplierId"
                 placeholder="选择供应商"
                 show-search
+                size="small"
                 :filter-option="false"
                 :options="supplierOptions"
                 :loading="supplierLoading"
@@ -224,7 +231,7 @@
           </a-col>
           <a-col :span="8">
             <a-form-item label="采购员" name="purchaserName">
-              <a-input v-model:value="createForm.purchaserName" placeholder="采购员姓名" />
+              <a-input v-model:value="createForm.purchaserName" placeholder="采购员姓名" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="8">
@@ -233,6 +240,7 @@
                 v-model:value="createForm.warehouseId"
                 placeholder="选择仓库"
                 show-search
+                size="small"
                 :filter-option="filterOption"
                 :options="warehouseOptions"
                 @change="handleWarehouseChange"
@@ -243,12 +251,12 @@
         <a-row :gutter="16">
           <a-col :span="8">
             <a-form-item label="订单日期" name="orderDate">
-              <a-date-picker v-model:value="createForm.orderDate" style="width: 100%" value-format="YYYY-MM-DD" />
+              <a-date-picker v-model:value="createForm.orderDate" style="width: 100%" value-format="YYYY-MM-DD" size="small" />
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="预计到货">
-              <a-date-picker v-model:value="createForm.expectedDate" style="width: 100%" value-format="YYYY-MM-DD" />
+              <a-date-picker v-model:value="createForm.expectedDate" style="width: 100%" value-format="YYYY-MM-DD" size="small" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -261,7 +269,7 @@
         <a-table
           :data-source="createForm.items"
           :columns="createItemColumns"
-          :pagination="false"
+          :pagination="false as any"
           row-key="tempId"
           size="small"
           bordered
@@ -308,7 +316,7 @@
         </a-table>
 
         <a-form-item label="备注" style="margin-top: 12px;">
-          <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" />
+          <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" size="small" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -327,7 +335,8 @@ import {
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer, SearchBar } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PURCHASE_ORDER_STATUS } from '@/utils/statusConfig'
@@ -433,7 +442,7 @@ const filterFields = computed(() => [
   ]},
 ])
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'orderNo', title: '采购单号', width: 160 },
   { field: 'supplierName', title: '供应商', width: 150 },
   { field: 'purchaserName', title: '采购员', width: 100 },
@@ -445,7 +454,7 @@ const vxeColumns = computed(() => [
 ])
 
 // ── 详情 ──────────────────────────────────────────────
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 200 },
   { title: '规格', dataIndex: 'productSpec', width: 100 },
@@ -535,11 +544,12 @@ const fetchData = async () => {
     tableData.value = data?.records || []
     pagination.total = data?.total || 0
 
-    // 统计
+    // 统计（精确总数来自 pagination.total，状态分布为当前页数据）
     statDraft.value = tableData.value.filter(r => r.status === 0).length
     statPending.value = tableData.value.filter(r => r.status === 1).length
     statCompleted.value = tableData.value.filter(r => r.status >= 4).length
     statTotalAmount.value = tableData.value.reduce((s, r) => s + (r.totalAmount || 0), 0)
+    // 当有专用统计接口时请替换此实现
   } catch (error) {
     hasError.value = true
     console.warn('[采购管理] 获取数据失败', error)
@@ -555,7 +565,7 @@ const handleReset = () => { Object.keys(searchForm).forEach(k => searchForm[k] =
 const handlePageChange = (page: number, size: number) => { pagination.current = page; pagination.pageSize = size; fetchData() }
 function handleFilterChange(filters: Record<string, any>) { Object.assign(searchForm, filters); pagination.current = 1; fetchData() }
 function handleSelectionChange(rows: PurchaseOrder[], ids: number[]) { selectedRows.value = rows }
-const handleError = () => { hasError.value = true }
+function handleError(err: any) { hasError.value = true; console.warn('[采购管理] ErrorBoundary:', err) }
 
 // ── 导出 ──────────────────────────────────────────────
 const handleExport = async () => {
@@ -783,8 +793,15 @@ const handleCreateCancel = () => {
 
 // ── 键盘快捷键 ──
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') { e.preventDefault(); debounceClick('refresh', fetchData); return }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreate(); return }
+  if (e.key === 'F5' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault(); debounceClick('refresh', fetchData); return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault(); handleCreate(); return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    e.preventDefault(); debounceClick('export', handleExport); return
+  }
 }
 
 onMounted(() => {
@@ -901,4 +918,55 @@ onUnmounted(() => {
   color: #999;
   margin-bottom: 16px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

@@ -86,7 +86,7 @@
       <VxeTableList
         :columns="itemVxeColumns"
         :data-source="formData.items"
-        :pagination="false"
+        :pagination="false as any"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -133,7 +133,7 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import type { FormInstance } from 'ant-design-vue'
@@ -238,7 +238,7 @@ const totalAmount = computed(() => {
   }, 0)
 })
 
-const formRules = {
+const formRules: Record<string, any> = {
   originalOrderId: [{ required: true, message: '请选择原采购订单' }],
   exchangeDate: [{ required: true, message: '请选择换货日期' }],
   exchangeType: [{ required: true, message: '请选择换货类型' }],
@@ -464,7 +464,7 @@ const loadExchangeItems = async (exchangeId: number) => {
   try {
     const res = await purchaseExchangeApi.getItems(exchangeId)
     if (res.data) {
-      formData.items = res.data.map(item => ({
+      formData.items = res.map(item => ({
         id: item.id,
         originalItemId: item.originalItemId,
         productId: item.productId,

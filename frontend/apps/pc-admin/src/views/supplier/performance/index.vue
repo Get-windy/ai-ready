@@ -3,9 +3,13 @@
     <template #header>
       <div class="performance-header">
         <div class="performance-header__left">
-          <a-button type="text" class="performance-header__back" @click="handleBack">
+          <a-button type="text" class="performance-header__back" v-permission="'supplier:performance:back'" @click="handleBack">
             <template #icon><LeftOutlined /></template>
           </a-button>
+<span class="shortcut-hints">
+          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+        </span>
           <div class="performance-header__titles">
             <span class="performance-header__breadcrumb">供应商 / 绩效评估</span>
             <h2 class="performance-header__title">供应商绩效评估</h2>
@@ -26,7 +30,7 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
-            <a-button type="primary" @click="handleEvaluate">
+            <a-button type="primary" v-permission="'supplier:performance:evaluate'" @click="handleEvaluate">
               <template #icon><PlusOutlined /></template>
               新增评估
             </a-button>
@@ -35,6 +39,7 @@
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="page-content">
     <!-- 统计卡片 -->
     <div class="stat-cards">
@@ -96,7 +101,7 @@
         :columns="vxeColumns"
         :data-source="performances"
         :loading="loading"
-        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
+        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` } as any"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -104,6 +109,7 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        :min-empty-rows="12"
         @cell-dblclick="handleView"
       >
         <template #periodTypeCell="{ record }">
@@ -175,6 +181,7 @@
       </a-form>
     </a-modal>
   </div>
+  </ErrorBoundary>
 </PageContainer>
 </template>
 
@@ -182,7 +189,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, SafetyOutlined, ClockCircleOutlined, DollarOutlined, SmileOutlined, StarOutlined, ReloadOutlined, SyncOutlined, LeftOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -314,7 +322,7 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleEvaluate(); return }
 }
 
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { handleEvaluate() }
 
 onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
@@ -339,7 +347,7 @@ onUnmounted(() => {
 
 defineExpose({ handleQuery: loadPerformances })
 
-const loadSupplier = async () => {
+async function loadSupplier() {
   try {
     const id = supplierIdNum.value
     if (id === null) return
@@ -351,7 +359,7 @@ const loadSupplier = async () => {
   }
 }
 
-const loadPerformances = async () => {
+async function loadPerformances() {
   loading.value = true
   hasError.value = false
   try {
@@ -587,4 +595,70 @@ const handleBack = () => {
     min-width: 100px;
   }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

@@ -120,7 +120,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                 <a-menu-item v-if="record.status === 0" key="submit">
                   <SendOutlined /> 提交审核
                 </a-menu-item>
@@ -185,7 +185,7 @@
         <VxeTableList
           :columns="detailItemColumns"
           :data-source="detailItems"
-          :pagination="false"
+          :pagination="false as any"
           row-key="id"
           :show-toolbar="false"
           :selectable="false"
@@ -247,7 +247,7 @@
         <VxeTableList
           :columns="exchangeItemColumns"
           :data-source="formData.items"
-          :pagination="false"
+          :pagination="false as any"
           row-key="tempKey"
           :show-toolbar="false"
           :selectable="false"
@@ -265,8 +265,8 @@
           <template #quantityCell="{ record }">
             <a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" />
           </template>
-          <template #actionCell="{ record, rowIndex }">
-            <a-button type="link" danger size="small" @click="handleRemoveExchangeItem(rowIndex)">删除</a-button>
+          <template #actionCell="{ record, index }">
+            <a-button type="link" danger size="small" @click="handleRemoveExchangeItem(index)">删除</a-button>
           </template>
         </VxeTableList>
       </div>
@@ -429,7 +429,7 @@ const formData = reactive({
   items: [] as ExchangeItemForm[]
 })
 
-const formRules = {
+const formRules: any = {
   orderNo: [{ required: true, message: '请输入采购订单号', trigger: 'blur' }],
   reason: [{ required: true, message: '请选择换货原因', trigger: 'change' }],
   exchangeDate: [{ required: true, message: '请选择换货日期', trigger: 'change' }]
@@ -771,4 +771,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

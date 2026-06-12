@@ -18,7 +18,7 @@
             <a-button size="small" :loading="loading" @click="debounceClick('refresh', refreshAll)">
               <ReloadOutlined /> 刷新
             </a-button>
-            <a-button size="small" @click="handleExport">
+            <a-button size="small" v-permission="'erp:product:export'" @click="debounceClick('export', handleExport)">
               <DownloadOutlined /> 导出
             </a-button>
           </a-space>
@@ -44,8 +44,28 @@
         </div>
         <div class="category-tree-container">
           <a-spin :spinning="categoryLoading">
+            <template v-if="categoryError">
+              <div class="category-error">
+                <a-result status="warning" title="分类加载失败" sub-title="点击重试">
+                  <template #extra>
+                    <a-button size="small" @click="retryCategoryTree">
+                      <ReloadOutlined /> 重试
+                    </a-button>
+                  </template>
+                </a-result>
+              </div>
+            </template>
+            <template v-else-if="!categoryLoading && categoryTreeData.length === 0">
+              <div class="category-empty">
+                <InboxOutlined class="category-empty-icon" />
+                <p class="category-empty-text">暂无分类</p>
+                <a-button type="link" size="small" @click="showCategoryModal(null)">
+                  <PlusOutlined /> 新增分类
+                </a-button>
+              </div>
+            </template>
             <a-tree
-              v-if="!categoryLoading"
+              v-else-if="!categoryLoading"
               :tree-data="categoryTreeData"
               :selected-keys="[selectedCategoryId]"
               :expanded-keys="expandedKeys"
@@ -77,22 +97,28 @@
       <div class="product-panel">
         <!-- 统计卡片 -->
         <a-row :gutter="12" style="margin-bottom: 12px;">
-          <a-col :span="8">
+          <a-col :span="6">
             <div class="stat-card" style="border-top: 3px solid #1890ff;">
               <div class="stat-value" style="color:#1890ff">{{ statistics.total }}</div>
               <div class="stat-label">产品总数</div>
             </div>
           </a-col>
-          <a-col :span="8">
-            <div class="stat-card" style="border-top: 3px solid #52c41a;">
-              <div class="stat-value" style="color:#52c41a">{{ statistics.enabled }}</div>
-              <div class="stat-label">启用</div>
+          <a-col :span="6">
+            <div class="stat-card" style="border-top: 3px solid #722ed1;">
+              <div class="stat-value" style="color:#722ed1">{{ categoryCount }}</div>
+              <div class="stat-label">分类数</div>
             </div>
           </a-col>
-          <a-col :span="8">
-            <div class="stat-card" style="border-top: 3px solid #ff4d4f;">
-              <div class="stat-value" style="color:#ff4d4f">{{ statistics.disabled }}</div>
-              <div class="stat-label">停用</div>
+          <a-col :span="6">
+            <div class="stat-card" style="border-top: 3px solid #52c41a;">
+              <div class="stat-value" style="color:#52c41a">{{ statistics.enabled }}</div>
+              <div class="stat-label">已启用</div>
+            </div>
+          </a-col>
+          <a-col :span="6">
+            <div class="stat-card" style="border-top: 3px solid #f5222d;">
+              <div class="stat-value" style="color:#f5222d">{{ statistics.disabled }}</div>
+              <div class="stat-label">已停用</div>
             </div>
           </a-col>
         </a-row>
@@ -104,18 +130,25 @@
             @search="handleSearch"
             @reset="handleReset"
           />
-          <a-space>
-            <PrintButton page-code="erp/product" button-size="small" button-type="default" />
-            <a-button v-permission="'erp:product:create'" type="primary" size="small" @click="router.push('/erp/product/create')">
-              <PlusOutlined /> 新增产品
-            </a-button>
-            <a-button size="small" @click="router.push('/erp/product/price-batch')">
-              <DollarOutlined /> 批量价格
-            </a-button>
-            <a-button size="small" @click="router.push('/erp/product/inventory-mode')">
-              <SettingOutlined /> 库存模式
-            </a-button>
-          </a-space>
+          <div class="toolbar-right-section">
+            <div class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </div>
+            <a-space>
+              <PrintButton page-code="erp/product" button-size="small" button-type="default" />
+              <a-button v-permission="'erp:product:create'" type="primary" size="small" @click="router.push('/erp/product/create')">
+                <PlusOutlined /> 新增产品
+              </a-button>
+              <a-button v-permission="'erp:product:price-batch'" size="small" @click="router.push('/erp/product/price-batch')">
+                <DollarOutlined /> 批量价格
+              </a-button>
+              <a-button v-permission="'erp:product:inventory-mode'" size="small" @click="router.push('/erp/product/inventory-mode')">
+                <SettingOutlined /> 库存模式
+              </a-button>
+            </a-space>
+          </div>
         </div>
 
         <VxeTableList
@@ -145,7 +178,8 @@
             </a-button>
           </template>
           <template #empty>
-            <EmptyState v-if="loading" image="no-data" title="加载中..." description="" :show-actions="false" size="small" />
+            <EmptyState v-if="productError" image="error" title="加载失败" description="产品数据加载异常，请重试" :show-add="false" size="small" @refresh="fetchProducts" />
+            <EmptyState v-else-if="loading" image="no-data" title="加载中..." description="" :show-actions="false" size="small" />
             <EmptyState v-else image="no-data" title="暂无产品" description="当前没有产品数据" add-text="新增产品" size="small" @refresh="fetchProducts" @add="() => router.push('/erp/product/create')" />
           </template>
           <template #imageCell="{ record }">
@@ -163,11 +197,19 @@
           <template #productTypeCell="{ record }">
             <a-tag>{{ productTypeLabel(record.productType) }}</a-tag>
           </template>
+          <template #productCodeCell="{ record }">
+            <a class="cell-link" @click="viewProduct(record.id)">{{ record.productCode }}</a>
+          </template>
+          <template #productNameCell="{ record }">
+            <a class="cell-link" @click="viewProduct(record.id)">{{ record.productName }}</a>
+          </template>
           <template #action="{ record }">
             <a-space :size="4">
               <a-button v-permission="'erp:product:view'" type="link" size="small" @click="viewProduct(record.id)">查看</a-button>
               <a-button v-permission="'erp:product:edit'" type="link" size="small" @click="router.push(`/erp/product/${record.id}`)">编辑</a-button>
-              <a-button v-permission="'erp:product:delete'" type="link" size="small" danger @click="confirmDeleteProduct(record)">删除</a-button>
+              <a-popconfirm title="确定删除该产品？此操作不可恢复。" @confirm="confirmDeleteProduct(record)">
+                <a-button v-permission="'erp:product:delete'" type="link" size="small" danger>删除</a-button>
+              </a-popconfirm>
               <a-button v-permission="'erp:product:status'" type="link" size="small" @click="toggleStatus(record)">
                 {{ record.status === 'ENABLED' ? '停用' : '启用' }}
               </a-button>
@@ -183,7 +225,9 @@
       :title="editingCategory ? '编辑分类' : '新增分类'"
       :confirm-loading="categoryModalLoading"
       width="500px"
+      :mask-closable="false"
       @ok="debounceClick('categoryOk', handleCategoryOk)"
+      @cancel="handleCategoryCancel"
     >
       <a-form ref="categoryFormRef" :model="categoryForm" :rules="categoryRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
         <a-form-item label="分类名称" name="categoryName">
@@ -218,11 +262,13 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance, TreeProps } from 'ant-design-vue'
 import {
-  PlusOutlined, ReloadOutlined, FolderOutlined, FolderOpenOutlined, DollarOutlined, SettingOutlined,
+  PlusOutlined, ReloadOutlined, FolderOutlined, FolderOpenOutlined, DollarOutlined, SettingOutlined, InboxOutlined,
   SyncOutlined, DownloadOutlined, CheckCircleOutlined, StopOutlined, DeleteOutlined
 } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
-import type { SearchField } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -262,7 +308,8 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 
 // ── 分类管理 ──
 const categoryLoading = ref(false)
-const categoryTree = ref<ProductCategory[]>([])
+const categoryError = ref(false)
+const categoryTree = ref<any[]>([])
 const selectedCategoryId = ref<number>(0)
 const expandedKeys = ref<number[]>([])
 const categorySearch = ref('')
@@ -270,6 +317,19 @@ const categorySearch = ref('')
 const categoryTreeData = computed(() => {
   if (!categorySearch.value) return categoryTree.value
   return filterTree(categoryTree.value, categorySearch.value)
+})
+
+// 分类总数（递归统计）
+const categoryCount = computed(() => {
+  function countNodes(nodes: ProductCategory[]): number {
+    let c = 0
+    for (const n of nodes) {
+      c++ // 当前节点
+      if (n.children && n.children.length > 0) c += countNodes(n.children)
+    }
+    return c
+  }
+  return countNodes(categoryTree.value)
 })
 
 function filterTree(tree: ProductCategory[], keyword: string): ProductCategory[] {
@@ -286,8 +346,10 @@ function filterTree(tree: ProductCategory[], keyword: string): ProductCategory[]
 
 async function fetchCategoryTree() {
   categoryLoading.value = true
+  categoryError.value = false
   try {
-    categoryTree.value = await productCategoryApi.getTree()
+    const data = await productCategoryApi.getTree()
+    categoryTree.value = Array.isArray(data) ? data : []
     // 展开第一层
     const firstLevel = categoryTree.value.map(n => n.id)
     if (firstLevel.length > 0) {
@@ -295,9 +357,14 @@ async function fetchCategoryTree() {
     }
   } catch (e) {
     console.error('[产品分类] 加载分类树失败', e)
+    categoryError.value = true
   } finally {
     categoryLoading.value = false
   }
+}
+
+function retryCategoryTree() {
+  fetchCategoryTree()
 }
 
 function onCategorySelect(keys: number[]) {
@@ -390,6 +457,21 @@ async function handleCategoryOk() {
   }
 }
 
+function handleCategoryCancel() {
+  // 检查表单是否有未保存的修改
+  if (categoryForm.categoryName || categoryForm.categoryCode) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '当前表单有未保存的内容，确定关闭吗？',
+      okText: '确定关闭',
+      cancelText: '继续编辑',
+      onOk: () => { categoryModalVisible.value = false }
+    })
+  } else {
+    categoryModalVisible.value = false
+  }
+}
+
 async function deleteSelectedCategory() {
   if (!selectedCategoryId.value) return
   try {
@@ -411,14 +493,15 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 产品列表 ──
 const loading = ref(false)
+const productError = ref(false)
 const lastUpdateTime = ref('')
-const products = ref<ProductItem[]>([])
+const products = ref<any[]>([])
 const searchKeyword = ref('')
 const statusFilter = ref('')
 
 const statistics = ref({ total: 0, enabled: 0, disabled: 0 })
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'keyword', label: '关键词', type: 'input', placeholder: '编码/名称/规格' },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [
     { label: '全部', value: '' },
@@ -438,9 +521,9 @@ const pagination = reactive({
   pageSizeOptions: ['10', '20', '50', '100']
 })
 
-const vxeColumns = computed(() => [
-  { field: 'productCode', title: '产品编码', width: 120 },
-  { field: 'productName', title: '产品名称', width: 160, minWidth: 120 },
+const vxeColumns: any = computed(() => [
+  { field: 'productCode', title: '产品编码', width: 120, slots: { default: 'productCodeCell' } },
+  { field: 'productName', title: '产品名称', width: 160, minWidth: 120, slots: { default: 'productNameCell' } },
   { field: 'imageUrl', title: '图片', width: 56, align: 'center', slots: { default: 'imageCell' } },
   { field: 'spec', title: '规格', width: 120 },
   { field: 'sku', title: 'SKU', width: 120 },
@@ -460,6 +543,7 @@ function productTypeLabel(type: string) {
 
 async function fetchProducts() {
   loading.value = true
+  productError.value = false
   try {
     const res = await productApi.page({
       categoryId: selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined,
@@ -467,19 +551,17 @@ async function fetchProducts() {
       status: statusFilter.value || undefined,
       pageNum: pagination.current,
       pageSize: pagination.pageSize
-    })
+    } as any)
     products.value = res.records || []
     pagination.total = res.total || 0
-    // 统计（总数来自 API，启用/停用来自当前页面数据）
-    const stats = { total: res.total || 0, enabled: 0, disabled: 0 }
-    products.value.forEach((p) => {
-      if (p.status === 'ENABLED') stats.enabled++
-      else if (p.status === 'DISABLED') stats.disabled++
-    })
-    statistics.value = stats
+    // 统计当前页启用/停用数量
+    const enabled = products.value.filter(p => p.status === 'ENABLED').length
+    const disabled = products.value.filter(p => p.status === 'DISABLED').length
+    statistics.value = { total: res.total || 0, enabled, disabled }
     lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   } catch (e) {
     console.error('[产品管理] 加载产品列表失败', e)
+    productError.value = true
     message.error('加载产品列表失败')
   } finally {
     loading.value = false
@@ -602,23 +684,29 @@ async function batchDelete(rows: any[]) {
 }
 
 async function batchEnable(rows: any[]) {
-  try {
-    await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'ENABLED')))
-    message.success(`已启用 ${rows.length} 个产品`)
-    await fetchProducts()
-  } catch {
-    message.error('批量启用失败')
-  }
+  if (!rows.length) return
+  debounceClick('batchEnable', async () => {
+    try {
+      await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'ENABLED')))
+      message.success(`已启用 ${rows.length} 个产品`)
+      await fetchProducts()
+    } catch {
+      message.error('批量启用失败')
+    }
+  })
 }
 
 async function batchDisable(rows: any[]) {
-  try {
-    await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'DISABLED')))
-    message.success(`已停用 ${rows.length} 个产品`)
-    await fetchProducts()
-  } catch {
-    message.error('批量停用失败')
-  }
+  if (!rows.length) return
+  debounceClick('batchDisable', async () => {
+    try {
+      await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'DISABLED')))
+      message.success(`已停用 ${rows.length} 个产品`)
+      await fetchProducts()
+    } catch {
+      message.error('批量停用失败')
+    }
+  })
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -635,6 +723,11 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
     e.preventDefault()
     debounceClick('export', handleExport)
+  }
+  // Ctrl+Enter 快速搜索
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault()
+    handleSearch()
   }
 }
 
@@ -720,6 +813,30 @@ defineExpose({ fetchData: fetchProducts })
   margin-left: 4px;
 }
 
+.category-error {
+  padding: 12px;
+}
+
+.category-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.category-empty-icon {
+  font-size: 36px;
+  color: #d9d9d9;
+  margin-bottom: 8px;
+}
+
+.category-empty-text {
+  font-size: 13px;
+  color: #999;
+  margin: 0 0 8px 0;
+}
+
 /* ── 右侧产品面板 ── */
 .product-panel {
   flex: 1;
@@ -778,11 +895,8 @@ defineExpose({ fetchData: fetchProducts })
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #909399;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #f5f7fa;
-  user-select: none;
+  color: #52c41a;
+  white-space: nowrap;
 }
 
 .update-time {
@@ -815,8 +929,50 @@ defineExpose({ fetchData: fetchProducts })
 :deep(.ant-input-sm),
 :deep(.ant-input-number-sm),
 :deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
 :deep(.ant-btn-sm) {
   height: 28px;
   line-height: 28px;
+}
+
+/* ── 快捷键提示 ── */
+.toolbar-right-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 </style>

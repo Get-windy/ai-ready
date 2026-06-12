@@ -40,7 +40,7 @@ public class ProfileController {
         }
 
         // 获取角色列表
-        List<String> roleCodes = sysUserService.getRoleCodes(userId);
+        List<String> roleCodes = sysUserService.getUserRoleCodes(userId);
 
         Map<String, Object> profile = new LinkedHashMap<>();
         profile.put("id", user.getId());
@@ -157,7 +157,7 @@ public class ProfileController {
             sysUserService.updateUser(user);
         }
 
-        return ApiResponse.ok(avatarUrl);
+        return ApiResponse.ok(avatarUrl, "上传成功");
     }
 
     private Map<String, Object> parseExtInfo(String extInfo) {

@@ -8,7 +8,7 @@
           <h2 class="page-header__title">费用申请</h2>
         </div>
         <div class="page-header__right">
-          <span v-if="lastUpdateTime" style="font-size: 12px; color: #999;">更新于: {{ lastUpdateTime }}</span>
+          <span v-if="lastUpdateTime" class="update-time">更新于: {{ lastUpdateTime }}</span>
           <a-space :size="12">
             <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
               <SyncOutlined /> {{ autoRefreshCountdown }}s
@@ -16,11 +16,21 @@
             <a-button size="small" @click="debounceClick('refresh', fetchData)">
               <ReloadOutlined /> 刷新
             </a-button>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            </span>
           </a-space>
         </div>
       </div>
     </template>
 
+    <!-- 骨架加载 -->
+    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
+    </a-skeleton>
+
+    <template v-if="!refreshLoading">
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px">
       <a-col :span="6">
@@ -54,7 +64,7 @@
             :selected-keys="[activeFilter]"
             mode="inline"
             :inline-collapsed="false"
-            @click="({ key }) => { activeFilter = key; pagination.current = 1; fetchData() }"
+            @click="(e) => { activeFilter = String(e.key); pagination.current = 1; fetchData() }"
           >
             <a-menu-item key="all">全部申请</a-menu-item>
             <a-menu-item key="DRAFT">草稿</a-menu-item>
@@ -99,6 +109,7 @@
           :show-toolbar="false"
           :show-add="false"
           :show-search="false"
+          :min-empty-rows="12"
           @page-change="onPageChange"
         >
           <template #statusCell="{ record }">
@@ -120,6 +131,7 @@
         </VxeTableList>
       </div>
     </div>
+    </template>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -131,7 +143,9 @@ import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, ExportOutlined, SyncOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -169,6 +183,7 @@ interface ExpenseApplication {
 }
 
 const loading = ref(false)
+const refreshLoading = ref(false)
 const dataList = ref<ExpenseApplication[]>([])
 
 const stats = reactive({
@@ -191,7 +206,7 @@ const StatCard = {
     </div>
   `
 }
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'keyword', label: '标题/单号', type: 'input', placeholder: '请输入标题或单号' },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [
     { label: '全部', value: '' },
@@ -215,7 +230,7 @@ const pagination = reactive({
   pageSizeOptions: ['10', '20', '50', '100']
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'applicationNo', title: '申请单号', width: 160 },
   { field: 'applicationTitle', title: '申请标题', width: 200, minWidth: 140 },
   { field: 'applicantName', title: '申请人', width: 80 },
@@ -252,6 +267,16 @@ async function fetchData() {
     console.error('[费用申请] 加载失败', e)
     message.error('加载失败')
   } finally { loading.value = false }
+}
+
+async function handleRefresh() {
+  refreshLoading.value = true
+  try {
+    await fetchData()
+    await fetchStats()
+  } finally {
+    refreshLoading.value = false
+  }
 }
 
 function handleSearch(values?: Record<string, any>) {
@@ -379,5 +404,79 @@ onUnmounted(() => {
   font-size: 12px;
   color: #52c41a;
   white-space: nowrap;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── vxe-table 表头 2px 边框 ──────────────────── */
+:deep(.vxe-header--row) {
+  border-top: 2px solid #e8e8e8;
+}
+:deep(.vxe-header--column) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 更新时间 ─────────────────────────────────── */
+.update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* ── 空状态包装样式 ────────────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
 }
 </style>

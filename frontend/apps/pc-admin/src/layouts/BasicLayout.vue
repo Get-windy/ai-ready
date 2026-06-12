@@ -32,15 +32,36 @@
         aria-label="侧边栏导航菜单"
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
+          <!-- displayGroup=1: 纯展示分组标题 + 子菜单直接展示 -->
+          <a-menu-item-group
+            v-if="menu.menuType === 0 && menu.displayGroup === 1 && menu.children?.length"
+            :title="menu.menuName"
+          >
+            <template v-for="child in menu.children" :key="child.id">
+              <a-menu-item
+                v-if="child.menuType === 1"
+                :key="child.menuCode"
+                @click="navigateTo(child.path || '/')"
+              >
+                <component :is="getIcon(child.icon)" v-if="child.icon" />
+                <span>{{ child.menuName }}</span>
+                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
+              </a-menu-item>
+            </template>
+          </a-menu-item-group>
+
+          <!-- 普通菜单项 -->
           <a-menu-item
-            v-if="menu.menuType === 1 && !menu.children?.length"
+            v-else-if="menu.menuType === 1 && !menu.children?.length"
             :key="menu.menuCode"
             @click="navigateTo(menu.path || '/')"
           >
             <component :is="getIcon(menu.icon)" v-if="menu.icon" />
             <span>{{ menu.menuName }}</span>
+            <LinkOutlined v-if="menu.linkIcon" class="link-icon-indicator" />
           </a-menu-item>
 
+          <!-- 普通目录：渲染为可展开子菜单 -->
           <a-sub-menu
             v-else-if="menu.menuType === 0"
             :key="menu.menuCode"
@@ -59,6 +80,7 @@
               >
                 <component :is="getIcon(child.icon)" v-if="child.icon" />
                 <span>{{ child.menuName }}</span>
+                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
               </a-menu-item>
             </template>
           </a-sub-menu>
@@ -82,15 +104,36 @@
         aria-label="移动端导航菜单"
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
+          <!-- displayGroup=1: 纯展示分组标题（移动端） -->
+          <a-menu-item-group
+            v-if="menu.menuType === 0 && menu.displayGroup === 1 && menu.children?.length"
+            :title="menu.menuName"
+          >
+            <template v-for="child in menu.children" :key="child.id">
+              <a-menu-item
+                v-if="child.menuType === 1"
+                :key="child.menuCode"
+                @click="handleMobileMenuClick(child.path || '/')"
+              >
+                <component :is="getIcon(child.icon)" v-if="child.icon" />
+                <span>{{ child.menuName }}</span>
+                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
+              </a-menu-item>
+            </template>
+          </a-menu-item-group>
+
+          <!-- 普通菜单项 -->
           <a-menu-item
-            v-if="menu.menuType === 1 && !menu.children?.length"
+            v-else-if="menu.menuType === 1 && !menu.children?.length"
             :key="menu.menuCode"
             @click="handleMobileMenuClick(menu.path || '/')"
           >
             <component :is="getIcon(menu.icon)" v-if="menu.icon" />
             <span>{{ menu.menuName }}</span>
+            <LinkOutlined v-if="menu.linkIcon" class="link-icon-indicator" />
           </a-menu-item>
 
+          <!-- 普通目录 -->
           <a-sub-menu
             v-else-if="menu.menuType === 0"
             :key="menu.menuCode"
@@ -109,6 +152,7 @@
               >
                 <component :is="getIcon(child.icon)" v-if="child.icon" />
                 <span>{{ child.menuName }}</span>
+                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
               </a-menu-item>
             </template>
           </a-sub-menu>
@@ -403,7 +447,8 @@ import {
   SwapOutlined,
   SearchOutlined,
   BellOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  LinkOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useTabsStore } from '@/stores/tabs'
@@ -632,12 +677,16 @@ const handleTenantSwitch = async (tenantId: number) => {
 
 const navigateTo = (path: string) => {
   showFavorites.value = false
-  router.push(path)
+  // 确保路径以 / 开头，避免Vue Router相对路径解析导致路径叠加
+  const absolutePath = path.startsWith('/') ? path : '/' + path
+  router.push(absolutePath)
 }
 
 const handleMobileMenuClick = (path: string) => {
   mobileMenuVisible.value = false
-  router.push(path)
+  // 确保路径以 / 开头，避免Vue Router相对路径解析导致路径叠加
+  const absolutePath = path.startsWith('/') ? path : '/' + path
+  router.push(absolutePath)
 }
 
 const handleLogout = async () => {
@@ -823,6 +872,13 @@ const clearAllFavorites = () => {
 .favorite-star {
   color: #faad14;
   font-size: 14px;
+}
+
+.link-icon-indicator {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 .fade-enter-active,

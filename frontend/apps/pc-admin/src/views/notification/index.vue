@@ -14,14 +14,19 @@
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', handleRefresh)">
+          <a-button size="small" :loading="refreshLoading" v-permission="'notification:view:refresh'" @click="debounceClick('refresh', handleRefresh)">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="notification-center">
       <!-- 统计卡片骨架 -->
       <template v-if="loading && tableData.length === 0">
@@ -70,6 +75,7 @@
         :pagination="pagination"
         :filter-fields="filterFields"
         :selectable="true"
+        :min-empty-rows="12"
         @refresh="fetchData"
         @search="handleSearch"
         @page-change="handlePageChange"
@@ -80,7 +86,7 @@
           <a-badge :count="unreadCount" :overflow-count="99">
             <BellOutlined :style="{ fontSize: '20px', cursor: 'pointer' }" @click="fetchUnreadCount" />
           </a-badge>
-          <a-button type="link" @click="debounceClick('markAllRead', handleMarkAllRead)">
+          <a-button type="link" v-permission="'notification:view:markallread'" @click="debounceClick('markAllRead', handleMarkAllRead)">
             <template #icon><CheckCircleOutlined /></template>
             全部已读
           </a-button>
@@ -89,7 +95,7 @@
         <template #empty>
           <a-empty v-if="hasActiveFilters" description="当前筛选条件下无匹配通知">
             <template #image><SearchOutlined style="font-size: 48px; color: #faad14" /></template>
-            <a-button @click="handleResetFilters">清除筛选</a-button>
+            <a-button v-permission="'notification:view:resetfilters'" @click="handleResetFilters">清除筛选</a-button>
           </a-empty>
           <a-empty v-else description="暂无通知消息">
             <template #image><BellOutlined style="font-size: 48px; color: #d9d9d9" /></template>
@@ -133,7 +139,7 @@
         <template #action="{ record }">
           <a-space :size="0" class="action-cell-inner">
             <a-tooltip v-if="record.readStatus === 0" title="标记已读">
-              <a-button type="link" size="small" @click="handleMarkRead(record)">
+              <a-button type="link" size="small" v-permission="'notification:view:markread'" @click="handleMarkRead(record)">
                 <template #icon><CheckOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -142,7 +148,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item v-if="record.readStatus === 0" key="mark_read">
                     <CheckOutlined /> 标记已读
                   </a-menu-item>
@@ -186,13 +192,15 @@
         </div>
       </template>
     </a-modal>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -295,8 +303,8 @@ const fetchData = async () => {
 
     const res = await notificationApi.getPage(params)
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
     lastUpdated.value = new Date().toISOString()
   } catch (err) {
@@ -312,7 +320,7 @@ const fetchUnreadCount = async () => {
   try {
     const res = await notificationApi.getUnreadCount()
     if (res.data) {
-      unreadCount.value = res.data.total
+      unreadCount.value = res.total
     }
   } catch (err) {
     console.warn('[通知] 获取未读数量失败', err)
@@ -443,7 +451,7 @@ function handleKeydown(e: KeyboardEvent) {
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { /* handleAdd not available here */ }
 
 onMounted(() => {
   fetchData()
@@ -606,4 +614,70 @@ defineExpose({ handleQuery: fetchData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

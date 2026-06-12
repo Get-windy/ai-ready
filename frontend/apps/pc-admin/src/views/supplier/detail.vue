@@ -23,7 +23,13 @@
       <a-tag :color="getLevelColor(supplier?.supplierLevel)">
         {{ supplier?.supplierLevel }}级供应商
       </a-tag>
-    </template>
+
+        
+        <span class="shortcut-hints">
+          <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+        </span>
+        </template>
 
     <template #actions>
       <a-button type="primary" @click="handleEdit">编辑</a-button>
@@ -89,7 +95,7 @@
       <VxeTableList
         :columns="performanceVxeColumns"
         :data-source="performances"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{ current: 1, pageSize: 10, total: 0 }"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -109,7 +115,7 @@
       <VxeTableList
         :columns="inquiryVxeColumns"
         :data-source="inquiries"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{ current: 1, pageSize: 10, total: 0 }"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -134,7 +140,7 @@
       <VxeTableList
         :columns="pointsVxeColumns"
         :data-source="pointsRecords"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{ current: 1, pageSize: 10, total: 0 }"
         row-key="id"
         :show-toolbar="false"
         :selectable="false"
@@ -464,8 +470,6 @@ const getQuotationStatusLabel = (status?: number) => {
   return status !== undefined ? (labels[status] || '未知') : '未知'
 }
 
-function handleParentCreate() { handleAdd() }
-
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) { e.preventDefault(); /* no-op: detail page */ }
 }
@@ -476,12 +480,10 @@ onMounted(() => {
   loadInquiries()
   loadPointsRecords()
   document.addEventListener('keydown', handleKeydown)
-  window.addEventListener('supplier:create', handleParentCreate)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('supplier:create', handleParentCreate)
 })
 
 defineExpose({ handleQuery: loadSupplierDetail })
@@ -498,4 +500,39 @@ defineExpose({ handleQuery: loadSupplierDetail })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

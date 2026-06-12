@@ -9,7 +9,7 @@ public enum PrintTaskStatus {
     PRINTING("PRINTING", "打印中"),
     COMPLETED("COMPLETED", "已完成"),
     FAILED("FAILED", "失败"),
-    CANCELLED("CANCELLED", "已取消"),
+    CANCELLED("CANCELLED", "已取消");
 
     private final String code;
     private final String name;

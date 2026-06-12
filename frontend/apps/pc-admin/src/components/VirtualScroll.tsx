@@ -147,7 +147,7 @@ export const VirtualScroll = defineComponent({
     },
     /** 列表项高度（px） */
     itemHeight: {
-      type: [Number, Function] as () => number | ((index: number) => number),
+      type: [Number, Function] as unknown as () => number | ((index: number) => number),
       required: true
     },
     /** 容器高度（px） */

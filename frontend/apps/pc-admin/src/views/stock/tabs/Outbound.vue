@@ -77,7 +77,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="delete" danger>
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -91,7 +91,7 @@
           <template v-if="hasError">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">加载失败</p>
-            <a-button type="primary" size="small" @click="fetchData" class="table-empty-action">
+            <a-button type="primary" size="small" @click="fetchData as any" class="table-empty-action">
               <ReloadOutlined /> 重试
             </a-button>
           </template>
@@ -194,25 +194,25 @@
       <div style="margin-bottom: 12px">
         <a-button type="dashed" size="small" @click="addOutboundItem"><template #icon><PlusOutlined /></template>添加明细</a-button>
       </div>
-      <VxeTableList :data-source="addForm.items" :pagination="false" row-key="key"
+      <VxeTableList :data-source="addForm.items" :pagination="false as any" row-key="key"
         :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
         :show-export="false" :show-batch-delete="false" :columns="addItemColumns">
-        <template #productNameCell="{ record, rowIndex }">
-          <a-select v-model:value="addForm.items[rowIndex].productId" show-search placeholder="选择产品"
+        <template #productNameCell="{ record, index }">
+          <a-select v-model:value="addForm.items[index].productId" show-search placeholder="选择产品"
             :options="productOptions" style="width: 100%" size="small"
-            @change="(val: number) => handleItemProductChange(rowIndex, val)" />
+            @change="(val: number) => handleItemProductChange(index, val)" />
         </template>
-        <template #availableQtyCell="{ record, rowIndex }">
-          <a-tag :color="getAvailableQtyColor(rowIndex)">{{ getAvailableQty(rowIndex) }}</a-tag>
+        <template #availableQtyCell="{ record, index }">
+          <a-tag :color="getAvailableQtyColor(index)">{{ getAvailableQty(index) }}</a-tag>
         </template>
-        <template #quantityCell="{ record, rowIndex }">
-          <a-input-number v-model:value="addForm.items[rowIndex].quantity" :min="1" style="width: 100%" size="small" />
+        <template #quantityCell="{ record, index }">
+          <a-input-number v-model:value="addForm.items[index].quantity" :min="1" style="width: 100%" size="small" />
         </template>
-        <template #unitPriceCell="{ record, rowIndex }">
-          <a-input-number v-model:value="addForm.items[rowIndex].unitPrice" :min="0" :precision="2" style="width: 100%" size="small" />
+        <template #unitPriceCell="{ record, index }">
+          <a-input-number v-model:value="addForm.items[index].unitPrice" :min="0" :precision="2" style="width: 100%" size="small" />
         </template>
-        <template #actionCell="{ record, rowIndex }">
-          <a-button type="link" danger size="small" @click="removeOutboundItem(rowIndex)">删除</a-button>
+        <template #actionCell="{ record, index }">
+          <a-button type="link" danger size="small" @click="removeOutboundItem(index)">删除</a-button>
         </template>
       </VxeTableList>
     </a-modal>
@@ -337,7 +337,7 @@ const addVisible = ref(false)
 const addSubmitting = ref(false)
 const addFormRef = ref<FormInstance>()
 const addForm = reactive({ orderNo: undefined as string | undefined, outboundType: 1, warehouseId: undefined as number | undefined, outboundDate: dayjs(), carrier: '', trackingNo: '', remark: '', items: [] as AddOutboundItem[] })
-const addFormRules = { warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }], outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }] }
+const addFormRules: any = { warehouseId: [{ required: true, message: '请选择仓库', trigger: 'change' }], outboundDate: [{ required: true, message: '请选择出库日期', trigger: 'change' }] }
 const outboundTypeOptions = [
   { value: 1, label: '销售出库' }, { value: 2, label: '退货出库' },
   { value: 3, label: '调拨出库' }, { value: 4, label: '其他出库' }
@@ -431,13 +431,13 @@ async function handleDelete(record: any) {
   Modal.confirm({
     title: '删除出库单', content: `确认删除出库单 "${record.outboundNo}"？删除后数据不可恢复。`, okText: '确认删除', okType: 'danger', cancelText: '取消', centered: true,
     async onOk() {
-      try { await outboundApi.delete(record.id); message.success('删除成功'); fetchData() }
+      try { await (outboundApi as any).delete(record.id); message.success('删除成功'); fetchData() }
       catch (err) { console.warn('[库存出库] 删除出库单失败', err); message.error('删除失败') }
     }
   })
 }
 async function handleBatchDelete(ids: number[]) {
-  await executeBatch(ids, outboundApi.delete, '批量删除')
+  await executeBatch(ids, (outboundApi as any).delete, '批量删除')
   fetchData()
 }
 
@@ -649,4 +649,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

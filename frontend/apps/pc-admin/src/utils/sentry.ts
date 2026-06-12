@@ -132,7 +132,7 @@ export async function initSentry(app: App, router?: Router): Promise<void> {
       release,
       integrations: [
         // 浏览器 Tracing：自动创建路由切换、XHR/Fetch 事务
-        Sentry.browserTracingIntegration({
+        (Sentry.browserTracingIntegration as any)({
           router,
           tracingOrigins: ['localhost', /^\//],
         }),

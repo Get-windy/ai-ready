@@ -8,9 +8,16 @@
           <h2 class="page-header__title">费用报销</h2>
         </div>
         <div class="page-header__right">
-          <span v-if="lastUpdateTime" style="font-size: 12px; color: #999;">更新于: {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" style="font-size: 12px; color: #999;">{{ autoRefreshCountdown }}s后自动刷新</span>
+          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
+          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+            <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
           <a-space :size="12">
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新增</span>
+              <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+            </span>
             <a-button size="small" @click="debounceClick('refresh', fetchData)">
               <ReloadOutlined /> 刷新
             </a-button>
@@ -19,24 +26,29 @@
       </div>
     </template>
 
+    <!-- 骨架加载 -->
+    <a-skeleton :loading="refreshLoading" active :paragraph="{ rows: 8 }">
+    </a-skeleton>
+
+    <template v-if="!refreshLoading">
     <!-- 统计卡片 -->
     <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="6">
+      <a-col :xs="12" :sm="12" :md="6">
         <a-card size="small">
           <stat-card title="报销总数" :value="stats.totalCount" :amount="stats.totalAmount" color="#1890ff" />
         </a-card>
       </a-col>
-      <a-col :span="6">
+      <a-col :xs="12" :sm="12" :md="6">
         <a-card size="small">
           <stat-card title="待审批" :value="stats.pendingCount" :amount="stats.pendingAmount" color="#faad14" />
         </a-card>
       </a-col>
-      <a-col :span="6">
+      <a-col :xs="12" :sm="12" :md="6">
         <a-card size="small">
           <stat-card title="已通过" :value="stats.approvedCount" :amount="stats.approvedAmount" color="#52c41a" />
         </a-card>
       </a-col>
-      <a-col :span="6">
+      <a-col :xs="12" :sm="12" :md="6">
         <a-card size="small">
           <stat-card title="已拒绝" :value="stats.rejectedCount" :amount="stats.rejectedAmount" color="#ff4d4f" />
         </a-card>
@@ -50,7 +62,7 @@
           <a-menu
             :selected-keys="[activeFilter]"
             mode="inline"
-            @click="({ key }) => { activeFilter = key; pagination.current = 1; fetchData() }"
+            @click="(e) => { activeFilter = String(e.key); pagination.current = 1; fetchData() }"
           >
             <a-menu-item key="all">全部报销</a-menu-item>
             <a-menu-item key="DRAFT">草稿</a-menu-item>
@@ -71,7 +83,7 @@
               @reset="handleReset"
             />
             <a-tooltip title="导出">
-              <a-button size="small" @click="handleExport">
+              <a-button v-permission="'erp:expense:reimbursement:list'" size="small" @click="debounceClick('export', handleExport)">
                 <template #icon><ExportOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -93,6 +105,7 @@
           :show-toolbar="false"
           :show-add="false"
           :show-search="false"
+          :min-empty-rows="12"
           @page-change="onPageChange"
         >
           <template #statusCell="{ record }">
@@ -113,6 +126,7 @@
         </VxeTableList>
       </div>
     </div>
+    </template>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -123,8 +137,9 @@ defineOptions({ name: 'ExpenseReimbursementList' })
 import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
-import { PageContainer, SearchBar } from '@/components'
+import { PlusOutlined, ReloadOutlined, ExportOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -150,6 +165,7 @@ function formatAmount(v: any): string {
 }
 
 const loading = ref(false)
+const refreshLoading = ref(false)
 const dataList = ref<any[]>([])
 
 const stats = reactive({
@@ -172,7 +188,7 @@ const StatCard = {
     </div>
   `
 }
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'keyword', label: '标题/单号', type: 'input', placeholder: '请输入标题或单号' },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [
     { label: '全部', value: '' },
@@ -195,7 +211,7 @@ const pagination = reactive({
   pageSizeOptions: ['10', '20', '50', '100']
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'reimbursementNo', title: '报销单号', width: 160 },
   { field: 'reimbursementTitle', title: '报销标题', width: 200, minWidth: 140 },
   { field: 'applicantName', title: '报销人', width: 80 },
@@ -223,6 +239,16 @@ async function fetchData() {
   } finally { loading.value = false }
 }
 
+async function handleRefresh() {
+  refreshLoading.value = true
+  try {
+    await fetchData()
+    await fetchStats()
+  } finally {
+    refreshLoading.value = false
+  }
+}
+
 function handleSearch(values?: Record<string, any>) {
   if (values) {
     searchKeyword.value = values.keyword || ''
@@ -241,8 +267,18 @@ function onPageChange(page: number, pageSize: number) { pagination.current = pag
 
 async function fetchStats() {
   try {
-    const res = await feeReimbursementApi.page({ pageNum: 1, pageSize: 1 }) as any
-    stats.totalCount = res.total || res.data?.total || 0
+    const pageParams = { pageNum: 1, pageSize: 1 } as Record<string, unknown>
+    const [totalRes, pendingRes, approvedRes, rejectedRes] = await Promise.all([
+      feeReimbursementApi.page(pageParams),
+      feeReimbursementApi.page({ ...pageParams, status: 'SUBMITTED' }),
+      feeReimbursementApi.page({ ...pageParams, status: 'APPROVED' }),
+      feeReimbursementApi.page({ ...pageParams, status: 'REJECTED' })
+    ])
+    const getTotal = (res: any) => res.total || res.data?.total || 0
+    stats.totalCount = getTotal(totalRes)
+    stats.pendingCount = getTotal(pendingRes)
+    stats.approvedCount = getTotal(approvedRes)
+    stats.rejectedCount = getTotal(rejectedRes)
   } catch { /* ignore */ }
 }
 
@@ -325,4 +361,84 @@ onUnmounted(() => { clearInterval(refreshTimer); if (countdownTimer) clearInterv
 .page-header__breadcrumb { font-size: 12px; color: #999; }
 .page-header__title { font-size: 18px; font-weight: 600; color: #303133; margin: 0; }
 .page-header__right { display: flex; align-items: center; gap: 12px; }
+.page-header__update-time { font-size: 12px; color: #999; white-space: nowrap; }
+.page-header__countdown { font-size: 12px; color: #999; white-space: nowrap; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 自动刷新徽章 ────────────────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  white-space: nowrap;
+}
+
+/* ── vxe-table 表头 2px 边框 ──────────────────── */
+:deep(.vxe-header--row) {
+  border-top: 2px solid #e8e8e8;
+}
+:deep(.vxe-header--column) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态包装样式 ────────────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
 </style>

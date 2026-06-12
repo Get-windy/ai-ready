@@ -115,7 +115,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                 <a-menu-item key="viewOrders">
                   <FileTextOutlined /> 查看订单
                 </a-menu-item>
@@ -189,7 +189,7 @@
             <VxeTableList
               :columns="productColumns"
               :data-source="supplierProducts"
-              :pagination="false"
+              :pagination="false as any"
               row-key="id"
               :show-toolbar="false"
               :selectable="false"
@@ -467,7 +467,7 @@ function handleToggleStatus(record: any, status: number) {
   Modal.confirm({
     title: `${statusText}供应商`, content: `${statusText}供应商 "${record.supplierName}"？`, okText: '确认', centered: true,
     async onOk() {
-      try { await supplierApi.update(record.id, { status }); message.success(`${statusText}成功`); fetchData() }
+      try { await supplierApi.update(record.id, { status } as any); message.success(`${statusText}成功`); fetchData() }
       catch (e) { console.warn('[供应商] 状态变更失败', e); message.error(`${statusText}失败`) }
     }
   })
@@ -511,7 +511,7 @@ async function loadTagOptions() {
   try {
     const res = await dictItemApi.getByDictCode('SUPPLIER_TAG')
     if (res.data) {
-      transferData.value = res.data.map(item => ({ key: item.itemCode, title: item.itemName }))
+      transferData.value = res.map(item => ({ key: item.itemValue, title: item.itemText }))
     }
   } catch (err) {
     console.warn('[供应商] 加载标签失败', err)
@@ -554,7 +554,7 @@ function handleBatchStatus() {
 const handleBatchStatusConfirm = async () => {
   batchStatusSubmitting.value = true
   const statusText = batchStatusValue.value === 1 ? '启用' : '停用'
-  const result = await executeBatch(selectedRowKeys.value, (id) => supplierApi.update(id, { status: batchStatusValue.value }), `批量${statusText}`)
+  const result = await executeBatch(selectedRowKeys.value, (id) => supplierApi.update(id, { status: batchStatusValue.value } as any), `批量${statusText}`)
   batchStatusSubmitting.value = false
   if (result.successCount > 0) fetchData()
   batchStatusModalVisible.value = false
@@ -762,4 +762,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

@@ -14,6 +14,9 @@
               <a-badge :status="loading ? 'processing' : 'success'" />
               <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
             </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>刷新
             </a-button>
@@ -66,7 +69,7 @@
       @selection-change="handleSelectionChange"
     >
       <template #toolbar-actions>
-        <a-button size="small" @click="handleCheckAlerts"><BellOutlined /> 立即检查</a-button>
+        <a-button size="small" v-permission="'erp:stock:checkalerts'" @click="handleCheckAlerts"><BellOutlined /> 立即检查</a-button>
       </template>
 
       <template #empty>
@@ -82,11 +85,11 @@
       </template>
 
       <template #activeCell="{ record }">
-        <a-switch :checked="record.active === 1" size="small" @change="(v) => handleToggleActive(record, v)" />
+        <a-switch :checked="record.active === 1" size="small" @change="(v: any) => handleToggleActive(record, v)" />
       </template>
       <template #action="{ record }">
         <a-space :size="4">
-          <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+          <a-button type="link" size="small" v-permission="'erp:stock:edit'" @click="handleEdit(record)">编辑</a-button>
           <a-popconfirm title="确认删除该预警配置？" @confirm="handleDelete(record)">
             <a-button type="link" size="small" danger>删除</a-button>
           </a-popconfirm>
@@ -142,7 +145,7 @@ import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, AlertOutlined, CheckCircleOutlined, ExclamationCircleOutlined, FireOutlined, BellOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import request from '@/utils/request'
 
 function handleError(err: any) { hasError.value = true; console.warn('[预警配置]', err) }
@@ -173,7 +176,7 @@ const statistics = ref({ totalConfigs: 0, activeConfigs: 0, lowStockCount: 0, ov
 const pagination = reactive({ current: 1, pageSize: 10, total: 0 })
 const searchFilters = reactive<Record<string, any>>({})
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'productCode', title: '产品编码', width: 130 },
   { field: 'productName', title: '产品名称', width: 150 },
   { field: 'warehouseName', title: '仓库', width: 120 },
@@ -331,4 +334,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-sm), :deep(.ant-input-number-sm), :deep(.ant-select-single.ant-select-sm .ant-select-selector), :deep(.ant-picker-small), :deep(.ant-btn-sm) { height: 28px; line-height: 28px; }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

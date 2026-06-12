@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="tenant-page-header">
@@ -13,6 +14,10 @@
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
             <template #icon><ReloadOutlined /></template>
@@ -55,6 +60,8 @@
         </div>
       </div>
 
+      <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+
       <VxeTableList
         ref="tableRef"
         :columns="vxeColumns"
@@ -62,6 +69,7 @@
         :loading="loading"
         :pagination="pagination"
         :row-key="'id'"
+        :min-empty-rows="12"
         :filter-fields="filterFields"
         :show-search="false"
         :selectable="true"
@@ -76,7 +84,7 @@
         @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
-        @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+        @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
         @cell-dblclick="handleView"
       >
         <template #empty>
@@ -155,7 +163,7 @@
       </VxeTableList>
 
       <!-- 新增/编辑租户弹窗 -->
-      <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
+      <FullScreenDetail :visible="modalVisible" :title="modalTitle" :dirty="formDirty" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
         <a-form
           ref="formRef"
           :model="formState"
@@ -383,10 +391,12 @@
       </FullScreenDetail>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -404,7 +414,7 @@ import {
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { tenantApi, type TenantInfo } from '@/api/tenant'
 import { useSubmitLock } from '@/composables'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 搜索表单 ──────────────────────────────────────────────
@@ -487,7 +497,7 @@ const formState = reactive({
   level: 'basic'
 })
 
-const formRules = {
+const formRules: any = {
   tenantCode: [
     { required: true, message: '请输入租户编码', trigger: 'blur' },
     { min: 2, max: 20, message: '租户编码长度为 2-20 个字符', trigger: 'blur' }
@@ -561,8 +571,8 @@ const fetchData = async () => {
       pageSize: pagination.pageSize
     })
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -767,10 +777,10 @@ const handleConfig = async (record: TenantInfo) => {
     const res = await tenantApi.getConfig(record.id)
     if (res.data) {
       Object.assign(configForm, {
-        logo: res.data.logo || '',
-        themeColor: res.data.themeColor || '',
-        maxUsers: res.data.maxUsers,
-        expireDate: res.data.expireDate || undefined
+        logo: res.logo || '',
+        themeColor: res.themeColor || '',
+        maxUsers: res.maxUsers,
+        expireDate: res.expireDate || undefined
       })
     }
   } catch (err) {
@@ -827,6 +837,10 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+// 查看详情
+const handleView = (record: any) => {}
 </script>
 
 <style scoped>
@@ -935,6 +949,14 @@ defineExpose({ handleQuery: fetchData })
 
 
 
+/* ── VxeTable 表头边框线 2px ─────────────────────────── */
+.tenant-management :deep(.vxe-table .vxe-header--row th) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+.tenant-management :deep(.vxe-table .vxe-header--row th:not(:last-child)) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
@@ -972,4 +994,39 @@ defineExpose({ handleQuery: fetchData })
 }
 .tenant-management :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 .tenant-management :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

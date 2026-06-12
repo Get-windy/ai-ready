@@ -1,5 +1,5 @@
 <template>
-  <PageContainer full-height>
+  <ErrorBoundary @error="handleError"><PageContainer full-height>
     <template #header>
       <div class="workflow-page-header">
         <div class="workflow-page-header-left">
@@ -18,7 +18,12 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
+
       </div>
     </template>
 
@@ -134,6 +139,7 @@
         :show-search="false"
         :show-export="false"
         :show-batch-delete="false"
+        :min-empty-rows="12"
         @cell-dblclick="handleView"
         @page-change="handlePageChange"
       >
@@ -143,10 +149,10 @@
           </a-tag>
         </template>
         <template #action="{ record }">
-          <a-button type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
-          <a-button v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
+          <a-button v-permission="'workflow:task:view'" type="link" size="small" @click="handleViewDetail(record)">查看详情</a-button>
+          <a-button v-permission="'workflow:task:approve'" v-if="activeTab === 'todo'" type="link" size="small" @click="handleApprove(record)">审批</a-button>
           <a-dropdown v-if="activeTab === 'todo'">
-            <a-button type="link" size="small">
+            <a-button v-permission="'workflow:task:transfer'" type="link" size="small">
               转办/委托 <DownOutlined />
             </a-button>
             <template #overlay>
@@ -252,7 +258,7 @@
       </a-form>
     </a-modal>
   </div>
-</PageContainer>
+</PageContainer></ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -261,7 +267,8 @@ import { message, Modal } from 'ant-design-vue'
 import { DownOutlined, ScheduleOutlined, ClockCircleOutlined, FireOutlined, WarningOutlined, ReloadOutlined, SyncOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import request from '@/utils/request'
 import { userApi } from '@/api/user'
 
@@ -284,6 +291,8 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const hasError = ref(false)
 
+function handleError(err: any) { console.warn('[工作流] 任务管理出错', err); hasError.value = true }
+
 // 当前标签页
 const activeTab = ref('todo')
 
@@ -292,7 +301,7 @@ const queryForm = reactive({
   taskName: '',
   processName: '',
   priority: undefined as string | undefined,
-  dateRange: [] as any[]
+  dateRange: [] as any
 })
 
 // 表格数据
@@ -569,7 +578,7 @@ const getPriorityLabel = (priority: string) => {
 }
 
 // 初始加载
-function handleParentCreate() { handleAdd() }
+function handleParentCreate() { handleQuery() }
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
@@ -747,4 +756,48 @@ pre {
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态 ──────────────────────── */
+.empty-state-wrapper { display: flex; flex-direction: column; align-items: center; padding: 48px 0; }
+.empty-state-icon { font-size: 48px; color: #d9d9d9; }
+.empty-state-text { color: #999; margin-top: 12px; }
+.empty-state-action { margin-top: 12px; }
+
+/* ── vxe-table 表头 2px 边框 ─────── */
+:deep(.vxe-table .vxe-header--row) { border-top: 2px solid #e8e8e8; }
+
 </style>

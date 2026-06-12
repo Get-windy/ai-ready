@@ -195,8 +195,8 @@ const productColumns = [
   { title: '名称', dataIndex: 'productName', key: 'productName' },
   { title: '规格', dataIndex: 'spec', key: 'spec', width: 100 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '售价', key: 'price', width: 100, align: 'right' },
-  { title: '库存', key: 'stock', width: 80, align: 'right' }
+  { title: '售价', key: 'price', width: 100, align: 'right' as const },
+  { title: '库存', key: 'stock', width: 80, align: 'right' as const }
 ]
 
 const selectedColumns = [
@@ -206,15 +206,15 @@ const selectedColumns = [
   { title: '操作', key: 'action', width: 60 }
 ]
 
-const productSelection = {
-  selectedRowKeys: computed(() => selectedProducts.value.map(p => p.id)),
+const productSelection = computed(() => ({
+  selectedRowKeys: selectedProducts.value.map(p => p.id),
   onChange: (keys: any[], rows: any[]) => {
     // 合并已选，避免重复
     const existingIds = new Set(selectedProducts.value.map(p => p.id))
     const newRows = rows.filter(r => !existingIds.has(r.id)).map(r => ({ ...r, quantity: 1 }))
     selectedProducts.value = [...selectedProducts.value, ...newRows]
   }
-}
+}))
 
 function handleSearch(value: string) {
   if (!value) {

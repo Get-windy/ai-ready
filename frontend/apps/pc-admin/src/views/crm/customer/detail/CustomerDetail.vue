@@ -81,13 +81,13 @@
     <template #tab-related>
       <a-tabs default-active-key="quotations" size="small">
         <a-tab-pane key="quotations" tab="报价单">
-          <VxeTableList :columns="quotationVxeColumns" :data-source="quotations" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+          <VxeTableList :columns="quotationVxeColumns" :data-source="quotations" row-key="id" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="contracts" tab="合同">
-          <VxeTableList :columns="contractVxeColumns" :data-source="contracts" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+          <VxeTableList :columns="contractVxeColumns" :data-source="contracts" row-key="id" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
         <a-tab-pane key="orders" tab="订单">
-          <VxeTableList :columns="orderVxeColumns" :data-source="orders" row-key="id" :pagination="false" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+          <VxeTableList :columns="orderVxeColumns" :data-source="orders" row-key="id" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
         </a-tab-pane>
       </a-tabs>
     </template>
@@ -307,12 +307,13 @@ const handleFollowSubmit = async () => {
   }
   followModalLoading.value = true
   try {
-    await customerApi.addFollowRecord(customer.value!.id, {
+    const followData: any = {
       customerId: customer.value!.id,
       followType: followForm.followType,
       content: followForm.content,
-      followDate: followForm.followDate
-    })
+      followDate: (followForm as any).followDate
+    }
+    await customerApi.addFollowRecord(customer.value!.id, followData)
     message.success('跟进记录添加成功')
     followModalVisible.value = false
     activeTab.value = 'follows'
@@ -400,4 +401,55 @@ defineExpose({ handleQuery: fetchCustomerDetail })
   font-size: 12px;
   color: #909399;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

@@ -104,7 +104,7 @@
             <template #icon><EllipsisOutlined /></template>
           </a-button>
           <template #overlay>
-            <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+            <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
               <a-menu-item v-if="record.status === 1" key="approve">
                 <CheckCircleOutlined /> 审批
               </a-menu-item>
@@ -164,14 +164,14 @@
         <div class="form-items-toolbar">
           <a-button type="dashed" size="small" @click="addItem"><template #icon><PlusOutlined /></template>添加产品</a-button>
         </div>
-        <VxeTableList :data-source="formData.items" :pagination="false" row-key="key"
+        <VxeTableList :data-source="formData.items" :pagination="false as any" row-key="key"
           :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
           :show-export="false" :show-batch-delete="false" :columns="itemColumns">
           <template #productNameCell="{ record }"><a-input v-model:value="record.productName" placeholder="产品名称" size="small" /></template>
           <template #quantityCell="{ record }"><a-input-number v-model:value="record.quantity" :min="1" size="small" style="width: 100%" /></template>
           <template #unitPriceCell="{ record }"><a-input-number v-model:value="record.unitPrice" :min="0" :precision="2" size="small" style="width: 100%" /></template>
           <template #amountCell="{ record }">¥{{ (record.quantity * record.unitPrice).toFixed(2) }}</template>
-          <template #actionCell="{ record, rowIndex }"><a-button type="link" danger size="small" @click="removeItem(rowIndex)" :disabled="formData.items.length <= 1">删除</a-button></template>
+          <template #actionCell="{ record, index }"><a-button type="link" danger size="small" @click="removeItem(index)" :disabled="formData.items.length <= 1">删除</a-button></template>
         </VxeTableList>
       </a-form-item>
       <a-form-item label="备注" name="remark"><a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" /></a-form-item>
@@ -265,7 +265,7 @@ const formSubmitting = ref(false)
 const formRef = ref<FormInstance>()
 const formData = reactive({ orderNo: '', customerName: '', reason: undefined as string | undefined, returnDate: undefined as any, refundAmount: 0, items: [] as ReturnItem[], remark: '' })
 const defaultItem = (): ReturnItem => ({ key: Date.now() + Math.random(), productName: '', quantity: 1, unitPrice: 0 })
-const formRules = { orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }], customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }], reason: [{ required: true, message: '请选择退货原因', trigger: 'change' }], returnDate: [{ required: true, message: '请选择退货日期', trigger: 'change' }] }
+const formRules: any = { orderNo: [{ required: true, message: '请输入销售订单号', trigger: 'blur' }], customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }], reason: [{ required: true, message: '请选择退货原因', trigger: 'change' }], returnDate: [{ required: true, message: '请选择退货日期', trigger: 'change' }] }
 const itemColumns = [
   { title: '产品名称', field: 'productName', slotName: 'productNameCell' },
   { title: '数量', field: 'quantity', width: 100, slotName: 'quantityCell' },
@@ -542,4 +542,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

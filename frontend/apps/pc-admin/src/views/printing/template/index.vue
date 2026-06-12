@@ -19,6 +19,11 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
           <a-popconfirm
             title="将为本系统所有业务页面生成初始打印模板，是否继续？"
             @confirm="handleSeedTemplates"
@@ -32,6 +37,7 @@
       </div>
     </template>
 
+    <ErrorBoundary>
     <div class="template-management">
       <VxeTableList
         ref="tableRef"
@@ -44,6 +50,7 @@
         :show-search="false"
         :selectable="true"
         add-text="新增模板"
+        :min-empty-rows="12"
         @add="handleAdd"
         @edit="handleEdit"
         @delete="handleDeleteConfirm"
@@ -51,7 +58,7 @@
         @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
-        @selection-change="(_rows: any, ids: any) => { selectedRowKeys.value = ids as number[] }"
+        @selection-change="(_rows: any, ids: any) => { selectedRowKeys = ids as number[] }"
       >
         <template #toolbar-actions>
           <a-tooltip title="当前状态筛选已应用">
@@ -73,16 +80,16 @@
 
         <template #action="{ record }">
           <a-space>
-            <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+            <a-button type="link" size="small" v-permission="'printing:template:edit'" @click="handleEdit(record)">编辑</a-button>
             <a-button
               v-if="record.status === 0"
               type="link"
               size="small"
               :style="{ color: '#52c41a' }"
-              @click="handlePublish(record)"
+ v-permission="'printing:template:publish'" @click="handlePublish(record)"
             >发布</a-button>
-            <a-button type="link" size="small" @click="handleCopy(record)">复制</a-button>
-            <a-button type="link" size="small" danger @click="handleDeleteConfirm(record)">删除</a-button>
+            <a-button type="link" size="small" v-permission="'printing:template:copy'" @click="handleCopy(record)">复制</a-button>
+            <a-button type="link" size="small" danger v-permission="'printing:template:deleteconfirm'" @click="handleDeleteConfirm(record)">删除</a-button>
           </a-space>
         </template>
 
@@ -221,6 +228,7 @@
         </a-form>
       </FullScreenDetail>
     </div>
+    </ErrorBoundary>
   </PageContainer>
 </template>
 
@@ -238,7 +246,9 @@ import {
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import { printingApi, type PrintTemplateVO, type PrintTemplateCreateRequest } from '@/api/printing'
 import { seedAllTemplates } from '@/views/printing/seed-templates'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
 // ═══════════════════════════════════════════════════════════════
 // 常量定义
@@ -422,10 +432,10 @@ const validateCustomDimension = (_rule: any, value: number) => {
   return Promise.resolve()
 }
 
-const formRules = {
-  templateName: { required: true, message: '请输入模板名称', trigger: 'blur' },
-  pageCode: { required: true, message: '请输入页面编码', trigger: 'blur' },
-  paperSize: { required: true, message: '请选择纸张大小', trigger: 'change' },
+const formRules: Record<string, any[]> = {
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  pageCode: [{ required: true, message: '请输入页面编码', trigger: 'blur' }],
+  paperSize: [{ required: true, message: '请选择纸张大小', trigger: 'change' }],
   paperWidth: [
     { required: true, message: '请输入纸张宽度', trigger: 'blur' },
     { validator: validateCustomDimension, trigger: 'blur' },
@@ -434,10 +444,10 @@ const formRules = {
     { required: true, message: '请输入纸张高度', trigger: 'blur' },
     { validator: validateCustomDimension, trigger: 'blur' },
   ],
-  marginTop: { required: true, message: '请输入上边距', trigger: 'blur' },
-  marginBottom: { required: true, message: '请输入下边距', trigger: 'blur' },
-  marginLeft: { required: true, message: '请输入左边距', trigger: 'blur' },
-  marginRight: { required: true, message: '请输入右边距', trigger: 'blur' },
+  marginTop: [{ required: true, message: '请输入上边距', trigger: 'blur' }],
+  marginBottom: [{ required: true, message: '请输入下边距', trigger: 'blur' }],
+  marginLeft: [{ required: true, message: '请输入左边距', trigger: 'blur' }],
+  marginRight: [{ required: true, message: '请输入右边距', trigger: 'blur' }],
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -474,8 +484,8 @@ const fetchData = async () => {
       status: searchForm.status,
     })
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -883,4 +893,75 @@ defineExpose({ handleQuery: fetchData })
     gap: 8px;
   }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── 加载骨架屏 ──────────────────────── */
+:deep(.template-loading-skeleton) {
+  padding: 24px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

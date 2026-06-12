@@ -88,7 +88,7 @@ const emit = defineEmits<{
 }>()
 
 const getCardsByStatus = (status: number) => {
-  return props.data.filter(card => card[props.statusField] === status)
+  return props.data.filter(card => card[props.statusField] === status) as any
 }
 
 const handleCardClick = (card: KanbanCardData) => {

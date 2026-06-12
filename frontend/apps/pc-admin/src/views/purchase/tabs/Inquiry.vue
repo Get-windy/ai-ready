@@ -103,7 +103,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="copy"><CopyOutlined /> 复制</a-menu-item>
                   <a-menu-item key="quote" v-if="record.status === 2"><FileTextOutlined /> 创建报价</a-menu-item>
                   <a-menu-divider />
@@ -160,7 +160,7 @@
           <VxeTableList
             :columns="itemDetailColumns"
             :data-source="detailItems"
-            :pagination="false"
+            :pagination="false as any"
             row-key="tempKey"
             :show-toolbar="false"
             :selectable="false"
@@ -229,7 +229,7 @@
         <VxeTableList
           :columns="itemColumns"
           :data-source="formData.items"
-          :pagination="false"
+          :pagination="false as any"
           row-key="tempKey"
           :show-toolbar="false"
           :selectable="false"
@@ -250,8 +250,8 @@
           <template #unitCell="{ record }">
             <a-input v-model:value="record.unit" placeholder="单位" size="small" />
           </template>
-          <template #actionCell="{ record, rowIndex }">
-            <a-button type="link" danger size="small" @click="handleRemoveItem(rowIndex)">删除</a-button>
+          <template #actionCell="{ record, index }">
+            <a-button type="link" danger size="small" @click="handleRemoveItem(index)">删除</a-button>
           </template>
         </VxeTableList>
         <a-button type="dashed" block @click="handleAddItem" style="margin-top: 12px">
@@ -388,7 +388,7 @@ const formData = reactive({
   items: [] as InquiryItem[]
 })
 
-const formRules = {
+const formRules: any = {
   supplierId: [{ required: true, message: '请选择供应商', trigger: 'change' }],
   inquiryDate: [{ required: true, message: '请选择询价日期', trigger: 'change' }]
 }
@@ -835,4 +835,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

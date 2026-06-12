@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="report-page-header">
@@ -19,6 +20,9 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
@@ -82,7 +86,7 @@
           </a-select>
         </a-form-item>
         <a-form-item>
-          <a-button type="primary" size="small" @click="handleGenerate">
+          <a-button v-permission="'finance:report:view'" type="primary" size="small" @click="handleGenerate">
             <template #icon><SearchOutlined /></template>
             生成
           </a-button>
@@ -101,10 +105,11 @@
           style="margin-bottom: 16px"
         />
         <VxeTableList
+          :min-empty-rows="12"
           :columns="trialBalanceColumns"
           :data-source="trialBalanceData"
           :loading="trialLoading"
-          :pagination="false"
+          :pagination="false as any"
           :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
@@ -147,7 +152,7 @@
           :columns="balanceSheetColumns"
           :data-source="balanceSheetData"
           :loading="bsLoading"
-          :pagination="false"
+          :pagination="false as any"
           :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
@@ -184,7 +189,7 @@
           :columns="incomeStatementColumns"
           :data-source="incomeStatementData"
           :loading="isLoading"
-          :pagination="false"
+          :pagination="false as any"
           :row-key="'id'"
           :show-toolbar="false"
           :show-search="false"
@@ -219,10 +224,12 @@
     </a-tabs>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -232,7 +239,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { reportApi } from '@/api/finance'
 
 const debounceMap = new Map<string, number>()
@@ -326,7 +333,7 @@ const loadTrialBalance = async (period: string) => {
     const [year, p] = period.split('-')
     const res = await reportApi.getTrialBalance({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
     if (res.data) {
-      const items = res.data.items || res.data || []
+      const items = res.items || res.data || []
       trialBalanceData.value = Array.isArray(items) ? items : []
 
       // Calculate totals for balance check
@@ -371,7 +378,7 @@ const loadBalanceSheet = async (period: string) => {
     const [year, p] = period.split('-')
     const res = await reportApi.getBalanceSheet({ fiscalYear: parseInt(year), fiscalPeriod: parseInt(p) })
     if (res.data) {
-      const items = res.data.items || res.data || []
+      const items = res.items || res.data || []
       balanceSheetData.value = Array.isArray(items) ? items : []
 
       // Check asset = liability + equity
@@ -408,7 +415,7 @@ const loadIncomeStatement = async (period: string) => {
       endMonth: parseInt(p)
     })
     if (res.data) {
-      const items = res.data.items || res.data || []
+      const items = res.items || res.data || []
       incomeStatementData.value = Array.isArray(items) ? items : []
 
       // Calculate net profit (last row)
@@ -483,6 +490,8 @@ function handleKeydown(e: KeyboardEvent) {
 const handleRefresh = () => loadReport(activeTab.value)
 
 defineExpose({ handleQuery: loadReport })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -633,4 +642,55 @@ defineExpose({ handleQuery: loadReport })
 :deep(.ant-form-item) {
   margin-bottom: 8px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
 </style>

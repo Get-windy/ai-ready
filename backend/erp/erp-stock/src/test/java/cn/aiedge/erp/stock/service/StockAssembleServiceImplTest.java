@@ -132,8 +132,8 @@ class StockAssembleServiceImplTest {
             // totalCost = qty * unitCost * assembleQuantity + assembleFee
             // = 5 * 20 * 2 + 100 = 300
             assertNotNull(result);
-            verify(assembleItemMapper).insert(argThat(i ->
-                    ((StockAssembleItem) i).getCost().compareTo(new BigDecimal("100")) == 0));
+            verify(assembleItemMapper).insert(argThat((StockAssembleItem i) ->
+                    i.getCost().compareTo(new BigDecimal("100")) == 0));
         }
     }
 
@@ -207,7 +207,7 @@ class StockAssembleServiceImplTest {
 
         when(assembleItemMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(items);
 
-        List<StockAssembleItem> result = assembleService.getItems(1L);
+        List<StockAssembleItem> result = assembleService.getItemList(1L);
         assertEquals(1, result.size());
     }
 

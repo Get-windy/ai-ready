@@ -44,7 +44,7 @@
         :columns="itemVxeColumns"
         :data-source="inquiry?.items || []"
         row-key="id"
-        :pagination="false"
+        :pagination="false as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"
@@ -56,7 +56,7 @@
           ¥{{ record.amount?.toFixed(2) }}
         </template>
       </VxeTableList>
-      <a-empty v-if="!inquiry?.items || inquiry.items.length === 0" description="暂无询价明细" style="margin-top: 16px" />
+      <a-empty v-if="!inquiry?.items || (inquiry as any).items.length === 0" description="暂无询价明细" style="margin-top: 16px" />
     </template>
 
     <template #tab-quotations>
@@ -64,7 +64,7 @@
         :columns="quotationVxeColumns"
         :data-source="inquiry?.quotations || []"
         row-key="id"
-        :pagination="false"
+        :pagination="false as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"
@@ -81,7 +81,7 @@
           </a-tag>
         </template>
       </VxeTableList>
-      <a-empty v-if="!inquiry?.quotations || inquiry.quotations.length === 0" description="暂无报价记录" style="margin-top: 16px" />
+      <a-empty v-if="!inquiry?.quotations || (inquiry as any).quotations.length === 0" description="暂无报价记录" style="margin-top: 16px" />
     </template>
   </DetailLayout>
 </template>
@@ -109,7 +109,7 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 
 const router = useRouter(); const route = useRoute()
 let refreshTimer: ReturnType<typeof setInterval> | null = null
-const inquiry = ref<PurchaseInquiry | null>(null)
+const inquiry = ref<any>(null)
 const loading = ref(false); const error = ref<string | null>(null); const activeTab = ref('basic')
 const isEditing = ref(false)
 const editForm = ref({ inquiryNo: '', supplierName: '', inquiryDate: '' })

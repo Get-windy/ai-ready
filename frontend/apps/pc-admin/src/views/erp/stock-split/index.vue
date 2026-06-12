@@ -18,6 +18,9 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
@@ -126,13 +129,13 @@
       <template #action="{ record }">
         <a-space :size="4">
           <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
           <!-- 草稿 -> 提交 -->
           <a-tooltip v-if="record.status === 0" title="提交审批">
-            <a-button type="link" size="small" style="color: #1890ff;" @click="handleSubmitApproval(record)">
+            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(record)">
               <template #icon><SendOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -156,7 +159,7 @@
           </template>
           <!-- 已审核 -> 执行 -->
           <a-tooltip v-if="record.status === 2" title="执行">
-            <a-button type="link" size="small" style="color: #52c41a;" @click="handleExecute(record)">
+            <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:execute'" @click="handleExecute(record)">
               <template #icon><MinusCircleOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -172,7 +175,7 @@
           />
           <!-- 取消 -->
           <a-tooltip v-if="record.status === 0 || record.status === 2" title="取消">
-            <a-button type="link" size="small" style="color: #ff4d4f;" @click="handleCancel(record)">
+            <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:cancel'" @click="handleCancel(record)">
               <template #icon><CloseOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -203,7 +206,7 @@
           <a-table
             :data-source="detailItems"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             bordered
             row-key="id"
@@ -220,21 +223,21 @@
       <template #footer v-if="detailData">
         <a-space>
           <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" @click="handleSubmitApproval(detailData)">
+          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(detailData)">
             <template #icon><SendOutlined /></template>
             提交审批
           </a-button>
           <template v-if="detailData.status === 1">
-            <a-button type="primary" @click="handleApprove(detailData)">
+            <a-button type="primary" v-permission="'erp:stock:approve'" @click="handleApprove(detailData)">
               <template #icon><CheckOutlined /></template>
               审批通过
             </a-button>
-            <a-button danger @click="handleReject(detailData)">
+            <a-button danger v-permission="'erp:stock:reject'" @click="handleReject(detailData)">
               <template #icon><CloseOutlined /></template>
               拒绝
             </a-button>
           </template>
-          <a-button v-if="detailData.status === 2" type="primary" @click="handleExecute(detailData)">
+          <a-button v-if="detailData.status === 2" type="primary" v-permission="'erp:stock:execute'" @click="handleExecute(detailData)">
             <template #icon><MinusCircleOutlined /></template>
             执行
           </a-button>
@@ -321,7 +324,7 @@
       <a-table
         :data-source="createForm.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="tempId"
         style="margin-bottom: 12px;"
@@ -357,7 +360,7 @@ import {
   MinusCircleOutlined, EyeOutlined, ScissorOutlined, SearchOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
@@ -449,7 +452,7 @@ const filterFields = computed(() => [
   { key: 'status', label: '状态', type: 'select' as const, options: Object.entries(ASSEMBLE_STATUS).map(([k, v]) => ({ label: v.text, value: Number(k) })) },
 ])
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'splitNo', title: '拆分单号', width: 150 },
   { field: 'warehouseName', title: '仓库', width: 120 },
   { field: 'productCode', title: '产品编码', width: 120 },
@@ -546,7 +549,7 @@ const createRules: Record<string, any[]> = {
   splitQuantity: [{ required: true, message: '请输入拆分数量', trigger: 'blur' }]
 }
 
-const itemColumns = [
+const itemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 100 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'spec', width: 80 },
@@ -555,7 +558,7 @@ const itemColumns = [
   { title: '成本', dataIndex: 'cost', width: 100 }
 ]
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'spec', width: 100 },
@@ -1006,6 +1009,41 @@ defineExpose({ handleQuery: fetchData })
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

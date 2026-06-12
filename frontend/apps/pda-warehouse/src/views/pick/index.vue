@@ -3,88 +3,65 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NavBar, Card, Button, Tag, Empty, showLoadingToast, closeToast, showToast } from 'vant'
 import { api } from '@/api'
+import type { PdaTaskItem } from '@/types'
 
 const router = useRouter()
 
-interface PickTask {
-  id: string
+interface PickTaskItem {
+  id: number
   taskNo: string
-  orderNo: string
-  itemCount: number
-  pickedCount: number
-  status: 'pending' | 'in_progress' | 'completed'
-  priority: 'high' | 'normal' | 'low'
+  status: number
+  warehouseName: string
   createTime: string
-  deadline: string
-  warehouse: string
-  location: string
 }
 
-const pickTasks = ref<PickTask[]>([])
+const pickTasks = ref<PickTaskItem[]>([])
 const loading = ref(false)
 
-const statusMap = {
-  pending: { label: '待拣货', color: '#969799' },
-  in_progress: { label: '拣货中', color: '#1988fa' },
-  completed: { label: '已完成', color: '#07c160' }
+const statusMap: Record<number, { label: string; color: string }> = {
+  0: { label: '待拣货', color: '#969799' },
+  1: { label: '拣货中', color: '#1988fa' },
+  2: { label: '已完成', color: '#07c160' },
 }
 
-const priorityMap = {
-  high: { label: '紧急', color: '#f44' },
-  normal: { label: '普通', color: '#1988fa' },
-  low: { label: '低', color: '#969799' }
-}
-
-onMounted(async () => {
+onMounted(() => {
   loadPickTasks()
 })
 
 const loadPickTasks = async () => {
   loading.value = true
   showLoadingToast({ message: '加载中...', forbidClick: true })
-  
+
   try {
-    const res = await api.pick.getTasks()
-    pickTasks.value = res.data || [
-      {
-        id: '1',
-        taskNo: 'PK202401001',
-        orderNo: 'SO202401001',
-        itemCount: 20,
-        pickedCount: 0,
-        status: 'pending',
-        priority: 'high',
-        createTime: '2024-01-15 10:00',
-        deadline: '2024-01-15 14:00',
-        warehouse: '主仓库',
-        location: 'A区'
-      },
-      {
-        id: '2',
-        taskNo: 'PK202401002',
-        orderNo: 'SO202401002',
-        itemCount: 15,
-        pickedCount: 8,
-        status: 'in_progress',
-        priority: 'normal',
-        createTime: '2024-01-15 09:00',
-        deadline: '2024-01-15 13:00',
-        warehouse: '主仓库',
-        location: 'B区'
-      }
-    ]
+    const tasks = await api.task.getList()
+    pickTasks.value = (tasks as unknown as PdaTaskItem[])
+      .filter(t => t.taskType === 'PICK')
+      .map(t => ({
+        id: t.taskId,
+        taskNo: t.taskNo,
+        status: t.status,
+        warehouseName: t.warehouseName,
+        createTime: t.createTime,
+      }))
+  } catch (err) {
+    console.error('[拣货] 加载失败', err)
+    showToast('加载任务失败')
+    pickTasks.value = []
   } finally {
     loading.value = false
     closeToast()
   }
 }
 
-const handleStartPick = async (task: PickTask) => {
+const handleStartPick = async (task: PickTaskItem) => {
   showLoadingToast({ message: '开始拣货...', forbidClick: true })
   try {
-    await api.pick.start(task.id)
-    showToast({ type: 'success', message: '开始拣货' })
+    await api.task.start(task.id, 'PICK')
+    showToast('开始拣货')
     router.push(`/pick/${task.id}`)
+  } catch (err) {
+    console.error('[拣货] 开始失败', err)
+    showToast('操作失败')
   } finally {
     closeToast()
   }
@@ -94,12 +71,8 @@ const handleScanPick = () => {
   router.push('/pick/scan')
 }
 
-const handleViewDetail = (task: PickTask) => {
+const handleViewDetail = (task: PickTaskItem) => {
   router.push(`/pick/${task.id}`)
-}
-
-const getProgress = (task: PickTask) => {
-  return Math.round((task.pickedCount / task.itemCount) * 100)
 }
 </script>
 
@@ -124,11 +97,8 @@ const getProgress = (task: PickTask) => {
         <template #title>
           <div class="card-header">
             <span class="task-no">{{ task.taskNo }}</span>
-            <Tag :color="statusMap[task.status].color">
-              {{ statusMap[task.status].label }}
-            </Tag>
-            <Tag :color="priorityMap[task.priority].color">
-              {{ priorityMap[task.priority].label }}
+            <Tag :color="statusMap[task.status]?.color || '#969799'">
+              {{ statusMap[task.status]?.label || task.status }}
             </Tag>
           </div>
         </template>
@@ -136,45 +106,29 @@ const getProgress = (task: PickTask) => {
         <template #desc>
           <div class="card-info">
             <div class="info-row">
-              <span class="label">订单号:</span>
-              <span class="value">{{ task.orderNo }}</span>
-            </div>
-            <div class="info-row">
               <span class="label">仓库:</span>
-              <span class="value">{{ task.warehouse }} {{ task.location }}</span>
+              <span class="value">{{ task.warehouseName }}</span>
             </div>
             <div class="info-row">
-              <span class="label">商品数:</span>
-              <span class="value">{{ task.itemCount }} 件</span>
+              <span class="label">创建时间:</span>
+              <span class="value">{{ task.createTime }}</span>
             </div>
-            <div class="info-row">
-              <span class="label">已拣货:</span>
-              <span class="value">{{ task.pickedCount }} 件</span>
-            </div>
-            <div class="info-row">
-              <span class="label">截止:</span>
-              <span class="value deadline">{{ task.deadline }}</span>
-            </div>
-          </div>
-          
-          <div v-if="task.status !== 'pending'" class="progress-bar">
-            <div class="progress-fill" :style="{ width: getProgress(task) + '%' }"></div>
           </div>
         </template>
-        
+
         <template #footer>
           <div class="card-actions">
-            <Button 
-              v-if="task.status === 'pending'"
-              type="primary" 
+            <Button
+              v-if="task.status === 0"
+              type="primary"
               size="small"
               @click="handleStartPick(task)"
             >
               开始拣货
             </Button>
-            <Button 
-              v-if="task.status === 'in_progress'"
-              type="primary" 
+            <Button
+              v-if="task.status === 1"
+              type="primary"
               size="small"
               @click="handleScanPick"
             >

@@ -45,7 +45,7 @@
       :columns="columns"
       :data-source="dataSource"
       :loading="loading"
-      :pagination="false"
+      :pagination="false as any"
       row-key="id"
       :show-toolbar="false"
       :selectable="false"

@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="replenishment-page-header">
@@ -10,10 +11,14 @@
           <h2 class="replenishment-page-title">智能补货建议</h2>
         </div>
         <div class="replenishment-page-header-right">
+          <span v-if="lastUpdateTime" class="page-header__update-time">更新于: {{ lastUpdateTime }}</span>
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
-          <a-button size="small" :loading="loading" @click="handleRefresh">
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
+          <a-button size="small" :loading="loading" v-permission="'erp:stock:refresh'" @click="handleRefresh">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -161,8 +166,8 @@
             </template>
             <template #action="{ record }">
               <a-space>
-                <a-button size="small" type="primary" @click="handleCreateOrder(record)">创建采购单</a-button>
-                <a-button size="small" @click="handleIgnore(record)">忽略</a-button>
+                <a-button size="small" type="primary" v-permission="'erp:stock:createorder'" @click="handleCreateOrder(record)">创建采购单</a-button>
+                <a-button size="small" v-permission="'erp:stock:ignore'" @click="handleIgnore(record)">忽略</a-button>
                 <a @click="handleViewDetail(record)">详情</a>
               </a-space>
             </template>
@@ -173,7 +178,7 @@
             :columns="processedVxeColumns"
             :data-source="processedSuggestions"
             :loading="loading"
-            :pagination="false"
+            :pagination="false as any"
             row-key="id"
             :show-toolbar="false"
             :selectable="false"
@@ -203,7 +208,7 @@
             :columns="ignoredVxeColumns"
             :data-source="ignoredSuggestions"
             :loading="loading"
-            :pagination="false"
+            :pagination="false as any"
             row-key="id"
             :show-toolbar="false"
             :selectable="false"
@@ -348,6 +353,7 @@
       <div ref="priorityChartRef" class="chart-container"></div>
     </a-modal>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
@@ -355,7 +361,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import * as echarts from 'echarts'
 import { replenishmentApi, type ReplenishmentSuggestion } from '@/api/erp'
 
@@ -371,7 +378,19 @@ function debounceClick(key: string, fn: () => void, delay = 300) {
 
 const loading = ref(false)
 const hasError = ref(false)
+const lastUpdateTime = ref('')
 const autoRefreshCountdown = ref(0)
+
+function handleError(err: unknown) {
+  console.warn('[Replenishment]', err)
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'F5' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault()
+    debounceClick('refresh', handleRefresh)
+  }
+}
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -403,7 +422,7 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const pendingVxeColumns = computed(() => [
+const pendingVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品信息', width: 180, slotName: 'productCell' },
   { field: 'stock', title: '库存状态', width: 150, slotName: 'stockCell' },
   { field: 'analysis', title: '销售分析', width: 150, slotName: 'analysisCell' },
@@ -413,7 +432,7 @@ const pendingVxeColumns = computed(() => [
   { field: 'action', title: '操作', width: 200, fixed: 'right', type: 'action' },
 ])
 
-const processedVxeColumns = computed(() => [
+const processedVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品名称', width: 180 },
   { field: 'suggestedQty', title: '建议采购量', width: 120 },
   { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
@@ -421,7 +440,7 @@ const processedVxeColumns = computed(() => [
   { field: 'processTime', title: '处理时间', width: 150 },
 ])
 
-const ignoredVxeColumns = computed(() => [
+const ignoredVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品名称', width: 180 },
   { field: 'suggestedQty', title: '建议采购量', width: 120 },
   { field: 'status', title: '状态', width: 100, slotName: 'statusCell' },
@@ -465,11 +484,14 @@ const handleRefresh = () => {
 
 onMounted(() => {
   loadSuggestions()
+  lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   window.addEventListener("erp:create", handleParentCreate)
   window.addEventListener("erp:refresh", loadSuggestions)
+  document.addEventListener('keydown', handleKeydown)
   autoRefreshCountdown.value = 30
   refreshTimer = setInterval(() => {
     loadSuggestions()
+    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
     autoRefreshCountdown.value = 30
   }, 30000)
   countdownTimer = setInterval(() => {
@@ -480,13 +502,12 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("erp:create", handleParentCreate)
   window.removeEventListener("erp:refresh", loadSuggestions)
+  document.removeEventListener('keydown', handleKeydown)
   if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   salesTrendChart?.dispose()
   priorityChart?.dispose()
 })
-
-defineExpose({ handleQuery: loadSuggestions })
 
 const loadSuggestions = async () => {
   hasError.value = false
@@ -509,6 +530,8 @@ const loadSuggestions = async () => {
     loading.value = false
   }
 }
+
+defineExpose({ handleQuery: loadSuggestions })
 
 const generateSuggestions = async () => {
   loading.value = true
@@ -557,7 +580,7 @@ const detailLoading = ref(false)
 const fetchDetail = async (id: number) => {
   detailLoading.value = true
   try {
-    const res = await replenishmentApi.getById(id)
+    const res = await (replenishmentApi as any).getById(id)
     suggestionDetail.value = res.data || {}
   } catch (err) {
     console.warn('[智能补货] 获取详情失败', err)
@@ -868,6 +891,45 @@ const initPriorityChart = () => {
 .table-empty-text {
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+.page-header__update-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

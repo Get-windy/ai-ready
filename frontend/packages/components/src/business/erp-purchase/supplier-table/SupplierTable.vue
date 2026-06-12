@@ -12,9 +12,9 @@
       <template v-if="showActions" #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <div class="table-actions">
-            <a-button size="small" type="primary" @click="emit('view', record)">查看</a-button>
-            <a-button size="small" @click="emit('edit', record)">编辑</a-button>
-            <a-button size="small" danger @click="emit('delete', record)">删除</a-button>
+            <a-button size="small" type="primary" @click="handleView(record)">查看</a-button>
+            <a-button size="small" @click="handleEdit(record)">编辑</a-button>
+            <a-button size="small" danger @click="handleDelete(record)">删除</a-button>
           </div>
         </template>
       </template>
@@ -60,6 +60,10 @@ const emit = defineEmits<{
 }>()
 
 const selectedRowKeys = ref<(string | number)[]>([])
+
+const handleView = (row: any) => emit('view', row)
+const handleEdit = (row: any) => emit('edit', row)
+const handleDelete = (row: any) => emit('delete', row)
 
 const mergedColumns = computed(() => {
   let cols = props.columns.length > 0 ? props.columns : defaultColumns as any

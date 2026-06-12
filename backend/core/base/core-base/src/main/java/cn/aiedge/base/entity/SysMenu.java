@@ -129,6 +129,21 @@ public class SysMenu {
     private LocalDateTime updateTime;
 
     /**
+     * 业务流向标签（sales/purchase/warehouse/wms/delivery/customer/finance/expense/asset/budget/mall/orders/workflow/product/printing/system）
+     */
+    private String bizFlowTag;
+
+    /**
+     * 是否纯展示分组（0=正常路由目录，1=仅用于sidebar分组的虚拟节点，不生成路由嵌套）
+     */
+    private Integer displayGroup;
+
+    /**
+     * 外链/快捷方式图标
+     */
+    private String linkIcon;
+
+    /**
      * 子菜单列表（非数据库字段）
      */
     @TableField(exist = false)

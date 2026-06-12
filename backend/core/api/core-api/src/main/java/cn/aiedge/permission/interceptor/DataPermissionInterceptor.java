@@ -165,7 +165,7 @@ public class DataPermissionInterceptor extends JsqlParserSupport implements Inne
                 if (deptIds == null || deptIds.isEmpty()) yield null;
                 InExpression in = new InExpression();
                 in.setLeftExpression(new Column("dept_id"));
-                in.setRightItemsList(new ParenthesedExpressionList<>(
+                in.setRightExpression(new ParenthesedExpressionList<>(
                     deptIds.stream().map(LongValue::new).collect(Collectors.toList())
                 ));
                 yield in;

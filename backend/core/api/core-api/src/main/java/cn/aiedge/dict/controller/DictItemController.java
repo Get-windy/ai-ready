@@ -11,10 +11,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+
+import cn.aiedge.common.result.ApiResponse;
 
 /**
  * 字典项控制器
@@ -80,9 +83,9 @@ public class DictItemController {
 
     @GetMapping("/code/{dictCode}")
     @Operation(summary = "根据字典类型编码查询字典项")
-    public List<DictItemVO> getByDictCode(
+    public ResponseEntity<ApiResponse<List<DictItemVO>>> getByDictCode(
             @Parameter(description = "字典类型编码") @PathVariable String dictCode) {
-        return dictItemService.getByDictCode(dictCode);
+        return ResponseEntity.ok(ApiResponse.success(dictItemService.getByDictCode(dictCode)));
     }
 
     @GetMapping("/tree")

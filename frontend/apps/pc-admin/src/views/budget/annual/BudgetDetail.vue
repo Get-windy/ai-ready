@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="detail-page-header">
@@ -19,6 +20,10 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
           <a-button size="small" @click="router.push('/budget/annual')">
             <template #icon><ArrowLeftOutlined /></template>
             返回
@@ -107,8 +112,8 @@
             <a-descriptions-item label="模板">{{ budget?.templateName || '-' }}</a-descriptions-item>
             <a-descriptions-item label="创建人">{{ budget?.createdBy }}</a-descriptions-item>
             <a-descriptions-item label="创建时间">{{ budget?.createdAt }}</a-descriptions-item>
-            <a-descriptions-item label="描述" :span="{ xs: 1, sm: 2, md: 4 }">{{ budget?.description || '-' }}</a-descriptions-item>
-            <a-descriptions-item label="备注" :span="{ xs: 1, sm: 2, md: 4 }">{{ budget?.remark || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="描述" :span="{ xs: 1, sm: 2, md: 4 } as any">{{ budget?.description || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="备注" :span="{ xs: 1, sm: 2, md: 4 } as any">{{ budget?.remark || '-' }}</a-descriptions-item>
           </a-descriptions>
         </a-card>
 
@@ -118,7 +123,7 @@
             :data-source="budgetItems"
             :columns="itemVxeColumns"
             :loading="itemLoading"
-            :pagination="false"
+            :pagination="false as any"
             row-key="id"
             :show-toolbar="false"
             :selectable="false"
@@ -160,7 +165,7 @@
                 :data-source="adjustments"
                 :columns="adjustVxeColumns"
                 :loading="adjLoading"
-                :pagination="false"
+                :pagination="false as any"
                 row-key="id"
                 :show-toolbar="false"
                 :selectable="false"
@@ -187,15 +192,17 @@
       </template>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { annualBudgetApi, budgetItemApi, budgetAdjustmentApi } from '@/api/budget'
 import { message } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import {
   FundOutlined, ShoppingOutlined, WalletOutlined, LineChartOutlined,
   SyncOutlined, ReloadOutlined, WarningOutlined, ArrowLeftOutlined, EditOutlined,
@@ -276,7 +283,7 @@ const loadData = async () => {
     const res = await annualBudgetApi.getById(budgetId.value)
     if (res.success) {
       budget.value = res.data
-      budgetItems.value = res.data.items || []
+      budgetItems.value = res.items || []
     }
   } catch (_) {
     hasError.value = true
@@ -298,7 +305,7 @@ const loadData = async () => {
   try {
     const res = await budgetAdjustmentApi.page({ budgetId: budgetId.value, pageNum: 0, pageSize: 100 })
     if (res.success) {
-      adjustments.value = res.data.records || []
+      adjustments.value = res.records || []
     }
   } catch (_) {
     console.warn('[预算详情] 加载调整记录失败')
@@ -393,6 +400,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: loadData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -539,4 +548,39 @@ defineExpose({ handleQuery: loadData })
   .stat-cards { flex-wrap: wrap; }
   .stat-card { flex: 1 1 45%; min-width: 120px; }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

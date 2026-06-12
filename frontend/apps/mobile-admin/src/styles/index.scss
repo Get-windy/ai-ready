@@ -1,0 +1,64 @@
+// ========== Design Tokens ==========
+$primary-color: #1988fa;
+$danger-color: #f44;
+$warning-color: #ff976a;
+$success-color: #07c160;
+$text-color: #333;
+$text-secondary: #969799;
+$text-muted: #c8c9cc;
+$bg-color: #f7f8fa;
+$bg-white: #fff;
+$border-color: #ebedf0;
+$font-size-base: 14px;
+
+// ========== CSS Reset for Mobile ==========
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: $font-size-base;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  font-size: $font-size-base;
+  color: $text-color;
+  background-color: $bg-color;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+// ========== Vant Theme Overrides ==========
+:root {
+  --van-primary-color: #1988fa;
+  --van-danger-color: #f44;
+  --van-warning-color: #ff976a;
+  --van-success-color: #07c160;
+  --van-text-color: #333;
+  --van-background: #f7f8fa;
+}

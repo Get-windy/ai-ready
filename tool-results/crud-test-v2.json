@@ -1,0 +1,33 @@
+[
+  {
+    "name": "产品管理",
+    "path": "/erp/product",
+    "hasNewBtn": false,
+    "hasTable": false,
+    "rowCount": 0
+  },
+  {
+    "name": "客户管理",
+    "path": "/crm/customer",
+    "hasNewBtn": true,
+    "hasTable": false,
+    "clickError": "page.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"新建\")')\u001b[22m\n",
+    "rowCount": 0
+  },
+  {
+    "name": "用户管理",
+    "path": "/system/user",
+    "hasNewBtn": true,
+    "hasTable": false,
+    "clickError": "page.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"新建\")')\u001b[22m\n",
+    "rowCount": 0
+  },
+  {
+    "name": "打印模板",
+    "path": "/printing/template",
+    "hasNewBtn": true,
+    "hasTable": false,
+    "clickError": "page.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"新建\")')\u001b[22m\n",
+    "rowCount": 0
+  }
+]

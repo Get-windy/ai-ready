@@ -48,7 +48,7 @@
       <a-table
         :data-source="form.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="key"
         :scroll="{ x: 800 }"
@@ -102,7 +102,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import { FullScreenDetail } from '@/components'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { feeReimbursementApi, type FeeReimbursement } from '@/api/erp/expense'
 
 const route = useRoute()

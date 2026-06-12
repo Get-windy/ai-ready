@@ -5,13 +5,15 @@ import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
 /**
  * 菜单Mapper
- * 
+ * <p>
+ * SQL 定义见 resources/mapper/SysMenuMapper.xml
+ * 复杂动态 SQL 统一在 XML 中维护，注解仅保留简单查询。
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
@@ -31,7 +33,7 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
     /**
      * 查询子菜单
      */
-    List<SysMenu> selectChildrenByParentId(@Param("parentId") Long parentId, 
+    List<SysMenu> selectChildrenByParentId(@Param("parentId") Long parentId,
                                             @Param("tenantId") Long tenantId);
 
     /**
@@ -49,32 +51,17 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
     /**
      * 根据用户ID查询角色ID列表
      */
-    @Select("SELECT role_id FROM sys_user_role WHERE user_id = #{userId}")
     List<Long> selectRoleIdsByUserId(@Param("userId") Long userId);
 
     /**
      * 根据角色ID列表查询菜单ID列表（忽略租户过滤，角色菜单关联为系统级配置）
      */
     @InterceptorIgnore(tenantLine = "true")
-    @Select("<script>" +
-            "SELECT DISTINCT menu_id FROM sys_role_menu " +
-            "WHERE role_id IN " +
-            "<foreach collection='roleIds' item='roleId' open='(' separator=',' close=')'>" +
-            "#{roleId}" +
-            "</foreach>" +
-            "</script>")
     List<Long> selectMenuIdsByRoleIds(@Param("roleIds") List<Long> roleIds);
 
     /**
      * 根据菜单ID列表查询菜单（忽略租户过滤，系统级菜单对所有租户可见）
      */
     @InterceptorIgnore(tenantLine = "true")
-    @Select("<script>" +
-            "SELECT * FROM sys_menu WHERE id IN " +
-            "<foreach collection='menuIds' item='menuId' open='(' separator=',' close=')'>" +
-            "#{menuId}" +
-            "</foreach>" +
-            " AND deleted = 0 ORDER BY sort" +
-            "</script>")
     List<SysMenu> selectMenusByIds(@Param("menuIds") List<Long> menuIds);
 }

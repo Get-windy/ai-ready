@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="purchase-page-header">
@@ -20,7 +21,12 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+<span class="shortcut-hints">
+                                                <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                                <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                              </span>
         </div>
+
       </div>
     </template>
 
@@ -83,6 +89,7 @@
         @edit="editRecord"
         @delete="handleDelete"
         @batch-delete="handleBatchDelete"
+        :min-empty-rows="12"
         @refresh="debounceClick('refresh', fetchData)"
         @search="handleSearch"
         @page-change="handlePageChange"
@@ -163,7 +170,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }: any) => handleActionMenuClick(key as string, record)">
                   <a-menu-item v-if="record.status === 'draft'" key="submit" v-permission="'erp:fixed-asset:purchase:submit'">
                     <SendOutlined /> 提交审批
                   </a-menu-item>
@@ -336,10 +343,12 @@
       </a-modal>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -351,7 +360,8 @@ import {
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { purchaseApi } from '@/api/fixed-asset'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['update-count'])
@@ -536,8 +546,8 @@ async function fetchData() {
   try {
     const res = await purchaseApi.getPage(params)
     if (res.data) {
-      tableData.value = res.data.content || res.data.records || []
-      pagination.total = res.data.totalElements || res.data.total || 0
+      tableData.value = res.content || res.records || []
+      pagination.total = res.totalElements || res.total || 0
       lastUpdated.value = new Date().toISOString()
       emit('update-count', pagination.total)
     }
@@ -852,6 +862,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -1026,4 +1038,70 @@ defineExpose({ handleQuery: fetchData })
 :deep(.fsd-body .ant-input-number-input) { font-size: 12px; }
 :deep(.fsd-body .ant-select-selection-item) { font-size: 12px; }
 :deep(.fsd-body .ant-btn) { font-size: 12px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
+:deep(.ant-input-sm),
+:deep(.ant-input-number-sm),
+:deep(.ant-select-single.ant-select-sm .ant-select-selector),
+:deep(.ant-picker-small),
+:deep(.ant-btn-sm) {
+  height: 28px;
+  line-height: 28px;
+}
+:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
+  line-height: 26px;
+}
+:deep(.ant-input-number-sm input) {
+  height: 26px;
+}
+
+/* ── vxe-table 表头边框 ──────────────────────── */
+:deep(.vxe-table--header-border) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+
+/* ── 空状态容器 ──────────────────────── */
+:deep(.empty-state-wrapper) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  min-height: 200px;
+}
+
 </style>

@@ -3,6 +3,8 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.entity.SysMenu;
 import cn.aiedge.base.mapper.SysMenuMapper;
 import cn.aiedge.base.service.SysMenuService;
+import cn.aiedge.base.service.SysUserService;
+import cn.aiedge.base.security.UnifiedPermissionCacheService;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -28,6 +30,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         implements SysMenuService {
+
+    private final SysUserService userService;
+    private final UnifiedPermissionCacheService permissionCacheService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -115,7 +120,28 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     @Override
     public List<SysMenu> getUserMenuByClientType(String clientType, Long userId) {
         log.info("[菜单服务] getUserMenuByClientType 开始: clientType={}, userId={}", clientType, userId);
-        
+
+        // 检查用户是否是超级管理员
+        List<String> roles = permissionCacheService.getRoles(userId);
+        log.info("[菜单服务] 用户角色列表: {}", roles);
+
+        boolean isSuperAdmin = roles != null && roles.contains("SUPER_ADMIN");
+        log.info("[菜单服务] 是否超级管理员: {}", isSuperAdmin);
+
+        if (isSuperAdmin) {
+            // 超级管理员直接获取所有符合条件的菜单
+            log.info("[菜单服务] 超级管理员，直接获取所有菜单");
+            LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysMenu::getClientType, clientType)
+                   .eq(SysMenu::getStatus, 1) // status=1启用
+                   .eq(SysMenu::getDeleted, 0) // 未删除
+                   .orderByAsc(SysMenu::getSort);
+            List<SysMenu> menus = list(wrapper);
+            log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());
+            return buildMenuTree(menus, 0L);
+        }
+
+        // 普通用户：通过角色菜单关联查询
         // 获取用户角色ID列表
         List<Long> roleIds = baseMapper.selectRoleIdsByUserId(userId);
         log.info("[菜单服务] 用户角色ID列表: {}", roleIds);
@@ -140,7 +166,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
                .orderByAsc(SysMenu::getSort);
         List<SysMenu> menus = list(wrapper);
         log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());
-        
+
         List<SysMenu> tree = buildMenuTree(menus, 0L);
         log.info("[菜单服务] 构建的菜单树数量: {}", tree.size());
         return tree;

@@ -79,7 +79,6 @@ public class PrintChainServiceImpl implements PrintChainService {
         if (request.getSortOrder() != null) {
             chain.setSortOrder(request.getSortOrder());
         }
-        chain.setUpdatedBy(userId);
         chainMapper.updateById(chain);
 
         // 全量替换明细项（删旧插新）

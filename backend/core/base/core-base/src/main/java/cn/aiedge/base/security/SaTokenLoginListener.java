@@ -2,8 +2,10 @@ package cn.aiedge.base.security;
 
 import cn.aiedge.base.entity.SysOperLog;
 import cn.aiedge.base.service.SysOperLogService;
+import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.listener.SaTokenListener;
 import cn.dev33.satoken.stp.SaLoginModel;
+import cn.dev33.satoken.stp.StpLogic;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -52,7 +54,7 @@ public class SaTokenLoginListener implements SaTokenListener {
     }
 
     @Override
-    public void doDisable(String loginType, Object loginId, String service, int disableTime, String realm) {
+    public void doDisable(String loginType, Object loginId, String service, int disableTime, long realm) {
         // 暂不处理
     }
 
@@ -62,12 +64,12 @@ public class SaTokenLoginListener implements SaTokenListener {
     }
 
     @Override
-    public void doOpenSafe(String loginType, Object loginId, String service, int safeTime) {
+    public void doOpenSafe(String loginType, String loginId, String service, long safeTime) {
         // 暂不处理
     }
 
     @Override
-    public void doCloseSafe(String loginType, Object loginId, String service) {
+    public void doCloseSafe(String loginType, String loginId, String service) {
         // 暂不处理
     }
 
@@ -82,22 +84,22 @@ public class SaTokenLoginListener implements SaTokenListener {
     }
 
     @Override
-    public void doRenewTimeout(String loginType, Object loginId, String tokenValue) {
+    public void doRenewTimeout(String loginType, Object loginId, long tokenTimeout) {
         // 暂不处理
     }
 
     @Override
-    public void doRegisterComponent(Object compObj) {
+    public void doRegisterComponent(String componentName, Object componentObj) {
         // 暂不处理
     }
 
     @Override
-    public void doSetStpLogic(Object stpLogic) {
+    public void doSetStpLogic(StpLogic stpLogic) {
         // 暂不处理
     }
 
     @Override
-    public void doSetConfig(Object config) {
+    public void doSetConfig(SaTokenConfig config) {
         // 暂不处理
     }
 

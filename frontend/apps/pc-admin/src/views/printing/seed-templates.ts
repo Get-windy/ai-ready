@@ -578,7 +578,7 @@ const ALL_SPECS: TemplateSpec[] = [
       { label: '制单人', field: 'createdBy' },
       { label: '审核人', field: 'auditedBy' },
       { label: '过账人', field: 'postedBy' },
-      { label: '摘要', field: 'summary', col: 2 },
+      { label: '摘要', field: 'summary', col: 2 } as any,
     ],
     tableColumns: [
       { header: '摘要', field: 'summary', width: 40 },

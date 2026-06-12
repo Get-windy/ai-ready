@@ -62,7 +62,7 @@ describe('ExchangeFormModal', () => {
   it('renders create modal correctly', () => {
     const wrapper = mount(ExchangeFormModal, {
       props: {
-        visible: true,
+        open: true,
         record: null
       }
     })
@@ -85,8 +85,8 @@ describe('ExchangeFormModal', () => {
 
     const wrapper = mount(ExchangeFormModal, {
       props: {
-        visible: true,
-        record: mockRecord
+        open: true,
+        record: mockRecord as any
       }
     })
 
@@ -101,7 +101,7 @@ describe('ExchangeFormModal', () => {
   it('calculates total amount correctly', async () => {
     const wrapper = mount(ExchangeFormModal, {
       props: {
-        visible: true,
+        open: true,
         record: null
       }
     })
@@ -120,7 +120,7 @@ describe('ExchangeFormModal', () => {
   it('removes item correctly', async () => {
     const wrapper = mount(ExchangeFormModal, {
       props: {
-        visible: true,
+        open: true,
         record: null
       }
     })
@@ -141,7 +141,7 @@ describe('ExchangeFormModal', () => {
   it('resets form on cancel', async () => {
     const wrapper = mount(ExchangeFormModal, {
       props: {
-        visible: true,
+        open: true,
         record: null
       }
     })

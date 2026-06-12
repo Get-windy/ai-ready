@@ -18,6 +18,9 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
@@ -87,7 +90,7 @@
       <!-- 操作按钮 -->
       <div class="action-area">
         <a-space>
-          <a-button type="primary" @click="handleCreate">
+          <a-button type="primary" v-permission="'erp:stock:create'" @click="handleCreate">
             <template #icon><PlusOutlined /></template>
             新建调价单
           </a-button>
@@ -123,9 +126,9 @@
         </template>
         <template #action="{ record }">
           <a-space :size="4">
-            <a-button type="link" size="small" @click="handleView(record)">查看</a-button>
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">查看</a-button>
             <template v-if="record.status === 0">
-              <a-button type="link" size="small" @click="handleSubmitApproval(record)">提交</a-button>
+              <a-button type="link" size="small" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(record)">提交</a-button>
             </template>
             <template v-else-if="record.status === 1">
               <a-dropdown>
@@ -145,7 +148,7 @@
               </a-dropdown>
             </template>
             <template v-else-if="record.status === 2">
-              <a-button type="link" size="small" @click="handleExecute(record)">执行</a-button>
+              <a-button type="link" size="small" v-permission="'erp:stock:execute'" @click="handleExecute(record)">执行</a-button>
             </template>
             <template v-else-if="record.status === 3">
               <PrintButton
@@ -159,7 +162,7 @@
               />
             </template>
             <template v-if="record.status === 0 || record.status === 2">
-              <a-button type="link" size="small" danger @click="handleCancel(record)">取消</a-button>
+              <a-button type="link" size="small" danger v-permission="'erp:stock:cancel'" @click="handleCancel(record)">取消</a-button>
             </template>
           </a-space>
         </template>
@@ -190,7 +193,7 @@
           <a-table
             :dataSource="detailData.items"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             row-key="id"
             bordered
@@ -219,12 +222,12 @@
         <div style="text-align: right;">
           <a-space>
             <a-button @click="detailVisible = false">关闭</a-button>
-            <a-button v-if="detailData?.status === 0" @click="handleSubmitApproval(detailData)">提交审批</a-button>
+            <a-button v-if="detailData?.status === 0" v-permission="'erp:stock:submitapproval'" @click="handleSubmitApproval(detailData)">提交审批</a-button>
             <template v-if="detailData?.status === 1">
-              <a-button type="primary" @click="handleApprove(detailData)">审批通过</a-button>
-              <a-button danger @click="handleReject(detailData)">拒绝</a-button>
+              <a-button type="primary" v-permission="'erp:stock:approve'" @click="handleApprove(detailData)">审批通过</a-button>
+              <a-button danger v-permission="'erp:stock:reject'" @click="handleReject(detailData)">拒绝</a-button>
             </template>
-            <a-button v-if="detailData?.status === 2" type="primary" @click="handleExecute(detailData)">执行</a-button>
+            <a-button v-if="detailData?.status === 2" type="primary" v-permission="'erp:stock:execute'" @click="handleExecute(detailData)">执行</a-button>
             <PrintButton
               v-if="detailData?.status >= 3"
               template-type="stock_cost_adjust"
@@ -301,7 +304,7 @@
       <a-table
         :dataSource="createForm.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="tempId"
         style="margin-bottom: 12px;"
@@ -371,7 +374,9 @@ import {
   DownOutlined, CheckOutlined, CloseOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -453,7 +458,7 @@ const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'adjustNo', label: '调价单号', type: 'input', placeholder: '请输入调价单号' },
   { name: 'warehouseId', label: '仓库', type: 'select', placeholder: '请选择仓库', options: [] },
   { name: 'status', label: '状态', type: 'select', placeholder: '请选择',
@@ -473,7 +478,7 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`
 })
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'adjustNo', title: '调价单号', width: 150 },
   { field: 'warehouseName', title: '仓库', width: 120 },
   { field: 'adjustTypeLabel', title: '调价类型', width: 100 },
@@ -567,7 +572,7 @@ const itemColumns = [
   { title: '操作', dataIndex: 'action', width: 60 }
 ]
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'specification', width: 100 },
@@ -1054,6 +1059,41 @@ defineExpose({ handleQuery: fetchData })
 
 .price-up { color: #f5222d; font-weight: 500; }
 .price-down { color: #52c41a; font-weight: 500; }
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
 :deep(.ant-input-sm),

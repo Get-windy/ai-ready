@@ -8,15 +8,30 @@
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
-        <a-button size="small" @click="debounceClick('refresh', handleRefresh)">
+        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <SyncOutlined /> {{ autoRefreshCountdown }}s
+        </span>
+        <a-button size="small" :loading="refreshLoading" v-permission="'crm:contract:refresh'" @click="debounceClick('refresh', handleRefresh)">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
+<span class="shortcut-hints">
+                                              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                            </span>
       </a-space>
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && tableData.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 统计卡片 -->
+      <template v-if="!(loading && tableData.length === 0)">
       <div class="stats-cards">
         <a-row :gutter="16">
           <a-col :span="6">
@@ -79,6 +94,7 @@
         :filter-fields="filterFields"
         :show-export="true"
         :selectable="true"
+        :min-empty-rows="12"
         add-text="新建合同"
         @add="handleAdd"
         @refresh="fetchData"
@@ -90,7 +106,7 @@
         @export="handleExport"
       >
         <template #toolbar-actions>
-          <a-button size="small" @click="handleBatchApprove">
+          <a-button size="small" v-permission="'crm:contract:batchapprove'" @click="handleBatchApprove">
             <template #icon><CheckCircleOutlined /></template>
             批量审批
           </a-button>
@@ -101,7 +117,7 @@
             <template v-if="hasError">
               <WarningOutlined class="table-empty-icon" style="color: #faad14" />
               <p class="table-empty-text">数据加载失败，请重试</p>
-              <a-button type="primary" size="small" @click="fetchData">
+              <a-button type="primary" size="small" @click="fetchData as any">
                 <template #icon><ReloadOutlined /></template>
                 重试
               </a-button>
@@ -113,8 +129,14 @@
                 没有符合条件的合同，<a @click="handleResetFilters">清除筛选</a>
               </p>
               <p v-else class="table-empty-text">
-                暂无合同数据，点击右上角「新建合同」开始创建
+                暂无合同数据
               </p>
+              <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                <a-button type="primary" v-permission="'crm:contract:create'" @click="handleAdd">
+                  <template #icon><PlusOutlined /></template>
+                  新建第一个合同
+                </a-button>
+              </div>
             </template>
           </div>
         </template>
@@ -122,23 +144,23 @@
         <template #action="{ record }">
           <a-space :size="4">
             <a-tooltip title="查看详情">
-              <a-button type="link" size="small" @click="handleView(record)">
+              <a-button type="link" size="small" v-permission="'crm:contract:view'" @click="handleView(record)">
                 <template #icon><EyeOutlined /></template>
               </a-button>
             </a-tooltip>
             <PrintButton :record="record" :business-id="record.id" business-type="contract" button-type="link" button-size="small" tooltip="打印" />
             <a-tooltip v-if="record.status === 0" title="编辑">
-              <a-button type="link" size="small" @click="handleEdit(record)">
+              <a-button type="link" size="small" v-permission="'crm:contract:edit'" @click="handleEdit(record)">
                 <template #icon><EditOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 1" title="审批">
-              <a-button type="link" size="small" @click="handleApprove(record)">
+              <a-button type="link" size="small" v-permission="'crm:contract:approve'" @click="handleApprove(record)">
                 <template #icon><CheckCircleOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip v-if="record.status === 2" title="签订">
-              <a-button type="link" size="small" @click="handleSign(record)">
+              <a-button type="link" size="small" v-permission="'crm:contract:sign'" @click="handleSign(record)">
                 <template #icon><FileDoneOutlined /></template>
               </a-button>
             </a-tooltip>
@@ -147,7 +169,7 @@
                 <template #icon><MoreOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="download"><DownloadOutlined /> 下载合同</a-menu-item>
                   <a-menu-item key="renew"><HistoryOutlined /> 续签申请</a-menu-item>
                   <a-menu-item key="invoice"><FileTextOutlined /> 开票申请</a-menu-item>
@@ -163,6 +185,7 @@
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
       </VxeTableList>
+      </template>
     </ErrorBoundary>
 
     <!-- 合同表单弹窗 -->
@@ -171,6 +194,7 @@
       :title="modalTitle"
       :save-loading="submitLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @save="handleSubmit"
       @close="handleFormClose"
       @save-and-new="handleFormSaveAndNew"
@@ -260,7 +284,7 @@
           <div class="table-empty">
             <WarningOutlined class="table-empty-icon" style="color: #faad14" />
             <p class="table-empty-text">详情数据加载失败</p>
-            <a-button type="primary" size="small" @click="handleDetailRefresh">
+            <a-button type="primary" size="small" v-permission="'crm:contract:detailrefresh'" @click="handleDetailRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -300,9 +324,11 @@
 
           <div class="detail-footer">
             <a-space>
-              <a-button type="primary" @click="handleDownload"><DownloadOutlined /> 下载合同</a-button>
-              <a-button v-if="detailData.status >= 5" @click="handleRenewApply">续签申请</a-button>
-            </a-space>
+              <a-button type="primary" v-permission="'crm:contract:download'" @click="handleDownload"><DownloadOutlined /> 下载合同</a-button>
+              <a-button v-if="detailData.status >= 5" v-permission="'crm:contract:renewapply'" @click="handleRenewApply">续签申请</a-button>
+            
+
+          </a-space>
           </div>
         </template>
       </a-spin>
@@ -332,7 +358,8 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { contractApi } from '@/api/crm'
 import { customerApi } from '@/api/customer'
 import { exportCsv } from '@/utils/exportCsv'
@@ -351,7 +378,9 @@ import {
   FileTextOutlined,
   WarningOutlined,
   StopOutlined,
-  DollarOutlined
+  DollarOutlined,
+  SyncOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
 
 function handleError(err: any) { console.warn('[CRM合同]', err) }
@@ -381,7 +410,10 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 const tableData = ref<any[]>([])
 const lastUpdateTime = ref<string>('')
 const selectedRowKeys = ref<number[]>([])
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 const vxeColumns = computed(() => [
   { field: 'contractNo', title: '合同编号', width: 150, formatter: ({ row }: any) => row.contractNo || '' },
@@ -535,20 +567,23 @@ const signForm = reactive({ contractId: undefined, contractName: '', signDate: u
 
 const filterOption = (input: string, option: any) => option.name?.toLowerCase().includes(input.toLowerCase())
 
-// 自动刷新
+// 自动刷新 (30s)
 const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
     if (!loading.value && !modalVisible.value) {
-      fetchData(true)
+      fetchData()
     }
-  }, 60000)
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 }
 
 const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -562,15 +597,15 @@ onMounted(() => {
   fetchData()
   fetchCustomerList()
   startAutoRefresh()
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
   document.removeEventListener('keydown', handleKeydown)
 })
 
@@ -606,12 +641,14 @@ async function fetchData(silent = false) {
     pagination.total = 0
   } finally {
     if (!silent) loading.value = false
+    refreshLoading.value = false
   }
 }
 
 
 const handleRefresh = () => {
   lastUpdateTime.value = ''
+  refreshLoading.value = true
   fetchData()
 }
 
@@ -980,4 +1017,70 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 自动刷新倒计时徽章 ──────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

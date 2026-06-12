@@ -18,6 +18,9 @@
                 数据更新: {{ lastUpdateTime }}
               </span>
             </span>
+            <span class="shortcut-hints">
+              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            </span>
             <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)">
               <template #icon><ReloadOutlined /></template>
               刷新
@@ -96,7 +99,7 @@
     >
       <template #toolbar-actions>
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss') }}</span>
-        <a-button v-if="selectedIds.length > 0" size="small" danger @click="handleBatchDelete">
+        <a-button v-if="selectedIds.length > 0" size="small" danger v-permission="'erp:stock:batchdelete'" @click="handleBatchDelete">
           <template #icon><DeleteOutlined /></template>
           批量删除
         </a-button>
@@ -131,32 +134,32 @@
       <template #action="{ record }">
         <a-space :size="4">
           <a-tooltip title="查看">
-            <a-button type="link" size="small" @click="handleView(record)">
+            <a-button type="link" size="small" v-permission="'erp:stock:view'" @click="handleView(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
           <!-- 草稿 -> 提交审批 -->
           <a-tooltip v-if="record.status === 0" title="提交审批">
-            <a-button type="link" size="small" style="color: #1890ff;" @click="handleSubmit(record)">
+            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:submit'" @click="handleSubmit(record)">
               <template #icon><SendOutlined /></template>
             </a-button>
           </a-tooltip>
           <!-- 待审批 -> 审批/拒绝 -->
           <template v-if="record.status === 1">
             <a-tooltip title="审批通过">
-              <a-button type="link" size="small" style="color: #52c41a;" @click="handleApprove(record)">
+              <a-button type="link" size="small" style="color: #52c41a;" v-permission="'erp:stock:approve'" @click="handleApprove(record)">
                 <template #icon><CheckOutlined /></template>
               </a-button>
             </a-tooltip>
             <a-tooltip title="拒绝">
-              <a-button type="link" size="small" style="color: #ff4d4f;" @click="handleReject(record)">
+              <a-button type="link" size="small" style="color: #ff4d4f;" v-permission="'erp:stock:reject'" @click="handleReject(record)">
                 <template #icon><CloseOutlined /></template>
               </a-button>
             </a-tooltip>
           </template>
           <!-- 已审批 -> 执行调拨 -->
           <a-tooltip v-if="record.status === 2" title="执行调拨">
-            <a-button type="link" size="small" style="color: #1890ff;" @click="handleExecute(record)">
+            <a-button type="link" size="small" style="color: #1890ff;" v-permission="'erp:stock:execute'" @click="handleExecute(record)">
               <template #icon><AuditOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -175,7 +178,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
                 <a-menu-item v-if="[0, 4, 5].includes(record.status)" key="delete">
                   <DeleteOutlined /> 删除
                 </a-menu-item>
@@ -212,7 +215,7 @@
           <a-table
             :data-source="detailItems"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             size="small"
             bordered
             row-key="id"
@@ -222,21 +225,21 @@
       <template #footer v-if="detailData">
         <a-space>
           <a-button @click="detailVisible = false">关闭</a-button>
-          <a-button v-if="detailData.status === 0" @click="handleSubmit(detailData)">
+          <a-button v-if="detailData.status === 0" v-permission="'erp:stock:submit'" @click="handleSubmit(detailData)">
             <template #icon><SendOutlined /></template>
             提交审批
           </a-button>
           <template v-if="detailData.status === 1">
-            <a-button type="primary" @click="handleApprove(detailData)">
+            <a-button type="primary" v-permission="'erp:stock:approve'" @click="handleApprove(detailData)">
               <template #icon><CheckOutlined /></template>
               审批通过
             </a-button>
-            <a-button danger @click="handleReject(detailData)">
+            <a-button danger v-permission="'erp:stock:reject'" @click="handleReject(detailData)">
               <template #icon><CloseOutlined /></template>
               拒绝
             </a-button>
           </template>
-          <a-button v-if="detailData.status === 2" type="primary" @click="handleExecute(detailData)">
+          <a-button v-if="detailData.status === 2" type="primary" v-permission="'erp:stock:execute'" @click="handleExecute(detailData)">
             <template #icon><AuditOutlined /></template>
             执行调拨
           </a-button>
@@ -311,7 +314,7 @@
       <a-table
         :data-source="createForm.items"
         :columns="itemColumns"
-        :pagination="false"
+        :pagination="false as any"
         size="small"
         row-key="tempId"
         style="margin-bottom: 12px;"
@@ -395,7 +398,7 @@ import {
   EllipsisOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { TRANSFER_STATUS } from '@/utils/statusConfig'
 
@@ -476,7 +479,7 @@ const hasActiveFilters = computed(() => {
 const tableDataSource = dataSource
 
 // ── 列定义 ──────────────────────────────────────────
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'transferNo', title: '调拨单号', width: 150 },
   { field: 'fromWarehouseName', title: '调出仓库', width: 120 },
   { field: 'toWarehouseName', title: '调入仓库', width: 120 },
@@ -561,7 +564,7 @@ const fetchData = async () => {
     }
     const res = await request.get('/erp/stock/transfer/page', { params })
     if (res.data?.records) {
-      dataSource.value = res.data.records.map((item: any) => ({
+      dataSource.value = res.records.map((item: any) => ({
         id: item.id,
         transferNo: item.transferNo,
         fromWarehouseName: item.fromWarehouseName,
@@ -573,13 +576,13 @@ const fetchData = async () => {
         remark: item.remark || '',
         createTime: item.createTime
       }))
-      pagination.total = res.data.total || 0
+      pagination.total = res.total || 0
       // 优先使用 API 返回的全局统计数据
-      if (res.data.totalCount !== undefined) {
-        statistics.value.totalCount = res.data.totalCount
-        statistics.value.pendingCount = res.data.pendingCount || 0
-        statistics.value.approvedCount = res.data.approvedCount || 0
-        statistics.value.executedCount = res.data.executedCount || 0
+      if (res.totalCount !== undefined) {
+        statistics.value.totalCount = res.totalCount
+        statistics.value.pendingCount = res.pendingCount || 0
+        statistics.value.approvedCount = res.approvedCount || 0
+        statistics.value.executedCount = res.executedCount || 0
       } else {
         statistics.value.totalCount = dataSource.value.length
         statistics.value.pendingCount = dataSource.value.filter(item => item.status === 1).length
@@ -638,7 +641,7 @@ const itemColumns = [
   { title: '操作', dataIndex: 'action', width: 60 }
 ]
 
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
   { title: '规格', dataIndex: 'specification', width: 100 },
@@ -1134,6 +1137,41 @@ defineExpose({ handleQuery: fetchData })
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

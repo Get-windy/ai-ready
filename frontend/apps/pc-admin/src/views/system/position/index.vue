@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="position-page-header">
@@ -13,6 +14,10 @@
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
           <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
             <SyncOutlined /> {{ autoRefreshCountdown }}s
+          </span>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchData)()">
             <template #icon><ReloadOutlined /></template>
@@ -55,6 +60,8 @@
         </div>
       </div>
 
+      <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
+
       <VxeTableList
         ref="tableRef"
         :columns="columns"
@@ -62,6 +69,7 @@
         :loading="loading"
         :pagination="pagination"
         :table-key="'system-position-list'"
+        :min-empty-rows="12"
         :filter-fields="filterFields"
         :show-search="false"
         :show-toolbar="false"
@@ -80,7 +88,7 @@
         @refresh="debounceClick('refresh', fetchData)"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
-        @selection-change="(keys: any) => { selectedRowKeys.value = keys as number[] }"
+        @selection-change="(keys: any) => { (selectedRowKeys as any) = keys }"
         @cell-dblclick="handleView"
       >
         <template #toolbar-actions>
@@ -163,6 +171,7 @@
       <FullScreenDetail
         :visible="modalVisible"
         :title="modalTitle"
+        :dirty="formDirty"
         :save-loading="submittingLoading"
         :show-save-and-new="!isEdit"
         @save="handleModalOk"
@@ -290,7 +299,7 @@
           <VxeTableList
             :data-source="categoryData"
             :loading="categoryLoading"
-            :pagination="{ pageSize: 10 }"
+            :pagination="{ pageSize: 10, current: 1, total: 0 } as any"
             row-key="id"
             :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
             :show-export="false" :show-batch-delete="false"
@@ -328,6 +337,7 @@
       <FullScreenDetail
         :visible="categoryFormModalVisible"
         :title="categoryFormTitle"
+        :dirty="categoryFormDirty"
         :save-loading="categoryFormModalLoading"
         :show-save-and-new="!isCategoryEdit"
         @save="handleCategoryFormModalOk"
@@ -437,10 +447,12 @@
       </FullScreenDetail>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -461,7 +473,8 @@ import { positionApi, type PositionInfo, type PositionCategory, type PositionQue
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { dictItemApi } from '@/api/dict'
 
 // ── 岗位级别选项（从API加载） ──────────────────────────
@@ -473,7 +486,7 @@ async function loadLevelOptions() {
     if (res.data) {
       levelOptions.value = res.data
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(item => ({ label: item.itemName, value: Number(item.itemCode) }))
+        .map(item => ({ label: item.itemText, value: Number(item.itemValue) }))
     }
   } catch (err) {
     console.warn('[岗位管理] 加载岗位级别失败', err)
@@ -591,7 +604,7 @@ onBeforeRouteLeave((to, from, next) => {
   })
 })
 
-const formRules = {
+const formRules: any = {
   positionName: { required: true, message: '请输入岗位名称', trigger: 'blur' },
   positionCode: { required: true, message: '请输入岗位编码', trigger: 'blur' },
   level: { required: true, message: '请选择岗位级别', trigger: 'change' },
@@ -635,7 +648,7 @@ const categoryFormDirty = computed(() => {
 })
 function saveCategoryFormSnapshot() { initialCategoryFormSnapshot.value = JSON.stringify(categoryFormState) }
 
-const categoryFormRules = {
+const categoryFormRules: any = {
   categoryName: { required: true, message: '请输入分类名称', trigger: 'blur' },
   categoryCode: { required: true, message: '请输入分类编码', trigger: 'blur' },
 }
@@ -660,8 +673,8 @@ const fetchData = async () => {
       pageSize: pagination.pageSize
     })
     if (res.data) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     hasError.value = true
@@ -876,9 +889,9 @@ const handleCategoryManage = () => {
 const fetchCategoryData = async () => {
   categoryLoading.value = true
   try {
-    const res = await positionApi.getCategoryPage({ tenantId: userStore.tenantId, size: 100 })
+    const res = await positionApi.getCategoryPage({ tenantId: userStore.tenantId, size: 100 } as any)
     if (res.data) {
-      categoryData.value = res.data.records
+      categoryData.value = res.records
     }
   } catch (error) {
     message.error('加载分类数据失败')
@@ -1044,6 +1057,10 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: fetchData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+// 查看详情
+const handleView = (record: any) => {}
 </script>
 
 <style scoped>
@@ -1152,6 +1169,14 @@ defineExpose({ handleQuery: fetchData })
   font-size: 14px;
 }
 
+/* ── VxeTable 表头边框线 2px ─────────────────────────── */
+.position-management :deep(.vxe-table .vxe-header--row th) {
+  border-bottom: 2px solid #e8e8e8 !important;
+}
+.position-management :deep(.vxe-table .vxe-header--row th:not(:last-child)) {
+  border-right: 1px solid #e8e8e8 !important;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stat-cards { flex-wrap: wrap; }
@@ -1176,4 +1201,39 @@ defineExpose({ handleQuery: fetchData })
 }
 :deep(.ant-select-single.ant-select-sm .ant-select-selector) { line-height: 26px; }
 :deep(.ant-input-number-sm input) { height: 26px; }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

@@ -1,5 +1,6 @@
 package cn.aiedge.base.controller;
 
+import cn.aiedge.base.security.LoginAttemptService;
 import cn.aiedge.base.dto.AuthDTO;
 import cn.aiedge.base.entity.SysLoginLog;
 import cn.aiedge.base.entity.SysTenant;
@@ -208,8 +209,9 @@ public class AuthController {
             // 获取用户信息
             Long userId = StpUtil.getLoginIdAsLong();
 
-            // 将用户名存入Sa-Token Session，供操作日志等切面获取
+            // 将用户名和租户ID存入Sa-Token Session，供操作日志等切面获取
             StpUtil.getSession().set("username", dto.username());
+            StpUtil.getSession().set("tenantId", tenantId);
 
             // 记录登录日志（成功）- 出错不影响登录
             try {

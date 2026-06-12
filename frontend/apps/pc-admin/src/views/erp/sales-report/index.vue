@@ -22,18 +22,23 @@
             <a-switch v-model:checked="autoRefreshEnabled" size="small" />
           </a-tooltip>
           <a-tooltip title="F5 刷新 | Ctrl+E 导出 | Ctrl+N 新建">
-            <a-button size="small" @click="debounceClick('refresh', handleRefresh)">
+            <a-button size="small" v-permission="'erp:sales:refresh'" @click="debounceClick('refresh', handleRefresh)">
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
           </a-tooltip>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>N</kbd> 新建</span>
+            <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>E</kbd> 导出</span>
+          </span>
           <a-tooltip title="Ctrl+N 新建报表">
-            <a-button size="small" @click="debounceClick('create', handleCreate)">
+            <a-button size="small" v-permission="'erp:sales:create'" @click="debounceClick('create', handleCreate)">
               <template #icon><PlusOutlined /></template>
               新建
             </a-button>
           </a-tooltip>
-          <a-button size="small" @click="handleOpenExportModal">
+          <a-button size="small" v-permission="'erp:sales:openexportmodal'" @click="handleOpenExportModal">
             <template #icon><ExportOutlined /></template>
             导出
           </a-button>
@@ -226,7 +231,7 @@
           @close="sectionErrors.summary = false"
         >
           <template #action>
-            <a-button size="small" type="primary" @click="handleRefresh">
+            <a-button size="small" type="primary" v-permission="'erp:sales:refresh'" @click="handleRefresh">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -246,7 +251,7 @@
           @close="sectionErrors.statistics = false"
         >
           <template #action>
-            <a-button size="small" @click="handleRetrySection('statistics')">
+            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('statistics')">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -262,7 +267,7 @@
           @close="sectionErrors.customer = false"
         >
           <template #action>
-            <a-button size="small" @click="handleRetrySection('customer')">
+            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('customer')">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -278,7 +283,7 @@
           @close="sectionErrors.product = false"
         >
           <template #action>
-            <a-button size="small" @click="handleRetrySection('product')">
+            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('product')">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -294,7 +299,7 @@
           @close="sectionErrors.trend = false"
         >
           <template #action>
-            <a-button size="small" @click="handleRetrySection('trend')">
+            <a-button size="small" v-permission="'erp:sales:retrysection'" @click="handleRetrySection('trend')">
               <template #icon><ReloadOutlined /></template>
               重试
             </a-button>
@@ -321,7 +326,7 @@
 
       <!-- 新建报表对话框 -->
       <a-modal
-        v-model:visible="showCreateModal"
+        v-model:open="showCreateModal"
         title="新建报表"
         ok-text="创建"
         cancel-text="取消"
@@ -336,7 +341,7 @@
 
       <!-- 导出配置对话框 -->
       <a-modal
-        v-model:visible="showExportModal"
+        v-model:open="showExportModal"
         title="导出报表"
         ok-text="确认导出"
         cancel-text="取消"
@@ -424,8 +429,9 @@ import {
   PlusOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { PageContainer, SearchBar } from '@/components'
-import type { SearchField } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import {
@@ -580,7 +586,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 // ── 搜索字段配置 ─────────────────────────────────────────
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   {
     name: 'dateRange',
     label: '日期范围',
@@ -643,7 +649,7 @@ const sectionErrors = reactive<SectionErrors>({
 /** 导出相关 */
 const showExportModal = ref(false)
 const exportFormat = ref<ExportFileFormat>('xlsx')
-const exportDateRange = ref<string[]>([])
+const exportDateRange = ref<any>([])
 const exportScope = ref<'current' | 'all'>('current')
 const exportIncludeDetail = ref(false)
 const exportLoading = ref(false)
@@ -735,8 +741,9 @@ const loadData = async () => {
 
     // 处理统计数据
     if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
-      summary.value.monthAmount = statsRes.value.data.totalSales ?? statsRes.value.data.monthAmount ?? 0
-      summary.value.monthOrders = statsRes.value.data.orderCount ?? statsRes.value.data.monthOrders ?? 0
+      const statsData = statsRes.value.data as any
+      summary.value.monthAmount = statsData.totalSales ?? statsData.monthAmount ?? 0
+      summary.value.monthOrders = statsData.orderCount ?? statsData.monthOrders ?? 0
     }
 
     // 处理趋势数据
@@ -1423,6 +1430,40 @@ onUnmounted(() => {
 
 :deep(.ant-tabs-tabpane) {
   height: 100%;
+}
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────── */

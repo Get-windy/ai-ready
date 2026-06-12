@@ -22,6 +22,9 @@ interface MenuItem {
   status: number
   clientType?: string
   billType?: string
+  bizFlowTag?: string
+  displayGroup?: number
+  linkIcon?: string
   children?: MenuItem[]
 }
 
@@ -30,9 +33,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/detail': () => import('@/views/erp/product/detail.vue'),
   'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
   'erp/product/inventory-mode': () => import('@/views/erp/product/inventory-mode.vue'),
-'partner/index': () => import('@/views/erp/partner/index.vue'),
-'partner/detail': () => import('@/views/erp/partner/detail.vue'),
-'pricing/index': () => import('@/views/erp/pricing/index.vue'),
+  'partner/index': () => import('@/views/erp/partner/index.vue'),
+  'partner/detail': () => import('@/views/erp/partner/detail.vue'),
+  'erp/partner/index': () => import('@/views/erp/partner/index.vue'),
+  'erp/partner/detail': () => import('@/views/erp/partner/detail.vue'),
+  'pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'charts/index': () => import('@/views/charts/index.vue'),
   'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
   'crm/customer/detail/CustomerDetail': () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
@@ -122,6 +127,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/return/detail': () => import('@/views/erp/return/detail.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
   'erp/shipment/detail': () => import('@/views/erp/shipment/detail.vue'),
+  // ── 价格引擎模块 ──'pricing/index': () => import('@/views/erp/pricing/index.vue'),
+  'erp/pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
   'erp/pricing/tiers/index': () => import('@/views/erp/pricing/tiers/index.vue'),
   'erp/dashboard/index': () => import('@/views/erp/dashboard/index.vue'),
@@ -141,12 +148,31 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock-assemble/index': () => import('@/views/erp/stock-assemble/index.vue'),
   'erp/stock-split/index': () => import('@/views/erp/stock-split/index.vue'),
 
+  // ── WMS 仓储管理模块 ──
+  'wms/warehouse/index': () => import('@/views/wms/warehouse/index.vue'),
+  'wms/location/index': () => import('@/views/wms/location/index.vue'),
+  'wms/receipt/index': () => import('@/views/wms/receipt/index.vue'),
+  'wms/putaway/index': () => import('@/views/wms/putaway/index.vue'),
+  'wms/pick/index': () => import('@/views/wms/pick/index.vue'),
+  'wms/wave/index': () => import('@/views/wms/wave/index.vue'),
+  'wms/ship/index': () => import('@/views/wms/ship/index.vue'),
+  'wms/inventory/index': () => import('@/views/wms/inventory/index.vue'),
+  'wms/move/index': () => import('@/views/wms/move/index.vue'),
+  'wms/check/index': () => import('@/views/wms/check/index.vue'),
+  'wms/event/index': () => import('@/views/wms/event/index.vue'),
+
   // ── 商城管理模块 ──
   'erp/mall/config/index': () => import('@/views/erp/mall/config/index.vue'),
   'erp/mall/user-audit/index': () => import('@/views/erp/mall/user-audit/index.vue'),
   'erp/mall/banner/index': () => import('@/views/erp/mall/banner/index.vue'),
   'erp/mall/order/index': () => import('@/views/erp/mall/order/index.vue'),
   'erp/mall/product/index': () => import('@/views/erp/mall/product/index.vue'),
+  // 商城顶级路由
+  'mall/config/index': () => import('@/views/erp/mall/config/index.vue'),
+  'mall/user-audit/index': () => import('@/views/erp/mall/user-audit/index.vue'),
+  'mall/banner/index': () => import('@/views/erp/mall/banner/index.vue'),
+  'mall/order/index': () => import('@/views/erp/mall/order/index.vue'),
+  'mall/product/index': () => import('@/views/erp/mall/product/index.vue'),
 
   'fixed-asset/index': () => import('@/views/fixed-asset/index.vue'),
   'fixed-asset/asset/index': () => import('@/views/fixed-asset/asset/index.vue'),
@@ -174,6 +200,22 @@ const componentMap: Record<string, () => Promise<any>> = {
   'budget/annual/detail': () => import('@/views/budget/annual/BudgetDetail.vue'),
   'budget/adjustment/index': () => import('@/views/budget/adjustment/index.vue'),
   'budget/report/index': () => import('@/views/budget/report/index.vue'),
+
+  // ── DMS 配送管理模块 ──
+  'dms/dashboard/index': () => import('@/views/dms/dashboard/index.vue'),
+  'dms/channel/index': () => import('@/views/dms/channel/index.vue'),
+  'dms/rider/index': () => import('@/views/dms/rider/index.vue'),
+  'dms/vehicle/index': () => import('@/views/dms/vehicle/index.vue'),
+  'dms/vehicle/detail': () => import('@/views/dms/vehicle/detail.vue'),
+  'dms/vehicle/maintenance': () => import('@/views/dms/vehicle/maintenance.vue'),
+  'dms/verification/index': () => import('@/views/dms/verification/index.vue'),
+  'dms/verification/binding-detail': () => import('@/views/dms/verification/binding-detail.vue'),
+  'dms/route/index': () => import('@/views/dms/route/index.vue'),
+  'dms/dispatch/index': () => import('@/views/dms/dispatch/index.vue'),
+  'dms/order-pool/index': () => import('@/views/dms/order-pool/index.vue'),
+  'dms/order-pool/bid-detail': () => import('@/views/dms/order-pool/bid-detail.vue'),
+  'dms/config/index': () => import('@/views/dms/config/index.vue'),
+  'dms/tracking/index': () => import('@/views/dms/tracking/index.vue'),
 }
 
 /**
@@ -199,7 +241,6 @@ const routeBillTypeMap: Record<string, string> = {
   'erp/stock': '601',
   'erp/stock-in': '601',
   'erp/shipment': '601',
-  'erp/stocktake': '601',
   'erp/stocktake': '601',
   'erp/stock-cost-adjust': '601',
   'erp/stock-overflow': '601',
@@ -293,6 +334,7 @@ function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRec
   const route: RouteRecordRaw = {
     path: routePath,
     name: menu.routeName || menu.menuCode,
+    redirect: '',
     meta: {
       title: menu.menuName,
       icon: menu.icon,
@@ -305,7 +347,7 @@ function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRec
 
   if (menu.menuType === 1 && menu.component) {
     const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
-    route.component = getComponent(componentPath)
+    ;(route as any).component = getComponent(componentPath)
   }
 
   if (menu.children && menu.children.length > 0) {
@@ -332,6 +374,29 @@ function buildMenuTree(menus: MenuItem[], parentId: number = 0): MenuItem[] {
     }))
 }
 
+/**
+ * 展平 display_group=1 的纯展示分组节点
+ * 这些节点只用于sidebar的分组显示，不生成路由嵌套
+ * 子菜单保持原有完整路径注册到父级层级
+ */
+function flattenDisplayGroup(menus: MenuItem[]): MenuItem[] {
+  const result: MenuItem[] = []
+  for (const menu of menus) {
+    if (menu.displayGroup === 1 && menu.children && menu.children.length > 0) {
+      // 不创建路由，提升子菜单到当前层级（递归处理嵌套的display_group）
+      result.push(...flattenDisplayGroup(menu.children))
+    } else {
+      // 正常节点，递归处理其子节点
+      const processed = { ...menu }
+      if (processed.children && processed.children.length > 0) {
+        processed.children = flattenDisplayGroup(processed.children)
+      }
+      result.push(processed)
+    }
+  }
+  return result
+}
+
 export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   const userStore = useUserStore()
   const userId = userStore.userId
@@ -340,7 +405,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   // 先检查 Token 是否有效，避免因后端 Sa-Token 会话过期导致菜单接口异常
   try {
     const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
-    if (!checkRes?.data?.valid) {
+    if (!checkRes?.valid) {
       console.warn('[动态路由] Token 已失效，准备跳转登录页')
       const err: any = new Error('Token 已失效')
       err.status = 401
@@ -355,12 +420,16 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   }
 
   try {
-    const response = await request.get(`/menu/user/client/${CLIENT_TYPE}`, { userId, tenantId })
+    const res = await request.get(`/menu/user/client/${CLIENT_TYPE}`, { userId, tenantId })
 
-    if (response.data && response.data.length > 0) {
-      const menuTree = response.data
+    if (res && res.length > 0) {
+      const menuTree = res
+      // 存储原始菜单树供sidebar渲染（包含display_group=1的分组节点）
       userStore.menus = menuTree as any
-      
+
+      // 注册路由时展平display_group=1的分组节点，只注册真实路由
+      const flatTree = flattenDisplayGroup(menuTree)
+
       // 注入必须始终存在的路由（不依赖后端菜单树的隐藏详情页等）
       const requiredRoutes = getRequiredRoutes()
 
@@ -370,7 +439,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         component: () => import('@/layouts/BasicLayout.vue'),
         meta: { requiresAuth: true },
         children: [
-          ...menuTree.map(menu => transformMenuToRoute(menu)),
+          ...flatTree.map(menu => transformMenuToRoute(menu)),
           ...requiredRoutes,
           {
             path: '/:pathMatch(.*)*',
@@ -395,7 +464,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
     if (error?.response?.status === 500) {
       try {
         const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
-        if (!checkRes?.data?.valid) {
+        if (!checkRes?.valid) {
           console.warn('[动态路由] Token 已失效（菜单接口500确认）')
           const err: any = new Error('Token 已失效')
           err.status = 401
@@ -616,38 +685,43 @@ function getRequiredRoutes(): RouteRecordRaw[] {
 
     // ── 商城管理模块 ──
     {
-      path: 'erp/mall/config',
-      name: 'ErpMallConfig',
+      path: 'mall/config',
+      name: 'MallConfig',
       component: () => import('@/views/erp/mall/config/index.vue'),
       meta: { title: '商城配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true, hidden: true }
     },
     {
-      path: 'erp/mall/user-audit',
-      name: 'ErpMallUserAudit',
+      path: 'mall/user-audit',
+      name: 'MallUserAudit',
       component: () => import('@/views/erp/mall/user-audit/index.vue'),
       meta: { title: '用户审核', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true, hidden: true }
     },
     {
-      path: 'erp/mall/banner',
-      name: 'ErpMallBanner',
+      path: 'mall/banner',
+      name: 'MallBanner',
       component: () => import('@/views/erp/mall/banner/index.vue'),
       meta: { title: '轮播图管理', icon: 'PictureOutlined', keepAlive: true, requiresAuth: true, hidden: true }
     },
     {
-      path: 'erp/mall/order',
-      name: 'ErpMallOrder',
+      path: 'mall/order',
+      name: 'MallOrder',
       component: () => import('@/views/erp/mall/order/index.vue'),
       meta: { title: '订单管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, hidden: true }
     },
     {
-      path: 'erp/mall/product',
-      name: 'ErpMallProduct',
+      path: 'mall/product',
+      name: 'MallProduct',
       component: () => import('@/views/erp/mall/product/index.vue'),
       meta: { title: '商品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true, hidden: true }
     },
   ]
 }
 
+/**
+ * 应急回退路由（仅后端菜单API完全不可用时使用）
+ * 注意：种子数据部署后，正常情况下API总会返回菜单数据，
+ * 此回退仅在API服务完全宕机时作为兜底
+ */
 function getFallbackRoutes(): RouteRecordRaw[] {
   return [
     {
@@ -657,449 +731,60 @@ function getFallbackRoutes(): RouteRecordRaw[] {
       redirect: '/dashboard',
       meta: { requiresAuth: true },
       children: [
-        {
-          path: 'dashboard',
-          name: 'Dashboard',
-          component: () => import('@/views/dashboard/index.vue'),
-          meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true }
-        },
-        {
-          path: 'purchase',
-          name: 'Purchase',
-          component: () => import('@/views/purchase/index.vue'),
-          meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
-        },
-        {
-          path: 'purchase/order/:id',
-          name: 'PurchaseOrderDetail',
-          component: () => import('@/views/purchase/detail/OrderDetail.vue'),
-          meta: { title: '采购订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
-        },
-        {
-          path: 'sale',
-          name: 'Sale',
-          component: () => import('@/views/sale/index.vue'),
-          meta: { title: '销售管理', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604' }
-        },
-        {
-          path: 'stock',
-          name: 'Stock',
-          component: () => import('@/views/stock/index.vue'),
-          meta: { title: '库存管理', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-        },
-        {
-          path: 'finance',
-          name: 'Finance',
-          component: () => import('@/views/finance/index.vue'),
-          meta: { title: '财务管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
-        },
-        {
-          path: 'crm/customer',
-          name: 'CrmCustomer',
-          component: () => import('@/views/crm/customer/index.vue'),
-          meta: { title: '客户管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true }
-        },
-        {
-          path: 'crm/customer/:id',
-          name: 'CrmCustomerDetail',
-          component: () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
-          meta: { title: '客户详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'sale/order/:id',
-          name: 'SaleOrderDetail',
-          component: () => import('@/views/sale/detail/OrderDetail.vue'),
-          meta: { title: '销售订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
-        },
-        {
-          path: 'purchase/inquiry/:id',
-          name: 'PurchaseInquiryDetail',
-          component: () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
-          meta: { title: '询价详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
-        },
-        {
-          path: 'purchase/inbound/:id',
-          name: 'PurchaseInboundDetail',
-          component: () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
-          meta: { title: '入库详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
-        },
-        {
-          path: 'stock/detail/:id',
-          name: 'StockDetail',
-          component: () => import('@/views/stock/detail/StockDetail.vue'),
-          meta: { title: '库存详情', icon: 'ContainerOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '601' }
-        },
-        {
-          path: 'supplier/detail/:id',
-          name: 'SupplierDetail',
-          component: () => import('@/views/supplier/detail.vue'),
-          meta: { title: '供应商详情', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'supplier/create',
-          name: 'SupplierCreate',
-          component: () => import('@/views/supplier/create.vue'),
-          meta: { title: '新增供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'supplier/edit/:id',
-          name: 'SupplierEdit',
-          component: () => import('@/views/supplier/edit.vue'),
-          meta: { title: '编辑供应商', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'supplier/inquiry/:id?',
-          name: 'SupplierInquiry',
-          component: () => import('@/views/supplier/inquiry/index.vue'),
-          meta: { title: '供应商询价', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'supplier/performance/:id?',
-          name: 'SupplierPerformance',
-          component: () => import('@/views/supplier/performance/index.vue'),
-          meta: { title: '供应商绩效', icon: 'TeamOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-        },
-        {
-          path: 'system/tenant',
-          name: 'SystemTenant',
-          component: () => import('@/views/system/tenant/index.vue'),
-          meta: { title: '租户管理', icon: 'ApartmentOutlined', keepAlive: true, requiresAuth: true }
-        },
-        {
-          path: 'system/tenant-approval',
-          name: 'SystemTenantApproval',
-          component: () => import('@/views/system/tenant-approval/index.vue'),
-          meta: { title: '租户审批', icon: 'SafetyOutlined', keepAlive: true, requiresAuth: true, permissions: ['system:tenant:approve'] }
-        },
-        {
-          path: 'system/data-import',
-          name: 'DataImport',
-          component: () => import('@/views/system/data-import/index.vue'),
-          meta: { title: '数据导入', icon: 'ImportOutlined', keepAlive: true, requiresAuth: true }
-        },
-        {
-          path: 'system/position',
-          name: 'SystemPosition',
-          component: () => import('@/views/system/position/index.vue'),
-          meta: { title: '岗位管理', icon: 'IdcardOutlined', keepAlive: true, requiresAuth: true }
-        },
-        // ERP 统一模块（含所有业务模块）
-        {
-          path: 'erp',
-          name: 'ErpLayout',
-          component: () => import('@/layouts/BasicLayout.vue'),
-          redirect: '/purchase',
-          meta: { title: 'ERP管理', icon: 'AppstoreOutlined', requiresAuth: true },
-          children: [
-            {
-              path: 'dashboard',
-              name: 'ErpDashboard',
-              component: () => import('@/views/erp/dashboard/index.vue'),
-              meta: { title: 'ERP仪表盘', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'sale',
-              name: 'ErpSale',
-              component: () => import('@/views/erp/sale/index.vue'),
-              meta: { title: '销售管理', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604' }
-            },
-            {
-              path: 'product',
-              name: 'ErpProduct',
-              component: () => import('@/views/erp/product/index.vue'),
-              meta: { title: '产品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'product/price-batch',
-              name: 'ErpProductPriceBatch',
-              component: () => import('@/views/erp/product/price-batch.vue'),
-              meta: { title: '批量价格管理', icon: 'DollarOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-            },
-            {
-              path: 'product/inventory-mode',
-              name: 'ErpProductInventoryMode',
-              component: () => import('@/views/erp/product/inventory-mode.vue'),
-              meta: { title: '库存管理模式', icon: 'SettingOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-            },
-            {
-              path: 'partner',
-              name: 'ErpPartner',
-              component: () => import('@/views/erp/partner/index.vue'),
-              meta: { title: '往来单位管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'batch',
-              name: 'ErpBatch',
-              component: () => import('@/views/erp/batch/index.vue'),
-              meta: { title: '批次管理', icon: 'BarcodeOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'serial',
-              name: 'ErpSerial',
-              component: () => import('@/views/erp/serial/index.vue'),
-              meta: { title: '序列号管理', icon: 'NumberOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'serial/:id',
-              name: 'ErpSerialDetail',
-              component: () => import('@/views/erp/serial/detail.vue'),
-              meta: { title: '序列号追溯', icon: 'SearchOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-            },
-            {
-              path: 'stock',
-              name: 'ErpStock',
-              component: () => import('@/views/erp/stock/index.vue'),
-              meta: { title: '库存管理', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'purchase',
-              name: 'ErpPurchase',
-              component: () => import('@/views/erp/purchase/index.vue'),
-              meta: { title: '采购管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' }
-            },
-            {
-              path: 'purchase-exchange',
-              name: 'ErpPurchaseExchange',
-              component: () => import('@/views/erp/purchase-exchange/index.vue'),
-              meta: { title: '采购换货', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'stock-in',
-              name: 'ErpStockIn',
-              component: () => import('@/views/erp/stock-in/index.vue'),
-              meta: { title: '入库管理', icon: 'InboxOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'stocktake',
-              name: 'ErpStocktake',
-              component: () => import('@/views/erp/stocktake/index.vue'),
-              meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'return',
-              name: 'ErpReturn',
-              component: () => import('@/views/erp/return/index.vue'),
-              meta: { title: '退货管理', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'shipment',
-              name: 'ErpShipment',
-              component: () => import('@/views/erp/shipment/index.vue'),
-              meta: { title: '发货管理', icon: 'SendOutlined', keepAlive: true, requiresAuth: true, billType: '601' }
-            },
-            {
-              path: 'sales-analysis',
-              name: 'ErpSalesAnalysis',
-              component: () => import('@/views/erp/sales-analysis/index.vue'),
-              meta: { title: '销售分析', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' }
-            },
-            {
-              path: 'sales-report',
-              name: 'ErpSalesReport',
-              component: () => import('@/views/erp/sales-report/index.vue'),
-              meta: { title: '销售报表', icon: 'LineChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' }
-            },
-            {
-              path: 'pricing/customer-grade',
-              name: 'ErpPricingCustomerGrade',
-              component: () => import('@/views/erp/pricing/index.vue'),
-              meta: { title: '客户等级定价', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'pricing/approval',
-              name: 'ErpPricingApproval',
-              component: () => import('@/views/erp/pricing/approval/index.vue'),
-              meta: { title: '定价审批', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'pricing/tiers',
-              name: 'ErpPricingTiers',
-              component: () => import('@/views/erp/pricing/tiers/index.vue'),
-              meta: { title: '价格层级', icon: 'PullRequestOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'fixed-asset',
-              name: 'ErpFixedAsset',
-              component: () => import('@/views/fixed-asset/index.vue'),
-              meta: { title: '固定资产', icon: 'BankOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'budget',
-              name: 'ErpBudget',
-              component: () => import('@/views/budget/index.vue'),
-              meta: { title: '预算管理', icon: 'FundOutlined', keepAlive: true, requiresAuth: true }
-            },
-            {
-              path: 'mall',
-              name: 'ErpMall',
-              component: () => import('@/layouts/BasicLayout.vue'),
-              redirect: 'mall/config',
-              meta: { title: '商城管理', icon: 'ShopOutlined', keepAlive: true, requiresAuth: true },
-              children: [
-                {
-                  path: 'config',
-                  name: 'ErpMallConfig',
-                  component: () => import('@/views/erp/mall/config/index.vue'),
-                  meta: { title: '商城配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'user-audit',
-                  name: 'ErpMallUserAudit',
-                  component: () => import('@/views/erp/mall/user-audit/index.vue'),
-                  meta: { title: '用户审核', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'banner',
-                  name: 'ErpMallBanner',
-                  component: () => import('@/views/erp/mall/banner/index.vue'),
-                  meta: { title: '轮播图管理', icon: 'PictureOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'order',
-                  name: 'ErpMallOrder',
-                  component: () => import('@/views/erp/mall/order/index.vue'),
-                  meta: { title: '订单管理', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'product',
-                  name: 'ErpMallProduct',
-                  component: () => import('@/views/erp/mall/product/index.vue'),
-                  meta: { title: '商品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true }
-                }
-              ]
-            },
-            {
-              path: 'printing',
-              name: 'ErpPrinting',
-              component: () => import('@/layouts/BasicLayout.vue'),
-              meta: { title: '打印管理', icon: 'PrinterOutlined', keepAlive: true, requiresAuth: true },
-              children: [
-                {
-                  path: 'template',
-                  name: 'PrintTemplate',
-                  component: () => import('@/views/printing/template/index.vue'),
-                  meta: { title: '打印模板', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'chain',
-                  name: 'PrintChain',
-                  component: () => import('@/views/printing/chain/index.vue'),
-                  meta: { title: '打印链路', icon: 'LinkOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'client',
-                  name: 'PrintClient',
-                  component: () => import('@/views/printing/client/index.vue'),
-                  meta: { title: '打印客户端', icon: 'LaptopOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'task',
-                  name: 'PrintTask',
-                  component: () => import('@/views/printing/task/index.vue'),
-                  meta: { title: '打印任务', icon: 'AuditOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'designer/:id?',
-                  name: 'PrintDesigner',
-                  component: () => import('@/views/printing/designer/index.vue'),
-                  meta: { title: '模板设计器', icon: 'EditOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-                }
-              ]
-            },
-            {
-              path: 'finance',
-              name: 'ErpFinance',
-              component: () => import('@/views/finance/index.vue'),
-              meta: { title: '财务管理', icon: 'AccountBookOutlined', keepAlive: true, requiresAuth: true },
-              children: [
-                {
-                  path: 'subject',
-                  name: 'ErpFinanceSubject',
-                  component: () => import('@/views/finance/subject/index.vue'),
-                  meta: { title: '科目管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'voucher',
-                  name: 'ErpFinanceVoucher',
-                  component: () => import('@/views/finance/voucher/index.vue'),
-                  meta: { title: '凭证管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'voucher/:id',
-                  name: 'ErpFinanceVoucherDetail',
-                  component: () => import('@/views/finance/voucher/VoucherDetail.vue'),
-                  meta: { title: '凭证详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-                },
-                {
-                  path: 'receivable',
-                  name: 'ErpFinanceReceivable',
-                  component: () => import('@/views/finance/receivable/index.vue'),
-                  meta: { title: '应收账款', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '801' }
-                },
-                {
-                  path: 'payable',
-                  name: 'ErpFinancePayable',
-                  component: () => import('@/views/finance/payable/index.vue'),
-                  meta: { title: '应付账款', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '802' }
-                },
-                {
-                  path: 'report',
-                  name: 'ErpFinanceReport',
-                  component: () => import('@/views/finance/report/index.vue'),
-                  meta: { title: '财务报表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'receipt',
-                  name: 'ErpFinanceReceipt',
-                  component: () => import('@/views/finance/receipt/index.vue'),
-                  meta: { title: '收款单管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '801' }
-                },
-                {
-                  path: 'pre-receipt',
-                  name: 'ErpFinancePreReceipt',
-                  component: () => import('@/views/finance/pre-receipt/index.vue'),
-                  meta: { title: '预收款管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '801' }
-                },
-                {
-                  path: 'pre-payment',
-                  name: 'ErpFinancePrePayment',
-                  component: () => import('@/views/finance/pre-payment/index.vue'),
-                  meta: { title: '预付款管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '802' }
-                },
-                {
-                  path: 'payment',
-                  name: 'ErpFinancePayment',
-                  component: () => import('@/views/finance/payment/index.vue'),
-                  meta: { title: '付款单管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '802' }
-                },
-                {
-                  path: 'deposit',
-                  name: 'ErpFinanceDeposit',
-                  component: () => import('@/views/finance/deposit/index.vue'),
-                  meta: { title: '定金押金管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true, billType: '801' }
-                },
-                {
-                  path: 'write-off',
-                  name: 'ErpFinanceWriteOff',
-                  component: () => import('@/views/finance/write-off/index.vue'),
-                  meta: { title: '收付款核销', icon: 'CheckCircleOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'offset',
-                  name: 'ErpFinanceOffset',
-                  component: () => import('@/views/finance/offset/index.vue'),
-                  meta: { title: '往来对冲', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true }
-                },
-                {
-                  path: 'capital-flow',
-                  name: 'ErpFinanceCapitalFlow',
-                  component: () => import('@/views/finance/capital-flow/index.vue'),
-                  meta: { title: '资金流水台账', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true }
-                }
-              ]
-            }
-          ]
-        }
+        // ── 工作台 ──
+        { path: 'dashboard', name: 'Dashboard', component: () => import('@/views/dashboard/index.vue'), meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 销售作业 ──
+        { path: 'sale', name: 'Sale', component: () => import('@/views/sale/index.vue'), meta: { title: '销售订单', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
+        { path: 'erp/sale', name: 'ErpSale', component: () => import('@/views/erp/sale/index.vue'), meta: { title: '销售管理(ERP)', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604', hidden: true } },
+        { path: 'stock', name: 'Stock', component: () => import('@/views/stock/index.vue'), meta: { title: '销售出库', icon: 'ExportOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/shipment', name: 'ErpShipment', component: () => import('@/views/erp/shipment/index.vue'), meta: { title: '发货管理', icon: 'SendOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/return', name: 'ErpReturn', component: () => import('@/views/erp/return/index.vue'), meta: { title: '退货管理', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/sales-analysis', name: 'ErpSalesAnalysis', component: () => import('@/views/erp/sales-analysis/index.vue'), meta: { title: '销售分析', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
+        { path: 'erp/sales-report', name: 'ErpSalesReport', component: () => import('@/views/erp/sales-report/index.vue'), meta: { title: '销售报表', icon: 'LineChartOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
+        // ── 采购作业 ──
+        { path: 'purchase', name: 'Purchase', component: () => import('@/views/purchase/index.vue'), meta: { title: '采购订单', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504' } },
+        { path: 'erp/purchase', name: 'ErpPurchase', component: () => import('@/views/erp/purchase/index.vue'), meta: { title: '采购管理(ERP)', icon: 'ShoppingCartOutlined', keepAlive: true, requiresAuth: true, billType: '504', hidden: true } },
+        { path: 'erp/stock-in', name: 'ErpStockIn', component: () => import('@/views/erp/stock-in/index.vue'), meta: { title: '入库管理', icon: 'InboxOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/purchase-exchange', name: 'ErpPurchaseExchange', component: () => import('@/views/erp/purchase-exchange/index.vue'), meta: { title: '采购换货', icon: 'SwapOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        // ── 仓储作业 ──
+        { path: 'erp/stock', name: 'ErpStock', component: () => import('@/views/erp/stock/index.vue'), meta: { title: '库存管理(ERP)', icon: 'ContainerOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/stocktake', name: 'ErpStocktake', component: () => import('@/views/erp/stocktake/index.vue'), meta: { title: '库存盘点', icon: 'CheckSquareOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/batch', name: 'ErpBatch', component: () => import('@/views/erp/batch/index.vue'), meta: { title: '批次管理', icon: 'BarcodeOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        { path: 'erp/serial', name: 'ErpSerial', component: () => import('@/views/erp/serial/index.vue'), meta: { title: '序列号管理', icon: 'NumberOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },
+        // ── 客户关系 ──
+        { path: 'crm/customer', name: 'CrmCustomer', component: () => import('@/views/crm/customer/index.vue'), meta: { title: '客户管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'crm/lead', name: 'CrmLead', component: () => import('@/views/crm/lead/index.vue'), meta: { title: '线索管理', icon: 'HighlightOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'crm/opportunity', name: 'CrmOpportunity', component: () => import('@/views/crm/opportunity/index.vue'), meta: { title: '商机管理', icon: 'BulbOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'crm/quotation', name: 'CrmQuotation', component: () => import('@/views/crm/quotation/index.vue'), meta: { title: '报价管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'crm/contract', name: 'CrmContract', component: () => import('@/views/crm/contract/index.vue'), meta: { title: '合同管理', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'crm/invoice', name: 'CrmInvoice', component: () => import('@/views/crm/invoice/index.vue'), meta: { title: '发票管理', icon: 'FileProtectOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 财务管理 ──
+        { path: 'finance', name: 'Finance', component: () => import('@/views/finance/index.vue'), meta: { title: '财务管理', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 费用管理 ──
+        { path: 'erp/expense/application', name: 'ExpenseApplication', component: () => import('@/views/erp/expense/application/index.vue'), meta: { title: '费用申请', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'erp/expense/reimbursement', name: 'ExpenseReimbursement', component: () => import('@/views/erp/expense/reimbursement/index.vue'), meta: { title: '费用报销', icon: 'DollarOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 资产管理 ──
+        { path: 'fixed-asset/asset', name: 'FixedAssetList', component: () => import('@/views/fixed-asset/asset/index.vue'), meta: { title: '资产列表', icon: 'BankOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 预算管理 ──
+        { path: 'budget', name: 'Budget', component: () => import('@/views/budget/index.vue'), meta: { title: '预算管理', icon: 'FundOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 商城管理 ──
+        { path: 'mall/config', name: 'MallConfig', component: () => import('@/views/erp/mall/config/index.vue'), meta: { title: '商城配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'mall/banner', name: 'MallBanner', component: () => import('@/views/erp/mall/banner/index.vue'), meta: { title: '轮播图管理', icon: 'PictureOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'mall/product', name: 'MallProduct', component: () => import('@/views/erp/mall/product/index.vue'), meta: { title: '商品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 产品数据 ──
+        { path: 'erp/product', name: 'ErpProduct', component: () => import('@/views/erp/product/index.vue'), meta: { title: '产品管理', icon: 'AppstoreOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'erp/partner', name: 'ErpPartner', component: () => import('@/views/erp/partner/index.vue'), meta: { title: '往来单位管理', icon: 'TeamOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 打印管理 ──
+        { path: 'printing/template', name: 'PrintTemplate', component: () => import('@/views/printing/template/index.vue'), meta: { title: '打印模板', icon: 'FileTextOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'printing/chain', name: 'PrintChain', component: () => import('@/views/printing/chain/index.vue'), meta: { title: '打印链路', icon: 'LinkOutlined', keepAlive: true, requiresAuth: true } },
+        // ── 系统管理 ──
+        { path: 'system/user', name: 'SystemUser', component: () => import('@/views/system/user/index.vue'), meta: { title: '用户管理', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'system/role', name: 'SystemRole', component: () => import('@/views/system/role/index.vue'), meta: { title: '角色管理', icon: 'SafetyOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'system/menu', name: 'SystemMenu', component: () => import('@/views/system/menu/index.vue'), meta: { title: '菜单管理', icon: 'MenuOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'system/config', name: 'SystemConfig', component: () => import('@/views/system/config/index.vue'), meta: { title: '系统配置', icon: 'SettingOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'charts/index', name: 'Charts', component: () => import('@/views/charts/index.vue'), meta: { title: '图表', icon: 'BarChartOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'notification/index', name: 'Notification', component: () => import('@/views/notification/index.vue'), meta: { title: '通知公告', icon: 'BellOutlined', keepAlive: true, requiresAuth: true } },
+        { path: 'profile/index', name: 'Profile', component: () => import('@/views/profile/index.vue'), meta: { title: '个人中心', icon: 'UserOutlined', keepAlive: true, requiresAuth: true } },
       ]
     }
   ]
@@ -1116,6 +801,8 @@ const MODULE_ROUTE_MAP: Record<string, string[]> = {
   'system': ['system'],
   'printing': ['printing'],
   'notification': ['notification'],
+  'wms': ['wms'],
+  'mall': ['mall'],
 }
 
 /**

@@ -77,7 +77,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="delete" danger>
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -182,22 +182,22 @@
         <a-button type="dashed" size="small" @click="addTransferItem"><template #icon><PlusOutlined /></template>添加产品</a-button>
         <span v-if="addForm.items.length > 0" style="margin-left: 8px; color: #888; font-size: 12px">共 {{ addForm.items.length }} 条，合计数量: {{ totalTransferQty }}</span>
       </div>
-      <VxeTableList :columns="addItemColumns" :data-source="addForm.items" :pagination="false" row-key="key"
+      <VxeTableList :columns="addItemColumns" :data-source="addForm.items" :pagination="false as any" row-key="key"
         :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
         :show-export="false" :show-batch-delete="false">
-        <template #productNameCell="{ record, rowIndex }">
-          <a-select v-model:value="addForm.items[rowIndex].productId" show-search placeholder="选择产品"
+        <template #productNameCell="{ record, index }">
+          <a-select v-model:value="addForm.items[index].productId" show-search placeholder="选择产品"
             :options="productOptions" style="width: 100%" size="small"
-            @change="(val: number) => handleItemProductChange(rowIndex, val)" />
+            @change="(val: number) => handleItemProductChange(index, val)" />
         </template>
         <template #availableQtyCell="{ record }">
           <a-tag :color="record.availableQty > 0 ? 'green' : 'red'">{{ record.availableQty }} {{ record.unit || '' }}</a-tag>
         </template>
-        <template #quantityCell="{ record, rowIndex }">
-          <a-input-number v-model:value="addForm.items[rowIndex].quantity" :min="1" :max="record.availableQty" style="width: 100%" size="small" />
+        <template #quantityCell="{ record, index }">
+          <a-input-number v-model:value="addForm.items[index].quantity" :min="1" :max="record.availableQty" style="width: 100%" size="small" />
         </template>
-        <template #actionCell="{ record, rowIndex }">
-          <a-button type="link" danger size="small" @click="removeTransferItem(rowIndex)">删除</a-button>
+        <template #actionCell="{ record, index }">
+          <a-button type="link" danger size="small" @click="removeTransferItem(index)">删除</a-button>
         </template>
       </VxeTableList>
     </a-modal>
@@ -328,7 +328,7 @@ const addVisible = ref(false)
 const addSubmitting = ref(false)
 const addFormRef = ref<FormInstance>()
 const addForm = reactive({ fromWarehouseId: undefined as number | undefined, toWarehouseId: undefined as number | undefined, transferDate: dayjs(), transferType: 1, reason: '', items: [] as AddTransferItem[] })
-const addFormRules = {
+const addFormRules: any = {
   fromWarehouseId: [{ required: true, message: '请选择调出仓库', trigger: 'change' }],
   toWarehouseId: [{ required: true, message: '请选择调入仓库', trigger: 'change' }],
   transferDate: [{ required: true, message: '请选择调拨日期', trigger: 'change' }],
@@ -627,4 +627,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

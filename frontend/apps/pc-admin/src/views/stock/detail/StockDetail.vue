@@ -34,7 +34,7 @@
         :columns="txVxeCols"
         :data-source="transactions"
         row-key="id"
-        :pagination="{ pageSize: 5 }"
+        :pagination="{ pageSize: 5, current: 1, total: 0 } as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"

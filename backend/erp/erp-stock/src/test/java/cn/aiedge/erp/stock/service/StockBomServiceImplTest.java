@@ -152,7 +152,7 @@ class StockBomServiceImplTest {
 
         StockBom result = bomService.enableBom(1L);
         assertEquals(1, result.getStatus());
-        verify(bomMapper).updateById(argThat(b -> ((StockBom) b).getStatus() == 1));
+        verify(bomMapper).updateById(argThat((StockBom b) -> b.getStatus() == 1));
     }
 
     @Test
@@ -162,7 +162,7 @@ class StockBomServiceImplTest {
 
         StockBom result = bomService.disableBom(1L);
         assertEquals(0, result.getStatus());
-        verify(bomMapper).updateById(argThat(b -> ((StockBom) b).getStatus() == 0));
+        verify(bomMapper).updateById(argThat((StockBom b) -> b.getStatus() == 0));
     }
 
     @Test

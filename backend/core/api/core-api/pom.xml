@@ -108,12 +108,14 @@
             <artifactId>erp-order</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 费用管理模块 -->
+        <!-- ERP 费用管理模块（排除，Fee* 控制器已直接在 core-api 实现） -->
+        <!--
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-expense</artifactId>
             <version>0.2.0</version>
         </dependency>
+        -->
         <!-- ERP 付款管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
@@ -210,12 +212,14 @@
             <artifactId>erp-price-engine</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 固定资产模块 -->
+        <!-- ERP 固定资产模块（排除，使用 core-api 占位 Controller） -->
+        <!--
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-fixed-asset</artifactId>
             <version>0.2.0</version>
         </dependency>
+        -->
         <!-- ERP 预算管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
@@ -292,12 +296,12 @@
             <artifactId>postgresql</artifactId>
         </dependency>
 
-        <!-- Flyway PostgreSQL Support -->
+        <!-- Flyway -->
         <dependency>
             <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
-        
+
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -478,6 +482,13 @@
             <groupId>com.sun.mail</groupId>
             <artifactId>jakarta.mail</artifactId>
             <version>2.0.1</version>
+        </dependency>
+
+        <!-- Logback Classic for logging -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.4.14</version>
         </dependency>
     </dependencies>
 

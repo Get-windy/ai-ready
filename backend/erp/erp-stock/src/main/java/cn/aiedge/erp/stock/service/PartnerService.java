@@ -12,4 +12,5 @@ public interface PartnerService extends IService<Partner> {
     boolean createPartner(Partner partner);
     boolean updatePartner(Partner partner);
     List<Partner> search(String keyword, String partnerType);
+    List<Partner> getPartnerList(String partnerType, String status, Integer pageSize);
 }

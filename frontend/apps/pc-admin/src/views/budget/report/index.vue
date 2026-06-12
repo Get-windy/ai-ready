@@ -1,4 +1,5 @@
 <template>
+  <ErrorBoundary @error="handleError">
   <PageContainer full-height>
     <template #header>
       <div class="report-page-header">
@@ -18,9 +19,16 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+R</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+          </span>
         </div>
       </div>
     </template>
+
+    <!-- 骨架屏 -->
+    <a-skeleton v-if="!lastUpdateTime && !hasError" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
 
     <div class="report-management">
       <!-- KPI 卡片 -->
@@ -100,8 +108,9 @@
               :data-source="varianceData"
               :columns="varianceVxeColumns"
               :loading="varianceLoading"
-              :pagination="{ pageSize: 10 }"
+              :pagination="{ pageSize: 10 } as any"
               row-key="budgetId"
+              :min-empty-rows="12"
               :show-toolbar="false"
               :selectable="false"
               :show-add="false"
@@ -114,23 +123,31 @@
                   {{ (record.varianceRate || 0).toFixed(2) }}%
                 </span>
               </template>
+              <template #empty>
+                <div class="empty-state-wrapper">
+                  <InboxOutlined style="font-size: 48px; color: #d9d9d9;" />
+                  <p style="color: #999; margin-top: 12px;">暂无差异分析数据</p>
+                </div>
+              </template>
             </VxeTableList>
           </a-card>
         </a-col>
       </a-row>
     </div>
   </PageContainer>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message } from 'ant-design-vue'
 import {
   FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined,
-  SyncOutlined, ReloadOutlined, WarningOutlined
+  SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { PageContainer } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { budgetReportApi } from '@/api/budget'
 import * as echarts from 'echarts'
 
@@ -163,6 +180,10 @@ let trendChart: echarts.ECharts | null = null
 
 const varianceData = ref<any[]>([])
 const varianceLoading = ref(false)
+
+function formatAmount(amount: number): string {
+  return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
+}
 
 
 const amountFmt = ({ cellValue }: any) => `¥${(cellValue ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
@@ -215,7 +236,7 @@ const loadAllData = async () => {
   // Summary
   try {
     const res = await budgetReportApi.executionSummary(fiscalYear.value)
-    if (res.success) summary.value = res.data
+    if (res.code === 200) summary.value = res.data
   } catch {
     hasError.value = true
     console.warn('[预算报表] 加载汇总数据失败')
@@ -226,9 +247,9 @@ const loadAllData = async () => {
   try {
     const res = await budgetReportApi.departmentSummary(fiscalYear.value)
     if (res.success && res.data) {
-      const depts = res.data.map((d: any) => d.departmentName || d.departmentId)
-      const budgets = res.data.map((d: any) => d.totalBudget || 0)
-      const used = res.data.map((d: any) => d.totalUsed || 0)
+      const depts = res.map((d: any) => d.departmentName || d.departmentId)
+      const budgets = res.map((d: any) => d.totalBudget || 0)
+      const used = res.map((d: any) => d.totalUsed || 0)
       deptChart?.setOption({
         xAxis: { data: depts },
         series: [{ name: '预算总额', type: 'bar', data: budgets }, { name: '已使用', type: 'bar', data: used }],
@@ -242,7 +263,7 @@ const loadAllData = async () => {
   try {
     const res = await budgetReportApi.subjectSummary(fiscalYear.value)
     if (res.success && res.data) {
-      const topSubjects = res.data.slice(0, 10)
+      const topSubjects = res.slice(0, 10)
       subjectChart?.setOption({
         series: [{
           name: '科目预算',
@@ -260,7 +281,7 @@ const loadAllData = async () => {
   try {
     const res = await budgetReportApi.trend(fiscalYear.value)
     if (res.success && res.data) {
-      const amounts = res.data.map((d: any) => d.amount)
+      const amounts = res.map((d: any) => d.amount)
       trendChart?.setOption({ series: [{ data: amounts }] })
     }
   } catch {
@@ -271,7 +292,7 @@ const loadAllData = async () => {
   varianceLoading.value = true
   try {
     const res = await budgetReportApi.varianceAnalysis(fiscalYear.value)
-    if (res.success) varianceData.value = res.data || []
+    if (res.code === 200) varianceData.value = res.data || []
   } catch {
     console.warn('[预算报表] 加载差异分析失败')
     varianceData.value = []
@@ -334,6 +355,8 @@ onUnmounted(() => {
 })
 
 defineExpose({ handleQuery: loadAllData })
+
+function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
@@ -467,4 +490,54 @@ defineExpose({ handleQuery: loadAllData })
     min-width: 120px;
   }
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 空状态包装 ──────────────────────── */
+.empty-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  min-height: 120px;
+}
+
+/* ── 表头 2px 分割线 ──────────────────────── */
+.report-management :deep(.vxe-table-list-container .vxe-header--row .vxe-header--column) {
+  border-bottom: 2px solid #d0d5dd !important;
+}
+
 </style>

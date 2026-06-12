@@ -474,9 +474,8 @@ const goBack = () => {
                 </thead>
                 <tbody>
                   <tr>
-                    <td v-for="col in element.tableColumns" :key="col.key">
-                      {{ '{{item.' + col.key + '}}' }}
-                    </td>
+                    <td v-for="col in element.tableColumns" :key="col.key"
+                        v-text="'{{item.' + col.key + '}}'"></td>
                   </tr>
                 </tbody>
               </table>

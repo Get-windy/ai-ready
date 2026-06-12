@@ -84,7 +84,7 @@
                 <template #icon><EllipsisOutlined /></template>
               </a-button>
               <template #overlay>
-                <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                   <a-menu-item key="delete" danger>
                     <DeleteOutlined /> 删除
                   </a-menu-item>
@@ -194,17 +194,17 @@
       </div>
 
       <a-divider v-if="checkItems.length > 0" style="margin: 12px 0">盘点明细</a-divider>
-      <VxeTableList v-if="checkItems.length > 0" :data-source="checkItems" :pagination="false" row-key="id"
+      <VxeTableList v-if="checkItems.length > 0" :data-source="checkItems" :pagination="false as any" row-key="id"
         :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false"
         :show-export="false" :show-batch-delete="false" :columns="addItemColumns">
         <template #systemQtyCell="{ record }">
           {{ record.quantity || 0 }} {{ record.unit || '' }}
         </template>
-        <template #actualQtyCell="{ record, rowIndex }">
-          <a-input-number v-model:value="checkItems[rowIndex].actualQty" :min="0" size="small" style="width: 100%" placeholder="实盘数量" />
+        <template #actualQtyCell="{ record, index }">
+          <a-input-number v-model:value="checkItems[index].actualQty" :min="0" size="small" style="width: 100%" placeholder="实盘数量" />
         </template>
-        <template #diffCell="{ record, rowIndex }">
-          <a-tag :color="getDiffColor(rowIndex)">{{ getDiffText(rowIndex) }}</a-tag>
+        <template #diffCell="{ record, index }">
+          <a-tag :color="getDiffColor(index)">{{ getDiffText(index) }}</a-tag>
         </template>
       </VxeTableList>
     </a-modal>
@@ -338,7 +338,7 @@ const addSubmitting = ref(false)
 const generatingList = ref(false)
 const addFormRef = ref<FormInstance>()
 const addForm = reactive({ warehouseId: undefined as number | undefined, checkDate: dayjs(), categoryId: undefined as number | undefined, checkMode: 1, remark: '' })
-const addFormRules = { warehouseId: [{ required: true, message: '请选择盘点仓库', trigger: 'change' }], checkDate: [{ required: true, message: '请选择盘点日期', trigger: 'change' }] }
+const addFormRules: any = { warehouseId: [{ required: true, message: '请选择盘点仓库', trigger: 'change' }], checkDate: [{ required: true, message: '请选择盘点日期', trigger: 'change' }] }
 const checkItems = ref<CheckItem[]>([])
 const warehouseOptions = [
   { value: 1, label: '主仓库' }, { value: 2, label: '备品仓库' },
@@ -655,4 +655,39 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
 </style>

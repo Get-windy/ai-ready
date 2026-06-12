@@ -23,6 +23,11 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
+          <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+            <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+          </span>
         </div>
       </div>
     </template>
@@ -98,7 +103,7 @@
       @add="handleCreate"
       @refresh="fetchData"
       @export="handleExport"
-      @search="handleSearch"
+      @search="(val: any) => handleSearch(val ? { keyword: val } : undefined)"
       @page-change="handlePageChange"
       @filter-change="handleFilterChange"
       @selection-change="handleSelectionChange"
@@ -108,7 +113,7 @@
         <span class="list-update-timestamp">最后更新：{{ dayjs(lastUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}</span>
       </template>
 
-      <template #empty>
+      <template #emptyText>
         <EmptyState v-if="hasError" image="error" title="数据加载异常" description="数据获取失败，请检查后重试" :show-add="false" size="small" @refresh="fetchData" />
         <EmptyState v-else-if="hasActiveFilters" image="no-data" title="没有符合条件的退货单" description="请尝试修改筛选条件" :show-add="false" size="small" @refresh="fetchData" />
         <EmptyState v-else image="no-data" title="暂无退货单" description="当前没有退货单数据" add-text="新建退货申请" size="small" @refresh="fetchData" @add="handleCreate" />
@@ -122,17 +127,17 @@
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 0" title="审核">
-            <a-button type="link" size="small" @click="handleApprove(record)">
+            <a-button type="link" size="small" v-permission="'erp:return:approve'" @click="handleApprove(record)">
               <template #icon><CheckCircleOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 1" title="入库">
-            <a-button type="link" size="small" @click="handleReceive(record)">
+            <a-button type="link" size="small" v-permission="'erp:return:receive'" @click="handleReceive(record)">
               <template #icon><DownloadOutlined /></template>
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="record.status === 2" title="退款">
-            <a-button type="link" size="small" @click="handleRefund(record)">
+            <a-button type="link" size="small" v-permission="'erp:return:refund'" @click="handleRefund(record)">
               <template #icon><RollbackOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -141,7 +146,7 @@
               <template #icon><EllipsisOutlined /></template>
             </a-button>
             <template #overlay>
-              <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+              <a-menu @click="(e) => handleActionMenuClick(String(e.key), record)">
                 <a-menu-item key="delete">
                   <DeleteOutlined /> 删除
                 </a-menu-item>
@@ -180,7 +185,7 @@
           <a-table
             :data-source="detailData.items || []"
             :columns="detailItemColumns"
-            :pagination="false"
+            :pagination="false as any"
             row-key="productCode"
             size="small"
             bordered
@@ -190,7 +195,7 @@
                 ¥{{ ((record.returnQuantity || 0) * (record.unitPrice || 0)).toFixed(2) }}
               </template>
             </template>
-            <template #empty>
+            <template #emptyText>
               <a-empty description="暂无明细数据" />
             </template>
           </a-table>
@@ -305,7 +310,7 @@
         <a-table
           :data-source="createForm.items"
           :columns="itemColumns"
-          :pagination="false"
+          :pagination="false as any"
           row-key="tempId"
           size="small"
           bordered
@@ -344,7 +349,7 @@
               </a-button>
             </template>
           </template>
-          <template #empty>
+          <template #emptyText>
             <a-empty description="请点击上方按钮添加商品" />
           </template>
         </a-table>
@@ -398,7 +403,9 @@ import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, SearchBar, EmptyState } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import SearchBar from '@/components/SearchBar/SearchBar.vue'
+import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import { RETURN_STATUS } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'
@@ -486,7 +493,7 @@ const formatAmount = (amount: number) => {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }
 
-const vxeColumns = computed(() => [
+const vxeColumns: any = computed(() => [
   { field: 'returnNo', title: '退货单号', width: 150 },
   { field: 'orderNo', title: '销售订单', width: 150 },
   { field: 'customerName', title: '客户名称', width: 150 },
@@ -499,7 +506,7 @@ const vxeColumns = computed(() => [
 ])
 
 // 详情抽屉中的退货明细表格列
-const detailItemColumns = [
+const detailItemColumns: any = [
   { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
   { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 200 },
   { title: '数量', dataIndex: 'returnQuantity', key: 'returnQuantity', width: 80, align: 'right' },
@@ -518,7 +525,7 @@ const filterFields = [
   ]},
 ]
 
-const searchFields: SearchField[] = [
+const searchFields: any = [
   { name: 'returnNo', label: '退货单号', type: 'input', placeholder: '请输入退货单号' },
   { name: 'orderNo', label: '销售订单', type: 'input', placeholder: '请输入订单号' },
   { name: 'status', label: '状态', type: 'select', options: [
@@ -613,7 +620,7 @@ const createRules: Record<string, any> = {
   returnType: [{ required: true, message: '请选择退货类型', trigger: 'change' }],
 }
 
-const itemColumns = [
+const itemColumns: any = [
   { title: '商品名称', dataIndex: 'productName', key: 'productName', width: 160 },
   { title: '商品编码', dataIndex: 'productCode', key: 'productCode', width: 120 },
   { title: '退货数量', dataIndex: 'returnQuantity', key: 'returnQuantity', width: 100 },
@@ -914,15 +921,15 @@ const fetchData = async () => {
     }
     const res = await request.get('/erp/sale/return/page', { params })
     if (res.data?.records) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total || 0
+      dataSource.value = res.records
+      pagination.total = res.total || 0
       // 从 API 返回值读取全局统计
-      if (res.data.statistics) {
+      if (res.statistics) {
         statistics.value = {
-          totalCount: res.data.statistics.totalCount ?? dataSource.value.length,
-          pendingCount: res.data.statistics.pendingCount ?? 0,
-          refundedCount: res.data.statistics.refundedCount ?? 0,
-          totalAmount: res.data.statistics.totalAmount ?? 0
+          totalCount: res.statistics.totalCount ?? dataSource.value.length,
+          pendingCount: res.statistics.pendingCount ?? 0,
+          refundedCount: res.statistics.refundedCount ?? 0,
+          totalAmount: res.statistics.totalAmount ?? 0
         }
       } else {
         // 兼容旧版 API：从当前页数据计算（仅显示当页统计）
@@ -1086,6 +1093,41 @@ onMounted(() => {
 :deep(.vxe-table-list-container) {
   flex: 1;
   min-height: 0;
+}
+
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
 }
 
 /* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */

@@ -8,19 +8,34 @@
             数据更新: {{ lastUpdateTime }}
           </span>
         </span>
+        <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
+          <SyncOutlined /> {{ autoRefreshCountdown }}s
+        </span>
         <a-radio-group v-model:value="currentView" button-style="solid" size="small">
           <a-radio-button value="list"><UnorderedListOutlined /> 列表</a-radio-button>
           <a-radio-button value="kanban"><AppstoreOutlined /> 看板</a-radio-button>
         </a-radio-group>
-        <a-button size="small" @click="debounceClick('refresh', handleRefresh)">
+        <a-button size="small" :loading="refreshLoading" v-permission="'crm:customer:refresh'" @click="debounceClick('refresh', handleRefresh)">
           <template #icon><ReloadOutlined /></template>
           刷新
         </a-button>
+<span class="shortcut-hints">
+                                              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
+                                              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+                                            </span>
       </a-space>
     </template>
 
     <ErrorBoundary @reset="fetchData">
+      <!-- 骨架加载 -->
+      <div v-if="loading && dataSource.length === 0" class="skeleton-loading">
+        <a-skeleton :paragraph="{ rows: 3 }" active />
+        <div style="height: 16px" />
+        <a-skeleton :paragraph="{ rows: 8 }" active />
+      </div>
+
       <!-- 列表视图 -->
+      <template v-if="!(loading && dataSource.length === 0)">
       <template v-if="currentView === 'list'">
         <!-- 统计卡片 -->
         <div class="stats-cards">
@@ -85,6 +100,7 @@
           :filter-fields="filterFields"
           :show-export="true"
           :selectable="true"
+          :min-empty-rows="12"
           add-text="新增客户"
           @add="handleAdd"
           @refresh="fetchData"
@@ -96,14 +112,14 @@
           @export="handleExport"
         >
           <template #toolbar-actions>
-            <a-button size="small" @click="handleImport">
+            <a-button size="small" v-permission="'crm:customer:import'" @click="handleImport">
               <template #icon><ImportOutlined /></template>
               导入
             </a-button>
           </template>
 
           <template #batch-actions>
-            <a-button size="small" type="primary" ghost @click="handleBatchAssign">
+            <a-button size="small" type="primary" ghost v-permission="'crm:customer:batchassign'" @click="handleBatchAssign">
               <template #icon><TeamOutlined /></template>
               批量分配
             </a-button>
@@ -114,7 +130,7 @@
               <template v-if="hasError">
                 <WarningOutlined class="table-empty-icon" style="color: #faad14" />
                 <p class="table-empty-text">数据加载失败，请重试</p>
-                <a-button type="primary" size="small" @click="fetchData">
+                <a-button type="primary" size="small" @click="fetchData as any">
                   <template #icon><ReloadOutlined /></template>
                   重试
                 </a-button>
@@ -126,8 +142,14 @@
                   没有符合条件的客户，<a @click="handleResetFilters">清除筛选</a>
                 </p>
                 <p v-else class="table-empty-text">
-                  暂无客户数据，点击右上角「新增客户」开始创建
+                  暂无客户数据
                 </p>
+                <div v-if="!hasActiveFilters" class="empty-state-wrapper">
+                  <a-button type="primary" v-permission="'crm:customer:create'" @click="handleAdd">
+                    <template #icon><PlusOutlined /></template>
+                    新增第一个客户
+                  </a-button>
+                </div>
               </template>
             </div>
           </template>
@@ -135,17 +157,17 @@
           <template #action="{ record }">
             <a-space :size="4">
               <a-tooltip title="查看详情">
-                <a-button type="link" size="small" @click="handleView(record)">
+                <a-button type="link" size="small" v-permission="'crm:customer:view'" @click="handleView(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip title="编辑">
-                <a-button type="link" size="small" @click="handleEdit(record)">
+                <a-button type="link" size="small" v-permission="'crm:customer:edit'" @click="handleEdit(record)">
                   <template #icon><EditOutlined /></template>
                 </a-button>
               </a-tooltip>
               <a-tooltip title="跟进">
-                <a-button type="link" size="small" @click="handleFollow(record)">
+                <a-button type="link" size="small" v-permission="'crm:customer:follow'" @click="handleFollow(record)">
                   <template #icon><MessageOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -154,7 +176,7 @@
                   <template #icon><MoreOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="({ key }) => handleActionMenuClick(key, record)">
+                  <a-menu @click="({ key }) => handleActionMenuClick(key as string, record)">
                     <a-menu-item key="follows"><HistoryOutlined /> 跟进记录</a-menu-item>
                     <a-menu-item key="orders"><FileTextOutlined /> 订单记录</a-menu-item>
                     <a-menu-item key="contracts"><SolutionOutlined /> 合同记录</a-menu-item>
@@ -177,7 +199,7 @@
                 <a-tag :color="getLevelColor(level.value)" size="small">{{ level.label }}</a-tag>
               </span>
               <span class="kanban-column-count">{{ getCustomersByLevel(level.value).length }} 个</span>
-              <a-button type="link" size="small" @click="handleAddToLevel(level.value)">
+              <a-button type="link" size="small" v-permission="'crm:customer:addtolevel'" @click="handleAddToLevel(level.value)">
                 <template #icon><PlusOutlined /></template>
               </a-button>
             </div>
@@ -194,7 +216,9 @@
                       {{ customer.name?.charAt(0) }}
                     </a-avatar>
                     <span class="kanban-card-name">{{ customer.name }}</span>
-                  </a-space>
+                  
+
+          </a-space>
                   <a-tag :color="customer.status === 0 ? 'success' : 'error'" size="small">
                     {{ customer.status === 0 ? '正常' : '停用' }}
                   </a-tag>
@@ -224,6 +248,7 @@
           </div>
         </div>
       </template>
+      </template>
     </ErrorBoundary>
 
     <!-- 全屏详情抽屉（新建/编辑客户） -->
@@ -232,6 +257,7 @@
       :title="modalTitle"
       :save-loading="modalLoading"
       :show-save-and-new="!isEdit"
+      :dirty="formDirty"
       @close="handleFormClose"
       @save="handleModalOk"
       @save-and-new="handleFormSaveAndNew"
@@ -370,7 +396,7 @@
       <VxeTableList
         :columns="importMappingVxeColumns"
         :data-source="importFieldMapping"
-        :pagination="false"
+        :pagination="false as any"
         :show-toolbar="false"
         :selectable="false"
         :show-add="false"
@@ -400,7 +426,8 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { PageContainer, FullScreenDetail } from '@/components'
+import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { customerApi, type CustomerInfo } from '@/api/customer'
 
 // ── 防抖工具 ──────────────────────────────────────────
@@ -439,7 +466,8 @@ import {
   SolutionOutlined,
   PhoneOutlined,
   HomeOutlined,
-  WarningOutlined
+  WarningOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 
 const userStore = useUserStore()
@@ -455,7 +483,10 @@ const kanbanData = ref<any[]>([])
 const lastUpdateTime = ref<string>('')
 const selectedRowKeys = ref<number[]>([])
 let kanbanLoading = false
-let autoRefreshTimer: number | null = null
+const autoRefreshCountdown = ref(0)
+const refreshLoading = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // 状态统计
 const levelCounts = computed(() => {
@@ -537,20 +568,23 @@ const levelTextMap: Record<number, string> = { 1: 'VIP客户', 2: '重要客户'
 function getLevelColor(level: number): string { return levelColorMap[level] || '#999' }
 function getLevelName(level: number): string { return levelTextMap[level] || '未知' }
 
-// 自动刷新 (60秒)
+// 自动刷新 (30秒)
 const startAutoRefresh = () => {
-  autoRefreshTimer = window.setInterval(() => {
+  autoRefreshCountdown.value = 30
+  refreshTimer = setInterval(() => {
     if (!loading.value && !modalVisible.value && !followModalVisible.value) {
-      fetchData(true)
+      fetchData()
     }
-  }, 60000)
+    autoRefreshCountdown.value = 30
+  }, 30000)
+  countdownTimer = setInterval(() => {
+    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
+  }, 1000)
 }
 
 const stopAutoRefresh = () => {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
-  }
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 }
 
 // 数据加载
@@ -578,6 +612,7 @@ async function fetchData(silent = false) {
     pagination.total = 0
   } finally {
     if (!silent) loading.value = false
+    refreshLoading.value = false
   }
 }
 
@@ -585,6 +620,7 @@ async function fetchData(silent = false) {
 const handleRefresh = async () => {
   lastUpdateTime.value = ''
   kanbanData.value = []
+  refreshLoading.value = true
   await fetchData()
 }
 
@@ -638,9 +674,9 @@ const formState = reactive({
   description: ''
 })
 const formRules = {
-  name: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }]
-}
+  name: [{ required: true, message: '请输入客户名称', trigger: 'blur', type: 'string' }],
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur', type: 'string' }]
+} as any
 
 // ── 表单脏状态跟踪 ──────────────────────────────────────
 const initialFormSnapshot = ref<string>('')
@@ -911,15 +947,15 @@ onMounted(() => {
   fetchData()
   startAutoRefresh()
   document.addEventListener('keydown', handleKeydown)
-  window.addEventListener('crm:create', handleParentCreate)
-  window.addEventListener('crm:refresh', fetchData)
+  window.addEventListener('crm:create' as any, handleParentCreate as any)
+  window.addEventListener('crm:refresh' as any, fetchData as any)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
   document.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('crm:create', handleParentCreate)
-  window.removeEventListener('crm:refresh', fetchData)
+  window.removeEventListener('crm:create' as any, handleParentCreate as any)
+  window.removeEventListener('crm:refresh' as any, fetchData as any)
 })
 defineExpose({ handleQuery: fetchData })
 </script>
@@ -1174,4 +1210,70 @@ defineExpose({ handleQuery: fetchData })
 :deep(.ant-input-number-sm input) {
   height: 26px;
 }
+
+/* ── 快捷键提示 ──────────────────────── */
+.shortcut-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  user-select: none;
+}
+.shortcut-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f7fa;
+}
+.shortcut-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #606266;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #d0d5dd;
+  line-height: 18px;
+}
+
+/* ── 自动刷新倒计时徽章 ──────────────────── */
+.auto-refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  user-select: none;
+}
+
+/* ── 空状态 wrapper ──────────────────────── */
+.empty-state-wrapper {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ── 骨架加载 ────────────────────────────── */
+.skeleton-loading {
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* ── VxeTable 表头 2px 底部边框 ──────────── */
+:deep(.vxe-table .vxe-header--row) {
+  border-bottom: 2px solid #e8e8e8;
+}
+
 </style>

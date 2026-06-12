@@ -194,8 +194,7 @@ export function useCrud<T extends { id?: number; [key: string]: any }, Q extends
   const handleAdd = () => {
     isEdit.value = false
     editId.value = null
-    Object.keys(formData).forEach(k => { formData[k] = undefined })
-    formData.value = {}
+    Object.keys(formData).forEach(k => { delete formData[k] })
     modalVisible.value = true
   }
 
@@ -294,5 +293,5 @@ export function useCrud<T extends { id?: number; [key: string]: any }, Q extends
     fetchData, handleSearch, handleReset, handlePageChange,
     handleAdd, handleEdit, handleView, handleDelete, handleBatchDelete,
     handleModalOk, handleModalCancel, closeDetail, clearSelection, refresh
-  }
+  } as unknown as CrudState<T>
 }

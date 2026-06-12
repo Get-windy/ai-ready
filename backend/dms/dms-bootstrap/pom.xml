@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>cn.aiedge</groupId>
+        <artifactId>dms-delivery</artifactId>
+        <version>0.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>dms-bootstrap</artifactId>
+    <name>DMS Bootstrap</name>
+    <description>DMS 服务启动入口</description>
+
+    <dependencies>
+        <!-- DMS Internal Modules -->
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-common</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-channel</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-rider</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-task</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-order-pool</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-dispatch</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-execution</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-sign</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-payment</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-tracking</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-settlement</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-config</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-event</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-route</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-vehicle</artifactId></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>dms-verification</artifactId></dependency>
+
+        <!-- Core Dependencies -->
+        <dependency><groupId>cn.aiedge</groupId><artifactId>core-base</artifactId><version>0.2.0</version></dependency>
+        <dependency><groupId>cn.aiedge</groupId><artifactId>core-common</artifactId><version>0.2.0</version></dependency>
+
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Database -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MyBatis Plus -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+
+        <!-- Sa-Token -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+        </dependency>
+
+        <!-- API Documentation -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>cn.aiedge.dms.DmsApplication</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

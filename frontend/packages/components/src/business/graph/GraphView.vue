@@ -127,7 +127,7 @@ watch(() => props.chartType, (val) => {
 
 const chartData = computed(() => {
   if (props.data.length === 0) return null
-  
+
   return {
     labels: props.data.map(item => item.label),
     datasets: [
@@ -151,7 +151,7 @@ const chartData = computed(() => {
         borderWidth: 1
       }
     ]
-  }
+  } as any
 })
 
 const updateChartSize = () => {
