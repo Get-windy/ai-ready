@@ -220,14 +220,12 @@
     </div>
 
     <!-- 分类新增/编辑弹窗 -->
-    <a-modal
-      v-model:open="categoryModalVisible"
+    <FullScreenDetail
+      :visible="categoryModalVisible"
       :title="editingCategory ? '编辑分类' : '新增分类'"
-      :confirm-loading="categoryModalLoading"
-      width="500px"
-      :mask-closable="false"
-      @ok="debounceClick('categoryOk', handleCategoryOk)"
-      @cancel="handleCategoryCancel"
+      :save-loading="categoryModalLoading"
+      @close="handleCategoryCancel"
+      @save="debounceClick('categoryOk', handleCategoryOk)"
     >
       <a-form ref="categoryFormRef" :model="categoryForm" :rules="categoryRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
         <a-form-item label="分类名称" name="categoryName">
@@ -240,7 +238,7 @@
           <a-tree-select
             v-model:value="categoryForm.parentId"
             :tree-data="categoryTreeData"
-            :replace-fields="{ children: 'children', label: 'categoryName', value: 'id' }"
+            :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
             placeholder="无(根节点)"
             allow-clear
             size="small"
@@ -251,7 +249,7 @@
           <a-input-number v-model:value="categoryForm.sortOrder" :min="0" size="small" style="width: 100%" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -271,6 +269,7 @@ import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PRODUCT_STATUS } from '@/utils/statusConfig'

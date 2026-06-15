@@ -122,7 +122,7 @@
     </VxeTableList>
 
     <!-- 新增付款弹窗 -->
-    <a-modal v-model:open="createModalVisible" title="新增付款" width="560px" :confirm-loading="createLoading" :destroy-on-close="true" @ok="handleCreateOk" @cancel="handleCreateCancel">
+    <FullScreenDetail :visible="createModalVisible" title="新增付款" :save-loading="createLoading" @close="handleCreateCancel" @save="handleCreateOk">
       <a-form ref="createFormRef" :model="createForm" :rules="createRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
         <a-form-item label="业务类型" name="businessType">
           <a-select v-model:value="createForm.businessType" size="small" placeholder="请选择业务类型" @change="handleBusinessTypeChange">
@@ -155,7 +155,7 @@
           <a-textarea v-model:value="createForm.remark" size="small" :rows="2" placeholder="备注信息（选填）" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
     </template>
   </PageContainer>
   </ErrorBoundary>
@@ -173,6 +173,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatCard from '@/components/business/StatCard/StatCard.vue'

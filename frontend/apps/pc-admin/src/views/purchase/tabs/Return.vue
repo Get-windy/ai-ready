@@ -215,17 +215,12 @@
     </a-drawer>
 
     <!-- 新建退货弹窗 -->
-    <a-modal
-      v-model:open="formModalVisible"
+    <FullScreenDetail
+      :visible="formModalVisible"
       title="新建退货单"
-      width="750px"
-      centered
-      :confirm-loading="formSubmitting"
-      :maskClosable="false"
-      ok-text="确认创建"
-      cancel-text="取消"
-      @ok="handleFormSubmit"
-      @cancel="formModalVisible = false"
+      :save-loading="formSubmitting"
+      @close="formModalVisible = false"
+      @save="handleFormSubmit"
     >
       <a-form
         ref="formRef"
@@ -298,7 +293,7 @@
           </template>
         </VxeTableList>
       </div>
-    </a-modal>
+    </FullScreenDetail>
   </div>
 </template>
 
@@ -317,6 +312,7 @@ import {
 } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { purchaseReturnApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
 import { useExport } from '@/composables/useExport'

@@ -22,7 +22,7 @@
       </div>
     </template>
 
-    <ErrorBoundary @reset="fetchData">
+    <ErrorBoundary @error="handleError" @reset="fetchData">
       <!-- 骨架加载 -->
       <div v-if="loading && tableData.length === 0" class="skeleton-loading">
         <a-skeleton :paragraph="{ rows: 3 }" active />
@@ -343,7 +343,7 @@ const summaryData = computed(() => {
 
 function getStatusColor(status: string): string { return statusColorMap[status] || 'default' }
 function getStatusText(status: string): string { return statusTextMap[status] || status }
-function formatAmount(amount: number): string { return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }
+function formatAmount(amount: number | undefined | null): string { return (amount ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }
 
 const invoiceTypeColorMap: Record<string, string> = { special: 'blue', normal: 'green', electronic: 'orange' }
 function getInvoiceTypeColor(type: string): string { return invoiceTypeColorMap[type] || 'default' }

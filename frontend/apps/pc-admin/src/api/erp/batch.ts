@@ -113,6 +113,11 @@ async function getPage<T>(url: string, params?: Record<string, any>): Promise<{ 
   })
   const body = response.data as BatchApiResponse<T[]>
   if (body.code === 'SUCCESS' || body.status === 200) {
+    // body.data 可能是 Page 对象 { records: [], total } 或直接数组
+    const data = body.data as any
+    if (data && Array.isArray(data.records)) {
+      return { records: data.records as T[], total: data.total ?? 0 }
+    }
     return {
       records: body.data as T[],
       total: body.pagination?.total ?? (body.data as T[])?.length ?? 0

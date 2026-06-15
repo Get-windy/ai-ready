@@ -125,7 +125,7 @@
           </a-form-item>
 
           <!-- 步骤编辑器 -->
-          <a-form-item label="打印步骤" name="items">
+          <a-form-item label="打印步骤">
             <div class="steps-editor">
               <div class="steps-editor-header">
                 <span class="steps-editor-title">步骤列表（{{ formState.items.length }}/10）</span>

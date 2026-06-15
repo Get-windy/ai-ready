@@ -217,13 +217,12 @@
   <!-- ════════════════════════════════════════════════════════════ -->
   <!-- 新建入库单弹窗 -->
   <!-- ════════════════════════════════════════════════════════════ -->
-  <a-modal
-    v-model:open="createVisible"
+  <FullScreenDetail
+    :visible="createVisible"
     title="新建入库单"
-    width="800px"
-    :confirm-loading="createLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
+    :save-loading="createLoading"
+    @close="handleCreateCancel"
+    @save="handleCreateSubmit"
   >
     <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
       <a-row :gutter="16">
@@ -329,7 +328,7 @@
         <a-textarea v-model:value="createForm.remark" :rows="2" placeholder="备注信息" />
       </a-form-item>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
 
   <!-- 商品选择弹窗 -->
   <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
@@ -367,6 +366,7 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
 import { INBOUND_STATUS } from '@/utils/statusConfig'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 类型定义 ──────────────────────────────────────────
 interface StockInItem {

@@ -257,15 +257,12 @@
   </PageContainer>
 
   <!-- 新建调拨单弹窗 -->
-  <a-modal
-    v-model:open="createModalVisible"
+  <FullScreenDetail
+    :visible="createModalVisible"
     title="新建调拨单"
-    width="900px"
-    :confirm-loading="submitLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
-    :mask-closable="false"
-    destroy-on-close
+    :save-loading="submitLoading"
+    @close="handleCreateCancel"
+    @save="handleCreateSubmit"
   >
     <a-form
       ref="createFormRef"
@@ -342,7 +339,7 @@
         </template>
       </a-table>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
 
   <!-- 产品选择弹窗 -->
   <a-modal v-model:open="productPickerVisible" title="选择产品" width="640px" :footer="null" destroy-on-close>
@@ -399,6 +396,7 @@ import {
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { TRANSFER_STATUS } from '@/utils/statusConfig'
 

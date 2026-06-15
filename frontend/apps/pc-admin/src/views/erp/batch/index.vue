@@ -226,13 +226,12 @@
   <!-- ════════════════════════════════════════════════ -->
   <!-- 新建批次弹窗 -->
   <!-- ════════════════════════════════════════════════ -->
-  <a-modal
-    v-model:open="createVisible"
+  <FullScreenDetail
+    :visible="createVisible"
     title="新建批次"
-    width="620px"
-    :confirm-loading="createLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
+    :save-loading="createLoading"
+    @close="handleCreateCancel"
+    @save="handleCreateSubmit"
   >
     <a-form ref="createFormRef" :model="createForm" :rules="createRules" layout="vertical">
       <a-row :gutter="16">
@@ -298,7 +297,7 @@
         </a-col>
       </a-row>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
 
   <!-- ════════════════════════════════════════════════ -->
   <!-- 批次入库弹窗 -->
@@ -552,6 +551,7 @@ import { BATCH_STATUS, QUALITY_STATUS } from '@/utils/statusConfig'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import { batchApi, type BatchNumber } from '@/api/erp/batch'
 import request from '@/utils/request'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { stockApi } from '@/api/erp'
 

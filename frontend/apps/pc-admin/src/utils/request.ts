@@ -178,8 +178,18 @@ service.interceptors.response.use(
 
     const resData = response.data
 
+    // ── 原始数组响应直接返回（非 wrapper 格式） ─────────
+    if (Array.isArray(resData)) {
+      return resData
+    }
+
+    // ── Page 对象响应直接返回（{ records, total } 格式，非 wrapper） ──
+    if (resData && typeof resData === 'object' && !Array.isArray(resData) && 'records' in resData && 'total' in resData) {
+      return resData
+    }
+
     // ── 标准 wrapper 响应处理 ──────────────────────────
-    const { code, message: msg, data } = response.data
+    const { code, message: msg, data } = resData
 
     if (code === 200) {
       return data as any

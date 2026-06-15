@@ -237,15 +237,12 @@
   </PageContainer>
 
   <!-- 新建盘点单弹窗 -->
-  <a-modal
-    v-model:open="createModalVisible"
+  <FullScreenDetail
+    :visible="createModalVisible"
     title="新建盘点单"
-    width="600px"
-    :confirm-loading="submitLoading"
-    @ok="handleCreateSubmit"
-    @cancel="handleCreateCancel"
-    :mask-closable="false"
-    destroy-on-close
+    :save-loading="submitLoading"
+    @close="handleCreateCancel"
+    @save="handleCreateSubmit"
   >
     <a-form
       ref="createFormRef"
@@ -309,7 +306,7 @@
         <a-textarea v-model:value="createForm.remark" placeholder="请输入备注" :rows="3" />
       </a-form-item>
     </a-form>
-  </a-modal>
+  </FullScreenDetail>
   </ErrorBoundary>
 </template>
 
@@ -342,6 +339,7 @@ import {
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────

@@ -453,19 +453,18 @@
       </a-tabs>
     </div>
     <!-- 新建分析对话框 -->
-    <a-modal
-      v-model:open="showCreateModal"
+    <FullScreenDetail
+      :visible="showCreateModal"
       title="新建分析"
-      ok-text="创建"
-      cancel-text="取消"
-      @ok="confirmCreate"
+      @close="showCreateModal = false"
+      @save="confirmCreate"
     >
       <a-input
         v-model:value="newAnalysisName"
         placeholder="请输入分析名称"
         @press-enter="confirmCreate"
       />
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 导出报表对话框 -->
     <a-modal
@@ -560,6 +559,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'

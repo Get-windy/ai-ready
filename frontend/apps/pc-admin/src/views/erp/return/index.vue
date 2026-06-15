@@ -235,14 +235,12 @@
     </a-drawer>
 
     <!-- 新建退货申请弹窗 -->
-    <a-modal
-      v-model:open="createVisible"
+    <FullScreenDetail
+      :visible="createVisible"
       title="新建退货申请"
-      width="700px"
-      :confirm-loading="createLoading"
-      @ok="handleCreateSubmit"
-      @cancel="handleCreateCancel"
-      :destroy-on-close="true"
+      :save-loading="createLoading"
+      @close="handleCreateCancel"
+      @save="handleCreateSubmit"
     >
       <a-form
         ref="createFormRef"
@@ -354,7 +352,7 @@
           </template>
         </a-table>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 
     <!-- 商品选择弹窗 -->
     <a-modal
@@ -416,6 +414,7 @@ import {
   EllipsisOutlined, ExportOutlined, DeleteOutlined, SearchOutlined, InboxOutlined, FileTextOutlined,
   ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
 function handleError(err: any) { console.warn('[Return]', err) }

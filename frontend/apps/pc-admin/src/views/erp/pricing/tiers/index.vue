@@ -140,13 +140,12 @@
     </a-card>
 
     <!-- 新增/编辑弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
+    <FullScreenDetail
+      :visible="modalVisible"
       :title="editingTier ? '编辑价层' : '新增价层'"
-      :confirm-loading="modalLoading"
-      width="640px"
-      @ok="handleModalOk"
-      @cancel="handleModalCancel"
+      :save-loading="modalLoading"
+      @close="handleModalCancel"
+      @save="handleModalOk"
     >
       <a-form ref="formRef" :model="formData" :rules="formRules" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
         <a-form-item label="层级名称" name="tierName">
@@ -189,7 +188,7 @@
           <a-input-number size="small" v-model:value="formData.priority" :min="1" style="width: 200px" />
         </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -201,6 +200,7 @@ import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, SettingOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'

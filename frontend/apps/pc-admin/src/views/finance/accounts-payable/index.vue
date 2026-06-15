@@ -454,8 +454,8 @@ const handleAdd = async () => {
   initialAddSnapshot.value = JSON.stringify({ ...addFormState })
   // 加载供应商选项
   try {
-    const res = await request.get('/finance/supplier/list', { pageSize: 999 })
-    supplierOptions.value = (res.data?.records || res.data || []).map((s: any) => ({ id: s.id, name: s.name || s.supplierName }))
+    const res = await request.get('/supplier/list')
+    supplierOptions.value = (Array.isArray(res) ? res : res?.data?.records || res?.data || []).map((s: any) => ({ id: s.id, name: s.name || s.supplierName }))
   } catch { supplierOptions.value = [] }
   addModalVisible.value = true
 }

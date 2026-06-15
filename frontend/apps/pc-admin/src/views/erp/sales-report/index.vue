@@ -325,19 +325,18 @@
       </div>
 
       <!-- 新建报表对话框 -->
-      <a-modal
-        v-model:open="showCreateModal"
+      <FullScreenDetail
+        :visible="showCreateModal"
         title="新建报表"
-        ok-text="创建"
-        cancel-text="取消"
-        @ok="confirmCreate"
+        @close="showCreateModal = false"
+        @save="confirmCreate"
       >
         <a-input
           v-model:value="newAnalysisName"
           placeholder="请输入报表名称"
           @press-enter="confirmCreate"
         />
-      </a-modal>
+      </FullScreenDetail>
 
       <!-- 导出配置对话框 -->
       <a-modal
@@ -433,6 +432,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import {
   salesReportApi,

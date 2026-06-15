@@ -518,7 +518,7 @@ function getBizFlowTagColor(tag: string): string {
 // 表单数据
 const formData = reactive<MenuUpdateRequest>({
   id: 0,
-  parentId: 0,
+  parentId: undefined as unknown as number,
   menuName: '',
   menuCode: '',
   menuType: 1,
@@ -623,7 +623,7 @@ const handleEdit = (row: MenuInfo) => {
   resetForm()
   Object.assign(formData, {
     id: row.id,
-    parentId: row.parentId,
+    parentId: row.parentId || undefined,
     menuName: row.menuName,
     menuCode: row.menuCode,
     menuType: row.menuType,
@@ -676,10 +676,10 @@ const handleSubmit = async () => {
     const result = await withSubmitLock(async () => {
       let res
       if (formData.id) {
-        res = await menuApi.update(formData.id, formData)
+        res = await menuApi.update(formData.id, { ...formData, parentId: formData.parentId ?? 0 })
       } else {
         const saveData: MenuSaveRequest = {
-          parentId: formData.parentId,
+          parentId: formData.parentId ?? 0,
           menuName: formData.menuName,
           menuCode: formData.menuCode,
           menuType: formData.menuType,
@@ -792,7 +792,7 @@ const handleRoleSubmit = async () => {
 // 重置表单
 const resetForm = () => {
   formData.id = 0
-  formData.parentId = 0
+  formData.parentId = undefined as unknown as number
   formData.menuName = ''
   formData.menuCode = ''
   formData.menuType = 1

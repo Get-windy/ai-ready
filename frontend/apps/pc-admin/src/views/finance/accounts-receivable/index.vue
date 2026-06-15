@@ -470,8 +470,8 @@ const handleAdd = async () => {
   addFormState.remark = ''
   initialAddSnapshot.value = JSON.stringify({ ...addFormState })
   try {
-    const res = await request.get('/finance/customer/list', { pageSize: 999 })
-    customerOptions.value = (res.data?.records || res.data || []).map((c: any) => ({ id: c.id, name: c.name || c.customerName }))
+    const res = await request.get('/customer/list')
+    customerOptions.value = (Array.isArray(res) ? res : res?.data?.records || res?.data || []).map((c: any) => ({ id: c.id, name: c.name || c.customerName }))
   } catch { customerOptions.value = [] }
   addModalVisible.value = true
 }

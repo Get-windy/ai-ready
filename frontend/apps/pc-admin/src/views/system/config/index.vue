@@ -480,7 +480,8 @@ const handleCopy = (text: string) => {
 }
 
 // 敏感键
-const isSensitiveKey = (key: string) => {
+const isSensitiveKey = (key: string | undefined | null): boolean => {
+  if (!key) return false
   const sensitiveKeywords = ['password', 'secret', 'token', 'key', 'private']
   return sensitiveKeywords.some(k => key.toLowerCase().includes(k))
 }

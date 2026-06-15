@@ -352,21 +352,18 @@
   </PageContainer>
 
 
-    <!-- 新建出库单弹窗 -->
-    <a-modal
-      v-model:open="createFormVisible"
+    <FullScreenDetail
+      :visible="createFormVisible"
       title="新建出库单"
-      width="800px"
-      :footer="null"
-      :mask-closable="false"
-      @cancel="handleCreateFormCancel"
+      :save-loading="createFormSubmitting"
+      @close="handleCreateFormCancel"
+      @save="submitCreateForm"
     >
       <a-form
         ref="createFormRef"
         :model="createForm"
         :rules="formRules"
         layout="vertical"
-        @finish="submitCreateForm"
       >
         <!-- 基本信息 -->
         <a-divider orientation="left">基本信息</a-divider>
@@ -565,15 +562,8 @@
           </a-col>
         </a-row>
 
-        <!-- 提交按钮 -->
-        <a-form-item>
-          <div style="display: flex; justify-content: flex-end; gap: 8px;">
-            <a-button v-permission="'erp:shipment:createformcancel'" @click="handleCreateFormCancel">取消</a-button>
-            <a-button type="primary" html-type="submit" :loading="createFormSubmitting">提交</a-button>
-          </div>
-        </a-form-item>
       </a-form>
-    </a-modal>
+    </FullScreenDetail>
 </template>
 
 <script setup lang="ts">
@@ -608,6 +598,7 @@ import {
   PlusOutlined,
   MinusCircleOutlined
 } from '@ant-design/icons-vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()
@@ -1021,6 +1012,11 @@ const handleCreateFormCancel = () => {
 }
 
 async function submitCreateForm() {
+  try {
+    await createFormRef.value?.validate()
+  } catch {
+    return
+  }
   if (!createForm.items.length || createForm.items.every((i: any) => !i.productId)) {
     message.warning('请至少添加一个出库商品')
     return
