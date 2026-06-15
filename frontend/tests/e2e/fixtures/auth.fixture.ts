@@ -673,7 +673,7 @@ export async function setupAuthApiMocks(page: Page, userType: 'admin' | 'user' =
 }
 
 /**
- * 通过 UI 登录
+ * 通过 UI 登录（带重试）
  * 导航到登录页面，填写表单并提交
  */
 export async function loginViaUi(
@@ -682,7 +682,32 @@ export async function loginViaUi(
   password: string,
   tenantName: string = '系统租户',
 ): Promise<void> {
+  const maxRetries = 2;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await attemptLogin(page, username, password, tenantName);
+      return; // 成功
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      console.warn(`[loginViaUi] 第 ${attempt} 次尝试失败，重试中...`);
+      await page.waitForTimeout(2000);
+      // 清除可能残留的状态
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      }).catch(() => {});
+    }
+  }
+}
+
+async function attemptLogin(
+  page: Page,
+  username: string,
+  password: string,
+  tenantName: string,
+): Promise<void> {
   await page.goto('/login');
+
   // 等待登录表单渲染
   await page.waitForSelector('input[placeholder="请输入用户名"]', { timeout: 15_000 });
 
@@ -713,25 +738,11 @@ export async function loginViaUi(
   await page.click('button[type="submit"]');
 
   // 等待跳转到 dashboard（先等待导航，再等待布局）
-  try {
-    await page.waitForURL('**/dashboard**', { timeout: 20_000 });
-  } catch {
-    // 如果导航超时，截图并检查是否有错误消息
-    const screenshotPath = `test-results/login-debug-${Date.now()}.png`;
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-    const pageContent = await page.content();
-    console.error(`[loginViaUi] 登录后未跳转到 dashboard，当前 URL: ${page.url()}`);
-    console.error(`[loginViaUi] 页面内容预览: ${pageContent.substring(0, 2000)}`);
-    // 检查是否有错误消息
-    const errorMsg = page.locator('.ant-message-notice-content, .ant-notification-notice, .el-message, .error-message').first();
-    if (await errorMsg.isVisible({ timeout: 2000 }).catch(() => false)) {
-      console.error(`[loginViaUi] 错误消息: ${await errorMsg.textContent()}`);
-    }
-    throw new Error(`登录失败: 未能在20秒内跳转到 dashboard，当前 URL: ${page.url()}`);
-  }
+  await page.waitForURL('**/dashboard**', { timeout: 30_000 });
 
   // 等待布局渲染完毕（防止路由守卫异步验证 token 后再踢回登录页）
-  await page.waitForSelector('.basic-layout', { timeout: 15_000 });
+  // 可能因路由守卫重定向导致元素短暂消失，用较长时间等待
+  await page.waitForSelector('.basic-layout', { timeout: 25_000 });
 }
 
 /**

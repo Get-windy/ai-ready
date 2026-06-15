@@ -6,7 +6,6 @@ import router from './router'
 import { setupI18n } from './locales'
 import { initErrorReporter } from './utils/errorReporter'
 import { permission, role } from './directives/permission'
-import { initMockServer } from '@/mocks'
 import { initFeatureFlags, getFeatureFlagService } from '@/utils/featureFlags'
 import { initSentry, setSentryUser, clearSentryUser } from '@/utils/sentry'
 import { trackPageLoad, setupRouteTracking } from '@/utils/performanceMonitor'
@@ -30,10 +29,6 @@ import './styles/components.css'
 import './styles/index.css'
 import './styles/accessibility.css'
 import './styles/table-grid-overrides.css'
-
-// 初始化 Mock Server — 必须在所有其他初始化之前调用，
-// 因为后续的 store/router 初始化可能会触发 API 请求。
-initMockServer()
 
 // 初始化 Feature Flags
 initFeatureFlags()

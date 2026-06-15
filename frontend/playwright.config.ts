@@ -21,8 +21,8 @@ export default defineConfig({
   // CI 中失败重试 1 次
   retries: process.env.CI ? 1 : 0,
 
-  // CI 中单 worker
-  workers: process.env.CI ? 1 : undefined,
+  // CI 中单 worker，本地 1 个 worker 避免登录并发冲突
+  workers: process.env.CI ? 1 : 1,
 
   // 报告器
   reporter: [
