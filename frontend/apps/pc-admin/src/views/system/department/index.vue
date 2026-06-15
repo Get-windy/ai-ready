@@ -136,6 +136,7 @@
           block-node
           @drop="handleDrop"
           @select="handleSelect"
+          @rightClick="handleRightClick"
         >
           <template #title="{ departmentName, status, leaderName }">
             <span class="tree-node-title">
@@ -524,10 +525,10 @@ const fetchTreeData = async () => {
   hasError.value = false
   try {
     const res = await departmentApi.getTree({ tenantId: userStore.tenantId })
-    if (res.data) {
-      treeData.value = res.data
+    if (res) {
+      treeData.value = res
       // 默认展开所有节点
-      expandedKeys.value = getAllNodeIds(res.data)
+      expandedKeys.value = getAllNodeIds(res)
     }
   } catch (error) {
     hasError.value = true

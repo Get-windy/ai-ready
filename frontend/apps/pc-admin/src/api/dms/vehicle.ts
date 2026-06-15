@@ -69,38 +69,38 @@ export interface DmsBindingHistory {
 }
 
 export const vehicleApi = {
-  page(params: any) { return request.get('/api/dms/vehicle/page', { params }) },
+  page(params: any) { return request.get('/dms/vehicle/page', { params }) },
 
-  getById(id: number) { return request.get(`/api/dms/vehicle/${id}`) },
+  getById(id: number) { return request.get(`/dms/vehicle/${id}`) },
 
-  create(data: Partial<DmsVehicle>) { return request.post('/api/dms/vehicle', data) },
+  create(data: Partial<DmsVehicle>) { return request.post('/dms/vehicle', data) },
 
-  update(id: number, data: Partial<DmsVehicle>) { return request.put(`/api/dms/vehicle/${id}`, data) },
+  update(id: number, data: Partial<DmsVehicle>) { return request.put(`/dms/vehicle/${id}`, data) },
 
-  remove(id: number) { return request.delete(`/api/dms/vehicle/${id}`) },
+  remove(id: number) { return request.delete(`/dms/vehicle/${id}`) },
 
-  updateStatus(id: number, status: number) { return request.put(`/api/dms/vehicle/${id}/status`, { status }) },
+  updateStatus(id: number, status: number) { return request.put(`/dms/vehicle/${id}/status`, { status }) },
 
   /** 绑定骑手 */
-  bindRider(id: number, riderId: number) { return request.post(`/api/dms/vehicle/${id}/bind`, { riderId }) },
+  bindRider(id: number, riderId: number) { return request.post(`/dms/vehicle/${id}/bind`, { riderId }) },
   /** 绑定骑手（含姓名） */
-  bindRiderWithName(data: { vehicleId: number; riderId: number; riderName: string }) { return request.post('/api/dms/vehicle/bind-rider', data) },
+  bindRiderWithName(data: { vehicleId: number; riderId: number; riderName: string }) { return request.post('/dms/vehicle/bind-rider', data) },
 
   /** 更新里程 */
-  updateMileage(id: number, mileage: number) { return request.put(`/api/dms/vehicle/${id}/mileage`, { mileage }) },
+  updateMileage(id: number, mileage: number) { return request.put(`/dms/vehicle/${id}/mileage`, { mileage }) },
 
   /** 到期保养提醒列表 */
-  maintenanceDue(params: any) { return request.get('/api/dms/vehicle/maintenance/due', { params }) },
+  maintenanceDue(params: any) { return request.get('/dms/vehicle/maintenance/due', { params }) },
 
   /** 保养记录分页 */
-  maintenancePage(params: any) { return request.get('/api/dms/vehicle/maintenance/page', { params }) },
+  maintenancePage(params: any) { return request.get('/dms/vehicle/maintenance/page', { params }) },
 
   /** 创建保养记录 */
-  createMaintenance(data: Partial<DmsMaintenanceRecord>) { return request.post('/api/dms/vehicle/maintenance', data) },
+  createMaintenance(data: Partial<DmsMaintenanceRecord>) { return request.post('/dms/vehicle/maintenance', data) },
 
   /** 删除保养记录 */
-  deleteMaintenance(id: number) { return request.delete(`/api/dms/vehicle/maintenance/${id}`) },
+  deleteMaintenance(id: number) { return request.delete(`/dms/vehicle/maintenance/${id}`) },
 
   /** 获取绑定历史 */
-  bindingHistory(vehicleId: number) { return request.get(`/api/dms/vehicle/${vehicleId}/binding-history`) },
+  bindingHistory(vehicleId: number) { return request.get(`/dms/vehicle/${vehicleId}/binding-history`) },
 }

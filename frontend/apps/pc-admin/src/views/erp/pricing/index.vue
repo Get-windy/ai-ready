@@ -189,7 +189,7 @@
     </a-row>
 
     <!-- 整表调价弹窗 -->
-    <a-modal v-model:visible="priceAdjustmentVisible" title="整表调价" @ok="applyPriceAdjustment" destroy-on-close>
+    <a-modal v-model:open="priceAdjustmentVisible" title="整表调价" @ok="applyPriceAdjustment" destroy-on-close>
       <a-form layout="vertical">
         <a-form-item label="调整范围">
           <a-radio-group v-model:value="adjustmentScope">
@@ -223,7 +223,7 @@
     </a-modal>
 
     <!-- 批量导入弹窗 -->
-    <a-modal v-model:visible="importModalVisible" title="批量导入价格" width="720px" :footer="null" destroy-on-close>
+    <a-modal v-model:open="importModalVisible" title="批量导入价格" width="720px" :footer="null" destroy-on-close>
       <div class="import-modal">
         <div class="import-upload-area" @click="triggerFileInput" @dragover.prevent @drop.prevent="onFileDrop">
           <UploadOutlined style="font-size: 48px; color: #1890ff;" />
@@ -271,7 +271,7 @@
 
     <!-- 等级对比抽屉 -->
     <a-drawer
-      v-model:visible="comparisonDrawerVisible"
+      v-model:open="comparisonDrawerVisible"
       title="多等级价格对比"
       placement="right"
       width="80%"
@@ -312,7 +312,7 @@
 
     <!-- 变更记录抽屉 -->
     <a-drawer
-      v-model:visible="showChangeHistoryDrawer"
+      v-model:open="showChangeHistoryDrawer"
       title="变更记录"
       placement="right"
       width="640px"
@@ -349,7 +349,7 @@
     </a-drawer>
 
     <!-- 季节性调价弹窗 -->
-    <a-modal v-model:visible="seasonalAdjustmentVisible" title="季节性调价" @ok="applySeasonalAdjustment" destroy-on-close>
+    <a-modal v-model:open="seasonalAdjustmentVisible" title="季节性调价" @ok="applySeasonalAdjustment" destroy-on-close>
       <a-form layout="vertical">
         <a-form-item label="调价比例（%）">
           <a-input-number v-model:value="seasonalPercentage" :min="0.1" :max="999" :precision="1" size="small" style="width: 100%" placeholder="输入调价百分比（正数为涨价）" />

@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import java.util.Map;
  * 这些操作需要通过调度中心的 HTTP API 实现。
  */
 @Service
+@Primary
 public class XxlJobManagementService {
 
     private static final Logger logger = LoggerFactory.getLogger(XxlJobManagementService.class);

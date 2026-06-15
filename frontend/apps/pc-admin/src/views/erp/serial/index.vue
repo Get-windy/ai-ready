@@ -145,7 +145,7 @@
       </a-card>
 
       <!-- 详情抽屉 -->
-      <SerialDetailDrawer v-model:visible="detailVisible" :serial-id="selectedSerialId" />
+      <SerialDetailDrawer v-model:open="detailVisible" :serial-id="selectedSerialId" />
     </PageContainer>
   </ErrorBoundary>
 </template>

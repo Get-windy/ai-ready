@@ -28,19 +28,19 @@ export interface DmsOrderBid {
 }
 
 export const orderPoolApi = {
-  page(params: any) { return request.get('/api/dms/order-pool/page', { params }) },
+  page(params: any) { return request.get('/dms/order-pool/page', { params }) },
 
-  getById(id: number) { return request.get(`/api/dms/order-pool/${id}`) },
+  getById(id: number) { return request.get(`/dms/order-pool/${id}`) },
 
   /** 抢单 */
-  grab(id: number, data: { riderId: number }) { return request.post(`/api/dms/order-pool/${id}/grab`, data) },
+  grab(id: number, data: { riderId: number }) { return request.post(`/dms/order-pool/${id}/grab`, data) },
 
   /** 竞价 */
-  bid(id: number, data: { riderId: number; bidAmount: number }) { return request.post(`/api/dms/order-pool/${id}/bid`, data) },
+  bid(id: number, data: { riderId: number; bidAmount: number }) { return request.post(`/dms/order-pool/${id}/bid`, data) },
 
   /** 竞价列表 */
-  bidList(id: number) { return request.get(`/api/dms/order-pool/${id}/bids`) },
+  bidList(id: number) { return request.get(`/dms/order-pool/${id}/bids`) },
 
   /** 取消竞价 */
-  cancelBid(id: number, riderId: number) { return request.delete(`/api/dms/order-pool/${id}/bid/${riderId}`) },
+  cancelBid(id: number, riderId: number) { return request.delete(`/dms/order-pool/${id}/bid/${riderId}`) },
 }

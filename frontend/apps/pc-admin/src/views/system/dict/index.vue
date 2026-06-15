@@ -387,9 +387,9 @@ const fetchTypeData = async () => {
       pageNum: typePagination.current,
       pageSize: typePagination.pageSize
     })
-    if (res.data) {
-      typeTableData.value = res.records
-      typePagination.total = res.total
+    if (res) {
+      typeTableData.value = res.records || []
+      typePagination.total = res.total || 0
     }
   } catch (error) {
     hasError.value = true

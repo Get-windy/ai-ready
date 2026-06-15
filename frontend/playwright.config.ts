@@ -33,7 +33,7 @@ export default defineConfig({
   // 全局使用的配置
   use: {
     // 基础 URL，所有 page.goto() 的相对路径都基于此
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:5656',
 
     // 失败时截图
     screenshot: 'only-on-failure',
@@ -59,8 +59,8 @@ export default defineConfig({
 
   // 开发服务器配置
   webServer: {
-    command: 'pnpm --filter ai-ready-admin dev --port 3000',
-    url: 'http://localhost:3000',
+    command: 'pnpm --filter ai-ready-admin dev --port 5656',
+    url: 'http://localhost:5656',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     cwd: __dirname,

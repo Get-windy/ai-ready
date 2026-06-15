@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLoginLog> 
         implements SysLoginLogService {

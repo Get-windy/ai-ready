@@ -40,9 +40,11 @@ public class StockAssembleServiceImpl extends ServiceImpl<StockAssembleMapper, S
     @Override
     public Page<StockAssemble> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize) {
         LambdaQueryWrapper<StockAssemble> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(keyword != null, StockAssemble::getAssembleNo, keyword)
-                .or(w -> w.like(keyword != null, StockAssemble::getProductName, keyword))
-                .eq(warehouseId != null, StockAssemble::getWarehouseId, warehouseId)
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(StockAssemble::getAssembleNo, keyword)
+                    .or().like(StockAssemble::getProductName, keyword));
+        }
+        wrapper.eq(warehouseId != null, StockAssemble::getWarehouseId, warehouseId)
                 .eq(status != null, StockAssemble::getStatus, status)
                 .orderByDesc(StockAssemble::getCreateTime);
         return this.page(new Page<>(pageNum, pageSize), wrapper);

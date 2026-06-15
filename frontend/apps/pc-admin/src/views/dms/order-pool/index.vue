@@ -150,7 +150,7 @@ const columns = [
 ] as any
 
 const wms = useWmsTable({
-  fetchFn: (params: any) => request.get('/api/dms/order-pool/page', { params }),
+  fetchFn: (params: any) => request.get('/dms/order-pool/page', { params }),
   refreshInterval: 30,
   shortcuts: { f5: 'refresh' },
 })
@@ -179,7 +179,7 @@ const handleViewEntries = (record: any) => {
 
 const handleForceAssign = async (record: any) => {
   try {
-    await request.post(`/api/dms/order-pool/${record.id}/force-assign`)
+    await request.post(`/dms/order-pool/${record.id}/force-assign`)
     message.success('强制分配成功')
     refresh()
   } catch (err: any) {

@@ -1,20 +1,23 @@
 package cn.aiedge.common.ratelimit;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * 限流WebMvc配置
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
 @Configuration
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "ai-ready.rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "ai-ready.rate-limit", name = "enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnBean(RedisTemplate.class)
 public class RateLimitWebMvcConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;

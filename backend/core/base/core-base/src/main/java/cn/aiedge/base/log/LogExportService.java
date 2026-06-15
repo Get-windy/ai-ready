@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -24,6 +25,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class LogExportService {
 

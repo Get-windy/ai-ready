@@ -94,6 +94,13 @@ public class ReconciliationController {
         return ApiResponse.success();
     }
 
+    @GetMapping("/stats")
+    @Operation(summary = "获取对账统计数据")
+    public ApiResponse<java.util.Map<String, Object>> getStats() {
+        java.util.Map<String, Object> stats = reconciliationService.getStats();
+        return ApiResponse.success(stats);
+    }
+
     @GetMapping("/export")
     @Operation(summary = "导出对账记录列表")
     public ApiResponse<List<ReconciliationVO>> export(

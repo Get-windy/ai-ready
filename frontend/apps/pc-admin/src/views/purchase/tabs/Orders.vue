@@ -203,7 +203,11 @@ const vxeColumns = computed(() => [
     field: 'orderNo',
     title: '订单号',
     width: 160,
-    formatter: ({ cellValue }: any) => `<a style="color: #1890ff; cursor: pointer;">${cellValue}</a>`,
+    formatter: ({ cellValue, row }: any) => {
+      // 空行或空值显示空白
+      if (row.__empty_row || !cellValue) return ''
+      return `<a style="color: #1890ff; cursor: pointer;">${cellValue}</a>`
+    },
   },
   { field: 'supplierName', title: '供应商', width: 140 },
   { field: 'orderDate', title: '订单日期', width: 110 },
@@ -212,14 +216,23 @@ const vxeColumns = computed(() => [
     title: '订单金额',
     width: 130,
     align: 'right',
-    formatter: ({ cellValue }: any) => `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+    formatter: ({ cellValue, row }: any) => {
+      // 空行显示空白
+      if (row.__empty_row) return ''
+      return `¥${(cellValue || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
+    },
   },
   {
     field: 'status',
     title: '状态',
     width: 100,
     align: 'center',
-    formatter: ({ cellValue }: any) => `<span class="ant-tag ant-tag-${getStatusColor(cellValue)}">${getStatusText(cellValue)}</span>`,
+    formatter: ({ cellValue, row }: any) => {
+      // 空行显示空白
+      if (row.__empty_row) return ''
+      const status = cellValue ?? -1
+      return `<span class="ant-tag ant-tag-${getStatusColor(status)}">${getStatusText(status)}</span>`
+    },
   },
   { field: 'purchaserName', title: '采购员', width: 100 },
   { field: 'createTime', title: '创建时间', width: 160 },
@@ -248,7 +261,7 @@ const statusTextMap: Record<number, string> = {
 }
 
 function getStatusColor(status: number): string { return statusColorMap[status] || 'default' }
-function getStatusText(status: number): string { return statusTextMap[status] || '未知' }
+function getStatusText(status: number): string { return statusTextMap[status] || '' }
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }

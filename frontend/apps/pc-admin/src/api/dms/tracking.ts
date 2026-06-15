@@ -37,17 +37,17 @@ export interface DmsTrackPoint {
 
 export const trackingApi = {
   /** 上报位置 */
-  report(data: DmsTrackingReport) { return request.post('/api/dms/tracking/report', data) },
+  report(data: DmsTrackingReport) { return request.post('/dms/tracking/report', data) },
 
   /** 获取骑手最新位置 */
-  latest(riderId: number) { return request.get(`/api/dms/tracking/latest/${riderId}`) },
+  latest(riderId: number) { return request.get(`/dms/tracking/latest/${riderId}`) },
 
   /** 获取轨迹 */
-  track(params: { riderId: number; startTime: string; endTime: string }) { return request.get('/api/dms/tracking/track', { params }) },
+  track(params: { riderId: number; startTime: string; endTime: string }) { return request.get('/dms/tracking/track', { params }) },
 
   /** 根据任务获取轨迹 */
-  trackByTask(taskId: number) { return request.get(`/api/dms/tracking/task/${taskId}`) },
+  trackByTask(taskId: number) { return request.get(`/dms/tracking/task/${taskId}`) },
 
   /** 分页查询轨迹记录 */
-  page(params: any) { return request.get('/api/dms/tracking/page', { params }) },
+  page(params: any) { return request.get('/dms/tracking/page', { params }) },
 }

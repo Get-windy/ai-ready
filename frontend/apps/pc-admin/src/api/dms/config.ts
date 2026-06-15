@@ -16,11 +16,11 @@ export interface DmsConfig {
 
 export const configApi = {
   /** 获取配置列表（不分页） */
-  list() { return request.get('/api/dms/config') },
+  list() { return request.get('/dms/config') },
 
   /** 根据 key 获取单个配置 */
-  get(key: string) { return request.get(`/api/dms/config/${key}`) },
+  get(key: string) { return request.get(`/dms/config/${key}`) },
 
   /** 更新配置 */
-  update(key: string, data: { configValue: string }) { return request.put(`/api/dms/config/${key}`, data) },
+  update(key: string, data: { configValue: string }) { return request.put(`/dms/config/${key}`, data) },
 }

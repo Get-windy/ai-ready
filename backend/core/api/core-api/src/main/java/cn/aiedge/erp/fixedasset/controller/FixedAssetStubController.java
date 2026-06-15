@@ -66,6 +66,16 @@ public class FixedAssetStubController {
         return Result.ok(Map.of("records", Collections.emptyList(), "total", 0L, "current", pageNum, "size", pageSize, "pages", 0L));
     }
 
+    // ========== 采购端点（占位） ==========
+
+    @Operation(summary = "采购分页（占位）")
+    @GetMapping("/purchase/page")
+    public Result<Map<String, Object>> purchasePage(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(Map.of("records", Collections.emptyList(), "total", 0L, "current", pageNum, "size", pageSize, "pages", 0L));
+    }
+
     @Operation(summary = "盘点分页（占位）")
     @GetMapping("/inventory/page")
     public Result<Map<String, Object>> inventoryPage(

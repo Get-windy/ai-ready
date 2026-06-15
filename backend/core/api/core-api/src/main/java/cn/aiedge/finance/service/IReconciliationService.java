@@ -47,4 +47,10 @@ public interface IReconciliationService extends IService<Reconciliation> {
      * 处理差异
      */
     void handleDifference(Long id, String differenceReason);
+
+    /**
+     * 获取对账统计数据
+     * @return 统计数据（bankPending, customerPending, supplierPending, differenceCount）
+     */
+    java.util.Map<String, Object> getStats();
 }

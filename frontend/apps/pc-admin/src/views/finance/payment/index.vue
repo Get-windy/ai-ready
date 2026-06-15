@@ -255,7 +255,7 @@
       </FullScreenDetail>
 
       <!-- 取消确认弹窗 -->
-      <a-modal :visible="cancelVisible" title="取消付款单" :confirm-loading="cancelLoading" @ok="handleCancelConfirm" @cancel="cancelVisible = false">
+      <a-modal :open="cancelVisible" title="取消付款单" :confirm-loading="cancelLoading" @ok="handleCancelConfirm" @cancel="cancelVisible = false">
         <a-form layout="vertical">
           <a-descriptions v-if="cancelTarget" :column="1" bordered size="small">
             <a-descriptions-item label="付款单号">{{ cancelTarget.paymentNo }}</a-descriptions-item>

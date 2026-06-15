@@ -492,7 +492,7 @@ const hasActiveFilters = computed(() => {
 const tableDataSource = tableData
 
 function getStatusColor(status: string): string { return statusColorMap[status] || 'default' }
-function getStatusText(status: string): string { return statusTextMap[status] || '未知' }
+function getStatusText(status: string): string { return statusTextMap[status] || '' }
 function formatAmount(amount: number): string {
   return amount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || '0.00'
 }

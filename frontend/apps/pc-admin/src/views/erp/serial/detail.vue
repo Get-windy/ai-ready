@@ -1,10 +1,10 @@
 <template>
   <a-drawer
-    :visible="visible"
+    :open="visible"
     :title="drawerTitle"
     placement="right"
     width="640"
-    @close="emit('update:visible', false)"
+    @close="emit('update:open', false)"
   >
     <!-- 加载中 -->
     <div v-if="loading" style="text-align: center; padding: 60px 0">
@@ -123,7 +123,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
+  (e: 'update:open', value: boolean): void
 }>()
 
 const loading = ref(false)

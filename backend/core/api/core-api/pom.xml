@@ -239,6 +239,53 @@
             <version>0.2.0</version>
         </dependency>
 
+        <!-- WMS 仓储管理模块 -->
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-warehouse</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-receipt</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-putaway</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-pick</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-ship</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-inventory</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-move</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-check</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.aiedge.wms</groupId>
+            <artifactId>wms-event</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -513,6 +560,7 @@
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

@@ -358,7 +358,7 @@ const fetchData = async () => {
   hasError.value = false
   try {
     const res = await userApi.getPage({ tenantId: userStore.tenantId, ...searchForm, pageNum: pagination.current, pageSize: pagination.pageSize })
-    if (res.data) { tableData.value = res.records; pagination.total = res.total }
+    if (res) { tableData.value = res.records || []; pagination.total = res.total || 0 }
   } catch (err) {
     hasError.value = true
     console.warn('[系统管理] 加载用户数据失败', err)
@@ -506,7 +506,7 @@ const handleAssignRole = async (record: UserInfo) => {
   // 根据当前用户类型过滤角色 scope：系统用户看到 PLATFORM，租户用户看到 TENANT
   const scope = userStore.isSystemUser ? 'PLATFORM' : 'TENANT'
   const res = await roleApi.getPage({ tenantId: userStore.tenantId, scope, size: 100 } as any)
-  if (res.data) roleList.value = res.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
+  if (res?.records) roleList.value = res.records.map((r: RoleInfo) => ({ key: String(r.id), title: r.roleName }))
   try {
     const userRes = await userApi.getById(record.id)
     targetRoleKeys.value = (userRes.data as any)?.roleIds ? (userRes.data as any).roleIds.map(String) : []

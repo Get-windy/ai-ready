@@ -1,11 +1,11 @@
 server:
-  port: 8082
+  port: 5657
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/ai_ready_dev?currentSchema=dms
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://localhost:5432/devdb?currentSchema=dms
+    username: devuser
+    password: devuser123
   jpa:
     show-sql: true
 

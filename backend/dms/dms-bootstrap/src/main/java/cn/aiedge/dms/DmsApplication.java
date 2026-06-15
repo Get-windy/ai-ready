@@ -1,5 +1,6 @@
 package cn.aiedge.dms;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 @EnableAsync
+@MapperScan({"cn.aiedge.dms.*.mapper", "cn.aiedge.base.mapper", "cn.aiedge.base.log.mapper", "cn.aiedge.common.mapper"})
 @ComponentScan(basePackages = {"cn.aiedge.dms", "cn.aiedge.base", "cn.aiedge.common"})
 public class DmsApplication {
 

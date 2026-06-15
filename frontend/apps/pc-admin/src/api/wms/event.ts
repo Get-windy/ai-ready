@@ -18,7 +18,7 @@ export interface WmsEventOutbox {
 }
 
 export const eventApi = {
-  page(params: any) { return request.get('/wms/event/page', { params }) },
-  retry(id: number) { return request.post(`/wms/event/${id}/retry`) },
-  processPending() { return request.post('/wms/event/process-pending') },
+  page(params: any) { return request.get('/wms/event/outbox/page', { params }) },
+  retry(id: number) { return request.post('/wms/event/outbox/retry', {}, { params: { eventId: id } }) },
+  processPending() { return request.post('/wms/event/outbox/process') },
 }

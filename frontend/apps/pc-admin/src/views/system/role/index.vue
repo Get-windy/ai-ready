@@ -334,7 +334,7 @@ const fetchData = async () => {
   hasError.value = false
   try {
     const res = await roleApi.getPage({ tenantId: userStore.tenantId, ...searchForm, current: pagination.current, size: pagination.pageSize } as any)
-    if (res.data) { tableData.value = res.records; pagination.total = res.total }
+    if (res) { tableData.value = res.records || []; pagination.total = res.total || 0 }
   } catch (err) {
     hasError.value = true
     console.warn('[系统管理] 加载角色数据失败', err)

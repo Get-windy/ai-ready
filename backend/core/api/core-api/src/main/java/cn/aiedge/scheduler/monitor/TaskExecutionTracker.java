@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author AI-Ready Team
  * @since 1.1.0
  */
+@Slf4j
 @Component
 public class TaskExecutionTracker {
 
@@ -176,7 +178,7 @@ public class TaskExecutionTracker {
     }
 
     private void logExecution(String event, Long taskId, String taskName, String details) {
-        System.out.printf("[TaskTracker] %s | taskId=%d | task=%s | %s%n", 
+        log.debug("[TaskTracker] {} | taskId={} | task={} | {}",
             event, taskId, taskName, details != null ? details : "");
     }
 

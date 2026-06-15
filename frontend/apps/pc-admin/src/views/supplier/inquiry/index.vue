@@ -30,7 +30,7 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
-            <a-button type="primary" v-permission="'supplier:inquiry:createinquiry'" @click="handleCreateInquiry">
+            <a-button type="primary" v-permission="'supplier:inquiry:createinquiry'" @click="handleCreateInquiry" :disabled="!supplierId">
               <template #icon><PlusOutlined /></template>
               发起询价
             </a-button>
@@ -139,7 +139,12 @@
                 <ReloadOutlined /> 重试
               </a-button>
             </template>
-            <template v-else>
+            <template v-else-if="!supplierId">
+	              <InboxOutlined class="table-empty-icon" />
+	              <p class="table-empty-text">请先从供应商列表中选择供应商</p>
+	              <a-button type="primary" size="small" @click="handleBack" class="table-empty-action">前往供应商列表</a-button>
+	            </template>
+	            <template v-else>
               <InboxOutlined class="table-empty-icon" />
               <p class="table-empty-text">暂无询价报价记录</p>
             </template>
@@ -197,11 +202,6 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
 const route = useRoute()
 const router = useRouter()
 const supplierId = (route.params.id as string) || (route.query.id as string) || ''
-
-if (!supplierId) {
-  console.warn('[供应商] 缺少供应商ID参数，将返回列表')
-  router.replace('/supplier/index')
-}
 
 interface InquiryRecord {
   id: number
@@ -409,7 +409,7 @@ const handleRejectQuotation = async (inquiry: InquiryRecord) => {
 }
 
 const handleBack = () => {
-  if (!supplierId) { router.push('/supplier/index'); return }
+  if (!supplierId) { router.push('/supplier'); return }
   router.push(`/supplier/detail/${supplierId}`)
 }
 

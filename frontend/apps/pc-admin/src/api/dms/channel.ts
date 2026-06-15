@@ -17,13 +17,13 @@ export interface DmsChannel {
 }
 
 export const channelApi = {
-  page(params: any) { return request.get('/api/dms/channel/page', { params }) },
+  page(params: any) { return request.get('/dms/channel/page', { params }) },
 
-  getById(id: number) { return request.get(`/api/dms/channel/${id}`) },
+  getById(id: number) { return request.get(`/dms/channel/${id}`) },
 
-  create(data: Partial<DmsChannel>) { return request.post('/api/dms/channel', data) },
+  create(data: Partial<DmsChannel>) { return request.post('/dms/channel', data) },
 
-  update(id: number, data: Partial<DmsChannel>) { return request.put(`/api/dms/channel/${id}`, data) },
+  update(id: number, data: Partial<DmsChannel>) { return request.put(`/dms/channel/${id}`, data) },
 
-  updateStatus(id: number, status: number) { return request.put(`/api/dms/channel/${id}/status`, { status }) },
+  updateStatus(id: number, status: number) { return request.put(`/dms/channel/${id}/status`, { status }) },
 }

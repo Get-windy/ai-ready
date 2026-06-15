@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: 5657
   servlet:
     context-path: /api/dms
 

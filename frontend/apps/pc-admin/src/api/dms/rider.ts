@@ -28,17 +28,17 @@ export interface DmsRiderLocation {
 }
 
 export const riderApi = {
-  page(params: any) { return request.get('/api/dms/rider/page', { params }) },
+  page(params: any) { return request.get('/dms/rider/page', { params }) },
 
-  getById(id: number) { return request.get(`/api/dms/rider/${id}`) },
+  getById(id: number) { return request.get(`/dms/rider/${id}`) },
 
-  create(data: Partial<DmsRider>) { return request.post('/api/dms/rider', data) },
+  create(data: Partial<DmsRider>) { return request.post('/dms/rider', data) },
 
-  update(id: number, data: Partial<DmsRider>) { return request.put(`/api/dms/rider/${id}`, data) },
+  update(id: number, data: Partial<DmsRider>) { return request.put(`/dms/rider/${id}`, data) },
 
-  updateStatus(id: number, status: number) { return request.put(`/api/dms/rider/${id}/status`, { status }) },
+  updateStatus(id: number, status: number) { return request.put(`/dms/rider/${id}/status`, { status }) },
 
-  approve(id: number, data: { verifyStatus: number; remark?: string }) { return request.post(`/api/dms/rider/${id}/approve`, data) },
+  approve(id: number, data: { verifyStatus: number; remark?: string }) { return request.post(`/dms/rider/${id}/approve`, data) },
 
-  reportLocation(id: number, data: DmsRiderLocation) { return request.post(`/api/dms/rider/${id}/location`, data) },
+  reportLocation(id: number, data: DmsRiderLocation) { return request.post(`/dms/rider/${id}/location`, data) },
 }

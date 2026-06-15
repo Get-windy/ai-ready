@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.batchsn.mapper.BatchRuleMapper">
+
+    <select id="selectByRuleCode" resultType="cn.aiedge.erp.batchsn.entity.BatchRule">
+        SELECT * FROM batch_rule WHERE rule_code = #{ruleCode}
+    </select>
+
+    <select id="selectEnabledRules" resultType="cn.aiedge.erp.batchsn.entity.BatchRule">
+        SELECT * FROM batch_rule WHERE enable = TRUE ORDER BY created_at DESC
+    </select>
+
+    <select id="selectRulesForProductCategory" resultType="cn.aiedge.erp.batchsn.entity.BatchRule">
+        SELECT * FROM batch_rule
+        WHERE enable = TRUE
+          AND product_category_ids LIKE CONCAT('%', #{categoryId}, '%')
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateRuleStatus">
+        UPDATE batch_rule
+        SET enable = #{enable}, updated_by = #{updatedBy}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{ruleId}
+    </update>
+
+    <select id="findApplicableRuleForProduct" resultType="cn.aiedge.erp.batchsn.entity.BatchRule">
+        SELECT * FROM batch_rule
+        WHERE enable = TRUE
+          AND (product_category_ids LIKE CONCAT('%', #{productId}, '%')
+               OR product_category_ids LIKE CONCAT('%', #{categoryId}, '%'))
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectRulesRequiringQualityCheck" resultType="cn.aiedge.erp.batchsn.entity.BatchRule">
+        SELECT * FROM batch_rule
+        WHERE require_quality_check = TRUE AND enable = TRUE
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>

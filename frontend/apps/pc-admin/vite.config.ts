@@ -108,7 +108,7 @@ export default defineConfig({
     },
     proxy: {
       '/api/erp/mall': {
-        target: 'http://localhost:5657',
+        target: 'http://localhost:5655',
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('proxyRes', (proxyRes) => {

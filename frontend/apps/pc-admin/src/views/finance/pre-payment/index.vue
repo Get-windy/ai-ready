@@ -157,7 +157,7 @@
 
       <!-- 转付款弹窗 -->
       <a-modal
-        :visible="offsetVisible"
+        :open="offsetVisible"
         title="转付款"
         :confirm-loading="offsetLoading"
         @ok="handleOffsetConfirm"
@@ -187,7 +187,7 @@
 
       <!-- 收回弹窗 -->
       <a-modal
-        :visible="recoverVisible"
+        :open="recoverVisible"
         title="收回预付款"
         :confirm-loading="recoverLoading"
         @ok="handleRecoverConfirm"
@@ -211,7 +211,7 @@
 
       <!-- 退款弹窗 -->
       <a-modal
-        :visible="refundVisible"
+        :open="refundVisible"
         title="预付款退款"
         :confirm-loading="refundLoading"
         @ok="handleRefundConfirm"

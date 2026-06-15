@@ -14,6 +14,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class PermissionTemplateServiceImpl extends ServiceImpl<PermissionTemplateMapper, PermissionTemplate>
         implements PermissionTemplateService {

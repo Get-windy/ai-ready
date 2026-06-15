@@ -1,9 +1,12 @@
 /**
  * 路由权限守卫
  * 提供路由级别的权限控制功能
+ *
+ * 使用 vue-router v4 推荐的方式：返回 RouteLocation 替代调用 next()
+ * 避免 next({ path }) 导致的同步递归 pushWithRedirect 栈溢出
  */
 
-import type { Router } from 'vue-router'
+import type { Router, RouteLocationNormalized } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { checkRouteAccess, filterRoutesByPermission, loadDynamicRoutes } from './dynamicRoutes'
 import { message } from 'ant-design-vue'
@@ -23,22 +26,23 @@ export function isDynamicRoutesLoaded() {
  * 路由守卫选项
  */
 export interface RouterGuardOptions {
-  beforeEach?: (to: any, from: any, next: any) => void | Promise<void>
-  afterEach?: (to: any, from: any) => void | Promise<void>
+  beforeEach?: (to: RouteLocationNormalized, from: RouteLocationNormalized, next: any) => void | Promise<void>
+  afterEach?: (to: RouteLocationNormalized, from: RouteLocationNormalized) => void | Promise<void>
   onError?: (error: any) => void | Promise<void>
 }
 
 /**
  * 设置路由权限守卫
+ * 使用 return 模式代替 next() 回调，避免 vue-router v4 的同步递归问题
  */
 export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
-  router.beforeEach(async (to, from, next) => {
+  // 前置守卫
+  router.beforeEach(async (to, from) => {
     try {
       const userStore = useUserStore()
 
       // 登录/注册页直接放行
       if (to.path === '/login' || to.path === '/register') {
-        next()
         return
       }
 
@@ -46,8 +50,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
       if (!userStore.isLoggedIn) {
         console.warn('[路由守卫] 未登录 -> 跳转登录页')
         message.warning('请先登录')
-        next({ path: '/login', query: { redirect: to.fullPath } })
-        return
+        return { path: '/login', query: { redirect: to.fullPath } }
       }
 
       // Token 过期检查（仅对 JWT 格式有效）
@@ -57,22 +60,26 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
         resetDynamicRoutesLoaded()
         message.warning('登录已过期，请重新登录')
         userStore.logout()
-        next({ path: '/login', query: { redirect: to.fullPath }, replace: true })
-        return
+        return { path: '/login', query: { redirect: to.fullPath }, replace: true }
       }
 
       // 非 JWT 格式 token（如 UUID）→ 后端验证
-      // 前端无法本地判断 UUID token 的过期状态，必须请求后端
       if (token && !isJWT(token)) {
-        const valid = await verifyToken()
+        let valid = await verifyToken()
         if (!valid) {
-          console.warn('[路由守卫] 后端Token验证失败 -> 清除状态并跳转登录页')
+          console.warn('[路由守卫] Token首次验证失败，等待500ms后重试...')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          clearTokenVerifyCache()
+          valid = await verifyToken()
+        }
+
+        if (!valid) {
+          console.warn('[路由守卫] 后端Token验证失败（重试后仍无效） -> 清除状态并跳转登录页')
           resetDynamicRoutesLoaded()
           clearTokenVerifyCache()
           message.warning('登录已过期，请重新登录')
           userStore.logout()
-          next({ path: '/login', query: { redirect: to.fullPath }, replace: true })
-          return
+          return { path: '/login', query: { redirect: to.fullPath }, replace: true }
         }
       }
 
@@ -80,7 +87,6 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
       if (!userStore.userInfo) {
         try {
           await userStore.getUserInfo()
-          // 密码过期提醒
           if (userStore.userInfo?.passwordExpired) {
             message.warning('您的密码已过期，请及时修改密码', 5)
           }
@@ -88,8 +94,7 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
           console.warn('[路由守卫] getUserInfo() 失败:', err)
           resetDynamicRoutesLoaded()
           userStore.logout()
-          next({ path: '/login', replace: true })
-          return
+          return { path: '/login', replace: true }
         }
       }
 
@@ -98,80 +103,85 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
         try {
           const dynamicRoutes = await loadDynamicRoutes()
           for (const route of dynamicRoutes) {
-            // 关键修复：将 Layout 路由与其 children 分开添加
-            // 直接 router.addRoute(route) 添加嵌套路由时，子路由可能无法被正确匹配
             if (route.name === 'Layout' && route.children) {
               const children = [...route.children]
-              // 先添加 Layout 路由（不含 children）
               const layoutParent: any = {
                 path: route.path,
                 name: route.name,
                 component: route.component,
                 meta: route.meta,
               }
-              if (route.redirect) layoutParent.redirect = route.redirect
+              // 注意：不复制 redirect 属性。
+              // vue-router v4 的 handleRedirectRecord 会检查 matched routes 最后一个的 redirect，
+              // 如果菜单数据中存在自身引用或循环的重定向配置，会导致 pushWithRedirect 无限递归
+              // （Maximum call stack size exceeded at handleRedirectRecord）。
+              // 路由守卫自身已处理登录后的重定向，不需要路由记录的 redirect 来干扰。
               router.addRoute(layoutParent)
-              // 再逐个添加子路由，明确指定父级名称
               for (const child of children) {
-                router.addRoute('Layout', child)
+                // 剥离子路由的 redirect，同样原因
+                const { redirect: _r, ...childWithoutRedirect } = child as any
+                router.addRoute('Layout', childWithoutRedirect)
               }
             } else {
-              router.addRoute(route)
+              const { redirect: _r, ...routeWithoutRedirect } = route as any
+              router.addRoute(routeWithoutRedirect)
             }
           }
 
           dynamicRoutesLoaded = true
 
-          // 重定向到目标页面，利用新添加的动态路由重新解析
+          // 返回重定向目标。注意：已剥离所有动态路由的 redirect 属性，
+          // 因此 pushWithRedirect 重新解析时 handleRedirectRecord 不会触发递归。
           const redirectPath = to.path === '/' || to.path === '/login' ? '/dashboard' : to.fullPath
-          next({ path: redirectPath, replace: true })
-          return
+          return { path: redirectPath, replace: true }
         } catch (error: any) {
           console.warn('[路由守卫] 动态路由加载失败:', error?.message)
           if (error?.response?.status === 401 || error?.status === 401) {
             message.warning('登录已过期，请重新登录')
             resetDynamicRoutesLoaded()
             userStore.logout()
-            next({ path: '/login', replace: true })
-            return
+            return { path: '/login', replace: true }
           }
           dynamicRoutesLoaded = true
-          next({ path: '/dashboard', replace: true })
-          return
+          return { path: '/dashboard', replace: true }
         }
       }
 
-      // 404 检查
+      // 404 检查 — 避免跳转目标再次匹配失败导致无限循环
       if (to.matched.length === 0) {
-        console.warn('[路由守卫] 404 -> 跳转 /dashboard')
-        next({ path: '/dashboard', replace: true })
-        return
+        if (to.path === '/dashboard') {
+          console.warn('[路由守卫] 首页 404 -> 跳转 /403')
+          return { path: '/403', replace: true }
+        } else {
+          console.warn('[路由守卫] 404 -> 跳转 /dashboard')
+          return { path: '/dashboard', replace: true }
+        }
       }
 
       // 权限检查
       if (!checkRouteAccess(to)) {
         message.error('您没有权限访问此页面')
-        next({ path: '/403' })
-        return
+        return { path: '/403' }
       }
 
       // 页面标题
       document.title = to.meta.title ? `${to.meta.title} - AI-Ready` : 'AI-Ready'
 
-      // 自定义前置守卫
+      // 自定义前置守卫（兼容旧式 next 回调）
       if (options?.beforeEach) {
-        await options.beforeEach(to, from, next)
-        return
+        return new Promise<void>((resolve) => {
+          options.beforeEach!(to, from, () => resolve())
+        })
       }
 
-      next()
+      return // continue
     } catch (error) {
       console.error('[路由守卫] 错误:', error)
       dynamicRoutesLoaded = false
       if (options?.onError) {
         await options.onError(error)
       }
-      next({ path: '/login', replace: true })
+      return { path: '/login', replace: true }
     }
   })
 

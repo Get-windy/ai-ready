@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.batchsn.mapper.BatchNumberMapper">
+
+    <select id="selectByBatchNo" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT * FROM batch_number WHERE batch_no = #{batchNo} AND is_deleted = 0
+    </select>
+
+    <select id="selectExpiringBatches" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT * FROM batch_number
+        WHERE is_deleted = 0
+          AND batch_status = 'ACTIVE'
+          AND expiration_date IS NOT NULL
+          AND expiration_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + #{warningDays})
+        ORDER BY expiration_date ASC
+    </select>
+
+    <select id="selectExpiredBatches" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT * FROM batch_number
+        WHERE is_deleted = 0
+          AND batch_status = 'ACTIVE'
+          AND expiration_date IS NOT NULL
+          AND expiration_date &lt; CURRENT_DATE
+        ORDER BY expiration_date ASC
+    </select>
+
+    <update id="updateBatchStatus">
+        UPDATE batch_number
+        SET batch_status = #{newStatus}, updated_by = #{updatedBy}, updated_at = CURRENT_TIMESTAMP
+        WHERE id IN
+        <foreach collection="batchIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+    <update id="updateAvailableQuantity">
+        UPDATE batch_number
+        SET available_quantity = available_quantity + #{quantityChange},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{batchId} AND is_deleted = 0
+    </update>
+
+    <select id="selectStockSummary" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT product_id, product_code, product_name,
+               SUM(total_quantity) AS total_quantity,
+               SUM(available_quantity) AS available_quantity,
+               SUM(reserved_quantity) AS reserved_quantity,
+               COUNT(*) AS batch_count
+        FROM batch_number
+        WHERE is_deleted = 0 AND batch_status = 'ACTIVE'
+        GROUP BY product_id, product_code, product_name
+        ORDER BY product_code
+    </select>
+
+    <select id="selectProductBatchHistory" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT * FROM batch_number
+        WHERE is_deleted = 0
+          AND (product_id = #{productId} OR product_code = #{productCode})
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectBatchesByDateRange" resultType="cn.aiedge.erp.batchsn.entity.BatchNumber">
+        SELECT * FROM batch_number
+        WHERE is_deleted = 0
+        <if test="startTime != null">
+            AND created_at &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        <if test="status != null and status != ''">
+            AND batch_status = #{status}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>

@@ -1,5 +1,6 @@
 package cn.aiedge.dict.controller;
 
+import cn.aiedge.common.result.ApiResponse;
 import cn.aiedge.dict.service.DictItemService;
 import cn.aiedge.dict.service.DictTypeService;
 import cn.aiedge.dict.vo.DictItemVO;
@@ -34,14 +35,14 @@ public class DictController {
 
     @GetMapping("/{dictCode}")
     @Operation(summary = "根据字典编码获取字典选项")
-    public DictOption getByCode(@PathVariable String dictCode) {
+    public ApiResponse<DictOption> getByCode(@PathVariable String dictCode) {
         DictTypeVO dictType = dictTypeService.getByDictCode(dictCode);
         if (dictType == null) {
             DictOption empty = new DictOption();
             empty.setDictCode(dictCode);
             empty.setDictName("");
             empty.setItems(new ArrayList<>());
-            return empty;
+            return ApiResponse.success(empty);
         }
 
         List<DictItemVO> items = dictItemService.getByDictCode(dictCode);
@@ -58,19 +59,19 @@ public class DictController {
                     return item;
                 })
                 .collect(Collectors.toList()));
-        return result;
+        return ApiResponse.success(result);
     }
 
     @PostMapping("/batch")
     @Operation(summary = "批量获取字典选项")
-    public List<DictOption> getBatch(@RequestBody Map<String, List<String>> request) {
+    public ApiResponse<List<DictOption>> getBatch(@RequestBody Map<String, List<String>> request) {
         List<String> dictCodes = request.get("dictCodes");
         if (dictCodes == null || dictCodes.isEmpty()) {
-            return new ArrayList<>();
+            return ApiResponse.success(new ArrayList<>());
         }
-        return dictCodes.stream()
-                .map(this::getByCode)
-                .collect(Collectors.toList());
+        return ApiResponse.success(dictCodes.stream()
+                .map(code -> getByCode(code).getData())
+                .collect(Collectors.toList()));
     }
 
     /**

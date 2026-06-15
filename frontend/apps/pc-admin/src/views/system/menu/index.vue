@@ -569,10 +569,10 @@ const loadMenuTree = async () => {
   hasError.value = false
   try {
     const res = await menuApi.getTree(queryForm)
-    if (res.code === 200) {
-      menuTree.value = res.data || []
+    if (res) {
+      menuTree.value = res
     } else {
-      message.error(res.message || '获取菜单列表失败')
+      message.error('获取菜单列表失败')
       menuTree.value = []
     }
   } catch (error) {

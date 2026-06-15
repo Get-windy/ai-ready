@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,6 +20,7 @@ import java.util.*;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class AdvancedLogQueryServiceImpl implements AdvancedLogQueryService {
 

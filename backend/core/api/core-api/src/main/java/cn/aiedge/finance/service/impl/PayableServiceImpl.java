@@ -94,7 +94,9 @@ public class PayableServiceImpl extends ServiceImpl<PayableMapper, Payable> impl
                 .eq(Payable::getTenantId, getCurrentTenantId())
                 .orderByDesc(Payable::getCreateTime);
 
-        Page<Payable> page = new Page<>(request.getPageNum(), request.getPageSize());
+        long pageNum = request.getPageNum() != null ? request.getPageNum() : 1L;
+        long pageSize = request.getPageSize() != null ? request.getPageSize() : 20L;
+        Page<Payable> page = new Page<>(pageNum, pageSize);
         Page<Payable> resultPage = payableMapper.selectPage(page, wrapper);
 
         Page<PayableVO> voPage = new Page<>();

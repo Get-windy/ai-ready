@@ -4,7 +4,9 @@ import cn.aiedge.dms.route.dto.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,6 +24,7 @@ import java.util.List;
  */
 @Slf4j
 @Component("amapMapService")
+@Primary
 public class AmapMapService extends AbstractMapService {
 
     private static final String BASE_URL = "https://restapi.amap.com/v3";
@@ -37,7 +40,7 @@ public class AmapMapService extends AbstractMapService {
 
     public AmapMapService(
             @Value("${dms.map.amap.api-key:}") String apiKey,
-            RestTemplate restTemplate,
+            @Qualifier("dmsRestTemplate") RestTemplate restTemplate,
             ObjectMapper objectMapper) {
         super(apiKey);
         this.restTemplate = restTemplate;

@@ -1,6 +1,10 @@
 package cn.aiedge.base.controller;
 
+import cn.aiedge.base.dto.BatchAssignRolesRequest;
+import cn.aiedge.base.dto.UserCreateRequest;
 import cn.aiedge.base.dto.UserDTO;
+import cn.aiedge.base.dto.UserLoginRequest;
+import cn.aiedge.base.dto.UserUpdateRequest;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.SysUserService;
@@ -36,10 +40,10 @@ public class SysUserController {
      */
     @Operation(summary = "用户登录")
     @PostMapping("/login")
-    public Result<String> login(@RequestBody @Valid UserDTO.Login dto,
+    public Result<String> login(@RequestBody @Valid UserLoginRequest dto,
                                 HttpServletRequest request) {
         String loginIp = getClientIp(request);
-        String token = userService.login(dto.username(), dto.password(), dto.tenantId(), loginIp);
+        String token = userService.login(dto.getUsername(), dto.getPassword(), dto.getTenantId(), loginIp);
         return Result.ok("登录成功", token);
     }
 
@@ -61,7 +65,7 @@ public class SysUserController {
     @PostMapping
     @SaCheckPermission("user:create")
     @OperationLog(module = "用户管理", type = "CREATE", desc = "创建用户")
-    public Result<Long> createUser(@RequestBody @Valid UserDTO.Create dto) {
+    public Result<Long> createUser(@RequestBody @Valid UserCreateRequest dto) {
         SysUser user = convertToEntity(dto);
         Long userId = userService.createUser(user);
         return Result.ok("创建成功", userId);
@@ -73,7 +77,7 @@ public class SysUserController {
     @Operation(summary = "更新用户")
     @PutMapping("/{id}")
     @SaCheckPermission("user:update")
-    public Result<Void> updateUser(@PathVariable Long id, @RequestBody UserDTO.Update dto) {
+    public Result<Void> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest dto) {
         SysUser user = convertToEntity(dto);
         user.setId(id);
         userService.updateUser(user);
@@ -185,8 +189,8 @@ public class SysUserController {
     @PostMapping("/batch-assign-roles")
     @SaCheckPermission("user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "批量分配角色", saveParams = true)
-    public Result<Void> batchAssignRoles(@RequestBody UserDTO.BatchAssignRoles dto) {
-        userService.batchAssignRoles(dto.userIds(), dto.roleIds());
+    public Result<Void> batchAssignRoles(@RequestBody @Valid BatchAssignRolesRequest dto) {
+        userService.batchAssignRoles(dto.getUserIds(), dto.getRoleIds());
         return Result.ok("批量角色分配成功", null);
     }
 
@@ -227,29 +231,29 @@ public class SysUserController {
         return ip;
     }
 
-    private SysUser convertToEntity(UserDTO.Create dto) {
+    private SysUser convertToEntity(UserCreateRequest dto) {
         return new SysUser()
-                .setTenantId(dto.tenantId())
-                .setUsername(dto.username())
-                .setPassword(dto.password())
-                .setNickname(dto.nickname())
-                .setEmail(dto.email())
-                .setPhone(dto.phone())
-                .setAvatar(dto.avatar())
-                .setGender(dto.gender())
-                .setUserType(dto.userType())
-                .setDeptId(dto.deptId())
-                .setPostId(dto.postId());
+                .setTenantId(dto.getTenantId())
+                .setUsername(dto.getUsername())
+                .setPassword(dto.getPassword())
+                .setNickname(dto.getNickname())
+                .setEmail(dto.getEmail())
+                .setPhone(dto.getPhone())
+                .setAvatar(dto.getAvatar())
+                .setGender(dto.getGender())
+                .setUserType(dto.getUserType())
+                .setDeptId(dto.getDeptId())
+                .setPostId(dto.getPostId());
     }
 
-    private SysUser convertToEntity(UserDTO.Update dto) {
+    private SysUser convertToEntity(UserUpdateRequest dto) {
         return new SysUser()
-                .setNickname(dto.nickname())
-                .setEmail(dto.email())
-                .setPhone(dto.phone())
-                .setAvatar(dto.avatar())
-                .setGender(dto.gender())
-                .setDeptId(dto.deptId())
-                .setPostId(dto.postId());
+                .setNickname(dto.getNickname())
+                .setEmail(dto.getEmail())
+                .setPhone(dto.getPhone())
+                .setAvatar(dto.getAvatar())
+                .setGender(dto.getGender())
+                .setDeptId(dto.getDeptId())
+                .setPostId(dto.getPostId());
     }
 }

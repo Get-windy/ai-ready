@@ -5,6 +5,7 @@ import cn.aiedge.dms.event.mapper.DmsEventOutboxMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class EventService {
 
     private final DmsEventOutboxMapper eventOutboxMapper;
+    @Qualifier("dmsRestTemplate")
     private final RestTemplate restTemplate;
 
     /**

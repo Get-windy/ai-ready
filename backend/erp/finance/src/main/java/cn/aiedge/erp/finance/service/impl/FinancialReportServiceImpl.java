@@ -36,7 +36,7 @@ public class FinancialReportServiceImpl implements FinancialReportService {
     @Override
     public List<TrialBalanceDTO> generateTrialBalance(Integer fiscalYear, Integer fiscalPeriod) {
         List<LedgerEntry> entries = ledgerEntryMapper.findByFiscalYear(fiscalYear).stream()
-                .filter(e -> e.getFiscalPeriod().intValue() == fiscalPeriod.intValue())
+                .filter(e -> e.getFiscalPeriod() != null && e.getFiscalPeriod().equals(fiscalPeriod))
                 .collect(Collectors.toList());
 
         if (entries.isEmpty()) {
@@ -57,7 +57,7 @@ public class FinancialReportServiceImpl implements FinancialReportService {
     @Override
     public List<BalanceSheetDTO> generateBalanceSheet(Integer fiscalYear, Integer fiscalPeriod) {
         List<LedgerEntry> periodEntries = ledgerEntryMapper.findByFiscalYear(fiscalYear).stream()
-                .filter(e -> e.getFiscalPeriod().intValue() == fiscalPeriod.intValue())
+                .filter(e -> e.getFiscalPeriod() != null && e.getFiscalPeriod().equals(fiscalPeriod))
                 .collect(Collectors.toList());
 
         List<AccountSubject> allSubjects = accountSubjectMapper.selectList(null);

@@ -189,7 +189,7 @@
 
       <!-- 任务详情弹窗 -->
       <a-modal
-        :visible="detailVisible"
+        :open="detailVisible"
         :title="`任务详情 - ${detailData?.taskCode || ''}`"
         :footer="null"
         :width="700 as any"
@@ -236,7 +236,7 @@
 
       <!-- 执行打印链弹窗 -->
       <a-modal
-        :visible="executeVisible"
+        :open="executeVisible"
         title="执行打印链"
         :confirm-loading="executeLoading"
         ok-text="执行"

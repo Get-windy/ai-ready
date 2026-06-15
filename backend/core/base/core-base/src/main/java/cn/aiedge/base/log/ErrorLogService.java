@@ -7,6 +7,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -42,6 +43,7 @@ import java.util.stream.Stream;
  */
 @Slf4j
 @Service
+@Primary
 public class ErrorLogService {
 
     private static final String LOG_DIR = "logs/errors";

@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
+@Primary
 @RequiredArgsConstructor
 public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         implements SysMenuService {
@@ -112,6 +114,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         wrapper.eq(SysMenu::getClientType, clientType)
                .eq(SysMenu::getTenantId, tenantId)
                .eq(SysMenu::getStatus, 1) // status=1启用
+               .eq(SysMenu::getVisible, 1) // visible=1可见
                .orderByAsc(SysMenu::getSort);
         List<SysMenu> menus = list(wrapper);
         return buildMenuTree(menus, 0L);
@@ -135,6 +138,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
             wrapper.eq(SysMenu::getClientType, clientType)
                    .eq(SysMenu::getStatus, 1) // status=1启用
                    .eq(SysMenu::getDeleted, 0) // 未删除
+                   .eq(SysMenu::getVisible, 1) // visible=1可见
                    .orderByAsc(SysMenu::getSort);
             List<SysMenu> menus = list(wrapper);
             log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());
@@ -163,6 +167,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         wrapper.in(SysMenu::getId, menuIds)
                .eq(SysMenu::getClientType, clientType)
                .eq(SysMenu::getStatus, 1) // status=1启用
+               .eq(SysMenu::getVisible, 1) // visible=1可见
                .orderByAsc(SysMenu::getSort);
         List<SysMenu> menus = list(wrapper);
         log.info("[菜单服务] 查询到的菜单数量: {}", menus.size());

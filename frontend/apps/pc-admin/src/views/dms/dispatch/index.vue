@@ -204,7 +204,7 @@ const columns = [
 ] as any
 
 const wms = useWmsTable({
-  fetchFn: (params: any) => request.get('/api/dms/dispatch/page', { params }),
+  fetchFn: (params: any) => request.get('/dms/dispatch/page', { params }),
   refreshInterval: 30,
   shortcuts: { f5: 'refresh' },
 })
@@ -231,7 +231,7 @@ function handleTableChange(pag: any) {
 
 const handleAutoAssign = async (record: any) => {
   try {
-    await request.post(`/api/dms/dispatch/${record.id}/auto-assign`)
+    await request.post(`/dms/dispatch/${record.id}/auto-assign`)
     message.success('自动分配成功')
     refresh()
   } catch (err: any) {
@@ -252,7 +252,7 @@ const openManualAssign = async (record: any) => {
   assignDialogVisible.value = true
   riderLoading.value = true
   try {
-    const res = await request.get('/api/dms/rider/list')
+    const res = await request.get('/dms/rider/list')
     riderList.value = res?.data ?? res ?? []
   } catch {
     riderList.value = []
@@ -269,7 +269,7 @@ const confirmManualAssign = async () => {
   }
   assignLoading.value = true
   try {
-    await request.post(`/api/dms/dispatch/${currentTask.value.id}/assign`, {
+    await request.post(`/dms/dispatch/${currentTask.value.id}/assign`, {
       riderId: selectedRiderId.value
     })
     message.success('分配成功')

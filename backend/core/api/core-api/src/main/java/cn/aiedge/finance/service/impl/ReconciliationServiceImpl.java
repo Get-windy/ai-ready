@@ -258,4 +258,41 @@ public class ReconciliationServiceImpl extends ServiceImpl<ReconciliationMapper,
         }
         return "系统";
     }
+
+    @Override
+    public java.util.Map<String, Object> getStats() {
+        Long tenantId = getCurrentTenantId();
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+
+        // 银行对账待处理数（status=0 且 reconciliationType='BANK'）
+        long bankPending = this.count(Wrappers.<Reconciliation>lambdaQuery()
+                .eq(Reconciliation::getTenantId, tenantId)
+                .eq(Reconciliation::getReconciliationType, "BANK")
+                .eq(Reconciliation::getStatus, 0));
+
+        // 客户对账待处理数
+        long customerPending = this.count(Wrappers.<Reconciliation>lambdaQuery()
+                .eq(Reconciliation::getTenantId, tenantId)
+                .eq(Reconciliation::getReconciliationType, "CUSTOMER")
+                .eq(Reconciliation::getStatus, 0));
+
+        // 供应商对账待处理数
+        long supplierPending = this.count(Wrappers.<Reconciliation>lambdaQuery()
+                .eq(Reconciliation::getTenantId, tenantId)
+                .eq(Reconciliation::getReconciliationType, "SUPPLIER")
+                .eq(Reconciliation::getStatus, 0));
+
+        // 有差异的对账记录数（status=2）
+        long differenceCount = this.count(Wrappers.<Reconciliation>lambdaQuery()
+                .eq(Reconciliation::getTenantId, tenantId)
+                .eq(Reconciliation::getStatus, 2));
+
+        stats.put("bankPending", bankPending);
+        stats.put("customerPending", customerPending);
+        stats.put("supplierPending", supplierPending);
+        stats.put("differenceCount", differenceCount);
+        stats.put("totalPending", bankPending + customerPending + supplierPending);
+
+        return stats;
+    }
 }

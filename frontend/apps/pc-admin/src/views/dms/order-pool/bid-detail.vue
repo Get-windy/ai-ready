@@ -56,7 +56,7 @@ const fetchData = async () => {
   if (!poolId) return
   loading.value = true
   try {
-    const res = await request.get(`/api/dms/order-pool/${poolId}/bids`)
+    const res = await request.get(`/dms/order-pool/${poolId}/bids`)
     dataSource.value = res?.data ?? res ?? []
   } catch {
     dataSource.value = []

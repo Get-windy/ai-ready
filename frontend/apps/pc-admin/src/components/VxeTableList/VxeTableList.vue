@@ -121,7 +121,7 @@
       :row-config="{ keyField: rowKey, isHover: true }"
       :cell-config="{ height: 32 }"
       :header-cell-config="{ height: 32 }"
-      :checkbox-config="{ highlight: true, range: true }"
+      :checkbox-config="{ highlight: true, range: true, checkMethod: ({ row }) => !row.__empty_row }"
       :sort-config="{ trigger: 'cell', defaultSort: defaultSort as any }"
       :footer-config="{ show: showSummary, footerMethod: footerMethod }"
       :scroll-y="{ enabled: true, gt: 20 }"
@@ -139,38 +139,53 @@
       @cell-dblclick="handleCellDblClick"
     >
       <!-- 列定义：使用 v-for + v-bind 替代 :columns 动态 prop -->
+      <!-- seq列和checkbox列由vxe-table自动渲染，不需要自定义模板 -->
       <vxe-column
         v-for="col in vxeColumns"
         :key="col.field || col.type"
         v-bind="col as any"
       >
-        <!-- 有 slots 属性的列：渲染父组件传入的插槽 -->
-        <template v-if="col.slots?.default" #default="{ row, $rowIndex }">
-          <slot :name="col.slots.default" :record="row" :index="$rowIndex">
-            <span>{{ row[col.field] ?? '-' }}</span>
+        <!-- seq列和checkbox列：不添加自定义模板，让vxe-table自动处理 -->
+        <!-- action列：渲染父组件的#action插槽（vxeColumns处理后的action列有slots.default='action_default'） -->
+        <template v-if="col.slots?.default === 'action_default' || col.type === 'action'" #default="{ row, $rowIndex }">
+          <!-- 空行显示空白 -->
+          <span v-if="row.__empty_row"></span>
+          <slot v-else name="action" :record="row" :index="$rowIndex">
+            <span></span>
           </slot>
         </template>
-        <!-- 数值列右对齐 + 等宽数字 -->
-        <template v-else-if="col.align === 'right'" #default="{ row, column }">
-          <span class="cell-number">{{ row[col.field] ?? '-' }}</span>
+        <!-- 有 slots 属性的列（非action列）：渲染父组件传入的插槽 -->
+        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.slots?.default" #default="{ row, $rowIndex }">
+          <slot :name="col.slots.default" :record="row" :index="$rowIndex">
+            <!-- 空行显示空白，非空行显示默认值 -->
+            <span v-if="row.__empty_row"></span>
+            <span v-else>{{ row[col.field] ?? '' }}</span>
+          </slot>
         </template>
-        <!-- 有formatter的列：使用v-html渲染HTML内容 -->
-        <template v-else-if="col.formatter" #default="{ row, column, $rowIndex }">
-          <span v-html="col.formatter({ cellValue: row[col.field], row, $rowIndex, column })"></span>
+        <!-- 数值列右对齐 + 等宽数字（排除seq、checkbox和action） -->
+        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.align === 'right'" #default="{ row, column }">
+          <!-- 空行显示空白 -->
+          <span v-if="row.__empty_row" class="cell-number"></span>
+          <span v-else class="cell-number">{{ row[col.field] ?? '' }}</span>
+        </template>
+        <!-- 有formatter的列：使用v-html渲染HTML内容，空行显示空白（排除seq、checkbox和action） -->
+        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action' && col.formatter" #default="{ row, column, $rowIndex }">
+          <span v-if="row.__empty_row"></span>
+          <span v-else v-html="col.formatter({ cellValue: row[col.field], row, $rowIndex, column })"></span>
+        </template>
+        <!-- 普通列：空行显示空白（排除seq、checkbox和action） -->
+        <template v-else-if="col.type !== 'seq' && col.type !== 'checkbox' && col.type !== 'action'" #default="{ row }">
+          <span v-if="row.__empty_row"></span>
+          <span v-else>{{ row[col.field] ?? '' }}</span>
         </template>
       </vxe-column>
 
-      <!-- 操作列插槽（兼容外部定义的方式） -->
-      <template #action_default="{ row, $rowIndex }">
-        <slot name="action" :record="row" :index="$rowIndex">
-          <span>-</span>
-        </slot>
-      </template>
-
       <!-- 自定义列插槽（兼容外部定义的方式） -->
       <template v-for="slotName in customSlotColumns" :key="slotName" #[slotName]="{ row, $rowIndex }">
-        <slot :name="slotName" :record="row" :index="$rowIndex">
-          <span>-</span>
+        <!-- 空行显示空白 -->
+        <span v-if="row.__empty_row"></span>
+        <slot v-else :name="slotName" :record="row" :index="$rowIndex">
+          <span></span>
         </slot>
       </template>
 
@@ -332,6 +347,15 @@ interface VxeColumnDef {
 
 const vxeColumns = computed<VxeColumnDef[]>(() => {
   const cols: VxeColumnDef[] = []
+
+  // 序号列（固定在最左侧）
+  cols.push({
+    type: 'seq',
+    title: '序号',
+    width: 60,
+    fixed: 'left',
+    align: 'center',
+  })
 
   // 选择列
   if (props.selectable) {

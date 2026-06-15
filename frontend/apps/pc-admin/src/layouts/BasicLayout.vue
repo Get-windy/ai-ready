@@ -41,7 +41,7 @@
               <a-menu-item
                 v-if="child.menuType === 1"
                 :key="child.menuCode"
-                @click="navigateTo(child.path || '/')"
+                @click="navigateTo(child.path, menu.path)"
               >
                 <component :is="getIcon(child.icon)" v-if="child.icon" />
                 <span>{{ child.menuName }}</span>
@@ -76,7 +76,7 @@
               <a-menu-item
                 v-if="child.menuType === 1"
                 :key="child.menuCode"
-                @click="navigateTo(child.path || '/')"
+                @click="navigateTo(child.path, menu.path)"
               >
                 <component :is="getIcon(child.icon)" v-if="child.icon" />
                 <span>{{ child.menuName }}</span>
@@ -664,7 +664,7 @@ const handleTenantSwitch = async (tenantId: number) => {
     localStorage.setItem('tenantId', String(tenantId))
     localStorage.setItem('tenantName', target.tenantName)
     userStore.tenantName = target.tenantName
-	      await userStore.getUserInfo()
+    await userStore.getUserInfo()
     message.success('已切换到: ' + target.tenantName)
     router.push('/dashboard')
   } catch (error) {
@@ -675,8 +675,38 @@ const handleTenantSwitch = async (tenantId: number) => {
   }
 }
 
-const navigateTo = (path: string) => {
+const navigateTo = (path: string, parentPath?: string) => {
   showFavorites.value = false
+  // 如果路径是相对路径（不以 / 开头），尝试通过路由器查找完整路径
+  // 处理后端返回 path="index" 的默认子路由场景
+  if (!path.startsWith('/')) {
+    // 用 router.getRoutes() 精确匹配路径（支持动态注册的路由）
+    const allRoutes = router.getRoutes()
+    const tryPaths: string[] = []
+
+    // 如果有父级路径，优先用父路径+子路径构造
+    if (parentPath) {
+      const base = parentPath.startsWith('/') ? parentPath : '/' + parentPath
+      tryPaths.push(`${base}/${path}`)        // /parent/path/child
+      tryPaths.push(base)                     // /parent/path (path=index or path=parent)
+    }
+    tryPaths.push('/' + path)                 // /absolute-path
+
+    for (const p of tryPaths) {
+      const found = allRoutes.find(r => r.path === p)
+      if (found) {
+        router.push(found.path)
+        return
+      }
+    }
+
+    // 最后尝试模糊匹配以 path 结尾的路由
+    const matched = allRoutes.find(r => r.path.endsWith('/' + path))
+    if (matched) {
+      router.push(matched.path)
+      return
+    }
+  }
   // 确保路径以 / 开头，避免Vue Router相对路径解析导致路径叠加
   const absolutePath = path.startsWith('/') ? path : '/' + path
   router.push(absolutePath)

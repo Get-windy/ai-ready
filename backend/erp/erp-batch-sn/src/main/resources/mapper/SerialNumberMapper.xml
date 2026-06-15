@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.batchsn.mapper.SerialNumberMapper">
+
+    <select id="selectBySerialNo" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT * FROM serial_number WHERE serial_no = #{serialNo} AND is_deleted = 0
+    </select>
+
+    <select id="selectWarrantyExpiring" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT * FROM serial_number
+        WHERE is_deleted = 0
+          AND sn_status IN ('AVAILABLE', 'IN_USE')
+          AND warranty_end_date IS NOT NULL
+          AND warranty_end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + #{warningDays})
+        ORDER BY warranty_end_date ASC
+    </select>
+
+    <select id="selectWarrantyExpired" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT * FROM serial_number
+        WHERE is_deleted = 0
+          AND sn_status IN ('AVAILABLE', 'IN_USE')
+          AND warranty_end_date IS NOT NULL
+          AND warranty_end_date &lt; CURRENT_DATE
+        ORDER BY warranty_end_date ASC
+    </select>
+
+    <select id="selectFlowHistory" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT sn.* FROM serial_number sn
+        LEFT JOIN serial_flow_record sfr ON sfr.serial_id = sn.id
+        WHERE sn.serial_no = #{serialNo} AND sn.is_deleted = 0
+        ORDER BY sfr.created_at DESC
+    </select>
+
+    <select id="selectByProductId" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT * FROM serial_number
+        WHERE product_id = #{productId} AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByStatus" resultType="cn.aiedge.erp.batchsn.entity.SerialNumber">
+        SELECT * FROM serial_number
+        WHERE sn_status = #{status} AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateSerialStatus">
+        UPDATE serial_number
+        SET sn_status = #{newStatus},
+            sn_stage = #{newStage},
+            updated_by = #{updaterId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id IN
+        <foreach collection="serialIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+</mapper>

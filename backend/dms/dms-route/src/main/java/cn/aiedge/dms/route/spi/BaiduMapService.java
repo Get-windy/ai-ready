@@ -4,6 +4,7 @@ import cn.aiedge.dms.route.dto.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,7 @@ public class BaiduMapService extends AbstractMapService {
 
     public BaiduMapService(
             @Value("${dms.map.baidu.api-key:}") String apiKey,
-            RestTemplate restTemplate,
+            @Qualifier("dmsRestTemplate") RestTemplate restTemplate,
             ObjectMapper objectMapper) {
         super(apiKey);
         this.restTemplate = restTemplate;

@@ -231,7 +231,7 @@ const handlePlanRoute = async () => {
   }
   planLoading.value = true
   try {
-    const res = await request.post('/api/dms/route/plan', {
+    const res = await request.post('/dms/route/plan', {
       origin: planForm.origin,
       destinations: planForm.destinations.filter((d) => d.address)
     })
@@ -261,7 +261,7 @@ const handleGeocode = async () => {
   }
   geocodeLoading.value = true
   try {
-    const res = await request.get('/api/dms/geocode', {
+    const res = await request.get('/dms/geocode', {
       params: { address: geocodeForm.address }
     })
     geocodeResult.value = res?.data ?? res ?? null
@@ -287,7 +287,7 @@ const handleReverseGeocode = async () => {
   }
   reverseLoading.value = true
   try {
-    const res = await request.get('/api/dms/reverse-geocode', {
+    const res = await request.get('/dms/reverse-geocode', {
       params: { lat: reverseForm.lat, lng: reverseForm.lng }
     })
     reverseResult.value = res?.data?.address ?? res?.data ?? null
@@ -314,7 +314,7 @@ const handleFenceCheck = async () => {
   }
   fenceLoading.value = true
   try {
-    const res = await request.post('/api/dms/fence/check', {
+    const res = await request.post('/dms/fence/check', {
       rider_lat: fenceForm.rider_lat,
       rider_lng: fenceForm.rider_lng,
       radius: fenceForm.radius

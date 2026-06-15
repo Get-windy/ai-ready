@@ -53,14 +53,17 @@ public class PermissionAspect {
         // 获取用户权限列表
         List<String> userPermissions = StpUtil.getPermissionList();
         
+        // 通配符 * 表示拥有所有权限（超级管理员）
+        boolean isWildcard = userPermissions.contains("*");
+
         boolean hasPermission;
         if (annotation.logical() == RequiresPermission.Logical.AND) {
             // AND逻辑：必须拥有所有权限
-            hasPermission = Arrays.stream(permissions)
+            hasPermission = isWildcard || Arrays.stream(permissions)
                 .allMatch(userPermissions::contains);
         } else {
             // OR逻辑：拥有任一权限即可
-            hasPermission = Arrays.stream(permissions)
+            hasPermission = isWildcard || Arrays.stream(permissions)
                 .anyMatch(userPermissions::contains);
         }
         

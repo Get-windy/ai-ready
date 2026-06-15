@@ -75,6 +75,13 @@ export const useUserStore = defineStore('user', {
 
     async login(loginForm: LoginForm) {
       try {
+        // 登录前先清除旧的登录状态，避免残留token干扰
+        this.token = ''
+        localStorage.removeItem('token')
+        localStorage.removeItem('tenantId')
+        localStorage.removeItem('tenantName')
+        localStorage.removeItem('userTenants')
+
         const res = await userApi.login(loginForm)
         if (res && res.token) {
           this.token = res.token
@@ -82,10 +89,12 @@ export const useUserStore = defineStore('user', {
           this.tenantId = res.tenantId || 1
           this.tenantName = res.tenantName || ''
           this.userTenants = res.tenants || []
+          // 立即同步存储token（localStorage.setItem是同步操作）
           localStorage.setItem('token', res.token)
           localStorage.setItem('tenantId', String(res.tenantId || 1))
           localStorage.setItem('tenantName', res.tenantName || '')
           localStorage.setItem('userTenants', JSON.stringify(res.tenants || []))
+          console.info('[登录] Token已存储:', res.token.substring(0, 8) + '...')
           // 登录成功后建立 SSE 通知连接
           this.connectSse()
           return true

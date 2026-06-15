@@ -7,6 +7,7 @@ import cn.aiedge.base.workflow.model.Task;
 import cn.aiedge.base.workflow.statemachine.ProcessStateMachine;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
+@Primary
 public class WorkflowEngineImpl implements WorkflowEngine {
 
     private final Map<String, ProcessDefinition> processDefinitionMap = new ConcurrentHashMap<>();

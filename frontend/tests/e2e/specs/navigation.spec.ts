@@ -41,12 +41,12 @@ test.describe('导航和布局', () => {
       const page = adminPage;
 
       // 默认在 dashboard，检查面包屑
-      const breadcrumb = page.locator('.ant-breadcrumb');
+      const breadcrumb = page.locator('.ant-breadcrumb').first();
       await expect(breadcrumb).toBeVisible();
 
       // 导航到用户管理
       await page.goto('/system/user');
-      await page.waitForSelector('.ant-table', { timeout: 15_000 });
+      await page.waitForSelector('.vxe-table', { timeout: 15_000 });
 
       // 面包屑应该更新（具体内容取决于 i18n，但组件应该存在）
       await expect(breadcrumb).toBeVisible();

@@ -35,17 +35,17 @@ export interface DmsDispatchRequest {
 
 export const dispatchApi = {
   /** 自动调度 */
-  autoDispatch(data: { orderId: number; strategy?: string }) { return request.post('/api/dms/dispatch/auto', data) },
+  autoDispatch(data: { orderId: number; strategy?: string }) { return request.post('/dms/dispatch/auto', data) },
 
   /** 指派骑手 */
-  assign(data: DmsDispatchRequest) { return request.post('/api/dms/dispatch/assign', data) },
+  assign(data: DmsDispatchRequest) { return request.post('/dms/dispatch/assign', data) },
 
   /** 重新指派 */
-  reassign(data: DmsDispatchRequest) { return request.post('/api/dms/dispatch/reassign', data) },
+  reassign(data: DmsDispatchRequest) { return request.post('/dms/dispatch/reassign', data) },
 
   /** 获取候选骑手列表 */
-  candidates(params: { orderId: number; lng?: number; lat?: number }) { return request.get('/api/dms/dispatch/candidates', { params }) },
+  candidates(params: { orderId: number; lng?: number; lat?: number }) { return request.get('/dms/dispatch/candidates', { params }) },
 
   /** 电子围栏检测 */
-  fenceCheck(data: { riderId: number; lng: number; lat: number; fenceId?: number }) { return request.post('/api/dms/dispatch/fence/check', data) },
+  fenceCheck(data: { riderId: number; lng: number; lat: number; fenceId?: number }) { return request.post('/dms/dispatch/fence/check', data) },
 }

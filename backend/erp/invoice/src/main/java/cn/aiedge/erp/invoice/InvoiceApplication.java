@@ -1,5 +1,6 @@
 package cn.aiedge.erp.invoice;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -59,17 +60,18 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableFeignClients(basePackages = {
     "cn.aiedge.erp.invoice.integration"
 })
+@Slf4j
 public class InvoiceApplication {
 
     /**
      * 主应用入口
-     * 
+     *
      * @param args 命令行参数
      */
     public static void main(String[] args) {
         SpringApplication.run(InvoiceApplication.class, args);
     }
-    
+
     /**
      * 应用信息
      */
@@ -79,16 +81,16 @@ public class InvoiceApplication {
         public static final String DESCRIPTION = "Comprehensive invoice management system for ERP";
         public static final String DEVELOPER = "AI-Ready Team";
         public static final String CONTACT = "support@ai-ready.com";
-        
+
         public static void printBanner() {
-            System.out.println("=========================================");
-            System.out.println("    " + MODULE_NAME);
-            System.out.println("    Version: " + VERSION);
-            System.out.println("    " + DESCRIPTION);
-            System.out.println("=========================================");
-            System.out.println("Developer: " + DEVELOPER);
-            System.out.println("Contact: " + CONTACT);
-            System.out.println("=========================================");
+            log.info("=========================================");
+            log.info("    {}", MODULE_NAME);
+            log.info("    Version: {}", VERSION);
+            log.info("    {}", DESCRIPTION);
+            log.info("=========================================");
+            log.info("Developer: {}", DEVELOPER);
+            log.info("Contact: {}", CONTACT);
+            log.info("=========================================");
         }
     }
 }

@@ -65,7 +65,7 @@ public class Stock {
     private BigDecimal availableQuantity;
 
     /**
-     * 冻结数量
+     * 冻结数量（可用数量 = 总数量 - 冻结数量）
      */
     private BigDecimal frozenQuantity;
 

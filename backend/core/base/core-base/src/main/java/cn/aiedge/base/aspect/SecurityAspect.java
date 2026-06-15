@@ -34,7 +34,7 @@ public class SecurityAspect {
         Pattern.CASE_INSENSITIVE
     );
 
-    private static final int RATE_LIMIT_REQUESTS = 100;
+    private static final int RATE_LIMIT_REQUESTS = 1000;
     private static final int RATE_LIMIT_WINDOW_SECONDS = 60;
 
     @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")

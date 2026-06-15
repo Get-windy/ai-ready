@@ -26,6 +26,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -225,6 +226,17 @@ public class GlobalExceptionHandler {
             httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
         }
         return new ResponseEntity<>(Result.fail(e.getCode(), e.getMessage()), httpStatus);
+    }
+
+    /**
+     * 处理 SSE 异步请求超时异常（静默处理，不写错误日志）
+     */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public Result<Void> handleAsyncRequestTimeoutException(AsyncRequestTimeoutException e) {
+        log.debug("SSE 异步请求超时: {}", e.getMessage());
+        // SSE 超时是正常行为，不记录错误日志
+        return Result.fail(503, "请求超时");
     }
 
     /**

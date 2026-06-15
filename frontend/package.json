@@ -1,10 +1,11 @@
 {
   "name": "ai-ready-frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "企智连系统前端模块 - 前后端分离架构",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter './apps/*' dev",
+    "dev": "pnpm --filter ai-ready-admin dev",
+    "dev:all": "pnpm --filter './apps/*' dev",
     "build": "pnpm run build:all",
     "build:all": "pnpm --filter driver-delivery --filter mobile-admin --filter mobile-mall --filter ai-ready-admin --filter pda-warehouse --filter print-client build",
     "lint": "eslint .",

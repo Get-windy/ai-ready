@@ -41,9 +41,11 @@ public class StockSplitServiceImpl extends ServiceImpl<StockSplitMapper, StockSp
     @Override
     public Page<StockSplit> pageList(String keyword, Long warehouseId, Integer status, int pageNum, int pageSize) {
         LambdaQueryWrapper<StockSplit> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(keyword != null, StockSplit::getSplitNo, keyword)
-                .or(w -> w.like(keyword != null, StockSplit::getProductName, keyword))
-                .eq(warehouseId != null, StockSplit::getWarehouseId, warehouseId)
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(StockSplit::getSplitNo, keyword)
+                    .or().like(StockSplit::getProductName, keyword));
+        }
+        wrapper.eq(warehouseId != null, StockSplit::getWarehouseId, warehouseId)
                 .eq(status != null, StockSplit::getStatus, status)
                 .orderByDesc(StockSplit::getCreateTime);
         return this.page(new Page<>(pageNum, pageSize), wrapper);

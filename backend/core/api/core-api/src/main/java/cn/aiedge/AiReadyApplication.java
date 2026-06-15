@@ -1,6 +1,7 @@
 package cn.aiedge;
 
 import cn.aiedge.config.FullyQualifiedBeanNameGenerator;
+import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -22,6 +23,7 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.cache",
     "cn.aiedge.common",
     "cn.aiedge.config",
+    "cn.aiedge.api",
     "cn.aiedge.user.controller",
     "cn.aiedge.user.dto",
     "cn.aiedge.user.entity",
@@ -87,13 +89,14 @@ import io.swagger.v3.oas.annotations.info.License;
         license = @License(name = "Apache 2.0", url = "https://www.apache.org/licenses/LICENSE-2.0")
     )
 )
+@Slf4j
 public class AiReadyApplication {
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(AiReadyApplication.class);
         app.setBeanNameGenerator(new FullyQualifiedBeanNameGenerator());
         app.run(args);
-        System.out.println("""
+        log.info("""
 
             ========================================
             智企连·AI-Ready 启动成功！

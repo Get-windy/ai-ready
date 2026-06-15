@@ -5,6 +5,7 @@ import cn.aiedge.dict.dto.DictItemDTO;
 import cn.aiedge.dict.model.DictItem;
 import cn.aiedge.dict.service.DictItemService;
 import cn.aiedge.dict.vo.DictItemVO;
+import cn.aiedge.common.result.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,8 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-
-import cn.aiedge.common.result.ApiResponse;
 
 /**
  * 字典项控制器
@@ -37,48 +36,48 @@ public class DictItemController {
     @PostMapping
     @SaCheckPermission("system:dict:create")
     @Operation(summary = "创建字典项")
-    public Map<String, Object> create(@Valid @RequestBody DictItemDTO dictItemDTO) {
+    public ApiResponse<Map<String, Object>> create(@Valid @RequestBody DictItemDTO dictItemDTO) {
         Long id = dictItemService.create(dictItemDTO);
-        return Map.of("success", true, "id", id);
+        return ApiResponse.success(Map.of("success", true, "id", id));
     }
 
     @PostMapping("/batch")
     @SaCheckPermission("system:dict:create")
     @Operation(summary = "批量创建字典项")
-    public Map<String, Object> batchCreate(@Valid @RequestBody List<DictItemDTO> dictItemDTOs) {
+    public ApiResponse<Map<String, Object>> batchCreate(@Valid @RequestBody List<DictItemDTO> dictItemDTOs) {
         int count = dictItemService.batchCreate(dictItemDTOs);
-        return Map.of("success", true, "count", count);
+        return ApiResponse.success(Map.of("success", true, "count", count));
     }
 
     @PutMapping
     @SaCheckPermission("system:dict:update")
     @Operation(summary = "更新字典项")
-    public Map<String, Object> update(@Valid @RequestBody DictItemDTO dictItemDTO) {
+    public ApiResponse<Map<String, Object>> update(@Valid @RequestBody DictItemDTO dictItemDTO) {
         boolean result = dictItemService.update(dictItemDTO);
-        return Map.of("success", result);
+        return ApiResponse.success(Map.of("success", result));
     }
 
     @DeleteMapping("/{id}")
     @SaCheckPermission("system:dict:delete")
     @Operation(summary = "删除字典项")
-    public Map<String, Object> delete(
+    public ApiResponse<Map<String, Object>> delete(
             @Parameter(description = "字典项ID") @PathVariable Long id) {
         boolean result = dictItemService.delete(id);
-        return Map.of("success", result);
+        return ApiResponse.success(Map.of("success", result));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取字典项详情")
-    public DictItemVO getById(
+    public ApiResponse<DictItemVO> getById(
             @Parameter(description = "字典项ID") @PathVariable Long id) {
-        return dictItemService.getById(id);
+        return ApiResponse.success(dictItemService.getById(id));
     }
 
     @GetMapping("/type/{dictTypeId}")
     @Operation(summary = "根据字典类型查询字典项")
-    public List<DictItemVO> getByDictTypeId(
+    public ApiResponse<List<DictItemVO>> getByDictTypeId(
             @Parameter(description = "字典类型ID") @PathVariable Long dictTypeId) {
-        return dictItemService.getByDictTypeId(dictTypeId);
+        return ApiResponse.success(dictItemService.getByDictTypeId(dictTypeId));
     }
 
     @GetMapping("/code/{dictCode}")
@@ -90,10 +89,10 @@ public class DictItemController {
 
     @GetMapping("/tree")
     @Operation(summary = "获取字典项树形结构")
-    public List<DictItemVO> getTree(
+    public ApiResponse<List<DictItemVO>> getTree(
             @Parameter(description = "字典类型ID") @RequestParam Long dictTypeId,
             @Parameter(description = "父ID") @RequestParam(required = false, defaultValue = "0") Long parentId) {
-        return dictItemService.getTree(dictTypeId, parentId);
+        return ApiResponse.success(dictItemService.getTree(dictTypeId, parentId));
     }
 
     @GetMapping("/list")
@@ -121,26 +120,26 @@ public class DictItemController {
 
     @GetMapping("/value")
     @Operation(summary = "根据字典类型和项值获取字典项")
-    public DictItemVO getByDictCodeAndValue(
+    public ApiResponse<DictItemVO> getByDictCodeAndValue(
             @Parameter(description = "字典类型编码") @RequestParam String dictCode,
             @Parameter(description = "字典项值") @RequestParam String itemValue) {
-        return dictItemService.getByDictCodeAndValue(dictCode, itemValue);
+        return ApiResponse.success(dictItemService.getByDictCodeAndValue(dictCode, itemValue));
     }
 
     @PutMapping("/{id}/status")
     @SaCheckPermission("system:dict:update")
     @Operation(summary = "修改字典项状态")
-    public Map<String, Object> updateStatus(
+    public ApiResponse<Map<String, Object>> updateStatus(
             @Parameter(description = "字典项ID") @PathVariable Long id,
             @Parameter(description = "状态") @RequestParam String status) {
         boolean result = dictItemService.updateStatus(id, status);
-        return Map.of("success", result);
+        return ApiResponse.success(Map.of("success", result));
     }
 
     @GetMapping("/export")
     @SaCheckPermission("system:dict:export")
     @Operation(summary = "导出字典项")
-    public List<DictItem> export(
+    public ApiResponse<List<DictItem>> export(
             @Parameter(description = "租户ID") @RequestParam(required = false) Long tenantId,
             @Parameter(description = "字典类型ID") @RequestParam(required = false) Long dictTypeId,
             @Parameter(description = "字典项值") @RequestParam(required = false) String itemValue,
@@ -154,23 +153,23 @@ public class DictItemController {
             "itemText", itemText != null ? itemText : "",
             "status", status != null ? status : ""
         );
-        return dictItemService.export(params);
+        return ApiResponse.success(dictItemService.export(params));
     }
 
     @DeleteMapping("/batch")
     @SaCheckPermission("system:dict:delete")
     @Operation(summary = "批量删除字典项")
-    public Map<String, Object> batchDelete(@RequestBody List<Long> ids) {
+    public ApiResponse<Map<String, Object>> batchDelete(@RequestBody List<Long> ids) {
         boolean result = dictItemService.removeBatchByIds(ids);
-        return Map.of("success", result);
+        return ApiResponse.success(Map.of("success", result));
     }
 
     @PutMapping("/cache/refresh/{dictCode}")
     @SaCheckPermission("system:dict:update")
     @Operation(summary = "刷新字典项缓存")
-    public Map<String, Object> refreshCache(
+    public ApiResponse<Map<String, Object>> refreshCache(
             @Parameter(description = "字典类型编码") @PathVariable String dictCode) {
         dictItemService.refreshCache(dictCode);
-        return Map.of("success", true);
+        return ApiResponse.success(Map.of("success", true));
     }
 }

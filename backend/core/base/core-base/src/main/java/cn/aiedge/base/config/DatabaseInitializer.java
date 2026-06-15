@@ -68,6 +68,13 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("fixErpPurchaseOrderColumns 失败: {}", e.getMessage());
         }
 
+        // 补充 erp_stock 缺失的列（实体有27个字段，基础表只有11列）
+        try {
+            fixErpStockMissingColumns();
+        } catch (Exception e) {
+            log.warn("fixErpStockMissingColumns 失败: {}", e.getMessage());
+        }
+
         // 补充 batch_number 可能缺少的列
         try {
             safeAddColumn("batch_number", "expiration_date", "DATE");
@@ -131,6 +138,48 @@ public class DatabaseInitializer implements CommandLineRunner {
         for (String[] col : extraCols) {
             safeAddColumn("erp_product", col[0], col[1]);
         }
+    }
+
+    /**
+     * 修复 erp_stock 表缺失的列（DatabaseInitializer 创建的基础表只有11列，实体有27个字段）
+     */
+    private void fixErpStockMissingColumns() {
+        String[][] extraCols = {
+            {"available_quantity",  "DECIMAL(18,2) DEFAULT 0"},
+            {"frozen_quantity",     "DECIMAL(18,4) DEFAULT 0"},
+            {"safety_stock",        "DECIMAL(18,2) DEFAULT 0"},
+            {"min_stock",           "DECIMAL(18,2) DEFAULT 0"},
+            {"max_stock",           "DECIMAL(18,2) DEFAULT 0"},
+            {"unit",                "VARCHAR(50)"},
+            {"batch_no",            "VARCHAR(100)"},
+            {"production_date",     "TIMESTAMP"},
+            {"validity_date",       "TIMESTAMP"},
+            {"supplier_id",         "BIGINT"},
+            {"supplier_name",       "VARCHAR(200)"},
+            {"remark",              "TEXT"},
+            {"create_by",           "BIGINT"},
+            {"update_by",           "BIGINT"},
+        };
+        for (String[] col : extraCols) {
+            safeAddColumn("erp_stock", col[0], col[1]);
+        }
+
+        // 确保 erp_stock_replenishment 表存在
+        safeCreateTable("erp_stock_replenishment",
+            "id BIGSERIAL PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
+            "product_code VARCHAR(50) NOT NULL, product_name VARCHAR(200) NOT NULL, " +
+            "product_spec VARCHAR(200), product_unit VARCHAR(20), " +
+            "warehouse_id BIGINT, warehouse_name VARCHAR(200), " +
+            "current_qty DECIMAL(18,2) DEFAULT 0, safety_stock DECIMAL(18,2) DEFAULT 0, " +
+            "shortage_qty DECIMAL(18,2) DEFAULT 0, avg_daily_sales DECIMAL(18,2) DEFAULT 0, " +
+            "days_of_stock DECIMAL(10,2) DEFAULT 0, lead_time INT DEFAULT 0, " +
+            "suggested_qty DECIMAL(18,2) DEFAULT 0, priority VARCHAR(10) DEFAULT 'MEDIUM', " +
+            "reason VARCHAR(500), status VARCHAR(20) DEFAULT 'PENDING', " +
+            "supplier_id BIGINT, supplier_name VARCHAR(200), created_order_no VARCHAR(100), " +
+            "remark TEXT, deleted INT DEFAULT 0, " +
+            "create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "create_by BIGINT, update_by BIGINT, version_no INT DEFAULT 0");
     }
 
     /**
@@ -323,7 +372,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             "update_by BIGINT, update_time TIMESTAMP");
 
         // finance_ledger (complete)
-        safeCreateTable("finance_ledger", "id BIGINT PRIMARY KEY, tenant_id VARCHAR(255), " +
+        safeCreateTable("finance_ledger", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
             "fiscal_year INTEGER, fiscal_period INTEGER, subject_id BIGINT, " +
             "subject_code VARCHAR(255), subject_name VARCHAR(255), " +
             "opening_debit DECIMAL(18,2) DEFAULT 0, opening_credit DECIMAL(18,2) DEFAULT 0, " +
@@ -339,7 +388,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             "subject_code VARCHAR(255), subject_name VARCHAR(255), parent_id BIGINT, " +
             "level INTEGER, subject_type INTEGER, direction INTEGER, " +
             "is_leaf INTEGER DEFAULT 1, is_enabled INTEGER DEFAULT 1, " +
-            "deleted_flag INTEGER DEFAULT 0, tenant_id VARCHAR(255), remark VARCHAR(500), " +
+            "deleted_flag INTEGER DEFAULT 0, tenant_id BIGINT DEFAULT 1, remark VARCHAR(500), " +
             "created_by VARCHAR(255), created_at TIMESTAMP, " +
             "updated_by VARCHAR(255), updated_at TIMESTAMP");
 

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.batchsn.mapper.BatchFlowRecordMapper">
+
+    <select id="selectByBatchId" resultType="cn.aiedge.erp.batchsn.entity.BatchFlowRecord">
+        SELECT * FROM batch_flow_record
+        WHERE batch_id = #{batchId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectFlowRecords" resultType="cn.aiedge.erp.batchsn.entity.BatchFlowRecord">
+        SELECT * FROM batch_flow_record
+        WHERE batch_id = #{batchId}
+        <if test="flowType != null and flowType != ''">
+            AND flow_type = #{flowType}
+        </if>
+        <if test="startTime != null and startTime != ''">
+            AND created_at &gt;= #{startTime}::timestamp
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND created_at &lt;= #{endTime}::timestamp
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectTraceabilityPath" resultType="cn.aiedge.erp.batchsn.entity.BatchFlowRecord">
+        SELECT * FROM batch_flow_record
+        WHERE (product_id = #{productId} OR product_code = #{productCode})
+        ORDER BY created_at ASC
+    </select>
+
+</mapper>

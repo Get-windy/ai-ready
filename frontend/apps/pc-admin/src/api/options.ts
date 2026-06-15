@@ -28,7 +28,7 @@ export const optionsApi = {
 
   /** 获取产品下拉列表 */
   getProducts(): Promise<OptionItem[]> {
-    return request.get('/product/list')
+    return request.get('/erp/product/list')
   },
 
   /** 获取用户下拉列表（采购员/销售员等） */
@@ -48,7 +48,7 @@ export const optionsApi = {
 
   /** 获取仓库下拉列表 */
   getWarehouses(): Promise<OptionItem[]> {
-    return request.get('/warehouse/list')
+    return request.get('/wms/warehouse/list-all')
   },
 
   /** 批量获取字典选项 */

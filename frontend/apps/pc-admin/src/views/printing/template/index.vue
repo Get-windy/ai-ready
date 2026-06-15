@@ -483,9 +483,9 @@ const fetchData = async () => {
       pageCode: searchForm.pageCode,
       status: searchForm.status,
     })
-    if (res.data) {
-      tableData.value = res.records
-      pagination.total = res.total
+    if (res) {
+      tableData.value = res.records || []
+      pagination.total = res.total || 0
     }
   } catch (error) {
     hasError.value = true

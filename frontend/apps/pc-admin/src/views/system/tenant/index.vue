@@ -570,9 +570,9 @@ const fetchData = async () => {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     })
-    if (res.data) {
-      tableData.value = res.records
-      pagination.total = res.total
+    if (res) {
+      tableData.value = res.records || []
+      pagination.total = res.total || 0
     }
   } catch (error) {
     hasError.value = true

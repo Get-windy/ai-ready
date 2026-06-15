@@ -34,9 +34,12 @@ public class StockReplenishmentServiceImpl extends ServiceImpl<StockReplenishmen
     @Override
     public Page<StockReplenishment> pageList(String keyword, String priority, String status, int pageNum, int pageSize) {
         LambdaQueryWrapper<StockReplenishment> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(keyword != null, StockReplenishment::getProductCode, keyword)
-                .or(w -> w.like(keyword != null, StockReplenishment::getProductName, keyword))
-                .eq(priority != null, StockReplenishment::getPriority, priority)
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(StockReplenishment::getProductCode, keyword)
+                    .or()
+                    .like(StockReplenishment::getProductName, keyword));
+        }
+        wrapper.eq(priority != null, StockReplenishment::getPriority, priority)
                 .eq(status != null, StockReplenishment::getStatus, status)
                 .orderByAsc(StockReplenishment::getPriority)
                 .orderByDesc(StockReplenishment::getCreateTime);

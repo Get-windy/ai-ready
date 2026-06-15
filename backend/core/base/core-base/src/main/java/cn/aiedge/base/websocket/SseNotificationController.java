@@ -50,19 +50,53 @@ public class SseNotificationController {
     @Operation(summary = "建立 SSE 通知连接", hidden = true)
     public SseEmitter subscribe(@RequestParam("token") String token, HttpServletRequest request) {
         try {
+            // 验证token是否为空
+            if (token == null || token.trim().isEmpty()) {
+                log.debug("SSE连接请求缺少token参数");
+                return createEmptyEmitter();
+            }
+
             // EventSource API 不支持自定义请求头，token 通过 URL 参数传递
-            Object loginId = StpUtil.getLoginIdByToken(token);
+            // 使用Sa-Token的getLoginIdByToken直接验证token，不依赖会话状态
+            Object loginId = StpUtil.getLoginIdByToken(token.trim());
             if (loginId != null) {
                 Long userId = Long.valueOf(loginId.toString());
-                log.debug("用户 {} 请求建立 SSE 连接", userId);
-                return sseService.createEmitter(userId);
+                log.info("用户 {} SSE连接已建立", userId);
+                // 发送连接确认事件
+                SseEmitter emitter = sseService.createEmitter(userId);
+                try {
+                    emitter.send(SseEmitter.event()
+                        .name("connected")
+                        .data("{\"userId\":" + userId + ",\"message\":\"SSE连接已建立\"}"));
+                } catch (Exception sendEx) {
+                    log.debug("发送SSE确认事件失败: {}", sendEx.getMessage());
+                }
+                return emitter;
+            } else {
+                log.debug("SSE token无效: loginId为null");
+                return createEmptyEmitter();
             }
         } catch (NotLoginException e) {
-            log.debug("SSE token无效: {}", e.getMessage());
+            // token无效或已过期，静默处理，返回空流避免前端控制台报错
+            log.debug("SSE token验证失败: {}", e.getMessage());
+            return createEmptyEmitter();
+        } catch (Exception e) {
+            // 其他异常也静默处理
+            log.warn("SSE连接异常: {}", e.getMessage());
+            return createEmptyEmitter();
         }
-        // token无效时返回空 SSE 流（正常 complete 避免 500 控制台错误）
+    }
+
+    /**
+     * 创建空的SSE Emitter，立即完成以避免资源占用
+     */
+    private SseEmitter createEmptyEmitter() {
         SseEmitter emitter = new SseEmitter(0L);
-        emitter.complete();
+        try {
+            emitter.complete();
+        } catch (Exception e) {
+            // ignore
+        }
         return emitter;
     }
 }

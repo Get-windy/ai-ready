@@ -44,7 +44,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import { CloseOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons-vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   visible: boolean
   title: string
   saveLoading?: boolean
@@ -56,7 +56,9 @@ const props = defineProps<{
   confirmOnClose?: boolean
   /** 顶部偏移量，避免遮盖标签导航栏（默认48px适配标签栏高度） */
   topOffset?: number
-}>()
+}>(), {
+  showFooter: true,
+})
 
 const emit = defineEmits<{
   close: []

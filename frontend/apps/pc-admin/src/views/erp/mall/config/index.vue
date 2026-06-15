@@ -160,7 +160,7 @@ const formState = reactive<ShopConfig>({
   shopLogo: '',
   shopDesc: '',
   themeColor: '#1890ff',
-  paymentMethods: 'offline',
+  paymentMethods: ['offline'],
   enableRegister: 1,
   enableAutoAudit: 0,
   minOrderAmount: 0,
