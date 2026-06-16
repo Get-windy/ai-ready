@@ -20,7 +20,7 @@ public interface SysScreenshotTaskMapper extends BaseMapper<SysScreenshotTask> {
     @Select("""
             SELECT ss.* FROM sys_screenshot_task ss
             JOIN sys_print_task t ON ss.screenshot_id = t.screenshot_id
-            JOIN sys_print_chain_item ci ON t.chain_item_id = ci.item_key
+            JOIN sys_print_chain_item ci ON t.chain_item_id = ci.item_key::bigint
             WHERE ss.status = 'PENDING'
               AND ci.screenshot_mode = 'MANUAL_CONFIRM'
               AND ci.screenshot_confirm_timeout IS NOT NULL
