@@ -20,18 +20,18 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         
-        <!-- Dependencies versions -->
-        <mybatis-plus.version>3.5.5</mybatis-plus.version>
+        <!-- Dependencies versions (aligned with parent project) -->
+        <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
         <mysql.version>8.0.33</mysql.version>
-        <postgresql.version>42.7.1</postgresql.version>
-        <springdoc.version>2.3.0</springdoc.version>
-        
+        <postgresql.version>42.7.11</postgresql.version>
+        <springdoc.version>2.5.0</springdoc.version>
+
         <!-- Test dependencies versions -->
-        <junit.version>5.10.0</junit.version>
-        <mockito.version>5.6.0</mockito.version>
+        <junit.version>5.10.2</junit.version>
+        <mockito.version>5.10.0</mockito.version>
         <assertj.version>3.24.2</assertj.version>
         <jacoco.version>0.8.11</jacoco.version>
-        <spring-boot.version>3.2.0</spring-boot.version>
+        <spring-boot.version>3.2.5</spring-boot.version>
     </properties>
 
     <dependencies>
@@ -78,14 +78,14 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
+            <version>1.18.32</version>
             <scope>provided</scope>
         </dependency>
         
-        <!-- MyBatis Plus -->
+        <!-- MyBatis Plus (Spring Boot 3 style) -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
         

@@ -133,6 +133,12 @@
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-batch-sn</artifactId>
             <version>0.1.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.baomidou</groupId>
+                    <artifactId>mybatis-plus-boot-starter</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- ERP 打印管理模块 -->
         <dependency>
