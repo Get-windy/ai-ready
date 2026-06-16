@@ -176,8 +176,8 @@ const fetchData = async () => {
   loading.value = true
   try {
     const res = await shopConfigApi.get()
-    if (res?.data) {
-      const data = { ...res.data }
+    if (res) {
+      const data = { ...res }
       // 处理支付方式：后端存逗号分隔，前端是数组
       if (typeof data.paymentMethods === 'string') {
         (data as any).paymentMethods = data.paymentMethods ? data.paymentMethods.split(',') : ['offline']

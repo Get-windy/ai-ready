@@ -226,7 +226,7 @@ const fetchData = async () => {
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     })
-    if (res?.data) {
+    if (res) {
       tableData.value = res.records || []
       pagination.total = res.total || 0
     }

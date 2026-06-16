@@ -660,6 +660,160 @@ export async function setupAuthApiMocks(page: Page, userType: 'admin' | 'user' =
     }));
   });
 
+  // ============================================================
+  // Mock 商城管理 API
+  // ============================================================
+
+  // 商城配置
+  await page.route('**/api/erp/mall/admin/config', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill(apiResponse({
+        id: 1, tenantId: 1, shopName: '测试商城', shopLogo: '', shopDesc: '测试商城描述',
+        themeColor: '#1890ff', paymentMethods: 'offline', enableRegister: 1, enableAutoAudit: 0,
+        minOrderAmount: 0, freeShippingAmount: 0, freightAmount: 10, status: 1
+      }));
+    }
+    if (route.request().method() === 'PUT') {
+      return route.fulfill(apiResponse(true));
+    }
+    return route.continue();
+  });
+
+  // 商城用户审核（分页）
+  await page.route('**/api/erp/mall/admin/user/page*', (route) => {
+    return route.fulfill(apiResponse({
+      records: [
+        { id: 1, username: 'zhangsan', companyName: '测试公司A', nickname: '张三', phone: '13800138001', source: '注册', auditStatus: 0, status: 1, createTime: '2024-06-01 10:00:00' },
+        { id: 2, username: 'lisi', companyName: '测试公司B', nickname: '李四', phone: '13800138002', source: '后台添加', auditStatus: 1, status: 1, createTime: '2024-06-02 11:00:00' },
+      ],
+      total: 2, current: 1, size: 20, pages: 1
+    }));
+  });
+
+  // 商城用户审核操作
+  await page.route('**/api/erp/mall/admin/user/*/approve', (route) => {
+    return route.fulfill(apiResponse(true));
+  });
+  await page.route('**/api/erp/mall/admin/user/*/reject', (route) => {
+    return route.fulfill(apiResponse(true));
+  });
+  await page.route('**/api/erp/mall/admin/user/*/status', (route) => {
+    return route.fulfill(apiResponse(true));
+  });
+
+  // 商城订单通配路由（最先注册，优先级最低，仅限 GET）
+  await page.route('**/api/erp/mall/admin/order/*', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill(apiResponse({
+        id: 1, orderNo: 'MALL-2024-0001', customerName: '张三', totalAmount: 1500, payAmount: 1500,
+        orderStatus: 'PAID', consignee: '张三', phone: '13800138001', address: '测试地址',
+        paymentStatus: 'PAID', createTime: '2024-06-01 10:00:00', remark: '',
+        orderItems: [{ id: 1, productId: 'P001', productName: '测试商品A', price: 150, quantity: 10, subtotal: 1500 }]
+      }));
+    }
+    return route.fulfill(apiResponse(true));
+  });
+
+  // 商城订单导出（仅在 order/* 通配之前注册会被拦截，但通配已先注册，此处为兜底）
+  await page.route('**/api/erp/mall/admin/order/export', (route) => {
+    return route.fulfill({ status: 200, contentType: 'application/octet-stream', body: '' });
+  });
+
+  // 商城订单操作（优先级高于通配）
+  await page.route('**/api/erp/mall/admin/order/*/approve', (route) => {
+    return route.fulfill(apiResponse(true));
+  });
+  await page.route('**/api/erp/mall/admin/order/*/reject', (route) => {
+    return route.fulfill(apiResponse(true));
+  });
+
+  // 商城订单分页（最高优先级，最后注册）
+  await page.route('**/api/erp/mall/admin/order/page*', (route) => {
+    return route.fulfill(apiResponse({
+      records: [
+        { id: 1, orderNo: 'MALL-2024-0001', customerName: '张三', totalAmount: 1500, payAmount: 1500, orderStatus: 'PAID', consignee: '张三', createTime: '2024-06-01 10:00:00' },
+        { id: 2, orderNo: 'MALL-2024-0002', customerName: '李四', totalAmount: 2800, payAmount: 0, orderStatus: 'PENDING_PAYMENT', consignee: '李四', createTime: '2024-06-02 11:00:00' },
+        { id: 3, orderNo: 'MALL-2024-0003', customerName: '王五', totalAmount: 580, payAmount: 580, orderStatus: 'COMPLETED', consignee: '王五', createTime: '2024-06-03 12:00:00' },
+      ],
+      total: 3, current: 1, size: 20, pages: 1
+    }));
+  });
+
+  // 商城商品（分页）
+  await page.route('**/api/erp/mall/admin/product/page*', (route) => {
+    return route.fulfill(apiResponse({
+      records: [
+        { id: 1, productId: 'P001', productName: '测试商品A', imageUrl: '', salePrice: 150, marketPrice: 180, categoryName: '分类一', status: 'ON_SHELF', stockQuantity: 100, salesCount: 50 },
+        { id: 2, productId: 'P002', productName: '测试商品B', imageUrl: '', salePrice: 280, marketPrice: 320, categoryName: '分类二', status: 'OFF_SHELF', stockQuantity: 200, salesCount: 30 },
+        { id: 3, productId: 'P003', productName: '测试商品C', imageUrl: '', salePrice: 58, marketPrice: 68, categoryName: '分类一', status: 'ON_SHELF', stockQuantity: 500, salesCount: 200 },
+      ],
+      total: 3, current: 1, size: 20, pages: 1
+    }));
+  });
+
+  // 商城商品 CRUD（先注册通配 route，优先级最低）
+  await page.route('**/api/erp/mall/admin/product/*', (route) => {
+    const method = route.request().method();
+    if (method === 'PUT' || method === 'DELETE') {
+      return route.fulfill(apiResponse(true));
+    }
+    if (method === 'GET') {
+      // 单商品详情，不分页
+      return route.fulfill(apiResponse({
+        id: 1, productId: 'P001', productName: '测试商品A', imageUrl: '', salePrice: 150, marketPrice: 180,
+        categoryName: '分类一', status: 'ON_SHELF', stockQuantity: 100, salesCount: 50, description: '测试商品描述'
+      }));
+    }
+    return route.continue();
+  });
+
+  // 商城商品导出
+  await page.route('**/api/erp/mall/admin/product/export', (route) => {
+    return route.fulfill({ status: 200, contentType: 'application/octet-stream', body: '' });
+  });
+
+  // 商城商品创建
+  await page.route('**/api/erp/mall/admin/product', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill(apiResponse(true));
+    }
+    return route.continue();
+  });
+
+  // 商城商品分页（最高优先级，最后注册）
+  await page.route('**/api/erp/mall/admin/product/page*', (route) => {
+    return route.fulfill(apiResponse({
+      records: [
+        { id: 1, productId: 'P001', productName: '测试商品A', imageUrl: '', salePrice: 150, marketPrice: 180, categoryName: '分类一', status: 'ON_SHELF', stockQuantity: 100, salesCount: 50 },
+        { id: 2, productId: 'P002', productName: '测试商品B', imageUrl: '', salePrice: 280, marketPrice: 320, categoryName: '分类二', status: 'OFF_SHELF', stockQuantity: 200, salesCount: 30 },
+        { id: 3, productId: 'P003', productName: '测试商品C', imageUrl: '', salePrice: 58, marketPrice: 68, categoryName: '分类一', status: 'ON_SHELF', stockQuantity: 500, salesCount: 200 },
+      ],
+      total: 3, current: 1, size: 20, pages: 1
+    }));
+  });
+
+  // 商城轮播图
+  await page.route('**/api/erp/mall/admin/banner', (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      return route.fulfill(apiResponse([
+        { id: 1, title: '轮播图1', imageUrl: 'https://via.placeholder.com/1200x400', linkType: 'none', linkValue: '', sortOrder: 1, status: 1 },
+        { id: 2, title: '轮播图2', imageUrl: 'https://via.placeholder.com/1200x400', linkType: 'product', linkValue: 'P001', sortOrder: 2, status: 1 },
+      ]));
+    }
+    if (method === 'POST') {
+      return route.fulfill(apiResponse(true));
+    }
+    return route.continue();
+  });
+  await page.route('**/api/erp/mall/admin/banner/*', (route) => {
+    const method = route.request().method();
+    if (method === 'PUT' || method === 'DELETE') {
+      return route.fulfill(apiResponse(true));
+    }
+    return route.continue();
+  });
+
   // Mock 缓存刷新标记（将之前的 dashboard catch-all 替换为精确路径，
   // 避免 dashboard 子路径（如 stats/trend/todos/alerts）被旧 catch-all 拦截
   // 注意：需要移除或覆盖上面已注册的更精确的 dashboard 路由。

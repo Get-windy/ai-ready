@@ -182,8 +182,8 @@ const fetchData = async () => {
   hasError.value = false
   try {
     const res = await shopBannerApi.list()
-    if (res?.data) {
-      tableData.value = res.data
+    if (res) {
+      tableData.value = Array.isArray(res) ? res : []
     }
   } catch (err) {
     hasError.value = true

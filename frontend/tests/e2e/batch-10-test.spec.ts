@@ -1,9 +1,11 @@
 /**
  * 第10批：商城管理
+ * 注意：每个测试使用独立 page，避免状态串扰
+ * 策略：每个页面独立 setupAuthApiMocks + setAuthToken，完全避免真实后端 token 过期问题
  */
-import { test, type Page } from '@playwright/test';
-import { loginViaUi } from './fixtures/auth.fixture';
-import { navigateToPage, waitForTable, checkTableHasRows, clickNewButton, isDetailOpen, resetPageState, checkProductionGrade } from './utils/crud-helpers';
+import { test, type BrowserContext } from '@playwright/test';
+import { setupAuthApiMocks, setAuthToken } from './fixtures/auth.fixture';
+import { assertPageQuality } from './utils/crud-helpers';
 
 const BASE_URL = 'http://localhost:5656';
 const PAGES = [
@@ -15,26 +17,22 @@ const PAGES = [
 ];
 
 test.describe('第10批：商城', () => {
-  test.describe.configure({ mode: 'serial' });
-  let page: Page;
+  let ctx: BrowserContext;
   test.beforeAll(async ({ browser }) => {
-    const ctx = await browser.newContext({ baseURL: BASE_URL, viewport: { width: 1920, height: 1080 } });
-    page = await ctx.newPage();
-    await loginViaUi(page, 'admin', 'admin123', '系统租户');
-    await page.waitForTimeout(2000);
+    ctx = await browser.newContext({ baseURL: BASE_URL, viewport: { width: 1920, height: 1080 } });
+    // 不做真实登录，每个测试页面独立 setupAuthApiMocks + setAuthToken
   });
-  for (const p of PAGES) {
-    test(p.name, async () => {
-      const errs: string[] = [];
-      const menuOk = await navigateToPage(page, p);
-      let rows = -1;
-      if (p.hasTable) { await waitForTable(page); const t = await checkTableHasRows(page); rows = t.count; if (!t.visible) errs.push('表格未渲染'); }
-      errs.push(...await checkProductionGrade(page));
-      let newOk = false, detailOk = false;
-      if (p.hasNewBtn) { newOk = await clickNewButton(page); if (newOk) { await page.waitForTimeout(800); detailOk = await isDetailOpen(page); if (!detailOk) errs.push('未弹出详情'); } else errs.push('未找到新增按钮'); }
-      await resetPageState(page);
-      console.log(`[结果] ${p.name} 行=${rows} 新=${newOk ? 'Y' : 'N'} 详=${detailOk ? 'Y' : 'N'} 误=${errs.length}`);
+  for (const pg of PAGES) {
+    test(pg.name, async () => {
+      const p = await ctx.newPage();
+      await setupAuthApiMocks(p, 'admin');
+      // 导航到同源页面后设置 token，再跳转到目标页
+      await p.goto('/login', { waitUntil: 'load', timeout: 15000 }).catch(() => {});
+      await setAuthToken(p, 'admin');
+      await p.goto('/dashboard', { waitUntil: 'load', timeout: 20000 }).catch(() => {});
+      await assertPageQuality(p, pg);
+      await p.close();
     });
   }
-  test.afterAll(() => console.log('\n第10批完成'));
+  test.afterAll(async () => { await ctx.close(); console.log('\n第10批完成'); });
 });

@@ -45,15 +45,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  // 浏览器项目
+  // 浏览器项目（仅 chromium，firefox 未安装）
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
     },
   ],
 
