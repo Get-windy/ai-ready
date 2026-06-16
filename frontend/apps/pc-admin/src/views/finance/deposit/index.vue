@@ -75,7 +75,7 @@
             :filter-fields="customerFilterFields"
             :show-search="false"
             export-permission="finance:deposit:list"
-            :show-add="false"
+            :show-add="true" add-text="新增定金" @add="handleAdd"
             :show-edit="false"
             :show-delete="false"
             :selectable="true"
@@ -147,7 +147,7 @@
             :filter-fields="supplierFilterFields"
             :show-search="false"
             export-permission="finance:deposit:list"
-            :show-add="false"
+            :show-add="true" add-text="新增押金" @add="handleAdd"
             :show-edit="false"
             :show-delete="false"
             :selectable="true"
@@ -208,6 +208,33 @@
         </a-tab-pane>
       </a-tabs>
     </div>
+
+      <!-- 新增 FullScreenDetail -->
+      <FullScreenDetail
+        :visible="addFormVisible"
+        title="新增定金/押金"
+        :save-loading="addSaveLoading"
+        @close="handleAddCancel"
+        @save="handleAddConfirm"
+      >
+        <a-form ref="addFormRef" :model="addForm" :rules="formRules" layout="vertical">
+          <a-form-item label="类型" name="depositType">
+            <a-radio-group v-model:value="addForm.depositType">
+              <a-radio value="customer">客户定金</a-radio>
+              <a-radio value="supplier">供应商押金</a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="客户/供应商名称" name="name">
+            <a-input v-model:value="addForm.name" placeholder="请输入客户或供应商名称" />
+          </a-form-item>
+          <a-form-item label="金额" name="amount">
+            <a-input-number v-model:value="addForm.amount" :min="0" :precision="2" style="width: 100%" placeholder="请输入金额" />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息（可选）" />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
   </PageContainer>
   </ErrorBoundary>
 </template>
@@ -226,6 +253,8 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { preReceiptApi, prePaymentApi } from '@/api/finance'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
+import request from '@/utils/request'
 
 const debounceMap = new Map<string, number>()
 function debounceClick(key: string, fn: () => void, delay = 300) {
@@ -238,6 +267,20 @@ const activeTab = ref('customer')
 const loading = ref(false)
 const hasError = ref(false)
 const refreshLoading = ref(false)
+const addFormVisible = ref(false)
+const addSaveLoading = ref(false)
+const addFormRef = ref()
+const addForm = reactive({
+  depositType: 'customer',
+  name: '',
+  amount: undefined as number | undefined,
+  remark: ''
+})
+const formRules = {
+  depositType: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+  amount: [{ required: true, type: 'number', min: 0.01, message: '请输入有效的金额', trigger: 'blur' }]
+}
 
 const customerTableData = ref<any[]>([])
 const supplierTableData = ref<any[]>([])
@@ -510,7 +553,43 @@ function handleKeydown(e: KeyboardEvent) {
 
 function handleParentCreate() { handleAdd() }
 function handleAdd() {
-  message.info('创建功能由父组件触发')
+  // 根据当前 tab 预选类型并重置表单
+  addForm.depositType = activeTab.value
+  addForm.name = ''
+  addForm.amount = undefined
+  addForm.remark = ''
+  if (addFormRef.value) {
+    addFormRef.value.clearValidate()
+  }
+  addFormVisible.value = true
+}
+
+async function handleAddConfirm() {
+  try {
+    await addFormRef.value?.validate()
+  } catch {
+    return
+  }
+  addSaveLoading.value = true
+  try {
+    await request.post('/erp/deposit-condition', {
+      depositType: addForm.depositType,
+      name: addForm.name,
+      amount: addForm.amount,
+      remark: addForm.remark
+    })
+    message.success('创建成功')
+    addFormVisible.value = false
+    fetchData()
+  } catch (err: any) {
+    message.error(err?.message || '创建失败')
+  } finally {
+    addSaveLoading.value = false
+  }
+}
+
+function handleAddCancel() {
+  addFormVisible.value = false
 }
 
 const formatAmount = (val: number) => {

@@ -73,7 +73,7 @@
         :filter-fields="filterFields"
         :show-search="false"
         :selectable="true"
-        add-text="注册客户端"
+        add-text="新增客户端"
         :min-empty-rows="12"
         @add="handleAdd"
         @delete="handleDeleteConfirm"

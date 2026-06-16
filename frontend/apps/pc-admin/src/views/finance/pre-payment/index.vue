@@ -72,21 +72,20 @@
         :filter-fields="filterFields"
         :show-search="false"
         export-permission="finance:pre-payment:list"
-        :show-add="false"
+        :show-add="true"
+        add-text="新增预付款"
+        add-permission="finance:pre-payment:create"
         :show-edit="false"
         :show-delete="false"
         :selectable="true"
         @refresh="fetchData"
+        @add="handleAdd"
         @cell-dblclick="handleView"
         @page-change="handlePageChange"
         @filter-change="handleFilterChange"
         @selection-change="handleSelectionChange"
       >
         <template #toolbar-actions>
-          <a-button type="primary" size="small" v-permission="'finance:pre-payment:create'" @click="debounceClick('add', handleAdd)">
-            <template #icon><PlusOutlined /></template>
-            新增
-          </a-button>
           <span v-if="lastUpdated" class="list-update-timestamp" :title="dayjs(lastUpdated).format('YYYY-MM-DD HH:mm:ss')">
             更新 {{ dayjs(lastUpdated).format('HH:mm') }}
           </span>
@@ -232,6 +231,47 @@
           </a-form-item>
         </a-form>
       </a-modal>
+
+      <!-- 新增预付款弹窗 -->
+      <FullScreenDetail
+        :visible="addVisible"
+        title="新增预付款"
+        :dirty="formDirty"
+        :save-loading="addLoading"
+        @save="handleAddConfirm"
+        @close="handleAddCancel"
+      >
+        <a-form
+          ref="addFormRef"
+          :model="addForm"
+          :rules="addFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="供应商名称" name="supplierName">
+            <a-input v-model:value="addForm.supplierName" placeholder="请输入供应商名称" />
+          </a-form-item>
+          <a-form-item label="金额" name="amount">
+            <a-input-number
+              v-model:value="addForm.amount"
+              :min="0.01"
+              :precision="2"
+              style="width: 100%"
+              placeholder="请输入金额"
+            />
+          </a-form-item>
+          <a-form-item label="付款日期" name="dueDate">
+            <a-date-picker
+              v-model:value="addForm.dueDate"
+              style="width: 100%"
+              placeholder="请选择付款日期"
+            />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
     </div>
   </PageContainer>
   </ErrorBoundary>
@@ -240,7 +280,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined, CheckCircleOutlined, InboxOutlined, PlusOutlined,
   DollarOutlined, ExclamationCircleOutlined, WarningOutlined, FileTextOutlined,
@@ -248,6 +288,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { prePaymentApi } from '@/api/finance'
@@ -346,6 +387,26 @@ const refundVisible = ref(false)
 const refundLoading = ref(false)
 const refundTarget = ref<any>(null)
 const refundReason = ref('')
+
+// ── 新增预付款 ────────────────────────────────────────────
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const initialAddSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!addVisible.value) return false
+  return JSON.stringify(addForm) !== initialAddSnapshot.value
+})
+const addForm = reactive({
+  supplierName: '',
+  amount: undefined as number | undefined,
+  dueDate: undefined as any,
+  remark: ''
+})
+const addFormRules: any = {
+  supplierName: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
+  amount: [{ required: true, message: '请输入金额', trigger: 'blur' }]
+}
 
 const fetchData = async () => {
   loading.value = true
@@ -531,7 +592,47 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleAdd() {
-  message.info('新增预付款功能')
+  addForm.supplierName = ''
+  addForm.amount = undefined
+  addForm.dueDate = undefined
+  addForm.remark = ''
+  addVisible.value = true
+  initialAddSnapshot.value = JSON.stringify(addForm)
+}
+
+async function handleAddConfirm() {
+  try {
+    await addFormRef.value?.validate()
+    addLoading.value = true
+    const params: any = {
+      supplierName: addForm.supplierName,
+      amount: addForm.amount,
+      remark: addForm.remark || ''
+    }
+    if (addForm.dueDate) {
+      params.paymentDate = typeof addForm.dueDate === 'string' ? addForm.dueDate : addForm.dueDate?.format?.('YYYY-MM-DD') || ''
+    }
+    await prePaymentApi.create(params)
+    message.success('预付款创建成功')
+    addVisible.value = false
+    fetchData()
+  } catch (err: any) {
+    if (err?.message) message.error(err.message)
+  } finally {
+    addLoading.value = false
+  }
+}
+
+function handleAddCancel() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '有未保存的修改，确定关闭吗？',
+      onOk: () => { addVisible.value = false }
+    })
+  } else {
+    addVisible.value = false
+  }
 }
 
 function handleParentCreate() {

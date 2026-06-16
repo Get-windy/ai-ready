@@ -16,11 +16,16 @@
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <span class="shortcut-hints">
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
           </span>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchDefData)()">
             <template #icon><ReloadOutlined /></template>
             刷新
+          </a-button>
+          <a-button type="primary" size="small" v-permission="'system:permission:create'" @click="handleAddPermission">
+            <template #icon><PlusOutlined /></template>
+            新增权限
           </a-button>
           <a-button size="small" v-permission="'system:permission:create'" @click="showPermissionDefDrawer = true">
             <template #icon><SettingOutlined /></template>
@@ -39,6 +44,27 @@
       @save-success="onSaveSuccess"
       @loaded="onPanelLoaded"
     />
+
+    <!-- 权限列表表格 -->
+    <a-card title="权限列表" class="permission-table-card">
+      <a-table
+        :data-source="flattenedPermissions"
+        :columns="permissionTableColumns"
+        :pagination="{ pageSize: 20, showSizeChanger: true }"
+        :row-key="'id'"
+        size="small"
+        bordered
+      >
+        <template #typeCell="{ record }">
+          <a-tag :color="['blue','green','orange','purple'][record.permissionType] || 'default'">
+            {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
+          </a-tag>
+        </template>
+        <template #statusCell="{ record }">
+          <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
+        </template>
+      </a-table>
+    </a-card>
 
     <!-- 权限定义管理抽屉（系统级功能，保留在原页面） -->
     <a-drawer
@@ -408,6 +434,12 @@ const handleDefAdd = (record: PermissionInfo | null) => {
   defFormVisible.value = true; loadDefParentTree()
 }
 
+// 新增权限（从主页面触发）
+function handleAddPermission() {
+  showPermissionDefDrawer.value = true
+  handleDefAdd(null)
+}
+
 const handleDefEdit = (record: PermissionInfo) => {
   defIsEdit.value = true; defIsTopLevel.value = record.parentId === 0
   defFormState.value = {
@@ -460,11 +492,34 @@ const apiDefCount = computed(() => { const r: PermissionInfo[] = []; const w = (
 const iconMap: Record<string, any> = { UserOutlined, SettingOutlined, DashboardOutlined, FileTextOutlined, ApiOutlined }
 const getIcon = (iconName: string) => iconMap[iconName] || null
 
+// ── 扁平权限数据（用于主页面表格） ──────────────────────
+function flattenPermissions(nodes: PermissionInfo[], level = 0): any[] {
+  const result: any[] = []
+  for (const node of nodes) {
+    result.push({ ...node, _level: level })
+    if (node.children?.length) result.push(...flattenPermissions(node.children, level + 1))
+  }
+  return result
+}
+const flattenedPermissions = computed(() => flattenPermissions(permissionDefData.value))
+const permissionTableColumns = [
+  { title: '权限名称', dataIndex: 'permissionName', width: 200 },
+  { title: '权限编码', dataIndex: 'permissionCode', width: 180 },
+  { title: '类型', dataIndex: 'permissionType', width: 80, slots: { customRender: 'typeCell' } },
+  { title: '路由/API路径', dataIndex: 'path', ellipsis: true },
+  { title: '排序', dataIndex: 'sort', width: 60 },
+  { title: '状态', dataIndex: 'status', width: 80, slots: { customRender: 'statusCell' } },
+]
+
 // ── 键盘快捷键 ──────────────────────────────────────────
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
     e.preventDefault()
     debounceClick('refresh', fetchDefData)()
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    e.preventDefault()
+    handleAddPermission()
   }
 }
 
@@ -518,6 +573,10 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 .stat-card-value { font-size: 18px; font-weight: 600; font-family: monospace; color: #333; }
 .stat-card-label { font-size: 11px; color: #666; margin-top: 2px; }
 .stat-card-icon { font-size: 24px; color: rgba(0, 0, 0, 0.15); }
+
+.permission-table-card {
+  margin: 0 16px 16px;
+}
 
 .permission-def-drawer-body { height: 100%; display: flex; flex-direction: column; }
 .permission-def-drawer-body > :deep(.vxe-table-list-container) { flex: 1; min-height: 0; }

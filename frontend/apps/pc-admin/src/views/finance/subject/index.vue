@@ -180,6 +180,17 @@
       </a-col>
     </a-row>
 
+    <!-- 科目列表（扁平表格） -->
+    <a-card title="科目列表" :bordered="false" style="margin-top: 16px">
+      <a-table
+        :data-source="flattenedSubjects"
+        :columns="tableColumns"
+        :pagination="{ pageSize: 20 }"
+        size="small"
+        row-key="id"
+      />
+    </a-card>
+
     <!-- 科目编辑弹窗 -->
     <FullScreenDetail
       :visible="formVisible"
@@ -285,6 +296,14 @@ const typeOptions = [
   { label: '权益类', value: 3 },
   { label: '成本类', value: 4 },
   { label: '损益类', value: 5 }
+]
+
+const tableColumns = [
+  { title: '科目编码', dataIndex: 'subjectCode', key: 'subjectCode' },
+  { title: '科目名称', dataIndex: 'subjectName', key: 'subjectName' },
+  { title: '科目类型', dataIndex: 'subjectType', key: 'subjectType' },
+  { title: '余额方向', dataIndex: 'balanceDirection', key: 'balanceDirection' },
+  { title: '状态', dataIndex: 'status', key: 'status' },
 ]
 
 const typeLabelMap: Record<number, string> = {
@@ -410,6 +429,19 @@ const filteredTree = computed(() => {
   }
   return filterNodes(tree)
 })
+
+const flattenSubjects = (tree: any[]): any[] => {
+  const result: any[] = []
+  const traverse = (nodes: any[]) => {
+    for (const node of nodes) {
+      result.push(node)
+      if (node.children?.length) traverse(node.children)
+    }
+  }
+  traverse(tree)
+  return result
+}
+const flattenedSubjects = computed(() => flattenSubjects(subjectTree.value))
 
 const handleTypeTabChange = () => {
   selectedSubject.value = null

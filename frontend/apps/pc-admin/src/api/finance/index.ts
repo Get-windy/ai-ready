@@ -121,6 +121,7 @@ export const receivableApi = {
   getPage: (params: any) => request.get('/erp/finance/receivable/list', params),
   getById: (id: number) => request.get(`/erp/finance/receivable/${id}`),
   getAging: () => request.get('/erp/finance/receivable/aging'),
+  create: (data: any) => request.post('/erp/finance/receivable', data),
   writeOff: (id: number, amount: number) => request.put(`/erp/finance/receivable/${id}/write-off`, { amount }),
   markBadDebt: (id: number) => request.put(`/erp/finance/receivable/${id}/bad-debt`)
 }
@@ -180,6 +181,7 @@ export const payableApi = {
   getPage: (params: any) => request.get('/erp/finance/payable/list', params),
   getById: (id: number) => request.get(`/erp/finance/payable/${id}`),
   getAging: () => request.get('/erp/finance/payable/aging'),
+  create: (data: any) => request.post('/erp/finance/payable', data),
   writeOff: (id: number, amount: number) => request.put(`/erp/finance/payable/${id}/write-off`, { amount })
 }
 

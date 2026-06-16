@@ -30,7 +30,7 @@
               <template #icon><ReloadOutlined /></template>
               刷新
             </a-button>
-            <a-button type="primary" v-permission="'supplier:performance:evaluate'" @click="handleEvaluate" :disabled="!supplierIdNum || supplierIdNum === null">
+            <a-button type="primary" v-permission="'supplier:performance:evaluate'" @click="handleEvaluate">
               <template #icon><PlusOutlined /></template>
               新增评估
             </a-button>

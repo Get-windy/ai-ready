@@ -22,7 +22,12 @@
           </a-button>
           <span class="shortcut-hints">
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
+            <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
           </span>
+          <a-button type="primary" size="small" @click="handleAdd">
+            <template #icon><PlusOutlined /></template>
+            新增对账
+          </a-button>
         </div>
       </div>
     </template>
@@ -88,6 +93,41 @@
         </a-tab-pane>
       </a-tabs>
     </a-card>
+
+      <!-- 新增对账弹窗 -->
+      <FullScreenDetail
+        :visible="addVisible"
+        title="新增对账"
+        :dirty="addFormDirty"
+        :save-loading="addLoading"
+        @save="handleAddConfirm"
+        @close="handleAddCancel"
+      >
+        <a-form
+          ref="addFormRef"
+          :model="addForm"
+          :rules="addFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="对账类型" name="type">
+            <a-radio-group v-model:value="addForm.type">
+              <a-radio value="bank">银行对账</a-radio>
+              <a-radio value="customer">客户对账</a-radio>
+              <a-radio value="supplier">供应商对账</a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="对方名称" name="partyName">
+            <a-input v-model:value="addForm.partyName" placeholder="请输入银行/客户/供应商名称" />
+          </a-form-item>
+          <a-form-item label="对账期间" name="period">
+            <a-input v-model:value="addForm.period" placeholder="例如: 2026-06" />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
     </div>
   </PageContainer>
   </ErrorBoundary>
@@ -96,9 +136,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { message } from 'ant-design-vue'
-import { BankOutlined, UserOutlined, TeamOutlined, WarningOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
+import { PlusOutlined, BankOutlined, UserOutlined, TeamOutlined, WarningOutlined, SyncOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import BankReconciliation from './components/BankReconciliation.vue'
 
 const debounceMap = new Map<string, number>()
@@ -175,8 +216,51 @@ onUnmounted(() => {
 defineExpose({ handleQuery: loadStats })
 
 function handleParentCreate() { handleAdd() }
+
+// ── 新增对账 ────────────────────────────────────────────
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const addFormDirty = ref(false)
+const addForm = reactive({
+  type: 'bank',
+  partyName: '',
+  period: '',
+  remark: ''
+})
+const addFormRules: any = {
+  partyName: [{ required: true, message: '请输入名称', trigger: 'blur' }]
+}
 function handleAdd() {
-  message.info('创建功能由父组件触发')
+  addForm.type = activeTab.value
+  addForm.partyName = ''
+  addForm.period = ''
+  addForm.remark = ''
+  addVisible.value = true
+  addFormDirty.value = false
+  setTimeout(() => { addFormDirty.value = true }, 500)
+}
+async function handleAddConfirm() {
+  try {
+    await addFormRef.value?.validate()
+    addLoading.value = true
+    await reconciliationApi.create({
+      type: addForm.type,
+      partyName: addForm.partyName,
+      period: addForm.period || '',
+      remark: addForm.remark || ''
+    })
+    message.success('对账创建成功')
+    addVisible.value = false
+    loadStats()
+  } catch (err: any) {
+    if (err?.message) message.error(err.message)
+  } finally {
+    addLoading.value = false
+  }
+}
+function handleAddCancel() {
+  addVisible.value = false
 }
 
 function handleKeydown(e: KeyboardEvent) {

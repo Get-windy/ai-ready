@@ -181,6 +181,26 @@
       </a-spin>
     </a-card>
 
+    <!-- 部门列表表格 -->
+    <a-card class="table-card" :bordered="false">
+      <a-table
+        :data-source="flattenedDeptData"
+        :columns="tableColumns"
+        :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }"
+        size="small"
+        row-key="id"
+        :scroll="{ x: 800 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'status'">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">
+              {{ record.status === 0 ? '正常' : '停用' }}
+            </a-tag>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
     <!-- 部门表单弹窗 -->
     <FullScreenDetail
       :visible="modalVisible"
@@ -419,6 +439,18 @@ const flattenDepartments = (tree: DepartmentInfo[]): DepartmentInfo[] => {
   traverse(tree)
   return result
 }
+
+// 表格列定义
+const tableColumns = [
+  { title: '部门名称', dataIndex: 'departmentName', key: 'departmentName', width: 180 },
+  { title: '部门编码', dataIndex: 'departmentCode', key: 'departmentCode', width: 120 },
+  { title: '负责人', dataIndex: 'leaderName', key: 'leaderName', width: 120 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+]
+
+const flattenedDeptData = computed(() => flattenDepartments(treeData.value))
+
 const departmentCount = computed(() => flattenDepartments(treeData.value).length)
 const activeCount = computed(() => flattenDepartments(treeData.value).filter(d => d.status === 0).length)
 const disabledCount = computed(() => flattenDepartments(treeData.value).filter(d => d.status === 1).length)
@@ -929,6 +961,10 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 .tree-card {
   flex: 1;
   min-height: 400px;
+}
+
+.table-card {
+  margin-top: 16px;
 }
 
 .tree-node-title {

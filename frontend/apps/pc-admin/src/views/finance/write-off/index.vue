@@ -74,11 +74,13 @@
             :filter-fields="receiptFilterFields"
             :show-search="false"
             export-permission="finance:writeoff:list"
-            :show-add="false"
+            :show-add="true"
             :show-edit="false"
             :show-delete="false"
+            add-text="新增核销"
             :selectable="true"
             @refresh="fetchData"
+            @add="handleAdd"
             @cell-dblclick="handleView"
             @page-change="handlePageChange"
             @filter-change="handleFilterChange"
@@ -146,11 +148,13 @@
             :filter-fields="paymentFilterFields"
             :show-search="false"
             export-permission="finance:writeoff:list"
-            :show-add="false"
+            :show-add="true"
             :show-edit="false"
             :show-delete="false"
+            add-text="新增核销"
             :selectable="true"
             @refresh="fetchData"
+            @add="handleAdd"
             @cell-dblclick="handleView"
             @page-change="handlePageChange"
             @filter-change="handleFilterChange"
@@ -244,6 +248,46 @@
               style="width: 100%"
               placeholder="请输入核销金额"
             />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
+
+      <!-- 新增核销弹窗 -->
+      <FullScreenDetail
+        :visible="addVisible"
+        title="新增核销"
+        :dirty="addFormDirty"
+        :save-loading="addLoading"
+        @save="handleAddConfirm"
+        @close="handleAddCancel"
+      >
+        <a-form
+          ref="addFormRef"
+          :model="addForm"
+          :rules="addFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="核销类型" name="writeOffType">
+            <a-radio-group v-model:value="addForm.writeOffType">
+              <a-radio value="receipt">收款核销</a-radio>
+              <a-radio value="payment">付款核销</a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item label="客户/供应商" name="partyName">
+            <a-input v-model:value="addForm.partyName" placeholder="请输入客户或供应商名称" />
+          </a-form-item>
+          <a-form-item label="核销金额" name="amount">
+            <a-input-number
+              v-model:value="addForm.amount"
+              :min="0.01"
+              :precision="2"
+              style="width: 100%"
+              placeholder="请输入核销金额"
+            />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
           </a-form-item>
         </a-form>
       </FullScreenDetail>
@@ -569,8 +613,56 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleParentCreate() { handleAdd() }
+
+// ── 新增核销 ────────────────────────────────────────────
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const addFormDirty = ref(false)
+const addForm = reactive({
+  writeOffType: 'receipt',
+  partyName: '',
+  amount: undefined as number | undefined,
+  remark: ''
+})
+const addFormRules: any = {
+  partyName: [{ required: true, message: '请输入客户或供应商名称', trigger: 'blur' }],
+  amount: [{ required: true, message: '请输入核销金额', trigger: 'blur' }]
+}
 function handleAdd() {
-  message.info('创建功能由父组件触发')
+  addForm.writeOffType = activeTab.value
+  addForm.partyName = ''
+  addForm.amount = undefined
+  addForm.remark = ''
+  addVisible.value = true
+  addFormDirty.value = false
+  setTimeout(() => { addFormDirty.value = true }, 500)
+}
+async function handleAddConfirm() {
+  try {
+    await addFormRef.value?.validate()
+    addLoading.value = true
+    const params: any = {
+      partyName: addForm.partyName,
+      amount: addForm.amount,
+      remark: addForm.remark || ''
+    }
+    if (addForm.writeOffType === 'receipt') {
+      await receiptApi.create(params)
+    } else {
+      await paymentApi.create(params)
+    }
+    message.success('核销创建成功')
+    addVisible.value = false
+    fetchData()
+  } catch (err: any) {
+    if (err?.message) message.error(err.message)
+  } finally {
+    addLoading.value = false
+  }
+}
+function handleAddCancel() {
+  addVisible.value = false
 }
 
 const formatAmount = (val: number) => {

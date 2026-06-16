@@ -82,11 +82,13 @@
             :filter-fields="filterFields"
             :show-search="false"
             export-permission="finance:receivable:list"
-            :show-add="false"
+            :show-add="true"
             :show-edit="false"
             :show-delete="false"
+            add-text="新增应收"
             :selectable="true"
             @refresh="fetchData"
+            @add="handleAdd"
             @cell-dblclick="handleView"
             @page-change="handlePageChange"
             @filter-change="handleFilterChange"
@@ -197,6 +199,50 @@
               style="width: 100%"
               placeholder="请输入核销金额"
             />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
+
+      <!-- 新增应收弹窗 -->
+      <FullScreenDetail
+        :visible="addVisible"
+        title="新增应收账款"
+        :dirty="formDirty"
+        :save-loading="addLoading"
+        @save="handleAddConfirm"
+        @close="handleAddCancel"
+      >
+        <a-form
+          ref="addFormRef"
+          :model="addForm"
+          :rules="addFormRules"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="客户名称" name="customerName">
+            <a-input v-model:value="addForm.customerName" placeholder="请输入客户名称" />
+          </a-form-item>
+          <a-form-item label="来源单号" name="sourceNo">
+            <a-input v-model:value="addForm.sourceNo" placeholder="请输入来源单号" />
+          </a-form-item>
+          <a-form-item label="应收金额" name="totalAmount">
+            <a-input-number
+              v-model:value="addForm.totalAmount"
+              :min="0.01"
+              :precision="2"
+              style="width: 100%"
+              placeholder="请输入应收金额"
+            />
+          </a-form-item>
+          <a-form-item label="到期日期" name="dueDate">
+            <a-date-picker
+              v-model:value="addForm.dueDate"
+              style="width: 100%"
+              placeholder="请选择到期日期"
+            />
+          </a-form-item>
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="addForm.remark" :rows="3" placeholder="备注信息" />
           </a-form-item>
         </a-form>
       </FullScreenDetail>
@@ -515,8 +561,69 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleParentCreate() { handleAdd() }
+
+// ── 新增应收 ────────────────────────────────────────────
+const addVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const initialAddSnapshot = ref('')
+const formDirty = computed(() => {
+  if (!addVisible.value) return false
+  return JSON.stringify(addForm) !== initialAddSnapshot.value
+})
+const addForm = reactive({
+  customerName: '',
+  sourceNo: '',
+  totalAmount: undefined as number | undefined,
+  dueDate: undefined as any,
+  remark: ''
+})
+const addFormRules: any = {
+  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  totalAmount: [{ required: true, message: '请输入应收金额', trigger: 'blur' }]
+}
 function handleAdd() {
-  message.info('创建功能由父组件触发')
+  addForm.customerName = ''
+  addForm.sourceNo = ''
+  addForm.totalAmount = undefined
+  addForm.dueDate = undefined
+  addForm.remark = ''
+  addVisible.value = true
+  initialAddSnapshot.value = JSON.stringify(addForm)
+}
+async function handleAddConfirm() {
+  try {
+    await addFormRef.value?.validate()
+    addLoading.value = true
+    const params: any = {
+      customerName: addForm.customerName,
+      sourceNo: addForm.sourceNo || '',
+      totalAmount: addForm.totalAmount,
+      remark: addForm.remark || ''
+    }
+    if (addForm.dueDate) {
+      params.dueDate = typeof addForm.dueDate === 'string' ? addForm.dueDate : addForm.dueDate?.format?.('YYYY-MM-DD') || ''
+    }
+    await receivableApi.create(params)
+    message.success('应收创建成功')
+    addVisible.value = false
+    fetchData()
+  } catch (err: any) {
+    if (err?.message) message.error(err.message)
+  } finally {
+    addLoading.value = false
+  }
+}
+function handleAddCancel() {
+  if (formDirty.value) {
+    Modal.confirm({
+      title: '确认关闭',
+      content: '有未保存的修改，确定关闭吗？',
+      onOk: () => { addVisible.value = false }
+    })
+  } else {
+    addVisible.value = false
+  }
 }
 
 const formatAmount = (val: number) => {

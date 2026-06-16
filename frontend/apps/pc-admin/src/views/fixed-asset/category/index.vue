@@ -17,6 +17,10 @@
             <SyncOutlined /> {{ autoRefreshCountdown }}s
           </span>
           <PrintButton business-type="fixed_asset_category" button-type="link" button-size="small" tooltip="打印分类" />
+          <a-button type="primary" size="small" @click="showAddRootModal">
+            <template #icon><PlusOutlined /></template>
+            新增分类
+          </a-button>
           <a-button size="small" :loading="refreshLoading" @click="debounceClick('refresh', fetchTree)()" v-permission="'erp:fixed-asset:category:list'">
             <template #icon><ReloadOutlined /></template>
             刷新
@@ -106,6 +110,22 @@
         </a-col>
       </a-row>
 
+      <!-- 分类列表表格 -->
+      <a-card title="分类列表" class="category-table-card">
+        <a-table
+          :data-source="flattenedCategories"
+          :columns="tableColumns"
+          :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (t: number) => `共 ${t} 条` }"
+          :row-key="'id'"
+          size="small"
+          bordered
+        >
+          <template #statusCell="{ record }">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
+          </template>
+        </a-table>
+      </a-card>
+
       <!-- Category Form Modal -->
       <FullScreenDetail
         :visible="modalVisible"
@@ -153,7 +173,7 @@ import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { fixedAssetCategoryApi } from '@/api/fixed-asset'
 import { message, Modal } from 'ant-design-vue'
-import { FolderOutlined, ApartmentOutlined, ClusterOutlined, SyncOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons-vue'
+import { FolderOutlined, ApartmentOutlined, ClusterOutlined, SyncOutlined, ReloadOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
@@ -201,6 +221,38 @@ const maxDepth = computed(() => {
   }
   return getDepth(treeData.value)
 })
+
+// ── 扁平分类数据（用于表格） ──────────────────────────
+interface FlatCategory {
+  id: number
+  categoryCode: string
+  categoryName: string
+  parentId: number
+  sortOrder: number
+  defaultDepreciationMethod: string
+  defaultUsefulLife: number
+  description: string
+  status: number
+  _level: number
+}
+function flattenTree(nodes: Category[], level = 0): FlatCategory[] {
+  const result: FlatCategory[] = []
+  for (const node of nodes) {
+    result.push({ ...node, _level: level })
+    if (node.children?.length) result.push(...flattenTree(node.children, level + 1))
+  }
+  return result
+}
+const flattenedCategories = computed(() => flattenTree(treeData.value))
+
+const tableColumns = [
+  { title: '分类编码', dataIndex: 'categoryCode', width: 120 },
+  { title: '分类名称', dataIndex: 'categoryName', width: 150 },
+  { title: '排序', dataIndex: 'sortOrder', width: 80 },
+  { title: '默认折旧方法', dataIndex: 'defaultDepreciationMethod', width: 140, customRender: ({ text }: any) => methodMap[text] || text },
+  { title: '使用年限(月)', dataIndex: 'defaultUsefulLife', width: 100 },
+  { title: '描述', dataIndex: 'description', ellipsis: true },
+]
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -516,6 +568,10 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 
 .category-card {
   height: 100%;
+}
+
+.category-table-card {
+  margin-top: 16px;
 }
 
 :deep(.ant-card-body) {
