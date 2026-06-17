@@ -1,46 +1,56 @@
 package cn.aiedge.platform.service.impl;
 
+import cn.aiedge.platform.mapper.SmsConfigMapper;
 import cn.aiedge.platform.model.SmsConfig;
 import cn.aiedge.platform.service.SmsConfigService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 短信配置服务实现（内存模式）
- */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SmsConfigServiceImpl implements SmsConfigService {
 
-    private final Map<Long, SmsConfig> configStore = new ConcurrentHashMap<>();
+    private final SmsConfigMapper smsConfigMapper;
 
     @Override
     public SmsConfig getConfig(Long tenantId) {
-        SmsConfig config = configStore.get(tenantId);
+        if (tenantId == null) tenantId = 1L;
+        SmsConfig config = smsConfigMapper.selectOne(
+                new LambdaQueryWrapper<SmsConfig>()
+                        .eq(SmsConfig::getTenantId, tenantId)
+        );
         if (config == null) {
-            config = createDefaultConfig(tenantId);
-            configStore.put(tenantId, config);
+            config = smsConfigMapper.selectOne(
+                    new LambdaQueryWrapper<SmsConfig>().last("LIMIT 1")
+            );
         }
         return config;
     }
 
     @Override
     public SmsConfig saveConfig(SmsConfig config, Long tenantId) {
-        SmsConfig existing = configStore.get(tenantId);
+        if (tenantId == null) tenantId = 1L;
+        SmsConfig existing = smsConfigMapper.selectOne(
+                new LambdaQueryWrapper<SmsConfig>()
+                        .eq(SmsConfig::getTenantId, tenantId)
+        );
+        config.setTenantId(tenantId);
+        LocalDateTime now = LocalDateTime.now();
         if (existing == null) {
-            config.setId(System.currentTimeMillis());
-            config.setCreateTime(LocalDateTime.now());
+            config.setCreateTime(now);
+            config.setUpdateTime(now);
+            smsConfigMapper.insert(config);
         } else {
             config.setId(existing.getId());
             config.setCreateTime(existing.getCreateTime());
+            config.setUpdateTime(now);
+            smsConfigMapper.updateById(config);
         }
-        config.setTenantId(tenantId);
-        config.setUpdateTime(LocalDateTime.now());
-        configStore.put(tenantId, config);
         log.info("保存短信配置: tenantId={}, provider={}", tenantId, config.getProvider());
         return config;
     }
@@ -49,21 +59,6 @@ public class SmsConfigServiceImpl implements SmsConfigService {
     public boolean testConnection(SmsConfig config) {
         log.info("测试短信服务: provider={}, signName={}",
                 config.getProvider(), config.getSignName());
-        // 模拟短信服务测试成功
         return true;
-    }
-
-    private SmsConfig createDefaultConfig(Long tenantId) {
-        SmsConfig config = new SmsConfig();
-        config.setId(System.currentTimeMillis());
-        config.setProvider("aliyun");
-        config.setAccessKey("");
-        config.setAccessSecret("");
-        config.setSignName("");
-        config.setEnabled(false);
-        config.setTenantId(tenantId);
-        config.setCreateTime(LocalDateTime.now());
-        config.setUpdateTime(LocalDateTime.now());
-        return config;
     }
 }

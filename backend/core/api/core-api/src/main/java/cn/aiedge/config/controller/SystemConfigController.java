@@ -47,7 +47,7 @@ public class SystemConfigController {
             @RequestHeader(value = "X-Tenant-Id", required = false) Long tenantId) {
 
         List<SystemConfig> configs = configService.getConfigList(configType, configGroup, tenantId);
-        return ResponseEntity.ok(Map.of("configs", configs, "total", configs.size()));
+        return ResponseEntity.ok(Map.of("records", configs, "total", configs.size(), "code", 200, "message", "ok"));
     }
 
     @GetMapping("/map")

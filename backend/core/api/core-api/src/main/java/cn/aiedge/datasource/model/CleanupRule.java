@@ -1,5 +1,8 @@
 package cn.aiedge.datasource.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 数据清理规则
  */
 @Schema(description = "数据清理规则")
+@TableName("sys_data_cleanup_rule")
 public class CleanupRule implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "规则ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "规则名称")

@@ -153,42 +153,55 @@ function saveStrategy() {
   message.success('备份策略已保存')
 }
 
-function handleCreateBackup() {
-  message.loading('正在创建备份...', 1.5)
-  setTimeout(() => {
+async function handleCreateBackup() {
+  try {
+    await request.post('/data-source/backup/create', { dataSourceId: 1, backupType: 'full' })
     message.success('备份创建完成')
-    fetchData()
-  }, 2000)
+  } catch {
+    message.error('创建备份失败')
+  }
+  fetchData()
 }
 
 function downloadBackup(record: any) {
   message.success('备份下载中: ' + record.name)
 }
 
-function deleteBackup(record: any) {
-  message.success('备份已删除: ' + record.name)
+async function deleteBackup(record: any) {
+  try {
+    await request.delete('/data-source/backup/' + record.id)
+    message.success('备份已删除')
+  } catch {
+    message.error('删除备份失败')
+  }
   fetchData()
 }
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
-  setTimeout(() => {
-    const types = ['全量备份', '增量备份', '事务日志']
-    const dbs = ['devdb', 'business', 'logs']
-    list.value = Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1,
-      name: `${dbs[i % 3]}_${new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)}`,
-      database: dbs[i % 3],
-      type: types[i % 3],
-      size: Math.floor(Math.random() * 1000000000) + 50000000,
-      status: ['completed', 'completed', 'completed', 'completed', 'running', 'completed', 'failed', 'completed', 'pending', 'completed'][i],
-      createdAt: new Date(Date.now() - i * 86400000).toLocaleString(),
+  try {
+    const res = await request.get('/data-source/backup/list', {
+      params: { page: pagination.current, pageSize: pagination.pageSize }
+    })
+    const records = res?.records || []
+    list.value = records.map((r: any) => ({
+      id: r.id,
+      name: r.backupName || '',
+      database: r.databaseName || (r.dataSourceId ? '数据源#' + r.dataSourceId : ''),
+      type: r.backupType === 'full' ? '全量备份' : r.backupType === 'incremental' ? '增量备份' : r.backupType || '',
+      size: r.fileSize || 0,
+      status: r.status,
+      createdAt: r.startTime || r.createTime || '',
     }))
-    pagination.total = list.value.length
-    storageStats.totalSize = '45.6 GB'
+    pagination.total = res?.total || 0
+    storageStats.totalSize = list.value.reduce((s: number, r: any) => s + (typeof r.size === 'number' ? r.size : 0), 0) + ' B'
     storageStats.freeSize = '128.3 GB'
+  } catch {
+    list.value = []
+    pagination.total = 0
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 onMounted(fetchData)

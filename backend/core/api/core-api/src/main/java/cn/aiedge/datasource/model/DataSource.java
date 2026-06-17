@@ -1,5 +1,8 @@
 package cn.aiedge.datasource.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 数据源
  */
 @Schema(description = "数据源")
+@TableName("sys_data_source")
 public class DataSource implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "数据源ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "数据源名称")

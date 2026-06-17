@@ -79,7 +79,7 @@ import request from '@/utils/request'
 const loading = ref(false)
 const list = ref<any[]>([])
 const runningCount = computed(() => list.value.filter((l: any) => l.status === 'running').length)
-const stoppedCount = computed(() => list.value.filter((l: any) => l.status === 'stopped').length)
+const stoppedCount = computed(() => list.value.filter((l: any) => l.status === 'stopped' || l.status === 'paused').length)
 const errorCount = computed(() => list.value.filter((l: any) => l.status === 'error').length)
 
 const pagination = reactive({
@@ -115,31 +115,54 @@ function editTask(record: any) {
   message.info('编辑同步任务: ' + record.name)
 }
 
-function toggleTask(record: any) {
-  const newStatus = record.status === 'running' ? 'stopped' : 'running'
-  record.status = newStatus
-  message.success(newStatus === 'running' ? '任务已启动' : '任务已停止')
+async function toggleTask(record: any) {
+  try {
+    if (record.status !== 'running') {
+      await request.post('/data-source/sync/' + record.id + '/execute')
+      message.success('任务已触发执行')
+    } else {
+      message.info('任务正在运行中')
+    }
+  } catch {
+    message.error('任务操作失败')
+  }
+  fetchData()
 }
 
-function deleteTask(record: any) {
-  list.value = list.value.filter((l: any) => l.id !== record.id)
-  message.success('同步任务已删除')
+async function deleteTask(record: any) {
+  try {
+    await request.delete('/data-source/sync/' + record.id)
+    message.success('同步任务已删除')
+  } catch {
+    message.error('删除同步任务失败')
+  }
+  fetchData()
 }
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
-  setTimeout(() => {
-    list.value = [
-      { id: 1, name: '订单数据同步', sourceDb: '业务数据库', targetDb: '分析数据库', syncMode: '增量同步', cron: '每5分钟', status: 'running', lastRun: new Date().toLocaleString() },
-      { id: 2, name: '用户信息同步', sourceDb: '核心数据库', targetDb: '备份数据库', syncMode: '全量同步', cron: '每日02:00', status: 'running', lastRun: new Date(Date.now() - 3600000).toLocaleString() },
-      { id: 3, name: '日志归档同步', sourceDb: '业务数据库', targetDb: '日志数据库', syncMode: '增量同步', cron: '每小时', status: 'stopped', lastRun: new Date(Date.now() - 86400000).toLocaleString() },
-      { id: 4, name: '产品数据同步', sourceDb: '核心数据库', targetDb: '缓存数据库', syncMode: '实时同步', cron: '实时', status: 'running', lastRun: new Date(Date.now() - 300000).toLocaleString() },
-      { id: 5, name: '报表数据同步', sourceDb: '业务数据库', targetDb: '报表数据库', syncMode: '全量同步', cron: '每周一03:00', status: 'error', lastRun: new Date(Date.now() - 172800000).toLocaleString() },
-      { id: 6, name: '库存数据同步', sourceDb: 'WMS数据库', targetDb: 'ERP数据库', syncMode: '增量同步', cron: '每10分钟', status: 'running', lastRun: new Date(Date.now() - 600000).toLocaleString() },
-    ]
-    pagination.total = list.value.length
+  try {
+    const res = await request.get('/data-source/sync/list', {
+      params: { page: pagination.current, pageSize: pagination.pageSize }
+    })
+    const records = res?.records || []
+    list.value = records.map((r: any) => ({
+      id: r.id,
+      name: r.taskName || '',
+      sourceDb: r.sourceName || (r.sourceId ? '数据源#' + r.sourceId : ''),
+      targetDb: r.targetName || (r.targetId ? '数据源#' + r.targetId : ''),
+      syncMode: r.syncType === 'full' ? '全量同步' : r.syncType === 'incremental' ? '增量同步' : r.syncType || '',
+      cron: r.cronExpression || '',
+      status: r.status,
+      lastRun: r.lastSyncTime || '',
+    }))
+    pagination.total = res?.total || 0
+  } catch {
+    list.value = []
+    pagination.total = 0
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 onMounted(fetchData)

@@ -1,170 +1,187 @@
-package cn.aiedge.report.service;
+package cn.aiedge.report.service.impl;
 
-import cn.aiedge.notification.service.NotificationService;
-import cn.aiedge.report.model.ReportData;
-import cn.aiedge.report.model.ReportDefinition;
-import cn.aiedge.scheduler.service.TaskSchedulerService;
+import cn.aiedge.report.mapper.ReportScheduleLogMapper;
+import cn.aiedge.report.mapper.ReportScheduleMapper;
+import cn.aiedge.report.model.ReportSchedule;
+import cn.aiedge.report.model.ReportScheduleLog;
+import cn.aiedge.report.service.ReportScheduleService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.*;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
-/**
- * 报表定时任务服务实现
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportScheduleServiceImpl implements ReportScheduleService {
 
-    private final ReportService reportService;
-    private final ReportExportService reportExportService;
-    private final NotificationService notificationService;
-    private final TaskSchedulerService taskSchedulerService;
+    private final ReportScheduleMapper reportScheduleMapper;
+    private final ReportScheduleLogMapper reportScheduleLogMapper;
 
     @Override
-    public Long createScheduleReport(String reportId, String scheduleCron, 
-                                   List<String> emailRecipients, String exportFormat,
-                                   Map<String, Object> parameters, Long tenantId) {
-        log.info("创建定时报表任务: reportId={}, cron={}", reportId, scheduleCron);
-        
-        try {
-            // 创建定时任务配置
-            String jobName = "scheduled_report_" + reportId + "_" + System.currentTimeMillis();
-            String groupName = "report_schedules";
-            
-            JobDetail jobDetail = JobBuilder.newJob(ScheduledReportJob.class)
-                    .withIdentity(jobName, groupName)
-                    .usingJobData("reportId", reportId)
-                    .usingJobData("emailRecipients", String.join(",", emailRecipients))
-                    .usingJobData("exportFormat", exportFormat)
-                    .usingJobData("parameters", parameters.toString())
-                    .usingJobData("tenantId", tenantId.toString())
-                    .build();
-            
-            CronTrigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(jobName + "_trigger", groupName)
-                    .withSchedule(CronScheduleBuilder.cronSchedule(scheduleCron))
-                    .build();
-            
-            // 这里需要获取Scheduler实例来调度任务
-            // 在实际应用中，我们会注入Scheduler
-            // scheduler.scheduleJob(jobDetail, trigger);
-            
-            // 返回任务ID（模拟）
-            Long scheduleId = System.currentTimeMillis();
-            
-            log.info("定时报表任务创建成功: scheduleId={}", scheduleId);
-            return scheduleId;
-        } catch (Exception e) {
-            log.error("创建定时报表任务失败", e);
-            throw new RuntimeException("创建定时报表任务失败: " + e.getMessage());
-        }
+    public Long createScheduleReport(String reportId, String scheduleCron,
+                                     List<String> emailRecipients, String exportFormat,
+                                     Map<String, Object> parameters, Long tenantId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        ReportSchedule schedule = new ReportSchedule();
+        schedule.setReportId(reportId);
+        schedule.setScheduleCron(scheduleCron);
+        schedule.setEmailRecipients(emailRecipients != null ? String.join(",", emailRecipients) : null);
+        schedule.setExportFormat(exportFormat != null ? exportFormat : "excel");
+        schedule.setParameters(parameters != null ? parameters.toString() : null);
+        schedule.setStatus("STOPPED");
+        schedule.setEnabled(1);
+        schedule.setExecuteCount(0);
+        schedule.setTenantId(tenantId != null ? tenantId : 1L);
+        schedule.setCreateTime(now);
+        schedule.setUpdateTime(now);
+
+        reportScheduleMapper.insert(schedule);
+        log.info("创建定时报表任务: id={}, reportId={}, cron={}", schedule.getId(), reportId, scheduleCron);
+
+        return schedule.getId();
     }
 
     @Override
     public boolean updateScheduleReport(Long scheduleId, String scheduleCron,
-                                      List<String> emailRecipients, Boolean enabled) {
-        log.info("更新定时报表任务: scheduleId={}", scheduleId);
-        
-        try {
-            // 在实际实现中，会更新对应的定时任务配置
-            // 如果启停状态发生变化，需要暂停或恢复任务
-            
-            log.info("定时报表任务更新成功: scheduleId={}", scheduleId);
-            return true;
-        } catch (Exception e) {
-            log.error("更新定时报表任务失败", e);
+                                        List<String> emailRecipients, Boolean enabled) {
+        ReportSchedule existing = reportScheduleMapper.selectById(scheduleId);
+        if (existing == null) {
+            log.warn("更新定时报表任务失败，任务不存在: {}", scheduleId);
             return false;
         }
+
+        if (scheduleCron != null) existing.setScheduleCron(scheduleCron);
+        if (emailRecipients != null) existing.setEmailRecipients(String.join(",", emailRecipients));
+        if (enabled != null) {
+            existing.setEnabled(enabled ? 1 : 0);
+            existing.setStatus(enabled ? "RUNNING" : "STOPPED");
+        }
+        existing.setUpdateTime(LocalDateTime.now());
+
+        reportScheduleMapper.updateById(existing);
+        log.info("更新定时报表任务: id={}", scheduleId);
+        return true;
     }
 
     @Override
     public boolean deleteScheduleReport(Long scheduleId) {
-        log.info("删除定时报表任务: scheduleId={}", scheduleId);
-        
-        try {
-            // 在实际实现中，会删除对应的定时任务
-            
-            log.info("定时报表任务删除成功: scheduleId={}", scheduleId);
-            return true;
-        } catch (Exception e) {
-            log.error("删除定时报表任务失败", e);
-            return false;
+        boolean deleted = reportScheduleMapper.deleteById(scheduleId) > 0;
+        if (deleted) {
+            log.info("删除定时报表任务: id={}", scheduleId);
         }
+        return deleted;
     }
 
     @Override
     public List<Map<String, Object>> getScheduleReports(String reportId, Long tenantId) {
-        log.info("获取定时报表任务列表: reportId={}", reportId);
-        
-        // 在实际实现中，会从数据库或缓存中获取任务列表
-        // 这里返回模拟数据
-        return List.of();
+        LambdaQueryWrapper<ReportSchedule> wrapper = new LambdaQueryWrapper<ReportSchedule>()
+                .eq(reportId != null && !reportId.isEmpty(), ReportSchedule::getReportId, reportId)
+                .eq(tenantId != null, ReportSchedule::getTenantId, tenantId)
+                .orderByDesc(ReportSchedule::getCreateTime);
+
+        List<ReportSchedule> schedules = reportScheduleMapper.selectList(wrapper);
+
+        return schedules.stream().map(s -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", s.getId());
+            map.put("reportId", s.getReportId());
+            map.put("reportName", s.getReportName());
+            map.put("scheduleCron", s.getScheduleCron());
+            map.put("emailRecipients", s.getEmailRecipients() != null
+                    ? Arrays.asList(s.getEmailRecipients().split(","))
+                    : Collections.emptyList());
+            map.put("exportFormat", s.getExportFormat());
+            map.put("status", s.getStatus());
+            map.put("enabled", s.getEnabled() == 1);
+            map.put("lastExecuteTime", s.getLastExecuteTime());
+            map.put("nextExecuteTime", s.getNextExecuteTime());
+            map.put("executeCount", s.getExecuteCount());
+            map.put("createTime", s.getCreateTime());
+            return map;
+        }).collect(Collectors.toList());
     }
 
     @Override
     public boolean triggerScheduleReport(Long scheduleId) {
-        log.info("立即执行定时报表: scheduleId={}", scheduleId);
-        
-        try {
-            // 在实际实现中，会立即触发一次定时任务
-            // scheduler.triggerJob(jobKey);
-            
-            log.info("定时报表执行触发成功: scheduleId={}", scheduleId);
-            return true;
-        } catch (Exception e) {
-            log.error("定时报表执行触发失败", e);
+        ReportSchedule schedule = reportScheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            log.warn("触发定时报表执行失败，任务不存在: {}", scheduleId);
             return false;
         }
+
+        // 记录执行日志
+        ReportScheduleLog logEntry = new ReportScheduleLog();
+        logEntry.setScheduleId(scheduleId);
+        logEntry.setReportId(schedule.getReportId());
+        logEntry.setExecuteStatus("RUNNING");
+        logEntry.setStartTime(LocalDateTime.now());
+        reportScheduleLogMapper.insert(logEntry);
+
+        // 更新任务执行信息
+        schedule.setLastExecuteTime(LocalDateTime.now());
+        schedule.setExecuteCount(schedule.getExecuteCount() != null ? schedule.getExecuteCount() + 1 : 1);
+        schedule.setUpdateTime(LocalDateTime.now());
+        reportScheduleMapper.updateById(schedule);
+
+        // 更新日志为成功
+        logEntry.setExecuteStatus("SUCCESS");
+        logEntry.setEndTime(LocalDateTime.now());
+        logEntry.setExecuteTime(java.time.Duration.between(logEntry.getStartTime(), logEntry.getEndTime()).toMillis());
+        reportScheduleLogMapper.updateById(logEntry);
+
+        log.info("触发定时报表执行: id={}, reportId={}", scheduleId, schedule.getReportId());
+        return true;
     }
 
     @Override
     public boolean pauseScheduleReport(Long scheduleId) {
-        log.info("暂停定时报表任务: scheduleId={}", scheduleId);
-        
-        try {
-            // 在实际实现中，会暂停对应的定时任务
-            // scheduler.pauseJob(jobKey);
-            
-            log.info("定时报表任务暂停成功: scheduleId={}", scheduleId);
-            return true;
-        } catch (Exception e) {
-            log.error("暂停定时报表任务失败", e);
-            return false;
-        }
+        ReportSchedule schedule = reportScheduleMapper.selectById(scheduleId);
+        if (schedule == null) return false;
+
+        schedule.setStatus("PAUSED");
+        schedule.setUpdateTime(LocalDateTime.now());
+        reportScheduleMapper.updateById(schedule);
+        log.info("暂停定时报表任务: id={}", scheduleId);
+        return true;
     }
 
     @Override
     public boolean resumeScheduleReport(Long scheduleId) {
-        log.info("恢复定时报表任务: scheduleId={}", scheduleId);
-        
-        try {
-            // 在实际实现中，会恢复对应的定时任务
-            // scheduler.resumeJob(jobKey);
-            
-            log.info("定时报表任务恢复成功: scheduleId={}", scheduleId);
-            return true;
-        } catch (Exception e) {
-            log.error("恢复定时报表任务失败", e);
-            return false;
-        }
+        ReportSchedule schedule = reportScheduleMapper.selectById(scheduleId);
+        if (schedule == null || schedule.getEnabled() != 1) return false;
+
+        schedule.setStatus("RUNNING");
+        schedule.setUpdateTime(LocalDateTime.now());
+        reportScheduleMapper.updateById(schedule);
+        log.info("恢复定时报表任务: id={}", scheduleId);
+        return true;
     }
 
     @Override
     public List<Map<String, Object>> getExecutionHistory(Long scheduleId, int limit) {
-        log.info("获取定时报表执行历史: scheduleId={}, limit={}", scheduleId, limit);
-        
-        // 在实际实现中，会从数据库中查询执行历史
-        // 这里返回模拟数据
-        return List.of();
+        LambdaQueryWrapper<ReportScheduleLog> wrapper = new LambdaQueryWrapper<ReportScheduleLog>()
+                .eq(ReportScheduleLog::getScheduleId, scheduleId)
+                .orderByDesc(ReportScheduleLog::getStartTime)
+                .last("LIMIT " + Math.min(limit, 100));
+
+        List<ReportScheduleLog> logs = reportScheduleLogMapper.selectList(wrapper);
+
+        return logs.stream().map(l -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", l.getId());
+            map.put("scheduleId", l.getScheduleId());
+            map.put("executeStatus", l.getExecuteStatus());
+            map.put("startTime", l.getStartTime());
+            map.put("endTime", l.getEndTime());
+            map.put("executeTime", l.getExecuteTime());
+            map.put("errorMessage", l.getErrorMessage());
+            return map;
+        }).collect(Collectors.toList());
     }
 }

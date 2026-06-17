@@ -11,7 +11,7 @@
           <h2 class="page-header-title">配额管理</h2>
         </div>
         <div class="page-header-right">
-          <a-button type="primary" size="small" @click="handleCreate">
+          <a-button type="primary" size="small" @click="openForm()">
             <template #icon><PlusOutlined /></template>
             新增配额
           </a-button>
@@ -22,9 +22,12 @@
     <a-card :bordered="false">
       <a-table :data-source="list" :columns="columns" :loading="loading" row-key="id" :pagination="false">
         <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'usage'">
+            <a-progress :percent="calcUsagePercent(record)" :size="'small'" :status="calcUsagePercent(record) > 80 ? 'exception' : undefined" />
+          </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a @click="handleEdit(record)">编辑</a>
+              <a @click="openForm(record)">编辑</a>
               <a-divider type="vertical" />
               <a-popconfirm title="确定删除?" @confirm="handleDelete(record)">
                 <a class="text-danger">删除</a>
@@ -34,6 +37,33 @@
         </template>
       </a-table>
     </a-card>
+
+    <a-modal v-model:open="formVisible" :title="editingId ? '编辑配额' : '新增配额'" @ok="handleSave" :confirm-loading="saving" destroy-on-close>
+      <a-form :model="form" layout="vertical">
+        <a-form-item label="租户名称" required>
+          <a-input v-model:value="form.tenantName" placeholder="请输入租户名称" />
+        </a-form-item>
+        <a-form-item label="租户编码" required>
+          <a-input v-model:value="form.tenantCode" placeholder="请输入租户编码" />
+        </a-form-item>
+        <a-form-item label="最大用户数">
+          <a-input-number v-model:value="form.maxUsers" :min="1" style="width:100%" />
+        </a-form-item>
+        <a-form-item label="存储配额">
+          <a-select v-model:value="form.maxStorage">
+            <a-select-option value="5GB">5GB</a-select-option>
+            <a-select-option value="10GB">10GB</a-select-option>
+            <a-select-option value="50GB">50GB</a-select-option>
+            <a-select-option value="100GB">100GB</a-select-option>
+            <a-select-option value="500GB">500GB</a-select-option>
+            <a-select-option value="1TB">1TB</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="API调用限制/月">
+          <a-input-number v-model:value="form.maxApiCalls" :min="0" style="width:100%" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </PageContainer>
 </template>
 
@@ -41,60 +71,96 @@
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
+import { tenantQuotaApi, type TenantQuotaInfo } from '@/api/tenant'
 
-interface QuotaItem {
-  id: number
-  tenantName: string
-  tenantCode: string
-  maxUsers: number
-  maxStorage: string
-  maxApiCalls: number
-  createdTime: string
-}
-
-const list = ref<QuotaItem[]>([])
+const list = ref<TenantQuotaInfo[]>([])
 const loading = ref(false)
+const formVisible = ref(false)
+const saving = ref(false)
+const editingId = ref<number | null>(null)
+
+const form = ref<Partial<TenantQuotaInfo>>({
+  tenantName: '',
+  tenantCode: '',
+  maxUsers: 10,
+  maxStorage: '10GB',
+  maxApiCalls: 10000,
+})
 
 const columns = [
   { title: '租户名称', dataIndex: 'tenantName', key: 'tenantName' },
   { title: '租户编码', dataIndex: 'tenantCode', key: 'tenantCode', width: 150 },
-  { title: '最大用户数', dataIndex: 'maxUsers', key: 'maxUsers', width: 120 },
-  { title: '存储配额', dataIndex: 'maxStorage', key: 'maxStorage', width: 120 },
-  { title: 'API调用限制', dataIndex: 'maxApiCalls', key: 'maxApiCalls', width: 130 },
-  { title: '创建时间', dataIndex: 'createdTime', key: 'createdTime', width: 180 },
+  { title: '最大用户数', dataIndex: 'maxUsers', key: 'maxUsers', width: 100 },
+  { title: '存储配额', dataIndex: 'maxStorage', key: 'maxStorage', width: 100 },
+  { title: 'API调用限制', dataIndex: 'maxApiCalls', key: 'maxApiCalls', width: 120 },
+  { title: '使用率', key: 'usage', width: 150 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
   { title: '操作', key: 'action', width: 150 },
 ]
+
+function calcUsagePercent(record: TenantQuotaInfo): number {
+  if (!record.maxApiCalls || !record.usedApiCalls) return 0
+  return Math.min(Math.round((record.usedApiCalls / record.maxApiCalls) * 100), 100)
+}
 
 async function fetchData() {
   loading.value = true
   try {
-    const { tenantApi } = await import('@/api/tenant')
-    const res = await tenantApi.getPage({ pageNum: 1, pageSize: 200 })
-    list.value = (res.data.records || []).map((t: any) => ({
-      id: t.id,
-      tenantName: t.tenantName,
-      tenantCode: t.tenantCode,
-      maxUsers: t.maxUsers || 10,
-      maxStorage: t.maxStorage || '10GB',
-      maxApiCalls: t.maxApiCalls || 10000,
-      createdTime: t.createTime,
-    }))
+    const res = await tenantQuotaApi.getList()
+    list.value = res.records || []
   } finally {
     loading.value = false
   }
 }
 
-function handleCreate() {
-  message.info('新增配额功能开发中')
+function openForm(record?: TenantQuotaInfo) {
+  if (record) {
+    editingId.value = record.id
+    form.value = { ...record }
+  } else {
+    editingId.value = null
+    form.value = {
+      tenantName: '',
+      tenantCode: '',
+      maxUsers: 10,
+      maxStorage: '10GB',
+      maxApiCalls: 10000,
+    }
+  }
+  formVisible.value = true
 }
 
-function handleEdit(record: QuotaItem) {
-  message.info('编辑配额: ' + record.tenantName)
+async function handleSave() {
+  if (!form.value.tenantName || !form.value.tenantCode) {
+    message.warning('请填写租户名称和编码')
+    return
+  }
+  saving.value = true
+  try {
+    if (editingId.value) {
+      await tenantQuotaApi.update(editingId.value, form.value)
+      message.success('更新成功')
+    } else {
+      await tenantQuotaApi.create(form.value)
+      message.success('创建成功')
+    }
+    formVisible.value = false
+    await fetchData()
+  } catch {
+    message.error('操作失败')
+  } finally {
+    saving.value = false
+  }
 }
 
-function handleDelete(record: QuotaItem) {
-  message.success('删除成功')
-  list.value = list.value.filter((item) => item.id !== record.id)
+async function handleDelete(record: TenantQuotaInfo) {
+  try {
+    await tenantQuotaApi.delete(record.id)
+    message.success('删除成功')
+    await fetchData()
+  } catch {
+    message.error('删除失败')
+  }
 }
 
 onMounted(fetchData)

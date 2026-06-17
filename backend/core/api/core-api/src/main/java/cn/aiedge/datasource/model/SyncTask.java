@@ -1,5 +1,8 @@
 package cn.aiedge.datasource.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 同步任务
  */
 @Schema(description = "同步任务")
+@TableName("sys_sync_task")
 public class SyncTask implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "任务ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "源数据源ID")

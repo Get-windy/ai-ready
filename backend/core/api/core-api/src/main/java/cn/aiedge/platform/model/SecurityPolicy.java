@@ -1,5 +1,8 @@
 package cn.aiedge.platform.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 安全策略配置
  */
 @Schema(description = "安全策略配置")
+@TableName("sys_security_policy")
 public class SecurityPolicy implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "策略ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "锁定阈值（登录失败次数）")

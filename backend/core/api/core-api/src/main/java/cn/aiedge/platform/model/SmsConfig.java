@@ -1,5 +1,8 @@
 package cn.aiedge.platform.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 短信配置
  */
 @Schema(description = "短信配置")
+@TableName("sys_sms_config")
 public class SmsConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "配置ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "服务商: aliyun/tencent/huawei")

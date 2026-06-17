@@ -141,3 +141,96 @@ export interface SysTenant {
   remark?: string
   createTime: string
 }
+
+// ── 租户套餐 API ──────────────────────────────────────
+
+/** 租户套餐 */
+export interface TenantPackageInfo {
+  id: number
+  packageName: string
+  packageCode: string
+  purchaseType: string
+  price?: number
+  maxUsers?: number
+  storageQuota?: number
+  apiCallLimit?: number
+  status: number
+  description?: string
+  sortOrder?: number
+  createTime?: string
+  updateTime?: string
+}
+
+/** 租户套餐 API */
+export const tenantPackageApi = {
+  /** 获取套餐列表 */
+  getList(): Promise<{ records: TenantPackageInfo[]; total: number }> {
+    return request.get('/tenant-package/list')
+  },
+
+  /** 获取套餐详情 */
+  getById(id: number): Promise<TenantPackageInfo> {
+    return request.get(`/tenant-package/${id}`)
+  },
+
+  /** 创建套餐 */
+  create(data: Partial<TenantPackageInfo>): Promise<TenantPackageInfo> {
+    return request.post('/tenant-package', data)
+  },
+
+  /** 更新套餐 */
+  update(id: number, data: Partial<TenantPackageInfo>): Promise<TenantPackageInfo> {
+    return request.put(`/tenant-package/${id}`, data)
+  },
+
+  /** 删除套餐 */
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/tenant-package/${id}`)
+  }
+}
+
+// ── 租户配额 API ──────────────────────────────────────
+
+/** 租户配额 */
+export interface TenantQuotaInfo {
+  id: number
+  tenantId: number
+  tenantName: string
+  tenantCode: string
+  maxUsers: number
+  maxStorage: string
+  maxApiCalls: number
+  usedUsers?: number
+  usedStorage?: string
+  usedApiCalls?: number
+  createTime?: string
+  updateTime?: string
+}
+
+/** 租户配额 API */
+export const tenantQuotaApi = {
+  /** 获取配额列表 */
+  getList(): Promise<{ records: TenantQuotaInfo[]; total: number }> {
+    return request.get('/tenant-quota/list')
+  },
+
+  /** 获取配额详情 */
+  getById(id: number): Promise<TenantQuotaInfo> {
+    return request.get(`/tenant-quota/${id}`)
+  },
+
+  /** 创建配额 */
+  create(data: Partial<TenantQuotaInfo>): Promise<TenantQuotaInfo> {
+    return request.post('/tenant-quota', data)
+  },
+
+  /** 更新配额 */
+  update(id: number, data: Partial<TenantQuotaInfo>): Promise<TenantQuotaInfo> {
+    return request.put(`/tenant-quota/${id}`, data)
+  },
+
+  /** 删除配额 */
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/tenant-quota/${id}`)
+  }
+}

@@ -129,6 +129,7 @@ public class CacheManageController {
         boolean exists = REGIONS.stream().anyMatch(r -> r.get("name").equals(name));
         if (!exists) {
             return ResponseEntity.ok(Map.of(
+                    "code", 404,
                     "success", false,
                     "message", "缓存区域不存在: " + name,
                     "keys", Collections.emptyList()
@@ -136,16 +137,26 @@ public class CacheManageController {
         }
 
         // 根据区域名称生成模拟的键列表
-        String prefix = name.replace(":", ":");
         int count = REGIONS.stream()
                 .filter(r -> r.get("name").equals(name))
                 .findFirst()
                 .map(r -> (int) r.get("keyCount"))
                 .orElse(0);
 
-        List<String> keys = new ArrayList<>();
+        int ttl = REGIONS.stream()
+                .filter(r -> r.get("name").equals(name))
+                .findFirst()
+                .map(r -> (int) r.get("ttl"))
+                .orElse(1800);
+
+        List<Map<String, Object>> keys = new ArrayList<>();
         for (int i = 1; i <= Math.min(count, 50); i++) {
-            keys.add(prefix + i);
+            Map<String, Object> keyObj = new LinkedHashMap<>();
+            keyObj.put("key", name + ":" + i);
+            keyObj.put("type", i % 3 == 0 ? "hash" : i % 3 == 1 ? "string" : "set");
+            keyObj.put("size", 256 + (i * 37) % 4096);
+            keyObj.put("ttl", ttl - (i * 13) % ttl);
+            keys.add(keyObj);
         }
 
         return ResponseEntity.ok(Map.of("code", 200, "data", keys, "message", "ok"));

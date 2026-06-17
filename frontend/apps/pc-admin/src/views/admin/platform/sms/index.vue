@@ -100,7 +100,7 @@ function saveConfig() {
   request.post('/sms/config', config).then(() => {
     message.success('短信配置已保存')
   }).catch(() => {
-    message.success('短信配置已保存（模拟）')
+    message.error('保存失败')
   })
 }
 
@@ -110,7 +110,7 @@ async function testSms() {
     await request.post('/sms/test', config)
     message.success('测试短信发送成功')
   } catch {
-    message.success('测试短信发送成功（模拟）')
+    message.error('测试短信发送失败')
   }
 }
 
@@ -132,17 +132,31 @@ function editTemplate(record: any) {
   message.info('编辑短信模板: ' + record.name)
 }
 
+async function fetchSmsTemplates() {
+  try {
+    const res = await request.get('/sms/templates')
+    templates.value = res?.records || []
+  } catch {
+    templates.value = []
+  }
+}
+
+async function fetchSmsStats() {
+  try {
+    const res = await request.get('/sms/stats')
+    if (res) {
+      stats.todayCount = res.todayCount || 0
+      stats.monthCount = res.monthCount || 0
+      stats.successRate = res.successRate || 0
+    }
+  } catch {
+    // 使用默认值
+  }
+}
+
 onMounted(() => {
   fetchSmsConfig()
-
-  templates.value = [
-    { id: 1, name: '验证码', code: 'SMS_VERIFY_CODE' },
-    { id: 2, name: '登录通知', code: 'SMS_LOGIN_NOTIFY' },
-    { id: 3, name: '告警通知', code: 'SMS_ALERT' },
-  ]
-
-  stats.todayCount = 126
-  stats.monthCount = 2840
-  stats.successRate = 99.2
+  fetchSmsTemplates()
+  fetchSmsStats()
 })
 </script>

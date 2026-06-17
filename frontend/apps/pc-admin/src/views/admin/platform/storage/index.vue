@@ -96,7 +96,7 @@ function saveConfig() {
   request.post('/storage/config', config).then(() => {
     message.success('存储配置已保存')
   }).catch(() => {
-    message.success('存储配置已保存（模拟）')
+    message.error('保存失败')
   })
 }
 
@@ -106,7 +106,7 @@ async function testStorage() {
     await request.post('/storage/test', config)
     message.success('存储连接测试成功')
   } catch {
-    message.success('存储连接测试成功（模拟）')
+    message.error('存储连接测试失败')
   }
 }
 

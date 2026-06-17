@@ -79,6 +79,7 @@
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const cleaning = ref(false)
@@ -112,47 +113,76 @@ function editRule(record: any) {
   message.info('编辑清理规则: ' + record.name)
 }
 
-function toggleRule(record: any) {
-  message.success(record.enabled ? '规则已启用' : '规则已停用')
+async function toggleRule(record: any) {
+  try {
+    await request.put('/data-source/cleanup/' + record.id, {
+      status: record.enabled ? 'running' : 'paused'
+    })
+    message.success(record.enabled ? '规则已启用' : '规则已停用')
+  } catch {
+    message.error('操作失败')
+  }
 }
 
-function deleteRule(record: any) {
-  list.value = list.value.filter((l: any) => l.id !== record.id)
-  message.success('清理规则已删除')
+async function deleteRule(record: any) {
+  try {
+    await request.delete('/data-source/cleanup/' + record.id)
+    message.success('清理规则已删除')
+  } catch {
+    message.error('删除失败')
+  }
+  fetchData()
 }
 
-function handleCleanNow() {
+async function handleCleanNow() {
   cleaning.value = true
-  message.loading('正在执行数据清理...', 1.5)
-  setTimeout(() => {
-    cleaning.value = false
-    message.success('数据清理完成')
-    fetchCleanLogs()
-  }, 3000)
+  const enabledRule = list.value.find((r: any) => r.enabled)
+  if (enabledRule) {
+    try {
+      await request.post('/data-source/cleanup/' + enabledRule.id + '/execute')
+      message.success('数据清理完成')
+    } catch {
+      message.error('清理执行失败')
+    }
+  } else {
+    message.warning('没有启用的清理规则')
+  }
+  cleaning.value = false
+  fetchCleanLogs()
 }
 
-function fetchCleanLogs() {
-  cleanLogs.value = [
-    { id: 1, ruleName: '操作日志清理', cleanedCount: 15230, duration: '3.2s', status: 'success', executedAt: new Date(Date.now() - 300000).toLocaleString() },
-    { id: 2, ruleName: '登录日志清理', cleanedCount: 8910, duration: '1.8s', status: 'success', executedAt: new Date(Date.now() - 600000).toLocaleString() },
-    { id: 3, ruleName: '临时数据清理', cleanedCount: 0, duration: '0.5s', status: 'success', executedAt: new Date(Date.now() - 3600000).toLocaleString() },
-  ]
+async function fetchCleanLogs() {
+  try {
+    const res = await request.get('/data-source/cleanup/logs', { params: { page: 1, pageSize: 10 } })
+    cleanLogs.value = res?.records || []
+  } catch {
+    cleanLogs.value = []
+  }
 }
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
-  setTimeout(() => {
-    list.value = [
-      { id: 1, name: '操作日志清理', tableName: 'sys_log', condition: 'create_time < 当前时间-90天', retentionDays: 90, schedule: '每日03:00', lastRun: new Date(Date.now() - 3600000).toLocaleString(), enabled: true },
-      { id: 2, name: '登录日志清理', tableName: 'sys_login_log', condition: 'create_time < 当前时间-180天', retentionDays: 180, schedule: '每日04:00', lastRun: new Date(Date.now() - 7200000).toLocaleString(), enabled: true },
-      { id: 3, name: '审计日志清理', tableName: 'sys_audit_log', condition: 'create_time < 当前时间-365天', retentionDays: 365, schedule: '每日05:00', lastRun: new Date(Date.now() - 86400000).toLocaleString(), enabled: true },
-      { id: 4, name: '临时数据清理', tableName: 'temp_*', condition: 'expire_time < 当前时间', retentionDays: 7, schedule: '每小时', lastRun: new Date(Date.now() - 1800000).toLocaleString(), enabled: true },
-      { id: 5, name: '消息通知清理', tableName: 'sys_notification', condition: 'is_read = 1 AND create_time < 当前时间-30天', retentionDays: 30, schedule: '每日06:00', lastRun: new Date(Date.now() - 43200000).toLocaleString(), enabled: false },
-      { id: 6, name: 'API调用日志清理', tableName: 'sys_api_log', condition: 'create_time < 当前时间-60天', retentionDays: 60, schedule: '每日03:30', lastRun: null, enabled: true },
-    ]
+  try {
+    const res = await request.get('/data-source/cleanup/list', {
+      params: { page: 1, pageSize: 50 }
+    })
+    const records = res?.records || []
+    list.value = records.map((r: any) => ({
+      id: r.id,
+      name: r.ruleName || '',
+      tableName: r.targetTable || '',
+      condition: r.conditionColumn || '',
+      retentionDays: r.retentionDays || 0,
+      schedule: r.cronExpression || '',
+      lastRun: r.updateTime || '',
+      enabled: r.status === 'running',
+    }))
+  } catch {
+    list.value = []
+  } finally {
     fetchCleanLogs()
     loading.value = false
-  }, 300)
+  }
 }
 
 onMounted(fetchData)

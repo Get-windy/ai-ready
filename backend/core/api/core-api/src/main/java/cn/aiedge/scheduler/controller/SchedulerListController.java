@@ -1,61 +1,89 @@
 package cn.aiedge.scheduler.controller;
 
+import cn.aiedge.scheduler.mapper.ScheduledTaskMapper;
+import cn.aiedge.scheduler.model.ScheduledTask;
+import cn.aiedge.scheduler.service.ScheduledTaskService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 调度任务列表控制器
- * 提供任务列表查询接口，配合前端 /scheduler/tasks 路由使用
- *
- * @author AI-Ready Team
- * @since 1.1.0
+ * 配合前端 /scheduler/tasks 路由使用
  */
 @RestController
 @RequestMapping("/api/scheduler")
-@Tag(name = "调度任务列表", description = "任务列表查询接口")
+@Tag(name = "调度任务列表")
 @SaCheckLogin
+@RequiredArgsConstructor
 public class SchedulerListController {
 
-    /**
-     * 模拟的调度任务数据
-     * 格式匹配前端预期：id, name, code, cron, lastRun, nextRun, status
-     */
-    private static final List<Map<String, Object>> MOCK_TASKS = List.of(
-            createTask(1L, "数据同步任务", "dataSync", "0 0 2 * * ?", "2026-06-17 02:00:00", "2026-06-18 02:00:00", "RUNNING"),
-            createTask(2L, "日志清理任务", "logCleanup", "0 0 3 * * ?", "2026-06-17 03:00:00", "2026-06-18 03:00:00", "RUNNING"),
-            createTask(3L, "报表生成任务", "reportGen", "0 0 4 * * ?", "2026-06-16 04:00:00", "2026-06-18 04:00:00", "RUNNING"),
-            createTask(4L, "用户状态检查", "userCheck", "0 */30 * * * ?", "2026-06-17 12:30:00", "2026-06-17 13:00:00", "RUNNING"),
-            createTask(5L, "订单超时处理", "orderTimeout", "0 */5 * * * ?", "2026-06-17 12:55:00", "2026-06-17 13:00:00", "RUNNING"),
-            createTask(6L, "缓存预热任务", "cacheWarmup", "0 0 5 * * ?", "2026-06-17 05:00:00", "2026-06-18 05:00:00", "PAUSED"),
-            createTask(7L, "数据备份任务", "dataBackup", "0 0 1 * * ?", "2026-06-17 01:00:00", "2026-06-18 01:00:00", "RUNNING"),
-            createTask(8L, "消息推送任务", "msgPush", "0 0/10 * * * ?", "2026-06-17 12:50:00", "2026-06-17 13:00:00", "RUNNING"),
-            createTask(9L, "统计分析任务", "statAnalysis", "0 0 6 * * ?", null, "2026-06-18 06:00:00", "STOPPED"),
-            createTask(10L, "索引重建任务", "indexRebuild", "0 0 23 * * ?", "2026-06-16 23:00:00", "2026-06-17 23:00:00", "PAUSED")
-    );
-
-    private static Map<String, Object> createTask(Long id, String name, String code,
-                                                   String cron, String lastRun, String nextRun, String status) {
-        Map<String, Object> task = new LinkedHashMap<>();
-        task.put("id", id);
-        task.put("name", name);
-        task.put("code", code);
-        task.put("cron", cron);
-        task.put("lastRun", lastRun);
-        task.put("nextRun", nextRun);
-        task.put("status", status);
-        return task;
-    }
+    private final ScheduledTaskService scheduledTaskService;
+    private final ScheduledTaskMapper scheduledTaskMapper;
 
     @GetMapping("/tasks")
     @Operation(summary = "获取所有调度任务列表")
-    public ResponseEntity<List<Map<String, Object>>> getAllTasks() {
-        return ResponseEntity.ok(MOCK_TASKS);
+    public List<Map<String, Object>> getAllTasks() {
+        List<ScheduledTask> tasks = scheduledTaskMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ScheduledTask>()
+                        .orderByAsc(ScheduledTask::getId)
+        );
+
+        return tasks.stream().map(this::toTaskMap).collect(Collectors.toList());
+    }
+
+    @DeleteMapping("/tasks/{id}")
+    @Operation(summary = "删除定时任务")
+    public Map<String, Object> deleteTask(@PathVariable Long id) {
+        boolean deleted = scheduledTaskService.deleteTask(id);
+        return Map.of("success", deleted, "message", deleted ? "任务已删除" : "任务不存在");
+    }
+
+    @PostMapping("/tasks/{id}/start")
+    @Operation(summary = "启动定时任务")
+    public Map<String, Object> startTask(@PathVariable Long id) {
+        boolean success = scheduledTaskService.resumeTask(id);
+        return Map.of("success", success, "message", success ? "任务已启动" : "任务启动失败");
+    }
+
+    @PostMapping("/tasks/{id}/pause")
+    @Operation(summary = "暂停定时任务")
+    public Map<String, Object> pauseTask(@PathVariable Long id) {
+        boolean success = scheduledTaskService.pauseTask(id);
+        return Map.of("success", success, "message", success ? "任务已暂停" : "任务暂停失败");
+    }
+
+    @PostMapping("/tasks/{id}/trigger")
+    @Operation(summary = "立即执行定时任务")
+    public Map<String, Object> triggerTask(@PathVariable Long id) {
+        boolean success = scheduledTaskService.executeTask(id);
+        return Map.of("success", success, "message", success ? "任务已执行" : "任务执行失败");
+    }
+
+    /**
+     * 将 ScheduledTask 转为前端所需的格式
+     */
+    private Map<String, Object> toTaskMap(ScheduledTask task) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", task.getId());
+        map.put("name", task.getTaskName());
+        // 从任务名生成编码
+        String code = task.getTaskName() != null
+                ? task.getTaskName().replaceAll("\\s+", "").toLowerCase()
+                : "task_" + task.getId();
+        map.put("code", code);
+        map.put("cron", task.getCronExpression());
+        map.put("lastRun", task.getLastExecuteTime() != null ? task.getLastExecuteTime().toString().replace("T", " ") : null);
+        map.put("nextRun", task.getNextExecuteTime() != null ? task.getNextExecuteTime().toString().replace("T", " ") : null);
+        // enabled字段作为状态: 1=运行中(true), 0=暂停(false)
+        map.put("status", task.getEnabled() != null && task.getEnabled() == 1);
+        map.put("taskDesc", task.getTaskDesc());
+        map.put("executeCount", task.getExecuteCount());
+        return map;
     }
 }

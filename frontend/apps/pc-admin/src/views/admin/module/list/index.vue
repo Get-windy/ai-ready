@@ -55,9 +55,14 @@ function handleEdit(record: any) {
   message.info('编辑模块: ' + record.moduleName)
 }
 
-function toggleStatus(record: any) {
-  record.status = record.status === 1 ? 0 : 1
-  message.success(record.status === 1 ? '模块已启用' : '模块已停用')
+async function toggleStatus(record: any) {
+  try {
+    await request.put('/module/' + record.id + '/status')
+    record.status = record.status === 1 ? 0 : 1
+    message.success(record.status === 1 ? '模块已启用' : '模块已停用')
+  } catch {
+    message.error('操作失败')
+  }
 }
 
 async function fetchData() {
@@ -66,14 +71,7 @@ async function fetchData() {
     const res = await request.get('/module/list')
     list.value = res?.records || []
   } catch {
-    list.value = [
-      { id: 1, moduleName: '销售管理', moduleCode: 'sale', version: '2.1.0', description: '销售订单、出库、退货全流程管理', status: 1 },
-      { id: 2, moduleName: '采购管理', moduleCode: 'purchase', version: '2.0.0', description: '采购订单、入库、换货全流程管理', status: 1 },
-      { id: 3, moduleName: '仓储管理', moduleCode: 'warehouse', version: '1.5.0', description: '库存管理、盘点、调拨', status: 1 },
-      { id: 4, moduleName: '财务管理', moduleCode: 'finance', version: '2.3.0', description: '应收应付、凭证、报表', status: 1 },
-      { id: 5, moduleName: '客户关系', moduleCode: 'crm', version: '1.8.0', description: '客户管理、线索、商机', status: 1 },
-      { id: 6, moduleName: '营销管理', moduleCode: 'marketing', version: '1.0.0', description: '营销活动、优惠券', status: 0 },
-    ]
+    list.value = []
   } finally {
     loading.value = false
   }

@@ -1,5 +1,8 @@
 package cn.aiedge.datasource.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 慢查询记录
  */
 @Schema(description = "慢查询记录")
+@TableName("sys_slow_query")
 public class SlowQuery implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "记录ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "数据源ID")

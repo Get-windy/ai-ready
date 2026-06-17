@@ -1,5 +1,8 @@
 package cn.aiedge.module.model;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,10 +11,12 @@ import java.time.LocalDateTime;
  * 系统模块
  */
 @Schema(description = "系统模块")
+@TableName("sys_module")
 public class SysModule implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "模块ID")
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     @Schema(description = "模块名称")

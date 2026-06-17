@@ -83,7 +83,7 @@ function saveSmtp() {
   request.post('/mail/config', smtp).then(() => {
     message.success('SMTP配置已保存')
   }).catch(() => {
-    message.success('SMTP配置已保存（模拟）')
+    message.error('保存失败')
   })
 }
 
@@ -93,7 +93,7 @@ async function testConnection() {
     await request.post('/mail/test', smtp)
     message.success('邮件连接测试成功')
   } catch {
-    message.success('邮件连接测试成功（模拟）')
+    message.error('邮件连接测试失败')
   }
 }
 
@@ -108,18 +108,15 @@ async function fetchData() {
       smtp.password = res.password || ''
     }
   } catch {
-    smtp.host = 'smtp.example.com'
-    smtp.port = 465
-    smtp.encryption = 'ssl'
-    smtp.username = 'noreply@example.com'
+    // 使用默认值
   }
 
-  templates.value = [
-    { id: 1, name: '欢迎注册', code: 'welcome' },
-    { id: 2, name: '密码重置', code: 'password_reset' },
-    { id: 3, name: '审批通知', code: 'approval_notify' },
-    { id: 4, name: '告警通知', code: 'alert_notify' },
-  ]
+  try {
+    const res = await request.get('/mail/templates')
+    templates.value = res?.records || []
+  } catch {
+    templates.value = []
+  }
 }
 
 onMounted(fetchData)

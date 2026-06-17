@@ -1,71 +1,61 @@
 package cn.aiedge.monitor.service.impl;
 
+import cn.aiedge.monitor.mapper.AlertHistoryMapper;
+import cn.aiedge.monitor.mapper.AlertRuleMapper;
+import cn.aiedge.monitor.model.AlertHistory;
 import cn.aiedge.monitor.model.AlertRule;
 import cn.aiedge.monitor.service.AlertRuleService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-/**
- * 告警规则服务实现
- * 
- * @author AI-Ready Team
- * @since 1.0.0
- */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AlertRuleServiceImpl implements AlertRuleService {
 
-    // 内存存储（实际应使用数据库）
-    private final Map<Long, AlertRule> ruleStore = new ConcurrentHashMap<>();
-    private final List<Map<String, Object>> alertHistory = Collections.synchronizedList(new ArrayList<>());
-    private final AtomicLong idGenerator = new AtomicLong(1);
+    private final AlertRuleMapper alertRuleMapper;
+    private final AlertHistoryMapper alertHistoryMapper;
 
     @Override
     public AlertRule createRule(AlertRule rule) {
-        rule.setId(idGenerator.getAndIncrement());
-        rule.setCreateTime(LocalDateTime.now());
-        rule.setUpdateTime(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        rule.setCreateTime(now);
+        rule.setUpdateTime(now);
         rule.setEnabled(true);
         rule.setDeleted(0);
-        
-        ruleStore.put(rule.getId(), rule);
-        log.info("Created alert rule: {}", rule.getRuleName());
+        alertRuleMapper.insert(rule);
+        log.info("创建告警规则: {}", rule.getRuleName());
         return rule;
     }
 
     @Override
     public AlertRule updateRule(AlertRule rule) {
-        if (rule.getId() == null || !ruleStore.containsKey(rule.getId())) {
+        AlertRule existing = alertRuleMapper.selectById(rule.getId());
+        if (existing == null) {
             throw new IllegalArgumentException("Rule not found: " + rule.getId());
         }
-        
-        AlertRule existing = ruleStore.get(rule.getId());
-        existing.setRuleName(rule.getRuleName());
-        existing.setMetricName(rule.getMetricName());
-        existing.setOperator(rule.getOperator());
-        existing.setThreshold(rule.getThreshold());
-        existing.setDuration(rule.getDuration());
-        existing.setSeverity(rule.getSeverity());
-        existing.setNotifyType(rule.getNotifyType());
-        existing.setNotifyTargets(rule.getNotifyTargets());
-        existing.setUpdateTime(LocalDateTime.now());
-        
-        log.info("Updated alert rule: {}", rule.getId());
-        return existing;
+        rule.setCreateTime(existing.getCreateTime());
+        rule.setUpdateTime(LocalDateTime.now());
+        rule.setDeleted(existing.getDeleted());
+        alertRuleMapper.updateById(rule);
+        log.info("更新告警规则: {}", rule.getId());
+        return rule;
     }
 
     @Override
     public boolean deleteRule(Long ruleId) {
-        AlertRule rule = ruleStore.get(ruleId);
+        AlertRule rule = alertRuleMapper.selectById(ruleId);
         if (rule != null) {
             rule.setDeleted(1);
-            log.info("Deleted alert rule: {}", ruleId);
+            rule.setUpdateTime(LocalDateTime.now());
+            alertRuleMapper.updateById(rule);
+            log.info("删除告警规则: {}", ruleId);
             return true;
         }
         return false;
@@ -73,29 +63,31 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     public AlertRule getRule(Long ruleId) {
-        AlertRule rule = ruleStore.get(ruleId);
-        return rule != null && rule.getDeleted() == 0 ? rule : null;
+        return alertRuleMapper.selectById(ruleId);
     }
 
     @Override
     public List<AlertRule> getEnabledRules(Long tenantId) {
-        return ruleStore.values().stream()
-                .filter(r -> r.getDeleted() == 0)
-                .filter(r -> r.getEnabled() != null && r.getEnabled())
-                .filter(r -> tenantId == null || tenantId.equals(r.getTenantId()))
-                .collect(Collectors.toList());
+        LambdaQueryWrapper<AlertRule> wrapper = new LambdaQueryWrapper<AlertRule>()
+                .eq(AlertRule::getDeleted, 0)
+                .eq(AlertRule::getEnabled, true)
+                .eq(tenantId != null, AlertRule::getTenantId, tenantId);
+        return alertRuleMapper.selectList(wrapper);
     }
 
     @Override
     public List<Map<String, Object>> checkAndAlert(String metricName, double value, Long tenantId) {
         List<Map<String, Object>> triggeredAlerts = new ArrayList<>();
-        
+
         List<AlertRule> rules = getEnabledRules(tenantId).stream()
                 .filter(r -> r.getMetricName().equals(metricName))
                 .collect(Collectors.toList());
-        
+
         for (AlertRule rule : rules) {
             if (rule.isTriggered(value)) {
+                String message = String.format("%s: %s = %.2f (threshold: %s %.2f)",
+                        rule.getSeverity(), metricName, value, rule.getOperator(), rule.getThreshold());
+
                 Map<String, Object> alert = new HashMap<>();
                 alert.put("ruleId", rule.getId());
                 alert.put("ruleName", rule.getRuleName());
@@ -104,26 +96,41 @@ public class AlertRuleServiceImpl implements AlertRuleService {
                 alert.put("threshold", rule.getThreshold());
                 alert.put("severity", rule.getSeverity());
                 alert.put("timestamp", LocalDateTime.now());
-                alert.put("message", String.format("%s: %s = %.2f (threshold: %s %.2f)",
-                        rule.getSeverity(), metricName, value, rule.getOperator(), rule.getThreshold()));
-                
+                alert.put("message", message);
                 triggeredAlerts.add(alert);
-                alertHistory.add(alert);
-                
+
+                // 保存到数据库
+                AlertHistory history = new AlertHistory();
+                history.setRuleId(rule.getId());
+                history.setRuleName(rule.getRuleName());
+                history.setMetricName(metricName);
+                history.setMetricValue(value);
+                history.setThreshold(rule.getThreshold());
+                history.setOperator(rule.getOperator());
+                history.setSeverity(rule.getSeverity());
+                history.setMessage(message);
+                history.setTenantId(tenantId);
+                history.setAlertTime(LocalDateTime.now());
+                history.setAcknowledged(false);
+                history.setResolved(false);
+                alertHistoryMapper.insert(history);
+
                 // 模拟发送通知
                 sendNotification(rule, alert);
             }
         }
-        
+
         return triggeredAlerts;
     }
 
     @Override
     public boolean enableRule(Long ruleId) {
-        AlertRule rule = ruleStore.get(ruleId);
+        AlertRule rule = alertRuleMapper.selectById(ruleId);
         if (rule != null) {
             rule.setEnabled(true);
-            log.info("Enabled alert rule: {}", ruleId);
+            rule.setUpdateTime(LocalDateTime.now());
+            alertRuleMapper.updateById(rule);
+            log.info("启用告警规则: {}", ruleId);
             return true;
         }
         return false;
@@ -131,10 +138,12 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     public boolean disableRule(Long ruleId) {
-        AlertRule rule = ruleStore.get(ruleId);
+        AlertRule rule = alertRuleMapper.selectById(ruleId);
         if (rule != null) {
             rule.setEnabled(false);
-            log.info("Disabled alert rule: {}", ruleId);
+            rule.setUpdateTime(LocalDateTime.now());
+            alertRuleMapper.updateById(rule);
+            log.info("禁用告警规则: {}", ruleId);
             return true;
         }
         return false;
@@ -143,18 +152,26 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     @Override
     public List<Map<String, Object>> getAlertHistory(Long tenantId, int hours) {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(hours);
-        
-        return alertHistory.stream()
-                .filter(a -> {
-                    LocalDateTime timestamp = (LocalDateTime) a.get("timestamp");
-                    return timestamp.isAfter(cutoff);
-                })
-                .sorted((a, b) -> {
-                    LocalDateTime ta = (LocalDateTime) a.get("timestamp");
-                    LocalDateTime tb = (LocalDateTime) b.get("timestamp");
-                    return tb.compareTo(ta); // 降序
-                })
-                .collect(Collectors.toList());
+
+        LambdaQueryWrapper<AlertHistory> wrapper = new LambdaQueryWrapper<AlertHistory>()
+                .eq(tenantId != null, AlertHistory::getTenantId, tenantId)
+                .ge(AlertHistory::getAlertTime, cutoff)
+                .orderByDesc(AlertHistory::getAlertTime);
+
+        List<AlertHistory> histories = alertHistoryMapper.selectList(wrapper);
+
+        return histories.stream().map(h -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("ruleId", h.getRuleId());
+            map.put("ruleName", h.getRuleName());
+            map.put("metricName", h.getMetricName());
+            map.put("value", h.getMetricValue());
+            map.put("threshold", h.getThreshold());
+            map.put("severity", h.getSeverity());
+            map.put("timestamp", h.getAlertTime());
+            map.put("message", h.getMessage());
+            return map;
+        }).collect(Collectors.toList());
     }
 
     private void sendNotification(AlertRule rule, Map<String, Object> alert) {
@@ -162,9 +179,9 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         if (notifyType == null || notifyType.isEmpty()) {
             return;
         }
-        
+
         String message = (String) alert.get("message");
-        
+
         switch (notifyType.toLowerCase()) {
             case "email":
                 log.info("[EMAIL] Sending alert to {}: {}", rule.getNotifyTargets(), message);

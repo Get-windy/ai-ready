@@ -75,14 +75,7 @@ async function fetchModules() {
     const res = await getTenantModules()
     availableModules.value = (res as any).data || []
   } catch {
-    availableModules.value = [
-      { moduleCode: 'sale', moduleName: '销售管理' },
-      { moduleCode: 'purchase', moduleName: '采购管理' },
-      { moduleCode: 'warehouse', moduleName: '仓储管理' },
-      { moduleCode: 'finance', moduleName: '财务管理' },
-      { moduleCode: 'crm', moduleName: '客户关系' },
-      { moduleCode: 'marketing', moduleName: '营销管理' },
-    ]
+    availableModules.value = []
   }
 }
 
@@ -90,7 +83,8 @@ async function onTenantChange(tenantId: number) {
   try {
     const { getTenantMenuIds } = await import('@/api/menu')
     const res = await getTenantMenuIds(tenantId)
-    selectedModules.value = (res as any).data?.map((m: any) => m.moduleCode || m) || []
+    // 后端返回 Set<Long>（菜单ID列表），request 拦截器已解包 data
+    selectedModules.value = Array.isArray(res) ? res.map(String) : []
   } catch {
     selectedModules.value = []
   }
@@ -99,7 +93,11 @@ async function onTenantChange(tenantId: number) {
 async function handleSave() {
   saving.value = true
   try {
+    const { assignTenantMenus } = await import('@/api/menu')
+    await assignTenantMenus(selectedTenantId.value!, selectedModules.value.map(Number))
     message.success('授权保存成功')
+  } catch {
+    message.error('授权保存失败')
   } finally {
     saving.value = false
   }

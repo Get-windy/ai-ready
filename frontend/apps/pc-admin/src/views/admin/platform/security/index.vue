@@ -179,7 +179,7 @@ async function saveAll() {
     await request.post('/system/security/policy/save', policy)
     message.success('安全策略已保存')
   } catch {
-    message.success('安全策略已保存（模拟）')
+    message.error('保存失败')
   }
 }
 

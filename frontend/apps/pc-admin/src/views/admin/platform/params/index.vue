@@ -45,6 +45,7 @@ const loading = ref(false)
 const saving = ref(false)
 const editVisible = ref(false)
 const list = ref<any[]>([])
+const editingRecord = ref<any>(null)
 
 const editForm = reactive({
   paramValue: '',
@@ -61,37 +62,37 @@ const columns = [
 ]
 
 function handleEdit(record: any) {
+  editingRecord.value = record
   editForm.paramValue = record.paramValue
   editForm.remark = record.remark || ''
   editVisible.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   saving.value = true
-  setTimeout(() => {
+  try {
+    await request.post('/config/save-value', {
+      configKey: editingRecord.value?.paramKey,
+      configValue: editForm.paramValue,
+    })
     message.success('参数已更新')
+  } catch {
+    message.error('参数更新失败')
+  } finally {
     editVisible.value = false
+    editingRecord.value = null
     saving.value = false
     fetchData()
-  }, 500)
+  }
 }
 
 async function fetchData() {
   loading.value = true
   try {
     const res = await request.get('/config/list')
-    list.value = res?.data || []
+    list.value = res?.records || []
   } catch {
-    list.value = [
-      { id: 1, paramName: '系统名称', paramKey: 'system.title', paramValue: 'AI-Ready 企业管理平台', builtin: '是', remark: '系统全局显示名称' },
-      { id: 2, paramName: '系统Logo', paramKey: 'system.logo', paramValue: '/logo.png', builtin: '是', remark: '系统Logo图片路径' },
-      { id: 3, paramName: '默认密码', paramKey: 'system.defaultPassword', paramValue: '123456', builtin: '是', remark: '新用户默认密码' },
-      { id: 4, paramName: '密码策略', paramKey: 'system.passwordPolicy', paramValue: 'minLength=8,requireUpper=1,requireLower=1,requireDigit=1', builtin: '是', remark: '密码复杂度要求' },
-      { id: 5, paramName: '会话超时', paramKey: 'system.sessionTimeout', paramValue: '3600', builtin: '是', remark: '登录会话超时时间（秒）' },
-      { id: 6, paramName: '上传文件大小限制', paramKey: 'system.uploadMaxSize', paramValue: '104857600', builtin: '是', remark: '单文件上传大小限制（字节）' },
-      { id: 7, paramName: '允许上传文件类型', paramKey: 'system.uploadAllowedTypes', paramValue: 'jpg,png,gif,pdf,doc,docx,xls,xlsx', builtin: '否', remark: '上传文件扩展名白名单' },
-      { id: 8, paramName: '登录失败锁定次数', paramKey: 'system.loginLockCount', paramValue: '5', builtin: '否', remark: '登录失败N次后锁定账户' },
-    ]
+    list.value = []
   } finally {
     loading.value = false
   }

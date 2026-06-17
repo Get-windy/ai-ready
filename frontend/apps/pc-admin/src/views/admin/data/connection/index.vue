@@ -167,16 +167,24 @@ function editConnection(record: any) {
   showCreateForm.value = true
 }
 
-function handleSave() {
+async function handleSave() {
   saving.value = true
-  setTimeout(() => {
+  try {
+    if (editRecord.value) {
+      await request.put('/data-source/' + editRecord.value.id, form)
+    } else {
+      await request.post('/data-source', form)
+    }
     message.success(editRecord.value ? '连接已更新' : '连接已创建')
     showCreateForm.value = false
     editRecord.value = null
     resetForm()
+  } catch {
+    message.error('保存失败')
+  } finally {
     saving.value = false
     fetchData()
-  }, 500)
+  }
 }
 
 async function testConnection(record: any) {
@@ -184,7 +192,7 @@ async function testConnection(record: any) {
     await request.post('/data-source/test', { id: record.id })
     message.success('连接测试成功')
   } catch {
-    message.success('连接测试成功（模拟）')
+    message.error('连接测试失败')
   }
 }
 
@@ -193,7 +201,7 @@ async function deleteConnection(record: any) {
     await request.delete('/data-source/' + record.id)
     message.success('连接已删除')
   } catch {
-    message.success('连接已删除（模拟）')
+    message.error('删除失败')
   }
   fetchData()
 }
@@ -205,18 +213,8 @@ async function fetchData() {
     list.value = res?.records || []
     pagination.total = res?.total || 0
   } catch {
-    // Fallback mock data
-    const types = ['PostgreSQL', 'MySQL', 'Oracle']
-    list.value = Array.from({ length: 5 }, (_, i) => ({
-      id: i + 1,
-      name: ['核心数据库', '业务数据库', '日志数据库', '备份数据库', '测试数据库'][i],
-      dbType: types[i % types.length],
-      host: '192.168.1.' + (100 + i),
-      port: i === 0 ? 5432 : 3306,
-      database: ['devdb', 'business', 'logs', 'backup', 'test'][i],
-      status: i < 4 ? 'connected' : 'disconnected',
-    }))
-    pagination.total = list.value.length
+    list.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }

@@ -84,19 +84,31 @@ function handleEdit(record: any) {
 }
 
 function handleDelete(record: any) {
-  list.value = list.value.filter((l: any) => l.id !== record.id)
-  message.success('定时任务已删除')
+  request.delete('/scheduler/tasks/' + record.id).then(() => {
+    message.success('定时任务已删除')
+  }).catch(() => {
+    message.error('删除失败')
+  }).finally(() => {
+    fetchData()
+  })
 }
 
 function toggleTask(record: any, checked: boolean) {
-  message.success(checked ? '任务已启动' : '任务已暂停')
+  const url = checked ? `/scheduler/tasks/${record.id}/start` : `/scheduler/tasks/${record.id}/pause`
+  request.post(url).then(() => {
+    message.success(checked ? '任务已启动' : '任务已暂停')
+  }).catch(() => {
+    message.error(checked ? '任务启动失败' : '任务暂停失败')
+  })
 }
 
 function executeNow(record: any) {
   message.loading('正在执行: ' + record.name, 1)
-  setTimeout(() => {
+  request.post(`/scheduler/tasks/${record.id}/trigger`).then(() => {
     message.success('任务执行完成: ' + record.name)
-  }, 1500)
+  }).catch(() => {
+    message.error('任务执行失败: ' + record.name)
+  })
 }
 
 async function fetchData() {
@@ -105,14 +117,7 @@ async function fetchData() {
     const res = await request.get('/scheduler/tasks')
     list.value = Array.isArray(res) ? res : (res?.records || [])
   } catch {
-    list.value = [
-      { id: 1, name: '数据备份', code: 'data_backup', cron: '0 0 3 * * ?', lastRun: '2026-06-17 03:00:00', nextRun: '2026-06-18 03:00:00', status: true },
-      { id: 2, name: '日志清理', code: 'log_cleanup', cron: '0 0 4 * * ?', lastRun: '2026-06-17 04:00:00', nextRun: '2026-06-18 04:00:00', status: true },
-      { id: 3, name: '数据同步', code: 'data_sync', cron: '0 */5 * * * ?', lastRun: '2026-06-17 14:30:00', nextRun: '2026-06-17 14:35:00', status: true },
-      { id: 4, name: '缓存刷新', code: 'cache_refresh', cron: '0 0 */2 * * ?', lastRun: '2026-06-17 12:00:00', nextRun: '2026-06-17 14:00:00', status: false },
-      { id: 5, name: '统计报表', code: 'report_stats', cron: '0 30 1 * * ?', lastRun: '2026-06-17 01:30:00', nextRun: '2026-06-18 01:30:00', status: true },
-      { id: 6, name: '告警检查', code: 'alert_check', cron: '0 */1 * * * ?', lastRun: '2026-06-17 14:29:00', nextRun: '2026-06-17 14:30:00', status: true },
-    ]
+    list.value = []
   } finally {
     loading.value = false
   }

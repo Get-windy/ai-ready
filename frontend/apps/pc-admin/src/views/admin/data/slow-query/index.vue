@@ -158,36 +158,38 @@ function showDetail(record: any) {
   detailVisible.value = true
 }
 
-function fetchData() {
+async function fetchData() {
   loading.value = true
-  // Simulate API call with mock data
-  setTimeout(() => {
-    const sqls = [
-      'SELECT * FROM orders WHERE status = 0 ORDER BY create_time DESC LIMIT 1000',
-      'SELECT o.*, u.name, p.title FROM orders o LEFT JOIN users u ON o.user_id = u.id LEFT JOIN products p ON o.product_id = p.id WHERE o.create_time > ?',
-      'UPDATE inventory SET quantity = quantity - ? WHERE product_id = ? AND warehouse_id = ?',
-      'SELECT DISTINCT category_id, COUNT(*) as cnt FROM products GROUP BY category_id HAVING COUNT(*) > 100',
-      'INSERT INTO audit_log (user_id, action, target_type, target_id, detail, create_time) VALUES (?, ?, ?, ?, ?, ?)',
-      'SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY create_time DESC) as rn FROM login_log) t WHERE rn = 1',
-    ]
-    list.value = Array.from({ length: 12 }, (_, i) => ({
-      id: i + 1,
-      sql: sqls[i % sqls.length],
-      duration: [120, 1500, 350, 5200, 80, 2100, 450, 3200, 180, 620, 4100, 90][i],
-      dataSource: dataSources.value[i % 3],
-      executedAt: new Date(Date.now() - Math.random() * 86400000 * 7).toLocaleString(),
-      rows: Math.floor(Math.random() * 5000) + 10,
-      userName: ['admin', '张三', '李四', '王五'][i % 4],
+  try {
+    const res = await request.get('/data-source/slow-query/list', {
+      params: { page: pagination.current, pageSize: pagination.pageSize }
+    })
+    const records = res?.records || []
+    list.value = records.map((r: any) => ({
+      id: r.id,
+      sql: r.queryText || '',
+      duration: r.queryTimeMs || 0,
+      dataSource: r.databaseName || (r.dataSourceId ? '数据源#' + r.dataSourceId : ''),
+      executedAt: r.queryTime || r.createTime || '',
+      rows: r.rowsSent || 0,
+      userName: r.userName || '',
     }))
-    pagination.total = list.value.length
-
-    stats.total = 156
-    stats.avgDuration = 890
-    stats.maxDuration = 5200
-    stats.timeoutCount = 12
-
+    pagination.total = res?.total || 0
+    const durations = list.value.map((r: any) => r.duration).filter((d: number) => d > 0)
+    stats.total = pagination.total
+    stats.avgDuration = durations.length ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length) : 0
+    stats.maxDuration = durations.length ? Math.max(...durations) : 0
+    stats.timeoutCount = durations.filter((d: number) => d > 5000).length || durations.filter((d: number) => d > 1000).length
+  } catch {
+    list.value = []
+    pagination.total = 0
+    stats.total = 0
+    stats.avgDuration = 0
+    stats.maxDuration = 0
+    stats.timeoutCount = 0
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 onMounted(fetchData)
