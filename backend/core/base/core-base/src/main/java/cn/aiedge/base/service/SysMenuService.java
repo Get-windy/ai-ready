@@ -77,4 +77,9 @@ public interface SysMenuService extends IService<SysMenu> {
      * 检查菜单编码是否存在
      */
     boolean checkMenuCodeExists(String menuCode, Long tenantId, Long excludeId);
+
+    /**
+     * 获取 Mega Menu 用户菜单树（支持两级授权 + menuLevel 过滤）
+     */
+    List<SysMenu> getUserMegaMenus(String clientType, Long userId, Long tenantId);
 }

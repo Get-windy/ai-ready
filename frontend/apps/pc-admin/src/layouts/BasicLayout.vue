@@ -1,92 +1,39 @@
 <template>
   <a-layout class="basic-layout" aria-label="主导航布局">
-    <a-layout-sider
+    <!-- 桌面端 Mega Sidebar (140px) -->
+    <div
       v-if="isDesktopView || isTabletView"
-      :collapsed="siderCollapsed"
-      @update:collapsed="handleSiderCollapsedChange"
-      :trigger="null"
-      collapsible
-      theme="dark"
-      :width="256"
-      :collapsed-width="64"
+      class="mega-sidebar"
+      @mouseleave="hoverState.handleTargetLeave()"
     >
-      <div class="logo">
-        <img
-          src="@/assets/logo.svg"
-          alt="logo"
+      <div class="mega-sidebar-logo">
+        <img src="@/assets/logo.svg" alt="logo" />
+      </div>
+
+      <div class="mega-sidebar-items">
+        <div
+          v-for="menu in userStore.menus"
+          :key="menu.id"
+          class="mega-sidebar-item"
+          :class="{ active: isMenuActive(menu) }"
+          @mouseenter="hoverState.handleTargetEnter(menu)"
         >
-        <span v-if="!collapsed">{{ t('app.name') }}</span>
+          <component :is="getIcon(menu.icon)" v-if="menu.icon" class="mega-sidebar-icon" />
+          <span class="mega-sidebar-label">{{ menu.menuName }}</span>
+          <div v-if="isMenuActive(menu)" class="mega-sidebar-active-bar" />
+        </div>
       </div>
 
-      <div v-if="!collapsed" class="sidebar-search" @click="openGlobalSearch">
-        <SearchOutlined />
-        <span class="sidebar-search-text">搜索菜单...</span>
-      </div>
-
-      <a-menu
-        v-model:selected-keys="selectedKeys"
-        v-model:open-keys="openKeys"
-        mode="inline"
-        theme="dark"
-        role="navigation"
-        aria-label="侧边栏导航菜单"
-      >
-        <template v-for="menu in userStore.menus" :key="menu.id">
-          <!-- displayGroup=1: 纯展示分组标题 + 子菜单直接展示 -->
-          <a-menu-item-group
-            v-if="menu.menuType === 0 && menu.displayGroup === 1 && menu.children?.length"
-            :title="menu.menuName"
-          >
-            <template v-for="child in menu.children" :key="child.id">
-              <a-menu-item
-                v-if="child.menuType === 1"
-                :key="child.menuCode"
-                @click="navigateTo(child.path, menu.path)"
-              >
-                <component :is="getIcon(child.icon)" v-if="child.icon" />
-                <span>{{ child.menuName }}</span>
-                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
-              </a-menu-item>
-            </template>
-          </a-menu-item-group>
-
-          <!-- 普通菜单项 -->
-          <a-menu-item
-            v-else-if="menu.menuType === 1 && !menu.children?.length"
-            :key="menu.menuCode"
-            @click="navigateTo(menu.path || '/')"
-          >
-            <component :is="getIcon(menu.icon)" v-if="menu.icon" />
-            <span>{{ menu.menuName }}</span>
-            <LinkOutlined v-if="menu.linkIcon" class="link-icon-indicator" />
-          </a-menu-item>
-
-          <!-- 普通目录：渲染为可展开子菜单 -->
-          <a-sub-menu
-            v-else-if="menu.menuType === 0"
-            :key="menu.menuCode"
-          >
-            <template #icon>
-              <component :is="getIcon(menu.icon)" v-if="menu.icon" />
-            </template>
-            <template #title>
-              {{ menu.menuName }}
-            </template>
-            <template v-for="child in menu.children" :key="child.id">
-              <a-menu-item
-                v-if="child.menuType === 1"
-                :key="child.menuCode"
-                @click="navigateTo(child.path, menu.path)"
-              >
-                <component :is="getIcon(child.icon)" v-if="child.icon" />
-                <span>{{ child.menuName }}</span>
-                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
-              </a-menu-item>
-            </template>
-          </a-sub-menu>
-        </template>
-      </a-menu>
-    </a-layout-sider>
+      <!-- MegaMenuPanel 弹出面板 -->
+      <Teleport to="body">
+        <MegaMenuPanel
+          v-if="hoverState.isOpen.value && hoverState.hoveredItem.value"
+          :menu-items="hoverState.hoveredItem.value.children || []"
+          @panel-enter="hoverState.handlePanelEnter()"
+          @panel-leave="hoverState.handlePanelLeave()"
+        />
+      </Teleport>
+    </div>
 
     <a-drawer
       v-if="!isDesktopView && !isTabletView"
@@ -97,65 +44,19 @@
     >
       <a-menu
         v-model:selected-keys="selectedKeys"
-        v-model:open-keys="openKeys"
         mode="inline"
         theme="dark"
         role="navigation"
         aria-label="移动端导航菜单"
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
-          <!-- displayGroup=1: 纯展示分组标题（移动端） -->
-          <a-menu-item-group
-            v-if="menu.menuType === 0 && menu.displayGroup === 1 && menu.children?.length"
-            :title="menu.menuName"
-          >
-            <template v-for="child in menu.children" :key="child.id">
-              <a-menu-item
-                v-if="child.menuType === 1"
-                :key="child.menuCode"
-                @click="handleMobileMenuClick(child.path || '/')"
-              >
-                <component :is="getIcon(child.icon)" v-if="child.icon" />
-                <span>{{ child.menuName }}</span>
-                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
-              </a-menu-item>
-            </template>
-          </a-menu-item-group>
-
-          <!-- 普通菜单项 -->
           <a-menu-item
-            v-else-if="menu.menuType === 1 && !menu.children?.length"
             :key="menu.menuCode"
-            @click="handleMobileMenuClick(menu.path || '/')"
+            @click="handleMobileMenuClick(getFirstLeafPath(menu) || '/')"
           >
             <component :is="getIcon(menu.icon)" v-if="menu.icon" />
             <span>{{ menu.menuName }}</span>
-            <LinkOutlined v-if="menu.linkIcon" class="link-icon-indicator" />
           </a-menu-item>
-
-          <!-- 普通目录 -->
-          <a-sub-menu
-            v-else-if="menu.menuType === 0"
-            :key="menu.menuCode"
-          >
-            <template #icon>
-              <component :is="getIcon(menu.icon)" v-if="menu.icon" />
-            </template>
-            <template #title>
-              {{ menu.menuName }}
-            </template>
-            <template v-for="child in menu.children" :key="child.id">
-              <a-menu-item
-                v-if="child.menuType === 1"
-                :key="child.menuCode"
-                @click="handleMobileMenuClick(child.path || '/')"
-              >
-                <component :is="getIcon(child.icon)" v-if="child.icon" />
-                <span>{{ child.menuName }}</span>
-                <LinkOutlined v-if="child.linkIcon" class="link-icon-indicator" />
-              </a-menu-item>
-            </template>
-          </a-sub-menu>
         </template>
       </a-menu>
     </a-drawer>
@@ -167,28 +68,6 @@
         :style="{ height: headerHeight }"
       >
         <div class="header-left">
-          <MenuUnfoldOutlined
-            v-if="collapsed && (isDesktopView || isTabletView)"
-            class="trigger"
-            role="button"
-            :aria-label="t('a11y.expandSidebar')"
-            :aria-expanded="!collapsed"
-            tabindex="0"
-            @click="collapsed = !collapsed"
-            @keydown.enter="collapsed = !collapsed"
-            @keydown.space.prevent="collapsed = !collapsed"
-          />
-          <MenuFoldOutlined
-            v-else-if="isDesktopView || isTabletView"
-            class="trigger"
-            role="button"
-            :aria-label="t('a11y.collapseSidebar')"
-            :aria-expanded="!collapsed"
-            tabindex="0"
-            @click="collapsed = !collapsed"
-            @keydown.enter="collapsed = !collapsed"
-            @keydown.space.prevent="collapsed = !collapsed"
-          />
           <MenuOutlined
             v-if="!isDesktopView && !isTabletView"
             class="trigger"
@@ -408,18 +287,17 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   MenuOutlined,
   StarOutlined,
   StarFilled,
-  SearchOutlined,
   BellOutlined,
-  LogoutOutlined,
-  LinkOutlined
+  LogoutOutlined
 } from '@ant-design/icons-vue'
 import { getIcon } from '@/utils/iconMap'
 import { useUserStore } from '@/stores/user'
+import { useHoverDelay } from '@/composables/useHoverDelay'
+import MegaMenuPanel from '@/components/MegaMenuPanel/MegaMenuPanel.vue'
+import type { MenuInfo } from '@/api/menu'
 import { useTabsStore } from '@/stores/tabs'
 import { useRecentStore } from '@/stores/recent'
 import { userApi, type TenantInfo } from '@/api/user'
@@ -438,14 +316,12 @@ const tabsStore = useTabsStore()
 const recentStore = useRecentStore()
 const { isMobileView, isTabletView, isDesktopView } = useResponsive()
 
-const collapsed = ref(false)
 const selectedKeys = ref(['dashboard'])
-
-// 从 localStorage 恢复侧边栏展开状态，默认为 ['erp']
-const savedOpenKeys = localStorage.getItem('sidebarOpenKeys')
-const openKeys = ref<string[]>(savedOpenKeys ? JSON.parse(savedOpenKeys) : ['erp'])
 const mobileMenuVisible = ref(false)
 const showFavorites = ref(false)
+
+// Mega Menu hover 延迟控制
+const hoverState = useHoverDelay(150, 300)
 
 // 通知系统（基于WebSocket实时推送）
 const notif = useNotification()
@@ -455,14 +331,7 @@ const cachedRoutes = computed(() => {
   return tabsStore.tabs.filter(t => t.routeName && t.routeName !== route.name?.toString()).map(t => t.routeName!) || []
 })
 
-const siderCollapsed = computed(() => isTabletView.value ? true : collapsed.value)
-const handleSiderCollapsedChange = (value: boolean) => {
-  if (!isTabletView.value) {
-    collapsed.value = value
-  }
-}
-
-// 租户切换（使用 store 中的用户可访问租户列表）
+	// 侧边栏展开状态持久化（多标签页切换/刷新后恢复）（使用 store 中的用户可访问租户列表）
 const tenantSwitching = ref(false)
 const currentTenantName = computed(() => {
   const found = userStore.userTenants.find(t => t.id === userStore.tenantId)
@@ -528,35 +397,58 @@ watch(() => route.path, (path) => {
       type: 'page'
     })
   }
-  // 同步菜单展开/选中状态（防止菜单折叠）
+  // 同步菜单展开/选中状态
   syncMenuKeys(path)
 }, { immediate: true })
 
-// 侧边栏展开状态持久化（多标签页切换/刷新后恢复）
-watch(openKeys, (keys) => {
-  localStorage.setItem('sidebarOpenKeys', JSON.stringify(keys))
-})
-
-// 根据当前路由同步菜单选中项和展开项
+// 根据当前路由同步移动端菜单选中项
 function syncMenuKeys(path: string) {
-  const findMenuKeys = (menus: any[], targetPath: string, parentCodes: string[]): { selected: string; open: string[] } | null => {
-    for (const menu of menus) {
-      if (menu.menuType === 0) {
-        // 子菜单：在 children 中递归查找
-        const found = findMenuKeys(menu.children || [], targetPath, [...parentCodes, menu.menuCode])
-        if (found) return found
-      } else if (menu.menuType === 1 && menu.path === targetPath) {
-        return { selected: menu.menuCode, open: parentCodes }
-      }
+  for (const menu of userStore.menus) {
+    const found = findMenuCodeByPath(menu, path)
+    if (found) {
+      selectedKeys.value = [found]
+      return
     }
-    return null
   }
+  selectedKeys.value = ['dashboard']
+}
 
-  const result = findMenuKeys(userStore.menus, path, [])
-  if (result) {
-    selectedKeys.value = [result.selected]
-    openKeys.value = result.open
+/** 递归查找菜单项中匹配路径的 menuCode */
+function findMenuCodeByPath(menu: MenuInfo, targetPath: string): string | null {
+  if (menu.path === targetPath) return menu.menuCode
+  if (menu.children?.length) {
+    for (const child of menu.children) {
+      const result = findMenuCodeByPath(child, targetPath)
+      if (result) return result
+    }
   }
+  return null
+}
+
+/** 判断顶级菜单是否处于激活状态（当前路由是否在该菜单子树下） */
+function isMenuActive(menu: MenuInfo): boolean {
+  const checkActive = (items: MenuInfo[]): boolean => {
+    for (const item of items) {
+      if (item.path && route.path.startsWith(item.path)) return true
+      if (item.children?.length && checkActive(item.children)) return true
+    }
+    return false
+  }
+  if (menu.path && route.path.startsWith(menu.path)) return true
+  if (menu.children?.length && checkActive(menu.children)) return true
+  return false
+}
+
+/** 获取菜单树的第一个叶子路径（移动端点击一级菜单用） */
+function getFirstLeafPath(menu: MenuInfo): string | null {
+  if (menu.path && menu.menuType === 1) return menu.path
+  if (menu.children?.length) {
+    for (const child of menu.children) {
+      const path = getFirstLeafPath(child)
+      if (path) return path
+    }
+  }
+  return null
 }
 
 // 加载租户列表（从 store 或 API 刷新）
@@ -681,48 +573,95 @@ const clearAllFavorites = () => {
 
 <style scoped>
 .basic-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.logo {
+/* 主内容区域：整体不滚动 */
+.basic-layout > .ant-layout {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Mega Sidebar (140px) ──────────────────────────── */
+.mega-sidebar {
+  width: 140px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #001529;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mega-sidebar-logo {
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 16px;
-  font-weight: bold;
-  padding: 0 16px;
-  gap: 8px;
-}
-
-.logo img {
-  width: 28px;
-  height: 28px;
+  padding: 0 12px;
   flex-shrink: 0;
 }
 
-.sidebar-search {
+.mega-sidebar-logo img {
+  width: 28px;
+  height: 28px;
+}
+
+.mega-sidebar-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mega-sidebar-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 8px 16px;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.65);
+  justify-content: center;
+  gap: 6px;
+  height: 45px;
+  padding: 0 8px;
   cursor: pointer;
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
   transition: all 0.2s;
+  user-select: none;
 }
 
-.sidebar-search:hover {
-  background: rgba(255, 255, 255, 0.18);
+.mega-sidebar-item:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-search-text {
-  opacity: 0.65;
+.mega-sidebar-item.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mega-sidebar-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.mega-sidebar-label {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 72px;
+}
+
+.mega-sidebar-active-bar {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: #ff4d4f;
+  border-radius: 0 2px 2px 0;
 }
 
 .layout-header {

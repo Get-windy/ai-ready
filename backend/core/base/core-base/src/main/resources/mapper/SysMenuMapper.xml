@@ -24,6 +24,10 @@
         <result column="biz_flow_tag" property="bizFlowTag"/>
         <result column="display_group" property="displayGroup"/>
         <result column="link_icon" property="linkIcon"/>
+        <result column="display_mode" property="displayMode"/>
+        <result column="list_path" property="listPath"/>
+        <result column="tag_label" property="tagLabel"/>
+        <result column="menu_level" property="menuLevel"/>
         <result column="remark" property="remark"/>
         <result column="deleted" property="deleted"/>
         <result column="create_time" property="createTime"/>
@@ -36,6 +40,7 @@
         path, component, route_name, redirect, icon, sort,
         is_external, is_cache, visible, status, client_type,
         biz_flow_tag, display_group, link_icon,
+        display_mode, list_path, tag_label, menu_level,
         remark, deleted, create_time, update_time
     </sql>
 

@@ -20,6 +20,10 @@ export interface MenuInfo {
   bizFlowTag?: string
   displayGroup?: number
   linkIcon?: string
+  displayMode?: number   // 0=默认, 1=双入口
+  listPath?: string      // 双入口列表页路由路径
+  tagLabel?: string      // 标签文案：历史/列表/添加
+  menuLevel?: number     // 0=租户级, 1=系统级
   remark?: string
   createTime?: string
   updateTime?: string
@@ -52,6 +56,10 @@ export interface MenuSaveRequest {
   bizFlowTag?: string
   displayGroup?: number
   linkIcon?: string
+  displayMode?: number
+  listPath?: string
+  tagLabel?: string
+  menuLevel?: number
 }
 
 // 菜单更新请求
@@ -133,6 +141,25 @@ export const menuApi = {
   // 获取子菜单列表
   getChildren(parentId: number, tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
     return request.get(`/menu/children/${parentId}`, { tenantId })
+  },
+
+  // Mega Menu: 获取两级授权过滤后的用户菜单树
+  getMegaMenus(clientType: string, userId?: number, tenantId?: number): Promise<ApiResponse<MenuInfo[]>> {
+    const params: Record<string, any> = {}
+    if (userId) params.userId = userId
+    if (tenantId) params.tenantId = tenantId
+    return request.get(`/menu/user/mega/${clientType}`, params)
+  },
+
+  // 租户菜单授权
+  getTenantMenuIds(tenantId: number): Promise<ApiResponse<number[]>> {
+    return request.get(`/tenant-menu/${tenantId}`)
+  },
+  assignTenantMenus(tenantId: number, menuIds: number[]): Promise<ApiResponse<void>> {
+    return request.put(`/tenant-menu/${tenantId}`, menuIds)
+  },
+  removeTenantMenus(tenantId: number, menuIds: number[]): Promise<ApiResponse<void>> {
+    return request.delete(`/tenant-menu/${tenantId}/remove`, { data: menuIds })
   }
 }
 

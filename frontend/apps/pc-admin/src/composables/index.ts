@@ -30,3 +30,6 @@ export type { NotificationItem } from './useNotification'
 // 仪表盘实时指标
 export { useDashboardMetrics } from './useDashboardMetrics'
 export type { DashboardMetricsState } from './useDashboardMetrics'
+
+// Mega Menu hover 延迟控制
+export { useHoverDelay } from './useHoverDelay'

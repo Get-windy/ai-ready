@@ -134,6 +134,19 @@
         <a-tag v-if="record.displayGroup === 1" color="blue">展示分组</a-tag>
         <a-tag v-else color="green">路由目录</a-tag>
       </template>
+      <template #displayModeCell="{ record }">
+        <a-tag v-if="record.displayMode === 1" color="purple">双入口</a-tag>
+        <a-tag v-else>默认</a-tag>
+      </template>
+      <template #tagLabelCell="{ record }">
+        <a-tag v-if="record.tagLabel" color="blue">{{ record.tagLabel }}</a-tag>
+        <span v-else class="text-muted">—</span>
+      </template>
+      <template #menuLevelCell="{ record }">
+        <a-tag v-if="record.menuLevel === 1" color="red">系统级</a-tag>
+        <a-tag v-else-if="record.menuLevel === 0" color="green">租户级</a-tag>
+        <span v-else class="text-muted">—</span>
+      </template>
 
       <template #action="{ record }">
         <a-button type="link" size="small" v-permission="'system:permission:create'" @click="handleAddChild(record)">
@@ -280,6 +293,39 @@
             v-model:value="formData.linkIcon"
             placeholder="外链/快捷方式图标名，如 LinkOutlined"
           />
+        </a-form-item>
+
+        <a-form-item label="菜单层级">
+          <a-radio-group v-model:value="formData.menuLevel">
+            <a-radio :value="0">租户级</a-radio>
+            <a-radio :value="1">系统级</a-radio>
+          </a-radio-group>
+        </a-form-item>
+
+        <a-form-item label="展示模式">
+          <a-radio-group v-model:value="formData.displayMode">
+            <a-radio :value="0">默认（单入口）</a-radio>
+            <a-radio :value="1">双入口（含标签按钮）</a-radio>
+          </a-radio-group>
+        </a-form-item>
+
+        <a-form-item v-if="formData.displayMode === 1" label="列表路径">
+          <a-input
+            v-model:value="formData.listPath"
+            placeholder="双入口时，标签按钮跳转的列表页路由路径"
+          />
+        </a-form-item>
+
+        <a-form-item label="标签文案">
+          <a-select
+            v-model:value="formData.tagLabel"
+            placeholder="请选择标签文案（可选）"
+            allow-clear
+          >
+            <a-select-option value="历史">历史</a-select-option>
+            <a-select-option value="列表">列表</a-select-option>
+            <a-select-option value="添加">添加</a-select-option>
+          </a-select>
         </a-form-item>
       </a-form>
     </FullScreenDetail>
@@ -433,6 +479,9 @@ const vxeColumns = computed(() => [
   { field: 'visible', title: '显示', width: 80, align: 'center', slotName: 'visibleCell' },
   { field: 'bizFlowTag', title: '业务流向', width: 100, align: 'center', slotName: 'bizFlowTagCell' },
   { field: 'displayGroup', title: '展示分组', width: 100, align: 'center', slotName: 'displayGroupCell' },
+  { field: 'displayMode', title: '展示模式', width: 90, align: 'center', slotName: 'displayModeCell' },
+  { field: 'tagLabel', title: '标签文案', width: 90, align: 'center', slotName: 'tagLabelCell' },
+  { field: 'menuLevel', title: '菜单层级', width: 90, align: 'center', slotName: 'menuLevelCell' },
   { field: 'linkIcon', title: '链接图标', width: 100, showOverflow: 'tooltip' },
   { type: 'action', title: '操作', width: 280, fixed: 'right' }
 ])
@@ -534,7 +583,11 @@ const formData = reactive<MenuUpdateRequest>({
   remark: '',
   bizFlowTag: '',
   displayGroup: 0,
-  linkIcon: ''
+  linkIcon: '',
+  displayMode: 0,
+  listPath: '',
+  tagLabel: '',
+  menuLevel: 0
 })
 
 // 表单验证规则
@@ -639,7 +692,11 @@ const handleEdit = (row: MenuInfo) => {
     remark: row.remark || '',
     bizFlowTag: row.bizFlowTag || '',
     displayGroup: row.displayGroup ?? 0,
-    linkIcon: row.linkIcon || ''
+    linkIcon: row.linkIcon || '',
+    displayMode: row.displayMode ?? 0,
+    listPath: row.listPath || '',
+    tagLabel: row.tagLabel || '',
+    menuLevel: row.menuLevel ?? 0
   })
   dialogVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
@@ -697,6 +754,10 @@ const handleSubmit = async () => {
         if (formData.bizFlowTag) saveData.bizFlowTag = formData.bizFlowTag
         if (formData.displayGroup !== undefined) saveData.displayGroup = formData.displayGroup
         if (formData.linkIcon) saveData.linkIcon = formData.linkIcon
+        saveData.displayMode = formData.displayMode ?? 0
+        if (formData.listPath) saveData.listPath = formData.listPath
+        if (formData.tagLabel) saveData.tagLabel = formData.tagLabel
+        saveData.menuLevel = formData.menuLevel ?? 0
         res = await menuApi.create(saveData)
       }
 
@@ -809,6 +870,10 @@ const resetForm = () => {
   formData.bizFlowTag = ''
   formData.displayGroup = 0
   formData.linkIcon = ''
+  formData.displayMode = 0
+  formData.listPath = ''
+  formData.tagLabel = ''
+  formData.menuLevel = 0
   formRef.value?.clearValidate()
 }
 

@@ -25,6 +25,10 @@ interface MenuItem {
   bizFlowTag?: string
   displayGroup?: number
   linkIcon?: string
+  displayMode?: number
+  listPath?: string
+  tagLabel?: string
+  menuLevel?: number
   children?: MenuItem[]
 }
 
@@ -219,6 +223,13 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dms/order-pool/bid-detail': () => import('@/views/dms/order-pool/bid-detail.vue'),
   'dms/config/index': () => import('@/views/dms/config/index.vue'),
   'dms/tracking/index': () => import('@/views/dms/tracking/index.vue'),
+
+  // ── 系统级新增路由 ──
+  'admin/tenant/approval': () => import('@/views/system/tenant-approval/index.vue'),
+  'admin/monitor/log': () => import('@/views/system/log/index.vue'),
+
+  // ── 系统级占位页面（新功能未实现时使用） ──
+  'common/placeholder/index': () => import('@/views/common/placeholder/index.vue'),
 }
 
 /**
@@ -322,15 +333,18 @@ function getComponent(componentPath: string) {
   return () => import(`../views/${normalizedPath}.vue`)
 }
 
-function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRecordRaw {
+/**
+ * 将后台菜单转换为 Vue Router 路由配置，返回数组以支持双入口（displayMode=1 时生成两条路由）
+ */
+function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRecordRaw[] {
   let routePath = menu.path || ''
-  
+
   if (parentPath && menu.path && menu.path.startsWith(parentPath + '/')) {
     routePath = menu.path.substring(parentPath.length + 1)
   } else if (menu.path && menu.path.startsWith('/')) {
     routePath = menu.path.substring(1)
   }
-  
+
   // 自动根据路径分配 billType（后端菜单返回时可覆盖此自动推断）
   const billType = menu.billType || getBillTypeForRoute(routePath)
 
@@ -354,9 +368,8 @@ function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRec
   }
 
   if (menu.children && menu.children.length > 0) {
-    route.children = menu.children.map(child => transformMenuToRoute(child, menu.path || parentPath))
+    route.children = menu.children.flatMap(child => transformMenuToRoutes(child, menu.path || parentPath))
     if (menu.menuType === 0 && !menu.redirect) {
-      // Vue Router 4 相对重定向：仅使用第一个子路由的 path，相对于父路由
       route.redirect = route.children[0].path || ''
     }
   }
@@ -365,7 +378,41 @@ function transformMenuToRoute(menu: MenuItem, parentPath: string = ''): RouteRec
     route.redirect = menu.redirect
   }
 
-  return route
+  const routes: RouteRecordRaw[] = [route]
+
+  // 双入口：displayMode=1 时额外注册一条隐藏列表页路由
+  if (menu.displayMode === 1 && menu.listPath) {
+    let listRoutePath = menu.listPath
+    if (parentPath && menu.listPath.startsWith(parentPath + '/')) {
+      listRoutePath = menu.listPath.substring(parentPath.length + 1)
+    } else if (menu.listPath.startsWith('/')) {
+      listRoutePath = menu.listPath.substring(1)
+    }
+
+    const listBillType = billType
+    const listRoute: RouteRecordRaw = {
+      path: listRoutePath,
+      name: `${menu.menuCode}_list`,
+      meta: {
+        title: `${menu.menuName}列表`,
+        icon: menu.icon,
+        keepAlive: menu.isCache === 1,
+        hidden: true,
+        requiresAuth: true,
+        ...(listBillType ? { billType: listBillType } : {})
+      }
+    }
+
+    // 对双入口的列表页，默认尝试使用同一组件
+    if (menu.component) {
+      const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
+      ;(listRoute as any).component = getComponent(componentPath)
+    }
+
+    routes.push(listRoute)
+  }
+
+  return routes
 }
 
 function buildMenuTree(menus: MenuItem[], parentId: number = 0): MenuItem[] {
@@ -435,7 +482,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
   }
 
   try {
-    const res = await request.get(`/menu/user/client/${CLIENT_TYPE}`, { userId, tenantId })
+    const res = await request.get(`/menu/user/mega/${CLIENT_TYPE}`, { userId, tenantId })
 
     if (res && res.length > 0) {
       const menuTree = res
@@ -454,7 +501,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         component: () => import('@/layouts/BasicLayout.vue'),
         meta: { requiresAuth: true },
         children: [
-          ...flatTree.map(menu => transformMenuToRoute(menu)),
+          ...flatTree.flatMap(menu => transformMenuToRoutes(menu)),
           ...requiredRoutes,
           {
             path: '/:pathMatch(.*)*',

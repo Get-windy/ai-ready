@@ -173,6 +173,23 @@ public class SysMenuController {
     }
 
     /**
+     * 获取 Mega Menu 用户菜单树（两级授权 + menuLevel 过滤）
+     */
+    @Operation(summary = "获取Mega Menu用户菜单树")
+    @GetMapping("/user/mega/{clientType}")
+    @SaCheckLogin
+    public Result<List<SysMenu>> getUserMegaMenus(
+            @PathVariable String clientType,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(defaultValue = "1") Long tenantId) {
+        if (userId == null) {
+            userId = StpUtil.getLoginIdAsLong();
+        }
+        List<SysMenu> tree = menuService.getUserMegaMenus(clientType, userId, tenantId);
+        return Result.ok(tree);
+    }
+
+    /**
      * 检查菜单编码是否存在
      */
     @Operation(summary = "检查菜单编码是否存在")

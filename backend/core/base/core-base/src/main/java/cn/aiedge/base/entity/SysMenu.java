@@ -144,6 +144,26 @@ public class SysMenu {
     private String linkIcon;
 
     /**
+     * 入口模式：0=默认, 1=双入口（点击进表单+[历史]进列表）
+     */
+    private Integer displayMode;
+
+    /**
+     * 双入口模式下列表页的路由路径
+     */
+    private String listPath;
+
+    /**
+     * 标签文案：历史/列表/添加
+     */
+    private String tagLabel;
+
+    /**
+     * 菜单层级：0=租户级, 1=系统级
+     */
+    private Integer menuLevel;
+
+    /**
      * 子菜单列表（非数据库字段）
      */
     @TableField(exist = false)

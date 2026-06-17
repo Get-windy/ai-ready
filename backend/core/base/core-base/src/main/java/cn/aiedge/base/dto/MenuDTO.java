@@ -34,7 +34,11 @@ public sealed interface MenuDTO permits MenuDTO.Create, MenuDTO.Update, MenuDTO.
             Integer isExternal,
             Integer isCache,
             Integer visible,
-            String remark
+            String remark,
+            Integer displayMode,
+            String listPath,
+            String tagLabel,
+            Integer menuLevel
     ) implements MenuDTO {}
 
     /**
@@ -55,7 +59,11 @@ public sealed interface MenuDTO permits MenuDTO.Create, MenuDTO.Update, MenuDTO.
             Integer isExternal,
             Integer isCache,
             Integer visible,
-            String remark
+            String remark,
+            Integer displayMode,
+            String listPath,
+            String tagLabel,
+            Integer menuLevel
     ) implements MenuDTO {}
 
     /**
@@ -66,6 +74,7 @@ public sealed interface MenuDTO permits MenuDTO.Create, MenuDTO.Update, MenuDTO.
             Long parentId,
             String menuName,
             Integer menuType,
-            Integer status
+            Integer status,
+            Integer menuLevel
     ) implements MenuDTO {}
 }
