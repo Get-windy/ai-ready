@@ -1,6 +1,6 @@
 {
   "name": "driver-delivery",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "司机配送端 - 配送司机专用应用",
   "type": "module",
   "scripts": {

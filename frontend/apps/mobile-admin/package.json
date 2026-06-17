@@ -1,6 +1,6 @@
 {
   "name": "mobile-admin",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "手机管理端 - 移动审批、数据看板、客户管理",
   "type": "module",
   "scripts": {

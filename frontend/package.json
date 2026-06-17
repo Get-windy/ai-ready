@@ -1,6 +1,6 @@
 {
   "name": "ai-ready-frontend",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "企智连系统前端模块 - 前后端分离架构",
   "private": true,
   "scripts": {

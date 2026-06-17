@@ -14,7 +14,7 @@
     
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.2.2</version>
+    <version>0.3.0</version>
     <packaging>pom</packaging>
     <name>ERP Parent Project</name>
     <description>ERP System Parent Project with unified dependency management</description>
