@@ -137,9 +137,9 @@ public class AuditLogServiceImpl implements AuditLogService {
         LocalDateTime threshold = LocalDateTime.now().minusDays(days);
         LambdaQueryWrapper<AuditLog> wrapper = new LambdaQueryWrapper<AuditLog>()
                 .lt(AuditLog::getOperTime, threshold);
-        int count = auditLogMapper.selectCount(wrapper);
+        Long count = auditLogMapper.selectCount(wrapper);
         auditLogMapper.delete(wrapper);
         log.info("清理审计日志: 删除 {} 条", count);
-        return count;
+        return count != null ? count.intValue() : 0;
     }
 }

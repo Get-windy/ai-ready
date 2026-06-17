@@ -1,10 +1,10 @@
 package cn.aiedge.common.config;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 
 /**
@@ -20,10 +20,7 @@ import java.time.Duration;
 public class HttpClientConfig {
 
     @Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder) {
-        return builder
-                .connectTimeout(Duration.ofSeconds(10))
-                .readTimeout(Duration.ofSeconds(30))
-                .build();
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }
