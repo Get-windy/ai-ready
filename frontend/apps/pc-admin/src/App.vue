@@ -5,31 +5,14 @@
     @error="handleGlobalError"
   >
     <a-config-provider :locale="zhCN">
-      <router-view v-slot="{ Component, route }">
-        <keep-alive
-          :include="cachedViews"
-          :max="maxCacheSize"
-        >
-          <component
-            :is="Component"
-            v-if="route.meta.keepAlive"
-            :key="route.fullPath"
-          />
-        </keep-alive>
-        <component
-          :is="Component"
-          v-if="!route.meta.keepAlive"
-          :key="route.fullPath"
-        />
-      </router-view>
+      <router-view />
     </a-config-provider>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { type ComponentPublicInstance } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import { useTagsViewStore } from '@/stores/tagsView'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { reportError } from '@/utils/errorReporter'
 import { message } from 'ant-design-vue'
@@ -37,16 +20,6 @@ import { message } from 'ant-design-vue'
 // 错误提示文本
 const fallbackTitle = '全局异常'
 const fallbackSubtitle = '应用遇到了未处理的异常，请尝试刷新页面'
-
-// 缓存配置
-const maxCacheSize = 15 // 最大缓存组件数量
-
-// 获取缓存的视图名称列表
-const tagsViewStore = useTagsViewStore()
-const cachedViews = computed(() => {
-  // 从 store 中获取需要缓存的页面列表
-  return tagsViewStore.cachedViews
-})
 
 // 全局错误处理
 const handleGlobalError = (error: Error, instance: ComponentPublicInstance, info: string) => {
@@ -63,22 +36,6 @@ const handleGlobalError = (error: Error, instance: ComponentPublicInstance, info
 
   message.error('页面出现异常，已自动捕获')
 }
-
-// 定期清理缓存（防止内存占用过大）
-let cleanupTimer: ReturnType<typeof setInterval> | null = null
-
-onMounted(() => {
-  // 每30分钟清理一次过期缓存
-  cleanupTimer = setInterval(() => {
-    tagsViewStore.cleanupCache()
-  }, 30 * 60 * 1000)
-})
-
-onUnmounted(() => {
-  if (cleanupTimer) {
-    clearInterval(cleanupTimer)
-  }
-})
 </script>
 
 <style>

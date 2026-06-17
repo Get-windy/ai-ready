@@ -37,9 +37,9 @@ component: () => import('@/views/dashboard/index.vue')
 
 ### 4. 路由缓存策略
 
-**新增组件**：
-- `src/layouts/components/RouterCache.vue` - 路由缓存包装器
-- `src/stores/tagsView.ts` - 标签页状态管理
+**缓存机制**：
+- 由 `BasicLayout.vue` 的 TabsView 组件 + `stores/tabs.ts` 统一管理
+- 页面组件在路由 meta 中设置 `keepAlive: true` 即可启用缓存
 
 **缓存规则**：
 - 需要在路由 meta 中设置 `keepAlive: true`
@@ -68,8 +68,8 @@ interface RouteMeta {
 |------|------|
 | `src/router/index.ts` | 主路由配置（优化后） |
 | `src/router/dynamic.ts` | 动态路由工具函数 |
-| `src/stores/tagsView.ts` | 标签页状态管理 |
-| `src/layouts/components/RouterCache.vue` | 路由缓存包装器 |
+| `src/stores/tabs.ts` | 多标签页状态管理 |
+| `src/layouts/components/RouterCache.vue` | 路由缓存包装器（未启用）|
 | `src/layouts/components/Breadcrumb.vue` | 面包屑组件 |
 | `src/components/Loading/RouteLoading.vue` | 路由加载中组件 |
 | `src/components/Loading/RouteError.vue` | 路由加载错误组件 |
@@ -113,11 +113,8 @@ if (userStore.permissions.includes('crm:customer:view')) {
 // 在路由配置中启用缓存
 meta: { keepAlive: true }
 
-// 或在组件中使用
-import { useTagsViewStore } from '@/stores/tagsView'
-
-const tagsViewStore = useTagsViewStore()
-tagsViewStore.addCachedView('Customer')
+// 标签页由 BasicLayout 的 TabsView 组件自动管理 keep-alive 缓存
+// 内部使用 `stores/tabs.ts` 控制缓存的路由列表
 ```
 
 ## 性能优化效果

@@ -1,6 +1,6 @@
 {
   "name": "mobile-mall",
-  "version": "1.1.1",
+  "version": "0.2.2",
   "description": "用户商城手机端 - B2B/B2C商城应用",
   "type": "module",
   "scripts": {

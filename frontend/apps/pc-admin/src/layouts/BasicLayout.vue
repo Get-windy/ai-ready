@@ -408,48 +408,17 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import {
-  DashboardOutlined,
-  ShopOutlined,
-  TeamOutlined,
-  SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MenuOutlined,
-  ShoppingOutlined,
-  ShoppingCartOutlined,
-  ContainerOutlined,
-  FileTextOutlined,
-  UserOutlined,
-  SafetyOutlined,
-  AccountBookOutlined,
-  MoneyCollectOutlined,
-  BarChartOutlined,
-  AppstoreOutlined,
-  BranchesOutlined,
   StarOutlined,
   StarFilled,
-  UserAddOutlined,
-  FileOutlined,
-  InboxOutlined,
-  SendOutlined,
-  AuditOutlined,
-  RestOutlined,
-  DollarOutlined,
-  CheckCircleOutlined,
-  ApartmentOutlined,
-  IdcardOutlined,
-  UnorderedListOutlined,
-  QuestionCircleOutlined,
-  MonitorOutlined,
-  LineChartOutlined,
-  CheckSquareOutlined,
-  RollbackOutlined,
-  SwapOutlined,
   SearchOutlined,
   BellOutlined,
   LogoutOutlined,
   LinkOutlined
 } from '@ant-design/icons-vue'
+import { getIcon } from '@/utils/iconMap'
 import { useUserStore } from '@/stores/user'
 import { useTabsStore } from '@/stores/tabs'
 import { useRecentStore } from '@/stores/recent'
@@ -471,7 +440,10 @@ const { isMobileView, isTabletView, isDesktopView } = useResponsive()
 
 const collapsed = ref(false)
 const selectedKeys = ref(['dashboard'])
-const openKeys = ref(['erp'])
+
+// 从 localStorage 恢复侧边栏展开状态，默认为 ['erp']
+const savedOpenKeys = localStorage.getItem('sidebarOpenKeys')
+const openKeys = ref<string[]>(savedOpenKeys ? JSON.parse(savedOpenKeys) : ['erp'])
 const mobileMenuVisible = ref(false)
 const showFavorites = ref(false)
 
@@ -498,46 +470,6 @@ const currentTenantName = computed(() => {
 })
 const showTenantSwitcher = computed(() => userStore.userTenants.length > 1)
 
-const iconMap: Record<string, any> = {
-  'DashboardOutlined': DashboardOutlined,
-  'ShopOutlined': ShopOutlined,
-  'TeamOutlined': TeamOutlined,
-  'SettingOutlined': SettingOutlined,
-  'ShoppingOutlined': ShoppingOutlined,
-  'ShoppingCartOutlined': ShoppingCartOutlined,
-  'ContainerOutlined': ContainerOutlined,
-  'FileTextOutlined': FileTextOutlined,
-  'UserOutlined': UserOutlined,
-  'SafetyOutlined': SafetyOutlined,
-  'AccountBookOutlined': AccountBookOutlined,
-  'MoneyCollectOutlined': MoneyCollectOutlined,
-  'BarChartOutlined': BarChartOutlined,
-  'AppstoreOutlined': AppstoreOutlined,
-  'BranchesOutlined': BranchesOutlined,
-  'StarOutlined': StarOutlined,
-  'UserAddOutlined': UserAddOutlined,
-  'FileOutlined': FileOutlined,
-  'InboxOutlined': InboxOutlined,
-  'SendOutlined': SendOutlined,
-  'AuditOutlined': AuditOutlined,
-  'RestOutlined': RestOutlined,
-  'DollarOutlined': DollarOutlined,
-  'CheckCircleOutlined': CheckCircleOutlined,
-  'ApartmentOutlined': ApartmentOutlined,
-  'IdcardOutlined': IdcardOutlined,
-  'UnorderedListOutlined': UnorderedListOutlined,
-  'QuestionCircleOutlined': QuestionCircleOutlined,
-  'MonitorOutlined': MonitorOutlined,
-  'LineChartOutlined': LineChartOutlined,
-  'CheckSquareOutlined': CheckSquareOutlined,
-  'RollbackOutlined': RollbackOutlined,
-  'SwapOutlined': SwapOutlined
-}
-
-const getIcon = (iconName?: string) => {
-  if (!iconName) return null
-  return iconMap[iconName] || DashboardOutlined
-}
 
 const currentTitle = computed(() => {
   const currentPath = route.path
@@ -599,6 +531,11 @@ watch(() => route.path, (path) => {
   // 同步菜单展开/选中状态（防止菜单折叠）
   syncMenuKeys(path)
 }, { immediate: true })
+
+// 侧边栏展开状态持久化（多标签页切换/刷新后恢复）
+watch(openKeys, (keys) => {
+  localStorage.setItem('sidebarOpenKeys', JSON.stringify(keys))
+})
 
 // 根据当前路由同步菜单选中项和展开项
 function syncMenuKeys(path: string) {

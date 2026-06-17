@@ -1,6 +1,6 @@
 {
   "name": "print-client",
-  "version": "1.1.1",
+  "version": "0.2.2",
   "description": "异地打印端 - 远程打印客户端",
   "main": "dist/main/main.js",
   "scripts": {

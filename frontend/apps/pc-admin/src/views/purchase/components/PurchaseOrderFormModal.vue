@@ -162,11 +162,26 @@
         <template #quantityCell="{ record }">
           <a-input-number v-model:value="record.quantity" :min="1" :max="99999" :step="1" style="width: 100%" size="small" />
         </template>
+        <template #originalPriceCell="{ record }">
+          <span class="amount-text">{{ record.originalPrice?.toFixed(2) }}</span>
+        </template>
+        <template #discountRateCell="{ record }">
+          <a-input-number v-model:value="record.discountRate" :min="0" :max="100" :step="1" :precision="0" style="width: 100%" size="small" />
+        </template>
         <template #unitPriceCell="{ record }">
           <a-input-number v-model:value="record.unitPrice" :min="0" :step="0.01" :precision="2" style="width: 100%" size="small" />
         </template>
         <template #amountCell="{ record }">
           <span class="amount-text">¥{{ ((record.quantity || 0) * (record.unitPrice || 0)).toFixed(2) }}</span>
+        </template>
+        <template #taxRateCell="{ record }">
+          <a-input-number v-model:value="record.taxRate" :min="0" :max="100" :step="1" :precision="1" style="width: 100%" size="small" />
+        </template>
+        <template #taxAmountCell="{ record }">
+          <span>¥{{ ((record.quantity || 0) * (record.unitPrice || 0) * (record.taxRate || 0) / 100).toFixed(2) }}</span>
+        </template>
+        <template #totalAmountCell="{ record }">
+          <span class="amount-text">¥{{ ((record.quantity || 0) * (record.unitPrice || 0) * (1 + (record.taxRate || 0) / 100)).toFixed(2) }}</span>
         </template>
         <template #unitCell="{ record }">
           {{ record.unit }}
@@ -235,7 +250,12 @@ interface OrderItem {
   productCode: string
   productName: string
   quantity: number
+  originalPrice: number
   unitPrice: number
+  discountRate: number
+  taxRate: number
+  taxAmount: number
+  totalAmount: number
   unit: string
   remark: string
 }
@@ -287,13 +307,18 @@ const formRules: any = {
 }
 
 const itemColumns = [
-  { title: '商品', dataIndex: 'productId', key: 'productId', width: 200 },
-  { title: '编码', dataIndex: 'productCode', key: 'productCode', width: 100 },
-  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
-  { title: '单价', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
+  { title: '商品', dataIndex: 'productId', key: 'productId', width: 180 },
+  { title: '编码', dataIndex: 'productCode', key: 'productCode', width: 90 },
+  { title: '原价', dataIndex: 'originalPrice', key: 'originalPrice', width: 90 },
+  { title: '折扣%', dataIndex: 'discountRate', key: 'discountRate', width: 70 },
+  { title: '折后价', dataIndex: 'unitPrice', key: 'unitPrice', width: 90 },
+  { title: '数量', dataIndex: 'quantity', key: 'quantity', width: 70 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
+  { title: '税率%', dataIndex: 'taxRate', key: 'taxRate', width: 70 },
+  { title: '税额', dataIndex: 'taxAmount', key: 'taxAmount', width: 100 },
+  { title: '价税合计', dataIndex: 'totalAmount', key: 'totalAmount', width: 110 },
   { title: '单位', dataIndex: 'unit', key: 'unit', width: 60 },
-  { title: '操作', type: 'action', width: 100, fixed: 'right' }
+  { title: '操作', type: 'action', width: 90, fixed: 'right' }
 ]
 
 const supplierOptions = ref<any[]>([])
@@ -302,9 +327,10 @@ const productOptions = ref<any[]>([])
 const importVisible = ref(false)
 
 const totalQuantity = computed(() => formData.items.reduce((s, i) => s + (i.quantity || 0), 0))
-const totalAmount = computed(() => formData.items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 0), 0))
-const taxAmount = computed(() => totalAmount.value * (formData.taxRate || 0) / 100)
-const totalAmountWithTax = computed(() => totalAmount.value + taxAmount.value)
+const subtotal = computed(() => formData.items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 0), 0))
+const totalAmount = computed(() => subtotal.value)
+const taxAmount = computed(() => formData.items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 0) * (i.taxRate || 0) / 100, 0))
+const totalAmountWithTax = computed(() => formData.items.reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 0) * (1 + (i.taxRate || 0) / 100), 0))
 
 const filterOption = (input: string, option: any) => {
   const text = option?.label || option?.value?.toString() || ''
@@ -319,10 +345,15 @@ function handleSupplierChange(val: number) {
 function handleProductChange(val: number, index: number) {
   const product = productOptions.value.find(p => p.id === val)
   if (product && formData.items[index]) {
-    formData.items[index].productCode = product.code || product.productCode || ''
-    formData.items[index].productName = product.name || product.productName || ''
-    formData.items[index].unit = product.unit || ''
-    formData.items[index].unitPrice = product.purchasePrice || 0
+    const item = formData.items[index]
+    item.productCode = product.code || product.productCode || ''
+    item.productName = product.name || product.productName || ''
+    item.unit = product.unit || ''
+    const stdPrice = product.purchasePrice || product.price || 0
+    item.originalPrice = stdPrice
+    item.unitPrice = stdPrice
+    item.discountRate = 0
+    item.taxRate = item.taxRate || formData.taxRate || 0
   }
 }
 
@@ -333,7 +364,12 @@ function handleAddItem() {
     productCode: '',
     productName: '',
     quantity: 1,
+    originalPrice: 0,
     unitPrice: 0,
+    discountRate: 0,
+    taxRate: formData.taxRate || 0,
+    taxAmount: 0,
+    totalAmount: 0,
     unit: '',
     remark: ''
   })
@@ -374,13 +410,18 @@ function handleImportFile(_file: File) {
         return
       }
 
-      const newItems = rows.map((row: any) => ({
+      const newItems: OrderItem[] = rows.map((row: any) => ({
         id: Date.now().toString() + Math.random(),
         productId: undefined,
         productCode: (row['产品编码'] || row['productCode'] || row['编码'] || '').toString(),
         productName: (row['产品名称'] || row['productName'] || row['名称'] || '').toString(),
         quantity: Number(row['数量'] || row['quantity'] || 1),
+        originalPrice: Number(row['标准价'] || row['originalPrice'] || 0),
         unitPrice: Number(row['单价'] || row['unitPrice'] || 0),
+        discountRate: 0,
+        taxRate: formData.taxRate || 0,
+        taxAmount: 0,
+        totalAmount: 0,
         unit: (row['单位'] || row['unit'] || '').toString(),
         remark: (row['备注'] || row['remark'] || '').toString()
       }))
@@ -425,7 +466,8 @@ async function handleOk() {
       remark: formData.remark,
       totalAmount: Math.round(totalAmount.value * 100) / 100,
       taxAmount: Math.round(taxAmount.value * 100) / 100,
-      totalAmountWithTax: Math.round(totalAmountWithTax.value * 100) / 100,
+      discountAmount: Math.round(formData.items.reduce((s, i) => s + (i.quantity || 0) * ((i.originalPrice || 0) - (i.unitPrice || 0)), 0) * 100) / 100,
+      finalAmount: Math.round(totalAmountWithTax.value * 100) / 100,
       items: formData.items.map(i => ({
         productId: i.productId,
         productCode: i.productCode,
@@ -433,6 +475,11 @@ async function handleOk() {
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         unit: i.unit,
+        taxRate: i.taxRate,
+        taxAmount: Math.round((i.quantity || 0) * (i.unitPrice || 0) * (i.taxRate || 0) / 100 * 100) / 100,
+        discountRate: i.discountRate,
+        discountAmount: Math.round((i.quantity || 0) * ((i.originalPrice || 0) - (i.unitPrice || 0)) * 100) / 100,
+        itemAmount: Math.round((i.quantity || 0) * (i.unitPrice || 0) * 100) / 100,
         remark: i.remark
       }))
     }
@@ -480,11 +527,18 @@ async function handleFormSaveAndNew() {
       taxRate: formData.taxRate, remark: formData.remark,
       totalAmount: Math.round(totalAmount.value * 100) / 100,
       taxAmount: Math.round(taxAmount.value * 100) / 100,
-      totalAmountWithTax: Math.round(totalAmountWithTax.value * 100) / 100,
+      discountAmount: Math.round(formData.items.reduce((s, i) => s + (i.quantity || 0) * ((i.originalPrice || 0) - (i.unitPrice || 0)), 0) * 100) / 100,
+      finalAmount: Math.round(totalAmountWithTax.value * 100) / 100,
       items: formData.items.map(i => ({
         productId: i.productId, productCode: i.productCode,
         productName: i.productName, quantity: i.quantity,
-        unitPrice: i.unitPrice, unit: i.unit, remark: i.remark
+        unitPrice: i.unitPrice, unit: i.unit,
+        taxRate: i.taxRate,
+        taxAmount: Math.round((i.quantity || 0) * (i.unitPrice || 0) * (i.taxRate || 0) / 100 * 100) / 100,
+        discountRate: i.discountRate,
+        discountAmount: Math.round((i.quantity || 0) * ((i.originalPrice || 0) - (i.unitPrice || 0)) * 100) / 100,
+        itemAmount: Math.round((i.quantity || 0) * (i.unitPrice || 0) * 100) / 100,
+        remark: i.remark
       }))
     }
     if (props.editData?.id) {
@@ -501,7 +555,7 @@ async function handleFormSaveAndNew() {
       orderDate: dayjs().format('YYYY-MM-DD'),
       expectedDate: '', purchaserId: undefined, purchaserName: '',
       paymentMethod: 2, currency: 'CNY', taxRate: 13, remark: '',
-      items: [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
+      items: [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, originalPrice: 0, unitPrice: 0, discountRate: 0, taxRate: 13, taxAmount: 0, totalAmount: 0, unit: '', remark: '' }]
     })
     emit('success')
     nextTick(() => saveFormSnapshot())
@@ -574,11 +628,16 @@ watch(() => props.open, (val) => {
             productCode: item.productCode || '',
             productName: item.productName || '',
             quantity: item.quantity || 1,
+            originalPrice: item.originalPrice || item.unitPrice || 0,
             unitPrice: item.unitPrice || 0,
+            discountRate: item.discountRate || 0,
+            taxRate: item.taxRate ?? formData.taxRate ?? 0,
+            taxAmount: item.taxAmount || 0,
+            totalAmount: item.totalAmount || 0,
             unit: item.unit || '',
             remark: item.remark || ''
           }))
-        : [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
+        : [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, originalPrice: 0, unitPrice: 0, discountRate: 0, taxRate: formData.taxRate || 0, taxAmount: 0, totalAmount: 0, unit: '', remark: '' }]
     } else {
       formData.orderNo = 'PO' + dayjs().format('YYYYMMDDHHmmss')
       formData.orderDate = dayjs().format('YYYY-MM-DD')
@@ -591,7 +650,7 @@ watch(() => props.open, (val) => {
       formData.expectedDate = ''
       formData.purchaserId = undefined
       formData.purchaserName = ''
-      formData.items = [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, unitPrice: 0, unit: '', remark: '' }]
+      formData.items = [{ id: '1', productId: undefined, productCode: '', productName: '', quantity: 1, originalPrice: 0, unitPrice: 0, discountRate: 0, taxRate: formData.taxRate || 0, taxAmount: 0, totalAmount: 0, unit: '', remark: '' }]
     }
     nextTick(() => saveFormSnapshot())
   }

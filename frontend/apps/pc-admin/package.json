@@ -1,6 +1,6 @@
 {
   "name": "ai-ready-admin",
-  "version": "1.1.1",
+  "version": "0.2.2",
   "description": "智企连·AI-Ready 管理前端",
   "type": "module",
   "scripts": {

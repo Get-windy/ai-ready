@@ -978,19 +978,19 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 2012, 2000, "数据导入", "DataImport", 1, "system/data-import", "system/data-import/index", "ImportOutlined", 12);
 
         // ═══════════════ 采购管理 ═══════════════
-        appendMenu(sql, 3000, 0, "采购管理", "Purchase", 0, "purchase", null, "ShoppingCartOutlined", 20);
-        appendMenu(sql, 3001, 3000, "采购订单", "PurchaseOrder", 1, "purchase/order", "purchase/index", "ShoppingCartOutlined", 1);
+        appendMenu(sql, 3000, 0, "采购管理", "Purchase", 0, "erp/purchase", null, "ShoppingCartOutlined", 20);
+        appendMenu(sql, 3001, 3000, "采购订单", "PurchaseOrder", 1, "erp/purchase", "erp/purchase/index", "ShoppingCartOutlined", 1);
         appendMenu(sql, 3002, 3000, "采购换货", "PurchaseExchange", 1, "erp/purchase-exchange", "erp/purchase-exchange/index", "SwapOutlined", 2);
 
         // ═══════════════ 销售管理 ═══════════════
-        appendMenu(sql, 4000, 0, "销售管理", "Sale", 0, "sale", null, "ShoppingOutlined", 30);
-        appendMenu(sql, 4001, 4000, "销售订单", "SaleOrder", 1, "sale/order", "sale/index", "ShoppingOutlined", 1);
+        appendMenu(sql, 4000, 0, "销售管理", "Sale", 0, "erp/sale", null, "ShoppingOutlined", 30);
+        appendMenu(sql, 4001, 4000, "销售订单", "SaleOrder", 1, "erp/sale", "erp/sale/index", "ShoppingOutlined", 1);
         appendMenu(sql, 4002, 4000, "销售分析", "SalesAnalysis", 1, "erp/sales-analysis", "erp/sales-analysis/index", "BarChartOutlined", 2);
         appendMenu(sql, 4003, 4000, "销售报表", "SalesReport", 1, "erp/sales-report", "erp/sales-report/index", "LineChartOutlined", 3);
 
         // ═══════════════ 库存管理 ═══════════════
-        appendMenu(sql, 5000, 0, "库存管理", "Stock", 0, "stock", null, "ContainerOutlined", 40);
-        appendMenu(sql, 5001, 5000, "库存列表", "StockList", 1, "stock", "stock/index", "ContainerOutlined", 1);
+        appendMenu(sql, 5000, 0, "库存管理", "Stock", 0, "erp/stock", null, "ContainerOutlined", 40);
+        appendMenu(sql, 5001, 5000, "库存列表", "StockList", 1, "erp/stock", "erp/stock/index", "ContainerOutlined", 1);
         appendMenu(sql, 5002, 5000, "入库管理", "StockIn", 1, "erp/stock-in", "erp/stock-in/index", "InboxOutlined", 2);
         appendMenu(sql, 5003, 5000, "库存盘点", "Stocktake", 1, "erp/stocktake", "erp/stocktake/index", "CheckSquareOutlined", 3);
         appendMenu(sql, 5004, 5000, "退货管理", "Return", 1, "erp/return", "erp/return/index", "RollbackOutlined", 4);

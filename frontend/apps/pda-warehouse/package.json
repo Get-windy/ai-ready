@@ -1,6 +1,6 @@
 {
   "name": "pda-warehouse",
-  "version": "1.1.1",
+  "version": "0.2.2",
   "description": "仓库拣配端(PDA) - 仓库作业应用",
   "type": "module",
   "scripts": {
