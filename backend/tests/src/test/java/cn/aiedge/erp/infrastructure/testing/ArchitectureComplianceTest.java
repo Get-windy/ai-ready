@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * 架构合规性测试
@@ -60,6 +61,7 @@ public class ArchitectureComplianceTest extends ArchitectureComplianceTestBase {
         
         // 分层架构验证
         ArchRule layeredArchitectureRule = layeredArchitecture()
+            .consideringAllDependencies()
             .layer("Controller层").definedBy("..controller..")
             .layer("Service层").definedBy("..service..")
             .layer("Repository层").definedBy("..repository..")

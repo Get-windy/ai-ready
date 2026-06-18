@@ -1,0 +1,117 @@
+{
+  "time": "2026-06-14T01:29:19.804Z",
+  "PAGES": 21,
+  "created": [
+    {
+      "name": "用户管理",
+      "data": {
+        "username": "test_mqd3sg4k"
+      }
+    },
+    {
+      "name": "角色管理",
+      "data": {
+        "roleName": "role_mqd3sr0y"
+      }
+    },
+    {
+      "name": "菜单管理",
+      "data": {
+        "menuName": "测试菜单_mqd3t1"
+      }
+    },
+    {
+      "name": "部门管理",
+      "data": {
+        "deptName": "部门_mqd3tc"
+      }
+    },
+    {
+      "name": "字典管理",
+      "data": {
+        "dictCode": "dict_mqd3tn1o"
+      }
+    },
+    {
+      "name": "科目管理",
+      "data": {
+        "subjectCode": "1864"
+      }
+    },
+    {
+      "name": "资产类别",
+      "data": {
+        "categoryName": "类别_mqd3u8"
+      }
+    },
+    {
+      "name": "轮播图管理",
+      "data": {}
+    },
+    {
+      "name": "商城商品",
+      "data": {
+        "productName": "商品_mqd3ut"
+      }
+    },
+    {
+      "name": "打印模板",
+      "data": {
+        "templateName": "模板_mqd3v3"
+      }
+    },
+    {
+      "name": "渠道管理",
+      "data": {
+        "channelCode": "渠道_MQD3VE"
+      }
+    },
+    {
+      "name": "骑手管理",
+      "data": {
+        "riderName": "骑手_mqd3vs"
+      }
+    },
+    {
+      "name": "车辆管理",
+      "data": {
+        "plateNo": "京S5904"
+      }
+    }
+  ],
+  "failed": [],
+  "skipped": [
+    {
+      "name": "权限管理",
+      "reason": "权限在菜单管理页管理"
+    },
+    {
+      "name": "岗位管理",
+      "reason": "此页面使用树形结构，无独立新增按钮/需从部门入口创建"
+    },
+    {
+      "name": "日志管理",
+      "reason": "日志由系统自动生成"
+    },
+    {
+      "name": "用户审核",
+      "reason": "用户审核由注册触发"
+    },
+    {
+      "name": "商城订单",
+      "reason": "订单由用户下单产生"
+    },
+    {
+      "name": "调度管理",
+      "reason": "需要先有骑手和订单数据"
+    },
+    {
+      "name": "订单池",
+      "reason": "订单由系统自动产生"
+    },
+    {
+      "name": "流程分析",
+      "reason": "分析报表无需手动新增数据"
+    }
+  ]
+}

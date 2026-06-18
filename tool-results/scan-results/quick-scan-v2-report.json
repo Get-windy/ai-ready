@@ -1,0 +1,1622 @@
+{
+  "time": "2026-06-13T23:05:53.378Z",
+  "totalPages": 101,
+  "totalErrors": 159,
+  "errorByType": {
+    "console": 38,
+    "network": 45,
+    "api": 0,
+    "visual": 76
+  },
+  "errors": [
+    {
+      "type": "network",
+      "page": "http://localhost:5656/login",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/auth/captcha"
+      },
+      "time": "2026-06-13T23:01:04.737Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/dashboard",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:37.488Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/dashboard",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:39.851Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/product",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:44.432Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/product",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/erp/product/page?pageNum=1&pageSize=20"
+      },
+      "time": "2026-06-13T23:01:44.432Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/product",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/notification/unread-count"
+      },
+      "time": "2026-06-13T23:01:44.432Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/product",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/auth/tenants"
+      },
+      "time": "2026-06-13T23:01:44.432Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/product",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/erp/product-category/tree"
+      },
+      "time": "2026-06-13T23:01:44.432Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/partner",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:48.685Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/pricing",
+      "message": "Warning: [ant-design-vue: Drawer] `onUpdate:visible` is deprecated, please use `onUpdate:open` instead.",
+      "detail": {},
+      "time": "2026-06-13T23:01:50.419Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/pricing",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:51.108Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/sale",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:54.756Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/sale",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:01:57.924Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/sales-analysis",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:00.771Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/sales-analysis",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/erp/metrics/history?type=customer_ranking"
+      },
+      "time": "2026-06-13T23:02:00.771Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/sales-analysis",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/erp/metrics/dashboard"
+      },
+      "time": "2026-06-13T23:02:00.771Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/sales-report",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:03.962Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/purchase",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:07.608Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/purchase",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:10.637Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-in",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:13.301Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/purchase-exchange",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:16.460Z"
+    },
+    {
+      "type": "visual",
+      "page": "销售出库",
+      "message": "页面显示404",
+      "detail": {},
+      "time": "2026-06-13T23:02:18.799Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/stock",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:18.812Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:22.079Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stocktake",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:25.065Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/shipment",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:28.323Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/return",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:31.120Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-cost-adjust",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:33.878Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-overflow",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:36.640Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-damage",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:39.471Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-transfer",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:42.024Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-bom",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:44.546Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-assemble",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:47.436Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-split",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:49.984Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/stock-alert-config",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:53.075Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/stock/replenishment",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.465Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/stock/replenishment",
+      "message": "[API Error] GET /tenant-module/valid-codes — status 429 (16ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.469Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/stock/replenishment",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.492Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/stock/replenishment",
+      "message": "[API Error] GET /menu/user/client/pc-admin — status 429 (29ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.493Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/stock/replenishment",
+      "message": "[动态路由] 加载失败: AxiosError: Request failed with status code 429\n    at settle (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1441:12)\n    at XMLHttpRequest.onloadend (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1845:7)\n    at Axios.request (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:2670:41)\n    at async loadDynamicRoutes (http://localhost:5656/src/router/dynamicRoutes.ts?t=1781391034270:348:17)\n    at async http://localhost:5656/src/router/guard.ts?t=1781391034270:69:33",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.496Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.895Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /dashboard/alerts — status 429 (50ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.910Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.917Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /dashboard/trend — status 429 (55ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.917Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.922Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /dashboard/stats — status 429 (64ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.923Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.927Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /notification/unread-count — status 429 (67ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.927Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.931Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /dashboard/todos — status 429 (72ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.931Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.948Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "[API Error] GET /auth/tenants — status 429 (87ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.949Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/dashboard",
+      "message": "获取租户列表失败: AxiosError: Request failed with status code 429\n    at settle (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1441:12)\n    at XMLHttpRequest.onloadend (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1845:7)",
+      "detail": {},
+      "time": "2026-06-13T23:02:53.963Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/dashboard",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/sse/notifications?token=5094b4bb-3562-42bd-9b5b-db3625c73b68"
+      },
+      "time": "2026-06-13T23:02:55.439Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/dashboard",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:02:55.439Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:55.805Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.321Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.359Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.360Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "[API Error] POST /auth/logout — status 429 (17ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.361Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "[Unhandled Promise] AxiosError: Request failed with status code 429\n    at settle (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1441:12)\n    at XMLHttpRequest.onloadend (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1845:7)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.369Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Request failed with status code 429",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.371Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.883Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "[API Error] POST /auth/logout — status 401 (13ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.884Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "[Unhandled Promise] AxiosError: Request failed with status code 401\n    at settle (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1441:12)\n    at XMLHttpRequest.onloadend (http://localhost:5656/node_modules/.vite/deps/axios.js?v=8d1a3d49:1845:7)",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.888Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "Request failed with status code 401",
+      "detail": {},
+      "time": "2026-06-13T23:02:56.889Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/auth/check"
+      },
+      "time": "2026-06-13T23:02:56.915Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:02:56.915Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/auth/check"
+      },
+      "time": "2026-06-13T23:02:56.915Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/src/api/notification.ts"
+      },
+      "time": "2026-06-13T23:02:56.915Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/src/composables/useResponsive.ts"
+      },
+      "time": "2026-06-13T23:02:56.915Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/erp/serial",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/auth/check"
+      },
+      "time": "2026-06-13T23:02:56.916Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:57.396Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login",
+      "message": "[API Error] GET /auth/captcha — status 429 (20ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:57.397Z"
+    },
+    {
+      "type": "visual",
+      "page": "序列号管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:02:57.809Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/login",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:02:57.827Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/warehouse",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:02:58.361Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/warehouse",
+      "message": "[API Error] GET /auth/captcha — status 429 (21ms)",
+      "detail": {},
+      "time": "2026-06-13T23:02:58.362Z"
+    },
+    {
+      "type": "visual",
+      "page": "仓库管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:00.208Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/login?redirect=/wms/warehouse",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:03:00.222Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/location",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:03:00.735Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/location",
+      "message": "[API Error] GET /auth/captcha — status 429 (21ms)",
+      "detail": {},
+      "time": "2026-06-13T23:03:00.736Z"
+    },
+    {
+      "type": "visual",
+      "page": "库位管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:02.586Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/login?redirect=/wms/location",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:03:02.607Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/receipt",
+      "message": "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "detail": {},
+      "time": "2026-06-13T23:03:03.088Z"
+    },
+    {
+      "type": "console",
+      "page": "http://localhost:5656/login?redirect=/wms/receipt",
+      "message": "[API Error] GET /auth/captcha — status 429 (18ms)",
+      "detail": {},
+      "time": "2026-06-13T23:03:03.090Z"
+    },
+    {
+      "type": "visual",
+      "page": "收货管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:04.954Z"
+    },
+    {
+      "type": "network",
+      "page": "http://localhost:5656/login?redirect=/wms/receipt",
+      "message": "请求失败: net::ERR_ABORTED",
+      "detail": {
+        "url": "http://localhost:5656/api/error-report"
+      },
+      "time": "2026-06-13T23:03:04.972Z"
+    },
+    {
+      "type": "visual",
+      "page": "上架管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:07.352Z"
+    },
+    {
+      "type": "visual",
+      "page": "拣货管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:09.716Z"
+    },
+    {
+      "type": "visual",
+      "page": "波次管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:12.106Z"
+    },
+    {
+      "type": "visual",
+      "page": "发货管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:14.491Z"
+    },
+    {
+      "type": "visual",
+      "page": "库存查询",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:16.878Z"
+    },
+    {
+      "type": "visual",
+      "page": "移库管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:19.237Z"
+    },
+    {
+      "type": "visual",
+      "page": "盘点管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:21.597Z"
+    },
+    {
+      "type": "visual",
+      "page": "库存事务",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:23.956Z"
+    },
+    {
+      "type": "visual",
+      "page": "客户管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:26.334Z"
+    },
+    {
+      "type": "visual",
+      "page": "线索管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:28.692Z"
+    },
+    {
+      "type": "visual",
+      "page": "商机管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:31.051Z"
+    },
+    {
+      "type": "visual",
+      "page": "报价管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:33.414Z"
+    },
+    {
+      "type": "visual",
+      "page": "合同管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:35.780Z"
+    },
+    {
+      "type": "visual",
+      "page": "发票管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:38.154Z"
+    },
+    {
+      "type": "visual",
+      "page": "供应商管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:40.532Z"
+    },
+    {
+      "type": "visual",
+      "page": "供应商询价",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:42.903Z"
+    },
+    {
+      "type": "visual",
+      "page": "供应商绩效",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:45.269Z"
+    },
+    {
+      "type": "visual",
+      "page": "财务管理首页",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:47.627Z"
+    },
+    {
+      "type": "visual",
+      "page": "应收账款",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:50.001Z"
+    },
+    {
+      "type": "visual",
+      "page": "应付账款",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:52.379Z"
+    },
+    {
+      "type": "visual",
+      "page": "收款单",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:54.735Z"
+    },
+    {
+      "type": "visual",
+      "page": "付款单",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:57.101Z"
+    },
+    {
+      "type": "visual",
+      "page": "凭证管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:03:59.450Z"
+    },
+    {
+      "type": "visual",
+      "page": "科目管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:01.837Z"
+    },
+    {
+      "type": "visual",
+      "page": "对账管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:04.205Z"
+    },
+    {
+      "type": "visual",
+      "page": "财务报表",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:06.587Z"
+    },
+    {
+      "type": "visual",
+      "page": "预收款",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:08.958Z"
+    },
+    {
+      "type": "visual",
+      "page": "预付款",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:11.338Z"
+    },
+    {
+      "type": "visual",
+      "page": "保证金",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:13.742Z"
+    },
+    {
+      "type": "visual",
+      "page": "核销",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:16.116Z"
+    },
+    {
+      "type": "visual",
+      "page": "资金流水",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:18.467Z"
+    },
+    {
+      "type": "visual",
+      "page": "费用申请",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:20.839Z"
+    },
+    {
+      "type": "visual",
+      "page": "费用报销",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:23.218Z"
+    },
+    {
+      "type": "visual",
+      "page": "费用支付",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:25.567Z"
+    },
+    {
+      "type": "visual",
+      "page": "资产列表",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:27.920Z"
+    },
+    {
+      "type": "visual",
+      "page": "资产类别",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:30.290Z"
+    },
+    {
+      "type": "visual",
+      "page": "折旧管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:32.659Z"
+    },
+    {
+      "type": "visual",
+      "page": "资产转移",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:35.019Z"
+    },
+    {
+      "type": "visual",
+      "page": "资产处置",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:37.373Z"
+    },
+    {
+      "type": "visual",
+      "page": "预算管理首页",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:39.764Z"
+    },
+    {
+      "type": "visual",
+      "page": "预算模板",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:42.201Z"
+    },
+    {
+      "type": "visual",
+      "page": "年度预算",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:44.560Z"
+    },
+    {
+      "type": "visual",
+      "page": "预算调整",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:46.921Z"
+    },
+    {
+      "type": "visual",
+      "page": "预算报表",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:49.290Z"
+    },
+    {
+      "type": "visual",
+      "page": "商城配置",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:51.651Z"
+    },
+    {
+      "type": "visual",
+      "page": "用户审核",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:54.004Z"
+    },
+    {
+      "type": "visual",
+      "page": "轮播图管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:56.368Z"
+    },
+    {
+      "type": "visual",
+      "page": "商城商品",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:04:58.750Z"
+    },
+    {
+      "type": "visual",
+      "page": "商城订单",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:01.109Z"
+    },
+    {
+      "type": "visual",
+      "page": "打印模板",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:03.472Z"
+    },
+    {
+      "type": "visual",
+      "page": "打印链路",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:05.844Z"
+    },
+    {
+      "type": "visual",
+      "page": "任务管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:08.209Z"
+    },
+    {
+      "type": "visual",
+      "page": "流程监控",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:10.596Z"
+    },
+    {
+      "type": "visual",
+      "page": "流程分析",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:12.943Z"
+    },
+    {
+      "type": "visual",
+      "page": "配送工作台",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:15.334Z"
+    },
+    {
+      "type": "visual",
+      "page": "渠道管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:17.702Z"
+    },
+    {
+      "type": "visual",
+      "page": "骑手管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:20.079Z"
+    },
+    {
+      "type": "visual",
+      "page": "车辆管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:22.459Z"
+    },
+    {
+      "type": "visual",
+      "page": "线路管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:24.828Z"
+    },
+    {
+      "type": "visual",
+      "page": "调度管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:27.203Z"
+    },
+    {
+      "type": "visual",
+      "page": "订单池",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:29.616Z"
+    },
+    {
+      "type": "visual",
+      "page": "轨迹追踪",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:32.010Z"
+    },
+    {
+      "type": "visual",
+      "page": "用户管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:34.391Z"
+    },
+    {
+      "type": "visual",
+      "page": "角色管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:36.753Z"
+    },
+    {
+      "type": "visual",
+      "page": "菜单管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:39.136Z"
+    },
+    {
+      "type": "visual",
+      "page": "权限管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:41.510Z"
+    },
+    {
+      "type": "visual",
+      "page": "部门管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:43.888Z"
+    },
+    {
+      "type": "visual",
+      "page": "岗位管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:46.252Z"
+    },
+    {
+      "type": "visual",
+      "page": "字典管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:48.620Z"
+    },
+    {
+      "type": "visual",
+      "page": "日志管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:51.011Z"
+    },
+    {
+      "type": "visual",
+      "page": "租户管理",
+      "message": "页面重定向到登录页",
+      "detail": {},
+      "time": "2026-06-13T23:05:53.368Z"
+    }
+  ],
+  "pages": [
+    {
+      "name": "工作台",
+      "url": "http://localhost:5656/dashboard"
+    },
+    {
+      "name": "产品管理",
+      "url": "http://localhost:5656/erp/product"
+    },
+    {
+      "name": "往来单位管理",
+      "url": "http://localhost:5656/erp/partner"
+    },
+    {
+      "name": "价格管理",
+      "url": "http://localhost:5656/erp/pricing"
+    },
+    {
+      "name": "销售订单",
+      "url": "http://localhost:5656/sale"
+    },
+    {
+      "name": "销售管理(ERP)",
+      "url": "http://localhost:5656/erp/sale"
+    },
+    {
+      "name": "销售分析",
+      "url": "http://localhost:5656/erp/sales-analysis"
+    },
+    {
+      "name": "销售报表",
+      "url": "http://localhost:5656/erp/sales-report"
+    },
+    {
+      "name": "采购订单",
+      "url": "http://localhost:5656/purchase"
+    },
+    {
+      "name": "采购管理(ERP)",
+      "url": "http://localhost:5656/erp/purchase"
+    },
+    {
+      "name": "入库管理",
+      "url": "http://localhost:5656/erp/stock-in"
+    },
+    {
+      "name": "采购换货",
+      "url": "http://localhost:5656/erp/purchase-exchange"
+    },
+    {
+      "name": "销售出库",
+      "url": "http://localhost:5656/stock"
+    },
+    {
+      "name": "库存管理",
+      "url": "http://localhost:5656/erp/stock"
+    },
+    {
+      "name": "库存盘点",
+      "url": "http://localhost:5656/erp/stocktake"
+    },
+    {
+      "name": "发货管理",
+      "url": "http://localhost:5656/erp/shipment"
+    },
+    {
+      "name": "退货管理",
+      "url": "http://localhost:5656/erp/return"
+    },
+    {
+      "name": "成本调整",
+      "url": "http://localhost:5656/erp/stock-cost-adjust"
+    },
+    {
+      "name": "溢余入库",
+      "url": "http://localhost:5656/erp/stock-overflow"
+    },
+    {
+      "name": "报损出库",
+      "url": "http://localhost:5656/erp/stock-damage"
+    },
+    {
+      "name": "库存调拨",
+      "url": "http://localhost:5656/erp/stock-transfer"
+    },
+    {
+      "name": "BOM管理",
+      "url": "http://localhost:5656/erp/stock-bom"
+    },
+    {
+      "name": "组装单",
+      "url": "http://localhost:5656/erp/stock-assemble"
+    },
+    {
+      "name": "拆卸单",
+      "url": "http://localhost:5656/erp/stock-split"
+    },
+    {
+      "name": "库存预警配置",
+      "url": "http://localhost:5656/erp/stock-alert-config"
+    },
+    {
+      "name": "补货计划",
+      "url": "http://localhost:5656/dashboard"
+    },
+    {
+      "name": "序列号管理",
+      "url": "http://localhost:5656/login"
+    },
+    {
+      "name": "仓库管理",
+      "url": "http://localhost:5656/login?redirect=/wms/warehouse"
+    },
+    {
+      "name": "库位管理",
+      "url": "http://localhost:5656/login?redirect=/wms/location"
+    },
+    {
+      "name": "收货管理",
+      "url": "http://localhost:5656/login?redirect=/wms/receipt"
+    },
+    {
+      "name": "上架管理",
+      "url": "http://localhost:5656/login?redirect=/wms/putaway"
+    },
+    {
+      "name": "拣货管理",
+      "url": "http://localhost:5656/login?redirect=/wms/pick"
+    },
+    {
+      "name": "波次管理",
+      "url": "http://localhost:5656/login?redirect=/wms/wave"
+    },
+    {
+      "name": "发货管理",
+      "url": "http://localhost:5656/login?redirect=/wms/ship"
+    },
+    {
+      "name": "库存查询",
+      "url": "http://localhost:5656/login?redirect=/wms/inventory"
+    },
+    {
+      "name": "移库管理",
+      "url": "http://localhost:5656/login?redirect=/wms/move"
+    },
+    {
+      "name": "盘点管理",
+      "url": "http://localhost:5656/login?redirect=/wms/check"
+    },
+    {
+      "name": "库存事务",
+      "url": "http://localhost:5656/login?redirect=/wms/event"
+    },
+    {
+      "name": "客户管理",
+      "url": "http://localhost:5656/login?redirect=/crm/customer"
+    },
+    {
+      "name": "线索管理",
+      "url": "http://localhost:5656/login?redirect=/crm/lead"
+    },
+    {
+      "name": "商机管理",
+      "url": "http://localhost:5656/login?redirect=/crm/opportunity"
+    },
+    {
+      "name": "报价管理",
+      "url": "http://localhost:5656/login?redirect=/crm/quotation"
+    },
+    {
+      "name": "合同管理",
+      "url": "http://localhost:5656/login?redirect=/crm/contract"
+    },
+    {
+      "name": "发票管理",
+      "url": "http://localhost:5656/login?redirect=/crm/invoice"
+    },
+    {
+      "name": "供应商管理",
+      "url": "http://localhost:5656/login?redirect=/supplier"
+    },
+    {
+      "name": "供应商询价",
+      "url": "http://localhost:5656/login?redirect=/supplier/inquiry"
+    },
+    {
+      "name": "供应商绩效",
+      "url": "http://localhost:5656/login?redirect=/supplier/performance"
+    },
+    {
+      "name": "财务管理首页",
+      "url": "http://localhost:5656/login?redirect=/finance"
+    },
+    {
+      "name": "应收账款",
+      "url": "http://localhost:5656/login?redirect=/finance/receivable"
+    },
+    {
+      "name": "应付账款",
+      "url": "http://localhost:5656/login?redirect=/finance/payable"
+    },
+    {
+      "name": "收款单",
+      "url": "http://localhost:5656/login?redirect=/finance/receipt"
+    },
+    {
+      "name": "付款单",
+      "url": "http://localhost:5656/login?redirect=/finance/payment"
+    },
+    {
+      "name": "凭证管理",
+      "url": "http://localhost:5656/login?redirect=/finance/voucher"
+    },
+    {
+      "name": "科目管理",
+      "url": "http://localhost:5656/login?redirect=/finance/subject"
+    },
+    {
+      "name": "对账管理",
+      "url": "http://localhost:5656/login?redirect=/finance/reconciliation"
+    },
+    {
+      "name": "财务报表",
+      "url": "http://localhost:5656/login?redirect=/finance/report"
+    },
+    {
+      "name": "预收款",
+      "url": "http://localhost:5656/login?redirect=/finance/pre-receipt"
+    },
+    {
+      "name": "预付款",
+      "url": "http://localhost:5656/login?redirect=/finance/pre-payment"
+    },
+    {
+      "name": "保证金",
+      "url": "http://localhost:5656/login?redirect=/finance/deposit"
+    },
+    {
+      "name": "核销",
+      "url": "http://localhost:5656/login?redirect=/finance/write-off"
+    },
+    {
+      "name": "资金流水",
+      "url": "http://localhost:5656/login?redirect=/finance/capital-flow"
+    },
+    {
+      "name": "费用申请",
+      "url": "http://localhost:5656/login?redirect=/erp/expense/application"
+    },
+    {
+      "name": "费用报销",
+      "url": "http://localhost:5656/login?redirect=/erp/expense/reimbursement"
+    },
+    {
+      "name": "费用支付",
+      "url": "http://localhost:5656/login?redirect=/erp/expense/payment"
+    },
+    {
+      "name": "资产列表",
+      "url": "http://localhost:5656/login?redirect=/fixed-asset/asset"
+    },
+    {
+      "name": "资产类别",
+      "url": "http://localhost:5656/login?redirect=/fixed-asset/category"
+    },
+    {
+      "name": "折旧管理",
+      "url": "http://localhost:5656/login?redirect=/fixed-asset/depreciation"
+    },
+    {
+      "name": "资产转移",
+      "url": "http://localhost:5656/login?redirect=/fixed-asset/transfer"
+    },
+    {
+      "name": "资产处置",
+      "url": "http://localhost:5656/login?redirect=/fixed-asset/disposal"
+    },
+    {
+      "name": "预算管理首页",
+      "url": "http://localhost:5656/login?redirect=/budget"
+    },
+    {
+      "name": "预算模板",
+      "url": "http://localhost:5656/login?redirect=/budget/template"
+    },
+    {
+      "name": "年度预算",
+      "url": "http://localhost:5656/login?redirect=/budget/annual"
+    },
+    {
+      "name": "预算调整",
+      "url": "http://localhost:5656/login?redirect=/budget/adjustment"
+    },
+    {
+      "name": "预算报表",
+      "url": "http://localhost:5656/login?redirect=/budget/report"
+    },
+    {
+      "name": "商城配置",
+      "url": "http://localhost:5656/login?redirect=/mall/config"
+    },
+    {
+      "name": "用户审核",
+      "url": "http://localhost:5656/login?redirect=/mall/user-audit"
+    },
+    {
+      "name": "轮播图管理",
+      "url": "http://localhost:5656/login?redirect=/mall/banner"
+    },
+    {
+      "name": "商城商品",
+      "url": "http://localhost:5656/login?redirect=/mall/product"
+    },
+    {
+      "name": "商城订单",
+      "url": "http://localhost:5656/login?redirect=/mall/order"
+    },
+    {
+      "name": "打印模板",
+      "url": "http://localhost:5656/login?redirect=/printing/template"
+    },
+    {
+      "name": "打印链路",
+      "url": "http://localhost:5656/login?redirect=/printing/chain"
+    },
+    {
+      "name": "任务管理",
+      "url": "http://localhost:5656/login?redirect=/workflow/task-management"
+    },
+    {
+      "name": "流程监控",
+      "url": "http://localhost:5656/login?redirect=/workflow/instance-monitor"
+    },
+    {
+      "name": "流程分析",
+      "url": "http://localhost:5656/login?redirect=/workflow/process-analysis"
+    },
+    {
+      "name": "配送工作台",
+      "url": "http://localhost:5656/login?redirect=/dms/dashboard"
+    },
+    {
+      "name": "渠道管理",
+      "url": "http://localhost:5656/login?redirect=/dms/channel"
+    },
+    {
+      "name": "骑手管理",
+      "url": "http://localhost:5656/login?redirect=/dms/rider"
+    },
+    {
+      "name": "车辆管理",
+      "url": "http://localhost:5656/login?redirect=/dms/vehicle"
+    },
+    {
+      "name": "线路管理",
+      "url": "http://localhost:5656/login?redirect=/dms/route"
+    },
+    {
+      "name": "调度管理",
+      "url": "http://localhost:5656/login?redirect=/dms/dispatch"
+    },
+    {
+      "name": "订单池",
+      "url": "http://localhost:5656/login?redirect=/dms/order-pool"
+    },
+    {
+      "name": "轨迹追踪",
+      "url": "http://localhost:5656/login?redirect=/dms/tracking"
+    },
+    {
+      "name": "用户管理",
+      "url": "http://localhost:5656/login?redirect=/system/user"
+    },
+    {
+      "name": "角色管理",
+      "url": "http://localhost:5656/login?redirect=/system/role"
+    },
+    {
+      "name": "菜单管理",
+      "url": "http://localhost:5656/login?redirect=/system/menu"
+    },
+    {
+      "name": "权限管理",
+      "url": "http://localhost:5656/login?redirect=/system/permission"
+    },
+    {
+      "name": "部门管理",
+      "url": "http://localhost:5656/login?redirect=/system/department"
+    },
+    {
+      "name": "岗位管理",
+      "url": "http://localhost:5656/login?redirect=/system/position"
+    },
+    {
+      "name": "字典管理",
+      "url": "http://localhost:5656/login?redirect=/system/dict"
+    },
+    {
+      "name": "日志管理",
+      "url": "http://localhost:5656/login?redirect=/system/log"
+    },
+    {
+      "name": "租户管理",
+      "url": "http://localhost:5656/login?redirect=/system/tenant"
+    }
+  ]
+}

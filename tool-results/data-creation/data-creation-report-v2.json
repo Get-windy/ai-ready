@@ -1,0 +1,93 @@
+{
+  "time": "2026-06-14T00:55:58.101Z",
+  "total": 21,
+  "created": [],
+  "failed": [
+    {
+      "name": "用户管理",
+      "reason": "找不到保存按钮"
+    },
+    {
+      "name": "角色管理",
+      "reason": "异常: locator.getAttribute: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ant-form-item-label').filter({ hasText: '角色描述' })\u001b[22m\n"
+    },
+    {
+      "name": "菜单管理",
+      "reason": "异常: locator.getAttribute: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ant-form-item-label').filter({ hasText: '路由地址' })\u001b[22m\n"
+    },
+    {
+      "name": "权限管理",
+      "reason": "找不到\"新增权限\"按钮"
+    },
+    {
+      "name": "部门管理",
+      "reason": "找不到保存按钮"
+    },
+    {
+      "name": "岗位管理",
+      "reason": "找不到\"新增岗位\"按钮"
+    },
+    {
+      "name": "字典管理",
+      "reason": "找不到保存按钮"
+    },
+    {
+      "name": "科目管理",
+      "reason": "找不到保存按钮"
+    },
+    {
+      "name": "资产类别",
+      "reason": "找不到\"新增类别\"按钮"
+    },
+    {
+      "name": "轮播图管理",
+      "reason": "异常: locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ant-form-item-label').filter({ hasText: '链接' }).locator('..').locator("
+    },
+    {
+      "name": "商城商品",
+      "reason": "被重定向到登录页"
+    },
+    {
+      "name": "打印模板",
+      "reason": "被重定向到登录页"
+    },
+    {
+      "name": "渠道管理",
+      "reason": "被重定向到登录页"
+    },
+    {
+      "name": "骑手管理",
+      "reason": "被重定向到登录页"
+    },
+    {
+      "name": "车辆管理",
+      "reason": "被重定向到登录页"
+    }
+  ],
+  "skipped": [
+    {
+      "name": "日志管理",
+      "reason": "日志由系统自动生成，不支持手动新增"
+    },
+    {
+      "name": "用户审核",
+      "reason": "用户审核由注册触发，非手动新增"
+    },
+    {
+      "name": "商城订单",
+      "reason": "订单由用户下单产生，需先有商品和用户数据"
+    },
+    {
+      "name": "调度管理",
+      "reason": "需要先有骑手和订单数据"
+    },
+    {
+      "name": "订单池",
+      "reason": "订单由系统自动产生"
+    },
+    {
+      "name": "流程分析",
+      "reason": "分析报表，无需手动新增数据"
+    }
+  ]
+}

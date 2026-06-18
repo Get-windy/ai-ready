@@ -1,0 +1,562 @@
+{
+  "summary": {
+    "total": 118,
+    "ok": 26,
+    "err": 2,
+    "notFound": 90
+  },
+  "results": [
+    {
+      "endpoint": "/api/erp/pricing/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/pricing/list"
+    },
+    {
+      "endpoint": "/api/erp/pricing/approval/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/pricing/approval/list"
+    },
+    {
+      "endpoint": "/api/erp/sale/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/sale/list"
+    },
+    {
+      "endpoint": "/api/sale/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/sale/list"
+    },
+    {
+      "endpoint": "/api/erp/sales-analysis/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/sales-analysis/list"
+    },
+    {
+      "endpoint": "/api/erp/sales-report/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/sales-report/list"
+    },
+    {
+      "endpoint": "/api/stock/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/stock/list"
+    },
+    {
+      "endpoint": "/api/erp/shipment/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/shipment/list"
+    },
+    {
+      "endpoint": "/api/erp/return/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/return/list"
+    },
+    {
+      "endpoint": "/api/purchase/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/purchase/list"
+    },
+    {
+      "endpoint": "/api/erp/purchase/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/purchase/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-in/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-in/list"
+    },
+    {
+      "endpoint": "/api/erp/purchase-exchange/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/purchase-exchange/list"
+    },
+    {
+      "endpoint": "/api/erp/stocktake/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stocktake/list"
+    },
+    {
+      "endpoint": "/api/erp/batch/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/batch/list"
+    },
+    {
+      "endpoint": "/api/erp/serial/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/serial/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-cost-adjust/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-cost-adjust/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-overflow/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-overflow/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-damage/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-damage/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-transfer/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-transfer/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-bom/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-bom/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-assemble/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-assemble/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-split/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-split/list"
+    },
+    {
+      "endpoint": "/api/erp/stock-replenishment/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/stock-replenishment/list"
+    },
+    {
+      "endpoint": "/api/customer/list?pageNum=1&pageSize=5",
+      "status": 500,
+      "error": true,
+      "message": "系统异常，请稍后重试"
+    },
+    {
+      "endpoint": "/api/lead/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/lead/list"
+    },
+    {
+      "endpoint": "/api/opportunity/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/opportunity/list"
+    },
+    {
+      "endpoint": "/api/quotation/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/quotation/list"
+    },
+    {
+      "endpoint": "/api/contract/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/contract/list"
+    },
+    {
+      "endpoint": "/api/invoice/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/invoice/list"
+    },
+    {
+      "endpoint": "/api/finance/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/list"
+    },
+    {
+      "endpoint": "/api/finance/receivable/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/receivable/list"
+    },
+    {
+      "endpoint": "/api/finance/pre-receipt/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/pre-receipt/list"
+    },
+    {
+      "endpoint": "/api/finance/pre-payment/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/pre-payment/list"
+    },
+    {
+      "endpoint": "/api/finance/deposit/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/deposit/list"
+    },
+    {
+      "endpoint": "/api/finance/write-off/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/write-off/list"
+    },
+    {
+      "endpoint": "/api/finance/offset/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/offset/list"
+    },
+    {
+      "endpoint": "/api/erp/capital-flow/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/capital-flow/list"
+    },
+    {
+      "endpoint": "/api/finance/receipt/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/receipt/list"
+    },
+    {
+      "endpoint": "/api/finance/voucher/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/voucher/list"
+    },
+    {
+      "endpoint": "/api/finance/subject/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/subject/list"
+    },
+    {
+      "endpoint": "/api/finance/reports/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/reports/list"
+    },
+    {
+      "endpoint": "/api/finance/accounts-receivable/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/accounts-receivable/list"
+    },
+    {
+      "endpoint": "/api/finance/accounts-payable/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/finance/accounts-payable/list"
+    },
+    {
+      "endpoint": "/api/erp/expense/approval/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/expense/approval/list"
+    },
+    {
+      "endpoint": "/api/erp/expense/statistics/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/erp/expense/statistics/list"
+    },
+    {
+      "endpoint": "/api/budget/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/budget/list"
+    },
+    {
+      "endpoint": "/api/budget/template/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/budget/template/list"
+    },
+    {
+      "endpoint": "/api/budget/annual/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/budget/annual/list"
+    },
+    {
+      "endpoint": "/api/budget/adjustment/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/budget/adjustment/list"
+    },
+    {
+      "endpoint": "/api/budget/report/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/budget/report/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/asset/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/asset/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/category/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/category/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/depreciation/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/depreciation/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/transfer/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/transfer/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/disposal/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/disposal/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/inventory/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/inventory/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/report/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/report/list"
+    },
+    {
+      "endpoint": "/api/fixed-asset/purchase/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/fixed-asset/purchase/list"
+    },
+    {
+      "endpoint": "/api/mall/config/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/mall/config/list"
+    },
+    {
+      "endpoint": "/api/mall/banner/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/mall/banner/list"
+    },
+    {
+      "endpoint": "/api/mall/order/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/mall/order/list"
+    },
+    {
+      "endpoint": "/api/mall/product/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/mall/product/list"
+    },
+    {
+      "endpoint": "/api/mall/user-audit/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/mall/user-audit/list"
+    },
+    {
+      "endpoint": "/api/wms/pick/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/wms/pick/list"
+    },
+    {
+      "endpoint": "/api/wms/wave/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/wms/wave/list"
+    },
+    {
+      "endpoint": "/api/wms/ship/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/wms/ship/list"
+    },
+    {
+      "endpoint": "/api/wms/inventory/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/wms/inventory/list"
+    },
+    {
+      "endpoint": "/api/wms/event/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/wms/event/list"
+    },
+    {
+      "endpoint": "/api/dms/dashboard/stats",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/dashboard/stats"
+    },
+    {
+      "endpoint": "/api/dms/channel/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/channel/list"
+    },
+    {
+      "endpoint": "/api/dms/rider/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/rider/list"
+    },
+    {
+      "endpoint": "/api/dms/vehicle/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/vehicle/list"
+    },
+    {
+      "endpoint": "/api/dms/verification/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/verification/list"
+    },
+    {
+      "endpoint": "/api/dms/route/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/route/list"
+    },
+    {
+      "endpoint": "/api/dms/dispatch/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/dispatch/list"
+    },
+    {
+      "endpoint": "/api/dms/order-pool/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/order-pool/list"
+    },
+    {
+      "endpoint": "/api/dms/config/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/config/list"
+    },
+    {
+      "endpoint": "/api/dms/tracking/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/dms/tracking/list"
+    },
+    {
+      "endpoint": "/api/supplier/inquiry/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/supplier/inquiry/list"
+    },
+    {
+      "endpoint": "/api/supplier/performance/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/supplier/performance/list"
+    },
+    {
+      "endpoint": "/api/system/user/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/user/list"
+    },
+    {
+      "endpoint": "/api/system/role/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/role/list"
+    },
+    {
+      "endpoint": "/api/system/menu/list",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/menu/list"
+    },
+    {
+      "endpoint": "/api/system/dict/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/dict/list"
+    },
+    {
+      "endpoint": "/api/system/department/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/department/list"
+    },
+    {
+      "endpoint": "/api/system/position/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/position/list"
+    },
+    {
+      "endpoint": "/api/system/log/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/log/list"
+    },
+    {
+      "endpoint": "/api/system/tenant/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/system/tenant/list"
+    },
+    {
+      "endpoint": "/api/order-center/list?pageNum=1&pageSize=5",
+      "status": 404,
+      "error": false,
+      "message": "接口不存在: api/order-center/list"
+    },
+    {
+      "endpoint": "/api/erp/stock/alert",
+      "status": 500,
+      "error": true,
+      "message": "系统异常，请稍后重试"
+    }
+  ]
+}
