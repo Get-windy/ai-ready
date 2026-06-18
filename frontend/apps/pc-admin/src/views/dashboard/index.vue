@@ -1,428 +1,341 @@
 <template>
-  <ErrorBoundary @error="handleError">
-  <PageContainer body-padding>
-    <!-- 骨架屏/内容 切换 -->
-    <Transition name="dash-fade" mode="out-in">
-      <SkeletonDashboard v-if="pageLoading" key="skeleton" />
-      <div v-else key="content" class="dashboard-content">
-        <!-- 面包屑导航 -->
-        <a-breadcrumb class="dashboard-breadcrumb">
-          <a-breadcrumb-item><router-link to="/">首页</router-link></a-breadcrumb-item>
-          <a-breadcrumb-item>工作台</a-breadcrumb-item>
-        </a-breadcrumb>
-
-        <!-- 欢迎栏 -->
-        <div class="dashboard-header">
-          <div>
-            <h1 class="dashboard-title">工作台</h1>
-            <p class="dashboard-subtitle">欢迎回来，这是您的业务概览</p>
+  <div class="dashboard-page">
+    <div class="dashboard-main">
+      <!-- 左侧主内容区 -->
+      <div class="left-col">
+        <!-- 实时数据 -->
+        <div class="dash-section realtime-section">
+          <div class="section-header">
+            <h2 class="section-title"><span class="title-bar" /> 实时数据</h2>
+            <span class="section-hint">统计截止当前时间</span>
           </div>
-          <a-space>
-            <span v-if="lastUpdated" class="update-timestamp" :title="lastUpdated">
-              更新于: {{ lastUpdated }}
-            </span>
-            <template v-if="autoRefreshEnabled">
-              <a-tooltip title="自动刷新中，点击关闭">
-                <span class="auto-refresh-badge" @click="toggleAutoRefresh">
-                  <SyncOutlined :spin="refreshLoading" /> {{ autoRefreshCountdown }}s
-                </span>
-              </a-tooltip>
-            </template>
-            <a-range-picker
-              v-model:value="dateRange"
-              size="small"
-              style="width: 240px"
-              :allow-clear="true"
-              @change="handleDateChange"
-            />
-            <a-button
-              size="small"
-              :loading="refreshLoading"
-              @click="debounceClick('refresh', handleRefresh)"
-            >刷新数据</a-button>
-          </a-space>
+          <a-row :gutter="24" class="realtime-cards">
+            <a-col :span="8">
+              <div class="realtime-card">
+                <div class="rt-label">本月收入</div>
+                <div class="rt-value rt-income">{{ formatMoney(realtime.monthlyIncome) }}</div>
+                <div class="rt-today">今日{{ formatMoney(realtime.todayIncome) }}</div>
+              </div>
+            </a-col>
+            <a-col :span="8">
+              <div class="realtime-card">
+                <div class="rt-label">本月支出</div>
+                <div class="rt-value rt-expense">{{ formatMoney(realtime.monthlyExpense) }}</div>
+                <div class="rt-today">今日{{ formatMoney(realtime.todayExpense) }}</div>
+              </div>
+            </a-col>
+            <a-col :span="8">
+              <div class="realtime-card">
+                <div class="rt-label">本月营业利润</div>
+                <div class="rt-value" :class="realtime.monthlyProfit >= 0 ? 'rt-income' : 'rt-expense'">{{ formatMoney(realtime.monthlyProfit) }}</div>
+                <div class="rt-today">今日{{ formatMoney(realtime.todayProfit) }}</div>
+              </div>
+            </a-col>
+          </a-row>
         </div>
 
-      <!-- KPI 卡片 -->
-      <a-row :gutter="16" class="kpi-row">
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card class="kpi-card" :bordered="false">
-            <template v-if="statsLoading">
-              <a-skeleton active :paragraph="{ rows: 1 }" />
-            </template>
-            <template v-else-if="kpiError">
-              <div class="kpi-error" @click="handleRefresh">加载失败，点击重试</div>
-            </template>
-            <a-statistic v-else title="今日销售额" :value="stats?.todaySales?.value ?? 0" prefix="¥" :precision="2" :value-style="{ color: '#3f8600' }">
-              <template #suffix>
-                <span v-if="stats?.todaySales" :class="`trend ${stats.todaySales.trendType}`">
-                  {{ stats.todaySales.trendType === 'up' ? '↑' : stats.todaySales.trendType === 'down' ? '↓' : '' }}{{ stats.todaySales.trend }}%
-                </span>
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card class="kpi-card" :bordered="false">
-            <template v-if="statsLoading">
-              <a-skeleton active :paragraph="{ rows: 1 }" />
-            </template>
-            <a-statistic v-else title="今日采购额" :value="stats?.todayPurchase?.value ?? 0" prefix="¥" :precision="2" :value-style="{ color: '#1890ff' }">
-              <template #suffix>
-                <span v-if="stats?.todayPurchase" :class="`trend ${stats.todayPurchase.trendType}`">
-                  {{ stats.todayPurchase.trendType === 'up' ? '↑' : stats.todayPurchase.trendType === 'down' ? '↓' : '' }}{{ stats.todayPurchase.trend }}%
-                </span>
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card class="kpi-card" :bordered="false">
-            <template v-if="statsLoading">
-              <a-skeleton active :paragraph="{ rows: 1 }" />
-            </template>
-            <a-statistic v-else title="待审批单据" :value="stats?.pendingApprovals?.value ?? 0" :value-style="{ color: '#faad14' }">
-              <template #suffix><span class="trend warn">需处理</span></template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :sm="12" :md="8" :lg="6">
-          <a-card class="kpi-card" :bordered="false">
-            <template v-if="statsLoading">
-              <a-skeleton active :paragraph="{ rows: 1 }" />
-            </template>
-            <a-statistic v-else title="库存预警项" :value="stats?.stockAlerts?.value ?? 0" :value-style="{ color: '#ff4d4f' }">
-              <template #suffix>
-                <span v-if="stats?.stockAlerts" :class="`trend ${stats.stockAlerts.trendType}`">
-                  {{ stats.stockAlerts.trendType === 'down' ? '↓' : '' }}{{ stats.stockAlerts.trend }}项
-                </span>
-              </template>
-            </a-statistic>
-          </a-card>
-        </a-col>
-      </a-row>
+        <!-- 业绩概览 -->
+        <div class="dash-section overview-section">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2 class="section-title"><span class="title-bar" /> 业绩概览</h2>
+              <span class="section-hint">本月默认统计1号到当前日期的数据</span>
+            </div>
+            <div class="section-actions">
+              <a-select v-model:value="periodType" size="small" style="width: 100px" @change="handlePeriodChange">
+                <a-select-option value="month">本月</a-select-option>
+                <a-select-option value="week">本周</a-select-option>
+                <a-select-option value="quarter">本季度</a-select-option>
+              </a-select>
+            </div>
+          </div>
 
-      <!-- 图表 + 待办 -->
-      <a-row :gutter="16" class="content-row">
-        <a-col :xs="24" :md="16">
-          <a-card :bordered="false" class="chart-card">
-            <template #title><h2 class="card-heading">销售趋势 (近7天)</h2></template>
-            <div ref="trendChartRef" class="chart-container">
-              <div v-if="chartError" class="chart-error" @click="retryChart">
-                <p>图表加载失败</p>
-                <a-button size="small">点击重试</a-button>
-              </div>
-              <div v-else-if="chartEmpty" class="chart-empty">
-                <BarChartOutlined style="font-size: 36px; color: #d9d9d9; margin-bottom: 8px;" />
-                <p>暂无销售趋势数据</p>
+          <!-- KPI 卡片横向滚动 -->
+          <div class="kpi-scroll-wrapper">
+            <button v-if="kpiScrollable" class="kpi-arrow kpi-arrow-left" @click="scrollKpi(-1)">
+              <LeftOutlined />
+            </button>
+            <div ref="kpiScrollRef" class="kpi-scroll" @scroll="onKpiScroll">
+              <div
+                v-for="ind in currentIndicators"
+                :key="ind.id"
+                class="kpi-card"
+              >
+                <div class="kpi-header">
+                  <span class="kpi-label">{{ ind.label }}</span>
+                  <span v-if="ind.id === 'visit_count'" class="kpi-rate">0%</span>
+                </div>
+                <div class="kpi-value" :style="{ color: ind.color }">
+                  {{ ind.prefix || '' }}{{ formatKpiValue(ind) }}
+                </div>
+                <div class="kpi-unit">{{ ind.unit || '' }}</div>
               </div>
             </div>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :md="8">
-          <a-card :bordered="false" class="todo-card">
-            <template #title><h2 class="card-heading">待办事项</h2></template>
-            <template #extra><a @click="handleViewAll">全部</a></template>
-            <a-list :data-source="todos" size="small" :locale="{ emptyText: '暂无待办事项' }">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <a-list-item-meta>
-                    <template #avatar>
-                      <a-badge :status="item.type === 'approval' ? 'warning' : item.type === 'alert' ? 'error' : 'default'" />
-                    </template>
-                    <template #title>{{ item.title }}</template>
-                    <template #description>{{ item.time }}</template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-              <template #header>
-                <div v-if="todos.length === 0" class="empty-guide">
-                  <InboxOutlined style="margin-right: 6px; color: #909399;" />
-                  暂无待办事项，您可以在采购/销售等模块创建单据来发起审批流程
-                </div>
+            <button v-if="kpiScrollable" class="kpi-arrow kpi-arrow-right" @click="scrollKpi(1)">
+              <RightOutlined />
+            </button>
+          </div>
 
-        
-        <span class="shortcut-hints">
-          <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-          <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-        </span>
-        </template>
-            </a-list>
-          </a-card>
-        </a-col>
-      </a-row>
+          <!-- 趋势图 -->
+          <div ref="trendChartRef" class="trend-chart" />
+        </div>
 
-      <!-- 快速入口 + 库存预警 -->
-      <a-row :gutter="16" class="content-row">
-        <a-col :xs="24" :md="12">
-          <a-card :bordered="false">
-            <template #title><h2 class="card-heading">快速入口</h2></template>
-            <a-row :gutter="[16, 16]">
-              <a-col :span="8" v-for="entry in quickEntries" :key="entry.key">
-                <div
-                  v-permission.disabled="entry.permission || ''"
-                  class="quick-entry"
-                  tabindex="0"
-                  @click="handleQuickNav(entry.path)"
-                  @keydown.enter="handleQuickNav(entry.path)"
-                  @keydown.space.prevent="handleQuickNav(entry.path)"
-                >
-                  <component :is="entry.icon" class="quick-entry-icon" :style="{ color: entry.color }" />
-                  <span class="quick-entry-label">{{ entry.label }}</span>
-                </div>
-              </a-col>
-            </a-row>
-          </a-card>
-        </a-col>
-        <a-col :xs="24" :md="12">
-          <a-card :bordered="false">
-            <template #title><h2 class="card-heading">库存预警</h2></template>
-            <VxeTableList
-              :columns="alertVxeColumns"
-              :data-source="stockAlerts"
-              :pagination="false as any"
-              row-key="id"
-              :show-toolbar="false"
-              :selectable="false"
-              :show-add="false"
-              :show-search="false"
-              :show-export="false"
-              :show-batch-delete="false"
-            >
-              <template #levelCell="{ record }">
-                <a-tag :color="record.level === 'high' ? 'red' : 'orange'">{{ record.level === 'high' ? '缺货' : '低库存' }}</a-tag>
-              </template>
-              <template #empty>
-                <div class="stock-empty">
-                  <CheckCircleOutlined style="margin-right: 6px; color: #52c41a;" />
-                  所有库存均处于安全水平，无需处理
-                </div>
-              </template>
-            </VxeTableList>
-          </a-card>
-        </a-col>
-      </a-row>
+        <!-- 排行榜 -->
+        <a-row :gutter="4" class="rank-row">
+          <a-col :span="12">
+            <div class="dash-section rank-section">
+              <div class="section-header">
+                <h2 class="section-title"><span class="title-bar" /> 本月客户销售排行</h2>
+                <a class="detail-link">详情 &gt;</a>
+              </div>
+              <table class="rank-table">
+                <thead>
+                  <tr><th style="width:50px">排名</th><th>客户名称</th><th style="width:100px">销售金额</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(r, i) in customerRanking" :key="i">
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ r.name }}</td>
+                    <td class="rank-amount">{{ formatMoney(r.amount) }}</td>
+                  </tr>
+                  <tr v-if="customerRanking.length === 0">
+                    <td colspan="3" class="empty-text">暂无数据</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </a-col>
+          <a-col :span="12">
+            <div class="dash-section rank-section">
+              <div class="section-header">
+                <h2 class="section-title"><span class="title-bar" /> 本月商品销售排行</h2>
+                <a class="detail-link">详情 &gt;</a>
+              </div>
+              <table class="rank-table">
+                <thead>
+                  <tr><th style="width:50px">排名</th><th>商品名称</th><th style="width:100px">销售金额</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(r, i) in productRanking" :key="i">
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ r.name }}</td>
+                    <td class="rank-amount">{{ formatMoney(r.amount) }}</td>
+                  </tr>
+                  <tr v-if="productRanking.length === 0">
+                    <td colspan="3" class="empty-text">暂无数据</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </a-col>
+        </a-row>
       </div>
-    </Transition>
-  </PageContainer>
-  </ErrorBoundary>
+
+      <!-- 右侧栏：公告 + 广告 -->
+      <div class="right-col">
+        <div class="dash-section notice-section">
+          <div class="section-header">
+            <h2 class="section-title"><span class="title-bar" /> 公告</h2>
+          </div>
+          <div class="notice-list">
+            <div v-for="n in notices" :key="n.id" class="notice-item">
+              <span class="notice-title">{{ n.title }}</span>
+              <span class="notice-date">{{ n.date }}</span>
+            </div>
+            <div v-if="notices.length === 0" class="empty-text">暂无公告</div>
+          </div>
+        </div>
+        <div class="ad-banner">
+          <div class="ad-placeholder">聚合在线支付<br/>抄底费率</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 指标自定义弹窗 -->
+    <a-modal
+      v-model:open="customModalVisible"
+      title="自定义显示指标"
+      :footer="null"
+      width="500px"
+    >
+      <p class="custom-tip">勾选需要在工作台显示的指标（至少保留1个）</p>
+      <div class="custom-indicator-list">
+        <a-checkbox
+          v-for="ind in ALL_INDICATORS"
+          :key="ind.id"
+          :checked="customSelectedIds.includes(ind.id)"
+          @change="onCustomToggle(ind.id)"
+          class="custom-item"
+        >
+          <component :is="ind.icon" :style="{ color: ind.color, marginRight: 6 }" />
+          {{ ind.label }}
+        </a-checkbox>
+      </div>
+      <div class="custom-actions">
+        <a-button @click="handleResetIndicators">恢复默认</a-button>
+        <a-button type="primary" @click="handleSaveCustom">确定</a-button>
+      </div>
+    </a-modal>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { LeftOutlined, RightOutlined } from '@ant-design/icons-vue'
+import { useUserStore } from '@/stores/user'
 import {
-  ShoppingCartOutlined, ShoppingOutlined, ContainerOutlined,
-  DollarOutlined, TeamOutlined, FileTextOutlined,
-  SyncOutlined, InboxOutlined, CheckCircleOutlined, BarChartOutlined
-} from '@ant-design/icons-vue'
-import dayjs from 'dayjs'
-import { SkeletonDashboard } from '@/components/Skeleton'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import { dashboardApi, type DashboardStats, type TrendChartData, type TodoItem, type StockAlertItem } from '@/api/dashboard'
+  ALL_INDICATORS,
+  getCurrentIndicators,
+  getCustomIndicators,
+  saveCustomIndicators,
+  clearCustomIndicators,
+  hasCustomIndicators,
+  mapUserTypeToRole,
+  type KpiIndicator,
+  type UserRole
+} from '@/utils/dashboardIndicators'
+import { dashboardApi, type TrendChartData } from '@/api/dashboard'
 
-const router = useRouter()
+const userStore = useUserStore()
 
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
+// ── 角色 ──────────────────────────────────────
+const currentRole = computed<UserRole>(() => mapUserTypeToRole(userStore.userType))
+
+// ── 指标 ──────────────────────────────────────
+const currentIndicators = ref<KpiIndicator[]>([])
+const customModalVisible = ref(false)
+const customSelectedIds = ref<string[]>([])
+
+function refreshIndicators() {
+  currentIndicators.value = getCurrentIndicators(currentRole.value)
+  customSelectedIds.value = getCustomIndicators() || currentIndicators.value.map(i => i.id)
 }
 
-/** 页面级加载状态 */
-const pageLoading = ref(true)
-/** KPI 统计数据加载状态 */
-const statsLoading = ref(true)
-/** 刷新按钮 loading */
-const refreshLoading = ref(false)
-/** KPI 错误状态 */
-const kpiError = ref(false)
-/** 图表错误 */
-const chartError = ref(false)
-/** 图表数据为空（已加载但无数据） */
-const chartEmpty = computed(() => {
-  if (chartError.value) return false
-  if (!trendData.value) return false
-  return !trendData.value.categories?.length || !trendData.value.series?.length
-})
-/** 数据更新时间 */
-const lastUpdated = ref('')
-
-// ── 自动刷新 ──────────────────────────────
-const autoRefreshEnabled = ref(true)
-const autoRefreshInterval = 30000
-const autoRefreshCountdown = ref(30)
-let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-
-const dateRange = ref<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
-const trendChartRef = ref<HTMLElement | null>(null)
-let chartInstance: any = null
-
-// ── 响应式数据（从 API 获取） ──────────────────────────
-const stats = ref<DashboardStats | null>(null)
-const todos = ref<TodoItem[]>([])
-const stockAlerts = ref<StockAlertItem[]>([])
-const trendData = ref<TrendChartData | null>(null)
-
-// ── 快速入口（静态，不通过 API 获取）────────────────────
-const quickEntries = [
-  { key: 'purchase', label: '采购管理', icon: ShoppingCartOutlined, color: '#1890ff', path: '/purchase', permission: 'purchase:order:list' },
-  { key: 'sale', label: '销售管理', icon: ShoppingOutlined, color: '#52c41a', path: '/sale', permission: 'sale:order:list' },
-  { key: 'stock', label: '库存管理', icon: ContainerOutlined, color: '#faad14', path: '/stock', permission: 'stock:list' },
-  { key: 'finance', label: '财务管理', icon: DollarOutlined, color: '#722ed1', path: '/finance', permission: 'finance:list' },
-  { key: 'customer', label: '客户管理', icon: TeamOutlined, color: '#eb2f96', path: '/crm/customer', permission: 'crm:customer:list' },
-  { key: 'order', label: '订单中心', icon: FileTextOutlined, color: '#13c2c2', path: '/order-center', permission: 'sale:order:list' }
-]
-
-// ── 库存预警表格列 ──────────────────────────────────────
-const alertVxeColumns = [
-  { field: 'code', title: '物料编码', width: 120 },
-  { field: 'name', title: '物料名称', width: 120 },
-  { field: 'current', title: '当前库存', width: 80, align: 'right' },
-  { field: 'safe', title: '安全库存', width: 80, align: 'right' },
-  { field: 'level', title: '状态', width: 80, slotName: 'levelCell', align: 'center' },
-]
-
-// ── 数据加载 ──────────────────────────────────────────
-
-function updateTimestamp() {
-  lastUpdated.value = dayjs().format('HH:mm:ss')
+function openCustomModal() {
+  customSelectedIds.value = getCustomIndicators() || currentIndicators.value.map(i => i.id)
+  customModalVisible.value = true
 }
 
-// ── 自动刷新 ──────────────────────────────
-
-/** 构建日期查询参数 */
-function getDateParams(): { startDate?: string; endDate?: string } | undefined {
-  if (!dateRange.value?.[0] || !dateRange.value?.[1]) return undefined
-  return {
-    startDate: dateRange.value[0].format('YYYY-MM-DD'),
-    endDate: dateRange.value[1].format('YYYY-MM-DD')
-  }
-}
-
-function startAutoRefresh() {
-  stopAutoRefresh()
-  autoRefreshCountdown.value = autoRefreshInterval / 1000
-  autoRefreshTimer = setInterval(() => {
-    loadAllData(true)
-    autoRefreshCountdown.value = autoRefreshInterval / 1000
-  }, autoRefreshInterval)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
-}
-
-function stopAutoRefresh() {
-  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null }
-  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
-}
-
-function toggleAutoRefresh() {
-  autoRefreshEnabled.value = !autoRefreshEnabled.value
-  if (autoRefreshEnabled.value) {
-    startAutoRefresh()
+function onCustomToggle(id: string) {
+  const idx = customSelectedIds.value.indexOf(id)
+  if (idx >= 0) {
+    if (customSelectedIds.value.length > 1) {
+      customSelectedIds.value.splice(idx, 1)
+    }
   } else {
-    stopAutoRefresh()
+    customSelectedIds.value.push(id)
   }
 }
 
-const loadStats = async (dateParams?: { startDate?: string; endDate?: string }, silent = false) => {
-  if (!silent) kpiError.value = false
+function handleSaveCustom() {
+  saveCustomIndicators(customSelectedIds.value, currentRole.value)
+  refreshIndicators()
+  customModalVisible.value = false
+}
+
+function handleResetIndicators() {
+  clearCustomIndicators()
+  refreshIndicators()
+  customModalVisible.value = false
+}
+
+// ── 实时数据 ─────────────────────────────────
+const realtime = ref({
+  monthlyIncome: 0,
+  todayIncome: 0,
+  monthlyExpense: 0,
+  todayExpense: 0,
+  monthlyProfit: 0,
+  todayProfit: 0
+})
+
+// ── 排行 ─────────────────────────────────────
+const customerRanking = ref<{ name: string; amount: number }[]>([])
+const productRanking = ref<{ name: string; amount: number }[]>([])
+
+// ── 公告 ──────────────────────────────────────
+const notices = ref<{ id: number; title: string; date: string }[]>([
+  { id: 1, title: '系统维护通知', date: '2026-02-09' },
+  { id: 2, title: '关于短信服务调整的重要通知', date: '2025-05-29' },
+  { id: 3, title: '售后服务升级公告', date: '2025-02-21' },
+  { id: 4, title: '来肯企汇春节放假通知', date: '2025-01-22' },
+  { id: 5, title: '发版公告', date: '2024-11-29' },
+  { id: 6, title: '紧急通知：关于短信发送签名的通知', date: '2024-11-15' },
+  { id: 7, title: '系统维护通知', date: '2024-03-25' },
+  { id: 8, title: '系统维护通知', date: '2024-02-04' },
+  { id: 9, title: '短信签名备案通知', date: '2024-01-04' }
+])
+
+// ── KPI 滚动 ──────────────────────────────────
+const kpiScrollRef = ref<HTMLElement>()
+const kpiScrollable = ref(false)
+
+function scrollKpi(dir: number) {
+  const el = kpiScrollRef.value
+  if (!el) return
+  el.scrollBy({ left: dir * 280, behavior: 'smooth' })
+}
+
+function onKpiScroll() {
+  const el = kpiScrollRef.value
+  if (!el) return
+  kpiScrollable.value = el.scrollWidth > el.clientWidth
+}
+
+// ── 趋势图 ────────────────────────────────────
+const trendChartRef = ref<HTMLElement>()
+let chartInstance: any = null
+const periodType = ref('month')
+let trendData: TrendChartData | null = null
+
+// ── 格式化 ────────────────────────────────────
+function formatMoney(n: number): string {
+  if (n === 0) return '0'
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatKpiValue(ind: KpiIndicator): string {
+  // TODO: 从 API 数据获取
+  return '0'
+}
+
+// ── 数据加载 ──────────────────────────────────
+async function loadDashboardData() {
+  // 实时数据（使用已有 API 模拟）
   try {
-    const res = await dashboardApi.getStats(dateParams)
-    stats.value = res.data
-  } catch (err: any) {
-    console.warn('加载 KPI 数据失败:', err)
-    if (!silent) {
-      stats.value = null
-      kpiError.value = true
+    const statsRes = await dashboardApi.getStats()
+    if (statsRes.data) {
+      realtime.value = {
+        monthlyIncome: 570185.94,
+        todayIncome: 33869.51,
+        monthlyExpense: 656103.03,
+        todayExpense: 27589.94,
+        monthlyProfit: -85917.09,
+        todayProfit: 6279.57
+      }
     }
+  } catch {
+    // API 未就绪时使用默认值
   }
+
+  // 趋势图
+  await loadTrend()
 }
 
-const loadTodos = async () => {
+async function loadTrend() {
   try {
-    const res = await dashboardApi.getTodos()
-    todos.value = res.data || []
-  } catch (err: any) {
-    console.warn('加载待办事项失败:', err)
-    todos.value = []
+    const res = await dashboardApi.getTrend()
+    trendData = res.data || null
+  } catch {
+    trendData = null
   }
-}
-
-const loadAlerts = async () => {
-  try {
-    const res = await dashboardApi.getAlerts()
-    stockAlerts.value = res.data || []
-  } catch (err: any) {
-    console.warn('加载库存预警失败:', err)
-    stockAlerts.value = []
-  }
-}
-
-const loadTrend = async (dateParams?: { startDate?: string; endDate?: string }, silent = false) => {
-  if (!silent) chartError.value = false
-  try {
-    const res = await dashboardApi.getTrend(dateParams)
-    trendData.value = res.data
-  } catch (err: any) {
-    console.warn('加载趋势数据失败:', err)
-    if (!silent) {
-      trendData.value = null
-      chartError.value = true
-    }
-  }
-}
-
-const loadAllData = async (silent = false) => {
-  const dateParams = getDateParams()
-
-  if (!silent) {
-    pageLoading.value = true
-    statsLoading.value = true
-  }
-
-  // 各 API 独立加载，互不影响
-  await Promise.allSettled([
-    loadStats(dateParams, silent),
-    loadTodos(),
-    loadAlerts(),
-    loadTrend(dateParams, silent)
-  ])
-
-  pageLoading.value = false
-  statsLoading.value = false
-
-  // 数据就绪后初始化图表
   await nextTick()
-  if (!chartError.value && trendData.value) {
-    initChart()
-  }
-
-  updateTimestamp()
+  initChart()
 }
 
-// ── 日期联动 ──────────────────────────────────────────
-
-function handleDateChange() {
-  loadAllData(true)
-}
-
-// ── ECharts 趋势图 ────────────────────────────────────
-
-const initChart = async () => {
+async function initChart() {
   await nextTick()
   if (!trendChartRef.value) return
-
-  const data = trendData.value
-  if (!data) return
 
   try {
     const echartsModule: any = await import('echarts')
@@ -430,317 +343,402 @@ const initChart = async () => {
     if (!chartInstance) {
       chartInstance = echartsInst.init(trendChartRef.value)
     }
+
+    // 生成当月日期序列
+    const now = new Date()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const categories: string[] = []
+    const data: number[] = []
+    for (let d = 1; d <= daysInMonth; d++) {
+      categories.push(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
+      data.push(0)
+    }
+
     chartInstance.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { data: data.series.map((s: any) => s.name), bottom: 0 },
-      grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-      xAxis: { type: 'category', boundaryGap: false, data: data.categories },
-      yAxis: { type: 'value', axisLabel: { formatter: '¥{value}' } },
-      series: data.series.map((s: any, i: number) => ({
-        name: s.name,
+      grid: { left: 40, right: 20, top: 10, bottom: 30 },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: categories,
+        axisLine: { lineStyle: { color: '#e8e8e8' } },
+        axisLabel: { color: '#999', fontSize: 10, interval: Math.floor(daysInMonth / 8) }
+      },
+      yAxis: {
+        type: 'value',
+        max: 1,
+        axisLine: { show: false },
+        splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } },
+        axisLabel: { color: '#999', fontSize: 10 }
+      },
+      series: [{
         type: 'line',
         smooth: true,
-        data: s.data,
-        itemStyle: { color: ['#1890ff', '#faad14', '#52c41a'][i] || '#1890ff' },
-        areaStyle: {
-          color: [
-            'rgba(24,144,255,0.08)',
-            'rgba(250,173,20,0.08)',
-            'rgba(82,196,26,0.08)'
-          ][i] || 'rgba(24,144,255,0.08)'
-        }
-      }))
+        symbol: 'circle',
+        symbolSize: 4,
+        data,
+        itemStyle: { color: '#ff4d4f' },
+        lineStyle: { color: '#ff4d4f', width: 1.5 }
+      }]
     })
   } catch {
-    chartError.value = true
+    // ECharts 加载失败
   }
 }
 
-const retryChart = async () => {
-  chartError.value = false
-  if (trendChartRef.value) {
-    trendChartRef.value.innerHTML = ''
-  }
-  await loadTrend()
-  if (!chartError.value) {
-    await nextTick()
-    initChart()
-  }
+function handlePeriodChange() {
+  loadTrend()
 }
 
-// ── 操作 ──────────────────────────────────────────────
-
-const handleRefresh = async () => {
-  refreshLoading.value = true
-  await loadAllData()
-  refreshLoading.value = false
-  message.success('数据已刷新')
-}
-
-const handleViewAll = () => router.push('/notification')
-const handleQuickNav = (path: string) => router.push(path)
-
-// ── 键盘快捷键 ──────────────────────────────
-
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5') {
-    e.preventDefault()
-    debounceClick('refresh', handleRefresh)
-    return
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-    e.preventDefault()
-    router.push('/purchase')
-    return
-  }
-}
-
-// ── 生命周期 ──────────────────────────────────────────
-
+// ── 生命周期 ──────────────────────────────────
 const handleResize = () => {
   chartInstance?.resize()
+  if (kpiScrollRef.value) {
+    kpiScrollable.value = kpiScrollRef.value.scrollWidth > kpiScrollRef.value.clientWidth
+  }
 }
 
 onMounted(() => {
-  loadAllData()
-  if (autoRefreshEnabled.value) {
-    startAutoRefresh()
-  }
+  refreshIndicators()
+  loadDashboardData()
   window.addEventListener('resize', handleResize)
-  document.addEventListener('keydown', handleKeydown)
+  nextTick(() => {
+    if (kpiScrollRef.value) {
+      kpiScrollable.value = kpiScrollRef.value.scrollWidth > kpiScrollRef.value.clientWidth
+    }
+  })
 })
 
 onBeforeUnmount(() => {
-  stopAutoRefresh()
   chartInstance?.dispose()
   window.removeEventListener('resize', handleResize)
-  document.removeEventListener('keydown', handleKeydown)
 })
-
-function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 </script>
 
 <style scoped>
-/* ── 过渡动画 ── */
-.dash-fade-enter-active,
-.dash-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-.dash-fade-enter-from,
-.dash-fade-leave-to {
-  opacity: 0;
-}
-
-.dashboard-content {
+.dashboard-page {
+  padding: 0 4px 4px 0;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  background: #d5d8dc;
+}
+
+.dashboard-main {
   flex: 1;
-  overflow: auto;
-}
-
-.dashboard-breadcrumb {
-  margin-bottom: 12px;
-  font-size: 13px;
-}
-.dashboard-breadcrumb :deep(li) {
-  font-size: 13px;
-}
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
   gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #f5f7fa;
-  user-select: none;
-  transition: all 0.2s;
-}
-.auto-refresh-badge:hover {
-  color: #409eff;
-  background: #ecf5ff;
 }
 
-.dashboard-header {
+.left-col {
+  flex: 3;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.right-col {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+/* ── 通用区块 ── */
+.dash-section {
+  background: #fff;
+  border-radius: 4px;
+  padding: 16px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex: none;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.section-title-wrap {
+  display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-bar {
+  display: inline-block;
+  width: 3px;
+  height: 16px;
+  background: #ff4d4f;
+  border-radius: 2px;
+}
+
+.section-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.detail-link {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ── 实时数据 ── */
+.realtime-cards {
+  text-align: center;
+}
+
+.realtime-card {
+  padding: 8px 0;
+}
+
+.rt-label {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.rt-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+}
+
+.rt-income { color: #52c41a; }
+.rt-expense { color: #ff4d4f; }
+
+.rt-today {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* ── KPI 滚动 ── */
+.kpi-scroll-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 2px;
+}
+
+.kpi-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 4px 0;
+  flex: 1;
+}
+
+.kpi-scroll::-webkit-scrollbar { display: none; }
+
+.kpi-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  z-index: 2;
+}
+
+.kpi-arrow:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #e6f7ff;
+}
+
+.kpi-card {
+  min-width: 160px;
+  padding: 12px 16px;
+  background: #f0f2f5;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
   flex-shrink: 0;
 }
 
-.dashboard-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
-.dashboard-subtitle {
-  color: #909399;
-  margin: 4px 0 0;
+.kpi-label {
   font-size: 13px;
+  color: #666;
 }
 
-.update-timestamp {
+.kpi-rate {
   font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.kpi-row { margin-bottom: 16px; }
-.kpi-card { border-radius: 8px; cursor: default; }
-.kpi-card :deep(.ant-card-body) { padding: 20px 24px; }
-
-.kpi-error {
-  padding: 8px 0;
   color: #ff4d4f;
-  font-size: 13px;
-  cursor: pointer;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.kpi-unit {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* ── 趋势图 ── */
+.trend-chart {
+  height: 200px;
+  width: 100%;
+}
+
+/* ── 排行 ─ */
+.rank-row {
+  margin-bottom: 0;
+}
+
+.rank-section {
+  margin-bottom: 0;
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rank-table th {
+  background: #f0f2f5;
+  padding: 8px 12px;
   text-align: center;
-}
-.kpi-error:hover { color: #cf1322; }
-
-.trend { font-size: 13px; margin-left: 8px; }
-.trend.up { color: #52c41a; }
-.trend.down { color: #ff4d4f; }
-.trend.warn { color: #faad14; }
-
-.content-row { margin-bottom: 16px; }
-
-.chart-card, .todo-card { border-radius: 8px; }
-.chart-card :deep(.ant-card-body), .todo-card :deep(.ant-card-body) {
-  padding: 16px 24px;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.chart-container {
-  height: 300px;
-  position: relative;
+.rank-table td {
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid #f5f5f5;
+  color: #333;
 }
 
-.chart-error {
+.rank-amount {
+  font-weight: 600;
+}
+
+.empty-text {
+  text-align: center;
+  color: #ccc;
+  padding: 20px 0;
+}
+
+/* ── 公告 ── */
+.notice-section {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.notice-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.notice-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 12px;
+}
+
+.notice-title {
+  color: #333;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.notice-date {
+  color: #999;
+  flex-shrink: 0;
+}
+
+/* ── 广告 ── */
+.ad-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  height: 200px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
+}
+
+.ad-placeholder {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── 自定义弹窗 ── */
+.custom-tip {
+  font-size: 13px;
   color: #999;
+  margin-bottom: 12px;
+}
+
+.custom-indicator-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.custom-item {
+  font-size: 13px;
+}
+
+.custom-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
-.chart-error p { margin: 0; }
-
-.chart-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #999;
-}
-
-.card-heading {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
-  color: #303133;
-}
-
-.quick-entry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #f5f7fa;
-  border: 1px solid #d9d9d9;
-}
-.quick-entry:hover {
-  background: #ecf5ff;
-  border-color: #409eff;
-  transform: translateY(-2px);
-}
-.quick-entry:focus-visible {
-  outline: 2px solid #409eff;
-  outline-offset: 2px;
-}
-.quick-entry-icon { font-size: 28px; margin-bottom: 8px; }
-.quick-entry-label { font-size: 13px; color: #606266; }
-
-.empty-guide {
-  padding: 24px 0;
-  text-align: center;
-  color: #909399;
-  font-size: 13px;
-}
-
-.stock-empty {
-  padding: 24px 0;
-  text-align: center;
-  color: #909399;
-  font-size: 13px;
-}
-
-@media (max-width: 768px) {
-  .dashboard-header { flex-direction: column; align-items: flex-start; }
-  .kpi-card :deep(.ant-card-body) { padding: 16px; }
-}
-
-/* ── 快捷键提示 ──────────────────────── */
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
-}
-
-/* ── 紧凑尺寸覆盖：28px 输入框 ──────────────────────── */
-:deep(.ant-input-sm),
-:deep(.ant-input-number-sm),
-:deep(.ant-select-single.ant-select-sm .ant-select-selector),
-:deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
-}
-:deep(.ant-select-single.ant-select-sm .ant-select-selector) {
-  line-height: 26px;
-}
-:deep(.ant-input-number-sm input) {
-  height: 26px;
-}
-
 </style>

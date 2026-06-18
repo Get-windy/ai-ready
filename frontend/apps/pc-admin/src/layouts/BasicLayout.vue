@@ -416,9 +416,11 @@ const showTenantSwitcher = computed(() => userStore.userTenants.length > 1)
 
 const currentTitle = computed(() => {
   const currentPath = route.path
+  const normalizedPath = currentPath.startsWith('/') ? currentPath : '/' + currentPath
   const findMenuName = (menus: any[], path: string): string => {
     for (const menu of menus) {
-      if (menu.path === path) return menu.menuName
+      const menuPath = menu.path ? (menu.path.startsWith('/') ? menu.path : '/' + menu.path) : ''
+      if (menuPath === path) return menu.menuName
       if (menu.children) {
         const found = findMenuName(menu.children, path)
         if (found) return found
@@ -426,7 +428,7 @@ const currentTitle = computed(() => {
     }
     return ''
   }
-  return findMenuName(userStore.menus, currentPath) || t('menu.dashboard')
+  return findMenuName(userStore.menus, normalizedPath) || t('menu.dashboard')
 })
 
 // 常用菜单（一级菜单 + 第一个叶子路径）
@@ -444,9 +446,9 @@ const headerHeight = computed(() => {
 })
 
 const contentPadding = computed(() => {
-  if (isMobileView.value) return '12px'
-  if (isTabletView.value) return '12px'
-  return '8px'
+  if (isMobileView.value) return '8px'
+  if (isTabletView.value) return '8px'
+  return '0px'
 })
 
 const contentMinHeight = computed(() => {

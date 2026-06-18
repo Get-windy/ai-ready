@@ -145,10 +145,10 @@ function handleContextAction({ key }: Record<string, any>) {
 .tabs-view {
   display: flex;
   align-items: center;
-  background: var(--color-bg-container, #fff);
-  border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
   padding: 0;
-  height: 30px;
+  height: 32px;
   user-select: none;
 }
 
@@ -169,26 +169,53 @@ function handleContextAction({ key }: Record<string, any>) {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px;
-  height: 30px;
-  font-size: 12px;
-  color: var(--color-text-secondary, #666);
+  padding: 0 14px;
+  height: 32px;
+  font-size: 13px;
+  color: #555;
   cursor: pointer;
-  border-right: 1px solid var(--color-border-secondary, #f0f0f0);
+  border: 1px solid #bbb;
+  border-bottom: none;
   white-space: nowrap;
   transition: all 0.15s;
   position: relative;
   flex-shrink: 0;
+  background: #fff;
+  margin-left: -1px;
+}
+
+.tabs-tab:first-child {
+  margin-left: 0;
 }
 
 .tabs-tab:hover {
-  background: var(--color-bg-layout, #f5f5f5);
+  color: #333;
 }
 
 .tabs-tab.active {
-  color: var(--color-primary, #1890ff);
-  background: var(--color-primary-bg, #e6f7ff);
-  border-bottom: 2px solid var(--color-primary, #1890ff);
+  color: #333;
+  font-weight: 500;
+  background: #fff;
+  border-top: 2px solid #ff4d4f;
+  z-index: 1;
+}
+
+.tabs-tab.active::before,
+.tabs-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 9999px;
+  height: 1px;
+  background: #bbb;
+}
+
+.tabs-tab.active::before {
+  right: 100%;
+}
+
+.tabs-tab.active::after {
+  left: 100%;
 }
 
 .tabs-tab.pinned .tab-title-text::before {
@@ -221,11 +248,12 @@ function handleContextAction({ key }: Record<string, any>) {
 
 .tab-close {
   font-size: 10px;
-  color: var(--color-text-quaternary, #bbb);
-  padding: 2px;
+  color: #999;
+  padding: 1px 3px;
   border-radius: 3px;
   opacity: 0;
   transition: all 0.15s;
+  line-height: 1;
 }
 
 .tabs-tab:hover .tab-close {
@@ -233,8 +261,8 @@ function handleContextAction({ key }: Record<string, any>) {
 }
 
 .tab-close:hover {
-  background: var(--color-border-base, #d9d9d9);
-  color: var(--color-text, #333);
+  background: #f0f0f0;
+  color: #ff4d4f;
 }
 
 @keyframes spin {
