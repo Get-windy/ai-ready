@@ -124,7 +124,8 @@
       :checkbox-config="{ highlight: true, range: true, checkMethod: ({ row }) => !row.__empty_row }"
       :sort-config="{ trigger: 'cell', defaultSort: defaultSort as any }"
       :footer-config="{ show: showSummary, footerMethod: footerMethod }"
-      :scroll-y="{ enabled: true, gt: 20 }"
+      :tree-config="treeConfig"
+      :scroll-y="{ enabled: !treeConfig, gt: 20 }"
       :scroll-x="{ enabled: true, gt: 10 }"
       border
       auto-resize
@@ -273,6 +274,9 @@ const props = defineProps({
   filterFields: { type: Array as PropType<any[]>, default: () => [] },
   showSummary: { type: Boolean, default: false },
   summaryData: { type: Array as PropType<any[]>, default: undefined },
+
+  // 树形配置（传入对象启用树形渲染，如 { childrenField: 'children', expandAll: false }）
+  treeConfig: { type: Object as PropType<{ childrenField?: string; expandAll?: boolean; expandRowKeys?: string[] }>, default: undefined },
 
   // 分页 — 传入 false 可隐藏分页栏，传入对象则按配置显示
   pagination: {
@@ -447,14 +451,16 @@ const tableData = computed(() => {
     deduped.push(item)
   }
 
-  // 空行填充（保证表格视觉完整）
-  const minRows = props.minEmptyRows
-  const emptyCount = Math.max(0, minRows - deduped.length)
-  for (let i = 0; i < emptyCount; i++) {
-    deduped.push({
-      [keyField]: `${_fillerNs}${_fillerSeq++}`,
-      __empty_row: true,
-    })
+  // 空行填充（树形模式下不填充，避免干扰树结构）
+  if (!props.treeConfig) {
+    const minRows = props.minEmptyRows
+    const emptyCount = Math.max(0, minRows - deduped.length)
+    for (let i = 0; i < emptyCount; i++) {
+      deduped.push({
+        [keyField]: `${_fillerNs}${_fillerSeq++}`,
+        __empty_row: true,
+      })
+    }
   }
 
   return deduped
