@@ -4,6 +4,18 @@ import request from '@/utils/request'
 
 const CLIENT_TYPE = 'pc-admin'
 
+/**
+ * 递归剥离路由树中所有层级的 redirect 属性
+ * vue-router v4 将 redirect: '' 视为 !== undefined → 执行重定向 → pushWithRedirect 无限递归
+ */
+function stripAllRedirects(route: any): any {
+  const { redirect, ...rest } = route
+  if (rest.children) {
+    rest.children = rest.children.map((child: any) => stripAllRedirects(child))
+  }
+  return rest
+}
+
 interface MenuItem {
   id: number
   parentId: number
@@ -378,7 +390,6 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
   const route: RouteRecordRaw = {
     path: routePath,
     name: menu.routeName || menu.menuCode,
-    redirect: '',
     meta: {
       title: menu.menuName,
       icon: menu.icon,
@@ -480,6 +491,25 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
   const userId = userStore.userId
   const tenantId = userStore.tenantId || 1
 
+  // ── 缓存策略：优先使用本地缓存，避免每次刷新都请求慢速菜单 API ──
+  const cacheKey = `menu_cache_${userId}_${tenantId}_${CLIENT_TYPE}`
+  const cacheExpiryKey = `menu_cache_expiry_${userId}_${tenantId}_${CLIENT_TYPE}`
+  const CACHE_TTL = 30 * 60 * 1000 // 30 分钟缓存
+
+  let menuTree: any[] | null = null
+
+  // 尝试读取缓存
+  try {
+    const cachedData = localStorage.getItem(cacheKey)
+    const cachedExpiry = localStorage.getItem(cacheExpiryKey)
+    if (cachedData && cachedExpiry && Date.now() < Number(cachedExpiry)) {
+      menuTree = JSON.parse(cachedData)
+      console.info('[动态路由] 使用菜单缓存')
+    }
+  } catch (e) {
+    console.warn('[动态路由] 读取缓存失败:', e)
+  }
+
   // 先检查 Token 是否有效，避免因后端 Sa-Token 会话过期导致菜单接口异常
   // 增加重试机制：登录后立即check可能因Redis同步延迟返回valid=false
   try {
@@ -495,6 +525,9 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
 
       if (!checkRes?.valid) {
         console.warn('[动态路由] Token验证失败（重试后仍无效），准备跳转登录页')
+        // Token 失效时清除缓存
+        localStorage.removeItem(cacheKey)
+        localStorage.removeItem(cacheExpiryKey)
         const err: any = new Error('Token 已失效')
         err.status = 401
         throw err
@@ -504,72 +537,88 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
     if (checkErr?.status === 401 || checkErr?.response?.status === 401) {
       throw checkErr
     }
-    // 其他错误（如网络错误）忽略，继续尝试加载菜单
-    console.warn('[动态路由] Token 检查失败，继续尝试加载菜单:', checkErr?.message)
+    // 其他错误（如网络错误）如果有缓存则继续使用缓存
+    if (menuTree) {
+      console.warn('[动态路由] Token 检查失败，使用缓存菜单:', checkErr?.message)
+    } else {
+      console.warn('[动态路由] Token 检查失败，继续尝试加载菜单:', checkErr?.message)
+    }
   }
 
-  let routes: RouteRecordRaw[]
-  try {
-    const res = await request.get(`/menu/user/mega/${CLIENT_TYPE}`, { userId, tenantId })
+  // 如果缓存无效，从后端加载菜单
+  if (!menuTree) {
+    try {
+      const res = await request.get(`/menu/user/mega/${CLIENT_TYPE}`, { userId, tenantId })
 
-    if (res && res.length > 0) {
-      const menuTree = res
-      // 存储原始菜单树供sidebar渲染（包含display_group=1的分组节点）
-      userStore.menus = menuTree as any
+      if (res && res.length > 0) {
+        menuTree = res
+        // 缓存菜单数据
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(menuTree))
+          localStorage.setItem(cacheExpiryKey, String(Date.now() + CACHE_TTL))
+          console.info('[动态路由] 菜单数据已缓存，TTL:', CACHE_TTL / 60000, '分钟')
+        } catch (e) {
+          console.warn('[动态路由] 缓存菜单失败:', e)
+        }
+      }
+    } catch (error: any) {
+      console.error('[动态路由] 加载菜单失败:', error)
 
-      // 注册路由时展平display_group=1的分组节点，只注册真实路由
-      const flatTree = flattenDisplayGroup(menuTree)
+      // 检查是否是401错误，如果是则抛出错误让路由守卫处理
+      if (error?.response?.status === 401 || error?.status === 401) {
+        throw error
+      }
 
-      // 注入必须始终存在的路由（不依赖后端菜单树的隐藏详情页等）
-      const requiredRoutes = getRequiredRoutes()
-
-      const layoutRoute: RouteRecordRaw = {
-        path: '/',
-        name: 'Layout',
-        component: () => import('@/layouts/BasicLayout.vue'),
-        meta: { requiresAuth: true },
-        children: [
-          ...flatTree.flatMap(menu => transformMenuToRoutes(menu)),
-          ...requiredRoutes,
-          {
-            path: '/:pathMatch(.*)*',
-            name: 'NotFound',
-            component: () => import('@/views/error/404.vue'),
-            meta: { title: '页面不存在', requiresAuth: false }
+      // 菜单接口返回 500 时，二次验证 Token 是否已失效
+      if (error?.response?.status === 500) {
+        try {
+          const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
+          if (!checkRes?.valid) {
+            console.warn('[动态路由] Token 已失效（菜单接口500确认）')
+            const err: any = new Error('Token 已失效')
+            err.status = 401
+            throw err
           }
-        ]
-      }
-
-      routes = [layoutRoute]
-    } else {
-      routes = getFallbackRoutes()
-    }
-  } catch (error: any) {
-    console.error('[动态路由] 加载失败:', error)
-
-    // 检查是否是401错误，如果是则抛出错误让路由守卫处理
-    if (error?.response?.status === 401 || error?.status === 401) {
-      throw error
-    }
-
-    // 菜单接口返回 500 时，二次验证 Token 是否已失效
-    if (error?.response?.status === 500) {
-      try {
-        const checkRes = await request.get('/auth/check', { _skipAuthRefresh: true })
-        if (!checkRes?.valid) {
-          console.warn('[动态路由] Token 已失效（菜单接口500确认）')
-          const err: any = new Error('Token 已失效')
-          err.status = 401
-          throw err
-        }
-      } catch (secondaryErr: any) {
-        if (secondaryErr?.status === 401 || secondaryErr?.response?.status === 401) {
-          throw secondaryErr
+        } catch (secondaryErr: any) {
+          if (secondaryErr?.status === 401 || secondaryErr?.response?.status === 401) {
+            throw secondaryErr
+          }
         }
       }
     }
+  }
 
-    // 其他错误，返回fallback路由
+  // ── 构建路由 ──
+  let routes: RouteRecordRaw[]
+  if (menuTree && menuTree.length > 0) {
+    // 存储原始菜单树供sidebar渲染（包含display_group=1的分组节点）
+    userStore.menus = menuTree as any
+
+    // 注册路由时展平display_group=1的分组节点，只注册真实路由
+    const flatTree = flattenDisplayGroup(menuTree)
+
+    // 注入必须始终存在的路由（不依赖后端菜单树的隐藏详情页等）
+    const requiredRoutes = getRequiredRoutes()
+
+    const layoutRoute: RouteRecordRaw = {
+      path: '/',
+      name: 'Layout',
+      component: () => import('@/layouts/BasicLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        ...flatTree.flatMap(menu => transformMenuToRoutes(menu)),
+        ...requiredRoutes,
+        {
+          path: '/:pathMatch(.*)*',
+          name: 'NotFound',
+          component: () => import('@/views/error/404.vue'),
+          meta: { title: '页面不存在', requiresAuth: false }
+        }
+      ]
+    }
+
+    routes = [layoutRoute]
+  } else {
     routes = getFallbackRoutes()
   }
 
@@ -586,12 +635,10 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
         }
         router.addRoute(layoutParent)
         for (const child of children) {
-          const { redirect: _r, ...childWithoutRedirect } = child as any
-          router.addRoute('Layout', childWithoutRedirect)
+          router.addRoute('Layout', stripAllRedirects(child))
         }
       } else {
-        const { redirect: _r, ...routeWithoutRedirect } = route as any
-        router.addRoute(routeWithoutRedirect)
+        router.addRoute(stripAllRedirects(route))
       }
     }
     console.info('[动态路由] 路由已注册到 router，共', routes.length, '条顶层路由')

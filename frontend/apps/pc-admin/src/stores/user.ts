@@ -157,9 +157,23 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('tenantId')
         localStorage.removeItem('tenantName')
         localStorage.removeItem('userTenants')
+        // 清除菜单缓存
+        this.clearMenuCache()
         // 断开 SSE 通知连接
         this.disconnectSse()
       }
+    },
+
+    /** 清除菜单数据缓存 */
+    clearMenuCache() {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.startsWith('menu_cache_') || key.startsWith('menu_cache_expiry_'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
     },
 
     hasPermission(permission: string): boolean {

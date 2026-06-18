@@ -87,7 +87,6 @@
                 class="captcha-input"
                 aria-required="true"
                 :aria-describedby="formState.captcha ? '' : 'form-item-captcha-error'"
-                @keyup.enter="handleSubmit"
               >
                 <template #prefix>
                   <SafetyOutlined aria-hidden="true" />
@@ -182,8 +181,7 @@ import {
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { userApi } from '@/api/user'
-import { resetDynamicRoutesLoaded, markDynamicRoutesLoaded } from '@/router/guard'
-import { loadDynamicRoutes } from '@/router/dynamicRoutes'
+import { resetDynamicRoutesLoaded } from '@/router/guard'
 import { useSubmitLock } from '@/composables'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
@@ -271,6 +269,7 @@ const focusNextInput = (inputName: string) => {
 
 // 处理登录提交
 const handleSubmit = async () => {
+  if (loading.value) return // 防止重复提交
   try {
     loading.value = true
 
@@ -300,17 +299,9 @@ const handleSubmit = async () => {
       // 重置动态路由加载状态，让路由守卫重新加载
       resetDynamicRoutesLoaded()
 
-      // 登录成功后立即预加载用户信息和动态路由，
-      // 传入 router 让 loadDynamicRoutes 直接注册路由，避免守卫二次加载导致空白页
-      Promise.all([
-        userStore.getUserInfo().catch(err => console.warn('[登录] 获取用户信息失败:', err)),
-        loadDynamicRoutes(router).catch(err => console.warn('[登录] 预加载动态路由失败:', err))
-      ]).then(() => {
-        // 标记路由已加载，让路由守卫跳过重复加载直接放行
-        markDynamicRoutesLoaded()
-        const redirect = (route.query.redirect as string) || '/dashboard'
-        router.replace(redirect)
-      })
+      // 直接导航，由路由守卫负责加载用户信息和动态路由
+      const redirect = (route.query.redirect as string) || '/dashboard'
+      router.replace(redirect)
     } else {
       message.error('登录失败，请检查用户名和密码')
       refreshCaptcha()

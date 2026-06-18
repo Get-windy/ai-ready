@@ -15,6 +15,19 @@ import NProgress from 'nprogress'
 
 let dynamicRoutesLoaded = false
 
+/**
+ * 递归剥离路由树中所有层级的 redirect 属性
+ * vue-router v4 的 handleRedirectRecord 将 redirect: '' 视为
+ * redirect !== undefined → 执行重定向到根路径 → 触发 pushWithRedirect 无限递归
+ */
+export function stripAllRedirects(route: any): any {
+  const { redirect, ...rest } = route
+  if (rest.children) {
+    rest.children = rest.children.map((child: any) => stripAllRedirects(child))
+  }
+  return rest
+}
+
 export function resetDynamicRoutesLoaded() {
   dynamicRoutesLoaded = false
 }
@@ -47,8 +60,8 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
     try {
       const userStore = useUserStore()
 
-      // 注册页直接放行（无需登录状态）
-      if (to.path === '/register') {
+      // 白名单路径直接放行（登录页、注册页、错误页等无需登录状态）
+      if (isInWhiteList(to.path)) {
         return
       }
 
@@ -117,20 +130,13 @@ export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
                 component: route.component,
                 meta: route.meta,
               }
-              // 注意：不复制 redirect 属性。
-              // vue-router v4 的 handleRedirectRecord 会检查 matched routes 最后一个的 redirect，
-              // 如果菜单数据中存在自身引用或循环的重定向配置，会导致 pushWithRedirect 无限递归
-              // （Maximum call stack size exceeded at handleRedirectRecord）。
-              // 路由守卫自身已处理登录后的重定向，不需要路由记录的 redirect 来干扰。
+              // 递归剥离所有层级的 redirect，防止 pushWithRedirect 无限递归
               router.addRoute(layoutParent)
               for (const child of children) {
-                // 剥离子路由的 redirect，同样原因
-                const { redirect: _r, ...childWithoutRedirect } = child as any
-                router.addRoute('Layout', childWithoutRedirect)
+                router.addRoute('Layout', stripAllRedirects(child))
               }
             } else {
-              const { redirect: _r, ...routeWithoutRedirect } = route as any
-              router.addRoute(routeWithoutRedirect)
+              router.addRoute(stripAllRedirects(route))
             }
           }
 
@@ -267,7 +273,7 @@ export async function safeNavigate(router: Router, path: string, options?: { rep
 }
 
 export const guardConfig = {
-  whiteList: ['/login', '/register', '/404', '/403', '/500'],
+  whiteList: ['/login', '/register', '/tenant-register', '/404', '/403', '/500'],
   superAdminPermissions: ['*'],
   defaultRoute: '/dashboard',
   loginRedirect: '/dashboard',

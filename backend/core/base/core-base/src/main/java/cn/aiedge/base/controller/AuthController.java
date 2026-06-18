@@ -366,15 +366,20 @@ public class AuthController {
     @GetMapping("/check")
     public Result<Map<String, Object>> checkToken() {
         Map<String, Object> result = new HashMap<>();
-        
-        if (StpUtil.isLogin()) {
+
+        try {
+            // 注意：此接口在 SaTokenConfig 中被 excludePathPatterns 排除，
+            // 拦截器不会自动解析 token，因此需要手动调用 checkLogin() 触发 token 解析
+            StpUtil.checkLogin();
+
             result.put("valid", true);
             result.put("userId", StpUtil.getLoginIdAsLong());
             result.put("tokenTimeout", StpUtil.getTokenTimeout());
-        } else {
+        } catch (Exception e) {
+            // Token 无效或已过期
             result.put("valid", false);
         }
-        
+
         return Result.ok(result);
     }
 

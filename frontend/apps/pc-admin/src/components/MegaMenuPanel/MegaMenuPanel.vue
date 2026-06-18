@@ -73,6 +73,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   panelEnter: []
   panelLeave: []
+  navigate: []
 }>()
 
 const router = useRouter()
@@ -121,14 +122,18 @@ function hasPermission(item: MenuInfo): boolean {
 /** 导航到菜单路由 */
 function navigateTo(item: MenuInfo) {
   if (item.path) {
-    router.push(item.path)
+    const path = item.path.startsWith('/') ? item.path : '/' + item.path
+    emit('navigate')
+    router.push(path)
   }
 }
 
 /** 导航到双入口列表页 */
 function navigateToList(item: MenuInfo) {
   if (item.listPath) {
-    router.push(item.listPath)
+    const path = item.listPath.startsWith('/') ? item.listPath : '/' + item.listPath
+    emit('navigate')
+    router.push(path)
   }
 }
 </script>
@@ -145,7 +150,7 @@ function navigateToList(item: MenuInfo) {
   z-index: 999;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 20px;
+  padding: 12px 8px;
 }
 
 .mega-menu-columns {
@@ -156,9 +161,9 @@ function navigateToList(item: MenuInfo) {
 }
 
 .mega-menu-column {
-  min-width: 170px;
-  max-width: 200px;
-  padding: 0 16px;
+  min-width: 140px;
+  max-width: 180px;
+  padding: 0 10px;
   border-right: 1px solid #f0f0f0;
 }
 
@@ -167,11 +172,11 @@ function navigateToList(item: MenuInfo) {
 }
 
 .mega-menu-column-header {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #262626;
-  padding: 0 0 12px 0;
-  margin-bottom: 8px;
+  padding: 0 0 8px 0;
+  margin-bottom: 6px;
   border-bottom: 1px solid #f0f0f0;
   display: flex;
   align-items: center;
@@ -179,14 +184,14 @@ function navigateToList(item: MenuInfo) {
 }
 
 .column-header-icon {
-  font-size: 16px;
+  font-size: 14px;
   color: #1677ff;
 }
 
 .mega-menu-column-items {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 /* 子分组标题 */
@@ -194,7 +199,7 @@ function navigateToList(item: MenuInfo) {
   font-size: 12px;
   font-weight: 500;
   color: #8c8c8c;
-  padding: 10px 0 4px 0;
+  padding: 8px 0 3px 0;
   margin-top: 2px;
 }
 
@@ -203,9 +208,9 @@ function navigateToList(item: MenuInfo) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 5px 8px;
-  border-radius: 6px;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
   transition: background-color 0.15s;
   cursor: default;
 }
@@ -230,19 +235,29 @@ function navigateToList(item: MenuInfo) {
   color: #1677ff;
 }
 
-/* 双入口标签按钮 */
+/* 双入口标签按钮 - 始终显示边框和文字 */
 .mega-menu-tag-btn {
   flex-shrink: 0;
-  font-size: 12px !important;
-  height: 24px !important;
-  line-height: 22px !important;
-  padding: 0 10px !important;
-  border-radius: 4px;
+  font-size: 11px !important;
+  height: 20px !important;
+  line-height: 18px !important;
+  padding: 0 6px !important;
+  border-radius: 3px;
+  border: 1px solid #d9d9d9 !important;
+  color: #595959 !important;
+  background: #fafafa !important;
 }
 
 .mega-menu-tag-btn:hover {
-  color: #1677ff;
-  border-color: #1677ff;
+  color: #1677ff !important;
+  border-color: #1677ff !important;
+  background: #fff !important;
+}
+
+.mega-menu-tag-btn.ant-btn-primary {
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  background: #e6f4ff !important;
 }
 
 /* 滚动条样式 */

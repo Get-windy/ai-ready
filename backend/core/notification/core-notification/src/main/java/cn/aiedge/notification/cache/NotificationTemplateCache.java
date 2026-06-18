@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,6 +64,14 @@ public class NotificationTemplateCache {
         );
 
         log.info("模板缓存初始化完成，定时刷新间隔: {}秒", properties.getTemplateCacheExpireSeconds());
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+            log.info("模板缓存定时刷新任务已停止");
+        }
     }
 
     /**

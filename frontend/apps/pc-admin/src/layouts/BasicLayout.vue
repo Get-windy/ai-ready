@@ -15,12 +15,12 @@
           v-for="menu in userStore.menus"
           :key="menu.id"
           class="mega-sidebar-item"
-          :class="{ active: isMenuActive(menu) }"
-          @mouseenter="hoverState.handleTargetEnter(menu, $event.currentTarget as HTMLElement)"
+          @mouseenter="handleSidebarHover(menu, $event.currentTarget as HTMLElement)"
+          @click="handleSidebarClick(menu)"
         >
           <component :is="getIcon(menu.icon)" v-if="menu.icon" class="mega-sidebar-icon" />
           <span class="mega-sidebar-label">{{ menu.menuName }}</span>
-          <div v-if="isMenuActive(menu)" class="mega-sidebar-active-bar" />
+          <div v-if="!isDashboard(menu)" class="mega-sidebar-hover-bar" />
         </div>
       </div>
 
@@ -32,6 +32,7 @@
           :trigger-pos="hoverState.triggerPos.value"
           @panel-enter="hoverState.handlePanelEnter()"
           @panel-leave="hoverState.handlePanelLeave()"
+          @navigate="hoverState.close()"
         />
       </Teleport>
     </div>
@@ -291,7 +292,9 @@ import {
   StarOutlined,
   StarFilled,
   BellOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  UserOutlined,
+  SettingOutlined
 } from '@ant-design/icons-vue'
 import { getIcon } from '@/utils/iconMap'
 import { useUserStore } from '@/stores/user'
@@ -427,16 +430,44 @@ function findMenuCodeByPath(menu: MenuInfo, targetPath: string): string | null {
 
 /** 判断顶级菜单是否处于激活状态（当前路由是否在该菜单子树下） */
 function isMenuActive(menu: MenuInfo): boolean {
+  const normalizePath = (p: string) => p.startsWith('/') ? p : '/' + p
   const checkActive = (items: MenuInfo[]): boolean => {
     for (const item of items) {
-      if (item.path && route.path.startsWith(item.path)) return true
+      if (item.path && route.path.startsWith(normalizePath(item.path))) return true
       if (item.children?.length && checkActive(item.children)) return true
     }
     return false
   }
-  if (menu.path && route.path.startsWith(menu.path)) return true
+  if (menu.path && route.path.startsWith(normalizePath(menu.path))) return true
   if (menu.children?.length && checkActive(menu.children)) return true
   return false
+}
+
+/** 判断菜单是否为工作台/首页（叶子节点，无子菜单） */
+function isDashboard(menu: MenuInfo): boolean {
+  // 通过菜单名称或路径判断
+  return menu.menuName === '工作台' || menu.menuName === '首页' || menu.path === '/dashboard'
+}
+
+/** 处理侧边栏悬停事件（只有非工作台的父级菜单才显示面板） */
+function handleSidebarHover(menu: MenuInfo, el: HTMLElement) {
+  // 工作台是叶子节点，不显示面板
+  if (isDashboard(menu)) {
+    return
+  }
+  // 只有有子菜单的才显示面板
+  if (menu.children?.length) {
+    hoverState.handleTargetEnter(menu, el)
+  }
+}
+
+/** 处理侧边栏点击事件（叶子节点直接导航） */
+function handleSidebarClick(menu: MenuInfo) {
+  // 叶子节点（如工作台）直接导航到对应路径
+  if (!menu.children?.length && menu.path) {
+    const path = menu.path.startsWith('/') ? menu.path : '/' + menu.path
+    router.push(path)
+  }
 }
 
 /** 获取菜单树的第一个叶子路径（移动端点击一级菜单用） */
@@ -622,9 +653,9 @@ const clearAllFavorites = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 45px;
-  padding: 0 8px;
+  gap: 8px;
+  height: 48px;
+  padding: 0 12px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.65);
   transition: all 0.2s;
@@ -636,25 +667,30 @@ const clearAllFavorites = () => {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.mega-sidebar-item:hover .mega-sidebar-active-bar {
+  opacity: 0.5;
+}
+
 .mega-sidebar-item.active {
   color: #fff;
-  background: rgba(255, 255, 255, 0.12);
+  /* 只用红色竖条指示激活状态，不用背景高亮，避免与 hover 混淆 */
 }
 
 .mega-sidebar-icon {
-  font-size: 16px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
 .mega-sidebar-label {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 72px;
+  max-width: 80px;
 }
 
-.mega-sidebar-active-bar {
+.mega-sidebar-hover-bar {
   position: absolute;
   left: 0;
   top: 6px;
@@ -662,6 +698,12 @@ const clearAllFavorites = () => {
   width: 3px;
   background: #ff4d4f;
   border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mega-sidebar-item:hover .mega-sidebar-hover-bar {
+  opacity: 1;
 }
 
 .layout-header {
