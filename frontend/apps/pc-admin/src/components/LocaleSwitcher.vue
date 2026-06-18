@@ -3,26 +3,14 @@
     placement="bottomRight"
     :trigger="['click']"
   >
-    <div
-      class="locale-switcher"
+    <GlobalOutlined
+      class="locale-switcher-icon"
       :class="{ 'is-switching': isSwitching }"
-      @click.prevent
-    >
-      <transition
-        name="locale-fade"
-        mode="out-in"
-      >
-        <span
-          :key="currentLocale"
-          class="locale-content"
-        >
-          <span class="locale-icon">{{ currentLocaleInfo?.icon }}</span>
-          <span class="locale-name">{{ currentLocaleInfo?.name }}</span>
-          <DownOutlined class="dropdown-icon" />
-        </span>
-      </transition>
-    </div>
-    
+      role="button"
+      aria-label="切换语言"
+      tabindex="0"
+    />
+
     <template #overlay>
       <a-menu
         v-model:selected-keys="selectedKeys"
@@ -37,8 +25,8 @@
           <span class="locale-option">
             <span class="locale-icon">{{ locale.icon }}</span>
             <span class="locale-name">{{ locale.name }}</span>
-            <CheckOutlined 
-              v-if="locale.code === currentLocale" 
+            <CheckOutlined
+              v-if="locale.code === currentLocale"
               class="check-icon"
             />
           </span>
@@ -50,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { CheckOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { CheckOutlined, GlobalOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import {
   getCurrentLocale,
@@ -71,9 +59,6 @@ const selectedKeys = ref([currentLocale.value])
 
 // 支持的语言列表
 const supportedLocales = getSupportedLocales()
-
-// 当前语言信息
-const currentLocaleInfo = computed(() => getLocaleInfo(currentLocale.value) as any)
 
 // 监听语言变化
 watch(currentLocale, (newLocale) => {
@@ -139,66 +124,20 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.locale-switcher {
-  display: flex;
-  align-items: center;
+.locale-switcher-icon {
+  font-size: 18px;
+  color: rgba(0, 0, 0, 0.65);
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-  background: transparent;
+  transition: color 0.2s;
 }
 
-.locale-switcher:hover {
-  background-color: rgba(24, 144, 255, 0.08);
+.locale-switcher-icon:hover {
+  color: var(--color-primary);
 }
 
-.locale-switcher.is-switching {
+.locale-switcher-icon.is-switching {
   pointer-events: none;
   opacity: 0.7;
-}
-
-.locale-content {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.locale-icon {
-  font-size: 18px;
-}
-
-.locale-name {
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.85);
-  font-weight: 500;
-}
-
-.dropdown-icon {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
-  margin-left: 4px;
-  transition: transform 0.3s ease;
-}
-
-.locale-switcher:hover .dropdown-icon {
-  transform: translateY(2px);
-}
-
-/* 淡入淡出动画 */
-.locale-fade-enter-active,
-.locale-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.locale-fade-enter-from {
-  opacity: 0;
-  transform: translateX(-10px);
-}
-
-.locale-fade-leave-to {
-  opacity: 0;
-  transform: translateX(10px);
 }
 
 /* 菜单样式 */

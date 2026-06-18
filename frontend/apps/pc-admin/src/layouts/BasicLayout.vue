@@ -1,13 +1,15 @@
 <template>
-  <a-layout class="basic-layout" aria-label="主导航布局">
-    <!-- 桌面端 Mega Sidebar (140px) -->
+  <a-layout class="basic-layout" aria-label="主导航布局" :has-sider="true">
+    <!-- 桌面端 Mega Sidebar (140px / 60px) -->
     <div
       v-if="isDesktopView || isTabletView"
       class="mega-sidebar"
+      :class="{ 'mega-sidebar-collapsed': sidebarCollapsed }"
       @mouseleave="hoverState.handleTargetLeave()"
     >
       <div class="mega-sidebar-logo">
         <img src="@/assets/logo.svg" alt="logo" />
+        <span v-show="!sidebarCollapsed" class="mega-sidebar-logo-text">企智连</span>
       </div>
 
       <div class="mega-sidebar-items">
@@ -15,19 +17,20 @@
           v-for="menu in userStore.menus"
           :key="menu.id"
           class="mega-sidebar-item"
+          :title="sidebarCollapsed ? menu.menuName : undefined"
           @mouseenter="handleSidebarHover(menu, $event.currentTarget as HTMLElement)"
-          @click="handleSidebarClick(menu)"
+          @click="handleSidebarClick(menu, $event.currentTarget as HTMLElement)"
         >
           <component :is="getIcon(menu.icon)" v-if="menu.icon" class="mega-sidebar-icon" />
-          <span class="mega-sidebar-label">{{ menu.menuName }}</span>
-          <div v-if="!isDashboard(menu)" class="mega-sidebar-hover-bar" />
+          <span v-show="!sidebarCollapsed" class="mega-sidebar-label">{{ menu.menuName }}</span>
+          <div v-if="!isDashboard(menu) && !sidebarCollapsed" class="mega-sidebar-hover-bar" />
         </div>
       </div>
 
-      <!-- MegaMenuPanel 弹出面板 -->
+      <!-- MegaMenuPanel 弹出面板（折叠时不显示） -->
       <Teleport to="body">
         <MegaMenuPanel
-          v-if="hoverState.isOpen.value && hoverState.hoveredItem.value"
+          v-if="!sidebarCollapsed && hoverState.isOpen.value && hoverState.hoveredItem.value"
           :menu-items="hoverState.hoveredItem.value.children || []"
           :trigger-pos="hoverState.triggerPos.value"
           @panel-enter="hoverState.handlePanelEnter()"
@@ -80,15 +83,40 @@
             @keydown.enter="mobileMenuVisible = true"
             @keydown.space.prevent="mobileMenuVisible = true"
           />
+          <component
+            :is="sidebarCollapsed ? MenuUnfoldOutlined : MenuFoldOutlined"
+            v-if="isDesktopView || isTabletView"
+            class="trigger sidebar-trigger"
+            role="button"
+            :aria-label="sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'"
+            tabindex="0"
+            @click="sidebarCollapsed = !sidebarCollapsed"
+            @keydown.enter="sidebarCollapsed = !sidebarCollapsed"
+            @keydown.space.prevent="sidebarCollapsed = !sidebarCollapsed"
+          />
 
-          <!-- 全局搜索 -->
-          <GlobalSearch />
-
-          <!-- 面包屑 -->
-          <a-breadcrumb v-if="isDesktopView || isTabletView">
-            <a-breadcrumb-item>{{ currentTitle }}</a-breadcrumb-item>
-          </a-breadcrumb>
-          <span v-else class="mobile-title">{{ currentTitle }}</span>
+          <!-- 常用菜单快捷下拉 -->
+          <a-dropdown placement="bottomLeft" :trigger="['click']">
+            <a-button type="text" size="small" class="quick-menu-btn">
+              常用菜单
+              <DownOutlined style="margin-left: 2px; font-size: 10px;" />
+            </a-button>
+            <template #overlay>
+              <a-menu class="quick-menu-dropdown">
+                <a-menu-item
+                  v-for="item in quickMenuItems"
+                  :key="item.path"
+                  @click="navigateTo(item.path)"
+                >
+                  <component :is="getIcon(item.icon)" v-if="item.icon" style="margin-right: 6px;" />
+                  {{ item.menuName }}
+                </a-menu-item>
+                <a-menu-item v-if="quickMenuItems.length === 0" disabled>
+                  <span style="color: #999;">暂无常用菜单</span>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
         </div>
 
         <div class="header-right">
@@ -201,27 +229,57 @@
             </a-select>
           </div>
 
+          <!-- 帮助中心 -->
+          <a-dropdown placement="bottomRight" :trigger="['click']">
+            <QuestionCircleOutlined class="help-center-icon" role="button" aria-label="帮助中心" tabindex="0" />
+            <template #overlay>
+              <a-menu class="help-center-dropdown">
+                <a-menu-item key="complaint">
+                  <FileTextOutlined style="color: #ff8c00;" /> 投诉建议
+                </a-menu-item>
+                <a-menu-item key="online">
+                  <CustomerServiceOutlined style="color: #ff8c00;" /> 在线咨询
+                </a-menu-item>
+                <a-menu-item key="print">
+                  <PrinterOutlined style="color: #ff8c00;" /> 打印助手
+                </a-menu-item>
+                <a-menu-item key="desktop">
+                  <DesktopOutlined style="color: #ff8c00;" /> 电脑端
+                </a-menu-item>
+                <a-menu-item key="mobile">
+                  <MobileOutlined style="color: #ff8c00;" /> 移动端
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="phone" disabled class="help-phone-item">
+                  <PhoneOutlined style="color: #ff4d4f;" /> 19115973320
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+
           <a-dropdown>
             <div class="user-info" role="button" :aria-label="t('a11y.userMenu')" tabindex="0">
-              <a-avatar
-                :size="isMobileView ? 28 : 32"
-                :src="userStore.userInfo?.avatar"
-              >
-                {{ userStore.nickname?.charAt(0) }}
-              </a-avatar>
-              <span v-if="isDesktopView" class="username">{{ userStore.nickname }}</span>
+              <span class="username">欢迎您，{{ userStore.nickname }}</span>
+              <DownOutlined style="font-size: 10px; margin-left: 4px;" />
             </div>
             <template #overlay>
-              <a-menu>
+              <a-menu class="user-dropdown-menu">
                 <a-menu-item key="profile" @click="navigateTo('/profile')">
-                  <UserOutlined /> {{ t('user.profile') }}
+                  <SettingOutlined style="color: #ff8c00;" /> 个人设置
                 </a-menu-item>
-                <a-menu-item key="settings" @click="navigateTo('/system/config')">
-                  <SettingOutlined /> {{ t('menu.system') }}
+                <a-menu-item key="fontsize">
+                  <AppstoreOutlined style="color: #ff8c00;" /> 字体大小
+                </a-menu-item>
+                <a-menu-item key="refresh" @click="handleRefresh">
+                  <ReloadOutlined style="color: #ff8c00;" /> 刷新
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="tempPwd">
+                  <LockOutlined style="color: #ff4d4f;" /> 获取临时密码
                 </a-menu-item>
                 <a-menu-divider />
                 <a-menu-item key="logout" @click="handleLogout">
-                  <LogoutOutlined /> {{ t('menu.logout') }}
+                  <PoweroffOutlined style="color: #ff4d4f;" /> 退出
                 </a-menu-item>
               </a-menu>
             </template>
@@ -289,12 +347,24 @@ import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import {
   MenuOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  DownOutlined,
+  QuestionCircleOutlined,
   StarOutlined,
   StarFilled,
   BellOutlined,
-  LogoutOutlined,
-  UserOutlined,
-  SettingOutlined
+  SettingOutlined,
+  AppstoreOutlined,
+  ReloadOutlined,
+  LockOutlined,
+  PoweroffOutlined,
+  FileTextOutlined,
+  CustomerServiceOutlined,
+  PrinterOutlined,
+  DesktopOutlined,
+  MobileOutlined,
+  PhoneOutlined
 } from '@ant-design/icons-vue'
 import { getIcon } from '@/utils/iconMap'
 import { useUserStore } from '@/stores/user'
@@ -322,6 +392,7 @@ const { isMobileView, isTabletView, isDesktopView } = useResponsive()
 const selectedKeys = ref(['dashboard'])
 const mobileMenuVisible = ref(false)
 const showFavorites = ref(false)
+const sidebarCollapsed = ref(false)
 
 // Mega Menu hover 延迟控制
 const hoverState = useHoverDelay(150, 300)
@@ -358,22 +429,30 @@ const currentTitle = computed(() => {
   return findMenuName(userStore.menus, currentPath) || t('menu.dashboard')
 })
 
+// 常用菜单（一级菜单 + 第一个叶子路径）
+const quickMenuItems = computed(() => {
+  return userStore.menus.map(menu => ({
+    ...menu,
+    path: menu.path || getFirstLeafPath(menu) || ''
+  }))
+})
+
 const headerHeight = computed(() => {
   if (isMobileView.value) return '48px'
-  if (isTabletView.value) return '56px'
-  return '56px'
+  if (isTabletView.value) return '45px'
+  return '45px'
 })
 
 const contentPadding = computed(() => {
   if (isMobileView.value) return '12px'
-  if (isTabletView.value) return '16px'
-  return '16px'
+  if (isTabletView.value) return '12px'
+  return '8px'
 })
 
 const contentMinHeight = computed(() => {
   const header = parseInt(headerHeight.value.replace('px', ''))
   const padding = parseInt(contentPadding.value.replace('px', ''))
-  const tabsHeight = 36
+  const tabsHeight = 30
   return `calc(100vh - ${header + tabsHeight + padding * 2}px)`
 })
 
@@ -451,8 +530,9 @@ function isDashboard(menu: MenuInfo): boolean {
 
 /** 处理侧边栏悬停事件（只有非工作台的父级菜单才显示面板） */
 function handleSidebarHover(menu: MenuInfo, el: HTMLElement) {
-  // 工作台是叶子节点，不显示面板
+  // 工作台是叶子节点，不显示面板，但要关闭已展开的面板
   if (isDashboard(menu)) {
+    hoverState.close()
     return
   }
   // 只有有子菜单的才显示面板
@@ -461,12 +541,20 @@ function handleSidebarHover(menu: MenuInfo, el: HTMLElement) {
   }
 }
 
-/** 处理侧边栏点击事件（叶子节点直接导航） */
-function handleSidebarClick(menu: MenuInfo) {
-  // 叶子节点（如工作台）直接导航到对应路径
+/** 处理侧边栏点击事件（叶子节点和"工作台"直接导航，其他有子菜单则触发悬停面板） */
+function handleSidebarClick(menu: MenuInfo, el: HTMLElement) {
+  if (isDashboard(menu)) {
+    // 工作台/首页始终直接导航
+    router.push('/dashboard')
+    return
+  }
   if (!menu.children?.length && menu.path) {
+    // 叶子节点直接导航
     const path = menu.path.startsWith('/') ? menu.path : '/' + menu.path
     router.push(path)
+  } else if (menu.children?.length) {
+    // 有子菜单的一级菜单，点击触发悬停面板展开
+    hoverState.handleTargetEnter(menu, el)
   }
 }
 
@@ -590,6 +678,10 @@ const handleLogout = async () => {
   router.push('/login')
 }
 
+const handleRefresh = () => {
+  router.go(0)
+}
+
 const openGlobalSearch = () => {
   // 触发全局搜索的快捷键
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
@@ -614,7 +706,7 @@ const clearAllFavorites = () => {
   overflow: hidden;
 }
 
-/* ── Mega Sidebar (140px) ──────────────────────────── */
+/* ── Mega Sidebar (140px / 60px) ─────────────────────────── */
 .mega-sidebar {
   width: 140px;
   height: 100vh;
@@ -623,10 +715,16 @@ const clearAllFavorites = () => {
   background: #001529;
   overflow: hidden;
   flex-shrink: 0;
+  transition: width 0.25s ease;
+}
+
+/* 折叠状态：60px 只保留图标 */
+.mega-sidebar.mega-sidebar-collapsed {
+  width: 60px;
 }
 
 .mega-sidebar-logo {
-  height: 56px;
+  height: 55px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -634,14 +732,29 @@ const clearAllFavorites = () => {
   flex-shrink: 0;
 }
 
+.mega-sidebar-collapsed .mega-sidebar-logo {
+  padding: 0;
+  justify-content: center;
+}
+
 .mega-sidebar-logo img {
   width: 28px;
   height: 28px;
 }
 
+.mega-sidebar-logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1890ff;
+  margin-left: 6px;
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+
 .mega-sidebar-items {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px 0;
   display: flex;
   flex-direction: column;
@@ -652,14 +765,20 @@ const clearAllFavorites = () => {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  height: 48px;
-  padding: 0 12px;
+  height: 45px;
+  padding: 0 12px 0 28px;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.65);
   transition: all 0.2s;
   user-select: none;
+}
+
+/* 折叠状态下菜单项只居中显示图标 */
+.mega-sidebar-collapsed .mega-sidebar-item {
+  padding: 0;
+  justify-content: center;
 }
 
 .mega-sidebar-item:hover {
@@ -677,12 +796,12 @@ const clearAllFavorites = () => {
 }
 
 .mega-sidebar-icon {
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 .mega-sidebar-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -708,7 +827,7 @@ const clearAllFavorites = () => {
 
 .layout-header {
   background: var(--color-bg-layout);
-  padding: 0 16px;
+  padding: 0 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -721,13 +840,27 @@ const clearAllFavorites = () => {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
 }
 
+.quick-menu-btn {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.85);
+  padding: 2px 8px;
+}
+
+.quick-menu-btn:hover {
+  color: var(--color-primary);
+}
+
+.quick-menu-dropdown :deep(.anticon) {
+  font-size: 14px;
+}
+
 .trigger {
-  font-size: 18px;
+  font-size: 14px;
   cursor: pointer;
   transition: color 0.3s;
   flex-shrink: 0;
@@ -737,15 +870,29 @@ const clearAllFavorites = () => {
   color: var(--color-primary);
 }
 
+.sidebar-trigger {
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.sidebar-trigger:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-trigger:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 .mobile-title {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -763,7 +910,7 @@ const clearAllFavorites = () => {
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
   transition: background 0.2s;
 }
@@ -773,8 +920,44 @@ const clearAllFavorites = () => {
 }
 
 .username {
-  margin-left: 8px;
+  font-size: 13px;
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.user-dropdown-menu :deep(.anticon) {
+  font-size: 15px;
+  margin-right: 8px;
+}
+
+.user-dropdown-menu :deep(.ant-menu-item) {
+  padding: 8px 16px;
+}
+
+.help-center-icon {
+  font-size: 18px;
+  color: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.help-center-icon:hover {
+  color: var(--color-primary);
+}
+
+.help-center-dropdown :deep(.anticon) {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.help-center-dropdown :deep(.ant-menu-item) {
+  padding: 8px 16px;
+}
+
+.help-phone-item {
+  font-weight: 600;
   font-size: 14px;
+  color: #333;
 }
 
 .layout-content {

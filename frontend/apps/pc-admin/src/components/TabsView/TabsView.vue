@@ -148,7 +148,7 @@ function handleContextAction({ key }: Record<string, any>) {
   background: var(--color-bg-container, #fff);
   border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
   padding: 0;
-  height: 36px;
+  height: 30px;
   user-select: none;
 }
 
@@ -170,8 +170,8 @@ function handleContextAction({ key }: Record<string, any>) {
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  height: 36px;
-  font-size: 13px;
+  height: 30px;
+  font-size: 12px;
   color: var(--color-text-secondary, #666);
   cursor: pointer;
   border-right: 1px solid var(--color-border-secondary, #f0f0f0);

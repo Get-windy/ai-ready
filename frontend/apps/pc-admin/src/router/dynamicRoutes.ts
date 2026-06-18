@@ -384,6 +384,12 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
     routePath = menu.path.substring(1)
   }
 
+  // 子路径与父路径完全相同时，视为空路径（子路由继承父路由的 URL）
+  // 典型场景：工作台目录(path=dashboard) 的子菜单(path=dashboard)
+  if (routePath && routePath === parentPath) {
+    routePath = ''
+  }
+
   // 自动根据路径分配 billType（后端菜单返回时可覆盖此自动推断）
   const billType = menu.billType || getBillTypeForRoute(routePath)
 
