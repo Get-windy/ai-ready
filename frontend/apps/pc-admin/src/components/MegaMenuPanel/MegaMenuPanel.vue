@@ -142,11 +142,10 @@ function navigateToList(item: MenuInfo) {
 .mega-menu-panel {
   position: fixed;
   background: #fff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid #d0d0d0;
   border-radius: 4px;
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.08),
-              0 9px 28px 0 rgba(0, 0, 0, 0.05),
-              0 12px 48px 16px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15),
+              0 1px 6px rgba(0, 0, 0, 0.10);
   z-index: 999;
   overflow-y: auto;
   overflow-x: hidden;
