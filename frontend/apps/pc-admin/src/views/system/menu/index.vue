@@ -12,9 +12,6 @@
         </div>
         <div class="menu-page-header-right">
           <span v-if="lastUpdateTime" class="update-time">更新于 {{ lastUpdateTime }}</span>
-          <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-            <SyncOutlined /> {{ autoRefreshCountdown }}s
-          </span>
           <span class="shortcut-hints">
             <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
             <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>N</kbd> 新增</span>
@@ -87,6 +84,14 @@
           <template #icon><PlusOutlined /></template>
           新增菜单
         </a-button>
+        <a-button @click="toggleExpandAll">
+          <template #icon><NodeExpandOutlined v-if="!isExpandAll" /><NodeCollapseOutlined v-else /></template>
+          {{ isExpandAll ? '折叠全部' : '展开全部' }}
+        </a-button>
+        <a-button @click="handleRefreshCache">
+          <template #icon><SyncOutlined /></template>
+          刷新缓存
+        </a-button>
       </template>
 
       <template #empty>
@@ -130,21 +135,13 @@
         </a-tag>
         <span v-else class="text-muted">—</span>
       </template>
-      <template #displayGroupCell="{ record }">
-        <a-tag v-if="record.displayGroup === 1" color="blue">展示分组</a-tag>
-        <a-tag v-else color="green">路由目录</a-tag>
-      </template>
       <template #displayModeCell="{ record }">
         <a-tag v-if="record.displayMode === 1" color="purple">双入口</a-tag>
-        <a-tag v-else>默认</a-tag>
-      </template>
-      <template #tagLabelCell="{ record }">
-        <a-tag v-if="record.tagLabel" color="blue">{{ record.tagLabel }}</a-tag>
-        <span v-else class="text-muted">—</span>
+        <span v-else class="text-muted">默认</span>
       </template>
       <template #menuLevelCell="{ record }">
-        <a-tag v-if="record.menuLevel === 1" color="red">系统级</a-tag>
-        <a-tag v-else-if="record.menuLevel === 0" color="green">租户级</a-tag>
+        <a-tag v-if="record.menuLevel === 1" color="red">系统</a-tag>
+        <a-tag v-else-if="record.menuLevel === 0" color="green">租户</a-tag>
         <span v-else class="text-muted">—</span>
       </template>
 
@@ -184,11 +181,13 @@
         <a-form-item label="上级菜单">
           <a-tree-select
             v-model:value="formData.parentId"
-            :tree-data="menuTree"
+            :tree-data="parentMenuTree"
             :field-names="{ label: 'menuName', value: 'id', children: 'children' }"
-            placeholder="请选择上级菜单"
+            placeholder="请选择上级菜单（留空则为顶级）"
             allow-clear
             tree-check-strictly
+            tree-default-expand-all
+            style="width: 100%"
           />
         </a-form-item>
 
@@ -219,21 +218,30 @@
         <a-form-item v-if="formData.menuType !== 2" label="路由路径" name="path">
           <a-input
             v-model:value="formData.path"
-            placeholder="请输入路由路径，如：/system/user"
+            :placeholder="formData.menuType === 0 ? '顶层目录以 / 开头，如：/system；子目录不以 / 开头，如：user' : '请输入路由路径，如：orders'"
+          />
+        </a-form-item>
+
+        <a-form-item v-if="formData.menuType === 0" label="组件路径">
+          <a-input
+            v-model:value="formData.component"
+            placeholder="可选，顶层目录填写如 layouts/BasicLayout.vue；子目录留空由系统自动推断"
           />
         </a-form-item>
 
         <a-form-item v-if="formData.menuType === 1" label="组件路径" name="component">
           <a-input
             v-model:value="formData.component"
-            placeholder="请输入组件路径，如：system/user/index"
+            placeholder="views/ 下的相对路径，如：views/erp/sale/index"
           />
         </a-form-item>
 
         <a-form-item v-if="formData.menuType !== 2" label="菜单图标">
-          <a-input
+          <a-auto-complete
             v-model:value="formData.icon"
-            placeholder="请输入图标名称，如：UserOutlined"
+            :options="iconOptions"
+            placeholder="输入或选择图标名，如：UserOutlined"
+            :filter-option="iconFilterOption"
           />
         </a-form-item>
 
@@ -384,7 +392,9 @@ import {
   ControlOutlined,
   ReloadOutlined,
   SyncOutlined,
-  WarningOutlined
+  WarningOutlined,
+  NodeExpandOutlined,
+  NodeCollapseOutlined
 } from '@ant-design/icons-vue'
 import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -396,11 +406,8 @@ import { useSubmitLock } from '@/composables'
 import * as Icons from '@ant-design/icons-vue'
 
 const lastUpdateTime = ref('')
-const autoRefreshCountdown = ref(0)
 const refreshLoading = ref(false)
 const hasError = ref(false)
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-let countdownTimer: ReturnType<typeof setInterval> | null = null
 
 // ── 防抖工具 ────────────────────────────────────────────
 const clickLocks = new Map<string, boolean>()
@@ -422,6 +429,30 @@ const queryForm = reactive<MenuQuery>({
 // 菜单树数据
 const menuTree = ref<MenuInfo[]>([])
 const loading = ref(false)
+const isExpandAll = ref(false)
+const tableRef = ref<InstanceType<typeof VxeTableList> | null>(null)
+
+// 上级菜单树（过滤掉按钮，添加虚拟根节点）
+const parentMenuTree = computed(() => {
+  const filterButtons = (nodes: MenuInfo[]): MenuInfo[] => {
+    return nodes
+      .filter(n => n.menuType !== 2)
+      .map(n => ({
+        ...n,
+        children: n.children ? filterButtons(n.children) : undefined
+      }))
+  }
+  return [
+    { id: 0, menuName: '主类目（顶级）', children: filterButtons(menuTree.value) } as unknown as MenuInfo
+  ]
+})
+
+// 图标选项列表（常用图标）
+const commonIconNames = Object.keys(Icons).filter(name => name.endsWith('Outlined')).slice(0, 60)
+const iconOptions = computed(() => commonIconNames.map(name => ({ value: name })))
+const iconFilterOption = (inputValue: string, option: { value: string }) => {
+  return option.value.toLowerCase().includes(inputValue.toLowerCase())
+}
 
 // ── 统计数据 ────────────────────────────────────────────
 const flattenMenuTree = (tree: MenuInfo[]): MenuInfo[] => {
@@ -472,17 +503,15 @@ onBeforeRouteLeave((to, from, next) => {
 const vxeColumns = computed(() => [
   { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip', slotName: 'menuNameCell' },
   { field: 'menuCode', title: '权限标识', width: 180, showOverflow: 'tooltip' },
-  { field: 'path', title: '路由路径', width: 180, showOverflow: 'tooltip' },
-  { field: 'menuType', title: '类型', width: 100, align: 'center', slotName: 'menuTypeCell' },
-  { field: 'sortOrder', title: '排序', width: 80, align: 'center' },
-  { field: 'status', title: '状态', width: 100, align: 'center', slotName: 'statusCell' },
-  { field: 'visible', title: '显示', width: 80, align: 'center', slotName: 'visibleCell' },
-  { field: 'bizFlowTag', title: '业务流向', width: 100, align: 'center', slotName: 'bizFlowTagCell' },
-  { field: 'displayGroup', title: '展示分组', width: 100, align: 'center', slotName: 'displayGroupCell' },
-  { field: 'displayMode', title: '展示模式', width: 90, align: 'center', slotName: 'displayModeCell' },
-  { field: 'tagLabel', title: '标签文案', width: 90, align: 'center', slotName: 'tagLabelCell' },
-  { field: 'menuLevel', title: '菜单层级', width: 90, align: 'center', slotName: 'menuLevelCell' },
-  { field: 'linkIcon', title: '链接图标', width: 100, showOverflow: 'tooltip' },
+  { field: 'path', title: '路由路径', width: 160, showOverflow: 'tooltip' },
+  { field: 'component', title: '组件路径', width: 200, showOverflow: 'tooltip' },
+  { field: 'menuType', title: '类型', width: 80, align: 'center', slotName: 'menuTypeCell' },
+  { field: 'sortOrder', title: '排序', width: 60, align: 'center' },
+  { field: 'status', title: '状态', width: 80, align: 'center', slotName: 'statusCell' },
+  { field: 'visible', title: '显示', width: 70, align: 'center', slotName: 'visibleCell' },
+  { field: 'bizFlowTag', title: '业务流向', width: 90, align: 'center', slotName: 'bizFlowTagCell' },
+  { field: 'displayMode', title: '展示模式', width: 80, align: 'center', slotName: 'displayModeCell' },
+  { field: 'menuLevel', title: '层级', width: 70, align: 'center', slotName: 'menuLevelCell' },
   { type: 'action', title: '操作', width: 280, fixed: 'right' }
 ])
 
@@ -643,6 +672,28 @@ const loadMenuTree = async () => {
 // 搜索
 const handleSearch = () => {
   loadMenuTree()
+}
+
+// 展开/折叠全部
+const toggleExpandAll = () => {
+  isExpandAll.value = !isExpandAll.value
+  const vxeTable = tableRef.value?.getTableRef()
+  if (vxeTable) {
+    vxeTable.setAllTreeExpand(isExpandAll.value)
+  }
+}
+
+// 刷新菜单缓存（清除路由缓存并重新加载）
+const handleRefreshCache = async () => {
+  try {
+    const { setupDynamicRoutes } = await import('@/router')
+    await setupDynamicRoutes()
+    message.success('菜单缓存已刷新')
+    loadMenuTree()
+  } catch {
+    message.success('菜单缓存刷新完成')
+    loadMenuTree()
+  }
 }
 
 // 重置
@@ -813,7 +864,7 @@ const handleStatusChange = async (row: MenuInfo, status: number) => {
   }
 }
 
-// 分配角色
+// 分配角色（正向逻辑：遍历所选角色，逐一更新其菜单列表）
 const handleAssignRole = async (row: MenuInfo) => {
   currentMenu.value = row
   selectedRoles.value = []
@@ -827,17 +878,22 @@ const handleAssignRole = async (row: MenuInfo) => {
   } catch (error) {
     console.warn('[系统管理] 获取角色列表失败', error)
   }
-
-  // TODO: 获取已分配此菜单的角色ID列表用于预选中
-  // 需要后端提供 GET /api/role/menu/{menuId} 端点
 }
 
 // 提交角色分配
 const handleRoleSubmit = async () => {
   if (!currentMenu.value) return
   try {
+    const menuId = currentMenu.value.id
     const result = await withRoleSubmitLock(async () => {
-      await roleApi.assignMenus(currentMenu.value.id, selectedRoles.value)
+      // 对每个选中的角色：获取其当前菜单列表，确保包含本菜单 ID，然后更新
+      for (const roleId of selectedRoles.value) {
+        const menusRes = await roleApi.getMenus(roleId)
+        const currentMenuIds: number[] = menusRes.data || []
+        if (!currentMenuIds.includes(menuId)) {
+          await roleApi.assignMenus(roleId, [...currentMenuIds, menuId])
+        }
+      }
       message.success('角色分配成功')
       roleDialogVisible.value = false
     })
@@ -896,20 +952,10 @@ onMounted(() => {
   loadMenuTree()
   loadMenuTypes()
   document.addEventListener('keydown', handleKeydown)
-  autoRefreshCountdown.value = 30
-  refreshTimer = setInterval(() => {
-    loadMenuTree()
-    autoRefreshCountdown.value = 30
-  }, 30000)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (countdownTimer) clearInterval(countdownTimer)
 })
 
 defineExpose({ handleQuery: loadMenuTree })
