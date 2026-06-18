@@ -5,13 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.cloud.gateway.config.GatewayAutoConfiguration;
 import org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Contact;
@@ -70,13 +70,30 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.expense",
     "cn.aiedge.erp.fixedasset"
 }, exclude = {
-    JpaRepositoriesAutoConfiguration.class,
-    HibernateJpaAutoConfiguration.class,
     GatewayAutoConfiguration.class,
     GatewayClassPathWarningAutoConfiguration.class,
     SecurityAutoConfiguration.class,
     UserDetailsServiceAutoConfiguration.class,
     ManagementWebSecurityAutoConfiguration.class
+})
+@EnableJpaRepositories(basePackages = {
+    "cn.aiedge.erp.sales.pricing.repository",
+    "cn.aiedge.erp.expense.repository",
+    "cn.aiedge.erp.invoice.repository",
+    "cn.aiedge.erp.supplier.notification.repository",
+    "cn.aiedge.erp.metrics.repository",
+    "cn.aiedge.erp.fixedasset.repository",
+    "cn.aiedge.erp.budget.repository"
+})
+@EntityScan(basePackages = {
+    "cn.aiedge.erp.sales.pricing.entity",
+    "cn.aiedge.erp.expense.model",
+    "cn.aiedge.erp.invoice.model.entity",
+    "cn.aiedge.erp.supplier.entity",
+    "cn.aiedge.erp.supplier.notification.entity",
+    "cn.aiedge.erp.metrics.entity",
+    "cn.aiedge.erp.fixedasset.model",
+    "cn.aiedge.erp.budget.model"
 })
 @MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.erp.supplier.repository"},
             nameGenerator = FullyQualifiedBeanNameGenerator.class)

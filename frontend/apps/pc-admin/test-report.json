@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-06-12T17:31:21.207Z",
+  "summary": {
+    "totalPages": 127,
+    "successCount": 127,
+    "failCount": 0,
+    "consoleErrors": 0,
+    "networkErrors": 0
+  },
+  "errors": {
+    "console": [],
+    "network": [],
+    "pageLoad": []
+  }
+}

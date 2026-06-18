@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw, Router } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
@@ -475,7 +475,7 @@ function flattenDisplayGroup(menus: MenuItem[]): MenuItem[] {
   return result
 }
 
-export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
+export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw[]> {
   const userStore = useUserStore()
   const userId = userStore.userId
   const tenantId = userStore.tenantId || 1
@@ -508,6 +508,7 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
     console.warn('[动态路由] Token 检查失败，继续尝试加载菜单:', checkErr?.message)
   }
 
+  let routes: RouteRecordRaw[]
   try {
     const res = await request.get(`/menu/user/mega/${CLIENT_TYPE}`, { userId, tenantId })
 
@@ -539,11 +540,13 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
         ]
       }
 
-      return [layoutRoute]
+      routes = [layoutRoute]
+    } else {
+      routes = getFallbackRoutes()
     }
   } catch (error: any) {
     console.error('[动态路由] 加载失败:', error)
-    
+
     // 检查是否是401错误，如果是则抛出错误让路由守卫处理
     if (error?.response?.status === 401 || error?.status === 401) {
       throw error
@@ -567,10 +570,34 @@ export async function loadDynamicRoutes(): Promise<RouteRecordRaw[]> {
     }
 
     // 其他错误，返回fallback路由
-    return getFallbackRoutes()
+    routes = getFallbackRoutes()
   }
 
-  return getFallbackRoutes()
+  // 如果提供了 router 实例，直接将路由注册到 router（登录组件预加载场景）
+  if (router) {
+    for (const route of routes) {
+      if (route.name === 'Layout' && route.children) {
+        const children = [...route.children]
+        const layoutParent: any = {
+          path: route.path,
+          name: route.name,
+          component: route.component,
+          meta: route.meta,
+        }
+        router.addRoute(layoutParent)
+        for (const child of children) {
+          const { redirect: _r, ...childWithoutRedirect } = child as any
+          router.addRoute('Layout', childWithoutRedirect)
+        }
+      } else {
+        const { redirect: _r, ...routeWithoutRedirect } = route as any
+        router.addRoute(routeWithoutRedirect)
+      }
+    }
+    console.info('[动态路由] 路由已注册到 router，共', routes.length, '条顶层路由')
+  }
+
+  return routes
 }
 
 /**

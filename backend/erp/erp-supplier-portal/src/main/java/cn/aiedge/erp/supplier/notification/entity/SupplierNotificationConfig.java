@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -11,15 +14,18 @@ import java.time.LocalDateTime;
 /**
  * 供应商通知配置实体
  * 存储每个供应商的通知偏好和渠道配置
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
 @Data
+@Entity
+@Table(name = "supplier_notification_config")
 @TableName("supplier_notification_config")
 @Schema(description = "供应商通知配置")
 public class SupplierNotificationConfig {
-    
+
+    @Id
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     @Schema(description = "主键ID")
     private Long id;

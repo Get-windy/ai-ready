@@ -11,11 +11,16 @@ import { useUserStore } from '@/stores/user'
 import { checkRouteAccess, filterRoutesByPermission, loadDynamicRoutes } from './dynamicRoutes'
 import { message } from 'ant-design-vue'
 import { isTokenExpired, isJWT, getToken, verifyToken, clearTokenVerifyCache } from '@/utils/tokenRefresher'
+import NProgress from 'nprogress'
 
 let dynamicRoutesLoaded = false
 
 export function resetDynamicRoutesLoaded() {
   dynamicRoutesLoaded = false
+}
+
+export function markDynamicRoutesLoaded() {
+  dynamicRoutesLoaded = true
 }
 
 export function isDynamicRoutesLoaded() {
@@ -38,11 +43,12 @@ export interface RouterGuardOptions {
 export function setupRouterGuard(router: Router, options?: RouterGuardOptions) {
   // 前置守卫
   router.beforeEach(async (to, from) => {
+    NProgress.start()
     try {
       const userStore = useUserStore()
 
-      // 登录/注册页直接放行
-      if (to.path === '/login' || to.path === '/register') {
+      // 注册页直接放行（无需登录状态）
+      if (to.path === '/register') {
         return
       }
 

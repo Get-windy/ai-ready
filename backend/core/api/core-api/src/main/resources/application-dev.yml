@@ -31,6 +31,12 @@ spring:
     enabled: true
   flyway:
     enabled: false
+  rabbitmq:
+    host: localhost
+    port: 5672
+    listener:
+      simple:
+        auto-startup: false
 
 eureka:
   client:
@@ -43,6 +49,18 @@ ai-ready:
     enabled: true
   rate-limit:
     enabled: true
+
+management:
+  health:
+    rabbit:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    db:
+      enabled: true
+  endpoint:
+    health:
+      show-details: when-authorized
 
 logging:
   level:

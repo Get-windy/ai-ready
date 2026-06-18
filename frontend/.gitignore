@@ -1,0 +1,13 @@
+# Log files
+*.log
+
+# Screenshots and debug images
+*.png
+*.jpg
+*.jpeg
+screenshots/
+scan-results/
+
+# OS files
+.DS_Store
+Thumbs.db

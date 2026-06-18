@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.2</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -19,13 +19,6 @@
     <description>用户、权限、配置、字典等基础功能</description>
 
     <dependencies>
-        <!-- 内部依赖 -->
-        <dependency>
-            <groupId>cn.aiedge</groupId>
-            <artifactId>core-common</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-
         <!-- Spring Boot Starter -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -155,7 +148,25 @@
             <artifactId>caffeine</artifactId>
             <version>3.1.8</version>
         </dependency>
-        
+
+        <!-- Hutool 工具包（合并自 core-common） -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <!-- MapStruct（合并自 core-common） -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+        <!-- Jackson 扩展（合并自 core-common） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
         <!-- 测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

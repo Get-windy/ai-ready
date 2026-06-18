@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -20,14 +20,9 @@
 
     <modules>
         <module>base/core-base</module>
-        <module>common/core-common</module>
         <module>api/core-api</module>
         <module>agent/core-agent</module>
-        <module>custom-field/core-custom-field</module>
-        <module>automation/core-automation</module>
-        <module>record-permission/core-record-permission</module>
-        <module>kanban/core-kanban</module>
-        <module>webhook/core-webhook</module>
+        <module>platform/core-platform</module>
         <module>notification/core-notification</module>
     </modules>
 </project>

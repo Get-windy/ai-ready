@@ -672,6 +672,15 @@ public class DatabaseInitializer implements CommandLineRunner {
         safeAddColumn("sys_position_category", "create_by", "VARCHAR(64)");
         safeAddColumn("sys_position_category", "update_by", "VARCHAR(64)");
 
+        // === sys_menu 字段（Mega Menu 改造） ===
+        safeAddColumn("sys_menu", "display_mode", "SMALLINT DEFAULT 0");
+        safeAddColumn("sys_menu", "list_path", "VARCHAR(255)");
+        safeAddColumn("sys_menu", "tag_label", "VARCHAR(20)");
+        safeAddColumn("sys_menu", "menu_level", "SMALLINT DEFAULT 0");
+        safeAddColumn("sys_menu", "biz_flow_tag", "VARCHAR(50)");
+        safeAddColumn("sys_menu", "display_group", "INTEGER DEFAULT 0");
+        safeAddColumn("sys_menu", "link_icon", "VARCHAR(200)");
+
         // === erp_sale_order 字段 ===
         String[] saleOrderColumns = {
             "customer_name            VARCHAR(200)",
@@ -957,7 +966,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         log.info("初始化 pc-admin 菜单树...");
         StringBuilder sql = new StringBuilder();
-        sql.append("MERGE INTO sys_menu (id, tenant_id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort, visible, status, client_type, deleted) KEY(id) VALUES ");
+        sql.append("MERGE INTO sys_menu (id, tenant_id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort, visible, status, client_type, deleted, display_mode, list_path, tag_label, display_group) KEY(id) VALUES ");
 
         // ═══════════════ 工作台 ═══════════════
         appendMenu(sql, 1000, 0, "工作台", "Dashboard", 1, "dashboard", "dashboard/index", "DashboardOutlined", 1);
@@ -984,9 +993,24 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         // ═══════════════ 销售管理 ═══════════════
         appendMenu(sql, 4000, 0, "销售管理", "Sale", 0, "erp/sale", null, "ShoppingOutlined", 30);
-        appendMenu(sql, 4001, 4000, "销售订单", "SaleOrder", 1, "erp/sale", "erp/sale/index", "ShoppingOutlined", 1);
-        appendMenu(sql, 4002, 4000, "销售分析", "SalesAnalysis", 1, "erp/sales-analysis", "erp/sales-analysis/index", "BarChartOutlined", 2);
-        appendMenu(sql, 4003, 4000, "销售报表", "SalesReport", 1, "erp/sales-report", "erp/sales-report/index", "LineChartOutlined", 3);
+        // ── 外勤拜访 ──
+        appendMenu(sql, 4010, 4000, "拜访规划", "sales:visit-plan", 1, "sales/visit-plan", "sales/visit-plan/index", "ScheduleOutlined", 10);
+        appendMenu(sql, 4011, 4000, "拜访执行", "sales:visit-exec", 1, "sales/visit-exec", "sales/visit-exec/index", "FormOutlined", 11);
+        appendMenu(sql, 4012, 4000, "拜访检视", "sales:visit-review", 1, "sales/visit-review", "sales/visit-review/index", "EyeOutlined", 12);
+        // ── 订货业务（displayMode=1 → "历史"标签按钮） ──
+        appendMenu(sql, 4020, 4000, "销售订单", "sales:order", 1, "sales/order/form", "sales/order/index", "ShoppingOutlined", 20, 1, "sales/order", "历史", 0);
+        appendMenu(sql, 4021, 4000, "销售退货申请", "sales:return", 1, "sales/return-apply/form", "sales/return-apply/index", "RollbackOutlined", 21, 1, "sales/return-apply", "历史", 0);
+        appendMenu(sql, 4022, 4000, "预订货单", "sales:pre-order", 1, "sales/pre-order/form", "sales/pre-order/index", "ScheduleOutlined", 22, 1, "sales/pre-order", "历史", 0);
+        // ── 销售业务（displayMode=1 → "历史"标签按钮） ──
+        appendMenu(sql, 4030, 4000, "零售单", "sales:retail", 1, "sales/retail/form", "sales/retail/index", "ShopOutlined", 30, 1, "sales/retail", "历史", 0);
+        appendMenu(sql, 4031, 4000, "销售出库单", "sales:shipment", 1, "sales/shipment/form", "sales/shipment/index", "SendOutlined", 31, 1, "sales/shipment", "历史", 0);
+        appendMenu(sql, 4034, 4000, "销售出库单", "erp:sale-outbound", 1, "erp/sale-outbound", "erp/sale-outbound/index", "SendOutlined", 34, 1, "erp/sale-outbound", "历史", 0);
+        appendMenu(sql, 4032, 4000, "销售退货单", "erp:return", 1, "sales/return/form", "sales/return/index", "RollbackOutlined", 32, 1, "sales/return", "历史", 0);
+        appendMenu(sql, 4033, 4000, "销售换货单", "erp:purchase-exchange", 1, "sales/exchange/form", "sales/exchange/index", "SwapOutlined", 33, 1, "sales/exchange", "历史", 0);
+        // ── 销售查询 ──
+        appendMenu(sql, 4040, 4000, "销售单据查询", "sales:doc-query", 1, "sales/doc-query", "sales/doc-query/index", "SearchOutlined", 40);
+        appendMenu(sql, 4041, 4000, "销售明细查询", "sales:detail-query", 1, "sales/detail-query", "sales/detail-query/index", "FileTextOutlined", 41);
+        appendMenu(sql, 4042, 4000, "销售价格跟踪", "sales:price-track", 1, "sales/price-track", "sales/price-track/index", "LineChartOutlined", 42);
 
         // ═══════════════ 库存管理 ═══════════════
         appendMenu(sql, 5000, 0, "库存管理", "Stock", 0, "erp/stock", null, "ContainerOutlined", 40);
@@ -1152,9 +1176,18 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * 向 MERGE INTO 追加一个 VALUES 元组
+     * 向 MERGE INTO 追加一个 VALUES 元组（默认 display_mode=0, 无 list_path/tag_label, display_group=0）
      */
     private void appendMenu(StringBuilder sb, long id, long parentId, String name, String code, int type, String path, String component, String icon, int sort) {
+        appendMenu(sb, id, parentId, name, code, type, path, component, icon, sort, 0, null, null, 0);
+    }
+
+    /**
+     * 向 MERGE INTO 追加一个 VALUES 元组（支持 display_mode / list_path / tag_label / display_group）
+     */
+    private void appendMenu(StringBuilder sb, long id, long parentId, String name, String code, int type,
+                             String path, String component, String icon, int sort,
+                             int displayMode, String listPath, String tagLabel, int displayGroup) {
         sb.append("(").append(id).append(", 1, ").append(parentId).append(", '")
           .append(name.replace("'", "''")).append("', '")
           .append(code.replace("'", "''")).append("', ").append(type).append(", '")
@@ -1165,6 +1198,21 @@ public class DatabaseInitializer implements CommandLineRunner {
             sb.append("NULL");
         }
         sb.append(", '").append(icon.replace("'", "''")).append("', ")
-          .append(sort).append(", 1, 1, 'pc-admin', 0),");
+          .append(sort).append(", 1, 1, 'pc-admin', 0, ")
+          .append(displayMode).append(", ");
+        // list_path (nullable)
+        if (listPath != null && !listPath.isEmpty()) {
+            sb.append("'").append(listPath.replace("'", "''")).append("'");
+        } else {
+            sb.append("NULL");
+        }
+        sb.append(", ");
+        // tag_label (nullable)
+        if (tagLabel != null && !tagLabel.isEmpty()) {
+            sb.append("'").append(tagLabel.replace("'", "''")).append("'");
+        } else {
+            sb.append("NULL");
+        }
+        sb.append(", ").append(displayGroup).append("),");
     }
 }

@@ -4,22 +4,18 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.2</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>erp-sale</artifactId>
   <packaging>jar</packaging>
   <name>销售管理模块</name>
-  <description>客户管理、销售订单、销售出库、销售退货等功能</description>
+  <description>销售订单、出库、退货、换货、定价策略（含 Drools 规则引擎）</description>
   <dependencies>
     <!-- 内部依赖 -->
     <dependency>
       <groupId>cn.aiedge</groupId>
       <artifactId>core-base</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>cn.aiedge</groupId>
-      <artifactId>core-common</artifactId>
     </dependency>
     <!-- 库存服务依赖 -->
     <dependency>
@@ -31,6 +27,34 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+
+    <!-- PostgreSQL -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Drools 规则引擎（定价策略） -->
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-engine</artifactId>
+      <version>9.44.0.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-mvel</artifactId>
+      <version>9.44.0.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>org.drools</groupId>
+      <artifactId>drools-decisiontables</artifactId>
+      <version>9.44.0.Final</version>
     </dependency>
     <!-- MyBatis-Plus -->
     <dependency>

@@ -3,6 +3,9 @@ package cn.aiedge.erp.supplier.notification.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,15 +13,18 @@ import java.time.LocalDateTime;
 /**
  * 供应商通知记录实体
  * 记录所有发送给供应商的通知信息
- * 
+ *
  * @author AI-Ready Team
  * @since 1.0.0
  */
 @Data
+@Entity
+@Table(name = "supplier_notification_record")
 @TableName("supplier_notification_record")
 @Schema(description = "供应商通知记录")
 public class SupplierNotificationRecord {
-    
+
+    @Id
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     @Schema(description = "主键ID")
     private Long id;

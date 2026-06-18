@@ -7,7 +7,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     
@@ -19,34 +19,20 @@
     <description>企业资源计划模块</description>
     
     <modules>
-        <module>party</module>
         <module>purchase</module>
-        <module>erp-purchase-return</module>
         <module>sales</module>
         <module>erp-stock</module>
         <module>erp-order</module>
-        <module>erp-expense</module>
-        <module>erp-supplier-portal</module>
-        <module>erp-batch-sn</module>
-        <module>invoice</module>
         <module>finance</module>
-        <module>erp-metrics</module>
+        <module>customer</module>
+        <module>erp-supplier-portal</module>
+        <module>erp-observability</module>
         <module>price-engine</module>
         <module>erp-printing</module>
-        <module>erp-signature</module>
         <module>erp-delivery-route</module>
-        <module>erp-payment</module>
-        <module>erp-product-kit</module>
-        <module>erp-sale-return</module>
-        <module>erp-sale-exchange</module>
         <module>erp-b2b-mall</module>
         <module>erp-fixed-asset</module>
         <module>erp-budget</module>
-        <module>erp-purchase-exchange</module>
-        <module>erp-purchase-inbound</module>
-        <module>erp-monitor</module>
-        <module>erp-sale-outbound</module>
-        <module>customer</module>
     </modules>
     
     <properties>
@@ -55,10 +41,10 @@
     </properties>
     
     <dependencies>
-        <!-- 核心公共模块（BusinessException等） -->
+        <!-- 核心基础模块（已合并原 core-common） -->
         <dependency>
             <groupId>cn.aiedge</groupId>
-            <artifactId>core-common</artifactId>
+            <artifactId>core-base</artifactId>
         </dependency>
     </dependencies>
 

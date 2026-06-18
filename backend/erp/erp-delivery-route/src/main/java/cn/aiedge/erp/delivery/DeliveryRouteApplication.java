@@ -1,9 +1,9 @@
 package cn.aiedge.erp.delivery;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Configuration;
 
-@SpringBootApplication
+@Configuration
 public class DeliveryRouteApplication {
 
     public static void main(String[] args) {

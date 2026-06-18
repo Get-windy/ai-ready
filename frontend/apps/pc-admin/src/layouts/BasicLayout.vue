@@ -16,7 +16,7 @@
           :key="menu.id"
           class="mega-sidebar-item"
           :class="{ active: isMenuActive(menu) }"
-          @mouseenter="hoverState.handleTargetEnter(menu)"
+          @mouseenter="hoverState.handleTargetEnter(menu, $event.currentTarget as HTMLElement)"
         >
           <component :is="getIcon(menu.icon)" v-if="menu.icon" class="mega-sidebar-icon" />
           <span class="mega-sidebar-label">{{ menu.menuName }}</span>
@@ -29,6 +29,7 @@
         <MegaMenuPanel
           v-if="hoverState.isOpen.value && hoverState.hoveredItem.value"
           :menu-items="hoverState.hoveredItem.value.children || []"
+          :trigger-pos="hoverState.triggerPos.value"
           @panel-enter="hoverState.handlePanelEnter()"
           @panel-leave="hoverState.handlePanelLeave()"
         />
@@ -51,7 +52,6 @@
       >
         <template v-for="menu in userStore.menus" :key="menu.id">
           <a-menu-item
-            :key="menu.menuCode"
             @click="handleMobileMenuClick(getFirstLeafPath(menu) || '/')"
           >
             <component :is="getIcon(menu.icon)" v-if="menu.icon" />

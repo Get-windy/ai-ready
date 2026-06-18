@@ -38,15 +38,7 @@ export const constantRoutes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: () => import('@/views/login/index.vue'),
-    meta: { title: '登录', requiresAuth: false },
-    beforeEnter: (to, from, next) => {
-      const token = localStorage.getItem('token')
-      if (token) {
-        next({ path: '/dashboard' })
-      } else {
-        next()
-      }
-    }
+    meta: { title: '登录', requiresAuth: false }
   },
   {
     path: '/register',
@@ -107,13 +99,9 @@ export async function setupDynamicRoutes() {
 }
 
 setupRouterGuard(router, {
-  beforeEach: async (to, from, next) => {
-    NProgress.start()
-    document.title = to.meta.title ? `${to.meta.title} - AI-Ready` : 'AI-Ready'
-    next()
-  },
   afterEach: (to, from) => {
     NProgress.done()
+    document.title = to.meta.title ? `${to.meta.title} - AI-Ready` : 'AI-Ready'
   },
   onError: (error) => {
     console.error('路由错误:', error)

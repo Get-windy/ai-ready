@@ -1,6 +1,7 @@
 <template>
   <div
     class="mega-menu-panel"
+    :style="panelStyle"
     @mouseenter="$emit('panelEnter')"
     @mouseleave="$emit('panelLeave')"
   >
@@ -27,22 +28,24 @@
             <!-- 普通菜单项 (需权限校验) -->
             <div
               v-else-if="item.menuType === 1 && hasPermission(item)"
-              class="mega-menu-item"
+              class="mega-menu-item-row"
             >
-              <div class="mega-menu-item-row">
-                <a class="mega-menu-item-link" @click="navigateTo(item)">
-                  {{ item.menuName }}
-                  <LinkOutlined v-if="item.linkIcon" class="link-icon-indicator" />
-                </a>
-                <a-button
-                  v-if="item.displayMode === 1 && item.listPath"
-                  size="small"
-                  class="mega-menu-tag-btn"
-                  @click="navigateToList(item)"
-                >
-                  {{ item.tagLabel || '列表' }}
-                </a-button>
-              </div>
+              <a
+                class="mega-menu-item-link"
+                @click="navigateTo(item)"
+              >
+                {{ item.menuName }}
+              </a>
+              <a-button
+                v-if="item.displayMode === 1 && item.listPath"
+                size="small"
+                :type="item.tagLabel === '添加' ? 'primary' : 'default'"
+                ghost
+                class="mega-menu-tag-btn"
+                @click="navigateToList(item)"
+              >
+                {{ item.tagLabel || '历史' }}
+              </a-button>
             </div>
           </template>
         </div>
@@ -56,13 +59,15 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getIcon } from '@/utils/iconMap'
-import { LinkOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from '@/api/menu'
+import type { TriggerPosition } from '@/composables/useHoverDelay'
 
 const props = withDefaults(defineProps<{
   menuItems: MenuInfo[]
+  triggerPos?: TriggerPosition | null
 }>(), {
-  menuItems: () => []
+  menuItems: () => [],
+  triggerPos: null
 })
 
 const emit = defineEmits<{
@@ -76,6 +81,35 @@ const userStore = useUserStore()
 /** 过滤出有子菜单项的二级目录作为列 */
 const visibleColumns = computed(() => {
   return props.menuItems.filter(col => col.children?.length)
+})
+
+/** 面板定位样式 */
+const panelStyle = computed(() => {
+  const pos = props.triggerPos
+  if (!pos) {
+    return { left: '140px', top: '0' }
+  }
+
+  // 面板顶部与触发项顶部对齐
+  const top = pos.top
+
+  // 面板左边与侧边栏右边缘对齐
+  const left = 140
+
+  // 计算最大可用高度（从触发项顶部到视口底部）
+  const availableHeight = window.innerHeight - top - 16
+  // 如果可用高度太小（触发项在底部），向上展开
+  const upwardShift = availableHeight < 200
+    ? Math.max(0, pos.top + pos.height + 200 - window.innerHeight)
+    : 0
+
+  const adjustedTop = top - upwardShift
+
+  return {
+    left: `${left}px`,
+    top: `${adjustedTop}px`,
+    maxHeight: `${Math.min(availableHeight + upwardShift, window.innerHeight - 32)}px`,
+  }
 })
 
 /** 权限校验 */
@@ -102,35 +136,43 @@ function navigateToList(item: MenuInfo) {
 <style scoped>
 .mega-menu-panel {
   position: fixed;
-  left: 140px;
-  top: 0;
-  height: 100vh;
   background: #fff;
-  border-right: 1px solid #e8e8e8;
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.08),
+              0 9px 28px 0 rgba(0, 0, 0, 0.05),
+              0 12px 48px 16px rgba(0, 0, 0, 0.03);
   z-index: 999;
   overflow-y: auto;
-  padding: 20px 24px;
+  overflow-x: hidden;
+  padding: 16px 20px;
 }
 
 .mega-menu-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 24px;
-  align-items: start;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  align-items: flex-start;
 }
 
 .mega-menu-column {
-  min-width: 160px;
+  min-width: 170px;
+  max-width: 200px;
+  padding: 0 16px;
+  border-right: 1px solid #f0f0f0;
+}
+
+.mega-menu-column:last-child {
+  border-right: none;
 }
 
 .mega-menu-column-header {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: #262626;
   padding: 0 0 12px 0;
   margin-bottom: 8px;
-  border-bottom: 2px solid #e8e8e8;
+  border-bottom: 1px solid #f0f0f0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -138,7 +180,7 @@ function navigateToList(item: MenuInfo) {
 
 .column-header-icon {
   font-size: 16px;
-  color: #409eff;
+  color: #1677ff;
 }
 
 .mega-menu-column-items {
@@ -151,10 +193,9 @@ function navigateToList(item: MenuInfo) {
 .mega-menu-subgroup {
   font-size: 12px;
   font-weight: 500;
-  color: #606266;
-  padding: 8px 8px 4px 8px;
-  margin-top: 4px;
-  border-left: 3px solid #ff4d4f;
+  color: #8c8c8c;
+  padding: 10px 0 4px 0;
+  margin-top: 2px;
 }
 
 /* 菜单项行 */
@@ -162,50 +203,59 @@ function navigateToList(item: MenuInfo) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+  cursor: default;
 }
 
 .mega-menu-item-row:hover {
-  background-color: #f5f7fa;
+  background-color: #f5f5f5;
 }
 
 .mega-menu-item-link {
   flex: 1;
   font-size: 13px;
-  color: #606266;
+  color: #595959;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 22px;
 }
 
 .mega-menu-item-link:hover {
-  color: #409eff;
-}
-
-.link-icon-indicator {
-  font-size: 12px;
-  color: #999;
-  margin-left: 4px;
+  color: #1677ff;
 }
 
 /* 双入口标签按钮 */
 .mega-menu-tag-btn {
   flex-shrink: 0;
-  font-size: 11px;
-  padding: 0 8px;
-  height: 22px;
-  line-height: 22px;
+  font-size: 12px !important;
+  height: 24px !important;
+  line-height: 22px !important;
+  padding: 0 10px !important;
   border-radius: 4px;
-  min-width: 36px;
 }
 
 .mega-menu-tag-btn:hover {
-  color: #409eff;
-  border-color: #409eff;
+  color: #1677ff;
+  border-color: #1677ff;
+}
+
+/* 滚动条样式 */
+.mega-menu-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mega-menu-panel::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.mega-menu-panel::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
 }
 </style>

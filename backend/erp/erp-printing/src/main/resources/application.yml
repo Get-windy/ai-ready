@@ -1,19 +1,12 @@
 spring:
   application:
-    name: erp-printing
+    name: erp-signature
   
   datasource:
     url: jdbc:postgresql://localhost:5432/ai_ready
     username: postgres
-    password: ${DB_PASSWORD:postgres}
+    password: postgres
     driver-class-name: org.postgresql.Driver
-  
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: ${RABBIT_PASSWORD:guest}
-    virtual-host: /
   
   redis:
     host: localhost
@@ -23,10 +16,15 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
+  
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: cn.aiedge.erp.printing.entity
+  type-aliases-package: cn.aiedge.erp.signature.entity
   global-config:
     db-config:
       id-type: auto
@@ -35,30 +33,15 @@ mybatis-plus:
       logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 server:
-  port: 8095
+  port: 8096
 
 knife4j:
   enable: true
   setting:
     language: zh_cn
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: when-authorized
-      probes:
-        enabled: true
-
-ai-ready:
-  log:
-    request-logging: true
 
 logging:
   level:

@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.2</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -25,11 +25,6 @@
             <artifactId>core-base</artifactId>
             <version>${core-base.version}</version>
         </dependency>
-        <dependency>
-            <groupId>cn.aiedge</groupId>
-            <artifactId>core-common</artifactId>
-            <version>0.2.0</version>
-        </dependency>
         <!-- Agent 调用层 -->
         <dependency>
             <groupId>cn.aiedge</groupId>
@@ -42,84 +37,46 @@
             <artifactId>core-notification</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 业务模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-finance</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- CRM 客户管理模块 -->
+        <!-- CRM 客户关系管理模块（客户/报价/合同/营销） -->
         <dependency>
             <groupId>cn.aiedge.crm</groupId>
-            <artifactId>crm-customer</artifactId>
+            <artifactId>crm</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- CRM 报价管理模块 -->
-        <dependency>
-            <groupId>cn.aiedge.crm</groupId>
-            <artifactId>crm-quotation</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- CRM 合同管理模块 -->
-        <dependency>
-            <groupId>cn.aiedge.crm</groupId>
-            <artifactId>crm-contract</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- CRM 营销管理模块 -->
-        <dependency>
-            <groupId>cn.aiedge.crm</groupId>
-            <artifactId>crm-marketing</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 库存模块 -->
+        <!-- ERP 库存模块（含批次序列号） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-stock</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 采购管理模块 -->
+        <!-- ERP 采购管理模块（含采购退货/换货/入库） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 销售管理模块 -->
+        <!-- ERP 销售管理模块（含销售退货/换货/出库） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-sale</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 往来单位模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-party</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 发票管理模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-invoice</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 订单中心模块 -->
+        <!-- ERP 订单中心模块（含组装拆卸） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-order</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 费用管理模块（排除，Fee* 控制器已直接在 core-api 实现） -->
-        <!--
+        <!-- ERP 财务管理模块（含付款/发票/费用） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-expense</artifactId>
+            <artifactId>erp-finance</artifactId>
             <version>0.2.0</version>
         </dependency>
-        -->
-        <!-- ERP 付款管理模块 -->
+        <!-- ERP 客户等级模块（含往来单位） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-payment</artifactId>
+            <artifactId>erp-customer</artifactId>
             <version>0.2.0</version>
         </dependency>
         <!-- ERP 供应商协同门户模块 -->
@@ -128,28 +85,10 @@
             <artifactId>erp-supplier-portal</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 批次序列号模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-batch-sn</artifactId>
-            <version>0.1.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.baomidou</groupId>
-                    <artifactId>mybatis-plus-boot-starter</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
         <!-- ERP 打印管理模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-printing</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 签收管理模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-signature</artifactId>
             <version>0.2.0</version>
         </dependency>
         <!-- ERP 配送路线模块 -->
@@ -158,58 +97,10 @@
             <artifactId>erp-delivery-route</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 组装拆卸模块 -->
+        <!-- ERP 可观测性模块（监控+指标） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-product-kit</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 采购退货模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-purchase-return</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 采购换货模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-purchase-exchange</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 采购入库模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-purchase-inbound</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 销售出库模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale-outbound</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 销售退货模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale-return</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 销售换货模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale-exchange</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 业务指标模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-metrics</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <!-- ERP 监控模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-monitor</artifactId>
+            <artifactId>erp-observability</artifactId>
             <version>0.2.0</version>
         </dependency>
         <!-- ERP 价格引擎模块 -->
@@ -232,12 +123,6 @@
             <artifactId>erp-budget</artifactId>
             <version>0.2.0</version>
         </dependency>
-        <!-- ERP 客户等级模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-customer</artifactId>
-            <version>0.2.0</version>
-        </dependency>
         <!-- ERP B2B订货平台模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
@@ -248,47 +133,14 @@
         <!-- WMS 仓储管理模块 -->
         <dependency>
             <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-warehouse</artifactId>
+            <artifactId>wms</artifactId>
             <version>0.2.0</version>
         </dependency>
+
+        <!-- DMS 配送管理模块 -->
         <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-receipt</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-putaway</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-pick</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-ship</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-inventory</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-move</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-check</artifactId>
-            <version>0.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.aiedge.wms</groupId>
-            <artifactId>wms-event</artifactId>
+            <groupId>cn.aiedge</groupId>
+            <artifactId>dms-delivery</artifactId>
             <version>0.2.0</version>
         </dependency>
 

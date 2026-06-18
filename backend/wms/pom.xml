@@ -7,34 +7,47 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>cn.aiedge.wms</groupId>
     <artifactId>wms</artifactId>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
 
     <name>WMS 仓储管理模块</name>
-    <description>仓储管理系统（增值服务模块）</description>
-
-    <modules>
-        <module>wms-common</module>
-        <module>wms-warehouse</module>
-        <module>wms-receipt</module>
-        <module>wms-putaway</module>
-        <module>wms-pick</module>
-        <module>wms-ship</module>
-        <module>wms-inventory</module>
-        <module>wms-move</module>
-        <module>wms-check</module>
-        <module>wms-event</module>
-    </modules>
+    <description>仓储管理系统（含收货/上架/拣货/发货/移库/盘点/库位管理/事件）</description>
 
     <dependencies>
+        <!-- 内部依赖 -->
         <dependency>
             <groupId>cn.aiedge</groupId>
-            <artifactId>core-common</artifactId>
+            <artifactId>core-base</artifactId>
+        </dependency>
+
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- MyBatis Plus -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+
+        <!-- OpenAPI / Knife4j -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>

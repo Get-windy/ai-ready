@@ -182,7 +182,8 @@ import {
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { userApi } from '@/api/user'
-import { resetDynamicRoutesLoaded } from '@/router/guard'
+import { resetDynamicRoutesLoaded, markDynamicRoutesLoaded } from '@/router/guard'
+import { loadDynamicRoutes } from '@/router/dynamicRoutes'
 import { useSubmitLock } from '@/composables'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 
@@ -231,16 +232,24 @@ const rules: any = {
 }
 
 // 获取验证码
-const fetchCaptcha = async () => {
+const fetchCaptcha = async (retryCount = 0) => {
   try {
-    const res = await userApi.getCaptcha()
-    if (res) {
+    const res = await userApi.getCaptcha() as any as { img: string; uuid: string }
+    if (res && res.img) {
       captchaUrl.value = res.img
       captchaKey.value = res.uuid
+    } else {
+      // 响应存在但缺少 img 字段，视为失败
+      throw new Error('验证码数据格式异常')
     }
   } catch (error) {
     console.warn('[登录] 获取验证码失败', error)
-    message.warning('获取验证码失败，请刷新重试')
+    // 首次加载时自动重试一次（延迟 500ms），避免后端未就绪导致空白
+    if (retryCount === 0) {
+      setTimeout(() => fetchCaptcha(1), 500)
+    } else {
+      message.warning('获取验证码失败，请点击图片刷新')
+    }
   }
 }
 
@@ -291,9 +300,17 @@ const handleSubmit = async () => {
       // 重置动态路由加载状态，让路由守卫重新加载
       resetDynamicRoutesLoaded()
 
-      // 跳转到目标页面或首页
-      const redirect = (route.query.redirect as string) || '/dashboard'
-      await router.push(redirect)
+      // 登录成功后立即预加载用户信息和动态路由，
+      // 传入 router 让 loadDynamicRoutes 直接注册路由，避免守卫二次加载导致空白页
+      Promise.all([
+        userStore.getUserInfo().catch(err => console.warn('[登录] 获取用户信息失败:', err)),
+        loadDynamicRoutes(router).catch(err => console.warn('[登录] 预加载动态路由失败:', err))
+      ]).then(() => {
+        // 标记路由已加载，让路由守卫跳过重复加载直接放行
+        markDynamicRoutesLoaded()
+        const redirect = (route.query.redirect as string) || '/dashboard'
+        router.replace(redirect)
+      })
     } else {
       message.error('登录失败，请检查用户名和密码')
       refreshCaptcha()

@@ -1,0 +1,45 @@
+cn.aiedge:core-api:jar:0.2.0
++- cn.aiedge:core-base:jar:0.2.0:compile
+|  +- org.springframework.boot:spring-boot-starter-data-jpa:jar:3.2.5:compile
+|  |  +- org.springframework.data:spring-data-jpa:jar:3.2.5:compile
+|  |  |  \- org.springframework:spring-orm:jar:6.1.6:compile
+|  |  \- org.springframework:spring-aspects:jar:6.1.6:compile
+|  +- org.springframework.boot:spring-boot-starter-websocket:jar:3.2.5:compile
+|  |  \- org.springframework:spring-websocket:jar:6.1.6:compile
+|  +- com.baomidou:mybatis-plus-jsqlparser:jar:3.5.10.1:compile
+|  |  \- com.baomidou:mybatis-plus-jsqlparser-common:jar:3.5.10.1:compile
+|  \- com.baomidou:mybatis-plus-extension:jar:3.5.10.1:compile
+|     \- com.baomidou:mybatis-plus-core:jar:3.5.10.1:compile
++- cn.aiedge:core-common:jar:0.2.0:compile
+|  +- org.springframework:spring-context:jar:6.1.6:compile
+|  |  +- org.springframework:spring-beans:jar:6.1.6:compile
+|  |  \- org.springframework:spring-expression:jar:6.1.6:compile
+|  \- org.springframework:spring-web:jar:6.1.6:compile
++- cn.aiedge.erp:erp-supplier-portal:jar:0.2.0:compile
+|  \- org.springframework.boot:spring-boot-starter-webflux:jar:3.2.5:compile
+|     \- org.springframework:spring-webflux:jar:6.1.6:compile
++- cn.aiedge.erp:erp-batch-sn:jar:0.1.0:compile
+|  \- com.baomidou:mybatis-plus-boot-starter:jar:3.5.5:compile
++- org.springframework.boot:spring-boot-starter-web:jar:3.2.5:compile
+|  \- org.springframework:spring-webmvc:jar:6.1.6:compile
++- org.springframework.boot:spring-boot-starter-security:jar:3.2.5:compile
+|  \- org.springframework:spring-aop:jar:6.1.6:compile
++- com.baomidou:mybatis-plus-spring-boot3-starter:jar:3.5.10.1:compile
+|  +- com.baomidou:mybatis-plus:jar:3.5.10.1:compile
+|  |  +- com.baomidou:mybatis-plus-annotation:jar:3.5.10.1:compile
+|  |  \- com.baomidou:mybatis-plus-spring:jar:3.5.10.1:compile
+|  +- com.baomidou:mybatis-plus-spring-boot-autoconfigure:jar:3.5.10.1:compile
+|  \- org.springframework.boot:spring-boot-starter-jdbc:jar:3.2.5:compile
+|     \- org.springframework:spring-jdbc:jar:6.1.6:compile
++- org.springframework.boot:spring-boot-starter-data-redis:jar:3.2.5:compile
+|  \- org.springframework.data:spring-data-redis:jar:3.2.5:compile
+|     \- org.springframework:spring-oxm:jar:6.1.6:compile
++- org.springframework.boot:spring-boot-starter-quartz:jar:3.2.5:compile
+|  +- org.springframework:spring-context-support:jar:6.1.6:compile
+|  \- org.springframework:spring-tx:jar:6.1.6:compile
++- org.springframework.boot:spring-boot-starter-amqp:jar:3.2.5:compile
+|  \- org.springframework:spring-messaging:jar:6.1.6:compile
+\- org.springframework.boot:spring-boot-starter-test:jar:3.2.5:test
+   +- org.springframework:spring-core:jar:6.1.6:compile
+   |  \- org.springframework:spring-jcl:jar:6.1.6:compile
+   \- org.springframework:spring-test:jar:6.1.6:test

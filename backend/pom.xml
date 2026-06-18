@@ -14,7 +14,7 @@
     
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.2</version>
     <packaging>pom</packaging>
     <name>ERP Parent Project</name>
     <description>ERP System Parent Project with unified dependency management</description>
@@ -29,14 +29,11 @@
         <!-- CRM Modules -->
         <module>crm</module>
 
-        <!-- User Module -->
-        <module>user</module>
-
         <!-- WMS Module -->
         <module>wms</module>
 
-        <!-- Infrastructure -->
-        <module>infrastructure</module>
+        <!-- DMS Module -->
+        <module>dms</module>
 
         <!-- Tests -->
         <module>tests</module>
@@ -215,11 +212,6 @@
             <dependency>
                 <groupId>cn.aiedge</groupId>
                 <artifactId>core-base</artifactId>
-                <version>${core-base.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cn.aiedge</groupId>
-                <artifactId>core-common</artifactId>
                 <version>${core-base.version}</version>
             </dependency>
             <dependency>
