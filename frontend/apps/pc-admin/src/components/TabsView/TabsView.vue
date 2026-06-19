@@ -174,19 +174,17 @@ function handleContextAction({ key }: Record<string, any>) {
   color: #555;
   cursor: pointer;
   border: 1px solid #bbb;
-  border-right: none;
   border-bottom: none;
-  border-radius: 4px 4px 0 0;
   white-space: nowrap;
   transition: all 0.15s;
   position: relative;
   flex-shrink: 0;
   background: #fff;
-  margin-left: 0;
+  margin-left: -1px;
 }
 
-.tabs-tab:last-child {
-  border-right: 1px solid #bbb;
+.tabs-tab:first-child {
+  margin-left: 0;
 }
 
 .tabs-tab:hover {
