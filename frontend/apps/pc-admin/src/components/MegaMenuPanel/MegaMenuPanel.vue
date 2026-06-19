@@ -119,19 +119,25 @@ function hasPermission(item: MenuInfo): boolean {
   return userStore.hasPermission(item.menuCode)
 }
 
-/** 导航到菜单路由 */
+/** 导航到菜单路由 — 添加标签时主按钮跳列表页，历史/列表标签跳表单页 */
 function navigateTo(item: MenuInfo) {
-  if (item.path) {
-    const path = item.path.startsWith('/') ? item.path : '/' + item.path
+  // 添加标签：主按钮跳 listPath（列表页）；历史/列表标签：主按钮跳 path（表单页）
+  const isAdd = item.tagLabel === '添加'
+  const target = isAdd ? item.listPath : item.path
+  if (target) {
+    const path = target.startsWith('/') ? target : '/' + target
     emit('navigate')
     router.push(path)
   }
 }
 
-/** 导航到双入口列表页 */
+/** 导航到双入口标签页 — 添加标签时标签按钮跳表单页，历史/列表标签跳列表页 */
 function navigateToList(item: MenuInfo) {
-  if (item.listPath) {
-    const path = item.listPath.startsWith('/') ? item.listPath : '/' + item.listPath
+  // 添加标签：标签按钮跳 path（表单页）；历史/列表标签：标签按钮跳 listPath（列表页）
+  const isAdd = item.tagLabel === '添加'
+  const target = isAdd ? item.path : item.listPath
+  if (target) {
+    const path = target.startsWith('/') ? target : '/' + target
     emit('navigate')
     router.push(path)
   }
