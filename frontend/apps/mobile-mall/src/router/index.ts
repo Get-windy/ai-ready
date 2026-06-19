@@ -95,7 +95,7 @@ const router = createRouter({
 
 // 路由守卫：需要登录的页面跳转到登录页
 router.beforeEach((to, from, next) => {
-  document.title = (to.meta.title as string) || '智企连商城'
+  document.title = (to.meta.title as string) || '企智连商城'
 
   const token = localStorage.getItem('token')
   const requiresAuth = to.meta.requiresAuth !== false

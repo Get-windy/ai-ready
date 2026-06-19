@@ -1,5 +1,9 @@
 package cn.aiedge.erp.price.engine.strategy.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,11 +12,13 @@ import java.util.List;
  * 折扣规则实体类
  * 记录折扣规则的具体配置和生效条件
  */
+@TableName("erp_discount_rule")
 public class DiscountRule {
-    
+
     /**
      * 规则ID（主键）
      */
+    @TableId(value = "rule_id", type = IdType.ASSIGN_UUID)
     private String ruleId;
     
     /**
@@ -78,31 +84,37 @@ public class DiscountRule {
     /**
      * 适用产品ID列表（为空表示所有产品）
      */
+    @TableField(exist = false)
     private List<String> applicableProductIds;
     
     /**
      * 适用产品类别列表（为空表示所有类别）
      */
+    @TableField(exist = false)
     private List<String> applicableCategories;
     
     /**
      * 适用客户ID列表（为空表示所有客户）
      */
+    @TableField(exist = false)
     private List<String> applicableCustomerIds;
     
     /**
      * 适用客户等级列表（为空表示所有等级）
      */
+    @TableField(exist = false)
     private List<String> applicableCustomerLevels;
     
     /**
      * 适用区域列表（为空表示所有区域）
      */
+    @TableField(exist = false)
     private List<String> applicableRegions;
     
     /**
      * 适用渠道列表（为空表示所有渠道）
      */
+    @TableField(exist = false)
     private List<String> applicableChannels;
     
     /**

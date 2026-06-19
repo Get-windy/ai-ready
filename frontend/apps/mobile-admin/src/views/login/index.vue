@@ -2,7 +2,7 @@
   <div class="login-page">
     <div class="login-header">
       <img src="@/assets/logo.png" alt="Logo" class="logo" />
-      <h1 class="title">智企连·AI-Ready</h1>
+      <h1 class="title">企智连·AI-Ready</h1>
       <p class="subtitle">企业管理移动端</p>
     </div>
 

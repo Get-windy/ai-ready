@@ -501,7 +501,8 @@ onBeforeRouteLeave((to, from, next) => {
 
 // 表格列配置
 const vxeColumns = computed(() => [
-  { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip', slotName: 'menuNameCell' },
+  { field: 'menuName', title: '菜单名称', width: 200, showOverflow: 'tooltip', slotName: 'menuNameCell', treeNode: true },
+  { field: 'parentName', title: '上级菜单', width: 120, showOverflow: 'tooltip' },
   { field: 'menuCode', title: '权限标识', width: 180, showOverflow: 'tooltip' },
   { field: 'path', title: '路由路径', width: 160, showOverflow: 'tooltip' },
   { field: 'component', title: '组件路径', width: 200, showOverflow: 'tooltip' },
@@ -652,14 +653,33 @@ const loadMenuTree = async () => {
   try {
     const res = await menuApi.getTree(queryForm)
     if (res) {
-      menuTree.value = res
+      const rawTree = Array.isArray(res) ? res : [res]
+      // 注入 parentName：构建 id→menuName 映射，遍历树填充
+      const nameMap = new Map<number, string>()
+      const buildNameMap = (nodes: MenuInfo[]) => {
+        for (const node of nodes) {
+          nameMap.set(node.id, node.menuName)
+          if (node.children?.length) buildNameMap(node.children)
+        }
+      }
+      buildNameMap(rawTree)
+      const injectParentName = (nodes: MenuInfo[]) => {
+        for (const node of nodes) {
+          ;(node as any).parentName = node.parentId && nameMap.has(node.parentId)
+            ? nameMap.get(node.parentId)!
+            : node.parentId === 0 ? '顶级菜单' : '-'
+          if (node.children?.length) injectParentName(node.children)
+        }
+      }
+      injectParentName(rawTree)
+      menuTree.value = rawTree
     } else {
-      message.error('获取菜单列表失败')
+      message.error('获取菜单列表失败：返回空数据')
       menuTree.value = []
     }
   } catch (error) {
     hasError.value = true
-    console.warn('[系统管理] 获取菜单列表失败', error)
+    console.error('[菜单管理] 获取菜单列表失败', error)
     message.error('获取菜单列表失败')
     menuTree.value = []
   } finally {

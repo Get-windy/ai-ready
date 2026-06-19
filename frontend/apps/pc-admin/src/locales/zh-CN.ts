@@ -4,7 +4,7 @@
 export default {
   // 应用名称
   app: {
-    name: '智企连·AI-Ready',
+    name: '企智连·AI-Ready',
     title: 'AI-Ready 管理系统',
     loading: '加载中...',
   },

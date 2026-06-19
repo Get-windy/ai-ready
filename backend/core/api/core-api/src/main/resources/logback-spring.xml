@@ -130,6 +130,9 @@
     
     <!-- 第三方库日志级别控制 -->
     <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.amqp" level="ERROR"/>
+    <!-- RabbitMQ 连接失败时每5秒重试，抑制重复 ERROR 日志膨胀 -->
+    <logger name="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer" level="OFF"/>
     <logger name="org.hibernate" level="WARN"/>
     <logger name="com.baomidou" level="WARN"/>
     <logger name="org.apache.ibatis" level="WARN"/>

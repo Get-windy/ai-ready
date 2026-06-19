@@ -1,4 +1,4 @@
-# 智企连·AI-Ready - 创建缺失模块骨架
+# 企智连·AI-Ready - 创建缺失模块骨架
 # 脚本功能：批量创建ERP/CRM模块的骨架代码
 
 $baseDir = "I:\AI-Ready"

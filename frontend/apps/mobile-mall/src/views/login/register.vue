@@ -126,7 +126,7 @@ const goBack = () => {
   <div class="register-page">
     <div class="register-header">
       <div class="title">注册账号</div>
-      <div class="subtitle">创建您的智企连商城账号</div>
+      <div class="subtitle">创建您的企智连商城账号</div>
     </div>
     
     <div class="register-form">

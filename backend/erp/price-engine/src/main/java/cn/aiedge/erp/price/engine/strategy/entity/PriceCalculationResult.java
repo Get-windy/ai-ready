@@ -1,5 +1,9 @@
 package cn.aiedge.erp.price.engine.strategy.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -9,11 +13,13 @@ import java.util.List;
  * 价格计算结果实体类
  * 包含价格计算的所有输出结果和详细过程
  */
+@TableName("erp_price_calculation_result")
 public class PriceCalculationResult {
-    
+
     /**
      * 结果ID（与请求ID对应）
      */
+    @TableId(value = "result_id", type = IdType.ASSIGN_UUID)
     private String resultId;
     
     /**
@@ -84,11 +90,13 @@ public class PriceCalculationResult {
     /**
      * 折扣明细列表
      */
+    @TableField(exist = false)
     private List<DiscountDetail> discountDetails;
     
     /**
      * 应用的价格策略列表
      */
+    @TableField(exist = false)
     private List<AppliedStrategy> appliedStrategies;
     
     /**
@@ -149,11 +157,13 @@ public class PriceCalculationResult {
     /**
      * 警告信息列表
      */
+    @TableField(exist = false)
     private List<String> warnings;
     
     /**
      * 附加数据（用于扩展）
      */
+    @TableField(exist = false)
     private Object additionalData;
 
     // 构造函数

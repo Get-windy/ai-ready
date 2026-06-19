@@ -245,7 +245,7 @@ export default {
   
   // 登录
   login: {
-    title: 'AI-Ready 智企连',
+    title: 'AI-Ready 企智连',
     // ...
   },
   

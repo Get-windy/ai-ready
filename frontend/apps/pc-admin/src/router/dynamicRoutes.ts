@@ -1,4 +1,5 @@
 import type { RouteRecordRaw, Router } from 'vue-router'
+import { h, defineComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
@@ -368,7 +369,13 @@ function getComponent(componentPath: string) {
   if (componentMap[normalizedPath]) {
     return componentMap[normalizedPath]
   }
-  console.warn('[动态路由] 未找到组件映射:', normalizedPath, '尝试直接导入')
+  // Vite 动态 import 变量只支持单层路径，多层路径无法解析，返回空组件
+  if (normalizedPath.includes('/') || normalizedPath.includes('\\')) {
+    console.warn('[动态路由] 多层路径无法动态导入:', normalizedPath)
+    return () => Promise.resolve(defineComponent({
+      render: () => h('div', { style: 'padding:40px;text-align:center;color:#999' }, '页面组件未找到: ' + normalizedPath)
+    }))
+  }
   return () => import(`../views/${normalizedPath}.vue`)
 }
 

@@ -513,6 +513,62 @@ public class DatabaseInitializer implements CommandLineRunner {
             "sales_person_name VARCHAR(100), deleted INTEGER DEFAULT 0, " +
             "create_by BIGINT, create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
             "update_by BIGINT, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+        // erp_business_metric (erp-monitor module, MyBatis-Plus entity)
+        safeCreateTable("erp_business_metric", "id BIGSERIAL PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
+            "metric_code VARCHAR(255), metric_name VARCHAR(255), metric_type VARCHAR(255), " +
+            "metric_value DECIMAL(20,4), unit VARCHAR(50), period VARCHAR(50), " +
+            "stat_time TIMESTAMP, dimension1_type VARCHAR(50), dimension1_value VARCHAR(100), " +
+            "dimension2_type VARCHAR(50), dimension2_value VARCHAR(100), " +
+            "dimension3_type VARCHAR(50), dimension3_value VARCHAR(100), " +
+            "chain_ratio DECIMAL(10,4), year_ratio DECIMAL(10,4), " +
+            "target_value DECIMAL(20,4), completion_rate DECIMAL(10,4), " +
+            "status VARCHAR(50) DEFAULT 'normal', remark TEXT, deleted INTEGER DEFAULT 0, " +
+            "create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "create_by BIGINT, update_by BIGINT");
+
+        // erp_pricing_strategy (price-engine module, MyBatis-Plus entity)
+        safeCreateTable("erp_pricing_strategy", "strategy_id VARCHAR(64) PRIMARY KEY, " +
+            "strategy_name VARCHAR(200), strategy_type VARCHAR(50), description VARCHAR(500), " +
+            "priority INTEGER DEFAULT 100, enabled BOOLEAN DEFAULT TRUE, " +
+            "effective_from TIMESTAMP, effective_to TIMESTAMP, " +
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "created_by VARCHAR(64), updated_by VARCHAR(64), version INTEGER DEFAULT 1");
+
+        // erp_discount_rule (price-engine module, MyBatis-Plus entity)
+        safeCreateTable("erp_discount_rule", "rule_id VARCHAR(64) PRIMARY KEY, " +
+            "rule_name VARCHAR(200), discount_type VARCHAR(50), description VARCHAR(500), " +
+            "discount_rate DECIMAL(10,4) DEFAULT 0, fixed_discount_amount DECIMAL(18,2) DEFAULT 0, " +
+            "min_discount_amount DECIMAL(18,2) DEFAULT 0, max_discount_amount DECIMAL(18,2) DEFAULT 999999.99, " +
+            "condition_expression VARCHAR(500), priority INTEGER DEFAULT 100, enabled BOOLEAN DEFAULT TRUE, " +
+            "effective_from TIMESTAMP, effective_to TIMESTAMP, " +
+            "min_purchase_quantity INTEGER, min_purchase_amount DECIMAL(18,2) DEFAULT 0, " +
+            "stackable BOOLEAN DEFAULT TRUE, max_stack_count INTEGER DEFAULT 0, " +
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "created_by VARCHAR(64), updated_by VARCHAR(64), version INTEGER DEFAULT 1");
+
+        // erp_price_calculation_request (price-engine module, MyBatis-Plus entity)
+        safeCreateTable("erp_price_calculation_request", "request_id VARCHAR(64) PRIMARY KEY, " +
+            "product_id VARCHAR(100), sku VARCHAR(100), product_name VARCHAR(200), category VARCHAR(100), " +
+            "cost_price DECIMAL(18,2), base_price DECIMAL(18,2), market_reference_price DECIMAL(18,2), " +
+            "customer_id VARCHAR(100), customer_name VARCHAR(200), customer_level VARCHAR(50), " +
+            "quantity INTEGER DEFAULT 1, purchase_amount DECIMAL(18,2), " +
+            "sales_channel VARCHAR(50), region VARCHAR(50), country VARCHAR(50), " +
+            "calculation_time TIMESTAMP, order_type VARCHAR(50), order_id VARCHAR(100), " +
+            "request_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, request_source VARCHAR(50)");
+
+        // erp_price_calculation_result (price-engine module, MyBatis-Plus entity)
+        safeCreateTable("erp_price_calculation_result", "result_id VARCHAR(64) PRIMARY KEY, " +
+            "request_id VARCHAR(64), original_base_price DECIMAL(18,2), base_price DECIMAL(18,2), " +
+            "primary_pricing_strategy_id VARCHAR(64), primary_pricing_strategy_name VARCHAR(200), " +
+            "total_discount_amount DECIMAL(18,2) DEFAULT 0, total_discount_rate DECIMAL(10,4) DEFAULT 0, " +
+            "discounted_price DECIMAL(18,2), final_price DECIMAL(18,2), " +
+            "unit_price DECIMAL(18,2), total_price DECIMAL(18,2), cost_price DECIMAL(18,2), " +
+            "gross_profit_margin DECIMAL(10,4), calculation_explanation VARCHAR(2000), " +
+            "success BOOLEAN DEFAULT TRUE, error_message VARCHAR(500), error_code VARCHAR(50), " +
+            "calculation_start_time TIMESTAMP, calculation_end_time TIMESTAMP, " +
+            "calculation_duration_ms BIGINT, engine_version VARCHAR(50), " +
+            "cached BOOLEAN DEFAULT FALSE, cache_key VARCHAR(200), suggestion VARCHAR(500)");
     }
 
     /**

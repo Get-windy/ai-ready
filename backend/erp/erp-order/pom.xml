@@ -13,7 +13,7 @@
     </parent>
 
     <artifactId>erp-order</artifactId>
-    <name>智企连·订单管理模块</name>
+    <name>企智连·订单管理模块</name>
     <description>订单管理模块 - 支持订单创建、查询、更新、删除及性能优化</description>
 
     <dependencies>

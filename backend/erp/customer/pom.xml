@@ -13,7 +13,7 @@
     </parent>
 
     <artifactId>erp-customer</artifactId>
-    <name>智企连·客户等级管理模块</name>
+    <name>企智连·客户等级管理模块</name>
     <description>客户等级管理模块 - 支持客户等级规则配置、自动评定、手动调整和权益管理</description>
 
     <dependencies>

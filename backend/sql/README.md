@@ -1,8 +1,8 @@
-# 智企连·AI-Ready 数据库初始化指南
+# 企智连·AI-Ready 数据库初始化指南
 
 ## 概述
 
-本目录包含智企连·AI-Ready系统的完整数据库初始化SQL脚本，包括核心基础表、ERP模块表、CRM模块表和初始化数据。
+本目录包含企智连·AI-Ready系统的完整数据库初始化SQL脚本，包括核心基础表、ERP模块表、CRM模块表和初始化数据。
 
 ## SQL脚本文件说明
 
@@ -236,4 +236,4 @@ SELECT COUNT(*) AS dict_type_count FROM sys_dict_type;
 
 ---
 
-**智企连·AI-Ready** - 企业智能管理系统
+**企智连·AI-Ready** - 企业智能管理系统

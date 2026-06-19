@@ -281,17 +281,17 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseApplicationDTO rejectExpense(Long id, String reason) {
         ExpenseApplication application = expenseApplicationRepository.findById(id)
                 .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
-        
+
         if (application.isDeleted()) {
             throw BusinessException.badRequest("费用单已被删除: " + id);
         }
-        
+
         if (!application.canApprove()) {
             throw BusinessException.badRequest("费用单状态不允许审批: " + application.getStatus().getDescription());
         }
-        
+
         ExpenseStatus previousStatus = application.getStatus();
-        
+
         ExpenseApproval approval = new ExpenseApproval();
         approval.setApplicationId(application.getApplicationCode());
         approval.setApprovalLevel(application.getCurrentApprovalLevel());
@@ -303,15 +303,54 @@ public class ExpenseServiceImpl implements ExpenseService {
         approval.setPreviousStatus(previousStatus.name());
         approval.setCurrentStatus(ExpenseStatus.REJECTED.name());
         expenseApprovalRepository.save(approval);
-        
+
         application.setStatus(ExpenseStatus.REJECTED);
         application.updateStatusDesc();
         application.setRejectReason(reason);
         application.setCurrentApproverId(null);
         application.setCurrentApproverName(null);
-        
+
         ExpenseApplication saved = expenseApplicationRepository.save(application);
         log.info("费用单审批拒绝: {}, 原因: {}", saved.getApplicationCode(), reason);
+        return convertToDTO(saved);
+    }
+
+    @Override
+    @Transactional
+    public ExpenseApplicationDTO withdrawApplication(Long id) {
+        ExpenseApplication application = expenseApplicationRepository.findById(id)
+                .orElseThrow(() -> BusinessException.notFound("费用单不存在: " + id));
+
+        if (application.isDeleted()) {
+            throw BusinessException.badRequest("费用单已被删除: " + id);
+        }
+
+        if (!application.canCancel()) {
+            throw BusinessException.badRequest("费用单状态不允许撤回: " + application.getStatus().getDescription());
+        }
+
+        ExpenseStatus previousStatus = application.getStatus();
+
+        ExpenseApproval approval = new ExpenseApproval();
+        approval.setApplicationId(application.getApplicationCode());
+        approval.setApprovalLevel(0);
+        approval.setApproverId(application.getApplicantId());
+        approval.setApproverName(application.getApplicantName());
+        approval.setApprovalAction("WITHDRAW");
+        approval.setApprovalComment("申请人主动撤回");
+        approval.setApprovalTime(LocalDateTime.now());
+        approval.setPreviousStatus(previousStatus.name());
+        approval.setCurrentStatus(ExpenseStatus.CANCELLED.name());
+        expenseApprovalRepository.save(approval);
+
+        application.setStatus(ExpenseStatus.CANCELLED);
+        application.updateStatusDesc();
+        application.setCancelReason("申请人主动撤回");
+        application.setCurrentApproverId(null);
+        application.setCurrentApproverName(null);
+
+        ExpenseApplication saved = expenseApplicationRepository.save(application);
+        log.info("费用单撤回成功: {}", saved.getApplicationCode());
         return convertToDTO(saved);
     }
 

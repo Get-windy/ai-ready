@@ -63,6 +63,14 @@ export const constantRoutes: RouteRecordRaw[] = [
     name: 'ServerError',
     component: () => import('@/views/error/500.vue'),
     meta: { title: '服务器错误', requiresAuth: false }
+  },
+  // 临时 catch-all：动态路由加载前防止 "No match found" 警告
+  // 路由守卫加载完动态路由后会移除此条
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'InitialCatchAll',
+    component: () => import('@/views/error/404.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

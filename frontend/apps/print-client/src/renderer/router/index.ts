@@ -81,7 +81,7 @@ const router = createRouter({
 
 // ── 路由守卫：检查登录状态 ──────────────────────────
 router.beforeEach(async (to, from, next) => {
-  document.title = `${to.meta.title || ''} - 智企连打印客户端`
+  document.title = `${to.meta.title || ''} - 企智连打印客户端`
 
   const requiresAuth = to.meta.requiresAuth !== false
 

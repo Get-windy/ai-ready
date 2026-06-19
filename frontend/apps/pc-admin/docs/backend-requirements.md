@@ -1,7 +1,7 @@
 # 后端 API 需求清单
 
 > 生成日期：2026-06-04
-> 项目：ai-ready-admin（智企连.AI-Ready 管理前端）
+> 项目：ai-ready-admin（企智连.AI-Ready 管理前端）
 
 ---
 

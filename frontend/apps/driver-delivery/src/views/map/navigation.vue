@@ -90,7 +90,7 @@ const handleStartNavigation = () => {
     return
   }
   
-  const url = `https://uri.amap.com/navigation?from=${currentLocation.value.lng},${currentLocation.value.lat},当前位置&to=${order.value.location.lng},${order.value.location.lat},${order.value.address}&mode=car&policy=1&src=智企连配送`
+  const url = `https://uri.amap.com/navigation?from=${currentLocation.value.lng},${currentLocation.value.lat},当前位置&to=${order.value.location.lng},${order.value.location.lat},${order.value.address}&mode=car&policy=1&src=企智连配送`
   
   window.open(url, '_blank')
 }

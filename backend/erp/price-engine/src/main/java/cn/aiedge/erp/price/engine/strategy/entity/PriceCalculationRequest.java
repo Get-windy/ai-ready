@@ -1,5 +1,9 @@
 package cn.aiedge.erp.price.engine.strategy.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,11 +13,13 @@ import java.util.Map;
  * 价格计算请求实体类
  * 包含计算价格所需的所有输入参数
  */
+@TableName("erp_price_calculation_request")
 public class PriceCalculationRequest {
-    
+
     /**
      * 请求ID（唯一标识）
      */
+    @TableId(value = "request_id", type = IdType.ASSIGN_UUID)
     private String requestId;
     
     /**
@@ -159,6 +165,7 @@ public class PriceCalculationRequest {
     /**
      * 竞争对手价格列表
      */
+    @TableField(exist = false)
     private Map<String, BigDecimal> competitorPrices;
     
     /**
@@ -179,11 +186,13 @@ public class PriceCalculationRequest {
     /**
      * 促销活动ID列表
      */
+    @TableField(exist = false)
     private List<String> promotionIds;
     
     /**
      * 附加参数（用于扩展）
      */
+    @TableField(exist = false)
     private Map<String, Object> additionalParams;
     
     /**

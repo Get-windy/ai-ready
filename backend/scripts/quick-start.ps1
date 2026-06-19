@@ -1,5 +1,5 @@
 ﻿# ============================================================
-# 智企连·AI-Ready 一键启动脚本
+# 企智连·AI-Ready 一键启动脚本
 # ============================================================
 # 作者: devops-engineer
 # 日期: 2026-03-29
@@ -25,7 +25,7 @@ $frontendDir = "I:\AI-Ready\smart-admin-web"
 $backendDir = "I:\AI-Ready\core-base"
 
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host "智企连·AI-Ready 快速启动" -ForegroundColor Green
+Write-Host "企智连·AI-Ready 快速启动" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "参数设置:" -ForegroundColor Gray

@@ -99,7 +99,7 @@ import io.swagger.v3.oas.annotations.info.License;
             nameGenerator = FullyQualifiedBeanNameGenerator.class)
 @OpenAPIDefinition(
     info = @Info(
-        title = "智企连·AI-Ready API",
+        title = "企智连·AI-Ready API",
         version = "1.0.0",
         description = "企业智能管理系统API文档",
         contact = @Contact(name = "AI-Ready Team", email = "dev@ai-ready.cn"),
@@ -116,7 +116,7 @@ public class AiReadyApplication {
         log.info("""
 
             ========================================
-            智企连·AI-Ready 启动成功！
+            企智连·AI-Ready 启动成功！
             API文档: http://localhost:5655/doc.html
             ========================================
             """);

@@ -78,7 +78,7 @@ const handleForgotPassword = () => {
       <div class="logo">
         <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=商城logo图标&image_size=square" alt="logo" />
       </div>
-      <div class="title">智企连商城</div>
+      <div class="title">企智连商城</div>
       <div class="subtitle">欢迎登录</div>
     </div>
     

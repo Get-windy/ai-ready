@@ -92,7 +92,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
 
     @Override
     public List<SysMenu> getMenuTree(Long tenantId) {
-        List<SysMenu> allMenus = listAllMenus(tenantId);
+        // 菜单为系统级全局资源（tenant_id=0），忽略传入的 tenantId
+        List<SysMenu> allMenus = listAllMenus(0L);
         return buildMenuTree(allMenus, 0L);
     }
 
@@ -186,9 +187,10 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
 
     @Override
     public List<SysMenu> getChildrenMenus(Long parentId, Long tenantId) {
+        // 菜单为系统级全局资源（tenant_id=0）
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysMenu::getParentId, parentId)
-               .eq(SysMenu::getTenantId, tenantId)
+               .eq(SysMenu::getTenantId, 0L)
                .orderByAsc(SysMenu::getSort);
         return list(wrapper);
     }
@@ -200,8 +202,9 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
 
     @Override
     public List<SysMenu> listAllMenus(Long tenantId) {
+        // 菜单为系统级全局资源（tenant_id=0），忽略传入的 tenantId
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysMenu::getTenantId, tenantId)
+        wrapper.eq(SysMenu::getTenantId, 0L)
                .orderByAsc(SysMenu::getSort);
         return list(wrapper);
     }
@@ -230,9 +233,10 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
 
     @Override
     public boolean checkMenuCodeExists(String menuCode, Long tenantId, Long excludeId) {
+        // 菜单编码唯一性检查基于全局菜单（tenant_id=0）
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysMenu::getMenuCode, menuCode)
-               .eq(SysMenu::getTenantId, tenantId)
+               .eq(SysMenu::getTenantId, 0L)
                .ne(excludeId != null, SysMenu::getId, excludeId);
         return count(wrapper) > 0;
     }
@@ -324,19 +328,15 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
      * 构建菜单树
      */
     private List<SysMenu> buildMenuTree(List<SysMenu> allMenus, Long parentId) {
-        log.info("[菜单服务] buildMenuTree 开始: allMenus.size={}, parentId={}", allMenus.size(), parentId);
         List<SysMenu> tree = new ArrayList<>();
         for (SysMenu menu : allMenus) {
-            log.info("[菜单服务] 检查菜单: id={}, menuName={}, parentId={}", menu.getId(), menu.getMenuName(), menu.getParentId());
             if (menu.getParentId().equals(parentId)) {
-                log.info("[菜单服务] 找到匹配菜单: id={}, menuName={}", menu.getId(), menu.getMenuName());
                 List<SysMenu> children = buildMenuTree(allMenus, menu.getId());
-                log.info("[菜单服务] 子菜单数量: parentId={}, children.size={}", menu.getId(), children.size());
                 menu.setChildren(children);
                 tree.add(menu);
             }
         }
-        log.info("[菜单服务] buildMenuTree 完成: tree.size={}, parentId={}", tree.size(), parentId);
+        log.debug("[菜单服务] buildMenuTree: parentId={}, tree.size={}", parentId, tree.size());
         return tree;
     }
 }

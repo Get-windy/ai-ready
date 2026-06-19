@@ -122,7 +122,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title as string || '智企连配送'
+  document.title = to.meta.title as string || '企智连配送'
   next()
 })
 

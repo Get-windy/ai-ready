@@ -27,7 +27,7 @@ public class SystemCapabilityProvider {
                 "status", "ok",
                 "timestamp", System.currentTimeMillis(),
                 "version", "1.0.0",
-                "service", "智企连·AI-Ready Agent调用层"
+                "service", "企智连·AI-Ready Agent调用层"
         );
     }
 

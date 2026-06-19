@@ -1,5 +1,9 @@
 package cn.aiedge.erp.price.engine.strategy.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -8,11 +12,13 @@ import java.util.Map;
  * 定价策略实体类
  * 记录定价策略的配置信息、参数和生效条件
  */
+@TableName("erp_pricing_strategy")
 public class PricingStrategy {
-    
+
     /**
      * 策略ID（主键）
      */
+    @TableId(value = "strategy_id", type = IdType.ASSIGN_UUID)
     private String strategyId;
     
     /**
@@ -33,6 +39,7 @@ public class PricingStrategy {
     /**
      * 参数配置（JSON格式，存储策略具体参数）
      */
+    @TableField(exist = false)
     private Map<String, Object> parameters;
     
     /**

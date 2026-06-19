@@ -30,6 +30,8 @@ public interface ExpenseService {
                                                 ExpenseStatus status, LocalDate startDate, 
                                                 LocalDate endDate, int page, int size);
     
-    Map<String, Object> getExpenseStatistics(LocalDate startDate, LocalDate endDate, 
+    Map<String, Object> getExpenseStatistics(LocalDate startDate, LocalDate endDate,
                                               String departmentId, ExpenseType expenseType);
+
+    ExpenseApplicationDTO withdrawApplication(Long id);
 }

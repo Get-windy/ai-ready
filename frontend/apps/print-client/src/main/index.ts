@@ -65,7 +65,7 @@ function createTray(): void {
     }}
   ])
 
-  tray.setToolTip('智企连打印客户端')
+  tray.setToolTip('企智连打印客户端')
   tray.setContextMenu(contextMenu)
 
   tray.on('click', () => {
@@ -114,7 +114,7 @@ function setupIpcHandlers(): void {
   ipcMain.handle('test-print', async (_, printerName: string) => {
     return PrinterService.printHTML(
       'test',
-      '<h1 style="text-align:center;margin-top:40vh">智企连 · 打印客户端测试页</h1>',
+      '<h1 style="text-align:center;margin-top:40vh">企智连 · 打印客户端测试页</h1>',
       { printerName, silent: true }
     )
   })

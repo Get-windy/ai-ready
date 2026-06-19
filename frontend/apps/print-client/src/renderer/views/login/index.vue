@@ -95,7 +95,7 @@ const handleKeydown = (e: KeyboardEvent) => {
             <path d="M14 24l6 6 14-14" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h1 class="login-title">智企连打印客户端</h1>
+        <h1 class="login-title">企智连打印客户端</h1>
         <p class="login-subtitle">请使用租户账号登录</p>
       </div>
 

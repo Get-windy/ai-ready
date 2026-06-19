@@ -182,7 +182,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  document.title = to.meta.title as string || '智企连仓库作业'
+  document.title = to.meta.title as string || '企智连仓库作业'
   next()
 })
 

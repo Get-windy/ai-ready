@@ -346,6 +346,7 @@ interface VxeColumnDef {
   showOverflow?: string
   slots?: Record<string, string>
   formatter?: Function
+  treeNode?: boolean
   [key: string]: any
 }
 
@@ -384,6 +385,8 @@ const vxeColumns = computed<VxeColumnDef[]>(() => {
       fixed: col.fixed,
       align: col.align || 'left',
       showOverflow: 'title',
+      // 保留树形列标记，确保 vxe-table treeConfig 生效
+      treeNode: col.treeNode || undefined,
     }
 
     // 如果列定义中有 formatter 函数，使用它

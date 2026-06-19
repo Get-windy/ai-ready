@@ -232,11 +232,16 @@ public class GlobalExceptionHandler {
      * 处理 SSE 异步请求超时异常（静默处理，不写错误日志）
      */
     @ExceptionHandler(AsyncRequestTimeoutException.class)
-    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
-    public Result<Void> handleAsyncRequestTimeoutException(AsyncRequestTimeoutException e) {
+    public ResponseEntity<Result<Void>> handleAsyncRequestTimeoutException(
+            AsyncRequestTimeoutException e, HttpServletRequest request) {
         log.debug("SSE 异步请求超时: {}", e.getMessage());
-        // SSE 超时是正常行为，不记录错误日志
-        return Result.fail(503, "请求超时");
+        // SSE 超时是正常行为，对 SSE 请求不写入响应体（流已关闭）
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains("text/event-stream")) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Result.fail(503, "请求超时"));
     }
 
     /**

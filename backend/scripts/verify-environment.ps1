@@ -1,5 +1,5 @@
 # ============================================================
-# 智企连·AI-Ready 环境验证脚本
+# 企智连·AI-Ready 环境验证脚本
 # ============================================================
 # 作者: devops-engineer
 # 日期: 2026-03-29
@@ -7,7 +7,7 @@
 # ============================================================
 
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host "智企连·AI-Ready 环境验证" -ForegroundColor Green
+Write-Host "企智连·AI-Ready 环境验证" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 

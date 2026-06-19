@@ -64,7 +64,7 @@ const handleLogin = async () => {
       <div class="logo">
         <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=仓库作业logo图标&image_size=square" alt="logo" />
       </div>
-      <div class="title">智企连仓库作业</div>
+      <div class="title">企智连仓库作业</div>
       <div class="subtitle">仓库人员登录</div>
     </div>
     

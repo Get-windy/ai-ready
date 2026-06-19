@@ -2,7 +2,7 @@
 
 **验证时间**: 2026-04-26 02:23  
 **验证人员**: UI设计师 (ui-mnj0fukd)  
-**项目**: AI-Ready (智企连)  
+**项目**: AI-Ready (企智连)  
 **前端路径**: `frontend/apps/pc-admin/smart-admin-web`
 
 ---
@@ -95,7 +95,7 @@ VITE_API_BASE_URL=/api          # API基础路径
 VITE_API_TIMEOUT=30000          # 请求超时时间
 
 # 应用配置
-VITE_APP_TITLE=智企连·AI-Ready 管理平台
+VITE_APP_TITLE=企智连·AI-Ready 管理平台
 VITE_APP_VERSION=1.0.0
 
 # 功能开关
