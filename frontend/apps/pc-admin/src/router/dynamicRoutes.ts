@@ -416,7 +416,9 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
       keepAlive: menu.isCache === 1,
       hidden: menu.visible === 0,
       requiresAuth: true,
-      ...(billType ? { billType } : {})
+      ...(billType ? { billType } : {}),
+      // 双入口模式：表单路径标记 autoCreate，页面通过 erp:create 事件自动打开新增弹窗
+      ...(menu.displayMode === 1 ? { autoCreate: true } : {})
     }
   }
 

@@ -486,6 +486,12 @@ watch(() => route.path, (path) => {
   }
   // 同步菜单展开/选中状态
   syncMenuKeys(path)
+  // 双入口表单路径：等页面挂载后自动触发新增（延迟确保组件已挂载并注册事件监听）
+  if (route.meta?.autoCreate) {
+    setTimeout(() => {
+      window.dispatchEvent(new Event('erp:create'))
+    }, 200)
+  }
 }, { immediate: true })
 
 // 根据当前路由同步移动端菜单选中项

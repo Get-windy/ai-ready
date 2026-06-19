@@ -352,8 +352,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, ExportOutlined } from '@ant-design/icons-vue'
@@ -389,7 +389,6 @@ function handleKeydown(e: KeyboardEvent) {
 
 // ── 状态定义 ────────────────────────────────────────
 
-const route = useRoute()
 const userStore = useUserStore()
 const loading = ref(false)
 const hasError = ref(false)
@@ -933,10 +932,6 @@ onMounted(() => {
     label: v.text,
     value: Number(k)
   }))
-  // 如果通过表单路径（/form 结尾）进入，自动打开新增弹窗
-  if (route.path.endsWith('/form')) {
-    nextTick(() => handleAdd())
-  }
 })
 
 async function loadCustomerOptions() {

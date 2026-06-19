@@ -298,8 +298,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
                .eq(SysMenu::getVisible, 1)
                .eq(SysMenu::getDeleted, 0);
 
-        // 普通租户：只返回租户级菜单（menuLevel=0）
-        if (!isSystemTenant) {
+        // 普通租户：只返回租户级菜单（menuLevel=0），但超管不受限制
+        if (!isSystemTenant && !isSuperAdmin) {
             wrapper.eq(SysMenu::getMenuLevel, 0);
         }
         // 系统租户：返回所有层级菜单（menuLevel 0 + 1），但已在 finalMenuIds 中过滤
