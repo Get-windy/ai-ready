@@ -259,8 +259,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         if (isSystemTenant) {
             // 系统租户：跳过 sys_tenant_menu 授权检查，仅按角色权限过滤
             if (isSuperAdmin) {
-                // 超管直接返回所有菜单
-                return buildMenuTree(getAllMenusByClientType(clientType), 0L);
+                // 超管返回 tenant-admin + system-admin 全部菜单
+                return buildMenuTree(getAllMenusForSystemAdmin(), 0L);
             }
             // 系统租户内普通用户：按角色菜单关联过滤
             List<Long> roleIds = baseMapper.selectRoleIdsByUserId(userId);
@@ -317,6 +317,19 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     private List<SysMenu> getAllMenusByClientType(String clientType) {
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysMenu::getClientType, clientType)
+               .eq(SysMenu::getStatus, 1)
+               .eq(SysMenu::getVisible, 1)
+               .eq(SysMenu::getDeleted, 0)
+               .orderByAsc(SysMenu::getSort);
+        return list(wrapper);
+    }
+
+    /**
+     * 系统超管：同时返回 tenant-admin 和 system-admin 两类菜单
+     */
+    private List<SysMenu> getAllMenusForSystemAdmin() {
+        LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysMenu::getClientType, "tenant-admin", "system-admin")
                .eq(SysMenu::getStatus, 1)
                .eq(SysMenu::getVisible, 1)
                .eq(SysMenu::getDeleted, 0)
