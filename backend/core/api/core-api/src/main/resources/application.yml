@@ -47,6 +47,17 @@ logging:
     cn.aiedge: INFO
     org.springframework.cloud.gateway: INFO
 
+# 应用日志配置
+app:
+  # 错误日志服务（JSONL 文件输出）
+  error-log:
+    enabled: true
+    cleanup-days: 30
+  # 集中式结构化 JSON 日志
+  log:
+    structured:
+      dir: ./logs/structured
+
 # 密码策略配置
 password:
   policy:
