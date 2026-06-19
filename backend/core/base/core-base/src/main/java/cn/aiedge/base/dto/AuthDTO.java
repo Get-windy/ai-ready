@@ -26,7 +26,13 @@ public class AuthDTO {
 
             @NotBlank(message = "租户名称不能为空")
             @JsonProperty("tenantName")
-            String tenantName
+            String tenantName,
+
+            @JsonProperty("captcha")
+            String captcha,
+
+            @JsonProperty("captchaKey")
+            String captchaKey
     ) {}
 
     /**

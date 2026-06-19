@@ -171,6 +171,21 @@ public class AuthController {
         Map<String, Object> result = new HashMap<>();
 
         try {
+            // 验证码校验
+            if (dto.captcha() == null || dto.captcha().isBlank()) {
+                return Result.fail(401, "请输入验证码");
+            }
+            if (dto.captchaKey() == null || dto.captchaKey().isBlank()) {
+                return Result.fail(401, "验证码Key无效");
+            }
+            String cachedCode = captchaCache.remove(dto.captchaKey());
+            if (cachedCode == null) {
+                return Result.fail(401, "验证码已过期，请刷新");
+            }
+            if (!cachedCode.equalsIgnoreCase(dto.captcha().trim())) {
+                return Result.fail(401, "验证码错误");
+            }
+
             // 根据租户名称获取租户ID
             Long tenantId = getTenantIdByName(dto.tenantName());
             if (tenantId == null) {

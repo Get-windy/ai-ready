@@ -47,6 +47,8 @@ export interface LoginForm {
   username: string
   password: string
   tenantName: string
+  captcha: string
+  captchaKey: string
 }
 
 // 用户查询参数
@@ -68,7 +70,9 @@ export const userApi = {
     return request.post('/auth/login', {
       username: data.username,
       password: data.password,
-      tenantName: data.tenantName
+      tenantName: data.tenantName,
+      captcha: data.captcha,
+      captchaKey: data.captchaKey
     }, {
       _skipAuthRefresh: true
     } as any)

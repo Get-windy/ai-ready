@@ -176,6 +176,7 @@ function handleContextAction({ key }: Record<string, any>) {
   cursor: pointer;
   border: 1px solid #bbb;
   border-bottom: none;
+  border-radius: 4px 4px 0 0;
   white-space: nowrap;
   transition: all 0.15s;
   position: relative;

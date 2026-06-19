@@ -428,7 +428,8 @@ const currentTitle = computed(() => {
     }
     return ''
   }
-  return findMenuName(userStore.menus, normalizedPath) || t('menu.dashboard')
+  // 优先从菜单树匹配，其次用路由 meta.title，最后回退到工作台
+  return findMenuName(userStore.menus, normalizedPath) || (route.meta?.title as string) || t('menu.dashboard')
 })
 
 // 常用菜单（一级菜单 + 第一个叶子路径）

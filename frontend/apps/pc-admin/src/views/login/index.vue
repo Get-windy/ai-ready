@@ -276,11 +276,13 @@ const handleSubmit = async () => {
     // 表单验证
     await formRef.value?.validate()
 
-    // 执行登录（传递租户名称，后端验证）
+    // 执行登录（传递租户名称、验证码，后端验证）
     const success = await userStore.login({
       username: formState.username,
       password: formState.password,
-      tenantName: formState.tenantName
+      tenantName: formState.tenantName,
+      captcha: formState.captcha,
+      captchaKey: captchaKey.value
     })
 
     if (success) {
