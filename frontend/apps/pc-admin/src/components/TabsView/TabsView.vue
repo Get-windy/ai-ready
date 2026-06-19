@@ -168,8 +168,7 @@ function handleContextAction({ key }: Record<string, any>) {
 .tabs-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
+  padding: 0 24px 0 14px;
   height: 32px;
   font-size: 13px;
   color: #555;
@@ -182,7 +181,7 @@ function handleContextAction({ key }: Record<string, any>) {
   position: relative;
   flex-shrink: 0;
   background: #fff;
-  margin-left: -1px;
+  margin-left: -4px;
 }
 
 .tabs-tab:first-child {
@@ -248,6 +247,10 @@ function handleContextAction({ key }: Record<string, any>) {
 }
 
 .tab-close {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 10px;
   color: #999;
   padding: 1px 3px;
@@ -257,7 +260,8 @@ function handleContextAction({ key }: Record<string, any>) {
   line-height: 1;
 }
 
-.tabs-tab:hover .tab-close {
+.tabs-tab:hover .tab-close,
+.tabs-tab.active .tab-close {
   opacity: 1;
 }
 
