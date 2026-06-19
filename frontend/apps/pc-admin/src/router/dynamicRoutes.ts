@@ -132,6 +132,7 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ERP 模块
   'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
+  'erp/sale/form': () => import('@/views/erp/sale/form.vue'),
   'erp/sale-outbound/index': () => import('@/views/erp/sale-outbound/index.vue'),
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
@@ -270,6 +271,84 @@ const componentMap: Record<string, () => Promise<any>> = {
 
   // ── 系统级占位页面（新功能未实现时使用） ──
   'common/placeholder/index': () => import('@/views/common/placeholder/index.vue'),
+
+  // ── displayMode=1 列表页 URL→组件映射（有实际列表组件） ──
+  'sales/order': () => import('@/views/erp/sale/index.vue'),
+  'purchase/order': () => import('@/views/erp/purchase/index.vue'),
+  'sales/return': () => import('@/views/erp/return/index.vue'),
+  'sales/shipment': () => import('@/views/erp/shipment/index.vue'),
+  'wms/receipt': () => import('@/views/wms/receipt/index.vue'),
+  'wms/putaway': () => import('@/views/wms/putaway/index.vue'),
+  'wms/pick': () => import('@/views/wms/pick/index.vue'),
+  'wms/wave': () => import('@/views/wms/wave/index.vue'),
+  'wms/ship': () => import('@/views/wms/ship/index.vue'),
+  'wms/move': () => import('@/views/wms/move/index.vue'),
+  'wms/check': () => import('@/views/wms/check/index.vue'),
+  'mall/user-audit': () => import('@/views/erp/mall/user-audit/index.vue'),
+  'crm/quotation': () => import('@/views/crm/quotation/index.vue'),
+  'crm/invoice': () => import('@/views/crm/invoice/index.vue'),
+  'crm/customer': () => import('@/views/crm/customer/index.vue'),
+  'crm/lead': () => import('@/views/crm/lead/index.vue'),
+  'crm/opportunity': () => import('@/views/crm/opportunity/index.vue'),
+  'crm/contract': () => import('@/views/crm/contract/index.vue'),
+  'dms/rider': () => import('@/views/dms/rider/index.vue'),
+  'dms/vehicle': () => import('@/views/dms/vehicle/index.vue'),
+  'erp/return': () => import('@/views/erp/return/index.vue'),
+  'erp/shipment': () => import('@/views/erp/shipment/index.vue'),
+
+  // ── displayMode=1 列表页 URL→组件映射（无实际列表组件，使用 placeholder） ──
+  'sales/return-apply': () => import('@/views/common/placeholder/index.vue'),
+  'sales/pre-order': () => import('@/views/common/placeholder/index.vue'),
+  'sales/retail': () => import('@/views/common/placeholder/index.vue'),
+  'sales/outbound': () => import('@/views/common/placeholder/index.vue'),
+  'sales/return-doc': () => import('@/views/common/placeholder/index.vue'),
+  'sales/exchange': () => import('@/views/common/placeholder/index.vue'),
+  'purchase/inbound': () => import('@/views/common/placeholder/index.vue'),
+  'purchase/return': () => import('@/views/common/placeholder/index.vue'),
+  'purchase/exchange': () => import('@/views/common/placeholder/index.vue'),
+  'purchase/cost-sharing': () => import('@/views/common/placeholder/index.vue'),
+  'wh/other-outbound': () => import('@/views/common/placeholder/index.vue'),
+  'wh/other-inbound': () => import('@/views/common/placeholder/index.vue'),
+  'wh/transfer': () => import('@/views/common/placeholder/index.vue'),
+  'wh/damage': () => import('@/views/common/placeholder/index.vue'),
+  'wh/overflow': () => import('@/views/common/placeholder/index.vue'),
+  'wh/stocktake': () => import('@/views/common/placeholder/index.vue'),
+  'wh/cost-adjust': () => import('@/views/common/placeholder/index.vue'),
+  'wh/production-template': () => import('@/views/common/placeholder/index.vue'),
+  'wh/assemble': () => import('@/views/common/placeholder/index.vue'),
+  'wh/disassemble': () => import('@/views/common/placeholder/index.vue'),
+  'wh/borrow-in': () => import('@/views/common/placeholder/index.vue'),
+  'wh/borrow-out': () => import('@/views/common/placeholder/index.vue'),
+  'wh/receiving-order': () => import('@/views/common/placeholder/index.vue'),
+  'wh/putaway-order': () => import('@/views/common/placeholder/index.vue'),
+  'wh/picking-order': () => import('@/views/common/placeholder/index.vue'),
+  'wh/shipping-order': () => import('@/views/common/placeholder/index.vue'),
+  'wh/move-order': () => import('@/views/common/placeholder/index.vue'),
+  'wh/inventory-order': () => import('@/views/common/placeholder/index.vue'),
+  'dispatch/dispatch-order': () => import('@/views/common/placeholder/index.vue'),
+  'finance/receipt-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/advance-receipt': () => import('@/views/common/placeholder/index.vue'),
+  'finance/cash-transfer': () => import('@/views/common/placeholder/index.vue'),
+  'finance/payment-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/advance-payment': () => import('@/views/common/placeholder/index.vue'),
+  'finance/expense-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/other-income-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/ar-ap-adjust': () => import('@/views/common/placeholder/index.vue'),
+  'finance/voucher': () => import('@/views/common/placeholder/index.vue'),
+
+  // ── displayMode=1 添加标签的 form 页面（暂无实现，使用 placeholder） ──
+  'crm/customer/form': () => import('@/views/common/placeholder/index.vue'),
+  'crm/lead/form': () => import('@/views/common/placeholder/index.vue'),
+  'crm/opportunity/form': () => import('@/views/common/placeholder/index.vue'),
+  'crm/contract/form': () => import('@/views/common/placeholder/index.vue'),
+  'crm/quotation/form': () => import('@/views/common/placeholder/index.vue'),
+  'crm/invoice/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/product/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/customer/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/supplier/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/logistics/form': () => import('@/views/common/placeholder/index.vue'),
+  'dms/rider/form': () => import('@/views/common/placeholder/index.vue'),
+  'dms/vehicle/form': () => import('@/views/common/placeholder/index.vue'),
 }
 
 /**
@@ -453,6 +532,7 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
     const listRoute: RouteRecordRaw = {
       path: listRoutePath,
       name: `${menu.menuCode}_list`,
+      component: getComponent(menu.listPath!),
       meta: {
         title: `${menu.menuName}列表`,
         icon: menu.icon,
@@ -461,12 +541,6 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
         requiresAuth: true,
         ...(listBillType ? { billType: listBillType } : {})
       }
-    }
-
-    // 对双入口的列表页，默认尝试使用同一组件
-    if (menu.component) {
-      const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
-      ;(listRoute as any).component = getComponent(componentPath)
     }
 
     routes.push(listRoute)
@@ -1007,7 +1081,7 @@ function getFallbackRoutes(): RouteRecordRaw[] {
       children: [
         // ── 工作台 ──
         { path: 'dashboard', name: 'Dashboard', component: () => import('@/views/dashboard/index.vue'), meta: { title: '工作台', icon: 'DashboardOutlined', keepAlive: true, requiresAuth: true } },
-        // ── 销售作业 ──
+        // ─ 销售作业 ──
         { path: 'sale', name: 'Sale', component: () => import('@/views/erp/sale/index.vue'), meta: { title: '销售订单', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604' } },
         { path: 'erp/sale', name: 'ErpSale', component: () => import('@/views/erp/sale/index.vue'), meta: { title: '销售管理(ERP)', icon: 'ShoppingOutlined', keepAlive: true, requiresAuth: true, billType: '604', hidden: true } },
         { path: 'stock', name: 'Stock', component: () => import('@/views/erp/stock/index.vue'), meta: { title: '销售出库', icon: 'ExportOutlined', keepAlive: true, requiresAuth: true, billType: '601' } },

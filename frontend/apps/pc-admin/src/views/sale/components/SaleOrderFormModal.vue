@@ -4,6 +4,7 @@
     :title="editData ? '编辑销售订单' : '新建销售订单'"
     :save-loading="loading"
     :show-save-and-new="!isEdit"
+    :top-offset="45"
     @close="handleFormClose"
     @save="handleOk"
     @save-and-new="handleFormSaveAndNew"

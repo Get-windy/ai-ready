@@ -244,69 +244,6 @@
       </a-spin>
     </a-drawer>
 
-    <!-- 新建/编辑表单弹窗 -->
-    <a-modal
-      v-model:open="formVisible"
-      :title="isEdit ? '编辑销售订单' : '新建销售订单'"
-      :width="600"
-      :confirm-loading="formLoading"
-      destroy-on-close
-      @ok="handleFormSubmit"
-      @cancel="handleFormCancel"
-    >
-      <a-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
-      >
-        <a-form-item label="客户名称" name="customerId">
-          <a-select
-            size="small"
-            v-model:value="formData.customerId"
-            placeholder="请选择客户"
-            show-search
-            :filter-option="filterCustomerOption"
-          >
-            <a-select-option v-for="c in customerOptions" :key="c.id" :value="c.id">
-              {{ c.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="订单日期" name="orderDate">
-          <a-date-picker size="small" v-model:value="formData.orderDate" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="交货日期">
-          <a-date-picker size="small" v-model:value="formData.deliveryDate" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="销售员" name="salesperson">
-          <a-input size="small" v-model:value="formData.salesperson" placeholder="请输入销售员" />
-        </a-form-item>
-        <a-form-item label="订单金额" name="totalAmount">
-          <a-input-number size="small"
-            v-model:value="formData.totalAmount"
-            :min="0"
-            :precision="2"
-            style="width: 100%"
-            placeholder="请输入金额"
-          />
-        </a-form-item>
-        <a-form-item label="折扣金额">
-          <a-input-number size="small"
-            v-model:value="formData.discountAmount"
-            :min="0"
-            :precision="2"
-            style="width: 100%"
-            placeholder="请输入折扣金额"
-          />
-        </a-form-item>
-        <a-form-item label="备注">
-          <a-textarea size="small" v-model:value="formData.remark" :rows="3" placeholder="请输入备注" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
     <!-- 批量编辑弹窗 -->
     <a-modal
       v-model:open="batchEditVisible"
@@ -352,10 +289,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, FileOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { salesOrderApi, OrderStatus, type SalesOrder } from '@/api/order'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -363,11 +298,10 @@ import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTab
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
-import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { useUserStore } from '@/stores/user'
-import { requiredSelectRule, requiredRule } from '@/utils/formRules'
+import { useRouter } from 'vue-router'
 import { SALES_ORDER_STATUS } from '@/utils/statusConfig'
 
 // ── 防抖工具 ──────────────────────────────────────────
@@ -389,6 +323,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 // ── 状态定义 ────────────────────────────────────────
 
+const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
 const hasError = ref(false)
@@ -415,11 +350,6 @@ const detailData = ref<SalesOrder | null>(null)
 const detailLoading = ref(false)
 const currentRecord = ref<SalesOrder | null>(null)
 
-const formVisible = ref(false)
-const formLoading = ref(false)
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const formRef = ref<FormInstance>()
 const rejectVisible = ref(false)
 const rejectRecord = ref<SalesOrder | null>(null)
 const rejectReason = ref('')
@@ -513,23 +443,6 @@ const summaryData = computed(() => {
 
 // ── 表单配置 ────────────────────────────────────────
 
-const formRules = {
-  customerId: [requiredSelectRule('客户')],
-  orderDate: [requiredRule('订单日期')],
-  salesperson: [requiredRule('销售员')],
-  totalAmount: [requiredRule('订单金额')]
-}
-
-const formData = reactive({
-  customerId: undefined as number | undefined,
-  orderDate: undefined as any,
-  deliveryDate: undefined as any,
-  salesperson: '',
-  totalAmount: undefined as number | undefined,
-  discountAmount: undefined as number | undefined,
-  remark: ''
-})
-
 const batchEditData = reactive({
   salesperson: '',
   deliveryDate: undefined as any
@@ -567,26 +480,6 @@ const handleError = (error: Error) => {
   console.warn('[销售订单] 页面错误', error)
   message.error(`页面错误: ${error.message}`)
 }
-
-// 离开拦截（表单未保存时提醒）
-const hasUnsavedChanges = computed(() => {
-  return formVisible.value && (formRef.value as any)?.isFieldTouched?.()
-})
-
-onBeforeRouteLeave((to, from, next) => {
-  if (hasUnsavedChanges.value) {
-    Modal.confirm({
-      title: '离开确认',
-      content: '当前表单有未保存的更改，确定要离开吗？',
-      okText: '离开',
-      cancelText: '取消',
-      onOk: () => next(),
-      onCancel: () => next(false)
-    })
-  } else {
-    next()
-  }
-})
 
 // 自动刷新
 watch(autoRefresh, (enabled) => {
@@ -681,33 +574,11 @@ const handleView = async (record: SalesOrder) => {
 function handleParentCreate() { handleAdd() }
 
 const handleAdd = () => {
-  isEdit.value = false
-  editingId.value = null
-  Object.assign(formData, {
-    customerId: undefined,
-    orderDate: undefined,
-    deliveryDate: undefined,
-    salesperson: '',
-    totalAmount: undefined,
-    discountAmount: undefined,
-    remark: ''
-  })
-  formVisible.value = true
+  router.push('/erp/sale/form')
 }
 
 const handleEdit = (record: SalesOrder) => {
-  isEdit.value = true
-  editingId.value = record.id
-  Object.assign(formData, {
-    customerId: record.customerId,
-    orderDate: record.orderDate,
-    deliveryDate: record.deliveryDate,
-    salesperson: record.salesperson,
-    totalAmount: record.totalAmount,
-    discountAmount: record.discountAmount,
-    remark: record.remark
-  })
-  formVisible.value = true
+  router.push(`/erp/sale/form/${record.id}`)
 }
 
 const handleDelete = async (record: SalesOrder) => {
@@ -880,39 +751,7 @@ const handleExport = async () => {
   }
 }
 
-// ── 表单提交 ────────────────────────────────────────
-
-const handleFormSubmit = async () => {
-  try {
-    await formRef.value?.validate()
-    formLoading.value = true
-    if (isEdit.value && editingId.value) {
-      await salesOrderApi.update(editingId.value, formData as Partial<SalesOrder>)
-      message.success('更新成功')
-    } else {
-      await salesOrderApi.create({ tenantId: userStore.tenantId, ...formData } as Partial<SalesOrder>)
-      message.success('创建成功')
-    }
-    formVisible.value = false
-    fetchData()
-  } catch (error: any) {
-    if (error?.errorFields) return // 表单校验错误
-    console.warn('[销售订单] 表单提交失败', error)
-    message.error(error?.response?.data?.message || '操作失败')
-  } finally {
-    formLoading.value = false
-  }
-}
-
-const handleFormCancel = () => {
-  formVisible.value = false
-}
-
 // ── 辅助函数 ────────────────────────────────────────
-
-const filterCustomerOption = (input: string, option: any) => {
-  return option.children?.[0]?.children?.toLowerCase?.().includes(input.toLowerCase())
-}
 
 // ── 初始化 ────────────────────────────────────────
 
