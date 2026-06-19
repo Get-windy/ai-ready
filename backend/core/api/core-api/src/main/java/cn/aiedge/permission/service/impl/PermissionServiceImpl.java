@@ -1,13 +1,16 @@
 package cn.aiedge.permission.service.impl;
 
+import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.entity.Role;
-import cn.aiedge.base.entity.SysPermission;
+import cn.aiedge.base.entity.SysDataScope;
 import cn.aiedge.base.entity.SysRolePermission;
 import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.RoleMapper;
+import cn.aiedge.base.entity.SysPermission;
 import cn.aiedge.base.mapper.SysPermissionMapper;
 import cn.aiedge.base.mapper.SysRolePermissionMapper;
 import cn.aiedge.base.mapper.SysUserRoleMapper;
+import cn.aiedge.base.service.SysDataScopeService;
 import cn.aiedge.permission.service.PermissionService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
@@ -40,6 +43,9 @@ public class PermissionServiceImpl implements PermissionService {
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysPermissionMapper sysPermissionMapper;
     private final RoleMapper roleMapper;
+    private final SuperAdminConfig superAdminConfig;
+    private final SysDataScopeService sysDataScopeService;
+    private final cn.aiedge.base.service.SysSodRuleService sysSodRuleService;
     
     private static final String PERMISSION_CACHE_KEY = "permission:user:";
     private static final String ROLE_CACHE_KEY = "role:user:";
@@ -99,6 +105,24 @@ public class PermissionServiceImpl implements PermissionService {
         }
     }
 
+    @Override
+    public List<SysDataScope> getUserCustomDataScopes(String tableName) {
+        try {
+            Long userId = getCurrentUserId();
+            if (userId == null) return List.of();
+            List<Long> roleIds = getUserRoleIds(userId);
+            if (roleIds.isEmpty()) return List.of();
+
+            if (tableName != null) {
+                return sysDataScopeService.getByRoleAndTable(roleIds, tableName);
+            }
+            return sysDataScopeService.getByRoleIds(roleIds);
+        } catch (Exception e) {
+            log.debug("获取自定义数据权限规则失败: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     // ==================== 权限查询 ====================
 
     @Override
@@ -126,7 +150,7 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     public boolean isSuperAdmin() {
         Set<String> roles = getCurrentUserRoles();
-        return roles.contains("SUPER_ADMIN") || roles.contains("admin") || roles.contains("super_admin");
+        return superAdminConfig.hasSuperAdminRole(roles);
     }
 
     @Override
@@ -250,6 +274,20 @@ public class PermissionServiceImpl implements PermissionService {
             }
         } catch (RuntimeException e) {
             log.warn("角色作用域校验失败: {}", e.getMessage());
+            throw e;
+        }
+
+        // SoD（职责分离）校验：检查新角色集合内部是否有互斥
+        try {
+            java.util.List<Long> conflictingRoleIds = sysSodRuleService.findConflictingRoleIds(roleIds);
+            if (!conflictingRoleIds.isEmpty()) {
+                String conflictNames = roleMapper.selectBatchIds(conflictingRoleIds).stream()
+                        .map(Role::getRoleName).collect(java.util.stream.Collectors.joining(", "));
+                log.warn("SoD 校验失败: 角色[{}]存在互斥", conflictNames);
+                throw new RuntimeException("职责分离冲突：角色「" + conflictNames + "」互斥，不能同时分配");
+            }
+        } catch (RuntimeException e) {
+            log.warn("SoD 校验失败: {}", e.getMessage());
             throw e;
         }
 

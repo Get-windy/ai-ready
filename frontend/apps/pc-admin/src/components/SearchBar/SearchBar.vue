@@ -141,12 +141,14 @@
       class="result-count"
     >
       <span class="count-text">共 {{ total }} 条结果</span>
-      <a-link
+      <a-button
         v-if="showClear"
+        type="link"
+        size="small"
         @click="handleClearAll"
       >
         清空条件
-      </a-link>
+      </a-button>
     </div>
   </div>
 </template>

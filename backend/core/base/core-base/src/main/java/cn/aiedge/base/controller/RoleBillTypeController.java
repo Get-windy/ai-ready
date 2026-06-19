@@ -30,7 +30,7 @@ public class RoleBillTypeController {
 
     @Operation(summary = "获取角色的单据类型权限列表")
     @GetMapping("/{roleId}")
-    @SaCheckPermission("role:detail")
+    @SaCheckPermission("system:role:detail")
     public Result<List<RoleBillTypeService.BillTypeDetail>> getRoleBillTypes(
             @PathVariable Long roleId) {
         List<RoleBillTypeService.BillTypeDetail> details = roleBillTypeService.getRoleBillTypeDetails(roleId);
@@ -39,14 +39,14 @@ public class RoleBillTypeController {
 
     @Operation(summary = "获取用户可访问的所有单据类型")
     @GetMapping("/user/{userId}")
-    @SaCheckPermission("role:detail")
+    @SaCheckPermission("system:role:detail")
     public Result<Set<String>> getUserBillTypes(@PathVariable Long userId) {
         return Result.ok(roleBillTypeService.getUserBillTypes(userId));
     }
 
     @Operation(summary = "分配角色的单据类型权限")
     @PostMapping("/{roleId}")
-    @SaCheckPermission("role:assign-permission")
+    @SaCheckPermission("system:role:assign-permission")
     public Result<Void> assignBillTypes(
             @PathVariable Long roleId,
             @RequestBody List<RoleBillTypeService.BillTypeAssignment> billTypes) {

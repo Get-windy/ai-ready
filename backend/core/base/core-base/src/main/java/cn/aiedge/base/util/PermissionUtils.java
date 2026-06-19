@@ -1,5 +1,6 @@
 package cn.aiedge.base.util;
 
+import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.entity.SysRole;
 import cn.aiedge.base.entity.SysUser;
 import cn.aiedge.base.service.SysRoleService;
@@ -25,6 +26,7 @@ public class PermissionUtils {
 
     private final SysUserService userService;
     private final SysRoleService roleService;
+    private final SuperAdminConfig superAdminConfig;
 
     /**
      * 检查用户是否拥有指定角色
@@ -115,7 +117,7 @@ public class PermissionUtils {
         }
 
         List<String> roles = getUserRoleCodes(userId);
-        return roles.contains("SUPER_ADMIN") || roles.contains("admin");
+        return superAdminConfig.hasSuperAdminRole(roles);
     }
 
     /**

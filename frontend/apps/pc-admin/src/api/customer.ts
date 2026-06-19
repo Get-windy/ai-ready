@@ -146,6 +146,13 @@ export const customerApi = {
   },
 
   /**
+   * 获取客户选项列表（用于下拉选择）
+   */
+  getOptions(): Promise<ApiResponse<Array<{ id: number; name: string }>>> {
+    return request.get('/customer/dropdown')
+  },
+
+  /**
    * 导入客户（CSV文件上传）
    */
   importCustomers(data: { file: File; mapping: Record<string, string> }): Promise<ApiResponse<any>> {

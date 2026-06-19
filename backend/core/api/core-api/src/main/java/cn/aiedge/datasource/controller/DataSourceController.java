@@ -24,7 +24,7 @@ public class DataSourceController {
     private final DataSourceService dataSourceService;
 
     @GetMapping("/list")
-    @SaCheckPermission("datasource:list")
+    @SaCheckPermission("system:datasource:list")
     @Operation(summary = "分页查询数据源列表")
     public ResponseEntity<Map<String, Object>> list(
             @RequestParam(required = false) String keyword,
@@ -48,7 +48,7 @@ public class DataSourceController {
     }
 
     @GetMapping("/{id}")
-    @SaCheckPermission("datasource:list")
+    @SaCheckPermission("system:datasource:list")
     @Operation(summary = "获取单个数据源")
     public ResponseEntity<Map<String, Object>> getById(@PathVariable Long id) {
         DataSource dataSource = dataSourceService.getById(id);
@@ -59,7 +59,7 @@ public class DataSourceController {
     }
 
     @PostMapping("/")
-    @SaCheckPermission("datasource:create")
+    @SaCheckPermission("system:datasource:create")
     @Operation(summary = "创建数据源")
     public ResponseEntity<Map<String, Object>> create(
             @RequestBody DataSource dataSource,
@@ -70,7 +70,7 @@ public class DataSourceController {
     }
 
     @PutMapping("/{id}")
-    @SaCheckPermission("datasource:update")
+    @SaCheckPermission("system:datasource:update")
     @Operation(summary = "更新数据源")
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable Long id,
@@ -85,7 +85,7 @@ public class DataSourceController {
     }
 
     @DeleteMapping("/{id}")
-    @SaCheckPermission("datasource:delete")
+    @SaCheckPermission("system:datasource:delete")
     @Operation(summary = "删除数据源")
     public ResponseEntity<Map<String, Object>> delete(@PathVariable Long id) {
         boolean success = dataSourceService.delete(id);
@@ -93,7 +93,7 @@ public class DataSourceController {
     }
 
     @PostMapping("/test")
-    @SaCheckPermission("datasource:test")
+    @SaCheckPermission("system:datasource:test")
     @Operation(summary = "测试数据源连接")
     public ResponseEntity<Map<String, Object>> testConnection(
             @RequestBody Map<String, Object> request) {

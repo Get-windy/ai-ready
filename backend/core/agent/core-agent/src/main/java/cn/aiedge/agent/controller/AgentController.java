@@ -27,7 +27,7 @@ public class AgentController {
 
     @Operation(summary = "注册Agent")
     @PostMapping("/register")
-    @SaCheckPermission("agent:register")
+    @SaCheckPermission("system:agent:register")
     public Agent register(@RequestBody Agent agent) {
         Long agentId = agentService.register(agent);
         agent.setId(agentId);
@@ -36,7 +36,7 @@ public class AgentController {
 
     @Operation(summary = "更新Agent")
     @PutMapping("/{id}")
-    @SaCheckPermission("agent:update")
+    @SaCheckPermission("system:agent:update")
     public void updateAgent(@PathVariable Long id, @RequestBody Agent agent) {
         agent.setId(id);
         agentService.updateAgent(agent);
@@ -44,21 +44,21 @@ public class AgentController {
 
     @Operation(summary = "注销Agent")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("agent:delete")
+    @SaCheckPermission("system:agent:delete")
     public void unregister(@PathVariable Long id) {
         agentService.unregister(id);
     }
 
     @Operation(summary = "激活Agent")
     @PostMapping("/{id}/activate")
-    @SaCheckPermission("agent:activate")
+    @SaCheckPermission("system:agent:activate")
     public void activate(@PathVariable Long id) {
         agentService.activate(id);
     }
 
     @Operation(summary = "禁用Agent")
     @PostMapping("/{id}/deactivate")
-    @SaCheckPermission("agent:deactivate")
+    @SaCheckPermission("system:agent:deactivate")
     public void deactivate(@PathVariable Long id) {
         agentService.deactivate(id);
     }
@@ -71,7 +71,7 @@ public class AgentController {
 
     @Operation(summary = "分页查询")
     @GetMapping("/page")
-    @SaCheckPermission("agent:list")
+    @SaCheckPermission("system:agent:list")
     public Page<Agent> pageAgents(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
@@ -84,7 +84,7 @@ public class AgentController {
 
     @Operation(summary = "获取Agent详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("agent:detail")
+    @SaCheckPermission("system:agent:detail")
     public Agent getAgent(@PathVariable Long id) {
         return agentService.getById(id);
     }

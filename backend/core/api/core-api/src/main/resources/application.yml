@@ -58,6 +58,15 @@ app:
     structured:
       dir: ./logs/structured
 
+# 系统管理配置
+system:
+  super-admin:
+    # 超级管理员角色编码列表（匹配任一即视为超管）
+    role-codes:
+      - SUPER_ADMIN
+      - admin
+      - super_admin
+
 # 密码策略配置
 password:
   policy:

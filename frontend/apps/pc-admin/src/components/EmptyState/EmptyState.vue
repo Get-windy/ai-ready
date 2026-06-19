@@ -107,7 +107,7 @@ const emit = defineEmits<{
 }>()
 
 // 使用 Fallback 图标组件（SVG 全局变量可能不存在）
-import { InboxOutlined, WarningOutlined, LockOutlined, FileSearchOutlined } from '@ant-design/icons-vue'
+import { InboxOutlined, WarningOutlined, LockOutlined, FileSearchOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 
 // 计算图片组件
 const imageComponent = computed(() => {
@@ -135,7 +135,7 @@ const handleAdd = () => {
 }
 </script>
 
- * <style scoped>
+<style scoped>
 .empty-state {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,13 @@
 package cn.aiedge.base.controller;
 
+import cn.aiedge.base.event.PermissionChangeEvent;
 import cn.aiedge.base.service.SysTenantMenuService;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.Set;
 public class SysTenantMenuController {
 
     private final SysTenantMenuService tenantMenuService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 查询租户已授权的菜单ID列表
@@ -44,6 +47,8 @@ public class SysTenantMenuController {
     @SaCheckPermission("tenant:menu:assign")
     public Result<Void> assignMenus(@PathVariable Long tenantId, @RequestBody List<Long> menuIds) {
         tenantMenuService.assignMenus(tenantId, menuIds);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.TENANT_MENU_ASSIGNED, tenantId, "租户菜单授权: tenantId=" + tenantId));
         return Result.ok("授权成功", null);
     }
 
@@ -55,6 +60,8 @@ public class SysTenantMenuController {
     @SaCheckPermission("tenant:menu:remove")
     public Result<Void> removeMenus(@PathVariable Long tenantId, @RequestBody List<Long> menuIds) {
         tenantMenuService.removeMenus(tenantId, menuIds);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.TENANT_MENU_ASSIGNED, tenantId, "租户菜单移除: tenantId=" + tenantId));
         return Result.ok("移除成功", null);
     }
 
@@ -66,6 +73,8 @@ public class SysTenantMenuController {
     @SaCheckPermission("tenant:menu:remove")
     public Result<Void> clearByTenantId(@PathVariable Long tenantId) {
         tenantMenuService.clearByTenantId(tenantId);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.TENANT_MENU_ASSIGNED, tenantId, "清空租户菜单: tenantId=" + tenantId));
         return Result.ok("清除成功", null);
     }
 }

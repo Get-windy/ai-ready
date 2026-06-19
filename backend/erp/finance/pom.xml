@@ -13,7 +13,6 @@
     </parent>
 
     <artifactId>erp-finance</artifactId>
-    <version>0.2.0</version>
     <name>ERP Finance Unified Module</name>
     <description>ERP finance unified module integrating accounting, invoice, and financial management functions.</description>
 

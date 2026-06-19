@@ -54,7 +54,7 @@ public class SessionController {
      */
     @Operation(summary = "获取所有在线用户")
     @GetMapping("/online")
-    @SaCheckPermission("session:view")
+    @SaCheckPermission("system:session:view")
     public Result<List<String>> getOnlineUsers() {
         List<String> onlineUsers = StpUtil.searchTokenValue("", 0, -1, false);
         return Result.ok(onlineUsers);
@@ -65,7 +65,7 @@ public class SessionController {
      */
     @Operation(summary = "强制用户下线")
     @PostMapping("/kickout/{userId}")
-    @SaCheckPermission("session:kickout")
+    @SaCheckPermission("system:session:kickout")
     public Result<Void> kickoutUser(@PathVariable Long userId) {
         StpUtil.kickout(userId);
         log.info("强制用户下线: userId={}", userId);
@@ -77,7 +77,7 @@ public class SessionController {
      */
     @Operation(summary = "强制用户所有设备下线")
     @PostMapping("/kickout-all/{userId}")
-    @SaCheckPermission("session:kickout")
+    @SaCheckPermission("system:session:kickout")
     public Result<Void> kickoutAllDevices(@PathVariable Long userId) {
         StpUtil.kickout(userId);
         log.info("强制用户所有设备下线: userId={}", userId);
@@ -89,7 +89,7 @@ public class SessionController {
      */
     @Operation(summary = "禁用账号")
     @PostMapping("/disable/{userId}")
-    @SaCheckPermission("session:disable")
+    @SaCheckPermission("system:session:disable")
     public Result<Void> disableUser(@PathVariable Long userId,
                                      @RequestParam(defaultValue = "86400") long time) {
         StpUtil.disable(userId, time);
@@ -102,7 +102,7 @@ public class SessionController {
      */
     @Operation(summary = "解除账号禁用")
     @PostMapping("/enable/{userId}")
-    @SaCheckPermission("session:disable")
+    @SaCheckPermission("system:session:disable")
     public Result<Void> enableUser(@PathVariable Long userId) {
         StpUtil.untieDisable(userId);
         log.info("解除账号禁用: userId={}", userId);
@@ -114,7 +114,7 @@ public class SessionController {
      */
     @Operation(summary = "检查账号是否被禁用")
     @GetMapping("/disabled/{userId}")
-    @SaCheckPermission("session:view")
+    @SaCheckPermission("system:session:view")
     public Result<Map<String, Object>> checkDisabled(@PathVariable Long userId) {
         Map<String, Object> result = new HashMap<>();
         result.put("userId", userId);
@@ -128,7 +128,7 @@ public class SessionController {
      */
     @Operation(summary = "获取用户Token列表")
     @GetMapping("/tokens/{userId}")
-    @SaCheckPermission("session:view")
+    @SaCheckPermission("system:session:view")
     public Result<List<String>> getUserTokens(@PathVariable Long userId) {
         List<String> tokens = StpUtil.getTokenValueListByLoginId(userId);
         return Result.ok(tokens);
@@ -139,7 +139,7 @@ public class SessionController {
      */
     @Operation(summary = "强制指定Token下线")
     @PostMapping("/kickout-token")
-    @SaCheckPermission("session:kickout")
+    @SaCheckPermission("system:session:kickout")
     public Result<Void> kickoutToken(@RequestParam String token) {
         StpUtil.kickoutByTokenValue(token);
         log.info("强制Token下线: token={}", maskToken(token));

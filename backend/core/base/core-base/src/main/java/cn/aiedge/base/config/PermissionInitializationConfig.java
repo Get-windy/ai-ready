@@ -418,13 +418,31 @@ public class PermissionInitializationConfig implements ApplicationRunner {
         );
         savePermissions(dataImportPermissions);
 
+        // 创建数据权限范围管理权限
+        List<SysPermission> dataScopePermissions = Arrays.asList(
+            createPermission("数据权限范围列表", "system:data-scope:list", 3, null, "/api/data-scope/page", "GET", 136),
+            createPermission("数据权限范围分配", "system:data-scope:assign", 3, null, "/api/data-scope/save", "POST", 137),
+            createPermission("数据权限范围删除", "system:data-scope:delete", 3, null, "/api/data-scope/*", "DELETE", 138),
+            createPermission("字段级权限列表", "system:field-permission:list", 3, null, "/api/field-permission/page", "GET", 139),
+            createPermission("字段级权限分配", "system:field-permission:assign", 3, null, "/api/field-permission/save", "POST", 140),
+            createPermission("字段级权限删除", "system:field-permission:delete", 3, null, "/api/field-permission/*", "DELETE", 141),
+            createPermission("SoD规则列表", "system:sod-rule:list", 3, null, "/api/sod-rule/page", "GET", 142),
+            createPermission("SoD规则创建", "system:sod-rule:create", 3, null, "/api/sod-rule", "POST", 143),
+            createPermission("SoD规则更新", "system:sod-rule:update", 3, null, "/api/sod-rule/*", "PUT", 144),
+            createPermission("SoD规则删除", "system:sod-rule:delete", 3, null, "/api/sod-rule/*", "DELETE", 145),
+            createPermission("SoD规则验证", "system:sod-rule:validate", 3, null, "/api/sod-rule/validate", "POST", 146),
+            createPermission("权限模拟", "system:simulate", 3, null, "/api/simulate/*", "POST", 147)
+        );
+        savePermissions(dataScopePermissions);
+
         log.info("系统权限初始化完成，共{}项",
             systemPermissions.size() + erpPermissions.size() + positionPermissions.size()
             + departmentPermissions.size() + systemMgmtPermissions.size()
             + expensePermissions.size() + financePermissions.size()
             + legacyPermMgmtPermissions.size()
             + tenantPermissions.size()
-            + dataImportPermissions.size());
+            + dataImportPermissions.size()
+            + dataScopePermissions.size());
     }
 
     /**

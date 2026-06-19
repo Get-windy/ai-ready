@@ -130,6 +130,7 @@ public class DataPermissionInterceptor extends JsqlParserSupport implements Inne
             case 1 -> DataPermission.DataScopeType.DEPT;
             case 2 -> DataPermission.DataScopeType.DEPT_AND_CHILD;
             case 3 -> DataPermission.DataScopeType.SELF;
+            case 4 -> DataPermission.DataScopeType.CUSTOM;
             default -> DataPermission.DataScopeType.ALL;
         };
     }
@@ -171,6 +172,115 @@ public class DataPermissionInterceptor extends JsqlParserSupport implements Inne
                 yield in;
             }
             case ALL, AUTO -> null;
+            case CUSTOM -> {
+                java.util.List<cn.aiedge.base.entity.SysDataScope> customScopes =
+                    permissionService.getUserCustomDataScopes(field);
+                if (customScopes == null || customScopes.isEmpty()) yield null;
+
+                // 合并所有自定义规则的 WHERE 条件
+                net.sf.jsqlparser.expression.Expression combined = null;
+                for (cn.aiedge.base.entity.SysDataScope scope : customScopes) {
+                    Expression customExpr = buildCustomExpression(scope, userId);
+                    if (customExpr != null) {
+                        if (combined == null) {
+                            combined = customExpr;
+                        } else {
+                            combined = new net.sf.jsqlparser.expression.operators.conditional.OrExpression(combined, customExpr);
+                        }
+                    }
+                }
+                yield combined;
+            }
+        };
+    }
+
+    /**
+     * 根据自定义数据权限规则构建表达式
+     */
+    private Expression buildCustomExpression(cn.aiedge.base.entity.SysDataScope scope, Long userId) {
+        if (scope == null) return null;
+        String ruleType = scope.getRuleType();
+        if (ruleType == null) return null;
+
+        return switch (ruleType) {
+            case "ALL" -> null;
+            case "SELF" -> {
+                EqualsTo eq = new EqualsTo();
+                eq.setLeftExpression(new Column(scope.getTargetField() != null ? scope.getTargetField() : "create_by"));
+                eq.setRightExpression(new LongValue(userId));
+                yield eq;
+            }
+            case "DEPT" -> {
+                String deptIds = scope.getDeptIds();
+                if (deptIds == null || deptIds.isBlank()) yield null;
+                try {
+                    java.util.List<Object> ids = cn.hutool.json.JSONUtil.parseArray(deptIds);
+                    if (ids.isEmpty()) yield null;
+                    String field = scope.getTargetField() != null ? scope.getTargetField() : "dept_id";
+                    if (ids.size() == 1) {
+                        EqualsTo eq = new EqualsTo();
+                        eq.setLeftExpression(new Column(field));
+                        eq.setRightExpression(new LongValue(Long.valueOf(ids.get(0).toString())));
+                        yield eq;
+                    } else {
+                        InExpression in = new InExpression();
+                        in.setLeftExpression(new Column(field));
+                        in.setRightExpression(new net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList<>(
+                            ids.stream().map(id -> new LongValue(Long.valueOf(id.toString()))).collect(java.util.stream.Collectors.toList())
+                        ));
+                        yield in;
+                    }
+                } catch (Exception e) {
+                    log.warn("解析自定义数据权限部门ID失败: {}", e.getMessage());
+                    yield null;
+                }
+            }
+            case "DEPT_AND_CHILD" -> {
+                // 使用 dept_id 字段，同 DEPT 逻辑
+                String deptIds = scope.getDeptIds();
+                if (deptIds == null || deptIds.isBlank()) yield null;
+                try {
+                    java.util.List<Object> ids = cn.hutool.json.JSONUtil.parseArray(deptIds);
+                    if (ids.isEmpty()) yield null;
+                    if (ids.size() == 1) {
+                        EqualsTo eq = new EqualsTo();
+                        eq.setLeftExpression(new Column("dept_id"));
+                        eq.setRightExpression(new LongValue(Long.valueOf(ids.get(0).toString())));
+                        yield eq;
+                    } else {
+                        InExpression in = new InExpression();
+                        in.setLeftExpression(new Column("dept_id"));
+                        in.setRightExpression(new net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList<>(
+                            ids.stream().map(id -> new LongValue(Long.valueOf(id.toString()))).collect(java.util.stream.Collectors.toList())
+                        ));
+                        yield in;
+                    }
+                } catch (Exception e) {
+                    log.warn("解析自定义数据权限部门ID失败: {}", e.getMessage());
+                    yield null;
+                }
+            }
+            case "CUSTOM_SQL" -> {
+                String customSql = scope.getCustomSql();
+                if (customSql == null || customSql.isBlank()) yield null;
+                try {
+                    // 使用 JSQLParser 解析自定义 SQL 表达式（安全，非字符串拼接）
+                    net.sf.jsqlparser.expression.Expression parsedExpr =
+                        net.sf.jsqlparser.parser.CCJSqlParserUtil.parseExpression(customSql);
+                    yield parsedExpr;
+                } catch (Exception e) {
+                    log.warn("解析自定义SQL表达式失败, 回退到字符串拼接: {}", e.getMessage());
+                    // 兜底：只有已知安全的简单条件才允许字符串拼接
+                    if (customSql.matches("^[a-zA-Z_]+\\s*(=|!=|<|>|<=|>=|IN|NOT IN|LIKE)\\s*[a-zA-Z0-9_'(), ]+$")) {
+                        yield new net.sf.jsqlparser.expression.operators.conditional.AndExpression(
+                            new net.sf.jsqlparser.expression.StringValue(" " + customSql + " "),
+                            new net.sf.jsqlparser.expression.LongValue(1)
+                        );
+                    }
+                    yield null;
+                }
+            }
+            default -> null;
         };
     }
 }

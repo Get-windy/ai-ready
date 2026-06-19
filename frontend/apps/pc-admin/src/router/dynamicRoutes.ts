@@ -3,7 +3,7 @@ import { h, defineComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
-const CLIENT_TYPE = 'pc-admin'
+const CLIENT_TYPE = 'tenant-admin'
 
 /**
  * 递归剥离路由树中所有层级的 redirect 属性
@@ -369,12 +369,19 @@ function getComponent(componentPath: string) {
   if (componentMap[normalizedPath]) {
     return componentMap[normalizedPath]
   }
+  // 尝试追加 /index（数据库存 system/menu/index，路由转换后可能只传 system/menu）
+  if (componentMap[normalizedPath + '/index']) {
+    return componentMap[normalizedPath + '/index']
+  }
   // Vite 动态 import 变量只支持单层路径，多层路径无法解析，返回空组件
   if (normalizedPath.includes('/') || normalizedPath.includes('\\')) {
-    console.warn('[动态路由] 多层路径无法动态导入:', normalizedPath)
-    return () => Promise.resolve(defineComponent({
-      render: () => h('div', { style: 'padding:40px;text-align:center;color:#999' }, '页面组件未找到: ' + normalizedPath)
-    }))
+    // 尝试动态导入 index.vue（views/system/menu/index.vue 形式）
+    return () => import(`../views/${normalizedPath}/index.vue`).catch(() => {
+      console.warn('[动态路由] 组件加载失败:', normalizedPath)
+      return defineComponent({
+        render: () => h('div', { style: 'padding:40px;text-align:center;color:#999' }, '页面组件未找到: ' + normalizedPath)
+      })
+    })
   }
   return () => import(`../views/${normalizedPath}.vue`)
 }

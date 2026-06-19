@@ -569,6 +569,36 @@ public class DatabaseInitializer implements CommandLineRunner {
             "calculation_start_time TIMESTAMP, calculation_end_time TIMESTAMP, " +
             "calculation_duration_ms BIGINT, engine_version VARCHAR(50), " +
             "cached BOOLEAN DEFAULT FALSE, cache_key VARCHAR(200), suggestion VARCHAR(500)");
+
+        // sys_data_scope — 自定义数据权限范围规则（角色级精细粒度控制）
+        safeCreateTable("sys_data_scope", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
+            "role_id BIGINT NOT NULL, rule_type VARCHAR(50) NOT NULL DEFAULT 'DEPT', " +
+            "target_table VARCHAR(100), target_field VARCHAR(100) DEFAULT 'dept_id', " +
+            "dept_ids TEXT, custom_sql VARCHAR(1000), " +
+            "remark VARCHAR(500), status INTEGER DEFAULT 1, " +
+            "deleted INTEGER DEFAULT 0, version INTEGER DEFAULT 0, " +
+            "create_by BIGINT, create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "update_by BIGINT, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+        // sys_field_permission — 字段级权限（控制字段可见性和脱敏规则）
+        safeCreateTable("sys_field_permission", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
+            "role_id BIGINT NOT NULL, target_table VARCHAR(100) NOT NULL, " +
+            "target_field VARCHAR(100) NOT NULL, visible INTEGER DEFAULT 1, " +
+            "mask_type VARCHAR(50), mask_char VARCHAR(10) DEFAULT '*', " +
+            "mask_prefix_len INTEGER DEFAULT 0, mask_suffix_len INTEGER DEFAULT 0, " +
+            "status INTEGER DEFAULT 1, " +
+            "deleted INTEGER DEFAULT 0, version INTEGER DEFAULT 0, " +
+            "create_by BIGINT, create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "update_by BIGINT, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+        // sys_sod_rule — 职责分离规则（互斥角色配置）
+        safeCreateTable("sys_sod_rule", "id BIGINT PRIMARY KEY, tenant_id BIGINT DEFAULT 1, " +
+            "rule_name VARCHAR(100) NOT NULL, description VARCHAR(500), " +
+            "conflict_role_ids TEXT NOT NULL, " +
+            "status INTEGER DEFAULT 1, " +
+            "deleted INTEGER DEFAULT 0, version INTEGER DEFAULT 0, " +
+            "create_by BIGINT, create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+            "update_by BIGINT, update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
     }
 
     /**
@@ -1003,24 +1033,24 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * 确保 pc-admin 菜单数据存在
-     * 若 sys_menu 表中尚无 pc-admin 客户端菜单，则批量插入默认菜单树
+     * 确保 tenant-admin 菜单数据存在
+     * 若 sys_menu 表中尚无 tenant-admin 客户端菜单，则批量插入默认菜单树
      * 并将全部菜单关联到超级管理员角色（role_id=1）
      */
     private void ensureMenuData() {
         // 检查菜单数据是否已存在
         try {
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM sys_menu WHERE client_type = 'pc-admin' AND deleted = 0", Integer.class);
+                "SELECT COUNT(*) FROM sys_menu WHERE client_type = 'tenant-admin' AND deleted = 0", Integer.class);
             if (count != null && count > 0) {
-                log.info("pc-admin 菜单数据已存在 ({} 条)，跳过初始化", count);
+                log.info("tenant-admin 菜单数据已存在 ({} 条)，跳过初始化", count);
                 return;
             }
         } catch (Exception e) {
             log.warn("检查菜单数据失败: {}", e.getMessage());
         }
 
-        log.info("初始化 pc-admin 菜单树...");
+        log.info("初始化 tenant-admin 菜单树...");
         StringBuilder sql = new StringBuilder();
         sql.append("MERGE INTO sys_menu (id, tenant_id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort, visible, status, client_type, deleted, display_mode, list_path, tag_label, display_group) KEY(id) VALUES ");
 
@@ -1041,6 +1071,9 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 2010, 2000, "租户管理", "SystemTenant", 1, "system/tenant", "system/tenant/index", "TeamOutlined", 10);
         appendMenu(sql, 2011, 2000, "租户审批", "SystemTenantApproval", 1, "system/tenant-approval", "system/tenant-approval/index", "SafetyOutlined", 11);
         appendMenu(sql, 2012, 2000, "数据导入", "DataImport", 1, "system/data-import", "system/data-import/index", "ImportOutlined", 12);
+        appendMenu(sql, 2013, 2000, "数据权限范围", "DataScope", 1, "system/data-scope", "system/data-scope/index", "SafetyOutlined", 13);
+        appendMenu(sql, 2014, 2000, "字段级权限", "FieldPermission", 1, "system/field-permission", "system/field-permission/index", "LockOutlined", 14);
+        appendMenu(sql, 2015, 2000, "职责分离规则", "SodRule", 1, "system/sod-rule", "system/sod-rule/index", "AuditOutlined", 15);
 
         // ═══════════════ 采购管理 ═══════════════
         appendMenu(sql, 3000, 0, "采购管理", "Purchase", 0, "erp/purchase", null, "ShoppingCartOutlined", 20);
@@ -1193,7 +1226,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         try {
             jdbcTemplate.execute(sql.toString());
-            log.info("pc-admin 菜单数据初始化完成");
+            log.info("tenant-admin 菜单数据初始化完成");
         } catch (Exception e) {
             log.error("插入菜单数据失败: {}", e.getMessage());
             return;
@@ -1204,7 +1237,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * 将全部 pc-admin 菜单关联到超级管理员角色
+     * 将全部 tenant-admin 菜单关联到超级管理员角色
      */
     private void ensureRoleMenuAssociations() {
         try {
@@ -1221,8 +1254,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         try {
             int inserted = jdbcTemplate.update(
                 "INSERT INTO sys_role_menu (id, role_id, menu_id, tenant_id) " +
-                "SELECT 100000 + m.id, 1, m.id, 1 FROM sys_menu m " +
-                "WHERE m.client_type = 'pc-admin' AND m.deleted = 0 " +
+                "SELECT 100000 + m.id, 1, m.id, 0 FROM sys_menu m " +
+                "WHERE m.client_type = 'tenant-admin' AND m.deleted = 0 " +
                 "AND NOT EXISTS (SELECT 1 FROM sys_role_menu r WHERE r.role_id = 1 AND r.menu_id = m.id)"
             );
             log.info("关联 {} 条菜单到超级管理员角色", inserted);
@@ -1244,7 +1277,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     private void appendMenu(StringBuilder sb, long id, long parentId, String name, String code, int type,
                              String path, String component, String icon, int sort,
                              int displayMode, String listPath, String tagLabel, int displayGroup) {
-        sb.append("(").append(id).append(", 1, ").append(parentId).append(", '")
+        sb.append("(").append(id).append(", 0, ").append(parentId).append(", '")
           .append(name.replace("'", "''")).append("', '")
           .append(code.replace("'", "''")).append("', ").append(type).append(", '")
           .append(path.replace("'", "''")).append("', ");
@@ -1254,7 +1287,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             sb.append("NULL");
         }
         sb.append(", '").append(icon.replace("'", "''")).append("', ")
-          .append(sort).append(", 1, 1, 'pc-admin', 0, ")
+          .append(sort).append(", 1, 1, 'tenant-admin', 0, ")
           .append(displayMode).append(", ");
         // list_path (nullable)
         if (listPath != null && !listPath.isEmpty()) {

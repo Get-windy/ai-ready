@@ -1,5 +1,6 @@
 package cn.aiedge.base.security;
 
+import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.service.SysUserService;
 import cn.aiedge.base.websocket.SseNotificationService;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -49,6 +50,7 @@ public class UnifiedPermissionCacheService {
     private final StringRedisTemplate redisTemplate;
     private final SysUserService userService;
     private final SseNotificationService sseService;
+    private final SuperAdminConfig superAdminConfig;
 
     // 可选：Redis listener 用于接收缓存失效通知
     private RedisMessageListenerContainer listenerContainer;
@@ -79,7 +81,7 @@ public class UnifiedPermissionCacheService {
 
         // 超级管理员角色检查：拥有所有权限
         List<String> roles = getRoles(userId);
-        if (roles != null && roles.contains("SUPER_ADMIN")) {
+        if (roles != null && superAdminConfig.hasSuperAdminRole(roles)) {
             List<String> allPerms = new ArrayList<>();
             allPerms.add("*");  // 通配符权限，表示拥有所有权限
             return allPerms;
@@ -231,6 +233,41 @@ public class UnifiedPermissionCacheService {
             roleLocalCache.stats().evictionCount(),
             roleLocalCache.estimatedSize()
         );
+    }
+
+    /**
+     * 清除指定用户的权限缓存（供 CacheEvictor 调用）
+     * 等同于 invalidate 但不发送 Redis Pub/Sub 通知（避免重复广播）
+     */
+    public void evictUserCache(Long userId) {
+        if (userId == null) return;
+        permissionLocalCache.invalidate(userId);
+        roleLocalCache.invalidate(userId);
+        redisTemplate.delete(PERMISSION_REDIS_PREFIX + userId);
+        redisTemplate.delete(ROLE_REDIS_PREFIX + userId);
+        log.debug("用户权限缓存已清除: userId={}", userId);
+    }
+
+    /**
+     * 清除所有用户的权限缓存（供 CacheEvictor 调用）
+     */
+    public void evictAllCache() {
+        permissionLocalCache.invalidateAll();
+        roleLocalCache.invalidateAll();
+        // 使用 SCAN 命令批量删除 Redis 缓存键
+        try {
+            var permKeys = redisTemplate.keys(PERMISSION_REDIS_PREFIX + "*");
+            if (permKeys != null && !permKeys.isEmpty()) {
+                redisTemplate.delete(permKeys);
+            }
+            var roleKeys = redisTemplate.keys(ROLE_REDIS_PREFIX + "*");
+            if (roleKeys != null && !roleKeys.isEmpty()) {
+                redisTemplate.delete(roleKeys);
+            }
+        } catch (Exception e) {
+            log.warn("批量清除Redis缓存失败: {}", e.getMessage());
+        }
+        log.info("所有用户权限缓存已清除");
     }
 
     @PostConstruct

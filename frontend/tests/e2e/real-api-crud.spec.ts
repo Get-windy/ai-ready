@@ -195,7 +195,7 @@ test.describe('真实API CRUD', () => {
   test('B2. 菜单接口验证', async () => {
     const token = await page.evaluate(() => localStorage.getItem('token'));
 
-    const res = await page.request.get(`http://localhost:5656/api/menu/user/client/pc-admin`, {
+    const res = await page.request.get(`http://localhost:5656/api/menu/user/client/tenant-admin`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     expect(res.ok()).toBe(true);

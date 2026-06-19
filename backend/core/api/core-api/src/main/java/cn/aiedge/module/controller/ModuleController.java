@@ -26,7 +26,7 @@ public class ModuleController {
     private final ModuleService moduleService;
 
     @GetMapping("/list")
-    @SaCheckPermission("module:list")
+    @SaCheckPermission("system:module:list")
     @Operation(summary = "获取模块列表")
     public ResponseEntity<Map<String, Object>> getModuleList() {
         List<SysModule> modules = moduleService.getModuleList();
@@ -34,7 +34,7 @@ public class ModuleController {
     }
 
     @GetMapping("/versions")
-    @SaCheckPermission("module:list")
+    @SaCheckPermission("system:module:list")
     @Operation(summary = "获取模块版本列表")
     public ResponseEntity<Map<String, Object>> getVersionList(
             @RequestParam(required = false) Long moduleId) {
@@ -48,7 +48,7 @@ public class ModuleController {
     }
 
     @GetMapping("/releases")
-    @SaCheckPermission("module:list")
+    @SaCheckPermission("system:module:list")
     @Operation(summary = "获取模块发布记录")
     public ResponseEntity<Map<String, Object>> getReleaseList(
             @RequestParam(required = false) Long moduleId) {
@@ -62,7 +62,7 @@ public class ModuleController {
     }
 
     @GetMapping("/usage")
-    @SaCheckPermission("module:list")
+    @SaCheckPermission("system:module:list")
     @Operation(summary = "获取模块使用统计")
     public ResponseEntity<Map<String, Object>> getUsageStats() {
         List<Map<String, Object>> stats = moduleService.getUsageStats();
@@ -70,7 +70,7 @@ public class ModuleController {
     }
 
     @GetMapping("/{id}")
-    @SaCheckPermission("module:list")
+    @SaCheckPermission("system:module:list")
     @Operation(summary = "根据ID获取模块")
     public ResponseEntity<Map<String, Object>> getModuleById(@PathVariable Long id) {
         SysModule module = moduleService.getModuleById(id);
@@ -81,7 +81,7 @@ public class ModuleController {
     }
 
     @PostMapping
-    @SaCheckPermission("module:create")
+    @SaCheckPermission("system:module:create")
     @Operation(summary = "创建模块")
     public ResponseEntity<Map<String, Object>> createModule(@RequestBody SysModule module) {
         SysModule created = moduleService.createModule(module);
@@ -89,7 +89,7 @@ public class ModuleController {
     }
 
     @PutMapping("/{id}")
-    @SaCheckPermission("module:update")
+    @SaCheckPermission("system:module:update")
     @Operation(summary = "更新模块")
     public ResponseEntity<Map<String, Object>> updateModule(
             @PathVariable Long id,
@@ -103,7 +103,7 @@ public class ModuleController {
     }
 
     @DeleteMapping("/{id}")
-    @SaCheckPermission("module:delete")
+    @SaCheckPermission("system:module:delete")
     @Operation(summary = "删除模块")
     public ResponseEntity<Map<String, Object>> deleteModule(@PathVariable Long id) {
         boolean success = moduleService.deleteModule(id);
@@ -111,7 +111,7 @@ public class ModuleController {
     }
 
     @PutMapping("/{id}/status")
-    @SaCheckPermission("module:update")
+    @SaCheckPermission("system:module:update")
     @Operation(summary = "切换模块状态")
     public ResponseEntity<Map<String, Object>> toggleStatus(@PathVariable Long id) {
         boolean success = moduleService.toggleStatus(id);
@@ -122,7 +122,7 @@ public class ModuleController {
     }
 
     @PostMapping("/{id}/publish")
-    @SaCheckPermission("module:update")
+    @SaCheckPermission("system:module:update")
     @Operation(summary = "发布新版本")
     public ResponseEntity<Map<String, Object>> publishVersion(
             @PathVariable Long id,

@@ -38,6 +38,14 @@ public interface PermissionService {
      */
     Integer getCurrentUserDataScope();
 
+    /**
+     * 获取当前用户的自定义数据权限规则（CUSTOM 类型）
+     *
+     * @param tableName 目标表名
+     * @return 自定义数据权限范围列表（包含部门ID、自定义SQL等）
+     */
+    java.util.List<cn.aiedge.base.entity.SysDataScope> getUserCustomDataScopes(String tableName);
+
     // ==================== 权限查询 ====================
 
     /**

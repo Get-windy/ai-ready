@@ -27,23 +27,19 @@
         <!-- ERP 业务模块依赖 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-party</artifactId>
-            <version>0.2.0</version>
+            <artifactId>erp-customer</artifactId>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-purchase</artifactId>
-            <version>0.2.0</version>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-sale</artifactId>
-            <version>0.2.0</version>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-stock</artifactId>
-            <version>0.2.0</version>
         </dependency>
 
         <!-- Spring Boot Starter -->

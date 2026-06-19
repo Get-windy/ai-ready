@@ -1,5 +1,6 @@
 package cn.aiedge.base.service.impl;
 
+import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.entity.SysMenu;
 import cn.aiedge.base.mapper.SysMenuMapper;
 import cn.aiedge.base.service.SysMenuService;
@@ -39,6 +40,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
     private final SysUserService userService;
     private final UnifiedPermissionCacheService permissionCacheService;
     private final SysTenantMenuService tenantMenuService;
+    private final SuperAdminConfig superAdminConfig;
 
     // 系统租户ID（超级租户）
     private static final Long SYSTEM_TENANT_ID = 1L;
@@ -136,7 +138,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
         List<String> roles = permissionCacheService.getRoles(userId);
         log.info("[菜单服务] 用户角色列表: {}", roles);
 
-        boolean isSuperAdmin = roles != null && roles.contains("SUPER_ADMIN");
+        boolean isSuperAdmin = roles != null && superAdminConfig.hasSuperAdminRole(roles);
         log.info("[菜单服务] 是否超级管理员: {}", isSuperAdmin);
 
         if (isSuperAdmin) {

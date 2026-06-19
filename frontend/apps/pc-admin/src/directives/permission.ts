@@ -149,12 +149,15 @@ export const role: Directive = {
   }
 }
 
+/** 超级管理员角色编码列表 */
+const SUPER_ADMIN_ROLES = ['admin', 'super_admin', 'SUPER_ADMIN']
+
 function checkRole(roles: string | string[], userRoles: string[]): boolean {
   if (!userRoles || userRoles.length === 0) {
     return false
   }
 
-  if (userRoles.includes('admin') || userRoles.includes('super_admin')) {
+  if (userRoles.some(r => SUPER_ADMIN_ROLES.includes(r))) {
     return true
   }
 

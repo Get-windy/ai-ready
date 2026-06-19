@@ -307,7 +307,7 @@ export async function setupAuthApiMocks(page: Page, userType: 'admin' | 'user' =
   });
 
   // Mock 菜单接口（路由守卫和布局都会调用）
-  await page.route('**/api/menu/user/client/pc-admin*', (route) => {
+  await page.route('**/api/menu/user/client/tenant-admin*', (route) => {
     return route.fulfill(apiResponse(buildMenuData()));
   });
 

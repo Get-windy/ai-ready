@@ -1,5 +1,6 @@
 package cn.aiedge.base.security;
 
+import cn.aiedge.base.config.SuperAdminConfig;
 import cn.aiedge.base.entity.SysDept;
 import cn.aiedge.base.entity.SysPermission;
 import cn.aiedge.base.entity.SysRole;
@@ -36,6 +37,7 @@ public class RbacService {
     private final SysPermissionService permissionService;
     private final SysDeptMapper deptMapper;
     private final SecurityContext securityContext;
+    private final SuperAdminConfig superAdminConfig;
 
     /**
      * 检查用户是否有权限访问指定 API
@@ -91,7 +93,7 @@ public class RbacService {
      */
     public boolean isSuperAdmin(Long userId) {
         Set<String> roles = getUserRoleCodes(userId);
-        return roles.contains("SUPER_ADMIN") || roles.contains("admin");
+        return superAdminConfig.hasSuperAdminRole(roles);
     }
 
     /**
@@ -221,7 +223,7 @@ public class RbacService {
         Set<String> roles = getUserRoleCodes(userId);
         
         // 超级管理员获取所有菜单
-        if (roles.contains("SUPER_ADMIN") || roles.contains("admin")) {
+        if (superAdminConfig.hasSuperAdminRole(roles)) {
             return permissionService.getPermissionTree(securityContext.getCurrentTenantId());
         }
 

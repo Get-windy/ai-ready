@@ -7,6 +7,7 @@
  * 支持的事件类型：
  * - `connected` — 连接建立确认
  * - `cache-invalidate` — 缓存失效通知，触发前端重新加载权限
+ * - `permission-change` — 权限变更通知，触发前端刷新权限缓存
  * - `notification` — 通用通知
  */
 
@@ -45,6 +46,11 @@ class SseClient {
     this.eventSource.addEventListener('cache-invalidate', (event: MessageEvent) => {
       console.info('[SSE] 收到缓存失效通知:', event.data)
       this.dispatch('cache-invalidate', event.data)
+    })
+
+    this.eventSource.addEventListener('permission-change', (event: MessageEvent) => {
+      console.info('[SSE] 收到权限变更通知:', event.data)
+      this.dispatch('permission-change', event.data)
     })
 
     this.eventSource.addEventListener('notification', (event: MessageEvent) => {

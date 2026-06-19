@@ -83,7 +83,7 @@ function isKnown404(path) {
 
   // 2. 获取菜单树
   console.log('[2/4] 获取菜单树...')
-  const menuResp = await page.request.get('http://localhost:5655/api/menu/user/client/pc-admin', {
+  const menuResp = await page.request.get('http://localhost:5655/api/menu/user/client/tenant-admin', {
     headers: { 'Authorization': `Bearer ${token}` }
   })
   const menus = (await menuResp.json())?.data || []

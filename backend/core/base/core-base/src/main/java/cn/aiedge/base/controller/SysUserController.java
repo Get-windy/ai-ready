@@ -1,6 +1,7 @@
 package cn.aiedge.base.controller;
 
 import cn.aiedge.base.dto.BatchAssignRolesRequest;
+import cn.aiedge.base.event.PermissionChangeEvent;
 import cn.aiedge.base.dto.UserCreateRequest;
 import cn.aiedge.base.dto.UserDTO;
 import cn.aiedge.base.dto.UserLoginRequest;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,6 +36,7 @@ import java.util.List;
 public class SysUserController {
 
     private final SysUserService userService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 用户登录
@@ -63,7 +66,7 @@ public class SysUserController {
      */
     @Operation(summary = "创建用户")
     @PostMapping
-    @SaCheckPermission("user:create")
+    @SaCheckPermission("system:user:create")
     @OperationLog(module = "用户管理", type = "CREATE", desc = "创建用户")
     public Result<Long> createUser(@RequestBody @Valid UserCreateRequest dto) {
         SysUser user = convertToEntity(dto);
@@ -76,7 +79,7 @@ public class SysUserController {
      */
     @Operation(summary = "更新用户")
     @PutMapping("/{id}")
-    @SaCheckPermission("user:update")
+    @SaCheckPermission("system:user:update")
     public Result<Void> updateUser(@PathVariable Long id, @RequestBody UserUpdateRequest dto) {
         SysUser user = convertToEntity(dto);
         user.setId(id);
@@ -89,7 +92,7 @@ public class SysUserController {
      */
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("user:delete")
+    @SaCheckPermission("system:user:delete")
     public Result<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return Result.ok("删除成功", null);
@@ -100,7 +103,7 @@ public class SysUserController {
      */
     @Operation(summary = "批量删除用户")
     @DeleteMapping("/batch")
-    @SaCheckPermission("user:delete")
+    @SaCheckPermission("system:user:delete")
     public Result<Void> batchDeleteUsers(@RequestBody List<Long> ids) {
         userService.batchDeleteUsers(ids);
         return Result.ok("批量删除成功", null);
@@ -111,7 +114,7 @@ public class SysUserController {
      */
     @Operation(summary = "分页查询用户")
     @GetMapping("/page")
-    @SaCheckPermission("user:list")
+    @SaCheckPermission("system:user:list")
     public Result<Page<SysUser>> pageUsers(UserDTO.Query query) {
         int pageNum = query.pageNum() != null ? query.pageNum() : 1;
         int pageSize = query.pageSize() != null ? query.pageSize() : 10;
@@ -126,7 +129,7 @@ public class SysUserController {
      */
     @Operation(summary = "获取用户列表")
     @GetMapping("/list")
-    @SaCheckPermission("user:list")
+    @SaCheckPermission("system:user:list")
     public Result<List<SysUser>> listUsers(UserDTO.Query query) {
         Page<SysUser> page = new Page<>(1, query.pageSize() != null ? query.pageSize() : 1000);
         Page<SysUser> result = userService.pageUsers(page, query.tenantId(),
@@ -139,7 +142,7 @@ public class SysUserController {
      */
     @Operation(summary = "获取用户详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("user:detail")
+    @SaCheckPermission("system:user:detail")
     public Result<SysUser> getUserDetail(@PathVariable Long id) {
         SysUser user = userService.getUserDetail(id);
         return Result.ok(user);
@@ -150,7 +153,7 @@ public class SysUserController {
      */
     @Operation(summary = "重置密码")
     @PutMapping("/{id}/password/reset")
-    @SaCheckPermission("user:reset-password")
+    @SaCheckPermission("system:user:reset-password")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "重置用户密码")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
         userService.resetPassword(id, newPassword);
@@ -175,10 +178,13 @@ public class SysUserController {
      */
     @Operation(summary = "分配角色")
     @PostMapping("/{id}/roles")
-    @SaCheckPermission("user:assign-role")
+    @SaCheckPermission("system:user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "分配用户角色", saveParams = true)
     public Result<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
         userService.assignRoles(id, roleIds);
+        eventPublisher.publishEvent(PermissionChangeEvent.targeted(this,
+                PermissionChangeEvent.ChangeType.USER_ROLE_ASSIGNED,
+                java.util.Set.of(id), null, "分配用户角色: userId=" + id));
         return Result.ok("角色分配成功", null);
     }
 
@@ -187,10 +193,13 @@ public class SysUserController {
      */
     @Operation(summary = "批量分配角色")
     @PostMapping("/batch-assign-roles")
-    @SaCheckPermission("user:assign-role")
+    @SaCheckPermission("system:user:assign-role")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "批量分配角色", saveParams = true)
     public Result<Void> batchAssignRoles(@RequestBody @Valid BatchAssignRolesRequest dto) {
         userService.batchAssignRoles(dto.getUserIds(), dto.getRoleIds());
+        eventPublisher.publishEvent(PermissionChangeEvent.targeted(this,
+                PermissionChangeEvent.ChangeType.USER_ROLE_ASSIGNED,
+                new java.util.HashSet<>(dto.getUserIds()), null, "批量分配角色: users=" + dto.getUserIds()));
         return Result.ok("批量角色分配成功", null);
     }
 
@@ -199,7 +208,7 @@ public class SysUserController {
      */
     @Operation(summary = "更新用户状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("user:update-status")
+    @SaCheckPermission("system:user:update-status")
     @OperationLog(module = "用户管理", type = "UPDATE", desc = "更新用户状态")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         userService.updateUserStatus(id, status);

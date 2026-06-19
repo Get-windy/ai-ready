@@ -937,7 +937,7 @@ onMounted(() => {
 async function loadCustomerOptions() {
   try {
     const { customerApi } = await import('@/api/customer')
-    const res = await (customerApi as any).getOptions()
+    const res = await customerApi.getOptions()
     customerOptions.value = (res.data || res || []).map((c: any) => ({ id: c.id, name: c.name }))
   } catch (e) {
     console.warn('[销售订单] 加载客户选项失败', e)

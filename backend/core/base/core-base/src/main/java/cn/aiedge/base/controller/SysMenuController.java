@@ -1,6 +1,8 @@
 package cn.aiedge.base.controller;
 
 import cn.aiedge.base.entity.SysMenu;
+import cn.aiedge.base.event.PermissionChangeEvent;
+import cn.aiedge.base.log.annotation.OperationLog;
 import cn.aiedge.base.service.SysMenuService;
 import cn.aiedge.base.vo.Result;
 import cn.dev33.satoken.annotation.SaCheckLogin;
@@ -9,6 +11,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,15 +29,19 @@ import java.util.List;
 public class SysMenuController {
 
     private final SysMenuService menuService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 创建菜单
      */
     @Operation(summary = "创建菜单")
     @PostMapping
-    @SaCheckPermission("menu:create")
+    @SaCheckPermission("system:menu:create")
+    @OperationLog(module = "菜单管理", type = "CREATE", desc = "创建菜单")
     public Result<Long> createMenu(@RequestBody SysMenu menu) {
         Long menuId = menuService.createMenu(menu);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.MENU_CREATED, menu.getTenantId(), "创建菜单: " + menu.getMenuName()));
         return Result.ok("创建成功", menuId);
     }
 
@@ -43,10 +50,13 @@ public class SysMenuController {
      */
     @Operation(summary = "更新菜单")
     @PutMapping("/{id}")
-    @SaCheckPermission("menu:update")
+    @SaCheckPermission("system:menu:update")
+    @OperationLog(module = "菜单管理", type = "UPDATE", desc = "更新菜单")
     public Result<Void> updateMenu(@PathVariable Long id, @RequestBody SysMenu menu) {
         menu.setId(id);
         menuService.updateMenu(menu);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.MENU_UPDATED, menu.getTenantId(), "更新菜单: id=" + id));
         return Result.ok("更新成功", null);
     }
 
@@ -55,9 +65,12 @@ public class SysMenuController {
      */
     @Operation(summary = "删除菜单")
     @DeleteMapping("/{id}")
-    @SaCheckPermission("menu:delete")
+    @SaCheckPermission("system:menu:delete")
+    @OperationLog(module = "菜单管理", type = "DELETE", desc = "删除菜单")
     public Result<Void> deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.MENU_DELETED, null, "删除菜单: id=" + id));
         return Result.ok("删除成功", null);
     }
 
@@ -66,7 +79,7 @@ public class SysMenuController {
      */
     @Operation(summary = "获取菜单树")
     @GetMapping("/tree")
-    @SaCheckPermission("menu:list")
+    @SaCheckPermission("system:menu:list")
     public Result<List<SysMenu>> getMenuTree(@RequestParam Long tenantId) {
         List<SysMenu> tree = menuService.getMenuTree(tenantId);
         return Result.ok(tree);
@@ -120,7 +133,7 @@ public class SysMenuController {
      */
     @Operation(summary = "获取子菜单列表")
     @GetMapping("/children/{parentId}")
-    @SaCheckPermission("menu:list")
+    @SaCheckPermission("system:menu:list")
     public Result<List<SysMenu>> getChildrenMenus(
             @PathVariable Long parentId,
             @RequestParam Long tenantId) {
@@ -133,7 +146,7 @@ public class SysMenuController {
      */
     @Operation(summary = "获取菜单详情")
     @GetMapping("/{id}")
-    @SaCheckPermission("menu:detail")
+    @SaCheckPermission("system:menu:detail")
     public Result<SysMenu> getMenuDetail(@PathVariable Long id) {
         SysMenu menu = menuService.getMenuDetail(id);
         return Result.ok(menu);
@@ -144,7 +157,7 @@ public class SysMenuController {
      */
     @Operation(summary = "获取所有菜单列表")
     @GetMapping("/list")
-    @SaCheckPermission("menu:list")
+    @SaCheckPermission("system:menu:list")
     public Result<List<SysMenu>> listAllMenus(@RequestParam Long tenantId) {
         List<SysMenu> menus = menuService.listAllMenus(tenantId);
         return Result.ok(menus);
@@ -155,7 +168,8 @@ public class SysMenuController {
      */
     @Operation(summary = "更新菜单排序")
     @PutMapping("/{id}/sort")
-    @SaCheckPermission("menu:update")
+    @SaCheckPermission("system:menu:update")
+    @OperationLog(module = "菜单管理", type = "UPDATE", desc = "更新菜单排序")
     public Result<Void> updateSort(@PathVariable Long id, @RequestParam Integer sort) {
         menuService.updateMenuSort(id, sort);
         return Result.ok("排序更新成功", null);
@@ -166,9 +180,11 @@ public class SysMenuController {
      */
     @Operation(summary = "更新菜单状态")
     @PutMapping("/{id}/status")
-    @SaCheckPermission("menu:update-status")
+    @SaCheckPermission("system:menu:update-status")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         menuService.updateMenuStatus(id, status);
+        eventPublisher.publishEvent(PermissionChangeEvent.broadcast(this,
+                PermissionChangeEvent.ChangeType.MENU_UPDATED, null, "更新菜单状态: id=" + id));
         return Result.ok("状态更新成功", null);
     }
 

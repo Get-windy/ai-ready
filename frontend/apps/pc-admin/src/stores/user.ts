@@ -4,6 +4,9 @@ import { menuApi, type MenuInfo } from '@/api/menu'
 import { tenantModuleApi } from '@/api/tenantModule'
 import { getSseClient, destroySseClient } from '@/utils/sseClient'
 
+/** 超级管理员角色编码列表（与后端 system.super-admin.role-codes 配置保持一致） */
+const SUPER_ADMIN_ROLES = ['SUPER_ADMIN', 'admin', 'super_admin']
+
 interface UserState {
   token: string
   userId: number
@@ -61,6 +64,14 @@ export const useUserStore = defineStore('user', {
       const sse = getSseClient()
       sse.on('cache-invalidate', () => {
         console.info('[SSE] 收到缓存失效通知，重新加载权限数据...')
+        if (this.userInfo) {
+          this.getUserInfo()
+        }
+      })
+      sse.on('permission-change', (data: any) => {
+        console.info('[SSE] 收到权限变更通知，清除菜单缓存并重新加载权限...')
+        // 清除菜单本地缓存
+        this.clearMenuCache()
         if (this.userInfo) {
           this.getUserInfo()
         }
@@ -181,7 +192,7 @@ export const useUserStore = defineStore('user', {
     },
 
     hasRole(role: string): boolean {
-      return this.roles.includes(role) || this.roles.includes('admin')
+      return this.roles.includes(role) || this.roles.some(r => SUPER_ADMIN_ROLES.includes(r))
     },
 
     hasAnyPermission(permissions: string[]): boolean {

@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 
   // 拦截网络请求，记录菜单API响应
   page.on('response', async response => {
-    if (response.url().includes('/api/menu/user/client/pc-admin')) {
+    if (response.url().includes('/api/menu/user/client/tenant-admin')) {
       try {
         const data = await response.json();
         console.log('\n=== 菜单API响应 ===');

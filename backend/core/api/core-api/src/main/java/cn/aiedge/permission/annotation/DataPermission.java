@@ -37,6 +37,8 @@ public @interface DataPermission {
         /** 本部门及下级数据 */
         DEPT_AND_CHILD,
         /** 仅本人数据 */
-        SELF
+        SELF,
+        /** 自定义规则（从 sys_data_scope 表读取精细规则） */
+        CUSTOM
     }
 }

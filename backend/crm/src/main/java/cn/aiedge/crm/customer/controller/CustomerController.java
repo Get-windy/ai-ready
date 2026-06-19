@@ -87,15 +87,36 @@ public class CustomerController {
     }
 
     @Operation(summary = "查询销售人员的客户")
-    @GetMapping("/salesPerson/{salesPersonId}")
+    @GetMapping("/salesPerson/{salesPersonId:\\d+}")
     public List<Customer> listBySalesPerson(@PathVariable Long salesPersonId) {
         return customerService.listBySalesPersonId(salesPersonId);
     }
     
     @Operation(summary = "按等级查询客户")
-    @GetMapping("/level/{customerLevel}")
+    @GetMapping("/level/{customerLevel:\\d+}")
     public List<Customer> listByLevel(@PathVariable Integer customerLevel) {
         return customerService.listByCustomerLevel(customerLevel);
+    }
+
+    @Operation(summary = "获取客户选项列表（下拉选择用）")
+    @GetMapping("/dropdown")
+    public List<java.util.Map<String, Object>> getOptions(
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Customer> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.select(Customer::getId, Customer::getCustomerName);
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(Customer::getCustomerName, keyword);
+        }
+        wrapper.eq(Customer::getStatus, 1);
+        wrapper.last("LIMIT 200");
+        List<Customer> customers = customerService.list(wrapper);
+        return customers.stream().map(c -> {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", c.getId());
+            map.put("name", c.getCustomerName());
+            return map;
+        }).toList();
     }
 
     @Operation(summary = "获取客户列表（无分页，供下拉选择器使用）")
@@ -106,7 +127,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "更新客户状态")
-    @PutMapping("/{id}/status")
+    @PutMapping("/{id:\\d+}/status")
     public Customer updateStatus(
             @PathVariable Long id,
             @Parameter(description = "状态") @RequestParam Integer status) {
@@ -129,13 +150,13 @@ public class CustomerController {
     }
 
     @Operation(summary = "获取客户跟进记录")
-    @GetMapping("/{customerId}/follows")
+    @GetMapping("/{customerId:\\d+}/follows")
     public List<CustomerFollowUp> getFollowRecords(@PathVariable Long customerId) {
         return customerFollowUpService.listByCustomerId(customerId);
     }
 
     @Operation(summary = "添加客户跟进记录")
-    @PostMapping("/{customerId}/follow")
+    @PostMapping("/{customerId:\\d+}/follow")
     public CustomerFollowUp addFollowRecord(
             @PathVariable Long customerId,
             @RequestBody CustomerFollowUp followUp) {
@@ -146,7 +167,7 @@ public class CustomerController {
     }
 
     @Operation(summary = "获取客户订单记录")
-    @GetMapping("/{customerId}/orders")
+    @GetMapping("/{customerId:\\d+}/orders")
     public List<?> getOrderRecords(@PathVariable Long customerId) {
         // 订单记录由销售模块提供，此处返回空列表
         return List.of();

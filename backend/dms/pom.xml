@@ -12,7 +12,6 @@
     </parent>
 
     <artifactId>dms-delivery</artifactId>
-    <version>0.2.0</version>
     <packaging>jar</packaging>
 
     <name>DMS 配送管理模块</name>

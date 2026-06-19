@@ -20,18 +20,15 @@
     <dependency>
       <groupId>cn.aiedge</groupId>
       <artifactId>core-notification</artifactId>
-      <version>0.2.0</version>
     </dependency>
 
     <dependency>
       <groupId>cn.aiedge.erp</groupId>
       <artifactId>erp-purchase</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>cn.aiedge.erp</groupId>
       <artifactId>erp-order</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <!-- Spring Boot Starter -->
     <dependency>
