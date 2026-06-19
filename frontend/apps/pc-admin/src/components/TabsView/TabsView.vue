@@ -180,7 +180,7 @@ function handleContextAction({ key }: Record<string, any>) {
   position: relative;
   flex-shrink: 0;
   background: #fff;
-  margin-left: -1px;
+  margin-left: 4px;
 }
 
 .tabs-tab:first-child {
