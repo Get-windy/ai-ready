@@ -459,9 +459,11 @@ const contentMinHeight = computed(() => {
   return `calc(100vh - ${header + tabsHeight + padding * 2}px)`
 })
 
-// 初始化标签页
+// 初始化标签页（必须在 watcher 之前，否则 immediate: true 的 watcher 打开的 tab 会被 initTabs 重置掉）
+tabsStore.initTabs()
+
+// 初始化收藏和租户列表
 onMounted(() => {
-  tabsStore.initTabs()
   recentStore.initFavorites()
   fetchTenants()
 })
