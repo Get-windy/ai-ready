@@ -153,254 +153,257 @@
       </div>
     </div>
 
-    <!-- ═══ 商品明细表格 + 右侧摘要面板 ═══ -->
-    <div class="table-with-sidebar">
-      <div class="table-area">
-        <div class="table-toolbar">
-          <a-button type="link" size="small" class="table-settings-btn">
-            <SettingOutlined />
-          </a-button>
-        </div>
-
-        <VxeTableList
-          ref="tableRef"
-          :columns="productColumns"
-          :data-source="formData.products"
-          :pagination="false as any"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
-          :max-height="tableMaxHeight"
-        >
-          <template #rowNo="{ rowIndex }">
-            <span class="row-no">{{ rowIndex + 1 }}</span>
-          </template>
-          <template #actionCell="{ index }">
-            <a-space :size="2">
-              <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct">
-                <PlusCircleOutlined />
-              </a-button>
-              <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
-                <MinusCircleOutlined />
-              </a-button>
-            </a-space>
-          </template>
-          <template #productCell="{ record, index }">
-            <div class="product-cell">
-              <a-select
-                v-model:value="record.productId"
-                placeholder="请选择商品"
-                show-search
-                :filter-option="filterOption"
-                style="flex:1"
-                :loading="loadingOptions"
-                size="small"
-                @change="(val: number) => handleProductChange(val, index)"
-              >
-                <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
-              <a-switch v-model:checked="record.scanMode" size="small" class="scan-switch" />
-            </div>
-          </template>
-          <template #itemCodeCell="{ record }">
-            <a-input v-model:value="record.itemCode" size="small" />
-          </template>
-          <template #barcodeCell="{ record }">
-            <a-input v-model:value="record.barcode" size="small" />
-          </template>
-          <template #specCell="{ record }">
-            <a-input v-model:value="record.specification" size="small" />
-          </template>
-          <template #locationCell="{ record }">
-            <a-input v-model:value="record.location" size="small" />
-          </template>
-          <template #unitCell="{ record }">
-            <a-input v-model:value="record.unit" size="small" />
-          </template>
-          <template #lineAttrCell="{ record }">
-            <a-input v-model:value="record.lineAttribute" size="small" />
-          </template>
-          <template #batchCodeCell="{ record }">
-            <a-input v-model:value="record.batchCode" size="small" />
-          </template>
-          <template #prodDateCell="{ record }">
-            <a-date-picker v-model:value="record.productionDate" size="small" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
-          </template>
-          <template #shelfLifeCell="{ record }">
-            <a-input v-model:value="record.shelfLife" size="small" />
-          </template>
-          <template #expDateCell="{ record }">
-            <a-date-picker v-model:value="record.expiryDate" size="small" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
-          </template>
-          <template #qtyCell="{ record }">
-            <a-input-number v-model:value="record.quantity" :min="0" :precision="2" size="small" style="width:100%" />
-          </template>
-          <template #bigPackCell="{ record }">
-            <a-input-number v-model:value="record.bigPack" :min="0" :precision="0" size="small" style="width:100%" />
-          </template>
-          <template #midPackCell="{ record }">
-            <a-input-number v-model:value="record.midPack" :min="0" :precision="0" size="small" style="width:100%" />
-          </template>
-          <template #smallPackCell="{ record }">
-            <a-input-number v-model:value="record.smallPack" :min="0" :precision="0" size="small" style="width:100%" />
-          </template>
-          <template #summary>
-            <div class="table-summary-row">
-              <span class="summary-label">合计</span>
-              <span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span>
-              <span class="summary-red">{{ totalQuantity }}</span>
-              <span class="summary-red">{{ totalBigPack }}</span>
-              <span class="summary-red">{{ totalMidPack }}</span>
-              <span class="summary-red">{{ totalSmallPack }}</span>
-            </div>
-          </template>
-        </VxeTableList>
-
-        <div class="table-expand-link">
-          <a-button type="link" size="small" @click="expandTable = !expandTable">
-            <FullscreenOutlined />
-            {{ expandTable ? '表格收起' : '表格展开显示' }}
-          </a-button>
-        </div>
+    <!-- ═══ 商品明细表格 ═══ -->
+    <div class="table-section">
+      <div class="table-toolbar">
+        <a-button type="link" size="small" class="table-settings-btn">
+          <SettingOutlined />
+        </a-button>
       </div>
 
-      <!-- 右侧摘要面板 -->
-      <div class="summary-sidebar">
-        <div class="sidebar-row">
-          <span class="sidebar-label">销售数量</span>
-          <span class="sidebar-value">{{ totalQuantity }}</span>
-        </div>
-        <div class="sidebar-row">
-          <span class="sidebar-label">退货数量</span>
-          <span class="sidebar-value">{{ returnQty }}</span>
-        </div>
-        <div class="sidebar-row">
-          <span class="sidebar-label">商品金额</span>
-          <span class="sidebar-value">{{ totalAmount.toFixed(2) }}</span>
-        </div>
-        <div class="sidebar-row">
-          <span class="sidebar-label">促销优惠</span>
-          <span class="sidebar-value">{{ promoDiscount.toFixed(2) }}</span>
-        </div>
-        <div class="sidebar-row sidebar-divider">
-          <span class="sidebar-label">优惠金额</span>
-          <span class="sidebar-value">{{ discountAmount.toFixed(2) }}</span>
-          <a-button type="link" size="small" class="sidebar-more">···</a-button>
-        </div>
-        <div class="sidebar-row sidebar-divider">
-          <span class="sidebar-label">其他费用</span>
-          <span class="sidebar-value">{{ otherFee.toFixed(2) }}</span>
-          <a-button type="link" size="small" class="sidebar-more">···</a-button>
-        </div>
+      <VxeTableList
+        ref="tableRef"
+        :columns="productColumns"
+        :data-source="formData.products"
+        :pagination="false as any"
+        row-key="id"
+        :show-toolbar="false"
+        :selectable="false"
+        :show-add="false"
+        :show-search="false"
+        :show-export="false"
+        :show-batch-delete="false"
+        :max-height="tableMaxHeight"
+      >
+        <template #rowNo="{ rowIndex }">
+          <span class="row-no">{{ rowIndex + 1 }}</span>
+        </template>
+        <template #actionCell="{ index }">
+          <a-space :size="2">
+            <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct">
+              <PlusCircleOutlined />
+            </a-button>
+            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+              <MinusCircleOutlined />
+            </a-button>
+          </a-space>
+        </template>
+        <template #productCell="{ record, index }">
+          <div class="product-cell">
+            <a-select
+              v-model:value="record.productId"
+              placeholder="请选择商品"
+              show-search
+              :filter-option="filterOption"
+              style="flex:1"
+              :loading="loadingOptions"
+              size="small"
+              @change="(val: number) => handleProductChange(val, index)"
+            >
+              <a-select-option v-for="p in productOptions" :key="p.id" :value="p.id">
+                {{ p.name }}
+              </a-select-option>
+            </a-select>
+            <a-switch v-model:checked="record.scanMode" size="small" class="scan-switch" />
+          </div>
+        </template>
+        <template #itemCodeCell="{ record }">
+          <a-input v-model:value="record.itemCode" size="small" />
+        </template>
+        <template #barcodeCell="{ record }">
+          <a-input v-model:value="record.barcode" size="small" />
+        </template>
+        <template #specCell="{ record }">
+          <a-input v-model:value="record.specification" size="small" />
+        </template>
+        <template #locationCell="{ record }">
+          <a-input v-model:value="record.location" size="small" />
+        </template>
+        <template #unitCell="{ record }">
+          <a-input v-model:value="record.unit" size="small" />
+        </template>
+        <template #lineAttrCell="{ record }">
+          <a-input v-model:value="record.lineAttribute" size="small" />
+        </template>
+        <template #batchCodeCell="{ record }">
+          <a-input v-model:value="record.batchCode" size="small" />
+        </template>
+        <template #prodDateCell="{ record }">
+          <a-date-picker v-model:value="record.productionDate" size="small" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
+        </template>
+        <template #shelfLifeCell="{ record }">
+          <a-input v-model:value="record.shelfLife" size="small" />
+        </template>
+        <template #expDateCell="{ record }">
+          <a-date-picker v-model:value="record.expiryDate" size="small" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
+        </template>
+        <template #qtyCell="{ record }">
+          <a-input-number v-model:value="record.quantity" :min="0" :precision="2" size="small" style="width:100%" />
+        </template>
+        <template #bigPackCell="{ record }">
+          <a-input-number v-model:value="record.bigPack" :min="0" :precision="0" size="small" style="width:100%" />
+        </template>
+        <template #midPackCell="{ record }">
+          <a-input-number v-model:value="record.midPack" :min="0" :precision="0" size="small" style="width:100%" />
+        </template>
+        <template #smallPackCell="{ record }">
+          <a-input-number v-model:value="record.smallPack" :min="0" :precision="0" size="small" style="width:100%" />
+        </template>
+        <template #summary>
+          <div class="table-summary-row">
+            <span class="summary-label">合计</span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span>
+            <span class="summary-red">{{ totalQuantity }}</span>
+            <span class="summary-red">{{ totalBigPack }}</span>
+            <span class="summary-red">{{ totalMidPack }}</span>
+            <span class="summary-red">{{ totalSmallPack }}</span>
+          </div>
+        </template>
+      </VxeTableList>
+
+      <div class="table-expand-link">
+        <a-button type="link" size="small" @click="expandTable = !expandTable">
+          <FullscreenOutlined />
+          {{ expandTable ? '表格收起' : '表格展开显示' }}
+        </a-button>
       </div>
     </div>
 
-    <!-- ═══ 底部标签页 + 备注 + 单据信息 ═══ -->
+    <!-- ═══ 底部面板：左侧标签页+备注+单据信息 | 右侧红色摘要 ═══ -->
     <div class="bottom-panel">
-      <a-tabs v-model:activeKey="activeTab" size="small" class="bottom-tabs">
-        <a-tab-pane key="payment" tab="收款">
-          <div class="tab-content-row">
-            <div class="tab-field">
-              <label>订单账户</label>
-              <div class="tab-field-input">
-                <a-select v-model:value="formData.paymentAccount" placeholder="请选择" show-search size="small" style="flex:1">
-                  <a-select-option v-for="acc in accountOptions" :key="acc.id" :value="acc.id">{{ acc.name }}</a-select-option>
-                </a-select>
-                <a-button type="link" size="small">+Q</a-button>
+      <div class="bottom-panel-inner">
+        <!-- 左侧内容 -->
+        <div class="bottom-left">
+          <a-tabs v-model:activeKey="activeTab" size="small" class="bottom-tabs">
+            <a-tab-pane key="payment" tab="收款">
+              <div class="tab-content-row">
+                <div class="tab-field">
+                  <label>订单账户</label>
+                  <div class="tab-field-input">
+                    <a-select v-model:value="formData.paymentAccount" placeholder="请选择" show-search size="small" style="flex:1">
+                      <a-select-option v-for="acc in accountOptions" :key="acc.id" :value="acc.id">{{ acc.name }}</a-select-option>
+                    </a-select>
+                    <a-button type="link" size="small">+Q</a-button>
+                  </div>
+                </div>
+                <div class="tab-field">
+                  <label>订单金额</label>
+                  <div class="tab-field-input">
+                    <a-input :value="totalAmountWithTax.toFixed(2)" size="small" disabled style="flex:1" />
+                    <a-button type="link" size="small" class="btn-clear">全清</a-button>
+                  </div>
+                </div>
+                <div class="tab-field">
+                  <label>更多账户</label>
+                  <div class="tab-field-input">
+                    <a-input value="0" size="small" disabled style="flex:1" />
+                    <a-button type="link" size="small">···</a-button>
+                  </div>
+                </div>
+                <div class="tab-field">
+                  <label>使用预订货款</label>
+                  <div class="tab-field-input">
+                    <a-input value="0" size="small" disabled style="flex:1" />
+                    <a-button type="link" size="small">···</a-button>
+                  </div>
+                </div>
+                <div class="tab-field">
+                  <label>此前预收</label>
+                  <a-input value="0" size="small" disabled />
+                </div>
+                <div class="tab-field">
+                  <label>预收余额</label>
+                  <a-input value="0" size="small" disabled />
+                </div>
               </div>
-            </div>
-            <div class="tab-field">
-              <label>订单金额</label>
-              <div class="tab-field-input">
-                <a-input :value="totalAmountWithTax.toFixed(2)" size="small" disabled style="flex:1" />
-                <a-button type="link" size="small" class="btn-clear">全清</a-button>
+            </a-tab-pane>
+            <a-tab-pane key="logistics" tab="物流信息">
+              <div class="tab-content-row">
+                <div class="tab-field">
+                  <label>物流公司</label>
+                  <a-input v-model:value="formData.logisticsCompany" placeholder="请输入物流公司" size="small" />
+                </div>
+                <div class="tab-field">
+                  <label>物流单号</label>
+                  <a-input v-model:value="formData.logisticsNo" placeholder="请输入物流单号" size="small" />
+                </div>
+                <div class="tab-field">
+                  <label>运费</label>
+                  <a-input-number v-model:value="formData.shippingFee" :min="0" :precision="2" size="small" style="width:100%" />
+                </div>
               </div>
-            </div>
-            <div class="tab-field">
-              <label>更多账户</label>
-              <div class="tab-field-input">
-                <a-input value="0" size="small" disabled style="flex:1" />
-                <a-button type="link" size="small">···</a-button>
+            </a-tab-pane>
+            <a-tab-pane key="member" tab="会员信息">
+              <div class="tab-content-row">
+                <div class="tab-field">
+                  <label>会员卡号</label>
+                  <a-input v-model:value="formData.memberCardNo" placeholder="请输入会员卡号" size="small" />
+                </div>
+                <div class="tab-field">
+                  <label>会员姓名</label>
+                  <a-input v-model:value="formData.memberName" placeholder="请输入会员姓名" size="small" />
+                </div>
+                <div class="tab-field">
+                  <label>会员折扣</label>
+                  <a-input-number v-model:value="formData.memberDiscount" :min="0" :max="100" :precision="1" size="small" style="width:100%" />
+                </div>
               </div>
-            </div>
-            <div class="tab-field">
-              <label>使用预订货款</label>
-              <div class="tab-field-input">
-                <a-input value="0" size="small" disabled style="flex:1" />
-                <a-button type="link" size="small">···</a-button>
-              </div>
-            </div>
-            <div class="tab-field">
-              <label>此前预收</label>
-              <a-input value="0" size="small" disabled />
-            </div>
-            <div class="tab-field">
-              <label>预收余额</label>
-              <a-input value="0" size="small" disabled />
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane key="logistics" tab="物流信息">
-          <div class="tab-content-row">
-            <div class="tab-field">
-              <label>物流公司</label>
-              <a-input v-model:value="formData.logisticsCompany" placeholder="请输入物流公司" size="small" />
-            </div>
-            <div class="tab-field">
-              <label>物流单号</label>
-              <a-input v-model:value="formData.logisticsNo" placeholder="请输入物流单号" size="small" />
-            </div>
-            <div class="tab-field">
-              <label>运费</label>
-              <a-input-number v-model:value="formData.shippingFee" :min="0" :precision="2" size="small" style="width:100%" />
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane key="member" tab="会员信息">
-          <div class="tab-content-row">
-            <div class="tab-field">
-              <label>会员卡号</label>
-              <a-input v-model:value="formData.memberCardNo" placeholder="请输入会员卡号" size="small" />
-            </div>
-            <div class="tab-field">
-              <label>会员姓名</label>
-              <a-input v-model:value="formData.memberName" placeholder="请输入会员姓名" size="small" />
-            </div>
-            <div class="tab-field">
-              <label>会员折扣</label>
-              <a-input-number v-model:value="formData.memberDiscount" :min="0" :max="100" :precision="1" size="small" style="width:100%" />
-            </div>
-          </div>
-        </a-tab-pane>
-      </a-tabs>
+            </a-tab-pane>
+          </a-tabs>
 
-      <!-- 备注区 -->
-      <div class="remark-section">
-        <div class="remark-row">
-          <span class="remark-label">单据备注</span>
-          <a-input v-model:value="formData.orderRemark" placeholder="" size="small" class="remark-input" />
-        </div>
-        <div class="remark-row">
-          <span class="remark-label">买家备注</span>
-          <a-input v-model:value="formData.buyerRemark" placeholder="" size="small" class="remark-input" />
-        </div>
-      </div>
+          <!-- 备注区 -->
+          <div class="remark-section">
+            <div class="remark-row">
+              <span class="remark-label">单据备注</span>
+              <a-input v-model:value="formData.orderRemark" placeholder="" size="small" class="remark-input" />
+            </div>
+            <div class="remark-row">
+              <span class="remark-label">买家备注</span>
+              <a-input v-model:value="formData.buyerRemark" placeholder="" size="small" class="remark-input" />
+            </div>
+          </div>
 
-      <!-- 单据信息行 -->
-      <div class="doc-info-row">
-        <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
-        <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
-        <span class="doc-info-item">打印次数 0</span>
-        <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
-        <span class="doc-info-item">源单 <a-tag size="small">0</a-tag></span>
+          <!-- 单据信息行 -->
+          <div class="doc-info-row">
+            <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
+            <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
+            <span class="doc-info-item">打印次数 0</span>
+            <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
+            <span class="doc-info-item">源单 <a-tag size="small">0</a-tag></span>
+          </div>
+        </div>
+
+        <!-- 右侧红色摘要面板 -->
+        <div class="summary-sidebar">
+          <div class="sidebar-row">
+            <span class="sidebar-label">销售数量</span>
+            <span class="sidebar-value">{{ totalQuantity }}</span>
+          </div>
+          <div class="sidebar-row">
+            <span class="sidebar-label">退货数量</span>
+            <span class="sidebar-value">{{ returnQty }}</span>
+          </div>
+          <div class="sidebar-row">
+            <span class="sidebar-label">商品金额</span>
+            <span class="sidebar-value">{{ totalAmount.toFixed(2) }}</span>
+          </div>
+          <div class="sidebar-row">
+            <span class="sidebar-label">促销优惠</span>
+            <span class="sidebar-value">{{ promoDiscount.toFixed(2) }}</span>
+          </div>
+          <div class="sidebar-row sidebar-divider">
+            <span class="sidebar-label">优惠金额</span>
+            <span class="sidebar-value">{{ discountAmount.toFixed(2) }}</span>
+            <a-button type="link" size="small" class="sidebar-more">···</a-button>
+          </div>
+          <div class="sidebar-row sidebar-divider">
+            <span class="sidebar-label">其他费用</span>
+            <span class="sidebar-value">{{ otherFee.toFixed(2) }}</span>
+            <a-button type="link" size="small" class="sidebar-more">···</a-button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -860,22 +863,14 @@ onUnmounted(() => {
   line-height: 1;
 }
 
-/* ═══ 表格 + 右侧摘要 ═══ */
-.table-with-sidebar {
-  flex: 1;
-  display: flex;
-  gap: 0;
-  min-height: 0;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  overflow: hidden;
-}
-
-.table-area {
+/* ═══ 商品明细表格区 ═══ */
+.table-section {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  min-height: 0;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
   overflow: hidden;
 }
 
@@ -953,7 +948,25 @@ onUnmounted(() => {
   text-align: right;
 }
 
-/* ═══ 右侧摘要面板 ═══ */
+/* ═══ 底部面板：左侧内容 + 右侧红色摘要 ═══ */
+.bottom-panel {
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.bottom-panel-inner {
+  display: flex;
+  gap: 0;
+}
+
+.bottom-left {
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+/* ═══ 右侧红色摘要面板 ═══ */
 .summary-sidebar {
   width: 180px;
   background: #fff5f5;
@@ -991,13 +1004,6 @@ onUnmounted(() => {
   font-size: 12px;
   color: #8c8c8c;
   line-height: 1;
-}
-
-/* ═══ 底部面板 ═══ */
-.bottom-panel {
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  flex-shrink: 0;
 }
 
 .bottom-tabs :deep(.ant-tabs-nav) {
