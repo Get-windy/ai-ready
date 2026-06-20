@@ -272,6 +272,22 @@ const componentMap: Record<string, () => Promise<any>> = {
   // ── 系统级占位页面（新功能未实现时使用） ──
   'common/placeholder/index': () => import('@/views/common/placeholder/index.vue'),
 
+  // ── displayMode=1 表单页路由（Phase 1 ERP 核心单据） ──
+  'erp/shipment/form': () => import('@/views/erp/shipment/form.vue'),
+  'erp/return/form': () => import('@/views/erp/return/form.vue'),
+  'erp/stock-in/form': () => import('@/views/erp/stock-in/form.vue'),
+  'erp/stocktake/form': () => import('@/views/erp/stocktake/form.vue'),
+  'erp/purchase/form': () => import('@/views/erp/purchase/form.vue'),
+
+  // ── displayMode=1 表单页路由（Phase 2 WMS 仓储执行） ──
+  'wms/receipt/form': () => import('@/views/wms/receipt/form.vue'),
+  'wms/putaway/form': () => import('@/views/wms/putaway/form.vue'),
+  'wms/pick/form': () => import('@/views/wms/pick/form.vue'),
+  'wms/wave/form': () => import('@/views/wms/wave/form.vue'),
+  'wms/ship/form': () => import('@/views/wms/ship/form.vue'),
+  'wms/move/form': () => import('@/views/wms/move/form.vue'),
+  'wms/check/form': () => import('@/views/wms/check/form.vue'),
+
   // ── displayMode=1 列表页 URL→组件映射（有实际列表组件） ──
   'sales/order': () => import('@/views/erp/sale/index.vue'),
   'purchase/order': () => import('@/views/erp/purchase/index.vue'),
@@ -336,13 +352,13 @@ const componentMap: Record<string, () => Promise<any>> = {
   'finance/ar-ap-adjust': () => import('@/views/common/placeholder/index.vue'),
   'finance/voucher': () => import('@/views/common/placeholder/index.vue'),
 
-  // ── displayMode=1 添加标签的 form 页面（暂无实现，使用 placeholder） ──
-  'crm/customer/form': () => import('@/views/common/placeholder/index.vue'),
-  'crm/lead/form': () => import('@/views/common/placeholder/index.vue'),
-  'crm/opportunity/form': () => import('@/views/common/placeholder/index.vue'),
-  'crm/contract/form': () => import('@/views/common/placeholder/index.vue'),
-  'crm/quotation/form': () => import('@/views/common/placeholder/index.vue'),
-  'crm/invoice/form': () => import('@/views/common/placeholder/index.vue'),
+  // ── displayMode=1 添加标签的 form 页面（Phase 3 CRM） ──
+  'crm/customer/form': () => import('@/views/crm/customer/form.vue'),
+  'crm/lead/form': () => import('@/views/crm/lead/form.vue'),
+  'crm/opportunity/form': () => import('@/views/crm/opportunity/form.vue'),
+  'crm/contract/form': () => import('@/views/crm/contract/form.vue'),
+  'crm/quotation/form': () => import('@/views/crm/quotation/form.vue'),
+  'crm/invoice/form': () => import('@/views/crm/invoice/form.vue'),
   'md/product/form': () => import('@/views/common/placeholder/index.vue'),
   'md/customer/form': () => import('@/views/common/placeholder/index.vue'),
   'md/supplier/form': () => import('@/views/common/placeholder/index.vue'),

@@ -285,6 +285,74 @@ export const replenishmentApi = {
   }
 }
 
+// ── 发货管理 ──────────────────────────────────────────
+export interface ShipmentOrder {
+  id: number; shipmentNo: string; orderNo?: string; customerName: string
+  shipmentDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
+}
+export const shipmentApi = {
+  page(params: PageQuery): Promise<PageResult<ShipmentOrder>> {
+    return request.get('/erp/shipment/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/shipment/${id}`) },
+  create(data: any) { return request.post('/erp/shipment', data) },
+  update(id: number, data: any) { return request.put(`/erp/shipment/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/shipment/${id}`) },
+  submit(id: number) { return request.post(`/erp/shipment/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/shipment/${id}/approve`) },
+}
+
+// ── 退货管理 ──────────────────────────────────────────
+export interface ReturnOrder {
+  id: number; returnNo: string; orderNo?: string; customerName: string
+  returnDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
+}
+export const returnOrderApi = {
+  page(params: PageQuery): Promise<PageResult<ReturnOrder>> {
+    return request.get('/erp/return/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/return/${id}`) },
+  create(data: any) { return request.post('/erp/return', data) },
+  update(id: number, data: any) { return request.put(`/erp/return/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/return/${id}`) },
+  submit(id: number) { return request.post(`/erp/return/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/return/${id}/approve`) },
+}
+
+// ── 入库管理 ──────────────────────────────────────────
+export interface StockInOrder {
+  id: number; stockInNo: string; orderNo?: string; supplierName?: string
+  stockInDate: string; status: number; totalAmount?: number; creatorName?: string; createTime: string
+}
+export const stockInApi = {
+  page(params: PageQuery): Promise<PageResult<StockInOrder>> {
+    return request.get('/erp/stock-in/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/stock-in/${id}`) },
+  create(data: any) { return request.post('/erp/stock-in', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock-in/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stock-in/${id}`) },
+  submit(id: number) { return request.post(`/erp/stock-in/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/stock-in/${id}/approve`) },
+}
+
+// ── 库存盘点 ──────────────────────────────────────────
+export interface StocktakeOrder {
+  id: number; checkNo: string; warehouseName: string
+  checkDate: string; status: number; creatorName?: string; createTime: string
+}
+export const stocktakeOrderApi = {
+  page(params: PageQuery): Promise<PageResult<StocktakeOrder>> {
+    return request.get('/erp/stocktake/page', params)
+  },
+  getById(id: number) { return request.get(`/erp/stocktake/${id}`) },
+  create(data: any) { return request.post('/erp/stocktake', data) },
+  update(id: number, data: any) { return request.put(`/erp/stocktake/${id}`, data) },
+  delete(id: number) { return request.delete(`/erp/stocktake/${id}`) },
+  submit(id: number) { return request.post(`/erp/stocktake/${id}/submit`) },
+  approve(id: number) { return request.post(`/erp/stocktake/${id}/approve`) },
+}
+
 // ── 销售订单 ──────────────────────────────────────────
 export interface SaleOrder {
   id: number; orderNo: string; customerName: string; orderDate: string
