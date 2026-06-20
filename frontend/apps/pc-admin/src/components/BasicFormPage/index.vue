@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue'
@@ -149,18 +149,26 @@ const props = withDefaults(defineProps<{
   redirectPath?: string
   showBack?: boolean
   showSubmit?: boolean
+  /** 显式指定模式；不指定时根据路由参数自动推断 */
   mode?: 'create' | 'edit' | 'view'
 }>(), {
   redirectPath: '',
   showBack: true,
   showSubmit: true,
-  mode: 'create',
+  mode: undefined,
 })
 
 const router = useRouter()
 const route = useRoute()
 const formData = reactive<Record<string, any>>({})
 const saving = ref(false)
+
+// 根据路由参数自动推断模式：存在 id 参数则进入编辑模式
+const effectiveMode = computed(() => {
+  if (props.mode) return props.mode
+  const editId = route.params.id || route.query.id
+  return editId ? 'edit' : 'create'
+})
 
 // 初始化字段默认值
 for (const field of props.fields) {
@@ -204,7 +212,7 @@ async function handleSave() {
   if (!validate()) return
   saving.value = true
   try {
-    if (props.mode === 'edit' && formData.id && props.api.update) {
+    if (effectiveMode.value === 'edit' && formData.id && props.api.update) {
       await props.api.update(formData.id, { ...formData })
     } else {
       await props.api.create({ ...formData })
@@ -223,7 +231,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     const payload = { ...formData, status: 1 }
-    if (props.mode === 'edit' && formData.id && props.api.update) {
+    if (effectiveMode.value === 'edit' && formData.id && props.api.update) {
       await props.api.update(formData.id, payload)
     } else {
       await props.api.create(payload)
@@ -250,8 +258,10 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
-  if (props.mode === 'edit' && route.params.id) {
-    loadDetail(Number(route.params.id))
+  // 编辑模式：加载详情（支持路由 params 和 query 两种方式）
+  const editId = route.params.id || route.query.id
+  if (effectiveMode.value === 'edit' && editId) {
+    loadDetail(Number(editId))
   }
 })
 

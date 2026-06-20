@@ -234,9 +234,10 @@ export function useFormLogic(options: UseFormLogicOptions) {
     loadOptions()
     document.addEventListener('keydown', handleKeydown)
 
-    // 编辑模式：加载详情
-    if (mode === 'edit' && route.params.id) {
-      loadDetail(Number(route.params.id))
+    // 编辑模式：加载详情（支持路由 params 和 query 两种方式）
+    const editId = route.params.id || route.query.id
+    if (mode === 'edit' && editId) {
+      loadDetail(Number(editId))
     }
   })
 

@@ -146,12 +146,6 @@
     </template>
   </DetailLayout>
 
-  <SaleOrderFormModal
-    v-model:open="formModalVisible"
-    :edit-data="order"
-    @success="handleFormSuccess"
-  />
-
   <a-modal
     v-model:open="outboundModalVisible"
     title="创建出库单"
@@ -183,7 +177,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
-import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DownloadOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
@@ -193,7 +187,6 @@ import { salesOrderApi, type SalesOrder } from '@/api/order'
 import { outboundApi } from '@/api/erp'
 import { logApi } from '@/api/log'
 import { ORDER_STATUS_TEXT, ORDER_STATUS_COLOR } from '@/views/sale/constants/orderStatus'
-import SaleOrderFormModal from '../components/SaleOrderFormModal.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
@@ -227,7 +220,6 @@ const route = useRoute()
 const order = ref<any>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
-const formModalVisible = ref(false)
 const submitting = ref(false)
 const approving = ref(false)
 const outboundModalVisible = ref(false)
@@ -436,7 +428,7 @@ const handleRelatedClick = (doc: any) => {
 }
 
 const handleEdit = () => {
-  formModalVisible.value = true
+  router.push(`/erp/sale/form?id=${order.value.id}`)
 }
 
 const handleSubmit = async () => {
@@ -562,10 +554,6 @@ const handleDelete = () => {
   })
 }
 
-const handleFormSuccess = () => {
-  fetchOrderDetail()
-}
-
 const handlePrintSuccess = () => {
   message.success('打印成功')
 }
@@ -593,23 +581,6 @@ watch(() => order.value?.id, (id) => {
   if (id && listIds.value.length > 0) {
     const idx = listIds.value.indexOf(id)
     currentIndex.value = idx >= 0 ? idx + 1 : 1
-  }
-})
-
-// 路由离开拦截：编辑表单未保存时提醒
-onBeforeRouteLeave((to, from, next) => {
-  if (formModalVisible.value) {
-    Modal.confirm({
-      title: '确认离开',
-      content: '当前有未保存的编辑内容，确定要离开吗？',
-      okText: '确认离开',
-      cancelText: '继续编辑',
-      centered: true,
-      onOk() { next() },
-      onCancel() { next(false) }
-    })
-  } else {
-    next()
   }
 })
 

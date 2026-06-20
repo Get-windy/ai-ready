@@ -150,7 +150,6 @@
       </VxeTableList>
     </a-card>
 
-    <ExchangeFormModal v-model:open="formModalVisible" :record="currentRecord" @success="handleFormSuccess" />
     <ExchangeApproveModal v-model:open="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
     <ExchangeDetailModal v-model:open="detailModalVisible" :record="currentRecord" />
     <ExchangeTrackModal v-model:open="trackModalVisible" :record="currentRecord" />
@@ -160,6 +159,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, SearchOutlined, ReloadOutlined, SyncOutlined, ExportOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -169,7 +169,6 @@ import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import type { Dayjs } from 'dayjs'
 import { purchaseExchangeApi, type PurchaseExchange, ExchangeStatus } from '@/api/purchase-exchange'
-import ExchangeFormModal from './components/ExchangeFormModal.vue'
 import ExchangeApproveModal from './components/ExchangeApproveModal.vue'
 import ExchangeDetailModal from './components/ExchangeDetailModal.vue'
 import ExchangeTrackModal from './components/ExchangeTrackModal.vue'
@@ -321,7 +320,7 @@ const getExchangeTypeText = (type: number): string => {
   return texts[type] || '未知'
 }
 
-const formModalVisible = ref(false)
+const router = useRouter()
 const approveModalVisible = ref(false)
 const detailModalVisible = ref(false)
 const trackModalVisible = ref(false)
@@ -395,13 +394,11 @@ const handlePageChange = (page: number, size: number) => {
 function handleParentCreate() { handleCreate() }
 
 const handleCreate = () => {
-  currentRecord.value = null
-  formModalVisible.value = true
+  router.push('/erp/purchase-exchange/form')
 }
 
 const handleEdit = (record: PurchaseExchange) => {
-  currentRecord.value = record
-  formModalVisible.value = true
+  router.push(`/erp/purchase-exchange/form?id=${record.id}`)
 }
 
 const handleView = (record: PurchaseExchange) => {
@@ -466,11 +463,6 @@ const handleExport = () => {
     getStatusText(row.status, RETURN_EXCHANGE_STATUS), row.createdByName || '', row.createTime || ''
   ])
   exportCsv(headers, rows, '采购换货单')
-}
-
-const handleFormSuccess = () => {
-  formModalVisible.value = false
-  fetchData()
 }
 
 const handleApproveSuccess = () => {

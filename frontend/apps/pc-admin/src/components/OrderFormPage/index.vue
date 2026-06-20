@@ -246,6 +246,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   PaperClipOutlined,
   SaveOutlined,
@@ -257,6 +258,8 @@ import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { useFormLogic } from './useFormLogic'
 import type { HeaderField, DetailColumn, TabConfig, SummaryItem, FormApi } from './types'
 
+const route = useRoute()
+
 const props = withDefaults(defineProps<{
   title: string
   billPrefix?: string
@@ -266,13 +269,21 @@ const props = withDefaults(defineProps<{
   summaryItems?: SummaryItem[]
   api: FormApi
   redirectPath?: string
+  /** 显式指定模式；不指定时根据路由参数自动推断 */
   mode?: 'create' | 'edit' | 'view'
   showTax?: boolean
 }>(), {
   billPrefix: 'NO',
-  mode: 'create',
+  mode: undefined,
   showTax: true,
   redirectPath: '',
+})
+
+// 根据路由参数自动推断模式：存在 id 参数则进入编辑模式
+const effectiveMode = computed(() => {
+  if (props.mode) return props.mode
+  const editId = route.params.id || route.query.id
+  return editId ? 'edit' : 'create'
 })
 
 const {
@@ -291,7 +302,7 @@ const {
   billPrefix: props.billPrefix,
   api: props.api,
   redirectPath: props.redirectPath,
-  mode: props.mode,
+  mode: effectiveMode.value,
   headerFields: props.headerFields,
 })
 

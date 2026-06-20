@@ -102,12 +102,6 @@
     </template>
   </DetailLayout>
 
-  <PurchaseOrderFormModal
-    v-model:open="formModalVisible"
-    :edit-data="order"
-    @success="handleFormSuccess"
-  />
-
   <a-modal
     v-model:open="inboundModalVisible"
     title="创建入库单"
@@ -142,7 +136,6 @@ import { DetailLayout } from '@ai-ready/components'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { purchaseOrderApi, type PurchaseOrder } from '@/api/purchase'
 import { inboundApi } from '@/api/erp'
-import PurchaseOrderFormModal from '../components/PurchaseOrderFormModal.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
@@ -159,7 +152,6 @@ const router = useRouter()
 const route = useRoute()
 
 const order = ref<any>(null)
-const formModalVisible = ref(false)
 const inboundModalVisible = ref(false)
 const inboundSubmitting = ref(false)
 const inboundForm = ref({
@@ -315,7 +307,7 @@ const handleRelatedClick = (doc: any) => {
 }
 
 const handleEdit = () => {
-  formModalVisible.value = true
+  router.push(`/erp/purchase/form?id=${order.value.id}`)
 }
 
 const handleSubmit = async () => {
@@ -418,10 +410,6 @@ const handleDelete = async () => {
     console.warn('[采购订单详情] 删除失败', error)
     message.error('删除失败')
   }
-}
-
-const handleFormSuccess = () => {
-  fetchOrderDetail()
 }
 
 const handlePrintSuccess = () => {
