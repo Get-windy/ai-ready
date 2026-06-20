@@ -289,6 +289,33 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wms/move/form': () => import('@/views/wms/move/form.vue'),
   'wms/check/form': () => import('@/views/wms/check/form.vue'),
 
+  // ── Phase 5A: 仓储作业单据 form.vue（复用 ERP 组件或 placeholder） ──
+  'wh/other-outbound/form': () => import('@/views/wh/other-outbound/form.vue'),
+  'wh/other-inbound/form': () => import('@/views/wh/other-inbound/form.vue'),
+  'wh/transfer/form': () => import('@/views/wh/transfer/form.vue'),
+  'wh/damage/form': () => import('@/views/wh/damage/form.vue'),
+  'wh/overflow/form': () => import('@/views/wh/overflow/form.vue'),
+  'wh/stocktake/form': () => import('@/views/wh/stocktake/form.vue'),
+  'wh/cost-adjust/form': () => import('@/views/wh/cost-adjust/form.vue'),
+  'wh/assemble/form': () => import('@/views/wh/assemble/form.vue'),
+  'wh/disassemble/form': () => import('@/views/wh/disassemble/form.vue'),
+  'wh/borrow-in/form': () => import('@/views/wh/borrow-in/form.vue'),
+  'wh/borrow-out/form': () => import('@/views/wh/borrow-out/form.vue'),
+
+  // ── Phase 5B: 财务单据 form.vue ──
+  'finance/receipt-doc/form': () => import('@/views/finance/receipt-doc/form.vue'),
+  'finance/payment-doc/form': () => import('@/views/finance/payment-doc/form.vue'),
+  'finance/expense-doc/form': () => import('@/views/finance/expense-doc/form.vue'),
+  'finance/voucher/form': () => import('@/views/finance/voucher/form.vue'),
+  'finance/advance-receipt/form': () => import('@/views/finance/advance-receipt/form.vue'),
+  'finance/advance-payment/form': () => import('@/views/finance/advance-payment/form.vue'),
+  'finance/other-income-doc/form': () => import('@/views/finance/other-income-doc/form.vue'),
+  'finance/ar-ap-adjust/form': () => import('@/views/finance/ar-ap-adjust/form.vue'),
+
+  // ── Phase 5C: DMS 模块 form.vue ──
+  'dms/rider/form': () => import('@/views/dms/rider/form.vue'),
+  'dms/vehicle/form': () => import('@/views/dms/vehicle/form.vue'),
+
   // ── displayMode=1 列表页 URL→组件映射（有实际列表组件） ──
   'sales/order': () => import('@/views/erp/sale/index.vue'),
   'purchase/order': () => import('@/views/erp/purchase/index.vue'),
