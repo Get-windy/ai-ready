@@ -1,320 +1,259 @@
 <template>
-  <PartnerFormLayout active-key="logistics" page-title="物流公司">
-    <div class="form-card">
-      <a-form
-        ref="formRef"
-        :model="form"
-        :rules="formRules"
-        layout="vertical"
-        hide-required-mark
-      >
-        <!-- 基本信息 -->
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="往来单位" name="partnerId">
-              <a-select
-                v-model:value="form.partnerId"
-                placeholder="请选择往来单位"
-                show-search
-                :filter-option="filterOption"
-                size="small"
-                allow-clear
-              >
-                <a-select-option v-for="p in partnerOptions" :key="p.id" :value="p.id">
-                  {{ p.partnerName }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="物流公司名称" name="logisticsName">
-              <a-input v-model:value="form.logisticsName" placeholder="请输入物流公司名称" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="物流公司简称" name="shortName">
-              <a-input v-model:value="form.shortName" placeholder="请输入物流公司简称" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="物流公司编码" name="logisticsCode">
-              <a-input v-model:value="form.logisticsCode" placeholder="留空自动生成" size="small">
-                <template #suffix>
-                  <a-button size="small" type="link" @click="generateCode">重新生成</a-button>
-                </template>
-              </a-input>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="物流类型" name="logisticsType">
-              <a-select v-model:value="form.logisticsType" placeholder="请选择物流类型" size="small">
-                <a-select-option v-for="item in logisticsTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="服务区域" name="serviceArea">
-              <a-input v-model:value="form.serviceArea" placeholder="如：全国/华东地区/广东省" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+  <div class="form-page-wrapper">
+    <div class="page-header">
+      <a-space>
+        <a-button type="text" size="small" @click="handleCancel">
+          <template #icon><ArrowLeftOutlined /></template>
+          返回
+        </a-button>
+        <span class="page-title">物流公司新增</span>
+      </a-space>
+    </div>
 
-        <!-- 联系信息 -->
-        <a-divider orientation="left" style="margin: 8px 0 16px">联系信息</a-divider>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="联系人" name="contactPerson">
-              <a-input v-model:value="form.contactPerson" placeholder="请输入联系人" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="联系电话" name="contactPhone">
-              <a-input v-model:value="form.contactPhone" placeholder="请输入联系电话" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="联系邮箱" name="contactEmail">
-              <a-input v-model:value="form.contactEmail" placeholder="请输入联系邮箱" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="客服电话" name="servicePhone">
-              <a-input v-model:value="form.servicePhone" placeholder="请输入客服电话" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="24">
-            <a-form-item label="公司地址" name="address">
-              <a-input v-model:value="form.address" placeholder="请输入公司地址" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+    <!-- 其他业务关系 -->
+    <div class="top-options">
+      <span style="font-size:13px;color:#595959;margin-right:16px">该往来单位还有其他业务关系：</span>
+      <a-checkbox v-for="opt in otherRoleOptions" :key="opt.value" v-model:checked="opt.checked" style="margin-right:16px">{{ opt.label }}</a-checkbox>
+      <a-checkbox v-if="hasCustomerRole" v-model:checked="enablePriceTrack" style="margin-left:24px">启用销售价格跟踪</a-checkbox>
+    </div>
+
+    <div class="form-scroll-area">
+      <a-form ref="formRef" :model="form" :rules="formRules" layout="horizontal" :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
+        <!-- 基础信息 -->
+        <div class="section-card">
+          <div class="section-title">基础信息</div>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="物流公司名称" name="partnerName"><a-input v-model:value="form.partnerName" placeholder="请输入物流公司名称" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="物流公司编号"><a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled><template #suffix><a-button size="small" type="link" @click="generateCode">重新生成</a-button></template></a-input></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="助记码"><a-input v-model:value="form.partnerShortName" placeholder="输入拼音首字母等" size="small" /></a-form-item></a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="物流类型"><a-select v-model:value="form.logisticsType" placeholder="请选择物流类型" size="small"><a-select-option v-for="item in logisticsTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</a-select-option></a-select></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="服务区域"><a-input v-model:value="form.serviceArea" placeholder="如：全国/华东地区" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="结算方式"><a-select v-model:value="form.settleType" size="small"><a-select-option value="MONTHLY">月结</a-select-option><a-select-option value="WEEKLY">周结</a-select-option><a-select-option value="CASH">现结</a-select-option><a-select-option value="ADVANCE">预付</a-select-option></a-select></a-form-item></a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="车辆数量"><a-input-number v-model:value="form.vehicleCount" :min="0" style="width:100%" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="税率(%)"><a-input-number v-model:value="form.taxRate" :precision="2" :min="0" :max="100" style="width:100%" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="状态"><a-switch v-model:checked="statusChecked" checked-children="启用" un-checked-children="停用" size="small" /></a-form-item></a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="24"><a-form-item label="备注"><a-textarea v-model:value="form.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item></a-col>
+          </a-row>
+        </div>
 
         <!-- 运输能力 -->
-        <a-divider orientation="left" style="margin: 8px 0 16px">运输能力</a-divider>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="运输方式" name="transportMode">
-              <a-select v-model:value="form.transportMode" placeholder="请选择运输方式" size="small" mode="multiple">
-                <a-select-option value="ROAD">公路运输</a-select-option>
-                <a-select-option value="RAIL">铁路运输</a-select-option>
-                <a-select-option value="AIR">航空运输</a-select-option>
-                <a-select-option value="SEA">海运</a-select-option>
-                <a-select-option value="MULTIMODAL">多式联运</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="车辆数量" name="vehicleCount">
-              <a-input-number v-model:value="form.vehicleCount" :min="0" style="width: 100%" size="small" placeholder="请输入车辆数量" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="是否支持冷链" name="coldChain">
-              <a-switch v-model:checked="form.coldChain" checked-children="是" un-checked-children="否" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="是否支持危化品" name="hazardous">
-              <a-switch v-model:checked="form.hazardous" checked-children="是" un-checked-children="否" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+        <div class="section-card">
+          <div class="section-title">运输能力</div>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="运输方式"><a-select v-model:value="form.transportModes" placeholder="请选择运输方式" size="small" mode="multiple"><a-select-option value="ROAD">公路运输</a-select-option><a-select-option value="RAIL">铁路运输</a-select-option><a-select-option value="AIR">航空运输</a-select-option><a-select-option value="SEA">海运</a-select-option><a-select-option value="MULTIMODAL">多式联运</a-select-option></a-select></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="支持冷链"><a-switch v-model:checked="form.coldChain" checked-children="是" un-checked-children="否" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="支持危化品"><a-switch v-model:checked="form.hazardous" checked-children="是" un-checked-children="否" size="small" /></a-form-item></a-col>
+          </a-row>
+        </div>
 
-        <!-- 财务信息 -->
-        <a-divider orientation="left" style="margin: 8px 0 16px">结算信息</a-divider>
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="结算方式" name="settleType">
-              <a-select v-model:value="form.settleType" size="small">
-                <a-select-option value="MONTHLY">月结</a-select-option>
-                <a-select-option value="WEEKLY">周结</a-select-option>
-                <a-select-option value="CASH">现结</a-select-option>
-                <a-select-option value="ADVANCE">预付</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="税率(%)" name="taxRate">
-              <a-input-number v-model:value="form.taxRate" :precision="2" :min="0" :max="100" style="width: 100%" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+        <!-- 联系人 -->
+        <div class="section-card">
+          <ContactList :contacts="contacts" :show-mall-account="showMallAccount" @update="contacts = $event" />
+        </div>
 
-        <!-- 备注和状态 -->
-        <a-row :gutter="24">
-          <a-col :span="24">
-            <a-form-item label="备注" name="remark">
-              <a-textarea v-model:value="form.remark" placeholder="请输入备注" :rows="3" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="状态" name="status">
-              <a-switch v-model:checked="statusChecked" checked-children="启用" un-checked-children="停用" size="small" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="排序" name="sortOrder">
-              <a-input-number v-model:value="form.sortOrder" :min="0" style="width: 100%" size="small" />
-            </a-form-item>
-          </a-col>
-        </a-row>
+        <!-- 纳税人信息 -->
+        <div class="section-card">
+          <div class="section-title">纳税人信息</div>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="统一社会信用代码"><a-input v-model:value="form.unifiedSocialCode" placeholder="请输入统一社会信用代码" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="纳税人识别号"><a-input v-model:value="form.taxId" placeholder="请输入纳税人识别号" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="法定代表人"><a-input v-model:value="form.legalPerson" placeholder="请输入法定代表人" size="small" /></a-form-item></a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="开户银行"><a-input v-model:value="bankName" placeholder="请输入开户银行" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="银行账号"><a-input v-model:value="bankAccount" placeholder="请输入银行账号" size="small" /></a-form-item></a-col>
+          </a-row>
+        </div>
+
+        <!-- 期初信息 -->
+        <div class="section-card">
+          <div class="section-title">期初信息</div>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="期初应付金额"><a-input-number v-model:value="openingBalance" :precision="2" :min="0" style="width:100%" size="small" placeholder="0" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="期初预付金额"><a-input-number v-model:value="prePaidAmount" :precision="2" :min="0" style="width:100%" size="small" placeholder="0" /></a-form-item></a-col>
+          </a-row>
+        </div>
+
+        <!-- 证件信息 -->
+        <div class="section-card">
+          <div class="section-title">证件信息</div>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8">
+              <div class="cert-upload">
+                <div class="cert-placeholder" @click="certFileInput1.click()">
+                  <img v-if="certLicenseUrl" :src="certLicenseUrl" class="cert-preview" />
+                  <div v-else class="cert-empty"><PictureOutlined style="font-size:32px;color:#d9d9d9" /><span>点击上传图片</span></div>
+                </div>
+                <input ref="certFileInput1" type="file" accept="image/*" hidden @change="(e) => handleCertUpload(e, 'license')" />
+                <div class="cert-label">营业执照</div>
+              </div>
+            </a-col>
+            <a-col :span="8">
+              <div class="cert-upload">
+                <div class="cert-placeholder" @click="certFileInput2.click()">
+                  <img v-if="certPermitUrl" :src="certPermitUrl" class="cert-preview" />
+                  <div v-else class="cert-empty"><PictureOutlined style="font-size:32px;color:#d9d9d9" /><span>点击上传图片</span></div>
+                </div>
+                <input ref="certFileInput2" type="file" accept="image/*" hidden @change="(e) => handleCertUpload(e, 'permit')" />
+                <div class="cert-label">道路运输许可证</div>
+              </div>
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- 附件 -->
+        <div class="section-card">
+          <AttachmentUpload :partner-id="savedPartnerId" />
+        </div>
       </a-form>
-
-      <div class="form-footer">
-        <a-space>
-          <a-button @click="handleCancel">取消</a-button>
-          <a-button type="primary" :loading="saving" @click="handleSubmit">确定</a-button>
-        </a-space>
-      </div>
     </div>
-  </PartnerFormLayout>
+
+    <!-- 固定底部按钮栏 -->
+    <div class="form-footer">
+      <a-space>
+        <a-button @click="handleCancel">取消</a-button>
+        <a-button @click="handleSaveAndNew" :loading="saving">保存并新增</a-button>
+        <a-button type="primary" :loading="saving" @click="handleSubmit">保存并返回列表</a-button>
+      </a-space>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import PartnerFormLayout from '../components/PartnerFormLayout.vue'
-import { partnerApi } from '@/api/erp/partner'
-import type { Partner } from '@/api/erp/partner'
+import { ArrowLeftOutlined, PictureOutlined } from '@ant-design/icons-vue'
+import { partnerApi, partnerContactApi, partnerBankAccountApi, type PartnerContact } from '@/api/erp/partner'
+import { logisticsApi } from '@/api/erp/logistics'
+import { generatePartnerCodeAsync } from '../utils/generateCode'
+import ContactList, { type ContactRowData } from '../components/ContactList.vue'
+import AttachmentUpload from '../components/AttachmentUpload.vue'
 import request from '@/utils/request'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const statusChecked = ref(true)
-const partnerOptions = ref<Partner[]>([])
+const otherRoleOptions = ref([
+  { value: 'CUSTOMER', label: '客户', checked: false },
+  { value: 'SUPPLIER', label: '供应商', checked: false },
+  { value: 'OTHER', label: '其他', checked: false },
+])
+const enablePriceTrack = ref(false)
+const hasCustomerRole = computed(() => otherRoleOptions.value.some(o => o.value === 'CUSTOMER' && o.checked))
+const showMallAccount = hasCustomerRole
+const openingBalance = ref(0)
+const prePaidAmount = ref(0)
+const bankName = ref('')
+const bankAccount = ref('')
+const contacts = ref<ContactRowData[]>([])
+const savedPartnerId = ref<number>()
+const certLicenseUrl = ref('')
+const certPermitUrl = ref('')
+const certFileInput1 = ref<HTMLInputElement>()
+const certFileInput2 = ref<HTMLInputElement>()
 
 const form = reactive({
-  partnerId: undefined as number | undefined,
-  logisticsName: '',
-  shortName: '',
-  logisticsCode: '',
-  logisticsType: 1,
-  serviceArea: '',
-  contactPerson: '',
-  contactPhone: '',
-  contactEmail: '',
-  servicePhone: '',
-  address: '',
-  transportMode: [] as string[],
-  vehicleCount: 0,
-  coldChain: false,
-  hazardous: false,
-  settleType: 'MONTHLY',
-  taxRate: 9,
-  remark: '',
-  status: 1,
-  sortOrder: 0,
+  partnerName:'', partnerShortName:'', partnerCode:'',
+  logisticsType:undefined as number|undefined, serviceArea:'',
+  transportModes:[] as string[], vehicleCount:0, coldChain:false, hazardous:false,
+  settleType:'MONTHLY', taxRate:9, unifiedSocialCode:'', taxId:'', legalPerson:'', remark:'',
 })
 
-const formRules: Record<string, any> = {
-  logisticsName: [{ required: true, message: '请输入物流公司名称', trigger: 'blur' }],
-  contactPhone: [{ pattern: /^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/, message: '请输入正确的联系电话', trigger: 'blur' }],
-  contactEmail: [{ type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }],
-}
+const formRules: Record<string, any> = { partnerName: [{ required: true, message: '请输入物流公司名称', trigger: 'blur' }] }
 
 const logisticsTypeOptions = [
-  { value: 1, label: '快递物流' },
-  { value: 2, label: '零担物流' },
-  { value: 3, label: '整车运输' },
-  { value: 4, label: '冷链物流' },
-  { value: 5, label: '危化品运输' },
-  { value: 6, label: '综合物流' },
+  { value:1, label:'快递物流' },{ value:2, label:'零担物流' },{ value:3, label:'整车运输' },
+  { value:4, label:'冷链物流' },{ value:5, label:'危化品运输' },{ value:6, label:'综合物流' },
 ]
 
-function generateCode() {
-  const ts = Date.now().toString(36).slice(-4).toUpperCase()
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase()
-  form.logisticsCode = `LOG${ts}${rand}`
-}
+async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('logistics') }
+function handleCancel() { router.push('/md/logistics/index') }
 
-function filterOption(input: string, option: any) {
-  const label = option?.children?.[0]?.children || option?.label || ''
-  return label.toString().toLowerCase().includes(input.toLowerCase())
-}
-
-async function loadPartnerOptions() {
+async function handleCertUpload(e: Event, type: 'license' | 'permit') {
+  const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return
   try {
-    const list = await partnerApi.search('', 'OTHER')
-    partnerOptions.value = list || []
-  } catch {
-    partnerOptions.value = []
-  }
+    const formData = new FormData(); formData.append('file', file)
+    const res = await request.post('/file/upload', formData)
+    const url = typeof res === 'string' ? res : (res as any)?.url || (res as any)?.data?.url
+    if (type === 'license') certLicenseUrl.value = url; else certPermitUrl.value = url
+    message.success('上传成功')
+  } catch { message.error('上传失败') }
+  input.value = ''
 }
 
-function handleCancel() {
-  router.push('/md/logistics')
+async function doSubmit(): Promise<number | null> {
+  try { await formRef.value?.validate() } catch { return null }
+  if (!form.partnerCode) await generateCode()
+  try {
+    const result = await partnerApi.create({
+      partnerName:form.partnerName, partnerShortName:form.partnerShortName, partnerCode:form.partnerCode,
+      partnerType:'LOGISTICS', settleType:form.settleType, taxRate:form.taxRate, remark:form.remark,
+      status:statusChecked.value?'ENABLED':'DISABLED', roles:['LOGISTICS', ...otherRoleOptions.value.filter(o=>o.checked).map(o=>o.value)], openingBalance:openingBalance.value,
+    } as any)
+    const pid = (result as any)?.id || 0
+    try {
+      await logisticsApi.create({
+        partnerId:pid, logisticsType:form.logisticsType, serviceArea:form.serviceArea,
+        transportModes:form.transportModes.join(','), vehicleCount:form.vehicleCount||0,
+        coldChain:form.coldChain?1:0, hazardous:form.hazardous?1:0,
+      })
+    } catch {}
+    return pid
+  } catch (err: any) { message.error(err?.response?.data?.message || err?.message || '创建失败'); return null }
+}
+
+async function submitContacts(partnerId: number) {
+  const ordered = [...contacts.value].sort((a, b) => (b.isDefault||0)-(a.isDefault||0))
+  for (const c of ordered) { const data={...c,partnerId,isDefault:c.isDefault||0}; delete(data as any).id; await partnerContactApi.create(data) }
+}
+async function submitBankAccount(partnerId: number) {
+  if (!bankName.value && !bankAccount.value) return
+  try { await partnerBankAccountApi.create({ partnerId, accountName:form.partnerName, bankName:bankName.value, accountNo:bankAccount.value, isDefault:1 }) } catch {}
 }
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
-  }
+  saving.value = true
+  try { const pid=await doSubmit(); if(!pid)return; await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value=pid; message.success('物流公司创建成功'); router.push('/md/logistics/index') }
+  finally { saving.value = false }
+}
 
-  if (!form.logisticsCode) {
-    generateCode()
-  }
-
-  form.status = statusChecked.value ? 1 : 0
+async function handleSaveAndNew() {
   saving.value = true
   try {
-    await request.post('/logistics', { ...form })
+    const pid=await doSubmit(); if(!pid)return; await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value=pid
     message.success('物流公司创建成功')
-    router.push('/md/logistics')
-  } catch (err: any) {
-    message.error(err?.response?.data?.message || err?.message || '创建失败，请稍后重试')
-  } finally {
-    saving.value = false
-  }
+    Object.assign(form,{partnerName:'',partnerShortName:'',partnerCode:'',logisticsType:undefined,serviceArea:'',transportModes:[],vehicleCount:0,coldChain:false,hazardous:false,settleType:'MONTHLY',taxRate:9,unifiedSocialCode:'',taxId:'',legalPerson:'',remark:''})
+    contacts.value=[];bankName.value='';bankAccount.value='';openingBalance.value=0;prePaidAmount.value=0
+    certLicenseUrl.value='';certPermitUrl.value='';await generateCode()
+  } finally { saving.value = false }
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault()
-    handleSubmit()
-  }
-}
-
-onMounted(() => {
-  generateCode()
-  loadPartnerOptions()
-  document.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
+function handleKeydown(e: KeyboardEvent) { if ((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();handleSubmit()} }
+onMounted(()=>{generateCode();document.addEventListener('keydown',handleKeydown)})
+onUnmounted(()=>{document.removeEventListener('keydown',handleKeydown)})
 </script>
 
 <style scoped>
-.form-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
-
-.form-footer {
-  text-align: right;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-}
-
-:deep(.ant-form-item) {
-  margin-bottom: 14px;
-}
-:deep(.ant-form-item-label > label) {
-  font-size: 13px;
-  color: #595959;
-}
-:deep(.ant-divider-inner-text) {
-  font-size: 13px;
-  color: #8c8c8c;
-  font-weight: 500;
-}
+.form-page-wrapper{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.page-header{padding:12px 16px;flex-shrink:0}.page-title{font-size:16px;font-weight:600;color:#262626}
+.top-options{background:#fff;padding:12px 20px;margin:0 16px 8px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.05);flex-shrink:0}
+.form-scroll-area{flex:1;overflow-y:auto;padding:0 16px 8px;min-height:0}
+.section-card{background:#fff;border-radius:6px;padding:20px 24px 12px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.section-title{font-size:14px;font-weight:600;color:#262626;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
+.section-row :deep(.ant-form-item){margin-bottom:10px}.section-row :deep(.ant-form-item-label>label){font-size:13px;color:#595959}
+.form-footer{background:#fff;border-radius:6px;padding:16px 24px;text-align:right;box-shadow:0 -1px 4px rgba(0,0,0,0.05);flex-shrink:0;margin:0 16px 16px}
+.cert-upload{display:flex;flex-direction:column;align-items:center;gap:8px}
+.cert-placeholder{width:120px;height:120px;border:1px dashed #d9d9d9;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fafafa;overflow:hidden;transition:border-color 0.2s}
+.cert-placeholder:hover{border-color:#40a9ff}.cert-preview{width:100%;height:100%;object-fit:cover}
+.cert-empty{display:flex;flex-direction:column;align-items:center;gap:4px;color:#bfbfbf;font-size:12px}
+.cert-label{font-size:13px;color:#595959}
 </style>

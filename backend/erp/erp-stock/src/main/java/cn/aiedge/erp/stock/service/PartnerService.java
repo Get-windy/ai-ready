@@ -10,7 +10,9 @@ public interface PartnerService extends IService<Partner> {
     IPage<Partner> getPartnerPage(String keyword, String partnerType, String status, Long categoryId, Integer pageNum, Integer pageSize);
     Partner getPartnerDetail(Long id);
     boolean createPartner(Partner partner);
+    boolean createPartnerWithRoles(Partner partner, List<String> roles);
     boolean updatePartner(Partner partner);
     List<Partner> search(String keyword, String partnerType);
     List<Partner> getPartnerList(String partnerType, String status, Integer pageSize);
+    Integer getNextSeq(String prefix);
 }

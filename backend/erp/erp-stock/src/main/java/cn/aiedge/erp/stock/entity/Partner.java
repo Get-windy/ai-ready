@@ -53,6 +53,23 @@ public class Partner {
     private BigDecimal totalOrderAmount;
     private String remark;
     private String status;
+
+    // 头像
+    private String partnerAvatar;
+
+    // 默认经手人
+    private Long defaultHandlerId;
+    private String defaultHandlerName;
+
+    // 会员信息
+    private String memberCardNo;
+    private String memberName;
+    private Integer initialPoints;
+
+    // 经营系列/面积
+    private String operatingSeries;
+    private java.math.BigDecimal operatingArea;
+
     @TableLogic
     private Integer deleted;
     private Long createBy;

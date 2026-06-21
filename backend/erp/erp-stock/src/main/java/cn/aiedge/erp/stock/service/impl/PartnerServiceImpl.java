@@ -2,20 +2,27 @@ package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.erp.stock.entity.Partner;
 import cn.aiedge.erp.stock.mapper.PartnerMapper;
+import cn.aiedge.erp.stock.service.PartnerRoleService;
 import cn.aiedge.erp.stock.service.PartnerService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Transactional(rollbackFor = Exception.class)
 @Service
+@RequiredArgsConstructor
 public class PartnerServiceImpl extends ServiceImpl<PartnerMapper, Partner> implements PartnerService {
+
+    private final PartnerRoleService partnerRoleService;
 
     @Override
     public IPage<Partner> getPartnerPage(String keyword, String partnerType, String status,
@@ -52,6 +59,18 @@ public class PartnerServiceImpl extends ServiceImpl<PartnerMapper, Partner> impl
     public boolean createPartner(Partner partner) {
         if (partner.getStatus() == null) partner.setStatus("ENABLED");
         return save(partner);
+    }
+
+    @Override
+    public boolean createPartnerWithRoles(Partner partner, List<String> roles) {
+        if (partner.getStatus() == null) partner.setStatus("ENABLED");
+        boolean saved = save(partner);
+        if (saved && roles != null && !roles.isEmpty()) {
+            for (String roleType : roles) {
+                partnerRoleService.addRole(partner.getId(), roleType, roleType.equals(partner.getPartnerType()));
+            }
+        }
+        return saved;
     }
 
     @Override
@@ -94,5 +113,16 @@ public class PartnerServiceImpl extends ServiceImpl<PartnerMapper, Partner> impl
             wrapper.last("LIMIT 200");
         }
         return list(wrapper);
+    }
+
+    @Override
+    public Integer getNextSeq(String prefix) {
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String codePrefix = prefix + "-" + dateStr;
+        LambdaQueryWrapper<Partner> wrapper = new LambdaQueryWrapper<Partner>()
+                .likeRight(Partner::getPartnerCode, codePrefix)
+                .eq(Partner::getDeleted, 0);
+        long count = count(wrapper);
+        return (int) count + 1;
     }
 }

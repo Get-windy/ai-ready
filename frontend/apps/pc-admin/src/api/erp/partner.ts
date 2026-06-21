@@ -213,6 +213,31 @@ export interface PartnerTag {
   status: number
 }
 
+// ── 往来单位附件 ──
+export interface PartnerAttachment {
+  id: number
+  partnerId: number
+  fileName: string
+  fileUrl: string
+  fileSize: number
+  fileType: string
+  category: string
+  sortOrder: number
+  createTime: string
+}
+
+export const partnerAttachmentApi = {
+  getByPartner(partnerId: number): Promise<PartnerAttachment[]> {
+    return request.get(`/erp/partner/attachments/${partnerId}`)
+  },
+  create(data: Partial<PartnerAttachment>): Promise<boolean> {
+    return request.post('/erp/partner/attachments', data)
+  },
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/erp/partner/attachments/${id}`)
+  }
+}
+
 export const partnerTagApi = {
   list(): Promise<PartnerTag[]> {
     return request.get('/erp/partner/tags')
