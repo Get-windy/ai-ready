@@ -1156,6 +1156,7 @@ onUnmounted(() => {
   background: #fafafa;
   transition: all 0.2s;
   font-size: 14px;
+  position: relative;
 }
 
 .create-tabs-left :deep(.ant-tabs-tab:hover) {
@@ -1164,13 +1165,13 @@ onUnmounted(() => {
 }
 
 .create-tabs-left :deep(.ant-tabs-tab-active) {
-  background: #1677ff !important;
-  color: #fff !important;
-  font-weight: 600;
+  background: #f0f5ff !important;
+  border-left: 3px solid #1677ff !important;
 }
 
 .create-tabs-left :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-  color: #fff !important;
+  color: #1677ff !important;
+  font-weight: 600;
 }
 
 .create-tabs-left :deep(.ant-tabs-ink-bar) {
