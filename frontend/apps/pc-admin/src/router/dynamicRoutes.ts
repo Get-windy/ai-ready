@@ -57,7 +57,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'charts/index': () => import('@/views/charts/index.vue'),
   'crm/contract/index': () => import('@/views/crm/contract/index.vue'),
-  'crm/customer/detail/CustomerDetail': () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
   'crm/customer/index': () => import('@/views/crm/customer/index.vue'),
   'crm/invoice/index': () => import('@/views/crm/invoice/index.vue'),
   'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
@@ -93,9 +92,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'profile/index': () => import('@/views/profile/index.vue'),
   'purchase/detail/inbound/InboundDetail': () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
   'purchase/detail/inquiry/InquiryDetail': () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
-  'purchase/detail/OrderDetail': () => import('@/views/purchase/detail/OrderDetail.vue'),
   'purchase/index': () => import('@/views/erp/purchase/index.vue'),
-  'sale/detail/OrderDetail': () => import('@/views/sale/detail/OrderDetail.vue'),
+  'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
   'sale/index': () => import('@/views/erp/sale/index.vue'),
   'stock/detail/StockDetail': () => import('@/views/stock/detail/StockDetail.vue'),
   'stock/index': () => import('@/views/erp/stock/index.vue'),
@@ -134,20 +132,17 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
   'erp/sale/form': () => import('@/views/erp/sale/form.vue'),
   'erp/sale-outbound/index': () => import('@/views/erp/sale-outbound/index.vue'),
+  'erp/sale-outbound/form': () => import('@/views/erp/sale-outbound/form.vue'),
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
   'erp/purchase-exchange/index': () => import('@/views/erp/purchase-exchange/index.vue'),
   'erp/purchase-return/index': () => import('@/views/erp/purchase-return/index.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
-  'erp/stock-in/detail': () => import('@/views/erp/stock-in/detail.vue'),
   'erp/stock/replenishment/index': () => import('@/views/erp/stock/replenishment/index.vue'),
   'erp/stocktake/index': () => import('@/views/erp/stocktake/index.vue'),
-  'erp/stocktake/detail': () => import('@/views/erp/stocktake/detail.vue'),
   'erp/return/index': () => import('@/views/erp/return/index.vue'),
-  'erp/return/detail': () => import('@/views/erp/return/detail.vue'),
   'erp/shipment/index': () => import('@/views/erp/shipment/index.vue'),
-  'erp/shipment/detail': () => import('@/views/erp/shipment/detail.vue'),
   // ── 价格引擎模块 ──'pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'erp/pricing/index': () => import('@/views/erp/pricing/index.vue'),
   'erp/pricing/approval/index': () => import('@/views/erp/pricing/approval/index.vue'),
@@ -227,7 +222,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'dms/channel/index': () => import('@/views/dms/channel/index.vue'),
   'dms/rider/index': () => import('@/views/dms/rider/index.vue'),
   'dms/vehicle/index': () => import('@/views/dms/vehicle/index.vue'),
-  'dms/vehicle/detail': () => import('@/views/dms/vehicle/detail.vue'),
   'dms/vehicle/maintenance': () => import('@/views/dms/vehicle/maintenance.vue'),
   'dms/verification/index': () => import('@/views/dms/verification/index.vue'),
   'dms/verification/binding-detail': () => import('@/views/dms/verification/binding-detail.vue'),
@@ -388,9 +382,16 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/quotation/form': () => import('@/views/crm/quotation/form.vue'),
   'crm/invoice/form': () => import('@/views/crm/invoice/form.vue'),
   'md/product/form': () => import('@/views/common/placeholder/index.vue'),
-  'md/customer/form': () => import('@/views/common/placeholder/index.vue'),
-  'md/supplier/form': () => import('@/views/common/placeholder/index.vue'),
-  'md/logistics/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/customer/form': () => import('@/views/md/customer/form.vue'),
+  'md/supplier/form': () => import('@/views/md/supplier/form.vue'),
+  'md/logistics/form': () => import('@/views/md/logistics/form.vue'),
+  'md/partner/form': () => import('@/views/md/partner/form.vue'),
+
+  // ── 资料 > 往来单位 列表页 ──
+  'md/customer/index': () => import('@/views/md/customer/index.vue'),
+  'md/supplier/index': () => import('@/views/md/supplier/index.vue'),
+  'md/logistics/index': () => import('@/views/md/logistics/index.vue'),
+  'md/partner/index': () => import('@/views/md/partner/index.vue'),
   'dms/rider/form': () => import('@/views/common/placeholder/index.vue'),
   'dms/vehicle/form': () => import('@/views/common/placeholder/index.vue'),
 }
@@ -820,7 +821,7 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     {
       path: 'purchase/order/:id',
       name: 'PurchaseOrderDetail',
-      component: () => import('@/views/purchase/detail/OrderDetail.vue'),
+      component: () => import('@/views/erp/purchase/form.vue'),
       meta: { title: '采购订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '504' }
     },
     {
@@ -838,13 +839,13 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     {
       path: 'sale/order/:id',
       name: 'SaleOrderDetail',
-      component: () => import('@/views/sale/detail/OrderDetail.vue'),
+      component: () => import('@/views/erp/sale/form.vue'),
       meta: { title: '销售订单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true, billType: '604' }
     },
     {
       path: 'crm/customer/:id',
       name: 'CrmCustomerDetail',
-      component: () => import('@/views/crm/customer/detail/CustomerDetail.vue'),
+      component: () => import('@/views/crm/customer/form.vue'),
       meta: { title: '客户详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
@@ -874,25 +875,25 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     {
       path: 'erp/stock-in/:id',
       name: 'ErpStockInDetail',
-      component: () => import('@/views/erp/stock-in/detail.vue'),
+      component: () => import('@/views/erp/stock-in/form.vue'),
       meta: { title: '入库单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/shipment/:id',
       name: 'ErpShipmentDetail',
-      component: () => import('@/views/erp/shipment/detail.vue'),
+      component: () => import('@/views/erp/shipment/form.vue'),
       meta: { title: '出库单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/stocktake/:id',
       name: 'ErpStocktakeDetail',
-      component: () => import('@/views/erp/stocktake/detail.vue'),
+      component: () => import('@/views/erp/stocktake/form.vue'),
       meta: { title: '盘点单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/return/:id',
       name: 'ErpReturnDetail',
-      component: () => import('@/views/erp/return/detail.vue'),
+      component: () => import('@/views/erp/return/form.vue'),
       meta: { title: '退货单详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {

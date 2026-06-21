@@ -51,6 +51,13 @@
           <a-input-number v-if="!isViewMode" v-model:value="record.quantity" :min="0" :precision="2" style="width:100%" size="small" />
           <span v-else>{{ record.quantity }}</span>
         </template>
+        <template #unitPriceCell="{ record }">
+          <a-input-number v-if="!isViewMode" v-model:value="record.unitPrice" :min="0" :precision="2" style="width:100%" size="small" />
+          <span v-else>{{ record.unitPrice?.toFixed(2) }}</span>
+        </template>
+        <template #amountCell="{ record }">
+          <span class="amount-text">{{ ((record.quantity || 0) * (record.unitPrice || 0)).toFixed(2) }}</span>
+        </template>
         <template #action="{ index }">
           <a-button v-if="!isViewMode" type="link" danger size="small" @click="handleRemoveProduct(index)">
             <template #icon><DeleteOutlined /></template>
@@ -68,69 +75,53 @@ import BillFormPage from '@/components/BillFormPage/index.vue'
 import type { BillHeaderConfig, BasicInfoField, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import request from '@/utils/request'
-
-// API
-const wmsShipApi = {
-  create(data: any) { return request.post('/wms/ship', data) },
-  update(id: number, data: any) { return request.put(`/wms/ship/${id}`, data) },
-  getById(id: number) { return request.get(`/wms/ship/${id}`) },
-}
+import { outboundApi } from '@/api/erp'
 
 const {
   formData, loadingOptions, saving, optionRefs, filterOption, effectiveMode,
   handleAddProduct, handleRemoveProduct, handleProductChange,
-  handleSaveDraft, handleSubmit, totalQuantity, totalWithTaxFormatted,
+  handleSaveDraft, handleSubmit, totalQuantity, totalAmount, totalWithTaxFormatted,
 } = useBillForm({
-  billPrefix: 'WS',
-  api: wmsShipApi,
-  redirectPath: '/wms/ship',
+  billPrefix: 'XSCK',
+  api: outboundApi,
+  redirectPath: '/erp/sale-outbound',
   fields: [
-    { key: 'warehouseId', label: '发货仓库', type: 'select', required: true, optionsRef: 'warehouses' },
-    { key: 'handlerId', label: '操作员', type: 'select', required: true, optionsRef: 'users' },
-    { key: 'date', label: '发货日期', type: 'date', required: true },
-    { key: 'shipType', label: '发货类型', type: 'select' },
-    { key: 'receiverName', label: '收货人', type: 'input' },
-    { key: 'receiverPhone', label: '联系电话', type: 'input' },
-    { key: 'receiverAddress', label: '收货地址', type: 'input' },
+    { key: 'customerId', label: '客户', type: 'select', required: true },
+    { key: 'warehouseId', label: '出库仓库', type: 'select', required: true },
+    { key: 'handlerId', label: '经手人', type: 'select', required: true },
+    { key: 'date', label: '出库日期', type: 'date', required: true },
+    { key: 'outboundType', label: '出库类型', type: 'select' },
+    { key: 'sourceOrderNo', label: '来源单号', type: 'input' },
   ],
 })
 
 const isViewMode = computed(() => effectiveMode.value === 'view')
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
-  title: '发货单',
+  title: '销售出库单',
   orderNo: formData.orderNo,
   showAttachment: true,
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  {
-    key: 'warehouseId', label: '发货仓库', type: 'select', required: true,
+  { key: 'customerId', label: '客户', type: 'select', required: true,
+    options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })),
+    searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true,
     options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
-  {
-    key: 'handlerId', label: '操作员', type: 'select', required: true,
+    searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'handlerId', label: '经手人', type: 'select', required: true,
     options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })),
-    searchBtn: '+Q', loading: loadingOptions.value,
-  },
-  { key: 'date', label: '发货日期', type: 'date', required: true },
-  {
-    key: 'shipType', label: '发货类型', type: 'select',
-    options: [
-      { label: '销售发货', value: 1 },
-      { label: '调拨发货', value: 2 },
-    ],
-  },
-  { key: 'receiverName', label: '收货人', type: 'input' },
-  { key: 'receiverPhone', label: '联系电话', type: 'input' },
-  { key: 'receiverAddress', label: '收货地址', type: 'input' },
+    searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'date', label: '出库日期', type: 'date', required: true },
+  { key: 'outboundType', label: '出库类型', type: 'select',
+    options: [{ label: '销售出库', value: 1 }, { label: '调拨出库', value: 2 }, { label: '其他出库', value: 3 }] },
+  { key: 'sourceOrderNo', label: '来源单号', type: 'input', placeholder: '关联销售订单号' },
 ])
 
 const footerConfig = computed<BillFooterConfig>(() => ({
-  amountLabel: '本单数量',
-  amountValue: `${totalQuantity.value}`,
+  amountLabel: '本单金额',
+  amountValue: totalWithTaxFormatted.value,
   draftBtnText: '保存草稿',
   draftShortcut: 'Ctrl+S',
   primaryBtnText: '提交',
@@ -144,15 +135,13 @@ const tableColumns = [
   { field: 'specification', title: '规格', width: 120 },
   { field: 'quantity', title: '数量', width: 100, slotName: 'quantityCell' },
   { field: 'unit', title: '单位', width: 80 },
-  { field: 'locationCode', title: '库位', width: 100 },
-  { field: 'batchNo', title: '批次号', width: 120 },
+  { field: 'unitPrice', title: '单价', width: 100, slotName: 'unitPriceCell' },
+  { field: 'amount', title: '金额', width: 120, slotName: 'amountCell' },
   { field: 'remark', title: '备注', width: 150 },
   { field: 'action', title: '操作', width: 80, fixed: 'right', slotName: 'action' },
 ]
 
-function handleAction(key: string) {
-  // handle actions
-}
+function handleAction(_key: string) {}
 </script>
 
 <style scoped>
@@ -167,6 +156,10 @@ function handleAction(key: string) {
 }
 .section-title {
   font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+.amount-text {
   font-weight: 600;
   color: #262626;
 }

@@ -84,6 +84,7 @@ declare module 'vue' {
     AUpload: typeof import('ant-design-vue/es')['Upload']
     AUploadDragger: typeof import('ant-design-vue/es')['UploadDragger']
     BasicFormPage: typeof import('./components/BasicFormPage/index.vue')['default']
+    BillFormPage: typeof import('./components/BillFormPage/index.vue')['default']
     CanvasBoard: typeof import('./components/Workflow/Canvas/CanvasBoard.vue')['default']
     Connection: typeof import('./components/Workflow/Canvas/Connection.vue')['default']
     ConnectionManager: typeof import('./components/Workflow/Canvas/ConnectionManager.vue')['default']

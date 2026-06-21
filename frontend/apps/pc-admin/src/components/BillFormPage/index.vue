@@ -17,7 +17,6 @@
       </div>
       <div class="header-right">
         <template v-for="action in header?.actions" :key="action.key">
-          <!-- 有子项 → 下拉菜单 -->
           <a-dropdown v-if="action.children?.length">
             <a-button size="small">
               <template v-if="action.icon" #icon><component :is="action.icon" /></template>
@@ -32,7 +31,6 @@
               </a-menu>
             </template>
           </a-dropdown>
-          <!-- 无子项 → 普通按钮 -->
           <a-button v-else size="small" @click="emit('action', action.key)">
             <template v-if="action.icon" #icon><component :is="action.icon" /></template>
             {{ action.label }}
@@ -56,58 +54,60 @@
         >
           <label>{{ field.label }}</label>
           <div class="field-input-wrap">
-            <!-- select -->
-            <a-select
-              v-if="field.type === 'select'"
-              :value="(modelValue as any)[field.key]"
-              :placeholder="field.placeholder"
-              show-search
-              :filter-option="filterOption"
-              :loading="field.loading"
-              size="small"
-              style="flex:1"
-              @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-              @change="(val: any) => emit('fieldChange', field.key, val)"
-            >
-              <a-select-option v-for="opt in field.options" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </a-select-option>
-            </a-select>
-            <!-- date -->
-            <a-date-picker
-              v-else-if="field.type === 'date'"
-              :value="(modelValue as any)[field.key]"
-              style="width:100%"
-              :format="field.format || 'YYYY-MM-DD'"
-              value-format="YYYY-MM-DD"
-              size="small"
-              @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-            />
-            <!-- number -->
-            <a-input-number
-              v-else-if="field.type === 'number'"
-              :value="(modelValue as any)[field.key]"
-              :placeholder="field.placeholder"
-              size="small"
-              style="flex:1"
-              @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-            />
-            <!-- input (default) -->
-            <a-input
-              v-else
-              :value="(modelValue as any)[field.key]"
-              :placeholder="field.placeholder"
-              size="small"
-              style="flex:1"
-              @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-            />
-            <!-- 搜索按钮 -->
-            <a-button
-              v-if="field.searchBtn"
-              type="link" size="small" class="field-search-btn"
-            >
-              {{ field.searchBtn }}
-            </a-button>
+            <!-- ── 查看模式：纯文本 ── -->
+            <template v-if="isViewMode">
+              <span class="field-view-text">{{ getFieldDisplayValue(field) }}</span>
+            </template>
+            <!-- ── 编辑模式：输入控件 ── -->
+            <template v-else>
+              <a-select
+                v-if="field.type === 'select'"
+                :value="(modelValue as any)[field.key]"
+                :placeholder="field.placeholder"
+                show-search
+                :filter-option="filterOption"
+                :loading="field.loading"
+                size="small"
+                style="flex:1"
+                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+                @change="(val: any) => emit('fieldChange', field.key, val)"
+              >
+                <a-select-option v-for="opt in field.options" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </a-select-option>
+              </a-select>
+              <a-date-picker
+                v-else-if="field.type === 'date'"
+                :value="(modelValue as any)[field.key]"
+                style="width:100%"
+                :format="field.format || 'YYYY-MM-DD'"
+                value-format="YYYY-MM-DD"
+                size="small"
+                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+              />
+              <a-input-number
+                v-else-if="field.type === 'number'"
+                :value="(modelValue as any)[field.key]"
+                :placeholder="field.placeholder"
+                size="small"
+                style="flex:1"
+                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+              />
+              <a-input
+                v-else
+                :value="(modelValue as any)[field.key]"
+                :placeholder="field.placeholder"
+                size="small"
+                style="flex:1"
+                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+              />
+              <a-button
+                v-if="field.searchBtn"
+                type="link" size="small" class="field-search-btn"
+              >
+                {{ field.searchBtn }}
+              </a-button>
+            </template>
           </div>
         </div>
       </div>
@@ -119,9 +119,8 @@
     </div>
 
     <!-- ═══ Zone 4: 底部面板（左标签页 + 右摘要） ═══ -->
-    <div class="bill-bottom-panel">
+    <div v-if="showBottomPanel && (tabs?.length || summary?.length || $slots['bottom-extra'])" class="bill-bottom-panel">
       <div class="bottom-panel-inner">
-        <!-- 左侧：标签页 + 备注插槽 -->
         <div class="bottom-left">
           <a-tabs v-if="tabs?.length" v-model:activeKey="activeTab" size="small" class="bottom-tabs">
             <a-tab-pane v-for="tab in tabs" :key="tab.key" :tab="tab.tab">
@@ -129,55 +128,60 @@
                 <div v-for="tf in tab.fields" :key="tf.key" class="tab-field">
                   <label>{{ tf.label }}</label>
                   <div class="tab-field-input">
-                    <a-select
-                      v-if="tf.type === 'select'"
-                      :value="(modelValue as any)[tf.key]"
-                      :placeholder="tf.placeholder"
-                      :disabled="tf.disabled"
-                      show-search
-                      size="small"
-                      style="flex:1"
-                      @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
-                    >
-                      <a-select-option v-for="opt in tf.options" :key="opt.value" :value="opt.value">
-                        {{ opt.label }}
-                      </a-select-option>
-                    </a-select>
-                    <a-input-number
-                      v-else-if="tf.type === 'number'"
-                      :value="(modelValue as any)[tf.key]"
-                      :placeholder="tf.placeholder"
-                      :disabled="tf.disabled"
-                      size="small"
-                      style="flex:1"
-                      @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
-                    />
-                    <a-input
-                      v-else
-                      :value="(modelValue as any)[tf.key]"
-                      :placeholder="tf.placeholder"
-                      :disabled="tf.disabled"
-                      size="small"
-                      style="flex:1"
-                      @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
-                    />
-                    <a-button
-                      v-if="tf.suffixBtn"
-                      type="link" size="small"
-                      :class="{ 'btn-clear': tf.suffixBtnDanger }"
-                    >
-                      {{ tf.suffixBtn }}
-                    </a-button>
+                    <!-- 查看模式 -->
+                    <template v-if="isViewMode">
+                      <span class="field-view-text">{{ getTabFieldDisplayValue(tf) }}</span>
+                    </template>
+                    <!-- 编辑模式 -->
+                    <template v-else>
+                      <a-select
+                        v-if="tf.type === 'select'"
+                        :value="(modelValue as any)[tf.key]"
+                        :placeholder="tf.placeholder"
+                        :disabled="tf.disabled"
+                        show-search
+                        size="small"
+                        style="flex:1"
+                        @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
+                      >
+                        <a-select-option v-for="opt in tf.options" :key="opt.value" :value="opt.value">
+                          {{ opt.label }}
+                        </a-select-option>
+                      </a-select>
+                      <a-input-number
+                        v-else-if="tf.type === 'number'"
+                        :value="(modelValue as any)[tf.key]"
+                        :placeholder="tf.placeholder"
+                        :disabled="tf.disabled"
+                        size="small"
+                        style="flex:1"
+                        @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
+                      />
+                      <a-input
+                        v-else
+                        :value="(modelValue as any)[tf.key]"
+                        :placeholder="tf.placeholder"
+                        :disabled="tf.disabled"
+                        size="small"
+                        style="flex:1"
+                        @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
+                      />
+                      <a-button
+                        v-if="tf.suffixBtn"
+                        type="link" size="small"
+                        :class="{ 'btn-clear': tf.suffixBtnDanger }"
+                      >
+                        {{ tf.suffixBtn }}
+                      </a-button>
+                    </template>
                   </div>
                 </div>
               </div>
             </a-tab-pane>
           </a-tabs>
-          <!-- 备注/额外内容插槽 -->
           <slot name="bottom-extra" />
         </div>
 
-        <!-- 右侧：红色摘要面板 -->
         <div v-if="summary?.length" class="bill-summary-sidebar">
           <template v-for="(row, idx) in summary" :key="idx">
             <div v-if="row.divider" class="sidebar-divider" />
@@ -191,8 +195,8 @@
       </div>
     </div>
 
-    <!-- ═══ Zone 5: 页脚操作栏 ═══ -->
-    <div class="bill-footer">
+    <!-- ═══ Zone 5: 页脚操作栏（查看模式隐藏） ═══ -->
+    <div v-if="!isViewMode" class="bill-footer">
       <div class="footer-left">
         <span class="footer-amount-label">{{ footer?.amountLabel || '本单金额' }}</span>
         <span class="footer-amount-value" :class="{ 'amount-red': footer?.amountHighlight !== false }">
@@ -226,7 +230,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   PaperClipOutlined,
   DownOutlined,
@@ -235,11 +240,14 @@ import type {
   BillHeaderConfig,
   BasicInfoField,
   BillTabConfig,
+  TabField,
   SummaryRow,
   BillFooterConfig,
 } from './types'
 
 defineOptions({ name: 'BillFormPage' })
+
+const route = useRoute()
 
 const props = withDefaults(defineProps<{
   /** v-model 表单数据 */
@@ -254,12 +262,18 @@ const props = withDefaults(defineProps<{
   summary?: SummaryRow[]
   /** Zone 5: 页脚配置 */
   footer?: BillFooterConfig
+  /** 页面模式：不指定时从路由参数自动推断 */
+  mode?: 'create' | 'edit' | 'view'
+  /** 是否显示底部面板（Zone 4），默认 true */
+  showBottomPanel?: boolean
 }>(), {
   header: undefined,
   basicInfoFields: () => [],
   tabs: () => [],
   summary: () => [],
   footer: undefined,
+  mode: undefined,
+  showBottomPanel: true,
 })
 
 const emit = defineEmits<{
@@ -272,10 +286,42 @@ const emit = defineEmits<{
 
 const activeTab = ref(props.tabs?.[0]?.key || '')
 
+/** 有效模式：显式指定 > 路由推断 */
+const effectiveMode = computed(() => {
+  if (props.mode) return props.mode
+  const editId = route.params.id || route.query.id
+  return editId ? 'edit' : 'create'
+})
+
+/** 是否为查看模式 */
+const isViewMode = computed(() => effectiveMode.value === 'view')
+
 /** select 搜索过滤 */
 const filterOption = (input: string, option: any) => {
   const text = option?.label || option?.children?.[0]?.children || ''
   return text.toString().toLowerCase().includes(input.toLowerCase())
+}
+
+/** 获取基本信息字段的显示值（查看模式） */
+function getFieldDisplayValue(field: BasicInfoField): string {
+  const raw = (props.modelValue as any)?.[field.key]
+  if (raw === undefined || raw === null || raw === '') return '—'
+  if (field.type === 'select' && field.options) {
+    const opt = field.options.find(o => o.value === raw)
+    return opt?.label || String(raw)
+  }
+  return String(raw)
+}
+
+/** 获取标签页字段的显示值（查看模式） */
+function getTabFieldDisplayValue(tf: TabField): string {
+  const raw = (props.modelValue as any)?.[tf.key]
+  if (raw === undefined || raw === null || raw === '') return '—'
+  if (tf.type === 'select' && tf.options) {
+    const opt = tf.options.find(o => o.value === raw)
+    return opt?.label || String(raw)
+  }
+  return String(raw)
 }
 </script>
 
@@ -386,6 +432,13 @@ const filterOption = (input: string, option: any) => {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.field-view-text {
+  font-size: 13px;
+  color: #262626;
+  line-height: 26px;
+  padding: 0 4px;
 }
 
 .field-search-btn {

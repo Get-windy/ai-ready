@@ -55,8 +55,11 @@ import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import { useRouter } from 'vue-router'
 import { outboundApi } from '@/api/erp'
 import type { SaleOutbound } from '@/api/erp'
+
+const router = useRouter()
 
 const loading = ref(false)
 const dataSource = ref<SaleOutbound[]>([])
@@ -126,7 +129,7 @@ async function fetchData() {
 }
 
 function handleView(record: SaleOutbound) {
-  message.info(`查看出库单: ${record.outboundNo}`)
+  router.push(`/erp/sale-outbound/form?id=${record.id}`)
 }
 
 function handleError(error: any) {
