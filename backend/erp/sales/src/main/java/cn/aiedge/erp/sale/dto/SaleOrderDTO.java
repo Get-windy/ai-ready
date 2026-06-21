@@ -32,6 +32,16 @@ public class SaleOrderDTO {
     private String shippingAddress;
     private String receiverName;
     private String receiverPhone;
+    private Integer saleType;
+    private Long paymentAccountId;
+    private String logisticsCompany;
+    private String logisticsNo;
+    private BigDecimal shippingFee;
+    private String memberCardNo;
+    private String memberName;
+    private Integer memberDiscount;
+    private String orderRemark;
+    private String buyerRemark;
     private String remark;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

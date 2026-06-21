@@ -135,10 +135,10 @@ async function fetchData() {
   }
 }
 
-function openForm(record?: DevTemplateItem) {
+function openForm(record?: Record<string, any>) {
   if (record) {
-    editingId.value = record.id
-    form.value = { ...record }
+    editingId.value = record.id as number
+    form.value = { ...(record as DevTemplateItem) }
   } else {
     editingId.value = null
     form.value = { name: '', code: '', type: 'entity', version: '1.0', description: '', content: '', enabled: true }
@@ -169,7 +169,7 @@ async function handleSave() {
   }
 }
 
-async function handleDelete(record: DevTemplateItem) {
+async function handleDelete(record: Record<string, any>) {
   try {
     await request.delete('/codegen/template/delete/' + record.id)
     message.success('删除成功')
@@ -179,9 +179,10 @@ async function handleDelete(record: DevTemplateItem) {
   }
 }
 
-async function toggleEnabled(record: DevTemplateItem, checked: boolean) {
+async function toggleEnabled(record: Record<string, any>, checked: boolean) {
   try {
-    const url = checked ? '/codegen/template/activate/' + record.id : '/codegen/template/deactivate/' + record.id
+    const item = record as DevTemplateItem
+    const url = checked ? '/codegen/template/activate/' + item.id : '/codegen/template/deactivate/' + item.id
     await request.post(url)
     record.enabled = checked
   } catch {

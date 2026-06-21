@@ -76,13 +76,13 @@ export interface RoleMenuAssignRequest {
 // 菜单API - 对齐后端 RESTful Controller
 export const menuApi = {
   // 获取菜单树（管理用）
-  getTree(params?: MenuQuery): Promise<ApiResponse<MenuInfo[]>> {
+  getTree(params?: MenuQuery): Promise<MenuInfo[]> {
     const userStore = useUserStore()
     return request.get('/menu/tree', { ...params, tenantId: userStore.tenantId })
   },
 
   // 获取菜单列表（扁平）
-  getList(tenantId: number): Promise<ApiResponse<MenuInfo[]>> {
+  getList(tenantId: number): Promise<MenuInfo[]> {
     return request.get('/menu/list', { tenantId })
   },
 

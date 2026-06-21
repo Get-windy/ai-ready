@@ -94,17 +94,11 @@
       <!-- 换货商品明细 -->
       <div class="form-section">
         <h3 class="section-title">换货商品明细</h3>
-        <VxeTableList
+        <BillDetailTable
           :columns="detailColumns"
           :data-source="formData.items"
-          :pagination="false as any"
-          row-key="id"
-          :show-toolbar="false"
-          :selectable="false"
-          :show-add="false"
-          :show-search="false"
-          :show-export="false"
-          :show-batch-delete="false"
+          :max-height="400"
+          @cell-change="handleCellChange"
         >
           <template #exchangeQuantityCell="{ record }">
             <a-input-number
@@ -127,7 +121,7 @@
           <template #subtotalCell="{ record }">
             <span class="amount-text">¥{{ ((record.exchangeQuantity || 0) * (record.exchangePrice || 0)).toFixed(2) }}</span>
           </template>
-        </VxeTableList>
+        </BillDetailTable>
         <div v-if="formData.items.length === 0" class="empty-tip">
           请先选择原采购订单，系统将自动加载订单明细
         </div>
@@ -174,7 +168,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import dayjs from 'dayjs'
 import {
   purchaseExchangeApi,
@@ -226,15 +221,16 @@ const formData = reactive<{
   items: [],
 })
 
-const detailColumns = [
-  { field: 'productName', title: '商品名称', width: 180 },
-  { field: 'productCode', title: '商品编码', width: 120 },
-  { field: 'unit', title: '单位', width: 80 },
-  { field: 'originalQuantity', title: '原数量', width: 100 },
-  { field: 'exchangeQuantity', title: '换货数量', width: 120, slotName: 'exchangeQuantityCell' },
-  { field: 'originalPrice', title: '原单价', width: 100 },
-  { field: 'exchangePrice', title: '换货单价', width: 120, slotName: 'exchangePriceCell' },
-  { field: 'subtotal', title: '小计', width: 100, slotName: 'subtotalCell' },
+const detailColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'productName', title: '商品名称', type: 'input', width: 180, readonly: true },
+  { key: 'productCode', title: '商品编码', type: 'input', width: 120, readonly: true },
+  { key: 'unit', title: '单位', type: 'input', width: 80, readonly: true },
+  { key: 'originalQuantity', title: '原数量', type: 'number', width: 100, readonly: true, precision: 0 },
+  { key: 'exchangeQuantity', title: '换货数量', type: 'slot', slotName: 'exchangeQuantityCell', width: 120 },
+  { key: 'originalPrice', title: '原单价', type: 'number', width: 100, readonly: true, precision: 2 },
+  { key: 'exchangePrice', title: '换货单价', type: 'slot', slotName: 'exchangePriceCell', width: 120 },
+  { key: 'subtotal', title: '小计', type: 'slot', slotName: 'subtotalCell', width: 100 },
 ]
 
 const totalAmount = computed(() =>
@@ -419,6 +415,8 @@ async function loadDetail(id: number) {
     message.error('加载详情失败: ' + (err?.message || ''))
   }
 }
+
+function handleCellChange(_record: any, _fieldKey: string, _value: any) {}
 
 // 快捷键
 function handleKeydown(e: KeyboardEvent) {

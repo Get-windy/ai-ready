@@ -69,11 +69,13 @@ async function fetchTenants() {
   tenants.value = res.data.records || []
 }
 
+import { menuApi } from '@/api/menu'
+import request from '@/utils/request'
+
 async function fetchModules() {
   try {
-    const { getTenantModules } = await import('@/api/menu')
-    const res = await getTenantModules()
-    availableModules.value = (res as any).data || []
+    const res = await request.get('/menu/list', { params: { pageNum: 1, pageSize: 200 } })
+    availableModules.value = res?.records || res?.data || []
   } catch {
     availableModules.value = []
   }
@@ -81,10 +83,8 @@ async function fetchModules() {
 
 async function onTenantChange(tenantId: number) {
   try {
-    const { getTenantMenuIds } = await import('@/api/menu')
-    const res = await getTenantMenuIds(tenantId)
-    // 后端返回 Set<Long>（菜单ID列表），request 拦截器已解包 data
-    selectedModules.value = Array.isArray(res) ? res.map(String) : []
+    const res = await menuApi.getTenantMenuIds(tenantId)
+    selectedModules.value = Array.isArray(res.data) ? res.data.map(String) : []
   } catch {
     selectedModules.value = []
   }
@@ -93,8 +93,7 @@ async function onTenantChange(tenantId: number) {
 async function handleSave() {
   saving.value = true
   try {
-    const { assignTenantMenus } = await import('@/api/menu')
-    await assignTenantMenus(selectedTenantId.value!, selectedModules.value.map(Number))
+    await menuApi.assignTenantMenus(selectedTenantId.value!, selectedModules.value.map(Number))
     message.success('授权保存成功')
   } catch {
     message.error('授权保存失败')

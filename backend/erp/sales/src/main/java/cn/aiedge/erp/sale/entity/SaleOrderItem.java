@@ -50,14 +50,64 @@ public class SaleOrderItem {
     private String productName;
 
     /**
+     * 条码
+     */
+    private String barcode;
+
+    /**
      * 规格型号
      */
     private String specification;
 
     /**
+     * 货位
+     */
+    private String location;
+
+    /**
      * 单位
      */
     private String unit;
+
+    /**
+     * 商品行属性
+     */
+    private String lineAttribute;
+
+    /**
+     * 批次条码
+     */
+    private String batchCode;
+
+    /**
+     * 生产日期
+     */
+    private LocalDateTime productionDate;
+
+    /**
+     * 保质期
+     */
+    private String shelfLife;
+
+    /**
+     * 到期日期
+     */
+    private LocalDateTime expiryDate;
+
+    /**
+     * 大包装数量
+     */
+    private BigDecimal bigPack;
+
+    /**
+     * 中包装数量
+     */
+    private BigDecimal midPack;
+
+    /**
+     * 小包装数量
+     */
+    private BigDecimal smallPack;
 
     /**
      * 订购数量

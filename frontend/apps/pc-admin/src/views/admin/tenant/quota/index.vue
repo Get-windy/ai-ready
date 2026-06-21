@@ -98,9 +98,11 @@ const columns = [
   { title: '操作', key: 'action', width: 150 },
 ]
 
-function calcUsagePercent(record: TenantQuotaInfo): number {
-  if (!record.maxApiCalls || !record.usedApiCalls) return 0
-  return Math.min(Math.round((record.usedApiCalls / record.maxApiCalls) * 100), 100)
+function calcUsagePercent(record: Record<string, any>): number {
+  const maxApiCalls = record.maxApiCalls as number
+  const usedApiCalls = record.usedApiCalls as number
+  if (!maxApiCalls || !usedApiCalls) return 0
+  return Math.min(Math.round((usedApiCalls / maxApiCalls) * 100), 100)
 }
 
 async function fetchData() {
@@ -113,10 +115,10 @@ async function fetchData() {
   }
 }
 
-function openForm(record?: TenantQuotaInfo) {
+function openForm(record?: Record<string, any>) {
   if (record) {
-    editingId.value = record.id
-    form.value = { ...record }
+    editingId.value = record.id as number
+    form.value = { ...(record as TenantQuotaInfo) }
   } else {
     editingId.value = null
     form.value = {
@@ -153,7 +155,7 @@ async function handleSave() {
   }
 }
 
-async function handleDelete(record: TenantQuotaInfo) {
+async function handleDelete(record: Record<string, any>) {
   try {
     await tenantQuotaApi.delete(record.id)
     message.success('删除成功')

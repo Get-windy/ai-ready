@@ -12,8 +12,8 @@
           />
           <a-select v-model:value="searchStatus" size="small" style="width: 100px" @change="handleSearch">
             <a-select-option value="">全部</a-select-option>
-            <a-select-option value="1">正常</a-select-option>
-            <a-select-option value="0">停用</a-select-option>
+            <a-select-option value="ENABLED">启用</a-select-option>
+            <a-select-option value="DISABLED">停用</a-select-option>
           </a-select>
         </a-space>
         <a-button type="primary" size="small" @click="router.push('/md/supplier')">
@@ -38,15 +38,15 @@
           <EmptyState image="no-data" title="暂无供应商" description="点击新增供应商按钮添加" add-text="新增供应商" size="small" @add="router.push('/md/supplier')" />
         </template>
         <template #statusCell="{ record }">
-          <a-tag :color="record.cooperationStatus === 1 ? 'green' : record.cooperationStatus === 2 ? 'orange' : 'red'">
-            {{ record.cooperationStatus === 1 ? '正常合作' : record.cooperationStatus === 2 ? '暂停合作' : record.cooperationStatus === 3 ? '终止合作' : '潜在' }}
-          </a-tag>
+          <a-tag :color="record.status === 'ENABLED' ? 'green' : 'red'">{{ record.status === 'ENABLED' ? '启用' : '停用' }}</a-tag>
         </template>
         <template #action="{ record }">
           <a-space :size="4">
-            <a-button type="link" size="small">查看</a-button>
-            <a-button type="link" size="small">编辑</a-button>
-            <a-button type="link" size="small" danger>删除</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/supplier/form?id=${record.id}`)">查看</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/supplier/form?id=${record.id}`)">编辑</a-button>
+            <a-popconfirm title="确定删除此供应商？" @confirm="handleDelete(record.id)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
           </a-space>
         </template>
       </VxeTableList>
@@ -57,18 +57,19 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import PartnerFormLayout from '../components/PartnerFormLayout.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { supplierApi } from '@/api/supplier'
-import type { Supplier } from '@/api/supplier'
+import { partnerApi } from '@/api/erp/partner'
+import type { Partner } from '@/api/erp/partner'
 
 const router = useRouter()
 const loading = ref(false)
 const searchKeyword = ref('')
 const searchStatus = ref('')
-const list = ref<Supplier[]>([])
+const list = ref<Partner[]>([])
 
 const pagination = reactive({
   current: 1,
@@ -80,20 +81,23 @@ const pagination = reactive({
 
 const columns = [
   { type: 'seq', title: '#', width: 50 },
-  { field: 'supplierCode', title: '供应商编码', width: 120 },
-  { field: 'supplierName', title: '供应商名称', minWidth: 140 },
+  { field: 'partnerCode', title: '供应商编码', width: 120 },
+  { field: 'partnerName', title: '供应商名称', minWidth: 140 },
   { field: 'contactPerson', title: '联系人', width: 100 },
   { field: 'contactPhone', title: '联系电话', width: 120 },
-  { field: 'supplierLevel', title: '等级', width: 80 },
-  { field: 'cooperationStatus', title: '合作状态', width: 100, slots: { default: 'statusCell' } },
+  { field: 'gradeName', title: '等级', width: 80 },
+  { field: 'settleType', title: '结算方式', width: 100 },
+  { field: 'status', title: '状态', width: 80, slots: { default: 'statusCell' } },
   { title: '操作', width: 160, fixed: 'right', slots: { default: 'action' } },
 ]
 
 async function fetchList() {
   loading.value = true
   try {
-    const res = await supplierApi.page({
+    const res = await partnerApi.page({
       keyword: searchKeyword.value || undefined,
+      partnerType: 'SUPPLIER',
+      status: searchStatus.value ? Number(searchStatus.value) : undefined,
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
     })
@@ -103,6 +107,16 @@ async function fetchList() {
     list.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleDelete(id: number) {
+  try {
+    await partnerApi.delete(id)
+    message.success('删除成功')
+    fetchList()
+  } catch {
+    message.error('删除失败')
   }
 }
 

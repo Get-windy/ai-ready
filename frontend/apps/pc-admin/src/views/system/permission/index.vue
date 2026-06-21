@@ -55,13 +55,15 @@
         size="small"
         bordered
       >
-        <template #typeCell="{ record }">
-          <a-tag :color="['blue','green','orange','purple'][record.permissionType] || 'default'">
-            {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
-          </a-tag>
-        </template>
-        <template #statusCell="{ record }">
-          <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'permissionType'">
+            <a-tag :color="['blue','green','orange','purple'][record.permissionType] || 'default'">
+              {{ ['目录','菜单','按钮','API'][record.permissionType] || '未知' }}
+            </a-tag>
+          </template>
+          <template v-if="column.dataIndex === 'status'">
+            <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
+          </template>
         </template>
       </a-table>
     </a-card>

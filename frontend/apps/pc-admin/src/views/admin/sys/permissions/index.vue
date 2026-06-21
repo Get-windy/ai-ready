@@ -265,7 +265,7 @@ const loadDefData = async () => {
       }
       fix(res.data)
       defData.value = res.data
-      defExpanded.value = res.filter((x: any) => x.permissionType === 0).map((x: any) => x.id)
+      defExpanded.value = res.data.filter((x: any) => x.permissionType === 0).map((x: any) => x.id)
     }
   } catch {
     defError.value = true

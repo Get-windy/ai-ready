@@ -50,9 +50,11 @@
         </template>
         <template #action="{ record }">
           <a-space :size="4">
-            <a-button type="link" size="small">查看</a-button>
-            <a-button type="link" size="small">编辑</a-button>
-            <a-button type="link" size="small" danger>删除</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/partner/form?id=${record.id}`)">查看</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/partner/form?id=${record.id}`)">编辑</a-button>
+            <a-popconfirm title="确定删除此往来单位？" @confirm="handleDelete(record.id)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
           </a-space>
         </template>
       </VxeTableList>
@@ -63,6 +65,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import PartnerFormLayout from '../components/PartnerFormLayout.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
@@ -130,6 +133,16 @@ async function fetchList() {
     list.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleDelete(id: number) {
+  try {
+    await partnerApi.delete(id)
+    message.success('删除成功')
+    fetchList()
+  } catch {
+    message.error('删除失败')
   }
 }
 

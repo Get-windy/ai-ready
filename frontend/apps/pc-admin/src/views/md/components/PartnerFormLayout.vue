@@ -56,8 +56,8 @@ const pathMap: Record<string, string> = {
   partner: '/md/partner',
 }
 
-function handleAddMenuClick({ key }: { key: string }) {
-  router.push(pathMap[key] || '/md/partner')
+function handleAddMenuClick(info: { key: string | number }) {
+  router.push(pathMap[String(info.key)] || '/md/partner')
 }
 </script>
 

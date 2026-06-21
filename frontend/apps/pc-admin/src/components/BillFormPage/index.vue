@@ -89,6 +89,18 @@
                 v-else-if="field.type === 'number'"
                 :value="(modelValue as any)[field.key]"
                 :placeholder="field.placeholder"
+                :precision="field.precision"
+                :min="field.min"
+                :max="field.max"
+                size="small"
+                style="flex:1"
+                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+              />
+              <a-textarea
+                v-else-if="field.type === 'textarea'"
+                :value="(modelValue as any)[field.key]"
+                :placeholder="field.placeholder"
+                :rows="2"
                 size="small"
                 style="flex:1"
                 @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
@@ -104,6 +116,7 @@
               <a-button
                 v-if="field.searchBtn"
                 type="link" size="small" class="field-search-btn"
+                @click="emit('searchBtn', field.key, field.searchBtn)"
               >
                 {{ field.searchBtn }}
               </a-button>
@@ -113,13 +126,13 @@
       </div>
     </div>
 
-    <!-- ═══ Zone 3: 明细表格（插槽） ═══ -->
-    <div class="bill-table-section">
-      <slot name="detail-table" />
+    <!-- ═══ Zone 3: 明细表格（插槽，有内容时显示） ═══ -->
+    <div v-if="$slots['detail-table']" class="bill-table-section" :class="{ 'table-section-expanded': tableExpanded }">
+      <slot name="detail-table" :on-expand-change="handleTableExpand" />
     </div>
 
     <!-- ═══ Zone 4: 底部面板（左标签页 + 右摘要） ═══ -->
-    <div v-if="showBottomPanel && (tabs?.length || summary?.length || $slots['bottom-extra'])" class="bill-bottom-panel">
+    <div v-if="showBottomPanel && !tableExpanded && (tabs?.length || summary?.length || $slots['bottom-extra'])" class="bill-bottom-panel">
       <div class="bottom-panel-inner">
         <div class="bottom-left">
           <a-tabs v-if="tabs?.length" v-model:activeKey="activeTab" size="small" class="bottom-tabs">
@@ -153,6 +166,9 @@
                         :value="(modelValue as any)[tf.key]"
                         :placeholder="tf.placeholder"
                         :disabled="tf.disabled"
+                        :precision="tf.precision"
+                        :min="tf.min"
+                        :max="tf.max"
                         size="small"
                         style="flex:1"
                         @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [tf.key]: val })"
@@ -183,6 +199,10 @@
         </div>
 
         <div v-if="summary?.length" class="bill-summary-sidebar">
+          <!-- 状态角标（仅首行有 statusLabel 时显示） -->
+          <div v-if="summary[0]?.statusLabel" class="sidebar-status-badge">
+            {{ summary[0].statusLabel }}
+          </div>
           <template v-for="(row, idx) in summary" :key="idx">
             <div v-if="row.divider" class="sidebar-divider" />
             <div class="sidebar-row">
@@ -195,8 +215,9 @@
       </div>
     </div>
 
-    <!-- ═══ Zone 5: 页脚操作栏（查看模式隐藏） ═══ -->
-    <div v-if="!isViewMode" class="bill-footer">
+    <!-- ═══ Zone 5: 页脚操作栏（查看模式/表格展开时隐藏） ═══ -->
+    <div v-if="!isViewMode && !tableExpanded" class="bill-footer">
+      <slot name="footer">
       <div class="footer-left">
         <span class="footer-amount-label">{{ footer?.amountLabel || '本单金额' }}</span>
         <span class="footer-amount-value" :class="{ 'amount-red': footer?.amountHighlight !== false }">
@@ -211,6 +232,7 @@
           @click="emit('draft')"
         >
           {{ footer.draftBtnText }}
+          <br v-if="footer?.draftShortcut" />
           <span v-if="footer?.draftShortcut" class="shortcut-hint">{{ footer.draftShortcut }}</span>
         </a-button>
         <a-button
@@ -222,9 +244,11 @@
           @click="emit('submit')"
         >
           {{ footer.primaryBtnText }}
+          <br v-if="footer?.primaryShortcut" />
           <span v-if="footer?.primaryShortcut" class="shortcut-hint">{{ footer.primaryShortcut }}</span>
         </a-button>
       </div>
+      </slot>
     </div>
   </div>
 </template>
@@ -280,11 +304,20 @@ const emit = defineEmits<{
   'update:modelValue': [value: Record<string, any>]
   'fieldChange': [fieldKey: string, value: any]
   'action': [actionKey: string, parentKey?: string]
+  'searchBtn': [fieldKey: string, btnText: string]
   'draft': []
   'submit': []
 }>()
 
 const activeTab = ref(props.tabs?.[0]?.key || '')
+
+/** 表格展开状态（控制底部面板和页脚的显示/隐藏） */
+const tableExpanded = ref(false)
+
+/** 处理表格展开/收起事件 */
+function handleTableExpand(expanded: boolean) {
+  tableExpanded.value = expanded
+}
 
 /** 有效模式：显式指定 > 路由推断 */
 const effectiveMode = computed(() => {
@@ -460,6 +493,10 @@ function getTabFieldDisplayValue(tf: TabField): string {
   overflow: hidden;
 }
 
+.table-section-expanded {
+  border-bottom: none;
+}
+
 /* ═══ Zone 4: 底部面板 ═══ */
 .bill-bottom-panel {
   background: #fff;
@@ -479,13 +516,21 @@ function getTabFieldDisplayValue(tf: TabField): string {
 }
 
 .bottom-tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 8px;
+  margin-bottom: 0;
+}
+
+.bottom-tabs :deep(.ant-tabs-nav::before) {
+  border-bottom: none;
+}
+
+.bottom-tabs :deep(.ant-tabs-ink-bar) {
+  height: 2px;
 }
 
 .tab-content-row {
   display: flex;
   gap: 12px;
-  padding: 4px 0;
+  padding: 2px 0;
   flex-wrap: wrap;
 }
 
@@ -516,14 +561,29 @@ function getTabFieldDisplayValue(tf: TabField): string {
 
 /* ═══ 右侧摘要面板 ═══ */
 .bill-summary-sidebar {
-  width: 180px;
-  background: #fff5f5;
+  position: relative;
+  width: 220px;
+  background: #fff0f0;
   border-left: 1px solid #ffccc7;
-  padding: 12px 10px;
+  padding: 28px 12px 12px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.sidebar-status-badge {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 0 4px 0 8px;
+  line-height: 18px;
+  z-index: 1;
 }
 
 .sidebar-row {
@@ -593,6 +653,11 @@ function getTabFieldDisplayValue(tf: TabField): string {
 .btn-submit {
   background: #ff4d4f;
   border-color: #ff4d4f;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .btn-submit:hover {
@@ -603,6 +668,11 @@ function getTabFieldDisplayValue(tf: TabField): string {
 .btn-audit {
   background: #52c41a;
   border-color: #52c41a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .btn-audit:hover {
@@ -611,9 +681,10 @@ function getTabFieldDisplayValue(tf: TabField): string {
 }
 
 .shortcut-hint {
-  margin-left: 4px;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.65);
+  display: block;
+  margin-left: 0;
 }
 
 /* ═══ 紧凑输入框覆写 ═══ */
@@ -629,9 +700,26 @@ function getTabFieldDisplayValue(tf: TabField): string {
   height: 24px;
 }
 
-:deep(.ant-tabs-small .ant-tabs-tab) {
-  padding: 4px 12px;
-  font-size: 13px;
+:deep(.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab) {
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+:deep(.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab-btn) {
+  line-height: 20px;
+}
+
+:deep(.ant-tabs-small > .ant-tabs-nav) {
+  min-height: 22px;
+}
+
+:deep(.ant-tabs-small > .ant-tabs-nav .ant-tabs-nav-wrap) {
+  padding: 0;
+}
+
+:deep(.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab) {
+  margin: 0;
 }
 
 :deep(.ant-btn-sm) {

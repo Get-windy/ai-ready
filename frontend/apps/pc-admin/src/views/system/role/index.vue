@@ -427,7 +427,7 @@ const handlePermission = async (record: RoleInfo) => {
   currentRoleId.value = record.id
   try {
     const menuRes = await menuApi.getTree({})
-    permissionTree.value = menuRes.data ? buildPermissionTree(menuRes.data) : []
+    permissionTree.value = menuRes ? buildPermissionTree(menuRes) : []
   } catch (err) {
     permissionTree.value = []
     console.warn('[系统管理] 加载权限树失败', err)
@@ -454,7 +454,7 @@ const handleMenu = async (record: RoleInfo) => {
   currentRoleId.value = record.id
   try {
     const menuRes = await menuApi.getTree({})
-    menuTree.value = menuRes.data ? buildPermissionTree(menuRes.data) : []
+    menuTree.value = menuRes ? buildPermissionTree(menuRes) : []
   } catch (err) {
     menuTree.value = []
     console.warn('[系统管理] 加载菜单树失败', err)

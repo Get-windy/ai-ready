@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { tenantApi } from '@/api/tenant'
+import { tenantApprovalApi } from '@/api/tenant'
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -52,13 +52,13 @@ const columns = [
   { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 140 },
   { title: '注册时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '操作', key: 'action', width: 160, fixed: 'right' },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' as const },
 ]
 
 async function fetchData() {
   loading.value = true
   try {
-    const res = await tenantApi.getPending()
+    const res = await tenantApprovalApi.getPending()
     list.value = res.data || []
   } finally {
     loading.value = false
@@ -67,7 +67,7 @@ async function fetchData() {
 
 async function handleApprove(record: any) {
   try {
-    await tenantApi.approve(record.id)
+    await tenantApprovalApi.approve(record.id)
     message.success('已审批通过')
     fetchData()
   } catch (e: any) {
@@ -77,7 +77,7 @@ async function handleApprove(record: any) {
 
 async function handleReject(record: any) {
   try {
-    await tenantApi.reject(record.id, '驳回')
+    await tenantApprovalApi.reject(record.id, '驳回')
     message.success('已驳回')
     fetchData()
   } catch (e: any) {

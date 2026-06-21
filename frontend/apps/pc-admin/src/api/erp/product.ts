@@ -106,6 +106,27 @@ export interface Product {
   approvalStatus?: string
   approvalBy?: number
   approvalTime?: string
+
+  // 商品表单扩展字段
+  productCodeAlias?: string
+  model?: string
+  industryCategory?: string
+  nearExpiryDays?: number
+  isBatchExpiryManaged?: number
+  isStandardProduct?: number
+  useCoupon?: number
+  defaultSalesUnitId?: number
+  defaultPurchaseUnitId?: number
+  defaultStockUnitId?: number
+  mallDisplayTitle?: string
+  mallDescription?: string
+  mallTags?: string
+  mallShelfStatus?: number
+  mallSortOrder?: number
+  mallMinOrderQty?: number
+  mallPurchaseLimit?: number
+  richTextDetail?: string
+  videoUrl?: string
 }
 
 export const productApi = {
@@ -387,5 +408,77 @@ export const productGradePriceApi = {
   },
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/product-grade-price/${id}`)
+  }
+}
+
+// ── 产品推荐 ──
+export interface ProductRecommend {
+  id?: number
+  productId?: number
+  recommendProductId: number
+  recommendProductName?: string
+  recommendProductCode?: string
+  recommendProductSpec?: string
+  recommendProductUnit?: string
+  recommendProductOrigin?: string
+  recommendProductBrand?: string
+  sortOrder?: number
+}
+
+export const productRecommendApi = {
+  list(productId: number): Promise<ProductRecommend[]> {
+    return request.get(`/erp/product/recommends/${productId}`)
+  },
+  create(data: Partial<ProductRecommend>): Promise<boolean> {
+    return request.post('/erp/product/recommends', data)
+  }
+}
+
+// ── 商城标签 ──
+export interface MallTag {
+  id?: number
+  tagName: string
+  sortOrder?: number
+}
+
+export const mallTagApi = {
+  list(): Promise<MallTag[]> {
+    return request.get('/erp/mall/tags')
+  },
+  create(data: Partial<MallTag>): Promise<boolean> {
+    return request.post('/erp/mall/tags', data)
+  },
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/erp/mall/tags/${id}`)
+  }
+}
+
+// ── 产品表单（含附属数据） ──
+export interface ProductFormData {
+  product: Product
+  units: ProductUnit[]
+  recommends: ProductRecommend[]
+  mallTags: MallTag[]
+}
+
+export const productFormApi = {
+  getById(id: number): Promise<ProductFormData> {
+    return request.get(`/erp/product/form/${id}`)
+  },
+  batchUpdate(productId: number, data: {
+    product: Partial<Product>
+    units: any[]
+    recommends: any[]
+    mallTags?: string[]
+  }): Promise<boolean> {
+    return request.put(`/erp/product/form/${productId}`, data)
+  },
+  batchCreate(data: {
+    product: Partial<Product>
+    units: any[]
+    recommends: any[]
+    mallTags?: string[]
+  }): Promise<boolean> {
+    return request.post('/erp/product/form', data)
   }
 }

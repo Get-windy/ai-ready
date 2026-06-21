@@ -12,13 +12,15 @@ NProgress.configure({ showSpinner: false, minimum: 0.1 })
 
 // ── 类型定义 ────────────────────────────────────────────
 
-/** 统一响应结构 */
+/** 统一响应结构（支持透传后端返回的额外字段如 records/total 等） */
 export interface ApiResponse<T = any> {
   success: boolean
   code: number
   message: string
   data: T
   timestamp: number
+  /** 允许后端透传分页等额外字段（拦截器对 records+total 格式透传不拆包） */
+  [key: string]: any
 }
 
 /** 分页响应 */
@@ -440,6 +442,13 @@ export const request = {
     const config = buildConfig(options)
     if (options?._skipAuthRefresh) config._skipAuthRefresh = true
     return service.patch(url, data, config)
+  },
+
+  /** 通用请求方法（直接调用 axios） */
+  request<T = any>(config: AxiosRequestConfig & RequestOptions): Promise<T> {
+    const finalConfig = buildConfig(config)
+    if (config?._skipAuthRefresh) finalConfig._skipAuthRefresh = true
+    return service.request(finalConfig)
   }
 }
 

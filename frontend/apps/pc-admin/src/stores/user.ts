@@ -93,7 +93,7 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('tenantName')
         localStorage.removeItem('userTenants')
 
-        const res = await userApi.login(loginForm)
+        const res = await userApi.login(loginForm) as any
         if (res && res.token) {
           this.token = res.token
           this.userId = res.userId || 0
@@ -119,7 +119,7 @@ export const useUserStore = defineStore('user', {
 
     async getUserInfo() {
       try {
-        const res = await userApi.getUserInfo()
+        const res = await userApi.getUserInfo() as any
         if (res) {
           this.userInfo = res
           this.userId = res.userId

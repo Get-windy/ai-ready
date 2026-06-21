@@ -23,7 +23,7 @@ export interface ShopConfig {
   themeColor?: string
   bannerIds?: string
   templateId?: number
-  paymentMethods?: string
+  paymentMethods?: string | string[]
   enableRegister?: number
   enableAutoAudit?: number
   minOrderAmount?: number

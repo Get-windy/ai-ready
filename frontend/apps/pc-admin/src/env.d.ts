@@ -3,6 +3,13 @@
 
 /// <reference types="vite/client" />
 
+// Vue 单文件组件声明
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<{}, {}, any>
+  export default component
+}
+
 declare module 'vxe-pc-ui/types/components/table' {
   interface VxeTableSlots<D = any> {
     /**

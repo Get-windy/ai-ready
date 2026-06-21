@@ -185,7 +185,7 @@ const { tableData: dataList, loading, pagination, searchParams, lastUpdateTime, 
 
 const stats = computed(() => {
   // 安全检查：确保 dataList 是数组
-  const list = Array.isArray(dataList?.value) ? dataList.value : (Array.isArray(dataList) ? dataList : [])
+  const list = Array.isArray(dataList) ? dataList : []
   const totalQty = list.reduce((s, r) => s + (r.quantity || 0), 0)
   const availableQty = list.reduce((s, r) => s + (r.availableQty || 0), 0)
   const frozenQty = list.reduce((s, r) => s + (r.frozenQty || 0), 0)

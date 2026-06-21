@@ -23,6 +23,7 @@ export interface KpiIndicator {
   apiField: string
   suffix?: string
   unit?: string
+  prefix?: string
 }
 
 /** 所有可用指标 */

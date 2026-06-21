@@ -522,8 +522,8 @@ const fetchPositionList = async () => {
 const fetchDepartmentTree = async () => {
   try {
     const res = await departmentApi.getTree({ tenantId: userStore.tenantId, status: 0 })
-    if (res.data) {
-      departmentTreeData.value = res.data
+    if (res) {
+      departmentTreeData.value = res
     }
   } catch (error) {
     console.warn('[系统管理] 加载部门树失败', error)

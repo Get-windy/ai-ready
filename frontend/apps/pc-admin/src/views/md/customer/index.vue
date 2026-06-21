@@ -12,8 +12,8 @@
           />
           <a-select v-model:value="searchStatus" size="small" style="width: 100px" @change="handleSearch">
             <a-select-option value="">全部</a-select-option>
-            <a-select-option value="1">正常</a-select-option>
-            <a-select-option value="0">停用</a-select-option>
+            <a-select-option value="ENABLED">启用</a-select-option>
+            <a-select-option value="DISABLED">停用</a-select-option>
           </a-select>
         </a-space>
         <a-button type="primary" size="small" @click="router.push('/md/customer')">
@@ -38,13 +38,15 @@
           <EmptyState image="no-data" title="暂无客户" description="点击新增客户按钮添加" add-text="新增客户" size="small" @add="router.push('/md/customer')" />
         </template>
         <template #statusCell="{ record }">
-          <a-tag :color="record.status === 1 ? 'green' : 'red'">{{ record.status === 1 ? '正常' : '停用' }}</a-tag>
+          <a-tag :color="record.status === 'ENABLED' ? 'green' : 'red'">{{ record.status === 'ENABLED' ? '启用' : '停用' }}</a-tag>
         </template>
         <template #action="{ record }">
           <a-space :size="4">
-            <a-button type="link" size="small">查看</a-button>
-            <a-button type="link" size="small">编辑</a-button>
-            <a-button type="link" size="small" danger>删除</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/customer/form?id=${record.id}`)">查看</a-button>
+            <a-button type="link" size="small" @click="router.push(`/md/customer/form?id=${record.id}`)">编辑</a-button>
+            <a-popconfirm title="确定删除此客户？" @confirm="handleDelete(record.id)">
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
           </a-space>
         </template>
       </VxeTableList>
@@ -55,18 +57,19 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import PartnerFormLayout from '../components/PartnerFormLayout.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { customerApi } from '@/api/customer'
-import type { CustomerInfo } from '@/api/customer'
+import { partnerApi } from '@/api/erp/partner'
+import type { Partner } from '@/api/erp/partner'
 
 const router = useRouter()
 const loading = ref(false)
 const searchKeyword = ref('')
 const searchStatus = ref('')
-const list = ref<CustomerInfo[]>([])
+const list = ref<Partner[]>([])
 
 const pagination = reactive({
   current: 1,
@@ -78,12 +81,11 @@ const pagination = reactive({
 
 const columns = [
   { type: 'seq', title: '#', width: 50 },
-  { field: 'code', title: '客户编码', width: 120 },
-  { field: 'name', title: '客户名称', minWidth: 140 },
+  { field: 'partnerCode', title: '客户编码', width: 120 },
+  { field: 'partnerName', title: '客户名称', minWidth: 140 },
   { field: 'contactPerson', title: '联系人', width: 100 },
-  { field: 'phone', title: '联系电话', width: 120 },
-  { field: 'industry', title: '行业', width: 100 },
-  { field: 'level', title: '等级', width: 80 },
+  { field: 'contactPhone', title: '联系电话', width: 120 },
+  { field: 'gradeName', title: '等级', width: 80 },
   { field: 'status', title: '状态', width: 80, slots: { default: 'statusCell' } },
   { title: '操作', width: 160, fixed: 'right', slots: { default: 'action' } },
 ]
@@ -91,18 +93,29 @@ const columns = [
 async function fetchList() {
   loading.value = true
   try {
-    const res = await customerApi.getPage({
-      name: searchKeyword.value || undefined,
+    const res = await partnerApi.page({
+      keyword: searchKeyword.value || undefined,
+      partnerType: 'CUSTOMER',
       status: searchStatus.value ? Number(searchStatus.value) : undefined,
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
     })
-    list.value = res?.data?.records || []
-    pagination.total = res?.data?.total || 0
+    list.value = res?.records || []
+    pagination.total = res?.total || 0
   } catch {
     list.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleDelete(id: number) {
+  try {
+    await partnerApi.delete(id)
+    message.success('删除成功')
+    fetchList()
+  } catch {
+    message.error('删除失败')
   }
 }
 

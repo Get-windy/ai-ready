@@ -592,8 +592,8 @@ const getAllNodeIds = (nodes: DepartmentInfo[]): number[] => {
 const fetchParentTreeData = async () => {
   try {
     const res = await departmentApi.getTree({ tenantId: userStore.tenantId, status: 0 })
-    if (res.data) {
-      parentTreeData.value = res.data
+    if (res) {
+      parentTreeData.value = res
     }
   } catch (error) {
     console.warn('[系统管理] 加载父部门数据失败', error)
@@ -821,7 +821,7 @@ const filterLeaderOption = (input: string, option: any) => {
 
 // 处理右键菜单 (保留以备后用)
 // @ts-ignore
-const handleRightClick = ({ node }: any, event: MouseEvent) => {
+const handleRightClick = ({ event, node }: { event: MouseEvent; node: any }) => {
   event.preventDefault()
   event.stopPropagation()
   contextMenuNode.value = node.dataRef

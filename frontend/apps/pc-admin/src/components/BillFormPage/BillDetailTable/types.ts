@@ -1,0 +1,71 @@
+/**
+ * BillDetailTable — 配置驱动的明细表格组件
+ *
+ * 根据 columnConfig 自动生成可编辑列，消除大量 slot 样板代码。
+ * 支持：select / input / number / date 列类型 + 自定义插槽列 + 合计行。
+ * 齿轮设置：列显示/隐藏、列宽调整、列顺序拖拽、前后冻结列。
+ */
+
+export type DetailColumnType = 'select' | 'input' | 'number' | 'date' | 'slot' | 'rowNo' | 'action'
+
+export interface DetailColumnOption {
+  label: string
+  value: string | number
+  /** 搜索匹配文本（默认使用 label） */
+  searchText?: string
+}
+
+export interface DetailColumnConfig {
+  /** 列 key，对应 record 字段名 */
+  key: string
+  /** 列标题 */
+  title: string
+  /** 列宽（px） */
+  width?: number
+  /** 是否固定 */
+  fixed?: 'left' | 'right'
+  /** 列类型：slot=自定义插槽，rowNo=行号，action=操作列 */
+  type?: DetailColumnType
+  /** 是否必填（显示红色星号） */
+  required?: boolean
+  /** 占位文本 */
+  placeholder?: string
+  /** 下拉选项（type=select） */
+  options?: DetailColumnOption[]
+  /** 数字精度（type=number） */
+  precision?: number
+  /** 最小值（type=number） */
+  min?: number
+  /** 最大值（type=number） */
+  max?: number
+  /** 日期格式（type=date） */
+  format?: string
+  /** 自定义插槽名（type=slot 时使用） */
+  slotName?: string
+  /** 是否仅查看 */
+  readonly?: boolean
+  /** 对齐方式 */
+  align?: 'left' | 'center' | 'right'
+  /** 商品名称列专用：是否显示扫描枪开关 */
+  showScanToggle?: boolean
+  /** 是否支持输入搜索（输入时弹出选项下拉，可键盘选择） */
+  searchable?: boolean
+}
+
+/** 列设置项（运行时状态） */
+export interface ColumnSetting {
+  key: string
+  title: string
+  visible: boolean
+  width: number
+  fixed: 'left' | 'right' | ''
+}
+
+export interface SummaryColumnDef {
+  /** 对应列 key */
+  key: string
+  /** 合计值 */
+  value: string | number
+  /** 是否红色高亮 */
+  highlight?: boolean
+}

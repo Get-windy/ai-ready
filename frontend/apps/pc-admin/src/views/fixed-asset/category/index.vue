@@ -120,9 +120,11 @@
           size="small"
           bordered
         >
-          <template #statusCell="{ record }">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'status'">
             <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '启用' : '停用' }}</a-tag>
           </template>
+        </template>
         </a-table>
       </a-card>
 
@@ -183,6 +185,7 @@ interface Category {
   categoryName: string
   parentId: number
   sortOrder: number
+  status: number
   defaultDepreciationMethod: string
   defaultUsefulLife: number
   description: string

@@ -31,7 +31,7 @@ export interface BillHeaderConfig {
 }
 
 // ── 基本信息字段 ──
-export type FieldType = 'select' | 'input' | 'date' | 'number'
+export type FieldType = 'select' | 'input' | 'date' | 'number' | 'textarea'
 
 export interface BasicInfoFieldOption {
   label: string
@@ -59,6 +59,14 @@ export interface BasicInfoField {
   width?: 'default' | 'narrow' | 'wide'
   /** 是否加载中 */
   loading?: boolean
+  /** 数字精度（type=number 时使用） */
+  precision?: number
+  /** 最小值（type=number 时使用） */
+  min?: number
+  /** 最大值（type=number 时使用） */
+  max?: number
+  /** 栅格占列数：12=半行，24=整行（映射到 width='wide'） */
+  span?: number
 }
 
 // ── 底部标签页字段 ──
@@ -81,6 +89,12 @@ export interface TabField {
   suffixBtn?: string
   /** 按钮是否为警告样式（红色） */
   suffixBtnDanger?: boolean
+  /** 数字精度（type=number 时使用） */
+  precision?: number
+  /** 最小值（type=number 时使用） */
+  min?: number
+  /** 最大值（type=number 时使用） */
+  max?: number
 }
 
 export interface BillTabConfig {
@@ -102,6 +116,8 @@ export interface SummaryRow {
   divider?: boolean
   /** 是否显示右侧 "···" 按钮 */
   showMore?: boolean
+  /** 摘要面板状态角标文本（如 "待结算"），仅首行显示 */
+  statusLabel?: string
 }
 
 // ── 页脚操作栏 ──

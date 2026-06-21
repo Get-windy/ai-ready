@@ -1,7 +1,6 @@
 <template>
-  <div class="placeholder-page">
-    <a-result status="info" title="功能开发中" sub-title="该功能正在开发中，敬请期待" />
-  </div>
+  <ErpStockAssemble />
 </template>
 <script setup lang="ts">
+import ErpStockAssemble from '@/views/erp/stock-assemble/index.vue'
 </script>

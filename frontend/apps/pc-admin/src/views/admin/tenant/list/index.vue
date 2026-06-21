@@ -55,9 +55,9 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a @click="handleEdit(record)">编辑</a>
+              <a @click="handleEdit(record as TenantInfo)">编辑</a>
               <a-divider type="vertical" />
-              <a-popconfirm title="确定删除该租户?" @confirm="handleDelete(record)">
+              <a-popconfirm title="确定删除该租户?" @confirm="handleDelete(record as TenantInfo)">
                 <a class="text-danger">删除</a>
               </a-popconfirm>
             </a-space>
@@ -87,7 +87,7 @@ const columns = [
   { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 140 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '到期时间', dataIndex: 'expireDate', key: 'expireDate', width: 180 },
-  { title: '操作', key: 'action', width: 150, fixed: 'right' },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const },
 ]
 
 async function fetchData() {

@@ -10,58 +10,43 @@
     @draft="handleSaveDraft"
     @submit="handleSubmit"
   >
-    <!-- ═══ Zone 3: 盘点明细表格 ═══ -->
+    <!-- Zone 3: 盘点明细表格 -->
     <template #detail-table>
-      <div class="table-toolbar">
-        <span class="section-title">盘点明细</span>
-        <a-button v-if="!isViewMode" type="primary" size="small" @click="addStocktakeRow">
-          <template #icon><PlusOutlined /></template>
-          添加
-        </a-button>
-      </div>
-      <VxeTableList
-        :columns="tableColumns"
+      <BillDetailTable
+        :columns="detailColumns"
         :data-source="formData.products"
-        :pagination="false as any"
-        row-key="id"
-        :show-toolbar="false"
-        :selectable="false"
-        :show-add="false"
-        :show-search="false"
-        :show-export="false"
-        :show-batch-delete="false"
+        :max-height="tableMaxHeight"
+        @cell-change="handleCellChange"
       >
+        <template #actionCell="{ index }">
+          <a-space :size="2">
+            <a-button type="link" size="small" class="action-add-btn" @click="addStocktakeRow">
+              <PlusCircleOutlined />
+            </a-button>
+            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
+              <MinusCircleOutlined />
+            </a-button>
+          </a-space>
+        </template>
         <template #productCell="{ record, index }">
-          <a-select
-            v-if="!isViewMode"
-            v-model:value="record.productId"
-            placeholder="请选择商品"
-            show-search
-            :filter-option="filterOption"
-            style="width:100%"
-            :loading="loadingOptions"
-            size="small"
-            @change="(val: number) => handleProductChange(val, index)"
-          >
-            <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">{{ p.name }}</a-select-option>
-          </a-select>
-          <span v-else>{{ record.productName }}</span>
+          <div class="product-cell">
+            <a-select
+              v-model:value="record.productId"
+              placeholder="请选择商品"
+              show-search
+              :filter-option="filterOption"
+              style="flex:1"
+              :loading="loadingOptions"
+              size="small"
+              @change="(val: number) => handleProductChange(val, index)"
+            >
+              <a-select-option v-for="p in optionRefs.products" :key="p.id" :value="p.id">
+                {{ p.name }}
+              </a-select-option>
+            </a-select>
+          </div>
         </template>
-        <template #bookQtyCell="{ record }">
-          <span>{{ record.bookQuantity ?? '-' }}</span>
-        </template>
-        <template #actualQtyCell="{ record }">
-          <a-input-number
-            v-if="!isViewMode"
-            v-model:value="record.actualQuantity"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-            size="small"
-          />
-          <span v-else>{{ record.actualQuantity }}</span>
-        </template>
-        <template #diffQtyCell="{ record }">
+        <template #diffCell="{ record }">
           <span :class="{
             'diff-positive': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) > 0,
             'diff-negative': ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)) < 0,
@@ -69,24 +54,32 @@
             {{ ((record.actualQuantity ?? 0) - (record.bookQuantity ?? 0)).toFixed(2) }}
           </span>
         </template>
-        <template #action="{ index }">
-          <a-button v-if="!isViewMode" type="link" danger size="small" @click="handleRemoveProduct(index)">
-            <template #icon><DeleteOutlined /></template>
-          </a-button>
-        </template>
-      </VxeTableList>
+      </BillDetailTable>
+    </template>
+
+    <!-- Zone 4: 备注 -->
+    <template #bottom-extra>
+      <div class="remark-section">
+        <div class="remark-row">
+          <span class="remark-label">备注</span>
+          <a-input v-model:value="formData.remark" size="small" class="remark-input" />
+        </div>
+      </div>
     </template>
   </BillFormPage>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { computed, ref, onMounted, nextTick } from 'vue'
+import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
-import { stocktakeOrderApi } from '@/api/erp'
+import { stockCheckApi } from '@/api/erp'
+
+const tableMaxHeight = ref(400)
 
 const {
   formData,
@@ -94,47 +87,61 @@ const {
   saving,
   optionRefs,
   filterOption,
-  effectiveMode,
   handleRemoveProduct,
-  handleProductChange,
+  handleProductChange: baseProductChange,
+  handleFieldChange: baseFieldChange,
   handleSaveDraft,
   handleSubmit,
 } = useBillForm({
   billPrefix: 'PC',
-  api: stocktakeOrderApi,
+  api: {
+    create: stockCheckApi.create,
+    update: stockCheckApi.update,
+    getById: stockCheckApi.getById,
+  },
   redirectPath: '/erp/stocktake',
-  fields: [
-    { key: 'warehouseId', label: '盘点仓库', type: 'select', required: true, optionsRef: 'warehouses' },
-    { key: 'handlerId', label: '盘点人', type: 'select', required: true, optionsRef: 'users' },
-    { key: 'date', label: '盘点日期', type: 'date', required: true },
-    { key: 'stocktakeType', label: '盘点类型', type: 'select' },
-  ],
+  optionTypes: ['warehouses', 'users', 'products'],
+  productDefaults: {
+    itemCode: '', specification: '', unit: '',
+    bookQuantity: 0, actualQuantity: 0,
+  },
 })
 
-const isViewMode = computed(() => effectiveMode.value === 'view')
+// 初始化盘点单特有字段
+if (!('warehouseId' in formData)) Object.assign(formData, {
+  warehouseId: undefined, warehouseName: '',
+  handlerId: undefined, handlerName: '',
+  date: '', checkType: 1,
+  remark: '',
+})
 
-// ═══════════════════════════════════════
-// 盘点专用：添加行（无价格/税率字段）
-// ═══════════════════════════════════════
-
+// 盘点专用：添加行
 function addStocktakeRow() {
   formData.products.push({
     id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
     productId: undefined,
-    productCode: '',
+    itemCode: '',
     productName: '',
     specification: '',
     unit: '',
     bookQuantity: 0,
     actualQuantity: 0,
-    diffQuantity: 0,
     remark: '',
   })
 }
 
-// ═══════════════════════════════════════
+function handleProductChange(val: number, index: number) {
+  baseProductChange(val, index)
+  const p = optionRefs.products.find((x: any) => x.id === val)
+  if (p && formData.products[index]) {
+    const row = formData.products[index]
+    row.itemCode = p.code || ''
+    row.specification = p.specification || ''
+    row.unit = p.unit || ''
+  }
+}
+
 // BillFormPage 配置
-// ═══════════════════════════════════════
 
 const headerConfig = computed<BillHeaderConfig>(() => ({
   title: '盘点单',
@@ -143,10 +150,10 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'warehouseId', label: '盘点仓库', type: 'select', required: true, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'handlerId', label: '盘点人', type: 'select', required: true, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '盘点仓库', type: 'select', required: true, placeholder: '请选择仓库', options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'handlerId', label: '盘点人', type: 'select', required: true, placeholder: '请选择盘点人', options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
   { key: 'date', label: '盘点日期', type: 'date', required: true },
-  { key: 'stocktakeType', label: '盘点类型', type: 'select', options: [
+  { key: 'checkType', label: '盘点类型', type: 'select', options: [
     { label: '全面盘点', value: 1 },
     { label: '抽盘', value: 2 },
     { label: '动态盘点', value: 3 },
@@ -164,59 +171,48 @@ const footerConfig = computed<BillFooterConfig>(() => ({
   saving: saving.value,
 }))
 
-// ═══════════════════════════════════════
-// 明细表格列（无税列，有账面/实盘/差异列）
-// ═══════════════════════════════════════
-
-const tableColumns = [
-  { field: 'productCode', title: '商品编码', width: 120 },
-  { field: 'productName', title: '商品名称', width: 180, slotName: 'productCell' },
-  { field: 'specification', title: '规格', width: 120 },
-  { field: 'unit', title: '单位', width: 80 },
-  { field: 'bookQuantity', title: '账面数量', width: 100, slotName: 'bookQtyCell' },
-  { field: 'actualQuantity', title: '实盘数量', width: 120, slotName: 'actualQtyCell' },
-  { field: 'diffQuantity', title: '差异', width: 100, slotName: 'diffQtyCell' },
-  { field: 'remark', title: '备注', width: 200 },
-  { field: 'action', title: '操作', width: 80, fixed: 'right', slotName: 'action' },
+// 明细表格列配置（无价格/税率，有账面/实盘/差异列）
+const detailColumns: DetailColumnConfig[] = [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 70, fixed: 'left' },
+  { key: 'productId', title: '商品名称', type: 'slot', slotName: 'productCell', width: 200 },
+  { key: 'itemCode', title: '货号', type: 'input', width: 100 },
+  { key: 'specification', title: '规格', type: 'input', width: 100 },
+  { key: 'unit', title: '单位', type: 'input', width: 80 },
+  { key: 'bookQuantity', title: '账面数量', type: 'number', width: 100, precision: 2, readonly: true },
+  { key: 'actualQuantity', title: '实盘数量', type: 'number', width: 100, precision: 2 },
+  { key: 'diffQuantity', title: '差异', type: 'slot', slotName: 'diffCell', width: 100 },
+  { key: 'remark', title: '备注', type: 'input', width: 200 },
 ]
 
-// ═══════════════════════════════════════
 // 事件处理
-// ═══════════════════════════════════════
 
-function handleAction(_actionKey: string) {
-  // 头部操作按钮（可扩展）
+function handleCellChange(_record: any, _fieldKey: string, _value: any) {}
+
+function handleAction(_actionKey: string) {}
+
+function handleFieldChange(fieldKey: string, val: any) {
+  baseFieldChange(fieldKey, val)
 }
 
-function handleFieldChange(_fieldKey: string, _val: any) {
-  // 字段联动（可扩展）
-}
+onMounted(() => {
+  if (formData.products.length === 0) {
+    for (let i = 0; i < 5; i++) addStocktakeRow()
+  }
+  nextTick(() => {
+    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
+  })
+})
 </script>
 
 <style scoped>
-.table-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-  flex-shrink: 0;
-}
-
-.section-title {
-  font-weight: 600;
-  font-size: 13px;
-  color: #262626;
-}
-
-.diff-positive {
-  color: #52c41a;
-  font-weight: 600;
-}
-
-.diff-negative {
-  color: #f5222d;
-  font-weight: 600;
-}
+.product-cell { display: flex; align-items: center; gap: 4px; }
+.action-add-btn { color: #1890ff; padding: 0; font-size: 14px; }
+.action-del-btn { color: #ff4d4f; padding: 0; font-size: 14px; }
+.diff-positive { color: #52c41a; font-weight: 600; }
+.diff-negative { color: #f5222d; font-weight: 600; }
+.remark-section { padding: 4px 0; }
+.remark-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.remark-label { font-size: 12px; color: #595959; white-space: nowrap; min-width: 60px; }
+.remark-input { flex: 1; }
 </style>

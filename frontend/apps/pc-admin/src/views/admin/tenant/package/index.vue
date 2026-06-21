@@ -135,10 +135,10 @@ async function fetchData() {
   }
 }
 
-function openForm(record?: TenantPackageInfo) {
+function openForm(record?: Record<string, any>) {
   if (record) {
-    editingId.value = record.id
-    form.value = { ...record }
+    editingId.value = record.id as number
+    form.value = { ...(record as TenantPackageInfo) }
   } else {
     editingId.value = null
     form.value = {
@@ -178,7 +178,7 @@ async function handleSave() {
   }
 }
 
-async function handleDelete(record: TenantPackageInfo) {
+async function handleDelete(record: Record<string, any>) {
   try {
     await tenantPackageApi.delete(record.id)
     message.success('删除成功')

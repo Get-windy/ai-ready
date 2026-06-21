@@ -48,6 +48,8 @@ interface MenuItem {
 const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/index': () => import('@/views/erp/product/index.vue'),
   'erp/product/detail': () => import('@/views/erp/product/detail.vue'),
+  'erp/product/create': () => import('@/views/erp/product/form.vue'),
+  'erp/product/form': () => import('@/views/erp/product/form.vue'),
   'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
   'erp/product/inventory-mode': () => import('@/views/erp/product/inventory-mode.vue'),
   'partner/index': () => import('@/views/erp/partner/index.vue'),
@@ -93,7 +95,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'purchase/detail/inbound/InboundDetail': () => import('@/views/purchase/detail/inbound/InboundDetail.vue'),
   'purchase/detail/inquiry/InquiryDetail': () => import('@/views/purchase/detail/inquiry/InquiryDetail.vue'),
   'purchase/index': () => import('@/views/erp/purchase/index.vue'),
-  'crm/lead/index': () => import('@/views/crm/lead/index.vue'),
   'sale/index': () => import('@/views/erp/sale/index.vue'),
   'stock/detail/StockDetail': () => import('@/views/stock/detail/StockDetail.vue'),
   'stock/index': () => import('@/views/erp/stock/index.vue'),
@@ -364,15 +365,18 @@ const componentMap: Record<string, () => Promise<any>> = {
   'wh/move-order': () => import('@/views/common/placeholder/index.vue'),
   'wh/inventory-order': () => import('@/views/common/placeholder/index.vue'),
   'dispatch/dispatch-order': () => import('@/views/common/placeholder/index.vue'),
-  'finance/receipt-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/receipt-doc': () => import('@/views/finance/receipt-doc/index.vue'),
+  'finance/receipt-doc/index': () => import('@/views/finance/receipt-doc/index.vue'),
   'finance/advance-receipt': () => import('@/views/common/placeholder/index.vue'),
   'finance/cash-transfer': () => import('@/views/common/placeholder/index.vue'),
-  'finance/payment-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/payment-doc': () => import('@/views/finance/payment-doc/index.vue'),
+  'finance/payment-doc/index': () => import('@/views/finance/payment-doc/index.vue'),
   'finance/advance-payment': () => import('@/views/common/placeholder/index.vue'),
-  'finance/expense-doc': () => import('@/views/common/placeholder/index.vue'),
+  'finance/expense-doc': () => import('@/views/finance/expense-doc/index.vue'),
+  'finance/expense-doc/index': () => import('@/views/finance/expense-doc/index.vue'),
   'finance/other-income-doc': () => import('@/views/common/placeholder/index.vue'),
   'finance/ar-ap-adjust': () => import('@/views/common/placeholder/index.vue'),
-  'finance/voucher': () => import('@/views/common/placeholder/index.vue'),
+  'finance/voucher': () => import('@/views/finance/voucher/index.vue'),
 
   // ── displayMode=1 添加标签的 form 页面（Phase 3 CRM） ──
   'crm/customer/form': () => import('@/views/crm/customer/form.vue'),
@@ -381,7 +385,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/contract/form': () => import('@/views/crm/contract/form.vue'),
   'crm/quotation/form': () => import('@/views/crm/quotation/form.vue'),
   'crm/invoice/form': () => import('@/views/crm/invoice/form.vue'),
-  'md/product/form': () => import('@/views/common/placeholder/index.vue'),
+  'md/product/form': () => import('@/views/erp/product/form.vue'),
   'md/customer/form': () => import('@/views/md/customer/form.vue'),
   'md/supplier/form': () => import('@/views/md/supplier/form.vue'),
   'md/logistics/form': () => import('@/views/md/logistics/form.vue'),
@@ -392,8 +396,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'md/supplier/index': () => import('@/views/md/supplier/index.vue'),
   'md/logistics/index': () => import('@/views/md/logistics/index.vue'),
   'md/partner/index': () => import('@/views/md/partner/index.vue'),
-  'dms/rider/form': () => import('@/views/common/placeholder/index.vue'),
-  'dms/vehicle/form': () => import('@/views/common/placeholder/index.vue'),
 }
 
 /**
@@ -531,7 +533,7 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
   // 自动根据路径分配 billType（后端菜单返回时可覆盖此自动推断）
   const billType = menu.billType || getBillTypeForRoute(routePath)
 
-  const route: RouteRecordRaw = {
+  const route = {
     path: routePath,
     name: menu.routeName || menu.menuCode,
     meta: {
@@ -544,7 +546,7 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
       // 双入口模式：表单路径标记 autoCreate，页面通过 erp:create 事件自动打开新增弹窗
       ...(menu.displayMode === 1 ? { autoCreate: true } : {})
     }
-  }
+  } as RouteRecordRaw
 
   if (menu.menuType === 1 && menu.component) {
     const componentPath = menu.component.replace(/^views\//, '').replace(/\.vue$/, '')
@@ -803,8 +805,8 @@ function getRequiredRoutes(): RouteRecordRaw[] {
     {
       path: 'erp/product/create',
       name: 'ErpProductCreate',
-      component: () => import('@/views/erp/product/detail.vue'),
-      meta: { title: '新增产品', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+      component: () => import('@/views/erp/product/form.vue'),
+      meta: { title: '新增商品', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/product/price-batch',

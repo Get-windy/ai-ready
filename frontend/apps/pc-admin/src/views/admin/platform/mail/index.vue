@@ -108,7 +108,7 @@ async function fetchData() {
       smtp.password = res.password || ''
     }
   } catch {
-    // 使用默认值
+    message.error('获取配置失败')
   }
 
   try {
@@ -117,6 +117,10 @@ async function fetchData() {
   } catch {
     templates.value = []
   }
+}
+
+function editTemplate(record: any) {
+  message.info('编辑模板: ' + record.name)
 }
 
 onMounted(fetchData)

@@ -32,6 +32,48 @@ public class ProductUnit {
 
     private Integer sortOrder;
 
+    /** 单位类型: SMALL=小单位 MEDIUM=中单位 LARGE=大单位 */
+    private String unitType;
+
+    /** 预设进价 */
+    private BigDecimal presetPurchasePrice;
+
+    /** 参考成本 */
+    private BigDecimal referenceCost;
+
+    /** 最近进价 */
+    private BigDecimal recentPurchasePrice;
+
+    /** 批发价 */
+    private BigDecimal wholesalePrice;
+
+    /** 零售价 */
+    private BigDecimal retailPrice;
+
+    /** 最低售价 */
+    private BigDecimal minSalePrice;
+
+    /** 最低折扣(%) */
+    private BigDecimal minDiscount;
+
+    /** 餐饮店价格 */
+    private BigDecimal restaurantPrice;
+
+    /** 食堂团餐价格 */
+    private BigDecimal canteenPrice;
+
+    /** 外围餐饮店价格 */
+    private BigDecimal outerRestaurantPrice;
+
+    /** 自助vip价格 */
+    private BigDecimal selfVipPrice;
+
+    /** 大团餐价格 */
+    private BigDecimal groupMealPrice;
+
+    /** 重点vip价格 */
+    private BigDecimal keyVipPrice;
+
     @TableLogic
     private Integer deleted;
 

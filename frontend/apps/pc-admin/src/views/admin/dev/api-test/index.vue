@@ -96,7 +96,7 @@ async function sendRequest() {
       config.data = JSON.parse(body.value)
     }
 
-    const res = await request(config)
+    const res = await request.request(config)
     statusCode.value = 200
     response.value = JSON.stringify(res, null, 2)
   } catch (e: any) {

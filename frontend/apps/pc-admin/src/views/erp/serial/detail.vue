@@ -1,6 +1,6 @@
 <template>
   <a-drawer
-    :open="visible"
+    :open="open"
     :title="drawerTitle"
     placement="right"
     width="640"
@@ -118,7 +118,7 @@ import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import { serialApi, type SerialNumber } from '@/api/erp/batch'
 
 const props = defineProps<{
-  visible: boolean
+  open: boolean
   serialId: number
 }>()
 
@@ -395,7 +395,7 @@ async function loadData() {
 }
 
 watch(
-  () => [props.visible, props.serialId],
+  () => [props.open, props.serialId],
   ([visible, serialId]) => {
     if (visible && serialId) {
       loadData()

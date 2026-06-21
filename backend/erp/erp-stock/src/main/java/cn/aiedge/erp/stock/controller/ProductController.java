@@ -2,8 +2,13 @@ package cn.aiedge.erp.stock.controller;
 
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.dto.BatchPriceUpdateDTO;
+import cn.aiedge.erp.stock.dto.ProductFormDTO;
 import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.entity.ProductRecommend;
+import cn.aiedge.erp.stock.entity.ProductUnit;
+import cn.aiedge.erp.stock.service.ProductRecommendService;
 import cn.aiedge.erp.stock.service.ProductService;
+import cn.aiedge.erp.stock.service.ProductUnitService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 产品Controller - 产品列表与详情管理
@@ -25,6 +31,8 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductUnitService productUnitService;
+    private final ProductRecommendService productRecommendService;
 
     @Operation(summary = "查询产品列表")
     @SaCheckPermission("erp:product:list")
@@ -50,6 +58,17 @@ public class ProductController {
     @GetMapping("/{id}")
     public Result<Product> getById(@PathVariable Long id) {
         return Result.ok(productService.getProductDetail(id));
+    }
+
+    @Operation(summary = "获取产品表单数据(含单位+推荐)")
+    @SaCheckPermission("erp:product:view")
+    @GetMapping("/{id}/form")
+    public Result<ProductFormDTO> getFormById(@PathVariable Long id) {
+        ProductFormDTO dto = new ProductFormDTO();
+        dto.setProduct(productService.getProductDetail(id));
+        dto.setUnits(productUnitService.getByProductId(id));
+        dto.setRecommends(productRecommendService.getByProductId(id));
+        return Result.ok(dto);
     }
 
     @Operation(summary = "按编码查询")
@@ -119,5 +138,109 @@ public class ProductController {
         product.setId(id);
         product.setApprovalStatus(action);
         return Result.ok(productService.updateById(product));
+    }
+
+    @Operation(summary = "批量创建商品(含单位+推荐)")
+    @SaCheckPermission("erp:product:create")
+    @PostMapping("/batch-create")
+    public Result<Map<String, Object>> batchCreate(@RequestBody Map<String, Object> payload) {
+        try {
+            // 1. 保存产品主表
+            Product product = new Product();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> productMap = (Map<String, Object>) payload.get("product");
+            if (productMap != null) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                product = mapper.convertValue(productMap, Product.class);
+            }
+            boolean saved = productService.createProduct(product);
+            if (!saved) return Result.fail("产品保存失败");
+
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("productId", product.getId());
+
+            // 2. 保存产品单位
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> unitsData = (List<Map<String, Object>>) payload.get("units");
+            if (unitsData != null && !unitsData.isEmpty()) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                for (Map<String, Object> u : unitsData) {
+                    ProductUnit unit = mapper.convertValue(u, ProductUnit.class);
+                    unit.setProductId(product.getId());
+                    productUnitService.save(unit);
+                }
+            }
+
+            // 3. 保存推荐商品
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> recommendsData = (List<Map<String, Object>>) payload.get("recommends");
+            if (recommendsData != null && !recommendsData.isEmpty()) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                List<ProductRecommend> recommends = new java.util.ArrayList<>();
+                for (Map<String, Object> r : recommendsData) {
+                    ProductRecommend rec = mapper.convertValue(r, ProductRecommend.class);
+                    rec.setProductId(product.getId());
+                    recommends.add(rec);
+                }
+                productRecommendService.batchSave(product.getId(), recommends);
+            }
+
+            return Result.ok(result);
+        } catch (Exception e) {
+            log.error("[批量创建商品] 失败", e);
+            return Result.fail("创建失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "批量更新商品(含单位+推荐)")
+    @SaCheckPermission("erp:product:update")
+    @PutMapping("/batch-update/{id}")
+    public Result<Boolean> batchUpdate(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        try {
+            // 1. 更新产品主表
+            @SuppressWarnings("unchecked")
+            Map<String, Object> productMap = (Map<String, Object>) payload.get("product");
+            if (productMap != null) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Product product = mapper.convertValue(productMap, Product.class);
+                product.setId(id);
+                productService.updateProduct(product);
+            }
+
+            // 2. 更新产品单位(先删后插)
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> unitsData = (List<Map<String, Object>>) payload.get("units");
+            if (unitsData != null) {
+                productUnitService.lambdaUpdate()
+                        .eq(ProductUnit::getProductId, id)
+                        .remove();
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                for (Map<String, Object> u : unitsData) {
+                    ProductUnit unit = mapper.convertValue(u, ProductUnit.class);
+                    unit.setProductId(id);
+                    unit.setId(null); // 强制新建
+                    productUnitService.save(unit);
+                }
+            }
+
+            // 3. 更新推荐商品
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> recommendsData = (List<Map<String, Object>>) payload.get("recommends");
+            if (recommendsData != null) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                List<ProductRecommend> recommends = new java.util.ArrayList<>();
+                for (Map<String, Object> r : recommendsData) {
+                    ProductRecommend rec = mapper.convertValue(r, ProductRecommend.class);
+                    rec.setProductId(id);
+                    recommends.add(rec);
+                }
+                productRecommendService.batchSave(id, recommends);
+            }
+
+            return Result.ok(true);
+        } catch (Exception e) {
+            log.error("[批量更新商品] 失败", e);
+            return Result.fail("更新失败: " + e.getMessage());
+        }
     }
 }

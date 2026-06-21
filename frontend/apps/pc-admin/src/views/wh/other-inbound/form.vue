@@ -1,6 +1,6 @@
 <template>
-  <ErpStockOverflow />
+  <ErpStockIn />
 </template>
 <script setup lang="ts">
-import ErpStockOverflow from '@/views/erp/stock-overflow/index.vue'
+import ErpStockIn from '@/views/erp/stock-in/index.vue'
 </script>

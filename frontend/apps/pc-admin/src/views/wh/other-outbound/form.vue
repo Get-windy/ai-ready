@@ -1,6 +1,5 @@
 <template>
-  <ErpStockOverflow />
+  <div class="placeholder-page">
+    <a-result status="info" title="功能开发中" sub-title="其他出库功能待后端API配套后实现" />
+  </div>
 </template>
-<script setup lang="ts">
-import ErpStockOverflow from '@/views/erp/stock-overflow/index.vue'
-</script>

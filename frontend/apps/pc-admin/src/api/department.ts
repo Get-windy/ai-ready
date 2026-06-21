@@ -67,7 +67,7 @@ export const departmentApi = {
   /**
    * 获取部门树
    */
-  getTree(params?: Partial<DepartmentQuery>): Promise<ApiResponse<DepartmentInfo[]>> {
+  getTree(params?: Partial<DepartmentQuery>): Promise<DepartmentInfo[]> {
     return request.get('/department/tree', params)
   },
 

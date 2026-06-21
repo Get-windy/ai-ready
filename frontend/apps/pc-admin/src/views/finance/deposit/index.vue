@@ -276,7 +276,7 @@ const addForm = reactive({
   amount: undefined as number | undefined,
   remark: ''
 })
-const formRules = {
+const formRules: Record<string, any> = {
   depositType: [{ required: true, message: '请选择类型', trigger: 'change' }],
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   amount: [{ required: true, type: 'number', min: 0.01, message: '请输入有效的金额', trigger: 'blur' }]

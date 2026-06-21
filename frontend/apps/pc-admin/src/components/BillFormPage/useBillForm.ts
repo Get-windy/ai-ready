@@ -8,6 +8,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import optionsApi from '@/api/options'
+import { generateCodeDemo, generateCodeAsync } from '@/utils/codeGenerator'
 
 // ── 类型 ──
 
@@ -27,7 +28,7 @@ export interface BillFormApi {
 }
 
 export interface UseBillFormOptions {
-  /** 单据编号前缀（如 'SO', 'PO', 'SH'） */
+  /** 单据编号前缀（如 'XSDD-', 'PO', 'SH'） */
   billPrefix?: string
   /** CRUD API */
   api: BillFormApi
@@ -37,6 +38,16 @@ export interface UseBillFormOptions {
   fields?: BillField[]
   /** 显式模式（不指定则从路由推断） */
   mode?: 'create' | 'edit' | 'view'
+  /** 需要加载的下拉选项类型（不指定则全部加载） */
+  optionTypes?: ('customers' | 'suppliers' | 'warehouses' | 'users' | 'products')[]
+  /** 明细行默认字段模板 */
+  productDefaults?: Record<string, any>
+  /** 基本信息字段变更回调 */
+  onFieldChange?: (fieldKey: string, value: any, formData: Record<string, any>) => void
+  /** 自定义提交数据转换 */
+  transformPayload?: (formData: Record<string, any>, status: number) => any
+  /** 后端序号接口路径（传入则异步获取真实序号，否则用随机演示序号） */
+  codeApiPath?: string
 }
 
 // ── Composable ──
@@ -48,6 +59,11 @@ export function useBillForm(options: UseBillFormOptions) {
     redirectPath,
     fields = [],
     mode: explicitMode,
+    optionTypes,
+    productDefaults = {},
+    onFieldChange,
+    transformPayload,
+    codeApiPath,
   } = options
 
   const router = useRouter()
@@ -92,28 +108,29 @@ export function useBillForm(options: UseBillFormOptions) {
     return editId ? 'edit' : 'create'
   })
 
-  // ── 单据编号 ──
-  function generateBillNo() {
-    const d = new Date()
-    const ds = d.toISOString().slice(0, 10).replace(/-/g, '')
-    const r = Math.random().toString(36).substring(2, 8).toUpperCase()
-    formData.orderNo = `${billPrefix}${ds}${r}`
+  // ── 单据编号（使用系统级 codeGenerator）──
+  async function generateBillNo() {
+    if (codeApiPath) {
+      formData.orderNo = await generateCodeAsync(billPrefix, codeApiPath)
+    } else {
+      formData.orderNo = generateCodeDemo(billPrefix)
+    }
   }
 
   // ── 加载下拉选项 ──
   async function loadOptions() {
     loadingOptions.value = true
+    const types = optionTypes || ['customers', 'warehouses', 'users', 'products']
     try {
-      const [customers, warehouses, users, products] = await Promise.all([
-        optionsApi.getCustomers().catch(() => []),
-        optionsApi.getWarehouses().catch(() => []),
-        optionsApi.getUsers().catch(() => []),
-        optionsApi.getProducts().catch(() => []),
-      ])
-      optionRefs.customers = customers || []
-      optionRefs.warehouses = warehouses || []
-      optionRefs.users = users || []
-      optionRefs.products = products || []
+      const loaders: Record<string, () => Promise<any>> = {
+        customers: () => optionsApi.getCustomers().catch(() => []),
+        suppliers: () => optionsApi.getSuppliers?.().catch(() => []),
+        warehouses: () => optionsApi.getWarehouses().catch(() => []),
+        users: () => optionsApi.getUsers().catch(() => []),
+        products: () => optionsApi.getProducts().catch(() => []),
+      }
+      const results = await Promise.all(types.map(t => loaders[t]?.() ?? Promise.resolve([])))
+      types.forEach((t, i) => { optionRefs[t] = results[i] || [] })
     } finally {
       loadingOptions.value = false
     }
@@ -126,9 +143,15 @@ export function useBillForm(options: UseBillFormOptions) {
       const data = await api.getById(id)
       if (data) {
         Object.assign(formData, data)
-        if (data.details) {
-          formData.products = data.details.map((d: any, i: number) => ({
+        // 兼容后端返回 items 或 details 字段
+        const rawItems = data.items || data.details || []
+        if (rawItems.length) {
+          formData.products = rawItems.map((d: any, i: number) => ({
             ...d,
+            // 标准化后端字段名为前端字段名
+            specification: d.specification || d.productSpec || '',
+            unit: d.unit || d.productUnit || '',
+            quantity: d.quantity ?? d.outboundQuantity ?? d.returnQuantity ?? d.inboundQuantity ?? 0,
             id: d.id || `detail-${i}`,
           }))
         }
@@ -151,6 +174,7 @@ export function useBillForm(options: UseBillFormOptions) {
       unitPrice: 0,
       taxRate: 13,
       remark: '',
+      ...productDefaults,
     })
   }
 
@@ -170,6 +194,11 @@ export function useBillForm(options: UseBillFormOptions) {
     }
   }
 
+  // ── 字段变更回调 ──
+  function handleFieldChange(fieldKey: string, val: any) {
+    onFieldChange?.(fieldKey, val, formData)
+  }
+
   // ── 验证 ──
   function validate(): boolean {
     for (const field of fields) {
@@ -187,6 +216,7 @@ export function useBillForm(options: UseBillFormOptions) {
 
   // ── 构建提交数据 ──
   function buildPayload(status: number) {
+    if (transformPayload) return transformPayload(formData, status)
     return {
       ...formData,
       status,
@@ -246,7 +276,7 @@ export function useBillForm(options: UseBillFormOptions) {
 
   // ── 生命周期 ──
   onMounted(() => {
-    generateBillNo()
+    generateBillNo()  // async, fires and forgets
     loadOptions()
     document.addEventListener('keydown', handleKeydown)
     const editId = route.params.id || route.query.id
@@ -269,6 +299,7 @@ export function useBillForm(options: UseBillFormOptions) {
     handleAddProduct,
     handleRemoveProduct,
     handleProductChange,
+    handleFieldChange,
     handleSaveDraft,
     handleSubmit,
     // 计算

@@ -112,13 +112,14 @@ import { InboxOutlined, WarningOutlined, LockOutlined, FileSearchOutlined, PlusO
 // 计算图片组件
 const imageComponent = computed(() => {
   // 尝试使用全局 SVG 变量，如果不存在则使用 fallback
+  // @ts-ignore 全局 SVG 组件可能不存在
   const images: Record<string, object> = {
-    'default': typeof Standard中图 !== 'undefined' ? Standard中图 : InboxOutlined,
-    'simple': typeof EmptySimple !== 'undefined' ? EmptySimple : InboxOutlined,
-    'error': typeof NetworkError !== 'undefined' ? NetworkError : WarningOutlined,
-    'permission': typeof NoPermission !== 'undefined' ? NoPermission : LockOutlined,
-    'no-data': typeof NoData !== 'undefined' ? NoData : FileSearchOutlined,
-    'custom': typeof Standard中图 !== 'undefined' ? Standard中图 : InboxOutlined
+    'default': typeof (globalThis as any).Standard中图 !== 'undefined' ? (globalThis as any).Standard中图 : InboxOutlined,
+    'simple': typeof (globalThis as any).EmptySimple !== 'undefined' ? (globalThis as any).EmptySimple : InboxOutlined,
+    'error': typeof (globalThis as any).NetworkError !== 'undefined' ? (globalThis as any).NetworkError : WarningOutlined,
+    'permission': typeof (globalThis as any).NoPermission !== 'undefined' ? (globalThis as any).NoPermission : LockOutlined,
+    'no-data': typeof (globalThis as any).NoData !== 'undefined' ? (globalThis as any).NoData : FileSearchOutlined,
+    'custom': typeof (globalThis as any).Standard中图 !== 'undefined' ? (globalThis as any).Standard中图 : InboxOutlined
   }
 
   return images[props.image] || images['default']

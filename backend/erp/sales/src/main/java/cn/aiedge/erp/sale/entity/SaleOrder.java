@@ -115,6 +115,56 @@ public class SaleOrder {
     private String receiverPhone;
 
     /**
+     * 销售类型（1-正常销售 2-样品销售 3-促销销售）
+     */
+    private Integer saleType;
+
+    /**
+     * 收款账户ID
+     */
+    private Long paymentAccountId;
+
+    /**
+     * 物流公司
+     */
+    private String logisticsCompany;
+
+    /**
+     * 物流单号
+     */
+    private String logisticsNo;
+
+    /**
+     * 运费
+     */
+    private BigDecimal shippingFee;
+
+    /**
+     * 会员卡号
+     */
+    private String memberCardNo;
+
+    /**
+     * 会员姓名
+     */
+    private String memberName;
+
+    /**
+     * 会员折扣
+     */
+    private Integer memberDiscount;
+
+    /**
+     * 单据备注
+     */
+    private String orderRemark;
+
+    /**
+     * 买家备注
+     */
+    private String buyerRemark;
+
+    /**
      * 备注
      */
     private String remark;

@@ -48,6 +48,7 @@ export const inboundApi = {
   },
   getById(id: number) { return request.get(`/erp/purchase/inbound/${id}`) },
   create(data: any) { return request.post('/erp/purchase/inbound', data) },
+  update(id: number, data: any) { return request.put(`/erp/purchase/inbound/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/purchase/inbound/${id}`) },
   approve(id: number) { return request.post(`/erp/purchase/inbound/${id}/approve`) },
   confirmWarehouse(id: number) { return request.post(`/erp/purchase/inbound/${id}/warehouse-confirm`) },
@@ -96,6 +97,7 @@ export const outboundApi = {
   },
   getById(id: number) { return request.get(`/erp/sale/outbound/${id}`) },
   create(data: any) { return request.post('/erp/sale/outbound', data) },
+  update(id: number, data: any) { return request.put(`/erp/sale/outbound/${id}`, data) },
   approve(id: number) { return request.post(`/erp/sale/outbound/${id}/approve`) },
 }
 
@@ -110,6 +112,7 @@ export const saleReturnApi = {
   },
   getById(id: number) { return request.get(`/erp/sale/return/${id}`) },
   create(data: any) { return request.post('/erp/sale/return', data) },
+  update(id: number, data: any) { return request.put(`/erp/sale/return/${id}`, data) },
   delete(id: number) { return request.delete(`/erp/sale/return/${id}`) },
   approve(id: number) { return request.post(`/erp/sale/return/${id}/approve`) },
   receive(id: number) { return request.post(`/erp/sale/return/${id}/receive`) },
@@ -196,6 +199,7 @@ export const stockCheckApi = {
   },
   getById(id: number) { return request.get(`/erp/stock/check/${id}`) },
   create(data: any) { return request.post('/erp/stock/check', data) },
+  update(id: number, data: any) { return request.put(`/erp/stock/check/${id}`, data) },
   getItems(checkId: number): Promise<ApiResponse<StockCheckItem[]>> {
     return request.get(`/erp/stock/check/${checkId}/items`)
   },

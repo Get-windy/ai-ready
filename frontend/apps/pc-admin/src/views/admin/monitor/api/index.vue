@@ -24,7 +24,7 @@
       <a-row :gutter="16" style="margin-bottom:16px">
         <a-col :span="6">
           <a-card :bordered="false">
-            <a-statistic title="系统状态" value="正常" value-style="color:#52c41a">
+            <a-statistic title="系统状态" value="正常" :value-style="{ color: '#52c41a' }">
               <template #prefix><CheckCircleOutlined style="color:#52c41a" /></template>
             </a-statistic>
             <div class="stat-detail">CPU: {{ dashboardCpu }}% | 内存: {{ dashboardMem }}% | 磁盘: {{ dashboardDisk }}%</div>
