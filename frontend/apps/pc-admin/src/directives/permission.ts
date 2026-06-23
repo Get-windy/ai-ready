@@ -102,8 +102,15 @@ export const permission: Directive = {
   },
 
   updated(el: HTMLElement, binding: DirectiveBinding) {
+    // 验证 binding 对象是否存在
+    if (!binding) return
+
     const { value, modifiers } = binding
     const userStore = useUserStore()
+
+    // 验证必要参数是否存在
+    if (!value || !userStore?.permissions) return
+
     const userPermissions = userStore.permissions
 
     if (value && userPermissions && userPermissions.length > 0) {
@@ -134,11 +141,18 @@ export const role: Directive = {
   },
 
   updated(el: HTMLElement, binding: DirectiveBinding) {
+    // 验证 binding 对象是否存在
+    if (!binding) return
+
     const { value } = binding
     const userStore = useUserStore()
+
+    // 验证必要参数是否存在
+    if (!value || !userStore?.roles) return
+
     const userRoles = userStore.roles
 
-    if (value) {
+    if (value && userRoles) {
       const hasRole = checkRole(value, userRoles)
       if (!hasRole) {
         el.style.display = 'none'

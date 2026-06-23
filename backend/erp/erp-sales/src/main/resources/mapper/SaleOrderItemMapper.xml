@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.sale.mapper.SaleOrderItemMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.sale.entity.SaleOrderItem">
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="line_no" property="lineNo"/>
+        <result column="product_id" property="productId"/>
+        <result column="product_code" property="productCode"/>
+        <result column="product_name" property="productName"/>
+        <result column="barcode" property="barcode"/>
+        <result column="specification" property="specification"/>
+        <result column="location" property="location"/>
+        <result column="unit" property="unit"/>
+        <result column="line_attribute" property="lineAttribute"/>
+        <result column="batch_code" property="batchCode"/>
+        <result column="production_date" property="productionDate"/>
+        <result column="shelf_life" property="shelfLife"/>
+        <result column="expiry_date" property="expiryDate"/>
+        <result column="big_pack" property="bigPack"/>
+        <result column="mid_pack" property="midPack"/>
+        <result column="small_pack" property="smallPack"/>
+        <result column="quantity" property="quantity"/>
+        <result column="shipped_quantity" property="shippedQuantity"/>
+        <result column="unit_price" property="unitPrice"/>
+        <result column="tax_rate" property="taxRate"/>
+        <result column="unit_price_with_tax" property="unitPriceWithTax"/>
+        <result column="amount" property="amount"/>
+        <result column="tax_amount" property="taxAmount"/>
+        <result column="amount_with_tax" property="amountWithTax"/>
+        <result column="discount_rate" property="discountRate"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+
+        <!-- 扩展字段 -->
+        <result column="image" property="image"/>
+        <result column="pre_order_no" property="preOrderNo"/>
+        <result column="small_unit_barcode" property="smallUnitBarcode"/>
+        <result column="use_pre_order_amount" property="usePreOrderAmount"/>
+        <result column="model" property="model"/>
+        <result column="area" property="area"/>
+        <result column="origin" property="origin"/>
+        <result column="brand" property="brand"/>
+        <result column="custom_field_1" property="customField1"/>
+        <result column="custom_field_2" property="customField2"/>
+        <result column="custom_field_3" property="customField3"/>
+        <result column="custom_field_4" property="customField4"/>
+        <result column="custom_field_5" property="customField5"/>
+        <result column="custom_field_6" property="customField6"/>
+        <result column="custom_field_7" property="customField7"/>
+        <result column="custom_field_8" property="customField8"/>
+        <result column="custom_field_9" property="customField9"/>
+        <result column="custom_field_10" property="customField10"/>
+        <result column="small_unit" property="smallUnit"/>
+        <result column="small_unit_price" property="smallUnitPrice"/>
+        <result column="small_unit_quantity" property="smallUnitQuantity"/>
+        <result column="latest_sale_date" property="latestSaleDate"/>
+        <result column="latest_sale_price" property="latestSalePrice"/>
+        <result column="retail_price" property="retailPrice"/>
+        <result column="wholesale_price" property="wholesalePrice"/>
+        <result column="lowest_price" property="lowestPrice"/>
+        <result column="restaurant" property="restaurant"/>
+        <result column="canteen" property="canteen"/>
+        <result column="vip_self" property="vipSelf"/>
+        <result column="large_group" property="largeGroup"/>
+        <result column="special_customer" property="specialCustomer"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="available_stock_converted" property="availableStockConverted"/>
+        <result column="book_stock" property="bookStock"/>
+        <result column="conversion_relation" property="conversionRelation"/>
+        <result column="unshipped_quantity" property="unshippedQuantity"/>
+        <result column="shipped_quantity_detail" property="shippedQuantityDetail"/>
+        <result column="cost_price" property="costPrice"/>
+        <result column="cost_amount" property="costAmount"/>
+        <result column="gross_profit" property="grossProfit"/>
+        <result column="discount_percent" property="discountPercent"/>
+        <result column="discounted_unit_price" property="discountedUnitPrice"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="discounted_amount" property="discountedAmount"/>
+        <result column="favorable_unit_price" property="favorableUnitPrice"/>
+        <result column="favorable_amount" property="favorableAmount"/>
+        <result column="gift_item" property="giftItem"/>
+        <result column="exchange_points" property="exchangePoints"/>
+        <result column="used_points" property="usedPoints"/>
+        <result column="volume" property="volume"/>
+        <result column="weight" property="weight"/>
+        <result column="gift" property="gift"/>
+        <result column="out_restaurant" property="outRestaurant"/>
+        <result column="vip_level_1" property="vipLevel1"/>
+        <result column="vip_level_2" property="vipLevel2"/>
+    </resultMap>
+
+    <!-- 基础查询列 -->
+    <sql id="Base_Column_List">
+        id, order_id, line_no, product_id, product_code, product_name, barcode, specification,
+        location, unit, line_attribute, batch_code, production_date, shelf_life, expiry_date,
+        big_pack, mid_pack, small_pack, quantity, shipped_quantity, unit_price, tax_rate,
+        unit_price_with_tax, amount, tax_amount, amount_with_tax, discount_rate, discount_amount,
+        warehouse_id, remark, create_time, update_time
+    </sql>
+
+    <!-- 扩展查询列 -->
+    <sql id="Extended_Column_List">
+        image, pre_order_no, small_unit_barcode, use_pre_order_amount, model, area, origin, brand,
+        custom_field_1, custom_field_2, custom_field_3, custom_field_4, custom_field_5,
+        custom_field_6, custom_field_7, custom_field_8, custom_field_9, custom_field_10,
+        small_unit, small_unit_price, small_unit_quantity, latest_sale_date, latest_sale_price,
+        retail_price, wholesale_price, lowest_price, restaurant, canteen, vip_self, large_group,
+        special_customer, available_stock, available_stock_converted, book_stock, conversion_relation,
+        unshipped_quantity, shipped_quantity_detail, cost_price, cost_amount, gross_profit,
+        discount_percent, discounted_unit_price, original_price, discounted_amount,
+        favorable_unit_price, favorable_amount, gift_item, exchange_points, used_points,
+        volume, weight, gift, out_restaurant, vip_level_1, vip_level_2
+    </sql>
+
+    <!-- 查询所有列 -->
+    <sql id="All_Column_List">
+        <include refid="Base_Column_List"/>,
+        <include refid="Extended_Column_List"/>
+    </sql>
+
+    <!-- 根据订单ID查询明细 -->
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="All_Column_List"/>
+        FROM erp_sale_order_item
+        WHERE order_id = #{orderId}
+        ORDER BY line_no
+    </select>
+
+    <!-- 更新已出库数量 -->
+    <update id="addShippedQuantity">
+        UPDATE erp_sale_order_item
+        SET shipped_quantity = shipped_quantity + #{quantity}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

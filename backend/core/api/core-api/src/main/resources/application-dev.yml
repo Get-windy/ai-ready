@@ -6,6 +6,7 @@ spring:
   main:
     allow-bean-definition-overriding: true
     web-application-type: servlet
+    allow-circular-references: true  # 允许循环引用以解决BeanPostProcessor警告
   autoconfigure:
     exclude:
       - org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration
@@ -15,6 +16,7 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
+    open-in-view: false  # 关闭 JPA open-in-view 以消除警告
   datasource:
     url: jdbc:postgresql://localhost:5432/devdb
     username: devuser

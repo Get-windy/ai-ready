@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.3.2</version>
+        <version>0.3.3</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -52,22 +52,17 @@
         <!-- ERP 销售管理模块（含销售退货/换货/出库） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale</artifactId>
-        </dependency>
-        <!-- ERP 订单中心模块（含组装拆卸） -->
-        <dependency>
-            <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-order</artifactId>
+            <artifactId>erp-sales</artifactId>
         </dependency>
         <!-- ERP 财务管理模块（含付款/发票/费用） -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-finance</artifactId>
         </dependency>
-        <!-- ERP 客户等级模块（含往来单位） -->
+        <!-- ERP 客户等级功能已合并到 partner 模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-customer</artifactId>
+            <artifactId>erp-partner</artifactId>
         </dependency>
         <!-- ERP 供应商协同门户模块 -->
         <dependency>
@@ -88,11 +83,6 @@
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-observability</artifactId>
-        </dependency>
-        <!-- ERP 价格引擎模块 -->
-        <dependency>
-            <groupId>cn.aiedge.erp.price</groupId>
-            <artifactId>erp-price-engine</artifactId>
         </dependency>
         <!-- ERP 固定资产模块（排除，使用 core-api 占位 Controller） -->
         <!--

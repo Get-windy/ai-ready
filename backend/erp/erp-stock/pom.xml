@@ -4,7 +4,7 @@
   <parent>
     <groupId>cn.aiedge.erp</groupId>
     <artifactId>erp</artifactId>
-    <version>0.3.2</version>
+    <version>0.3.3</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>erp-stock</artifactId>

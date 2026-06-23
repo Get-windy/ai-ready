@@ -74,18 +74,28 @@
                 </a-col>
               </a-row>
               <a-row :gutter="24">
-                <a-col :span="12">
-                  <a-form-item label="所属区域" name="province">
-                    <a-input v-model:value="form.province" placeholder="如：华东地区/广东省" size="small" />
+                <a-col :span="8">
+                  <a-form-item label="所在省" name="province">
+                    <a-input v-model:value="form.province" placeholder="省" size="small" />
                   </a-form-item>
                 </a-col>
-                <a-col :span="12">
-                  <a-form-item label="助记码" name="shortName">
-                    <a-input v-model:value="form.partnerShortName" placeholder="输入拼音首字母等" size="small" />
+                <a-col :span="8">
+                  <a-form-item label="所在市" name="city">
+                    <a-input v-model:value="form.city" placeholder="市" size="small" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="所在区/县" name="district">
+                    <a-input v-model:value="form.district" placeholder="区/县" size="small" />
                   </a-form-item>
                 </a-col>
               </a-row>
               <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="助记码">
+                    <a-input v-model:value="form.partnerShortName" placeholder="输入拼音首字母等" size="small" />
+                  </a-form-item>
+                </a-col>
                 <a-col :span="12">
                   <a-form-item label="结款方式" name="settleType">
                     <a-select v-model:value="form.settleType" size="small">
@@ -96,6 +106,8 @@
                     </a-select>
                   </a-form-item>
                 </a-col>
+              </a-row>
+              <a-row :gutter="24">
                 <a-col :span="12">
                   <a-form-item label="状态">
                     <a-switch v-model:checked="statusChecked" checked-children="启用" un-checked-children="停用" size="small" />
@@ -150,8 +162,8 @@
           <div class="section-title">纳税人信息</div>
           <a-row :gutter="24" class="section-row">
             <a-col :span="8">
-              <a-form-item label="公司全称" name="unifiedSocialCode">
-                <a-input v-model:value="form.unifiedSocialCode" placeholder="请输入公司全称" size="small" />
+              <a-form-item label="公司全称">
+                <a-input v-model:value="form.companyFullName" placeholder="请输入公司全称" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
@@ -160,15 +172,32 @@
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="地址">
-                <a-input v-model:value="detailAddress" placeholder="请输入地址" size="small" />
+              <a-form-item label="法定代表人">
+                <a-input v-model:value="form.legalPerson" placeholder="请输入法定代表人" size="small" />
               </a-form-item>
             </a-col>
           </a-row>
           <a-row :gutter="24" class="section-row">
             <a-col :span="8">
-              <a-form-item label="电话">
+              <a-form-item label="统一信用代码">
+                <a-input v-model:value="form.unifiedSocialCode" placeholder="请输入统一社会信用代码" size="small" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="公司电话">
                 <a-input v-model:value="form.companyPhone" placeholder="请输入公司电话" size="small" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="公司邮箱">
+                <a-input v-model:value="form.companyEmail" placeholder="请输入公司邮箱" size="small" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8">
+              <a-form-item label="详细地址">
+                <a-input v-model:value="detailAddress" placeholder="请输入详细地址" size="small" />
               </a-form-item>
             </a-col>
             <a-col :span="8">
@@ -212,11 +241,35 @@
             </span>
           </div>
           <a-row v-if="!otherInfoCollapsed" :gutter="24" class="section-row">
-            <a-col :span="24">
+            <a-col :span="8">
               <a-form-item label="单位网址">
                 <a-input v-model:value="companyWebsite" placeholder="请输入网址" size="small" />
               </a-form-item>
             </a-col>
+            <a-col :span="8">
+              <a-form-item label="所属行业">
+                <a-input v-model:value="form.industry" placeholder="请输入所属行业" size="small" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="来源渠道">
+                <a-input v-model:value="form.sourceChannel" placeholder="如：线上推广/转介绍" size="small" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row v-if="!otherInfoCollapsed" :gutter="24" class="section-row">
+            <a-col :span="8">
+              <a-form-item label="信用额度">
+                <a-input-number v-model:value="form.creditLimit" :precision="2" :min="0" style="width: 100%" size="small" placeholder="0" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="税率(%)">
+                <a-input-number v-model:value="form.taxRate" :precision="2" :min="0" :max="100" style="width:100%" size="small" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row v-if="!otherInfoCollapsed" :gutter="24" class="section-row">
             <a-col :span="24">
               <a-form-item label="备注">
                 <a-textarea v-model:value="form.remark" placeholder="请输入备注" :rows="2" size="small" />
@@ -282,7 +335,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
-import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, type PartnerContact } from '@/api/erp/partner'
+import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
 import { generatePartnerCodeAsync } from '../utils/generateCode'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
@@ -333,10 +386,16 @@ const form = reactive({
   defaultHandlerId: undefined as number | undefined,
   defaultWarehouseId: undefined as number | undefined,
   province: '',
+  city: '',
+  district: '',
+  companyFullName: '',
   unifiedSocialCode: '',
   taxId: '',
   legalPerson: '',
   companyPhone: '',
+  companyEmail: '',
+  industry: '',
+  sourceChannel: '',
   settleType: 'MONTHLY',
   taxRate: 13,
   creditLimit: undefined as number | undefined,
@@ -392,9 +451,10 @@ async function doSubmit(): Promise<number | null> {
   try {
     const result = await partnerApi.create({
       ...form, partnerType: 'CUSTOMER', status: statusChecked.value ? 'ENABLED' : 'DISABLED',
-      roles, openingBalance: openingBalance.value, companyWebsite: companyWebsite.value,
-      detailAddress: detailAddress.value, partnerAvatar: avatarUrl.value,
-      memberCardNo: memberCardNo.value, memberName: memberName.value, initialPoints: initialPoints.value,
+      openingBalance: openingBalance.value, openingPrepaid: preReceivedAmount.value,
+      companyWebsite: companyWebsite.value, detailAddress: detailAddress.value,
+      partnerAvatar: avatarUrl.value, memberCardNo: memberCardNo.value,
+      memberName: memberName.value, initialPoints: initialPoints.value,
     } as any)
     return (result as any)?.id || 0
   } catch (err: any) { message.error(err?.response?.data?.message || err?.message || '创建失败'); return null }
@@ -403,9 +463,28 @@ async function doSubmit(): Promise<number | null> {
 async function submitContacts(partnerId: number) {
   const ordered = [...contacts.value].sort((a, b) => (b.isDefault || 0) - (a.isDefault || 0))
   for (const c of ordered) {
-    const data = { ...c, partnerId, isDefault: c.isDefault || 0 }
+    const data = {
+      ...c,
+      partyId: partnerId,
+      isPrimary: c.isDefault || 0,
+      phone: c.contactPhone || c.phone || '',
+      mobile: c.contactPhone || c.mobile || '',
+      email: c.contactEmail || c.email || '',
+      contactName: c.contactName || ''
+    }
     delete (data as any).id
+    delete (data as any).partnerId
+    delete (data as any).isDefault
+    delete (data as any).contactPhone
+    delete (data as any).contactEmail
     await partnerContactApi.create(data)
+  }
+}
+
+async function submitRoles(partnerId: number) {
+  const allRoles = ['CUSTOMER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)]
+  for (const roleType of allRoles) {
+    try { await partnerRoleApi.addRole(partnerId, roleType, roleType === 'CUSTOMER') } catch {}
   }
 }
 
@@ -419,6 +498,7 @@ async function handleSubmit() {
   try {
     const pid = await doSubmit()
     if (!pid) return
+    await submitRoles(pid)
     await submitContacts(pid)
     await submitBankAccount(pid)
     savedPartnerId.value = pid
@@ -432,11 +512,12 @@ async function handleSaveAndNew() {
   try {
     const pid = await doSubmit()
     if (!pid) return
+    await submitRoles(pid)
     await submitContacts(pid)
     await submitBankAccount(pid)
     savedPartnerId.value = pid
     message.success('客户创建成功')
-    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, partnerGradeId:undefined, defaultHandlerId:undefined, defaultWarehouseId:undefined, province:'', unifiedSocialCode:'', taxId:'', legalPerson:'', companyPhone:'', settleType:'MONTHLY', taxRate:13, creditLimit:undefined, remark:'' })
+    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, partnerGradeId:undefined, defaultHandlerId:undefined, defaultWarehouseId:undefined, province:'', city:'', district:'', companyFullName:'', unifiedSocialCode:'', taxId:'', legalPerson:'', companyPhone:'', companyEmail:'', industry:'', sourceChannel:'', settleType:'MONTHLY', taxRate:13, creditLimit:undefined, remark:'' })
     contacts.value = []; bankName.value = ''; bankAccount.value = ''; detailAddress.value = ''
     openingBalance.value = 0; preReceivedAmount.value = 0; companyWebsite.value = ''
     avatarUrl.value = ''; memberCardNo.value = ''; memberName.value = ''; initialPoints.value = 0

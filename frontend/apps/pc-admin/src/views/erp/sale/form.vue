@@ -69,6 +69,9 @@
       </div>
     </template>
   </BillFormPage>
+
+  <!-- ═══ 表单配置弹窗 ═══ -->
+  <SaleOrderFormConfig v-model:open="showFormConfig" />
 </template>
 
 <script setup lang="ts">
@@ -81,6 +84,7 @@ import {
   ImportOutlined,
   PlusCircleOutlined,
   MinusCircleOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -90,11 +94,16 @@ import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { saleOrderApi } from '@/api/erp'
 import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
+import SaleOrderItemColumnConfig from '@/views/erp/column-config/SaleOrderItemColumnConfig.vue' // 导入列配置组件
+import SaleOrderFormConfig from '@/views/erp/column-config/SaleOrderFormConfig.vue' // 导入表单配置组件
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')
+
+// ═══ 配置弹窗状态 ═══
+const showFormConfig = ref(false)
 
 // ═══════════════════════════════════════
 // useBillForm composable
@@ -228,6 +237,7 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
     ]},
     { key: 'history', label: '历史', icon: ClockCircleOutlined },
     { key: 'import', label: '导入', icon: ImportOutlined },
+    { key: 'config', label: '配置', icon: SettingOutlined }, // 更改按钮名称为"配置"
     { key: 'more', label: '更多', children: [
       { key: 'save-draft', label: '保存草稿' },
       { key: 'copy-order', label: '复制订单' },
@@ -320,6 +330,67 @@ const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 0 },
   { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 0 },
   { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 0 },
+
+  // 新增字段：用于列配置演示
+  { key: 'image', title: '图片', type: 'input', width: 80 },
+  { key: 'preOrderNo', title: '预订货单编号', type: 'input', width: 120 },
+  { key: 'smallUnitBarcode', title: '小单位条码', type: 'input', width: 120 },
+  { key: 'usePreOrderAmount', title: '使用预订货款', type: 'number', width: 120, precision: 2 },
+  { key: 'model', title: '型号', type: 'input', width: 100 },
+  { key: 'area', title: '区域', type: 'input', width: 80 },
+  { key: 'origin', title: '产地', type: 'input', width: 100 },
+  { key: 'brand', title: '品牌', type: 'input', width: 100 },
+  { key: 'customField1', title: '单据自定义1(数字字段)', type: 'number', width: 140, precision: 2 },
+  { key: 'customField2', title: '单据自定义2(数字字段)', type: 'number', width: 140, precision: 2 },
+  { key: 'customField3', title: '单据自定义3(数字字段)', type: 'number', width: 140, precision: 2 },
+  { key: 'customField4', title: '单据自定义4(文本字段)', type: 'input', width: 140 },
+  { key: 'customField5', title: '单据自定义5(文本字段)', type: 'input', width: 140 },
+  { key: 'customField6', title: '单据自定义6(数字字段)', type: 'number', width: 140, precision: 2 },
+  { key: 'customField7', title: '单据自定义7(数字字段)', type: 'number', width: 140, precision: 2 },
+  { key: 'customField8', title: '单据自定义8(往来单位)', type: 'input', width: 150 },
+  { key: 'customField9', title: '单据自定义9(职员)', type: 'input', width: 120 },
+  { key: 'smallUnit', title: '小单位', type: 'input', width: 80 },
+  { key: 'smallUnitPrice', title: '小单位单价', type: 'number', width: 100, precision: 2 },
+  { key: 'smallUnitQuantity', title: '小单位数量', type: 'number', width: 100, precision: 2 },
+  { key: 'customField10', title: '单据自定义10(部门)', type: 'input', width: 120 },
+  { key: 'latestSaleDate', title: '最近销售日期', type: 'date', width: 110 },
+  { key: 'latestSalePrice', title: '最近售价', type: 'number', width: 100, precision: 2 },
+  { key: 'retailPrice', title: '零售价', type: 'number', width: 100, precision: 2 },
+  { key: 'wholesalePrice', title: '批发价', type: 'number', width: 100, precision: 2 },
+  { key: 'lowestPrice', title: '最低售价', type: 'number', width: 100, precision: 2 },
+  { key: 'restaurant', title: '餐饮店', type: 'input', width: 80 },
+  { key: 'canteen', title: '食堂团餐', type: 'input', width: 100 },
+  { key: 'vipSelf', title: '自助vip', type: 'input', width: 100 },
+  { key: 'largeGroup', title: '大团餐', type: 'input', width: 80 },
+  { key: 'specialCustomer', title: '特价客户', type: 'input', width: 100 },
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 100, precision: 2 },
+  { key: 'availableStockConverted', title: '可用库存换算结果', type: 'number', width: 150, precision: 2 },
+  { key: 'bookStock', title: '账面库存', type: 'number', width: 100, precision: 2 },
+  { key: 'conversionRelation', title: '换算关系', type: 'input', width: 100 },
+  { key: 'unshippedQuantity', title: '未发数量', type: 'number', width: 100, precision: 2 },
+  { key: 'shippedQuantityDetail', title: '已发数量', type: 'number', width: 100, precision: 2 },
+  { key: 'unitPrice', title: '单价', type: 'number', width: 80, precision: 2 },
+  { key: 'amount', title: '金额', type: 'number', width: 80, precision: 2 },
+  { key: 'costPrice', title: '参考成本单价', type: 'number', width: 120, precision: 2 },
+  { key: 'costAmount', title: '参考成本金额', type: 'number', width: 120, precision: 2 },
+  { key: 'grossProfit', title: '参考毛利', type: 'number', width: 100, precision: 2 },
+  { key: 'discountRate', title: '折扣(%)', type: 'number', width: 80, precision: 2 },
+  { key: 'outRestaurant', title: '外围餐饮店', type: 'input', width: 120 },
+  { key: 'discountedUnitPrice', title: '折后单价', type: 'number', width: 100, precision: 2 },
+  { key: 'originalPrice', title: '折单原价', type: 'number', width: 100, precision: 2 },
+  { key: 'vipLevel1', title: '重点|vip01', type: 'input', width: 100 },
+  { key: 'vipLevel2', title: '连锁|vip', type: 'input', width: 100 },
+  { key: 'discountedAmount', title: '折后金额', type: 'number', width: 100, precision: 2 },
+  { key: 'discountPercent', title: '优惠折扣(%)', type: 'number', width: 120, precision: 2 },
+  { key: 'favorableUnitPrice', title: '惠后单价', type: 'number', width: 100, precision: 2 },
+  { key: 'favorableAmount', title: '优惠后金额', type: 'number', width: 120, precision: 2 },
+  { key: 'giftItem', title: '兑换礼品', type: 'input', width: 100 },
+  { key: 'exchangePoints', title: '兑换积分', type: 'number', width: 100, precision: 2 },
+  { key: 'usedPoints', title: '使用积分', type: 'number', width: 100, precision: 2 },
+  { key: 'volume', title: '体积（m³）', type: 'number', width: 100, precision: 4 },
+  { key: 'weight', title: '重量（kg）', type: 'number', width: 100, precision: 4 },
+  { key: 'gift', title: '赠品', type: 'input', width: 80 },
+  { key: 'remark', title: '备注', type: 'input', width: 150 },
 ])
 
 // ═══════════════════════════════════════
@@ -382,6 +453,9 @@ function handleAction(actionKey: string, _parentKey?: string) {
     case 'copy-order':
     case 'export':
       message.info(`${actionKey} 功能开发中`)
+      break
+    case 'config':  // 配置按钮，弹出配置弹窗
+      showFormConfig.value = true
       break
   }
 }

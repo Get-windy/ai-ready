@@ -8,7 +8,7 @@
     <parent>
         <groupId>cn.aiedge</groupId>
         <artifactId>ai-ready-backend</artifactId>
-        <version>0.3.2</version>
+        <version>0.3.3</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -27,7 +27,7 @@
         <!-- ERP 业务模块依赖 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-customer</artifactId>
+            <artifactId>erp-partner</artifactId>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
@@ -35,7 +35,7 @@
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-sale</artifactId>
+            <artifactId>erp-sales</artifactId>
         </dependency>
         <dependency>
             <groupId>cn.aiedge.erp</groupId>

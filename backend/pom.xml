@@ -246,27 +246,22 @@
             </dependency>
             <dependency>
                 <groupId>cn.aiedge.erp</groupId>
-                <artifactId>erp-sale</artifactId>
+                <artifactId>erp-sales</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>cn.aiedge.erp</groupId>
-                <artifactId>erp-order</artifactId>
+                <artifactId>erp-partner</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.aiedge.erp</groupId>
+                <artifactId>erp-pricing</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>cn.aiedge.erp</groupId>
                 <artifactId>erp-finance</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cn.aiedge.erp</groupId>
-                <artifactId>erp-customer</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>cn.aiedge.erp.price</groupId>
-                <artifactId>erp-price-engine</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

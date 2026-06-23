@@ -13,7 +13,7 @@
             >
               <!-- ═══ rowNo 列：内嵌齿轮设置图标 ═══ -->
               <template v-if="col.type === 'rowNo'">
-                <span class="th-settings-btn" @click.stop="showColPanel = !showColPanel" title="列设置">
+                <span class="th-settings-btn" @click.stop="showColPanel = true" title="配置">
                   <SettingOutlined />
                 </span>
               </template>
@@ -24,12 +24,12 @@
                   <span class="th-scan-label">扫描枪录入</span>
                 </a-tooltip>
                 <a-switch v-model:checked="scanEnabled" size="small" class="th-scan-switch" />
-                <span class="th-sort-icon" title="排序">⇅</span>
+                <span class="th-sort-icon" title="排序">UpDownArrow</span>
               </template>
               <!-- ═══ 普通列标题 ═══ -->
               <template v-else>
                 <span class="th-title">{{ col.title }}</span>
-                <span v-if="col.type !== 'action'" class="th-sort-icon" title="排序">⇅</span>
+                <span v-if="col.type !== 'action'" class="th-sort-icon" title="排序">UpDownArrow</span>
               </template>
             </th>
           </tr>
@@ -132,55 +132,57 @@
       </table>
     </div>
 
-    <!-- ═══ 列设置面板（Popover） ═══ -->
-    <Teleport to="body">
-      <div v-if="showColPanel" class="col-settings-overlay" @click.self="showColPanel = false">
-        <div class="col-settings-panel" ref="colPanelRef">
-          <div class="col-panel-header">
-            <span>列设置</span>
-            <a-button type="text" size="small" @click="showColPanel = false">✕</a-button>
-          </div>
-          <div class="col-panel-body">
-            <div
-              v-for="(setting, si) in columnSettings"
-              :key="setting.key"
-              class="col-setting-row"
-              :class="{ 'col-setting-ghost': !setting.visible }"
+    <!-- ═══ 列设置面板（Modal 形式） ═══ -->
+    <a-modal
+      v-model:open="showColPanel"
+      title="配置"
+      :footer="null"
+      :mask-closable="true"
+      :closable="true"
+      width="600px"
+      centered
+    >
+      <div class="col-settings-panel-modal">
+        <div class="col-panel-body">
+          <div
+            v-for="(setting, si) in columnSettings"
+            :key="setting.key"
+            class="col-setting-row"
+            :class="{ 'col-setting-ghost': !setting.visible }"
+          >
+            <!-- 可见性复选框 -->
+            <a-checkbox v-model:checked="setting.visible" :disabled="isLockedColumn(setting.key)" @change="onColSettingChange" />
+            <!-- 列标题（可拖拽排序） -->
+            <span class="col-setting-title" draggable="true"
+              @dragstart="onDragStart(si)"
+              @dragover.prevent="onDragOver(si)"
+              @drop="onDrop(si)"
             >
-              <!-- 可见性复选框 -->
-              <a-checkbox v-model:checked="setting.visible" :disabled="isLockedColumn(setting.key)" @change="onColSettingChange" />
-              <!-- 列标题（可拖拽排序） -->
-              <span class="col-setting-title" draggable="true"
-                @dragstart="onDragStart(si)"
-                @dragover.prevent="onDragOver(si)"
-                @drop="onDrop(si)"
-              >
-                <span class="drag-handle">⠿</span>
-                {{ setting.title }}
-              </span>
-              <!-- 冻结选择 -->
-              <select v-model="setting.fixed" class="col-freeze-select" @change="onColSettingChange">
-                <option value="">不冻结</option>
-                <option value="left">冻结左侧</option>
-                <option value="right">冻结右侧</option>
-              </select>
-              <!-- 宽度调整 -->
-              <input
-                type="number"
-                v-model.number="setting.width"
-                class="col-width-input"
-                min="40"
-                max="500"
-                @change="onColSettingChange"
-              />
-            </div>
-          </div>
-          <div class="col-panel-footer">
-            <a-button size="small" @click="resetColumnSettings">恢复默认</a-button>
+              <span class="drag-handle">⠿</span>
+              {{ setting.title }}
+            </span>
+            <!-- 冻结选择 -->
+            <a-select v-model:value="setting.fixed" class="col-freeze-select" @change="onColSettingChange" size="small">
+              <a-select-option value="">不冻结</a-select-option>
+              <a-select-option value="left">冻结左侧</a-select-option>
+              <a-select-option value="right">冻结右侧</a-select-option>
+            </a-select>
+            <!-- 宽度调整 -->
+            <a-input-number
+              v-model:value="setting.width"
+              class="col-width-input"
+              :min="40"
+              :max="500"
+              @change="onColSettingChange"
+              size="small"
+            />
           </div>
         </div>
+        <div class="col-panel-footer">
+          <a-button size="middle" @click="resetColumnSettings">恢复默认</a-button>
+        </div>
       </div>
-    </Teleport>
+    </a-modal>
 
     <!-- ═══ 底部展开/收起 ══ -->
     <div class="detail-expand">
@@ -195,6 +197,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick } from 'vue'
 import { SettingOutlined, FullscreenOutlined } from '@ant-design/icons-vue'
+import { Modal, Button, Checkbox, Select, InputNumber } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
 
@@ -244,6 +247,34 @@ const defaultSettings = computed<ColumnSetting[]>(() =>
 )
 
 const columnSettings = reactive<ColumnSetting[]>([...defaultSettings.value])
+
+// 从本地存储加载列配置
+const STORAGE_KEY = 'sale-order-item-columns-config'
+try {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored) {
+    const parsed = JSON.parse(stored)
+    // 合并存储的配置与当前可用列
+    const mergedConfig = props.columns.map(col => {
+      const storedCol = parsed.find((sc: any) => sc.key === col.key)
+      return storedCol ? { ...col, ...storedCol } : { ...col, visible: true, fixed: col.fixed || '', width: col.width || 100 }
+    })
+    // 更新columnSettings
+    mergedConfig.forEach((col, index) => {
+      if (index < columnSettings.length) {
+        Object.assign(columnSettings[index], col)
+      } else {
+        columnSettings.push(col)
+      }
+    })
+    // 删除多余的配置
+    if (mergedConfig.length < columnSettings.length) {
+      columnSettings.splice(mergedConfig.length)
+    }
+  }
+} catch (error) {
+  console.warn('加载列配置失败:', error)
+}
 
 // 同步 columns 变化
 watch(() => props.columns, (newCols) => {
@@ -760,5 +791,11 @@ function onDrop(_index: number) {
   border-top: 1px solid #f0f0f0;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 为Modal样式的列设置面板新增样式 */
+.col-settings-panel-modal {
+  max-height: 60vh;
+  overflow-y: auto;
 }
 </style>

@@ -646,3 +646,83 @@ html {
   background-color: var(--color-primary-bg);
   color: var(--color-primary);
 }
+
+/* ==================== Modal 弹窗居中修复 ==================== */
+/* 确保所有 Ant Design Vue 弹窗始终相对于视口定位并居中显示 */
+
+.ant-modal-wrap {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  overflow: auto !important;
+  outline: 0 !important;
+  transform: none !important;
+}
+
+.ant-modal {
+  position: relative !important;
+  top: 100px !important;
+  margin: 0 auto !important;
+  padding-bottom: 24px !important;
+}
+
+/* 覆盖 .ant-modal-root 上可能存在的 CSS-in-JS transform */
+.ant-modal-root {
+  transform: none !important;
+}
+
+.ant-modal-mask {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1000 !important;
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+.ant-modal-centered {
+  text-align: center !important;
+}
+
+.ant-modal-centered::before {
+  display: inline-block !important;
+  width: 0 !important;
+  height: 100% !important;
+  vertical-align: middle !important;
+  content: "" !important;
+}
+
+.ant-modal-centered .ant-modal {
+  top: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  text-align: start !important;
+  padding-bottom: 0 !important;
+}
+
+/* ==================== Drawer 抽屉修复 ==================== */
+/* 确保抽屉组件始终相对于视口定位 */
+
+.ant-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1000 !important;
+  pointer-events: none !important;
+}
+
+.ant-drawer-mask {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  z-index: 1000 !important;
+  background-color: rgba(0, 0, 0, 0.45) !important;
+  pointer-events: auto !important;
+}

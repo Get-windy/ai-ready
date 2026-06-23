@@ -116,30 +116,71 @@ export const partnerApi = {
 }
 
 // ── 联系人 ──
-export interface PartnerContact {
+export interface PartyContact {
   id: number
-  partnerId: number
+  partyId: number
   contactName: string
-  contactPhone: string
-  contactEmail: string
   position: string
   department: string
-  isDefault: number
+  phone: string
+  mobile: string
+  email: string
+  wechat: string
+  qq: string
+  isPrimary: number
+  contactRole: number
+  status: number
   remark: string
+  region?: string
+  detailAddress?: string
+  deliveryMethod?: string
+  deliveryRoute?: string
+  openMallAccount?: number
 }
 
 export const partnerContactApi = {
-  getByPartner(partnerId: number): Promise<PartnerContact[]> {
-    return request.get(`/erp/partner/contacts/${partnerId}`)
+  getByPartner(partyId: number): Promise<PartyContact[]> {
+    return request.get(`/erp/partner/contacts/by-party/${partyId}`)
   },
-  create(data: Partial<PartnerContact>): Promise<boolean> {
+  create(data: Partial<PartyContact>): Promise<boolean> {
     return request.post('/erp/partner/contacts', data)
   },
-  update(id: number, data: Partial<PartnerContact>): Promise<boolean> {
+  update(id: number, data: Partial<PartyContact>): Promise<boolean> {
     return request.put(`/erp/partner/contacts/${id}`, data)
   },
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/partner/contacts/${id}`)
+  },
+  setPrimary(id: number, partyId: number): Promise<boolean> {
+    return request.put(`/erp/partner/contacts/${id}/primary`, null, { params: { partyId } })
+  }
+}
+
+// ── 角色 ──
+export interface PartyRole {
+  id: number
+  roleName: string
+  roleCode: string
+  description: string
+  status: number
+  sortOrder: number
+}
+
+export const partnerRoleApi = {
+  list(): Promise<PartyRole[]> {
+    return request.get('/erp/partner/roles/list')
+  },
+  getRolesByParty(partyId: number): Promise<PartyRole[]> {
+    return request.get(`/erp/partner/roles/by-party/${partyId}`)
+  },
+  create(data: Partial<PartyRole>): Promise<boolean> {
+    return request.post('/erp/partner/roles', data)
+  },
+  update(id: number, data: Partial<PartyRole>): Promise<boolean> {
+    return request.put(`/erp/partner/roles/${id}`, data)
+  },
+  delete(id: number): Promise<boolean> {
+    return request.delete(`/erp/partner/roles/${id}`)
   }
 }
 
@@ -160,7 +201,7 @@ export interface PartnerAddress {
 
 export const partnerAddressApi = {
   getByPartner(partnerId: number): Promise<PartnerAddress[]> {
-    return request.get(`/erp/partner/addresses/${partnerId}`)
+    return request.get(`/erp/partner/addresses/by-partner/${partnerId}`)
   },
   create(data: Partial<PartnerAddress>): Promise<boolean> {
     return request.post('/erp/partner/addresses', data)
@@ -168,11 +209,11 @@ export const partnerAddressApi = {
   update(id: number, data: Partial<PartnerAddress>): Promise<boolean> {
     return request.put(`/erp/partner/addresses/${id}`, data)
   },
-  setDefault(id: number, partnerId: number): Promise<boolean> {
-    return request.put(`/erp/partner/addresses/${id}/set-default`, null, { params: { partnerId } })
-  },
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/partner/addresses/${id}`)
+  },
+  setDefault(id: number, partnerId: number): Promise<boolean> {
+    return request.put(`/erp/partner/addresses/${id}/default`, null, { params: { partnerId } })
   }
 }
 
@@ -190,7 +231,7 @@ export interface PartnerBankAccount {
 
 export const partnerBankAccountApi = {
   getByPartner(partnerId: number): Promise<PartnerBankAccount[]> {
-    return request.get(`/erp/partner/bank-accounts/${partnerId}`)
+    return request.get(`/erp/partner/bank-accounts/by-partner/${partnerId}`)
   },
   create(data: Partial<PartnerBankAccount>): Promise<boolean> {
     return request.post('/erp/partner/bank-accounts', data)
@@ -209,11 +250,26 @@ export interface PartnerTag {
   tagName: string
   tagColor: string
   tagType: string
-  sortOrder: number
+  description: string
   status: number
+  sortOrder: number
 }
 
-// ── 往来单位附件 ──
+export const partnerTagApi = {
+  list(): Promise<PartnerTag[]> {
+    return request.get('/erp/partner/tags/list')
+  },
+  getTagIds(partnerId: number): Promise<number[]> {
+    return request.get(`/erp/partner/tags/${partnerId}/ids`)
+  },
+  attachTags(partnerId: number, tagIds: number[]): Promise<boolean> {
+    return request.post(`/erp/partner/tags/${partnerId}/attach`, tagIds, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+// ── 附件 ──
 export interface PartnerAttachment {
   id: number
   partnerId: number
@@ -222,39 +278,18 @@ export interface PartnerAttachment {
   fileSize: number
   fileType: string
   category: string
-  sortOrder: number
-  createTime: string
+  uploadTime: string
+  remark: string
 }
 
 export const partnerAttachmentApi = {
   getByPartner(partnerId: number): Promise<PartnerAttachment[]> {
-    return request.get(`/erp/partner/attachments/${partnerId}`)
+    return request.get(`/erp/partner/attachments/by-partner/${partnerId}`)
   },
   create(data: Partial<PartnerAttachment>): Promise<boolean> {
     return request.post('/erp/partner/attachments', data)
   },
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/partner/attachments/${id}`)
-  }
-}
-
-export const partnerTagApi = {
-  list(): Promise<PartnerTag[]> {
-    return request.get('/erp/partner/tags')
-  },
-  create(data: Partial<PartnerTag>): Promise<boolean> {
-    return request.post('/erp/partner/tags', data)
-  },
-  update(id: number, data: Partial<PartnerTag>): Promise<boolean> {
-    return request.put(`/erp/partner/tags/${id}`, data)
-  },
-  delete(id: number): Promise<boolean> {
-    return request.delete(`/erp/partner/tags/${id}`)
-  },
-  getTagIds(partnerId: number): Promise<number[]> {
-    return request.get(`/erp/partner/tags/partner/${partnerId}`)
-  },
-  attachTags(partnerId: number, tagIds: number[]): Promise<boolean> {
-    return request.post('/erp/partner/tags/attach', { partnerId, tagIds })
   }
 }

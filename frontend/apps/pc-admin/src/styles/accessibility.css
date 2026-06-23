@@ -371,8 +371,10 @@ textarea:focus-visible,
   border-bottom-color: #1890ff;
 }
 
-/* 对话框无障碍 */
-[role="dialog"] {
+/* 对话框无障碍 - 注意：不可覆盖 Ant Design Vue Modal 的 [role="dialog"] 样式
+   Ant Design Modal 自带 role="dialog"，其定位由 CSS-in-JS 管理（position:fixed + inset:0），
+   全局 [role="dialog"] 选择器会破坏所有弹窗定位，故改用更精确的选择器 */
+.custom-dialog[role="dialog"] {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -384,7 +386,7 @@ textarea:focus-visible,
   z-index: 1000;
 }
 
-[role="dialog"] h2:first-child {
+.custom-dialog[role="dialog"] h2:first-child {
   margin-top: 0;
 }
 

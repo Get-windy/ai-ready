@@ -3,9 +3,7 @@ package cn.aiedge.erp.stock.controller;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.entity.MarketingRule;
 import cn.aiedge.erp.stock.entity.MarketingRuleProduct;
-import cn.aiedge.erp.stock.entity.MarketingRulePartner;
 import cn.aiedge.erp.stock.mapper.MarketingRuleProductMapper;
-import cn.aiedge.erp.stock.mapper.MarketingRulePartnerMapper;
 import cn.aiedge.erp.stock.service.MarketingRuleService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -28,7 +26,6 @@ public class MarketingRuleController {
 
     private final MarketingRuleService ruleService;
     private final MarketingRuleProductMapper ruleProductMapper;
-    private final MarketingRulePartnerMapper rulePartnerMapper;
 
     @Operation(summary = "分页查询规则")
     @GetMapping("/page")
@@ -100,19 +97,16 @@ public class MarketingRuleController {
 
     @Operation(summary = "查询规则适用客户")
     @GetMapping("/{id}/partners")
-    public Result<List<MarketingRulePartner>> getPartners(@PathVariable Long id) {
-        return Result.ok(rulePartnerMapper.selectList(
-                new QueryWrapper<MarketingRulePartner>().eq("rule_id", id).eq("deleted", 0)));
+    public Result<List<Object>> getPartners(@PathVariable Long id) {
+        // 该功能已迁移至 erp-partner 模块，请直接查询客户数据
+        return Result.ok(List.of());
     }
 
     @Operation(summary = "设置规则适用客户")
     @PostMapping("/{id}/partners")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Boolean> setPartners(@PathVariable Long id, @RequestBody List<MarketingRulePartner> partners) {
-        rulePartnerMapper.delete(new QueryWrapper<MarketingRulePartner>().eq("rule_id", id));
-        if (partners.isEmpty()) return Result.ok(true);
-        partners.forEach(p -> p.setRuleId(id));
-        partners.forEach(rulePartnerMapper::insert);
+    public Result<Boolean> setPartners(@PathVariable Long id, @RequestBody List<Object> partners) {
+        // 该功能已迁移至 erp-partner 模块，请通过 erp-partner 模块管理
         return Result.ok(true);
     }
 }

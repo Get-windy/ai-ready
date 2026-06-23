@@ -1,0 +1,30 @@
+{
+  "name": "文档生成",
+  "description": "自动生成项目文档",
+  "steps": [
+    {
+      "name": "分析源代码",
+      "description": "分析源代码结构",
+      "type": "prompt",
+      "content": "请分析项目中的源代码文件，提取关键的函数、类、接口定义。关注公共 API 和主要功能模块。"
+    },
+    {
+      "name": "生成 API 文档",
+      "description": "生成 API 文档",
+      "type": "prompt",
+      "content": "根据代码分析结果，生成 API 文档。包括：函数签名、参数说明、返回值、使用示例。输出为 Markdown 格式。",
+      "dependsOn": [
+        "分析源代码"
+      ]
+    },
+    {
+      "name": "生成 README",
+      "description": "生成或更新 README 文件",
+      "type": "prompt",
+      "content": "根据项目分析结果，生成或更新 README.md 文件。包括：项目简介、安装说明、使用方法、配置说明、贡献指南。",
+      "dependsOn": [
+        "生成 API 文档"
+      ]
+    }
+  ]
+}

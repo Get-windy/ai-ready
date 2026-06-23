@@ -14,7 +14,7 @@ public class BalanceLog {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long tenantId;
-    private Long partnerId;
+    private Long customerId;
     private Long balanceId;
     private String logNo;
     private String changeType;

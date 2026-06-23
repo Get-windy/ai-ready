@@ -30,10 +30,10 @@ public class BalanceController {
     private final WithdrawRequestService withdrawService;
 
     @Operation(summary = "查询用户余额")
-    @GetMapping("/{partnerId}")
-    public Result<UserBalance> getBalance(@PathVariable Long partnerId) {
+    @GetMapping("/{userId}")
+    public Result<UserBalance> getBalance(@PathVariable Long userId) {
         UserBalance balance = balanceService.lambdaQuery()
-                .eq(UserBalance::getPartnerId, partnerId)
+                .eq(UserBalance::getUserId, userId)
                 .eq(UserBalance::getDeleted, 0)
                 .one();
         return Result.ok(balance);
@@ -42,23 +42,23 @@ public class BalanceController {
     @Operation(summary = "分页查询余额流水")
     @GetMapping("/logs")
     public Result<IPage<BalanceLog>> logs(
-            @RequestParam Long partnerId,
+            @RequestParam Long userId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         return Result.ok(balanceLogMapper.selectPage(new Page<>(pageNum, pageSize),
-                new QueryWrapper<BalanceLog>().eq("partner_id", partnerId)
+                new QueryWrapper<BalanceLog>().eq("user_id", userId)
                         .eq("deleted", 0).orderByDesc("create_time")));
     }
 
     @Operation(summary = "分页查询提现申请")
     @GetMapping("/withdraws")
     public Result<IPage<WithdrawRequest>> withdraws(
-            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
         QueryWrapper<WithdrawRequest> wrapper = new QueryWrapper<WithdrawRequest>().eq("deleted", 0);
-        if (partnerId != null) wrapper.eq("partner_id", partnerId);
+        if (userId != null) wrapper.eq("user_id", userId);
         if (status != null) wrapper.eq("status", status);
         wrapper.orderByDesc("create_time");
         return Result.ok(withdrawService.page(new Page<>(pageNum, pageSize), wrapper));

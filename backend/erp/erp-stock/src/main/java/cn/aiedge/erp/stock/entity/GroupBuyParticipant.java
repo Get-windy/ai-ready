@@ -14,7 +14,7 @@ public class GroupBuyParticipant {
     private Long id;
     private Long activityId;
     private String groupId;
-    private Long partnerId;
+    private Long customerId;
     private String userName;
     private Integer quantity;
     private Long orderId;

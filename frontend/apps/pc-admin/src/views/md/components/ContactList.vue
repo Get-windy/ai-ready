@@ -7,16 +7,25 @@
     <!-- 常用联系人（首行） -->
     <div class="contact-block" v-if="rows.length > 0">
       <div class="contact-block-label">
-        常用联系人
+        <span class="contact-label-text">常用联系人</span>
+        <a-tag v-if="rows[0].isDefault" color="red" style="margin-left:6px;font-size:11px">默认</a-tag>
         <template v-if="showMallAccount">
-          <a-checkbox v-model:checked="rows[0].openMallAccount" style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
+          <a-checkbox
+            :checked="!!rows[0].openMallAccount"
+            @update:checked="(checked) => rows[0].openMallAccount = checked ? 1 : 0"
+            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
             开通商城帐号
           </a-checkbox>
         </template>
       </div>
       <div class="contact-fields">
-        <input class="c-input" v-model="rows[0].contactName" placeholder="联系人" />
+        <input class="c-input" v-model="rows[0].contactName" placeholder="联系人*" />
         <input class="c-input" v-model="rows[0].contactPhone" placeholder="手机*" />
+        <input class="c-input" v-model="rows[0].contactEmail" placeholder="邮箱" />
+        <input class="c-input" v-model="rows[0].position" placeholder="职位" />
+        <input class="c-input" v-model="rows[0].department" placeholder="部门" />
+      </div>
+      <div class="contact-fields" style="margin-top:6px">
         <input class="c-input" v-model="rows[0].region" placeholder="所在地区" />
         <input class="c-input c-input-wide" v-model="rows[0].detailAddress" placeholder="详情地址" />
         <a-button size="small" class="c-locate-btn">设置定位</a-button>
@@ -35,9 +44,12 @@
     <!-- 其他联系人 -->
     <div v-for="(row, idx) in otherRows" :key="row._uid" class="contact-block">
       <div class="contact-block-label">
-        其他联系人{{ idx + 1 }}
+        <span class="contact-label-text">其他联系人{{ idx + 1 }}</span>
         <template v-if="showMallAccount">
-          <a-checkbox v-model:checked="row.openMallAccount" style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
+          <a-checkbox
+            :checked="!!row.openMallAccount"
+            @update:checked="(checked) => row.openMallAccount = checked ? 1 : 0"
+            style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
             开通商城帐号
           </a-checkbox>
         </template>
@@ -46,6 +58,11 @@
       <div class="contact-fields">
         <input class="c-input" v-model="row.contactName" placeholder="联系人" />
         <input class="c-input" v-model="row.contactPhone" placeholder="电话" />
+        <input class="c-input" v-model="row.contactEmail" placeholder="邮箱" />
+        <input class="c-input" v-model="row.position" placeholder="职位" />
+        <input class="c-input" v-model="row.department" placeholder="部门" />
+      </div>
+      <div class="contact-fields" style="margin-top:6px">
         <input class="c-input" v-model="row.region" placeholder="所在地区" />
         <input class="c-input c-input-wide" v-model="row.detailAddress" placeholder="详情地址" />
         <a-button size="small" class="c-locate-btn">设置定位</a-button>
@@ -75,13 +92,13 @@ import { ref, computed, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { PartnerContact } from '@/api/erp/partner'
 
-export interface ContactRowData extends PartnerContact {
+export interface ContactRowData extends PartyContact {
   _uid: number
   region?: string
   detailAddress?: string
   deliveryMethod?: string
   deliveryRoute?: string
-  openMallAccount?: boolean
+  openMallAccount?: number | boolean
 }
 
 const props = defineProps<{
@@ -97,15 +114,65 @@ let uidCounter = Date.now()
 
 const rows = ref<ContactRowData[]>(
   props.contacts.length > 0
-    ? props.contacts.map(c => ({ ...c, _uid: ++uidCounter }))
-    : [{ _uid: ++uidCounter, contactName: '', contactPhone: '', contactEmail: '', position: '', department: '', isDefault: 1, region: '', detailAddress: '', deliveryMethod: undefined, deliveryRoute: '', openMallAccount: false } as ContactRowData]
+    ? props.contacts.map(c => ({
+      ...c,
+      _uid: ++uidCounter,
+      contactName: c.contactName || c.contactName || '',
+      phone: c.contactPhone || c.phone || '',
+      mobile: c.contactPhone || c.mobile || '',
+      email: c.contactEmail || c.email || '',
+      isDefault: c.isPrimary || c.isDefault || 0,
+    }))
+    : [{
+        _uid: ++uidCounter,
+        contactName: '',
+        contactPhone: '',
+        contactEmail: '',
+        position: '',
+        department: '',
+        isDefault: 1,
+        region: '',
+        detailAddress: '',
+        deliveryMethod: undefined,
+        deliveryRoute: '',
+        openMallAccount: 0,
+        phone: '',
+        mobile: '',
+        email: '',
+        partyId: undefined,
+      } as ContactRowData]
 )
 
 watch(() => props.contacts, (val) => {
   if (val.length > 0) {
-    rows.value = val.map(c => ({ ...c, _uid: ++uidCounter }))
+    rows.value = val.map(c => ({
+      ...c,
+      _uid: ++uidCounter,
+      contactName: c.contactName || c.contactName || '',
+      phone: c.contactPhone || c.phone || '',
+      mobile: c.contactPhone || c.mobile || '',
+      email: c.contactEmail || c.email || '',
+      isDefault: c.isPrimary || c.isDefault || 0,
+    }))
   } else if (rows.value.length === 0) {
-    rows.value = [{ _uid: ++uidCounter, contactName: '', contactPhone: '', contactEmail: '', position: '', department: '', isDefault: 1, region: '', detailAddress: '', deliveryMethod: undefined, deliveryRoute: '', openMallAccount: false } as ContactRowData]
+    rows.value = [{
+      _uid: ++uidCounter,
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
+      position: '',
+      department: '',
+      isDefault: 1,
+      region: '',
+      detailAddress: '',
+      deliveryMethod: undefined,
+      deliveryRoute: '',
+      openMallAccount: 0,
+      phone: '',
+      mobile: '',
+      email: '',
+      partyId: undefined,
+    } as ContactRowData]
   }
 }, { deep: true })
 
@@ -114,9 +181,21 @@ const otherRows = computed(() => rows.value.slice(1))
 function addContact() {
   rows.value.push({
     _uid: ++uidCounter,
-    contactName: '', contactPhone: '', contactEmail: '',
-    position: '', department: '', isDefault: 0,
-    region: '', detailAddress: '', deliveryMethod: undefined, deliveryRoute: '',
+    contactName: '',
+    contactPhone: '',
+    contactEmail: '',
+    position: '',
+    department: '',
+    isDefault: 0,
+    region: '',
+    detailAddress: '',
+    deliveryMethod: undefined,
+    deliveryRoute: '',
+    openMallAccount: 0,
+    phone: '',
+    mobile: '',
+    email: '',
+    partyId: undefined,
   } as ContactRowData)
   emitUpdate()
 }
@@ -138,11 +217,40 @@ function handleDelete(row: ContactRowData) {
 }
 
 function emitUpdate() {
-  emit('update', rows.value.map(({ _uid, ...rest }) => rest as ContactRowData))
+  emit('update', rows.value.map(({ _uid, ...rest }) => {
+    // 确保将新字段转换为正确的数据类型
+    return {
+      ...rest,
+      contactName: rest.contactName || rest.contactName || '',
+      phone: rest.contactPhone || rest.phone || '',
+      mobile: rest.contactPhone || rest.mobile || '',
+      email: rest.contactEmail || rest.email || '',
+      position: rest.position || '',
+      department: rest.department || '',
+      deliveryMethod: rest.deliveryMethod || undefined,
+      deliveryRoute: rest.deliveryRoute || '',
+      openMallAccount: rest.openMallAccount ? 1 : 0, // 转换布尔值为数字
+      isPrimary: rest.isDefault || 0, // 将isDefault映射到isPrimary
+    } as ContactRowData
+  }))
 }
 
 defineExpose({
-  getContacts: () => rows.value.map(({ _uid, ...rest }) => rest as ContactRowData),
+  getContacts: () => rows.value.map(({ _uid, ...rest }) => {
+    return {
+      ...rest,
+      contactName: rest.contactName || rest.contactName || '',
+      phone: rest.contactPhone || rest.phone || '',
+      mobile: rest.contactPhone || rest.mobile || '',
+      email: rest.contactEmail || rest.email || '',
+      position: rest.position || '',
+      department: rest.department || '',
+      deliveryMethod: rest.deliveryMethod || undefined,
+      deliveryRoute: rest.deliveryRoute || '',
+      openMallAccount: typeof rest.openMallAccount === 'boolean' ? (rest.openMallAccount ? 1 : 0) : (rest.openMallAccount || 0),
+      isPrimary: rest.isDefault || 0, // 将isDefault映射到isPrimary
+    } as ContactRowData
+  }),
 })
 </script>
 
@@ -154,7 +262,9 @@ defineExpose({
 .contact-block { margin-bottom: 12px; }
 .contact-block-label {
   font-size: 13px; color: #262626; margin-bottom: 6px; font-weight: 500;
+  display: flex; align-items: center;
 }
+.contact-label-text { font-weight: 600; }
 
 .contact-fields {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;

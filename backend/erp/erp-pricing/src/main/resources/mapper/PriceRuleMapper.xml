@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.pricing.mapper.PriceRuleMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.pricing.entity.PriceRule">
+        <id column="id" property="id"/>
+        <result column="strategy_id" property="strategyId"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="condition_type" property="conditionType"/>
+        <result column="condition_value" property="conditionValue"/>
+        <result column="calculation_type" property="calculationType"/>
+        <result column="price_factor" property="priceFactor"/>
+        <result column="discount_rate" property="discountRate"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="min_quantity" property="minQuantity"/>
+        <result column="max_quantity" property="maxQuantity"/>
+        <result column="min_amount" property="minAmount"/>
+        <result column="max_amount" property="maxAmount"/>
+        <result column="priority" property="priority"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, strategy_id, rule_name, rule_type,
+        condition_type, condition_value, calculation_type,
+        price_factor, discount_rate, discount_amount,
+        min_quantity, max_quantity, min_amount, max_amount,
+        priority, status, deleted, create_time, update_time
+    </sql>
+
+    <select id="selectByStrategyIds" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM erp_pricing_rule
+        WHERE deleted = 0
+        AND strategy_id IN
+        <foreach collection="strategyIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND status = 'active'
+        ORDER BY priority ASC
+    </select>
+
+</mapper>

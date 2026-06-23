@@ -364,6 +364,95 @@ export interface SaleOrder {
   salesmanName: string; remark?: string; createTime: string; updateTime?: string
 }
 
+export interface SaleOrderItem {
+  id: number;
+  orderId: number;
+  lineNo: number;
+  productId: number;
+  productCode: string;
+  productName: string;
+  barcode: string;
+  specification: string;
+  location: string;
+  unit: string;
+  lineAttribute: string;
+  batchCode: string;
+  productionDate?: string;
+  shelfLife: string;
+  expiryDate?: string;
+  bigPack: number;
+  midPack: number;
+  smallPack: number;
+  quantity: number;
+  shippedQuantity: number;
+  unitPrice: number;
+  taxRate: number;
+  unitPriceWithTax: number;
+  amount: number;
+  taxAmount: number;
+  amountWithTax: number;
+  discountRate: number;
+  discountAmount: number;
+  warehouseId: number;
+  remark?: string;
+  // 扩展字段
+  image?: string;
+  preOrderNo?: string;
+  smallUnitBarcode?: string;
+  usePreOrderAmount?: number;
+  model?: string;
+  area?: string;
+  origin?: string;
+  brand?: string;
+  customField1?: number;
+  customField2?: number;
+  customField3?: number;
+  customField4?: string;
+  customField5?: string;
+  customField6?: number;
+  customField7?: number;
+  customField8?: number;
+  customField9?: number;
+  customField10?: number;
+  smallUnit?: string;
+  smallUnitPrice?: number;
+  smallUnitQuantity?: number;
+  latestSaleDate?: string;
+  latestSalePrice?: number;
+  retailPrice?: number;
+  wholesalePrice?: number;
+  lowestPrice?: number;
+  restaurant?: boolean;
+  canteen?: boolean;
+  vipSelf?: boolean;
+  largeGroup?: boolean;
+  specialCustomer?: boolean;
+  availableStock?: number;
+  availableStockConverted?: number;
+  bookStock?: number;
+  conversionRelation?: string;
+  unshippedQuantity?: number;
+  shippedQuantityDetail?: number;
+  costPrice?: number;
+  costAmount?: number;
+  grossProfit?: number;
+  discountPercent?: number;
+  discountedUnitPrice?: number;
+  originalPrice?: number;
+  discountedAmount?: number;
+  favorableUnitPrice?: number;
+  favorableAmount?: number;
+  giftItem?: string;
+  exchangePoints?: number;
+  usedPoints?: number;
+  volume?: number;
+  weight?: number;
+  gift?: boolean;
+  outRestaurant?: boolean;
+  vipLevel1?: boolean;
+  vipLevel2?: boolean;
+}
+
 /** 销售首页统计 */
 export interface SaleStats {
   monthOrderCount: number

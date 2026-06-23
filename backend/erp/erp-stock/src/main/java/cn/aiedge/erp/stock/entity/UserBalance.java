@@ -14,7 +14,7 @@ public class UserBalance {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long tenantId;
-    private Long partnerId;
+    private Long userId;
     private BigDecimal totalBalance;
     private BigDecimal availableBalance;
     private BigDecimal frozenBalance;

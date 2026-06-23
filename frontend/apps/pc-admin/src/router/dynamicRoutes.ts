@@ -52,6 +52,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/form': () => import('@/views/erp/product/form.vue'),
   'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
   'erp/product/inventory-mode': () => import('@/views/erp/product/inventory-mode.vue'),
+  'erp/column-config/sale-order-item': () => import('@/views/erp/column-config/SaleOrderItemColumnConfig.vue'),
   'partner/index': () => import('@/views/erp/partner/index.vue'),
   'partner/detail': () => import('@/views/erp/partner/detail.vue'),
   'erp/partner/index': () => import('@/views/erp/partner/index.vue'),
@@ -915,6 +916,12 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'ErpSerialDetail',
       component: () => import('@/views/erp/serial/detail.vue'),
       meta: { title: '序列号追溯', icon: 'SearchOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'erp/column-config/sale-order-item',
+      name: 'ErpSaleOrderItemColumnConfig',
+      component: () => import('@/views/erp/column-config/SaleOrderItemColumnConfig.vue'),
+      meta: { title: '销售订单明细列配置', icon: 'SettingOutlined', keepAlive: false, requiresAuth: true, hidden: false }
     },
     {
       path: 'supplier/detail/:id',

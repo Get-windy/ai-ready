@@ -23,44 +23,106 @@
         <div class="section-card">
           <div class="section-title">基础信息</div>
           <a-row :gutter="24" class="section-row">
-            <a-col :span="8">
-              <a-form-item label="供应商名称" name="partnerName">
-                <a-input v-model:value="form.partnerName" placeholder="请输入供应商名称" size="small" />
-              </a-form-item>
+            <a-col :span="16">
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="供应商名称" name="partnerName">
+                    <a-input v-model:value="form.partnerName" placeholder="请输入供应商名称" size="small" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="供应商编号" name="partnerCode">
+                    <a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled>
+                      <template #suffix><a-button size="small" type="link" @click="generateCode">重新生成</a-button></template>
+                    </a-input>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="所属分类" name="partnerCategoryId">
+                    <a-select v-model:value="form.partnerCategoryId" placeholder="请选择分类" allow-clear size="small">
+                      <a-select-option v-for="c in categories" :key="c.id" :value="c.id">{{ c.categoryName }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="供应商级别" name="partnerGradeId">
+                    <a-select v-model:value="form.partnerGradeId" placeholder="请选择级别" allow-clear size="small">
+                      <a-select-option v-for="g in grades" :key="g.id" :value="g.id">{{ g.gradeName }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="默认经手人" name="defaultHandlerId">
+                    <a-select v-model:value="form.defaultHandlerId" placeholder="请选择经手人" allow-clear size="small" show-search :filter-option="filterUser">
+                      <a-select-option v-for="u in users" :key="u.id" :value="u.id" :label="u.nickname || u.username">{{ u.nickname || u.username }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="所属仓库" name="defaultWarehouseId">
+                    <a-select v-model:value="form.defaultWarehouseId" placeholder="请选择仓库" allow-clear size="small">
+                      <a-select-option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.warehouseName }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="8">
+                  <a-form-item label="所在省">
+                    <a-input v-model:value="form.province" placeholder="省" size="small" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="所在市">
+                    <a-input v-model:value="form.city" placeholder="市" size="small" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="所在区/县">
+                    <a-input v-model:value="form.district" placeholder="区/县" size="small" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="助记码">
+                    <a-input v-model:value="form.partnerShortName" placeholder="输入拼音首字母等" size="small" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="结算方式" name="settleType">
+                    <a-select v-model:value="form.settleType" size="small">
+                      <a-select-option value="MONTHLY">月结</a-select-option>
+                      <a-select-option value="WEEKLY">周结</a-select-option>
+                      <a-select-option value="CASH">现结</a-select-option>
+                      <a-select-option value="ADVANCE">预付</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <a-row :gutter="24">
+                <a-col :span="12">
+                  <a-form-item label="状态">
+                    <a-switch v-model:checked="statusChecked" checked-children="启用" un-checked-children="停用" size="small" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
             </a-col>
-            <a-col :span="8">
-              <a-form-item label="供应商编号" name="partnerCode">
-                <a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled>
-                  <template #suffix><a-button size="small" type="link" @click="generateCode">重新生成</a-button></template>
-                </a-input>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="所属分类" name="partnerCategoryId">
-                <a-select v-model:value="form.partnerCategoryId" placeholder="请选择分类" allow-clear size="small">
-                  <a-select-option v-for="c in categories" :key="c.id" :value="c.id">{{ c.categoryName }}</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <a-row :gutter="24" class="section-row">
-            <a-col :span="8">
-              <a-form-item label="助记码"><a-input v-model:value="form.partnerShortName" placeholder="输入拼音首字母等" size="small" /></a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="结算方式" name="settleType">
-                <a-select v-model:value="form.settleType" size="small">
-                  <a-select-option value="MONTHLY">月结</a-select-option>
-                  <a-select-option value="WEEKLY">周结</a-select-option>
-                  <a-select-option value="CASH">现结</a-select-option>
-                  <a-select-option value="ADVANCE">预付</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="状态">
-                <a-switch v-model:checked="statusChecked" checked-children="启用" un-checked-children="停用" size="small" />
-              </a-form-item>
+            <a-col :span="8" style="text-align:center">
+              <div class="avatar-upload">
+                <div class="avatar-placeholder" @click="avatarFileInput.click()">
+                  <img v-if="avatarUrl" :src="avatarUrl" class="avatar-preview" />
+                  <div v-else class="avatar-empty">
+                    <UserOutlined style="font-size:48px;color:#d9d9d9" />
+                  </div>
+                </div>
+                <input ref="avatarFileInput" type="file" accept="image/*" hidden @change="(e)=>handleAvatarUpload(e)" />
+                <a-button size="small" style="margin-top:8px" @click="avatarFileInput?.click()">上传</a-button>
+              </div>
             </a-col>
           </a-row>
         </div>
@@ -74,13 +136,17 @@
         <div class="section-card">
           <div class="section-title">纳税人信息</div>
           <a-row :gutter="24" class="section-row">
-            <a-col :span="8"><a-form-item label="公司全称"><a-input v-model:value="form.unifiedSocialCode" placeholder="请输入公司全称" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="公司全称"><a-input v-model:value="form.companyFullName" placeholder="请输入公司全称" size="small" /></a-form-item></a-col>
             <a-col :span="8"><a-form-item label="税号"><a-input v-model:value="form.taxId" placeholder="请输入纳税人识别号" size="small" /></a-form-item></a-col>
             <a-col :span="8"><a-form-item label="法定代表人"><a-input v-model:value="form.legalPerson" placeholder="请输入法定代表人" size="small" /></a-form-item></a-col>
           </a-row>
           <a-row :gutter="24" class="section-row">
-            <a-col :span="8"><a-form-item label="地址"><a-input v-model:value="form.province" placeholder="请输入地址" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="统一信用代码"><a-input v-model:value="form.unifiedSocialCode" placeholder="请输入统一社会信用代码" size="small" /></a-form-item></a-col>
             <a-col :span="8"><a-form-item label="公司电话"><a-input v-model:value="form.companyPhone" placeholder="请输入公司电话" size="small" /></a-form-item></a-col>
+            <a-col :span="8"><a-form-item label="公司邮箱"><a-input v-model:value="form.companyEmail" placeholder="请输入公司邮箱" size="small" /></a-form-item></a-col>
+          </a-row>
+          <a-row :gutter="24" class="section-row">
+            <a-col :span="8"><a-form-item label="详细地址"><a-input v-model:value="detailAddress" placeholder="请输入详细地址" size="small" /></a-form-item></a-col>
             <a-col :span="8"><a-form-item label="税率(%)"><a-input-number v-model:value="form.taxRate" :precision="2" :min="0" :max="100" style="width:100%" size="small" /></a-form-item></a-col>
           </a-row>
           <a-row :gutter="24" class="section-row">
@@ -144,6 +210,25 @@
                 <a-input-number v-model:value="operatingArea" :precision="2" :min="0" style="width:100%" size="small" placeholder="0" />
               </a-form-item>
             </a-col>
+          </a-row>
+          <a-row v-if="!otherInfoCollapsed" :gutter="24" class="section-row">
+            <a-col :span="8">
+              <a-form-item label="单位网址">
+                <a-input v-model:value="companyWebsite" placeholder="请输入网址" size="small" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="所属行业">
+                <a-input v-model:value="form.industry" placeholder="请输入所属行业" size="small" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="来源渠道">
+                <a-input v-model:value="form.sourceChannel" placeholder="如：招标/推荐" size="small" />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row v-if="!otherInfoCollapsed" :gutter="24" class="section-row">
             <a-col :span="24"><a-form-item label="备注"><a-textarea v-model:value="form.remark" placeholder="请输入备注" :rows="2" size="small" /></a-form-item></a-col>
           </a-row>
         </div>
@@ -198,12 +283,14 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined } from '@ant-design/icons-vue'
-import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, type PartnerContact } from '@/api/erp/partner'
+import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
 import { generatePartnerCodeAsync } from '../utils/generateCode'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
+import { userApi, type UserInfo } from '@/api/user'
+import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 import request from '@/utils/request'
 
 const router = useRouter()
@@ -231,16 +318,30 @@ const operatingArea = ref(0)
 const otherInfoCollapsed = ref(true)
 const categories = ref<PartnerCategory[]>([])
 const grades = ref<PartnerGrade[]>([])
+const users = ref<UserInfo[]>([])
+const warehouses = ref<WmsWarehouse[]>([])
 const contacts = ref<ContactRowData[]>([])
 const savedPartnerId = ref<number>()
+const avatarUrl = ref('')
+const avatarFileInput = ref<HTMLInputElement>()
 const certLicenseUrl = ref('')
 const certPermitUrl = ref('')
 const certFileInput1 = ref<HTMLInputElement>()
 const certFileInput2 = ref<HTMLInputElement>()
+const detailAddress = ref('')
+const companyWebsite = ref('')
 
 const form = reactive({
-  partnerName: '', partnerShortName: '', partnerCode: '', partnerCategoryId: undefined as number | undefined,
-  unifiedSocialCode: '', taxId: '', legalPerson: '', province: '', companyPhone: '',
+  partnerName: '', partnerShortName: '', partnerCode: '',
+  partnerCategoryId: undefined as number | undefined,
+  partnerGradeId: undefined as number | undefined,
+  defaultHandlerId: undefined as number | undefined,
+  defaultWarehouseId: undefined as number | undefined,
+  province: '', city: '', district: '',
+  companyFullName: '',
+  unifiedSocialCode: '', taxId: '', legalPerson: '',
+  companyPhone: '', companyEmail: '',
+  industry: '', sourceChannel: '',
   settleType: 'MONTHLY', taxRate: 13, remark: '',
 })
 
@@ -249,7 +350,24 @@ const formRules: Record<string, any> = { partnerName: [{ required: true, message
 async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('supplier') }
 async function loadCategories() { try { categories.value = await partnerCategoryApi.getTree('SUPPLIER') } catch { categories.value = [] } }
 async function loadGrades() { try { grades.value = await partnerGradeApi.list('SUPPLIER') } catch { grades.value = [] } }
+async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
+async function loadWarehouses() { try { const res = await warehouseApi.listAll(); warehouses.value = (res as any)?.data || (res as any) || [] } catch { warehouses.value = [] } }
+function filterUser(input: string, option: any) { return (option.label || '').toLowerCase().includes(input.toLowerCase()) }
 function handleCancel() { router.push('/md/supplier/index') }
+
+async function handleAvatarUpload(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await request.post('/file/upload', formData)
+    avatarUrl.value = typeof res === 'string' ? res : (res as any)?.url || (res as any)?.data?.url
+    message.success('上传成功')
+  } catch { message.error('上传失败') }
+  input.value = ''
+}
 
 async function handleCertUpload(e: Event, type: 'license' | 'permit') {
   const input = e.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return
@@ -270,7 +388,8 @@ async function doSubmit(): Promise<number | null> {
   try {
     const result = await partnerApi.create({
       ...form, partnerType: 'SUPPLIER', status: statusChecked.value ? 'ENABLED' : 'DISABLED',
-      roles, openingBalance: openingBalance.value,
+      roles, openingBalance: openingBalance.value, companyWebsite: companyWebsite.value,
+      detailAddress: detailAddress.value, partnerAvatar: avatarUrl.value,
       paymentTerms: paymentTermType.value === 'DYNAMIC' ? `${paymentDays.value}天` : `每月${fixedPaymentDay.value}号`,
       operatingSeries: operatingSeries.value, operatingArea: operatingArea.value,
     } as any)
@@ -280,7 +399,30 @@ async function doSubmit(): Promise<number | null> {
 
 async function submitContacts(partnerId: number) {
   const ordered = [...contacts.value].sort((a, b) => (b.isDefault || 0) - (a.isDefault || 0))
-  for (const c of ordered) { const data = { ...c, partnerId, isDefault: c.isDefault || 0 }; delete (data as any).id; await partnerContactApi.create(data) }
+  for (const c of ordered) {
+    const data = {
+      ...c,
+      partyId: partnerId,
+      isPrimary: c.isDefault || 0,
+      phone: c.contactPhone || c.phone || '',
+      mobile: c.contactPhone || c.mobile || '',
+      email: c.contactEmail || c.email || '',
+      contactName: c.contactName || ''
+    }
+    delete (data as any).id
+    delete (data as any).partnerId
+    delete (data as any).isDefault
+    delete (data as any).contactPhone
+    delete (data as any).contactEmail
+    await partnerContactApi.create(data)
+  }
+}
+
+async function submitRoles(partnerId: number) {
+  const allRoles = ['SUPPLIER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)]
+  for (const roleType of allRoles) {
+    try { await partnerRoleApi.addRole(partnerId, roleType, roleType === 'SUPPLIER') } catch {}
+  }
 }
 
 async function submitBankAccount(partnerId: number) {
@@ -292,7 +434,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     const pid = await doSubmit(); if (!pid) return
-    await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value = pid
+    await submitRoles(pid); await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value = pid
     message.success('供应商创建成功'); router.push('/md/supplier/index')
   } finally { saving.value = false }
 }
@@ -301,11 +443,12 @@ async function handleSaveAndNew() {
   saving.value = true
   try {
     const pid = await doSubmit(); if (!pid) return
-    await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value = pid
+    await submitRoles(pid); await submitContacts(pid); await submitBankAccount(pid); savedPartnerId.value = pid
     message.success('供应商创建成功')
-    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, unifiedSocialCode:'', taxId:'', legalPerson:'', province:'', companyPhone:'', settleType:'MONTHLY', taxRate:13, remark:'' })
-    contacts.value = []; bankName.value = ''; bankAccount.value = ''
-    openingBalance.value = 0; prePaidAmount.value = 0
+    Object.assign(form, { partnerName:'', partnerShortName:'', partnerCode:'', partnerCategoryId:undefined, partnerGradeId:undefined, defaultHandlerId:undefined, defaultWarehouseId:undefined, province:'', city:'', district:'', companyFullName:'', unifiedSocialCode:'', taxId:'', legalPerson:'', companyPhone:'', companyEmail:'', industry:'', sourceChannel:'', settleType:'MONTHLY', taxRate:13, remark:'' })
+    contacts.value = []; bankName.value = ''; bankAccount.value = ''; detailAddress.value = ''
+    openingBalance.value = 0; prePaidAmount.value = 0; companyWebsite.value = ''
+    avatarUrl.value = ''
     operatingSeries.value = ''; operatingArea.value = 0
     certLicenseUrl.value = ''; certPermitUrl.value = ''
     await generateCode()
@@ -313,7 +456,7 @@ async function handleSaveAndNew() {
 }
 
 function handleKeydown(e: KeyboardEvent) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit() } }
-onMounted(() => { generateCode(); loadCategories(); loadGrades(); document.addEventListener('keydown', handleKeydown) })
+onMounted(() => { generateCode(); loadCategories(); loadGrades(); loadUsers(); loadWarehouses(); document.addEventListener('keydown', handleKeydown) })
 onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
 </script>
 
@@ -334,4 +477,15 @@ onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
 .cert-preview { width: 100%; height: 100%; object-fit: cover; }
 .cert-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #bfbfbf; font-size: 12px; }
 .cert-label { font-size: 13px; color: #595959; }
+
+/* 头像上传 */
+.avatar-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.avatar-placeholder {
+  width: 100px; height: 100px; border: 1px dashed #d9d9d9; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: #fafafa; overflow: hidden; transition: border-color 0.2s;
+}
+.avatar-placeholder:hover { border-color: #40a9ff; }
+.avatar-preview { width: 100%; height: 100%; object-fit: cover; }
+.avatar-empty { display: flex; align-items: center; justify-content: center; }
 </style>

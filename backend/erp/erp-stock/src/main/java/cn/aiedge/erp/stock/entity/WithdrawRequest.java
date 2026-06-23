@@ -14,7 +14,7 @@ public class WithdrawRequest {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private Long tenantId;
-    private Long partnerId;
+    private Long userId;
     private String withdrawNo;
     private BigDecimal amount;
     private BigDecimal fee;

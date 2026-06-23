@@ -37,6 +37,7 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.finance",
     "cn.aiedge.finance",
     "cn.aiedge.erp.sale",
+    "cn.aiedge.erp.order",
     "cn.aiedge.erp.stock",
     "cn.aiedge.erp.monitor",
     "cn.aiedge.erp.controller",
@@ -57,6 +58,8 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.signature",
     "cn.aiedge.erp.delivery",
     "cn.aiedge.erp.customer",
+    "cn.aiedge.erp.party",
+    "cn.aiedge.erp.partner",
     "cn.aiedge.erp.product.kit",
     "cn.aiedge.erp.payment",
     "cn.aiedge.erp.pricing",
@@ -68,7 +71,8 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.wms",
     "cn.aiedge.audit",
     "cn.aiedge.erp.expense",
-    "cn.aiedge.erp.fixedasset"
+    "cn.aiedge.erp.fixedasset",
+    "cn.aiedge.config"  // 添加新的配置包
 }, exclude = {
     GatewayAutoConfiguration.class,
     GatewayClassPathWarningAutoConfiguration.class,
