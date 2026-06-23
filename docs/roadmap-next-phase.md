@@ -146,9 +146,64 @@ ProfitAnalysis       - 毛利分析结果（新增）
 
 ---
 
-### 4. 交易中心统一入口
+### 5. 支付结算中心 (core-payment)
 
-**重构方案**: `erp-b2b-mall` 改名为 `erp-trade-center`
+**定位**: 支付基础设施模块，对接第三方支付渠道
+
+**建设位置**: 新建 `core/payment/core-payment`（与 core-base/notification 同级）
+
+**架构设计**:
+```
+core-payment（支付基础设施）
+├─ channel/                # 支付渠道适配器
+│   ├─ PaymentChannel      # 渠道抽象接口
+│   ├─ AlipayAdapter       # 支付宝适配器
+│   ├─ WechatAdapter       # 微信支付适配器
+│   ├─ UnionPayAdapter     # 银联适配器
+│   ├─ BankAdapter         # 商业银行适配器
+│   ├─ ThirdPartyAdapter   # 第三方支付（易宝/汇付/快钱）
+│   └─ CashAdapter         # 线下支付（现金/刷卡）
+│
+├─ payment/                # 支付生命周期
+│   ├─ PaymentRequest      # 支付请求
+│   ├─ PaymentRecord       # 支付记录（第三方返回）
+│   ├─ PaymentCallback     # 支付回调处理
+│   └─ PaymentService      # 统一支付服务
+│
+├─ refund/                 # 退款处理
+│   ├─ RefundRequest       # 退款请求
+│   ├─ RefundRecord        # 退款记录
+│   └─ RefundService       # 退款服务
+│
+└─ reconciliation/         # 对账
+    ├─ DailyReconciliation # 日对账单
+    ├─ ReconDetail         # 对账明细
+    └─ ReconService        # 自动对账服务
+```
+
+**调用关系**:
+```
+业务模块                    支付基础设施              第三方
+┌──────────────┐          ┌──────────────┐        ┌─────────┐
+│erp-trade-center│──请求──→│              │──调用──→│ 支付宝   │
+│erp-sales      │──收款──→│ core-payment │──调用──→│ 微信    │
+│dms            │──配送款─→│              │──调用──→│ 银联    │
+│erp-finance    │←─记账───│              │←─回调───│ 银行    │
+└──────────────┘          └──────────────┘        └─────────┘
+```
+
+**核心功能**:
+1. 统一支付接口（屏蔽第三方差异）
+2. 支付回调处理（异步通知）
+3. 退款处理（原路退回）
+4. 自动对账（每日与第三方对账）
+5. 支付状态同步（成功后通知业务模块）
+
+**预计工作量**: 2周
+
+---
+
+### 6. 交易中心统一入口
 
 **定位**: 统一交易入口模块，所有交易前端接入
 
@@ -306,16 +361,39 @@ Week 9: 质量管理 (可选)
 | 审批工作流 | P0 | 2周 | core/base |
 | 人力资源 | P0 | 3周 | **hr/** (一级模块) |
 | 成本核算增强 | P1 | 1周 | erp-finance |
-| **B2B+B2C整合** | P1 | 1周 | 合并 erp-b2b-mall 到 erp-sales |
+| 交易中心重构 | P1 | 1周 | erp-trade-center（重命名） |
+| **支付结算中心** | P1 | 2周 | **core/payment** (基础设施) |
 | 多租户隔离 | P1 | 0.5周 | core/base |
 | 数据权限 | P2 | 0.5周 | core/base |
 | API限流 | P2 | 0.5周 | core/base |
 | 质量管理 | P2 | 1周 | erp-quality (新建) |
-| **总计** | | **9周** | |
+| **总计** | | **11周** | |
 
 ---
 
 ## 架构重构说明
+
+### 核心基础设施模块规划
+
+```
+core/
+├── base/core-base/        # 系统基础设施
+│   └─ 用户/权限/日志/配置/租户/审计/工作流
+│
+├── payment/core-payment/  # 支付基础设施 ← 新增
+│   └─ 支付渠道/支付请求/回调/退款/对账
+│
+├── notification/          # 通知基础设施
+│   └─ 邮件/短信/站内信/webhook
+│
+└── agent/                 # AI代理基础设施
+```
+
+**支付基础设施定位**:
+- 性质: 基础设施模块，为所有业务模块提供支付服务
+- 被调用: erp-trade-center、erp-sales、dms、erp-finance
+- 不包含: 财务记账（由 erp-finance 处理）
+- 职责边界: 只负责支付渠道对接、回调处理、对账
 
 ### erp-b2b-mall 改名为 erp-trade-center
 
