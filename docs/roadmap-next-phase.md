@@ -146,45 +146,58 @@ ProfitAnalysis       - 毛利分析结果（新增）
 
 ---
 
-### 4. B2B商城 + B2C零售整合
+### 4. 交易中心统一入口
 
-**现状分析**:
-- `erp-b2b-mall` 有独立实体 MallOrder/MallProduct，与 SaleOrder/Product 重复
-- 零售POS 无后端，只有前端需求
+**重构方案**: `erp-b2b-mall` 改名为 `erp-trade-center`
 
-**架构问题**: B2B商城和零售POS本质都是销售渠道，不应有独立订单实体
+**定位**: 统一交易入口模块，所有交易前端接入
 
-**B2B vs B2C 本质区别**:
-| 维度 | B2B（批发） | B2C（零售） |
-|------|-------------|-------------|
-| 客户确定性 | 特定客户（Partner） | 不特定（散客/会员） |
-| 信用控制 | 有（赊销/账期） | 无（即时付款） |
-| 审批流程 | 可能需要 | 无 |
-
-**统一方案**: 都生成 SaleOrder，通过 `orderSource` 区分渠道
-
-**建设位置**: 合并 `erp-b2b-mall` 到 `erp-sales`
-
-**SaleOrder 扩展字段**:
 ```
-orderSource      - 订单来源（1-内部销售 2-B2B商城 3-B2C零售）
-paymentMethod    - 支付方式（现金/刷卡/扫码/转账）
-paymentStatus    - 支付状态（待支付/已支付/部分支付）
-deliveryStatus   - 发货状态（待发货/已发货/已签收）
-consignee        - 收货人姓名
-consigneePhone   - 收货人电话
-shippingAddress  - 收货地址
+架构设计：
+
+前端交易入口                  后端模块
+┌─────────────────┐          ┌──────────────────┐
+│ mobile-mall     │──B2B──→  │                  │
+│ (批发商城小程序) │          │  erp-trade-center│ ← 统一交易API层
+├─────────────────┤          │  ├ 订单API        │
+│ pos-client      │──B2C──→  │  ├ 购物车        │
+│ (零售POS收银)    │          │  ├ 支付集成      │
+├─────────────────┤          │  ├ 收货地址      │
+│ h5-mall         │──H5──→   │  └ 商城配置      │
+│ (H5商城)        │          │                  │
+└─────────────────┘          └──────┬───────────┘
+                                    │ 调用底层服务
+                     ┌──────────────┼──────────────┐
+                     ↓              ↓              ↓
+              ┌──────────┐   ┌──────────┐   ┌──────────┐
+              │erp-sales │   │erp-stock │   │erp-partner│
+              │(订单管理) │   │(商品库存) │   │(客户档案) │
+              └──────────┘   └──────────┘   └──────────┘
 ```
 
-**erp-b2b-mall 重构**:
-- 删除 MallOrder/MallOrderItem → 使用 SaleOrder
-- 删除 MallProduct → 使用 ProductService
-- 保留控制器作为 API 层：MallOrderController → 调用 SaleOrderService
-- 保留商城特有：购物车(MallCart)、商城配置(ShopConfig/Banner)
+**职责划分**:
 
-**零售POS**:
-- 后端：复用 SaleOrderService，orderSource=3
-- 前端：新建 `frontend/apps/pos-client/` 收银应用
+| 模块 | 职责 | 实体 |
+|------|------|------|
+| **erp-trade-center** | 交易API层、购物车、支付集成 | TradeCart, TradePayment, ShopConfig |
+| **erp-sales** | 订单生命周期管理、应收账款 | SaleOrder, SaleOrderItem |
+| **erp-stock** | 商品档案、库存管理 | Product, Stock |
+| **erp-partner** | 客户档案、会员管理 | Partner, CustomerLevel |
+
+**orderSource 枚举**:
+```
+1 = INTERNAL_SALES   内部销售（销售人员录入）
+2 = B2B_MALL         B2B批发商城
+3 = B2C_POS          B2C零售收银
+4 = H5_MALL          H5商城
+5 = MINIAPP          小程序商城
+```
+
+**重构内容**:
+1. 模块重命名: `erp-b2b-mall` → `erp-trade-center`
+2. 删除重复实体: MallOrder/MallProduct → 使用底层服务
+3. 保留交易特有: TradeCart, TradePayment, ShopConfig, ShopBanner
+4. 控制器适配: 支持 B2B/B2C/H5/小程序 多渠道接入
 
 **预计工作量**: 1周
 
@@ -304,27 +317,45 @@ Week 9: 质量管理 (可选)
 
 ## 架构重构说明
 
-### B2B商城合并到 erp-sales
+### erp-b2b-mall 改名为 erp-trade-center
 
-**原因**: MallOrder 与 SaleOrder 字段高度重叠，本质都是销售订单
+**定位**: 统一交易入口模块，所有交易前端（B2B/B2C/H5/小程序）接入
+
+**层级职责**:
+```
+erp-trade-center  → 交易API层（购物车、支付集成、商城配置）
+    ↓ 调用
+erp-sales         → 订单管理层（订单生命周期、应收账款）
+erp-stock         → 商品库存层（商品档案、库存管理）
+erp-partner       → 客户档案层（客户/会员管理）
+```
 
 **重构内容**:
-1. SaleOrder 增加 `orderSource` 字段区分渠道（内部/B2B/B2C）
-2. SaleOrder 增加 `paymentMethod/paymentStatus/deliveryStatus` 字段
-3. 删除 MallOrder/MallOrderItem/MallProduct 实体
-4. erp-b2b-mall 保留控制器作为 API 层，调用 SaleOrderService
+1. 模块重命名: `erp-b2b-mall` → `erp-trade-center`
+2. 删除重复实体: MallOrder/MallProduct → 调用底层服务
+3. 保留交易特有: TradeCart, TradePayment, ShopConfig, ShopBanner
+4. 新增 orderSource 渠道区分
 
-**数据迁移**: 将 mall_order 数据迁移到 erp_sale_order
+### 前端交易入口统一接入
 
-### 零售POS 复用 erp-sales
+| 前端应用 | 渠道 | orderSource |
+|----------|------|-------------|
+| mobile-mall | B2B批发 | 2 |
+| pos-client | B2C零售 | 3 |
+| h5-mall | H5商城 | 4 |
+| miniapp-mall | 小程序 | 5 |
 
-**原因**: B2C零售与B2B批发本质相同，都是销售订单
+### SaleOrder 扩展字段
 
-**区别**: 
-- B2B: 客户特定（Partner关联），可能有信用控制、审批流程
-- B2C: 客户可能不特定（散客无关联），即时付款无审批
-
-**实现**: orderSource=3 标记为零售订单，前端新建 pos-client 应用
+```java
+orderSource      // 订单来源渠道
+paymentMethod    // 支付方式
+paymentStatus    // 支付状态
+deliveryStatus   // 发货状态
+consignee        // 收货人
+consigneePhone   // 收货电话
+shippingAddress  // 收货地址
+```
 
 ---
 
