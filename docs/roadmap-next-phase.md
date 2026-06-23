@@ -146,36 +146,47 @@ ProfitAnalysis       - 毛利分析结果（新增）
 
 ---
 
-### 4. 零售POS收银
+### 4. B2B商城 + B2C零售整合
 
-**现状**: 有 erp-sales（销售管理），前端缺少零售收银客户端
+**现状分析**:
+- `erp-b2b-mall` 有独立实体 MallOrder/MallProduct，与 SaleOrder/Product 重复
+- 零售POS 无后端，只有前端需求
 
-**后端建设位置**: 扩展 `erp-sales`（无需新建模块）
+**架构问题**: B2B商城和零售POS本质都是销售渠道，不应有独立订单实体
 
-**前端建设位置**: 新建 `frontend/apps/pos-client/`
+**B2B vs B2C 本质区别**:
+| 维度 | B2B（批发） | B2C（零售） |
+|------|-------------|-------------|
+| 客户确定性 | 特定客户（Partner） | 不特定（散客/会员） |
+| 信用控制 | 有（赊销/账期） | 无（即时付款） |
+| 审批流程 | 可能需要 | 无 |
 
-**后端功能需求**:
-- 扩展销售订单支持零售场景（快速结算、会员识别）
-- 收款方式管理（现金、刷卡、扫码支付）
-- 交接班记录
-- 日结报表
+**统一方案**: 都生成 SaleOrder，通过 `orderSource` 区分渠道
 
-**前端POS客户端需求**:
-- 收银界面（扫码、快速结算）
-- 会员识别（手机号/会员卡）
-- 促销活动应用
-- 多支付方式支持
-- 交接班操作
-- 日结打印
+**建设位置**: 合并 `erp-b2b-mall` 到 `erp-sales`
 
-**后端实体设计**（扩展 erp-sales）:
+**SaleOrder 扩展字段**:
 ```
-PosShift             - 交接班记录（新增）
-PosDailySummary      - 日结报表（新增）
-PaymentMethod        - 收款方式配置（扩展）
+orderSource      - 订单来源（1-内部销售 2-B2B商城 3-B2C零售）
+paymentMethod    - 支付方式（现金/刷卡/扫码/转账）
+paymentStatus    - 支付状态（待支付/已支付/部分支付）
+deliveryStatus   - 发货状态（待发货/已发货/已签收）
+consignee        - 收货人姓名
+consigneePhone   - 收货人电话
+shippingAddress  - 收货地址
 ```
 
-**预计工作量**: 1周（后端0.5周 + 前端0.5周）
+**erp-b2b-mall 重构**:
+- 删除 MallOrder/MallOrderItem → 使用 SaleOrder
+- 删除 MallProduct → 使用 ProductService
+- 保留控制器作为 API 层：MallOrderController → 调用 SaleOrderService
+- 保留商城特有：购物车(MallCart)、商城配置(ShopConfig/Banner)
+
+**零售POS**:
+- 后端：复用 SaleOrderService，orderSource=3
+- 前端：新建 `frontend/apps/pos-client/` 收银应用
+
+**预计工作量**: 1周
 
 ---
 
@@ -282,12 +293,38 @@ Week 9: 质量管理 (可选)
 | 审批工作流 | P0 | 2周 | core/base |
 | 人力资源 | P0 | 3周 | **hr/** (一级模块) |
 | 成本核算增强 | P1 | 1周 | erp-finance |
-| 零售POS | P1 | 1周 | erp-sales扩展 + pos-client前端 |
+| **B2B+B2C整合** | P1 | 1周 | 合并 erp-b2b-mall 到 erp-sales |
 | 多租户隔离 | P1 | 0.5周 | core/base |
 | 数据权限 | P2 | 0.5周 | core/base |
 | API限流 | P2 | 0.5周 | core/base |
 | 质量管理 | P2 | 1周 | erp-quality (新建) |
 | **总计** | | **9周** | |
+
+---
+
+## 架构重构说明
+
+### B2B商城合并到 erp-sales
+
+**原因**: MallOrder 与 SaleOrder 字段高度重叠，本质都是销售订单
+
+**重构内容**:
+1. SaleOrder 增加 `orderSource` 字段区分渠道（内部/B2B/B2C）
+2. SaleOrder 增加 `paymentMethod/paymentStatus/deliveryStatus` 字段
+3. 删除 MallOrder/MallOrderItem/MallProduct 实体
+4. erp-b2b-mall 保留控制器作为 API 层，调用 SaleOrderService
+
+**数据迁移**: 将 mall_order 数据迁移到 erp_sale_order
+
+### 零售POS 复用 erp-sales
+
+**原因**: B2C零售与B2B批发本质相同，都是销售订单
+
+**区别**: 
+- B2B: 客户特定（Partner关联），可能有信用控制、审批流程
+- B2C: 客户可能不特定（散客无关联），即时付款无审批
+
+**实现**: orderSource=3 标记为零售订单，前端新建 pos-client 应用
 
 ---
 
