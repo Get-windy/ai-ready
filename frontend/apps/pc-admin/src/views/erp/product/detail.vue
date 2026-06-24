@@ -56,7 +56,7 @@
                 <a-tree-select
                   v-model:value="form.categoryId"
                   :tree-data="categoryTree"
-                  :replace-fields="{ children: 'children', label: 'categoryName', value: 'id' }"
+                  :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
                   placeholder="请选择分类"
                   allow-clear
                   size="small"
@@ -204,47 +204,15 @@
           </vxe-table>
         </a-card>
 
-        <!-- ===== 库存管理 ===== -->
+        <!-- ===== 库存管理(仅展示提示,不主动查询库存API) ===== -->
         <a-card v-if="!isNew" title="库存管理" class="detail-card">
           <template #extra>
             <a-tag color="blue">{{ inventoryModeLabel }}</a-tag>
           </template>
           <div class="inventory-summary">
-            <a-row :gutter="24">
-              <a-col :span="6">
-                <div class="inv-stat-item">
-                  <div class="inv-stat-label">当前库存</div>
-                  <div class="inv-stat-value">{{ stockInfo.quantity ?? '-' }}</div>
-                  <div class="inv-stat-unit">{{ form.unit || '件' }}</div>
-                </div>
-              </a-col>
-              <a-col :span="6">
-                <div class="inv-stat-item">
-                  <div class="inv-stat-label">可用库存</div>
-                  <a-tooltip title="可用数量 = 总库存 - 冻结数量">
-                    <div class="inv-stat-value inv-stat-value--green">{{ stockInfo.availableQuantity ?? '-' }}</div>
-                  </a-tooltip>
-                  <div class="inv-stat-unit">{{ form.unit || '件' }}</div>
-                </div>
-              </a-col>
-              <a-col :span="6">
-                <div class="inv-stat-item">
-                  <div class="inv-stat-label">安全库存</div>
-                  <div class="inv-stat-value">{{ stockInfo.safetyStock ?? '-' }}</div>
-                  <div class="inv-stat-unit">{{ form.unit || '件' }}</div>
-                </div>
-              </a-col>
-              <a-col :span="6">
-                <div class="inv-stat-item">
-                  <div class="inv-stat-label">库存预警</div>
-                  <div class="inv-stat-value">
-                    <a-tag v-if="stockInfo.quantity != null && stockInfo.safetyStock != null && stockInfo.quantity <= stockInfo.safetyStock" color="red">偏低</a-tag>
-                    <a-tag v-else color="green">正常</a-tag>
-                  </div>
-                </div>
-              </a-col>
-            </a-row>
-            <a-divider style="margin: 12px 0;" />
+            <a-alert type="info" show-icon style="margin-bottom: 12px;">
+              <template #message>库存信息请在库存管理模块中查看和操作，产品编辑页面仅维护产品基础资料。</template>
+            </a-alert>
             <a-space>
               <a-button size="small" @click="router.push(`/erp/stock?productId=${productId}`)">
                 <ContainerOutlined /> 查看库存明细
@@ -295,8 +263,11 @@ import ProductBarcodesPanel from './components/ProductBarcodesPanel.vue'
 import ProductAttachmentsPanel from './components/ProductAttachmentsPanel.vue'
 import ProductRelatedPanel from './components/ProductRelatedPanel.vue'
 
+import { useTabsStore } from '@/stores/tabs'
+
 const route = useRoute()
 const router = useRouter()
+const tabsStore = useTabsStore()
 
 // ── 防抖工具 ──────────────────────────────────────────
 function handleError(err: any) { console.warn('[产品详情] ErrorBoundary 捕获异常:', err) }
@@ -478,13 +449,10 @@ async function loadProduct(id: number) {
       retailPrice: prod.retailPrice,
       shelfLifeDays: prod.shelfLifeDays
     })
-    // 并行加载: 等级价格 + 库存模式 + 库存信息（各接口独立容错，互不影响）
+    // 并行加载: 等级价格 + 库存模式（库存信息不在此加载，改由库存模块管理）
     const [prices] = await Promise.all([
       productGradePriceApi.getByProduct(id).catch(() => []),
-      inventoryModeApi.get().then(mode => { inventoryMode.value = mode }).catch(() => {}),
-      request.get(`/erp/stock/by-product/${id}`).then((res: any) => {
-        if ((res as any)?.id) stockInfo.value = res
-      }).catch(() => {})
+      inventoryModeApi.get().then(mode => { inventoryMode.value = mode }).catch(() => {})
     ])
     gradePriceList.value = (prices || []).map(p => ({
       id: p.id,
@@ -575,7 +543,16 @@ async function handleSave() {
 }
 
 function goBack() {
-  router.push('/erp/product')
+  // 保存成功后关闭当前编辑页标签，再返回列表页
+  const currentPath = route.path
+  tabsStore.closeTab(currentPath)
+  // 使用 router.go(-1) 返回上一页，避免硬编码路径导致的404问题
+  // 如果无法返回（如历史记录为空），则跳转到产品列表页
+  if (window.history.length > 1) {
+    router.go(-1)
+  } else {
+    router.push('/md/product')
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {

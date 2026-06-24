@@ -28,7 +28,21 @@ export const optionsApi = {
 
   /** 获取产品下拉列表 */
   getProducts(): Promise<OptionItem[]> {
-    return request.get('/erp/product/list')
+    return request.get('/erp/product/page', { pageSize: 1000 }).then((res: any) => {
+      // 处理响应格式：PageResult 格式 { records, total }
+      const records = res?.records || res?.data?.records || []
+      // 映射字段名：后端 productCode/productName -> 前端 code/name
+      return records.map((p: any) => ({
+        id: p.id,
+        name: p.productName || p.name || '',
+        code: p.productCode || p.code || '',
+        barcode: p.barcode || '',
+        unit: p.unit || '',
+        specification: p.spec || p.specification || '',
+        salePrice: p.wholesalePrice || p.standardPrice || p.salePrice || 0,
+        purchasePrice: p.costPrice || p.purchasePrice || 0,
+      }))
+    })
   },
 
   /** 获取用户下拉列表（采购员/销售员等） */

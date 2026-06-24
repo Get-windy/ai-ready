@@ -22,6 +22,9 @@
           :class="['ss-search-item', { highlighted: i === highlightIndex }]"
           @mousedown.prevent="selectOption(opt)"
         >{{ opt.label }}</li>
+        <li v-if="filteredOptions.length === 0 && query.trim()" class="ss-search-item ss-no-result">
+          无匹配结果
+        </li>
       </ul>
     </Teleport>
   </div>
@@ -49,6 +52,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | number | undefined]
+  /** 空关键字回车时触发，用于打开选择弹窗 */
+  'openSelectModal': []
 }>()
 
 const wrapperRef = ref<HTMLElement>()
@@ -83,14 +88,18 @@ function updatePosition(target: HTMLElement) {
 
 // ── 过滤选项 ──
 function filterOptions(keyword: string) {
+  // 空关键词时不显示选项，等用户输入后才搜索
   if (!keyword.trim()) {
     filteredOptions.value = []
     return
   }
   const kw = keyword.trim().toLowerCase()
-  filteredOptions.value = (props.options || []).filter(opt =>
-    (opt.searchText || opt.label || '').toLowerCase().includes(kw)
-  )
+  // 模糊搜索匹配，最多显示10条
+  filteredOptions.value = (props.options || [])
+    .filter(opt =>
+      (opt.searchText || opt.label || '').toLowerCase().includes(kw)
+    )
+    .slice(0, 10)
 }
 
 // ── 选中选项 ──
@@ -108,32 +117,29 @@ function onInput(e: Event) {
   query.value = input.value
   updatePosition(input)
 
+  // 空值时清空选中，不显示下拉
   if (!query.value.trim()) {
-    filteredOptions.value = []
-    showDropdown.value = false
     emit('update:modelValue', undefined)
+    filteredOptions.value = []
+    highlightIndex.value = -1
+    showDropdown.value = false
     return
   }
 
   filterOptions(query.value)
-  highlightIndex.value = 0
-
-  // 仅匹配 1 条时直接选中
-  if (filteredOptions.value.length === 1) {
-    selectOption(filteredOptions.value[0])
-  } else {
-    showDropdown.value = filteredOptions.value.length > 1
-  }
+  highlightIndex.value = filteredOptions.value.length > 0 ? 0 : -1
+  // 输入后显示下拉列表（如果有匹配结果或显示"无匹配结果"提示）
+  showDropdown.value = true
 }
 
 function onFocus(e: FocusEvent) {
-  if (filteredOptions.value.length > 0) {
-    showDropdown.value = true
-  }
-  updatePosition(e.target as HTMLElement)
+  const target = e.target as HTMLElement
+  updatePosition(target)
+  // 获得焦点时不显示下拉，等用户输入后才搜索
 }
 
 function onBlur() {
+  // 延迟关闭下拉，确保用户点击选项时能先触发 selectOption
   setTimeout(() => {
     showDropdown.value = false
     // 恢复显示选中项的 label
@@ -143,7 +149,8 @@ function onBlur() {
     } else {
       query.value = ''
     }
-  }, 160)
+    filteredOptions.value = []
+  }, 200)
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -160,12 +167,19 @@ function onKeydown(e: KeyboardEvent) {
       break
     case 'Enter':
       e.preventDefault()
+      // 空关键字回车时，打开选择弹窗
+      if (!query.value.trim()) {
+        emit('openSelectModal')
+        return
+      }
+      // 有匹配项时选中高亮的选项
       if (showDropdown.value && highlightIndex.value >= 0 && filteredOptions.value[highlightIndex.value]) {
         selectOption(filteredOptions.value[highlightIndex.value])
       } else if (query.value.trim()) {
+        // 精确匹配文本时选中
         const kw = query.value.trim().toLowerCase()
         const matched = (props.options || []).find(opt =>
-          opt.label.toLowerCase() === kw || (opt.searchText || '').toLowerCase() === kw
+          (opt.label || '').toLowerCase() === kw || (opt.searchText || '').toLowerCase() === kw
         )
         if (matched) selectOption(matched)
       }
@@ -241,5 +255,14 @@ watch(() => props.modelValue, () => {
 .ss-search-item:hover,
 .ss-search-item.highlighted {
   background: #e6f7ff;
+}
+
+.ss-no-result {
+  color: #999;
+  cursor: default;
+  background: transparent;
+}
+.ss-no-result:hover {
+  background: transparent;
 }
 </style>

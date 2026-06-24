@@ -420,8 +420,10 @@ const handleTableChange = (pag: any) => {
 }
 
 const filterOption = (input: string, option: any) => {
-  const text = option.label || option.children?.[0]?.children || ''
-  return text.toLowerCase().includes(input.toLowerCase())
+  if (!option) return false
+  const text = option.label || option.name || option.children?.[0]?.children || ''
+  if (!text) return false
+  return text.toString().toLowerCase().includes(input.toLowerCase())
 }
 
 // ── 单条操作 ────────────────────────────────────────

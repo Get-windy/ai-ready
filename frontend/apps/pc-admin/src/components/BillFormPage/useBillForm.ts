@@ -97,7 +97,9 @@ export function useBillForm(options: UseBillFormOptions) {
   })
 
   const filterOption = (input: string, option: any) => {
+    if (!option) return false
     const text = option?.label || option?.name || option?.children?.[0]?.children || ''
+    if (!text) return false
     return text.toString().toLowerCase().includes(input.toLowerCase())
   }
 

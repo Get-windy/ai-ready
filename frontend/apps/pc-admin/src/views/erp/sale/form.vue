@@ -21,6 +21,7 @@
         :summary-columns="tableSummaryColumns"
         @cell-change="handleCellChange"
         @expand-change="onExpandChange"
+        @open-select-modal="handleOpenProductSelectModal"
       >
         <!-- 自定义：操作列 -->
         <template #actionCell="{ index, empty }">
@@ -72,6 +73,13 @@
 
   <!-- ═══ 表单配置弹窗 ═══ -->
   <SaleOrderFormConfig v-model:open="showFormConfig" />
+
+  <!-- ═══ 产品选择弹窗 ═══ -->
+  <ProductSelectModal
+    v-model:open="showProductSelect"
+    :multiple="true"
+    @confirm="handleProductSelectConfirm"
+  />
 </template>
 
 <script setup lang="ts">
@@ -88,6 +96,7 @@ import {
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
@@ -104,6 +113,8 @@ const currentUserName = computed(() => userStore?.userInfo?.nickname || userStor
 
 // ═══ 配置弹窗状态 ═══
 const showFormConfig = ref(false)
+const showProductSelect = ref(false)
+const currentSelectRowIndex = ref(-1)  // 当前触发选择弹窗的行索引
 
 // ═══════════════════════════════════════
 // useBillForm composable
@@ -435,6 +446,48 @@ function handleCellChange(record: any, fieldKey: string, value: any) {
 function handleSearchBtn(fieldKey: string, _btnText: string) {
   // 根据 fieldKey 弹出对应的快速选择弹窗
   message.info(`${fieldKey} 快速查询功能开发中`)
+}
+
+// ═══════════════════════════════════════
+// 产品选择弹窗处理
+// ═══════════════════════════════════════
+
+function handleOpenProductSelectModal(record: any, rowIndex: number, fieldKey: string) {
+  if (fieldKey === 'productId') {
+    currentSelectRowIndex.value = rowIndex
+    showProductSelect.value = true
+  }
+}
+
+function handleProductSelectConfirm(products: any[]) {
+  // 多选商品：从当前行开始，依次填充选中的商品
+  const startIndex = currentSelectRowIndex.value >= 0 ? currentSelectRowIndex.value : formData.products.length
+
+  // 确保有足够的空行
+  for (let i = startIndex; i < startIndex + products.length; i++) {
+    if (i >= formData.products.length) {
+      handleAddProduct()
+    }
+  }
+
+  // 填充商品信息到对应的行
+  products.forEach((p: any, i: number) => {
+    const rowIndex = startIndex + i
+    if (rowIndex < formData.products.length) {
+      const row = formData.products[rowIndex]
+      row.productId = p.id
+      row.productName = p.name || ''
+      row.itemCode = p.code || ''
+      row.barcode = p.barcode || ''
+      row.specification = p.specification || ''
+      row.unit = p.unit || ''
+      row.unitPrice = p.retailPrice || p.salePrice || p.price || 0
+      row.taxRate = 13
+    }
+  })
+
+  showProductSelect.value = false
+  message.success(`已选择 ${products.length} 个商品`)
 }
 
 function handleAction(actionKey: string, _parentKey?: string) {

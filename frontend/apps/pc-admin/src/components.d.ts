@@ -104,6 +104,7 @@ declare module 'vue' {
     Permission: typeof import('./components/Permission.vue')['default']
     PermissionConfigPanel: typeof import('./components/PermissionConfigPanel/index.vue')['default']
     PrintButton: typeof import('./components/business/print-button/PrintButton.vue')['default']
+    ProductSelectModal: typeof import('./components/ProductSelectModal/index.vue')['default']
     ProductSelector: typeof import('./components/business/ProductSelector/ProductSelector.vue')['default']
     ReconnectBanner: typeof import('./components/ReconnectBanner/ReconnectBanner.vue')['default']
     RouteError: typeof import('./components/Loading/RouteError.vue')['default']

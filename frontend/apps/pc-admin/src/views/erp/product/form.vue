@@ -100,7 +100,7 @@
                       <a-tree-select
                         v-model:value="form.categoryId"
                         :tree-data="categoryTree"
-                        :replace-fields="{ children: 'children', label: 'categoryName', value: 'id' }"
+                        :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
                         placeholder="请选择分类"
                         allow-clear
                         size="small"
@@ -466,8 +466,11 @@ import {
 import request from '@/utils/request'
 import type { VxeTableInstance } from 'vxe-table'
 
+import { useTabsStore } from '@/stores/tabs'
+
 const route = useRoute()
 const router = useRouter()
+const tabsStore = useTabsStore()
 
 // ── 状态 ──
 const loading = ref(false)
@@ -1059,11 +1062,11 @@ function resetForm() {
 }
 
 function goBack() {
-  if (route.query.from === 'mall') {
-    router.push('/mall/product')
-  } else {
-    router.push('/erp/product')
-  }
+  // 新增商品保存后直接关闭当前表单标签页，不跳转到列表页
+  // 因为用户可能从多个入口打开（如快捷菜单、其他页面链接等）
+  const currentPath = route.path
+  const nextPath = tabsStore.closeTab(currentPath)
+  router.push(nextPath)
 }
 
 function handleError(err: any) {

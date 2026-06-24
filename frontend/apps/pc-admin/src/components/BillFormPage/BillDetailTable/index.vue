@@ -161,6 +161,7 @@
                     :options="col.options"
                     :placeholder="col.placeholder || '搜索'"
                     @update:model-value="(val: any) => updateCell(record, col.key, val)"
+                    @open-select-modal="handleOpenSelectModal(record, rowIndex, col.key)"
                   />
                 </template>
                 <!-- input 类型（默认） -->
@@ -301,6 +302,8 @@ const emit = defineEmits<{
   'checkbox-all': [checked: boolean, records: any[]]
   /** 排序变化 */
   'sort-change': [key: string | null, order: 'asc' | 'desc' | null]
+  /** 打开选择弹窗（空关键字回车时触发） */
+  'openSelectModal': [record: any, rowIndex: number, fieldKey: string]
 }>()
 
 // ═══ 状态 ═══
@@ -582,6 +585,11 @@ function parseNumber(val: string, col: DetailColumnConfig): number {
 function updateCell(record: any, fieldKey: string, value: any) {
   record[fieldKey] = value
   emit('cellChange', record, fieldKey, value)
+}
+
+// ═══ 打开选择弹窗 ═══
+function handleOpenSelectModal(record: any, rowIndex: number, fieldKey: string) {
+  emit('openSelectModal', record, rowIndex, fieldKey)
 }
 
 /** 获取查看模式的显示值 */
