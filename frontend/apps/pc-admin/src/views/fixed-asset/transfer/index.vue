@@ -63,7 +63,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -156,7 +156,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- Create/Edit Modal -->
       <FullScreenDetail
@@ -227,7 +227,7 @@ import {
   SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { transferApi } from '@/api/fixed-asset'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'

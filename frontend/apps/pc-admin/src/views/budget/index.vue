@@ -77,7 +77,7 @@
         <!-- 近期调整 -->
         <a-col :span="16">
           <a-card title="近期预算调整" class="table-card">
-            <VxeTableList
+            <BillTableList
               :data-source="recentAdjustments"
               :columns="adjustmentVxeColumns"
               :loading="adjustmentLoading"
@@ -108,7 +108,7 @@
                   <p style="color: #999; margin-top: 12px;">暂无近期调整记录</p>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-card>
         </a-col>
         <!-- 快捷操作 -->
@@ -154,7 +154,7 @@ import {
   FileTextOutlined, CalendarOutlined, EditOutlined, BarChartOutlined,
   PercentageOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { budgetReportApi, budgetAdjustmentApi } from '@/api/budget'
 import * as echarts from 'echarts'

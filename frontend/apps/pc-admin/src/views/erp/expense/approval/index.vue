@@ -78,7 +78,7 @@
       @clear="handleClear"
     />
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="dataList"
@@ -104,7 +104,7 @@
           <a-button v-permission="'erp:expense:approval:process'" type="primary" size="small" @click="showApprove(record)">审批</a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 审批弹窗 -->
     <a-modal v-model:open="approveModalVisible" title="审批处理" width="500px" :confirm-loading="approveLoading" @ok="handleApproveOk" @cancel="handleApproveCancel">
@@ -140,7 +140,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatCard from '@/components/business/StatCard/StatCard.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'

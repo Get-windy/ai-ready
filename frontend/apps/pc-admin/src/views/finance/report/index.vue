@@ -104,7 +104,7 @@
           show-icon
           style="margin-bottom: 16px"
         />
-        <VxeTableList
+        <BillTableList
           :min-empty-rows="12"
           :columns="trialBalanceColumns"
           :data-source="trialBalanceData"
@@ -137,7 +137,7 @@
               </template>
             </div>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-tab-pane>
 
       <!-- 资产负债表 -->
@@ -148,7 +148,7 @@
           show-icon
           style="margin-bottom: 16px"
         />
-        <VxeTableList
+        <BillTableList
           :columns="balanceSheetColumns"
           :data-source="balanceSheetData"
           :loading="bsLoading"
@@ -180,12 +180,12 @@
               </template>
             </div>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-tab-pane>
 
       <!-- 利润表 -->
       <a-tab-pane key="income-statement" tab="利润表">
-        <VxeTableList
+        <BillTableList
           :columns="incomeStatementColumns"
           :data-source="incomeStatementData"
           :loading="isLoading"
@@ -219,7 +219,7 @@
               </template>
             </div>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-tab-pane>
     </a-tabs>
     </div>
@@ -238,7 +238,7 @@ import {
   WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { reportApi } from '@/api/finance'
 

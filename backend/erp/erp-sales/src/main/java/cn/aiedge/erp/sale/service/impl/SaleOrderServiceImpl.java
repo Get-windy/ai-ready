@@ -370,29 +370,25 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     public Map<String, Object> getOrderStats(Long tenantId) {
         Map<String, Object> stats = new HashMap<>();
 
-        // 本月订单统计
-        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        LambdaQueryWrapper<SaleOrder> monthWrapper = new LambdaQueryWrapper<SaleOrder>()
-                .eq(tenantId != null, SaleOrder::getTenantId, tenantId)
-                .ge(SaleOrder::getCreateTime, startOfMonth);
-        List<SaleOrder> monthOrders = baseMapper.selectList(monthWrapper);
-        long monthOrderCount = monthOrders.size();
-        BigDecimal monthAmount = monthOrders.stream()
-                .map(o -> BigDecimal.ZERO) // 根据重构计划，订单头不再存储总计金额字段，这里暂时设为0
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 待处理订单数量（已审批待出库 + 部分出库）
+        int pendingProcessCount = orderMapper.countPendingProcess(tenantId);
 
-        // 待审批数量
-        long pendingCount = 0;
-        if (tenantId != null) {
-            pendingCount = orderMapper.selectPendingOrders(tenantId).size();
-        }
+        // 待审核订单数量（待审批状态）
+        int pendingApprovalCount = orderMapper.countPendingApproval(tenantId);
 
+        // 今日新增订单数量
+        int todayOrderCount = orderMapper.countTodayOrders(tenantId);
+
+        // 本月新增订单数量
+        int monthOrderCount = orderMapper.countMonthOrders(tenantId);
+
+        stats.put("pendingProcessCount", pendingProcessCount);
+        stats.put("pendingApprovalCount", pendingApprovalCount);
+        stats.put("todayOrderCount", todayOrderCount);
         stats.put("monthOrderCount", monthOrderCount);
-        stats.put("monthAmount", monthAmount);
-        stats.put("pendingCount", pendingCount);
 
-        log.info("获取销售订单统计: tenantId={}, monthOrderCount={}, monthAmount={}, pendingCount={}",
-                tenantId, monthOrderCount, monthAmount, pendingCount);
+        log.info("获取销售订单统计: tenantId={}, pendingProcess={}, pendingApproval={}, today={}, month={}",
+                tenantId, pendingProcessCount, pendingApprovalCount, todayOrderCount, monthOrderCount);
         return stats;
     }
 

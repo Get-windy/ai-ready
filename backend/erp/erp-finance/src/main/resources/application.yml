@@ -9,17 +9,18 @@ spring:
     name: erp-finance
   profiles:
     active: dev
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/devdb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: devuser
-    password: ${DB_PASSWORD:devuser123}
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:postgresql://localhost:5432/devdb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+  #   username: devuser
+  #   password: ${DB_PASSWORD:devuser123}
+  #   hikari:
+  #     maximum-pool-size: 20
+  #     minimum-idle: 5
+  #     connection-timeout: 30000
+  #     idle-timeout: 600000
+  #     max-lifetime: 1800000
   # Flyway disabled - tables managed by application
 data:
     redis:

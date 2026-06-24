@@ -168,7 +168,7 @@
     </a-alert>
 
     <!-- 表格 -->
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="dataSource"
@@ -274,7 +274,7 @@
           </a-dropdown>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
     </div>
   </PageContainer>
   </ErrorBoundary>
@@ -350,7 +350,7 @@
     </div>
 
     <a-divider>字段映射</a-divider>
-    <VxeTableList
+    <BillTableList
       :columns="importMappingColumns"
       :data-source="importMapping"
       :pagination="false as any"
@@ -367,7 +367,7 @@
       <template #requiredCell="{ record }">
         <a-tag :color="record.required ? 'red' : 'default'">{{ record.required ? '是' : '否' }}</a-tag>
       </template>
-    </VxeTableList>
+    </BillTableList>
   </a-modal>
 </template>
 
@@ -388,7 +388,7 @@ import {
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { exportCsv } from '@/utils/exportCsv'
 import { supplierApi, type Supplier } from '@/api/supplier'
 
@@ -856,7 +856,7 @@ defineExpose({ handleQuery: fetchData })
 </script>
 
 <style scoped>
-/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
 .table-wrapper {
   flex: 1;
   display: flex;

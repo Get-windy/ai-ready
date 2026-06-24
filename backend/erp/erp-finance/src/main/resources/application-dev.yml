@@ -2,10 +2,11 @@
 # 开发环境配置
 
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/devdb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: devuser
-    password: devuser123
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/devdb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+  #   username: devuser
+  #   password: devuser123
   data:
     redis:
       host: localhost

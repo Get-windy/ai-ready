@@ -64,7 +64,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :min-empty-rows="12"
         :columns="columns"
@@ -129,7 +129,7 @@
             </a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 查看详情弹窗 -->
       <FullScreenDetail
@@ -170,7 +170,7 @@ import {
   SyncOutlined, ReloadOutlined, DownloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { capitalFlowApi } from '@/api/finance'

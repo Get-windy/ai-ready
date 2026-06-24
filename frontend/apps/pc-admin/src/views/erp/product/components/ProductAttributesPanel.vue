@@ -66,8 +66,8 @@ const newValue = ref({ attrDefId: undefined as number | undefined, attrValue: ''
 
 async function load() {
   const [vals, attrDefs] = await Promise.all([
-    productAttributeApi.getValues(props.productId),
-    productAttributeApi.getDefs()
+    productAttributeApi.getValues(props.productId).catch(() => []),
+    productAttributeApi.getDefs().catch(() => [])
   ])
   list.value = vals
   defs.value = attrDefs

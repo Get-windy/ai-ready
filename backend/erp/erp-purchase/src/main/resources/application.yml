@@ -12,20 +12,19 @@ spring:
   application:
     name: erp-purchase-service
   
-  # 数据源配置
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    # 默认PostgreSQL, 可选MySQL: jdbc:mysql://localhost:3306/erp_purchase?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    url: jdbc:postgresql://localhost:5432/erp_purchase
-    username: purchase_user
-    password: ${DB_PASSWORD:SecurePassword123!}
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      connection-test-query: SELECT 1
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:postgresql://localhost:5432/erp_purchase
+  #   username: purchase_user
+  #   password: ${DB_PASSWORD:SecurePassword123!}
+  #   hikari:
+  #     maximum-pool-size: 20
+  #     minimum-idle: 5
+  #     connection-timeout: 30000
+  #     idle-timeout: 600000
+  #     max-lifetime: 1800000
+  #     connection-test-query: SELECT 1
   
   # Redis配置
   redis:

@@ -89,7 +89,7 @@
 
       <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待审批">
-          <VxeTableList
+          <BillTableList
             ref="pendingTableRef"
             :columns="pendingVxeColumns"
             :data-source="pendingList"
@@ -131,10 +131,10 @@
                 <a-button type="link" size="small" @click="handleView(record)">详情</a-button>
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
         <a-tab-pane key="approved" tab="已通过">
-          <VxeTableList
+          <BillTableList
             :columns="processedVxeColumns"
             :data-source="approvedList"
             :loading="loading"
@@ -165,10 +165,10 @@
             <template #approverCell="{ record }">
               {{ record.approverName }} / {{ formatDate(record.approveTime) }}
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
         <a-tab-pane key="rejected" tab="已拒绝">
-          <VxeTableList
+          <BillTableList
             :columns="processedVxeColumns"
             :data-source="rejectedList"
             :loading="loading"
@@ -199,10 +199,10 @@
             <template #approverCell="{ record }">
               {{ record.approverName }} / {{ formatDate(record.approveTime) }}
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
         <a-tab-pane key="my" tab="我的申请">
-          <VxeTableList
+          <BillTableList
             :columns="myVxeColumns"
             :data-source="myList"
             :loading="loading"
@@ -230,7 +230,7 @@
             <template #statusCell="{ record }">
               <StatusTag :status="record.status" :map="PRICE_APPROVAL_STATUS" />
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -381,7 +381,7 @@ import { PlusOutlined, FileTextOutlined, ClockCircleOutlined, CheckCircleOutline
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import type { FormInstance } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { priceApprovalApi, type PriceApproval, type PriceApprovalStatistics } from '@/api/pricing-approval'
 import { useUserStore } from '@/stores/user'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
@@ -475,7 +475,7 @@ const pagination = reactive({ current: 1, pageSize: 20, total: 0 })
 
 const pendingTableRef = ref()
 
-// ── VxeTableList 列定义 ──────────────────────────────────
+// ── BillTableList 列定义 ──────────────────────────────────
 
 const pendingVxeColumns: any = computed(() => [
   { field: 'productName', title: '产品', width: 150 },

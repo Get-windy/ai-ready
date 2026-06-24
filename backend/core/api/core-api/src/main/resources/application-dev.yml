@@ -32,7 +32,9 @@ spring:
   redis:
     enabled: true
   flyway:
-    enabled: false
+    enabled: true
+    out-of-order: true
+    repair-on-migrate: true
   rabbitmq:
     host: localhost
     port: 5672

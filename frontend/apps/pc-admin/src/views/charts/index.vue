@@ -118,7 +118,7 @@
     <a-row :gutter="16" class="rank-row">
       <a-col :span="12">
         <a-card title="客户排行 TOP10" class="rank-card">
-          <VxeTableList
+          <BillTableList
             :data-source="customerRankData"
             :columns="customerRankVxeCols"
             :loading="rankLoading"
@@ -142,12 +142,12 @@
                 {{ record.growth >= 0 ? '+' : '' }}{{ (record.growth * 100).toFixed(1) }}%
               </span>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-card>
       </a-col>
       <a-col :span="12">
         <a-card title="产品排行 TOP10" class="rank-card">
-          <VxeTableList
+          <BillTableList
             :data-source="productRankData"
             :columns="productRankVxeCols"
             :loading="rankLoading"
@@ -169,7 +169,7 @@
             <template #marginCell="{ record }">
               <span>{{ (record.margin * 100).toFixed(1) }}%</span>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-card>
       </a-col>
     </a-row>
@@ -185,7 +185,7 @@ import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { DollarOutlined, FileTextOutlined, BarChartOutlined, PercentageOutlined, ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { salesAnalysisApi, type SalesOverview, type TrendDataPoint, type ChannelDistribution, type CustomerRankItem, type ProductRankItem } from '@/api/sales-analysis'
 
 const debounceMap = new Map<string, number>()

@@ -37,17 +37,17 @@
 import { ref, onMounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
-import { partnerContactApi, type PartnerContact } from '@/api/erp/partner'
+import { partnerContactApi, type PartyContact } from '@/api/erp/partner'
 
 const props = defineProps<{ partnerId: number }>()
-const list = ref<PartnerContact[]>([])
+const list = ref<PartyContact[]>([])
 const modalVisible = ref(false)
 const editingId = ref<number | null>(null)
 const form = reactive({ contactName: '', contactPhone: '', contactEmail: '', position: '', department: '', isDefault: false })
 
 async function load() { list.value = await partnerContactApi.getByPartner(props.partnerId) }
 function showAddModal() { editingId.value = null; Object.assign(form, { contactName: '', contactPhone: '', contactEmail: '', position: '', department: '', isDefault: false }); modalVisible.value = true }
-function editRow(row: PartnerContact) { editingId.value = row.id; Object.assign(form, { contactName: row.contactName, contactPhone: row.contactPhone || '', contactEmail: row.contactEmail || '', position: row.position || '', department: row.department || '', isDefault: !!row.isDefault }); modalVisible.value = true }
+function editRow(row: PartyContact) { editingId.value = row.id; Object.assign(form, { contactName: row.contactName, contactPhone: row.phone || row.mobile || '', contactEmail: row.email || '', position: row.position || '', department: row.department || '', isDefault: !!row.isPrimary }); modalVisible.value = true }
 async function handleSave() {
   if (!form.contactName) { message.warning('请输入姓名'); return }
   const data = { ...form, partnerId: props.partnerId, isDefault: form.isDefault ? 1 : 0 }

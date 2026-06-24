@@ -35,7 +35,7 @@
       </div>
     </template>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -93,7 +93,7 @@
           <a-button v-permission="'erp:mall:product:delete'" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 商品表单弹窗 -->
     <FullScreenDetail
@@ -163,7 +163,7 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, ExportOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

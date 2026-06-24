@@ -147,9 +147,10 @@ export const customerApi = {
 
   /**
    * 获取客户选项列表（用于下拉选择）
+   * 使用Partner接口获取客户类型partnerType='customer'
    */
   getOptions(): Promise<ApiResponse<Array<{ id: number; name: string }>>> {
-    return request.get('/customer/dropdown')
+    return request.get('/erp/partner/list', { partnerType: 'customer', status: 'ENABLED' })
   },
 
   /**

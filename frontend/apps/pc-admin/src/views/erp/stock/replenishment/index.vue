@@ -94,7 +94,7 @@
 
       <a-tabs v-model:activeKey="activeTab" style="flex: 1; overflow: hidden;">
         <a-tab-pane key="pending" tab="待处理">
-          <VxeTableList
+          <BillTableList
             ref="pendingTableRef"
             :columns="pendingVxeColumns"
             :data-source="pendingSuggestions"
@@ -171,10 +171,10 @@
                 <a @click="handleViewDetail(record)">详情</a>
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
         <a-tab-pane key="processed" tab="已处理">
-          <VxeTableList
+          <BillTableList
             :columns="processedVxeColumns"
             :data-source="processedSuggestions"
             :loading="loading"
@@ -201,10 +201,10 @@
             <template #purchaseOrderCell="{ record }">
               <a @click="goPurchaseOrder(record.purchaseOrderId)">{{ record.purchaseOrderNo }}</a>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
         <a-tab-pane key="ignored" tab="已忽略">
-          <VxeTableList
+          <BillTableList
             :columns="ignoredVxeColumns"
             :data-source="ignoredSuggestions"
             :loading="loading"
@@ -231,7 +231,7 @@
             <template #ignoreReasonCell="{ record }">
               <span class="ignore-reason">{{ record.ignoreReason }}</span>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -360,7 +360,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, AlertOutlined, FireOutlined, CheckCircleOutlined, DollarOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import * as echarts from 'echarts'

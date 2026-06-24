@@ -101,7 +101,7 @@
       </div>
 
       <!-- 数据表格 -->
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="dataSource"
@@ -147,7 +147,7 @@
             <a-button type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <ExchangeApproveModal v-model:open="approveModalVisible" :record="currentRecord" @success="handleApproveSuccess" />
@@ -172,7 +172,7 @@ import { purchaseExchangeApi, type PurchaseExchange, ExchangeStatus } from '@/ap
 import ExchangeApproveModal from './components/ExchangeApproveModal.vue'
 import ExchangeDetailModal from './components/ExchangeDetailModal.vue'
 import ExchangeTrackModal from './components/ExchangeTrackModal.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { RETURN_EXCHANGE_STATUS } from '@/utils/statusConfig'
 import { getStatusText } from '@/utils/statusConfig'

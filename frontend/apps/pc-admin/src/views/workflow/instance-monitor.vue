@@ -119,7 +119,7 @@
 
         <!-- 数据表格 -->
         <div class="table-wrapper">
-        <VxeTableList
+        <BillTableList
           :columns="vxeColumns"
           :data-source="tableData"
           :loading="loading"
@@ -196,7 +196,7 @@
               </template>
             </div>
           </template>
-        </VxeTableList>
+        </BillTableList>
         </div>
       </a-card>
 
@@ -281,7 +281,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { DownOutlined, BranchesOutlined, LoadingOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import type { MenuInfo } from 'ant-design-vue/lib/menu/src/interface'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -545,7 +545,7 @@ defineExpose({ handleQuery })
 </script>
 
 <style scoped>
-/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
 .table-wrapper {
   flex: 1;
   display: flex;

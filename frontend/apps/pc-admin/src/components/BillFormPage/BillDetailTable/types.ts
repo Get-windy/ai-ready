@@ -6,7 +6,7 @@
  * 齿轮设置：列显示/隐藏、列宽调整、列顺序拖拽、前后冻结列。
  */
 
-export type DetailColumnType = 'select' | 'input' | 'number' | 'date' | 'slot' | 'rowNo' | 'action'
+export type DetailColumnType = 'select' | 'input' | 'number' | 'date' | 'slot' | 'rowNo' | 'action' | 'checkbox' | 'button'
 
 export interface DetailColumnOption {
   label: string
@@ -50,6 +50,28 @@ export interface DetailColumnConfig {
   showScanToggle?: boolean
   /** 是否支持输入搜索（输入时弹出选项下拉，可键盘选择） */
   searchable?: boolean
+  /** 按钮配置（type=button 时使用） */
+  buttons?: Array<{
+    label: string
+    type?: 'primary' | 'link' | 'default' | 'danger'
+    onClick?: (record: any, index: number) => void
+  }>
+  /** 自定义格式化函数 */
+  formatter?: (value: any, record: any) => string
+  /** 是否可排序 */
+  sortable?: boolean
+  /** 自定义排序函数 */
+  sorter?: (a: any, b: any) => number
+  /** 列是否可隐藏 */
+  hideable?: boolean
+  /** 默认是否隐藏 */
+  defaultHidden?: boolean
+  /** 列标题提示 */
+  tooltip?: string
+  /** 自定义类名 */
+  className?: string
+  /** 自定义样式 */
+  style?: Record<string, string>
 }
 
 /** 列设置项（运行时状态） */

@@ -119,7 +119,7 @@
 
         <!-- 科目明细 -->
         <a-card title="预算科目明细" class="detail-section-card">
-          <VxeTableList
+          <BillTableList
             :data-source="budgetItems"
             :columns="itemVxeColumns"
             :loading="itemLoading"
@@ -161,7 +161,7 @@
           </a-col>
           <a-col :xs="24" :md="12">
             <a-card title="调整历史" class="detail-section-card">
-              <VxeTableList
+              <BillTableList
                 :data-source="adjustments"
                 :columns="adjustVxeColumns"
                 :loading="adjLoading"
@@ -185,7 +185,7 @@
                 <template #statusCell="{ record }">
                   <a-tag :color="adjStatusColor(record.status)">{{ adjStatusText(record.status) }}</a-tag>
                 </template>
-              </VxeTableList>
+              </BillTableList>
             </a-card>
           </a-col>
         </a-row>
@@ -201,7 +201,7 @@ import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { annualBudgetApi, budgetItemApi, budgetAdjustmentApi } from '@/api/budget'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import {
   FundOutlined, ShoppingOutlined, WalletOutlined, LineChartOutlined,

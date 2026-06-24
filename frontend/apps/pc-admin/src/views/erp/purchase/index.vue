@@ -66,7 +66,7 @@
       </div>
 
       <!-- 表格 -->
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         table-key="purchase-order-list"
         :columns="vxeColumns"
@@ -135,7 +135,7 @@
             </a-space>
           </template>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </PageContainer>
 
     <!-- 详情弹窗 -->
@@ -334,7 +334,7 @@ import {
   PlusOutlined, DeleteOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

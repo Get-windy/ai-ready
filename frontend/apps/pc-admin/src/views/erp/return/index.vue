@@ -88,7 +88,7 @@
       @reset="handleReset"
     />
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -155,7 +155,7 @@
           </a-dropdown>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <a-drawer
       v-model:open="detailVisible"
@@ -398,7 +398,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'

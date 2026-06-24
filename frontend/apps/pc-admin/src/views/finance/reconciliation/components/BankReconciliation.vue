@@ -65,7 +65,7 @@
       </a-form>
     </div>
 
-    <VxeTableList
+    <BillTableList
       :columns="columns"
       :data-source="dataSource"
       :loading="loading"
@@ -107,13 +107,13 @@
       <template #amountCell="{ record }">
         <span>¥{{ record.amount?.toFixed(2) }}</span>
       </template>
-    </VxeTableList>
+    </BillTableList>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { message } from 'ant-design-vue'
 import { WarningOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons-vue'
 

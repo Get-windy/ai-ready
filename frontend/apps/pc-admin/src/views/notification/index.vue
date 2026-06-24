@@ -67,7 +67,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableData"
@@ -161,7 +161,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </div>
 
     <!-- 详情弹窗 -->
@@ -201,7 +201,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import dayjs from 'dayjs'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   BellOutlined,

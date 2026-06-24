@@ -92,7 +92,7 @@
 
     <!-- 绩效记录 Tab -->
     <template #tab-performance>
-      <VxeTableList
+      <BillTableList
         :columns="performanceVxeColumns"
         :data-source="performances"
         :pagination="{ current: 1, pageSize: 10, total: 0 }"
@@ -107,12 +107,12 @@
         <template #comprehensiveScoreCell="{ record }">
           <a-rate :value="Math.round(record.comprehensiveScore / 20)" disabled allow-half style="font-size: 12px" />
         </template>
-      </VxeTableList>
+      </BillTableList>
     </template>
 
     <!-- 询价报价 Tab -->
     <template #tab-inquiry>
-      <VxeTableList
+      <BillTableList
         :columns="inquiryVxeColumns"
         :data-source="inquiries"
         :pagination="{ current: 1, pageSize: 10, total: 0 }"
@@ -132,12 +132,12 @@
         <template #quotationAmountCell="{ record }">
           ¥{{ record.quotationAmount?.toFixed(2) || '-' }}
         </template>
-      </VxeTableList>
+      </BillTableList>
     </template>
 
     <!-- 积分记录 Tab -->
     <template #tab-points>
-      <VxeTableList
+      <BillTableList
         :columns="pointsVxeColumns"
         :data-source="pointsRecords"
         :pagination="{ current: 1, pageSize: 10, total: 0 }"
@@ -157,7 +157,7 @@
         <template #balanceCell="{ record }">
           <span style="font-weight: 600">{{ record.balance }}</span>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </template>
   </DetailLayout>
 
@@ -211,7 +211,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import { supplierApi, type Supplier } from '@/api/supplier'
 

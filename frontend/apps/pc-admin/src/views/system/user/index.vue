@@ -54,7 +54,7 @@
       </div>
 
     <a-skeleton v-if="loading && tableDataSource.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-    <VxeTableList
+    <BillTableList
       v-else
       ref="tableRef"
       :columns="vxeColumns"
@@ -148,7 +148,7 @@
           </a-dropdown>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 用户表单弹窗 -->
     <FullScreenDetail :visible="modalVisible" :title="modalTitle" :save-loading="submittingLoading" :show-save-and-new="!isEdit" :dirty="formDirty" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
@@ -209,7 +209,7 @@ import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { DownOutlined, KeyOutlined, StopOutlined, DeleteOutlined, PlusOutlined, TeamOutlined, CheckCircleOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { userApi, type UserInfo, type TenantInfo } from '@/api/user'
 import { roleApi, type RoleInfo } from '@/api/role'
 import { dictItemApi } from '@/api/dict'

@@ -64,7 +64,7 @@
       <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
         <!-- 客户定金 -->
         <a-tab-pane key="customer" tab="客户定金">
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :min-empty-rows="12"
             :columns="customerColumns"
@@ -132,12 +132,12 @@
                 />
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
 
         <!-- 供应商押金 -->
         <a-tab-pane key="supplier" tab="供应商押金">
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :columns="supplierColumns"
             :data-source="supplierTableData"
@@ -204,7 +204,7 @@
                 />
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
       </a-tabs>
     </div>
@@ -249,7 +249,7 @@ import {
   SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { preReceiptApi, prePaymentApi } from '@/api/finance'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

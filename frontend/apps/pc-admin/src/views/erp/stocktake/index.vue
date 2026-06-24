@@ -78,7 +78,7 @@
       </a-col>
     </a-row>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -168,7 +168,7 @@
           </a-dropdown>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <a-drawer
       v-model:open="detailVisible"
@@ -314,7 +314,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { STOCKTAKE_STATUS_ORDER } from '@/utils/statusConfig'
 import { message, Modal } from 'ant-design-vue'

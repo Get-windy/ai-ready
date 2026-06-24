@@ -44,7 +44,7 @@
       <!-- 换货明细 -->
       <div class="items-section">
         <h4>换货明细</h4>
-        <VxeTableList
+        <BillTableList
           :columns="itemVxeColumns"
           :data-source="items"
           :loading="loading"
@@ -64,7 +64,7 @@
       <!-- 审批记录 -->
       <div class="approval-section">
         <h4>审批记录</h4>
-        <VxeTableList
+        <BillTableList
           :columns="approvalVxeColumns"
           :data-source="approvalRecords"
           :loading="loading"
@@ -80,7 +80,7 @@
           <template #action="{ record }">
             <a-tag :color="getActionColor(record.action)">{{ record.actionName }}</a-tag>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </div>
   </a-drawer>
@@ -89,7 +89,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()

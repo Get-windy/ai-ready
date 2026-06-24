@@ -36,6 +36,9 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
     @Override
     public IPage<Product> getProductPage(Long categoryId, String keyword, String status,
+                                          String brand, String industryCategory,
+                                          String createTimeStart, String createTimeEnd,
+                                          Integer useCoupon, Integer isStandardProduct,
                                           Integer pageNum, Integer pageSize) {
         Page<Product> page = new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 20);
 
@@ -46,18 +49,48 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             wrapper.eq("p.category_id", categoryId);
         }
 
-        // 关键字搜索(编码/名称/规格)
+        // 关键字搜索(编码/名称/规格/条码)
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like("p.product_code", keyword)
                     .or()
                     .like("p.product_name", keyword)
                     .or()
-                    .like("p.spec", keyword));
+                    .like("p.spec", keyword)
+                    .or()
+                    .like("p.barcode", keyword));
         }
 
         // 状态筛选
         if (StringUtils.hasText(status)) {
             wrapper.eq("p.status", status);
+        }
+
+        // 品牌筛选
+        if (StringUtils.hasText(brand)) {
+            wrapper.like("p.brand", brand);
+        }
+
+        // 行业类别筛选
+        if (StringUtils.hasText(industryCategory)) {
+            wrapper.eq("p.industry_category", industryCategory);
+        }
+
+        // 创建日期范围筛选
+        if (StringUtils.hasText(createTimeStart)) {
+            wrapper.ge("p.create_time", createTimeStart + " 00:00:00");
+        }
+        if (StringUtils.hasText(createTimeEnd)) {
+            wrapper.le("p.create_time", createTimeEnd + " 23:59:59");
+        }
+
+        // 使用优惠券筛选
+        if (useCoupon != null) {
+            wrapper.eq("p.use_coupon", useCoupon);
+        }
+
+        // 是否标品筛选
+        if (isStandardProduct != null) {
+            wrapper.eq("p.is_standard_product", isStandardProduct);
         }
 
         return baseMapper.selectProductPage(page, wrapper);

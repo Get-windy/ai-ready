@@ -54,7 +54,7 @@
       </div>
 
       <a-skeleton v-if="loading && tableDataSource.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
-      <VxeTableList v-else
+      <BillTableList v-else
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -140,7 +140,7 @@
             </a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 配置表单弹窗 -->
       <FullScreenDetail
@@ -210,7 +210,7 @@ import {
   FolderOutlined,
   LockOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { configApi, type ConfigInfo } from '@/api/config'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'

@@ -39,7 +39,7 @@
 
     <ErrorBoundary>
     <div class="template-management">
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -104,7 +104,7 @@
             </template>
           </a-result>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 模板表单弹窗 -->
       <FullScreenDetail
@@ -243,7 +243,7 @@ import {
   FilterOutlined,
   PrinterOutlined,
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { printingApi, type PrintTemplateVO, type PrintTemplateCreateRequest } from '@/api/printing'
 import { seedAllTemplates } from '@/views/printing/seed-templates'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'

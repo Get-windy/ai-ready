@@ -32,7 +32,7 @@
       </div>
     </div>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -117,7 +117,7 @@
           </a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 添加人员弹窗 -->
     <FullScreenDetail :visible="addModalVisible" title="添加部门人员" :save-loading="addModalLoading" @save="handleAddModalOk" @close="handleAddClose">
@@ -317,7 +317,7 @@ import {
   ReloadOutlined,
   SyncOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import { userApi, type UserInfo } from '@/api/user'
 import { departmentApi, type DepartmentInfo } from '@/api/department'

@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :min-empty-rows="12"
         :columns="columns"
@@ -154,7 +154,7 @@
             </a-tooltip>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 新增/编辑弹窗 -->
       <FullScreenDetail
@@ -284,7 +284,7 @@ import {
   CheckOutlined, FileDoneOutlined, CloseOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'

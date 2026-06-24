@@ -387,12 +387,17 @@ const componentMap: Record<string, () => Promise<any>> = {
   'crm/quotation/form': () => import('@/views/crm/quotation/form.vue'),
   'crm/invoice/form': () => import('@/views/crm/invoice/form.vue'),
   'md/product/form': () => import('@/views/erp/product/form.vue'),
+  'md/product': () => import('@/views/erp/product/index.vue'),
   'md/customer/form': () => import('@/views/md/customer/form.vue'),
   'md/supplier/form': () => import('@/views/md/supplier/form.vue'),
   'md/logistics/form': () => import('@/views/md/logistics/form.vue'),
   'md/partner/form': () => import('@/views/md/partner/form.vue'),
 
-  // ── 资料 > 往来单位 列表页 ──
+  // ── 资料 > 往来单位 列表页（基础路径 + /index 双映射） ──
+  'md/customer': () => import('@/views/md/customer/index.vue'),
+  'md/supplier': () => import('@/views/md/supplier/index.vue'),
+  'md/logistics': () => import('@/views/md/logistics/index.vue'),
+  'md/partner': () => import('@/views/md/partner/index.vue'),
   'md/customer/index': () => import('@/views/md/customer/index.vue'),
   'md/supplier/index': () => import('@/views/md/supplier/index.vue'),
   'md/logistics/index': () => import('@/views/md/logistics/index.vue'),

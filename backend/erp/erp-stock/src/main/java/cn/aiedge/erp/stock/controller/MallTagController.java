@@ -1,9 +1,9 @@
 package cn.aiedge.erp.stock.controller;
 
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
 import cn.aiedge.erp.stock.entity.MallTag;
 import cn.aiedge.erp.stock.service.MallTagService;
-import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,16 +27,16 @@ public class MallTagController {
     @Operation(summary = "获取所有标签（当前租户）")
     @GetMapping("/list")
     public Result<List<MallTag>> list() {
-        long tenantId = StpUtil.getExtra("tenantId") != null
-                ? Long.parseLong(StpUtil.getExtra("tenantId").toString()) : 1L;
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        if (tenantId == null) tenantId = 1L;
         return Result.ok(mallTagService.getByTenantId(tenantId));
     }
 
     @Operation(summary = "创建标签")
     @PostMapping
     public Result<Boolean> create(@RequestBody MallTag tag) {
-        long tenantId = StpUtil.getExtra("tenantId") != null
-                ? Long.parseLong(StpUtil.getExtra("tenantId").toString()) : 1L;
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        if (tenantId == null) tenantId = 1L;
         tag.setTenantId(tenantId);
         tag.setId(null);
         return Result.ok(mallTagService.save(tag));

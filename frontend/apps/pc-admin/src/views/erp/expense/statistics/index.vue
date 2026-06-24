@@ -152,7 +152,7 @@
             </template>
           </a-alert>
         </template>
-        <VxeTableList
+        <BillTableList
           :columns="deptColumns"
           :data-source="deptData"
           :loading="detailLoading"
@@ -180,7 +180,7 @@
             </span>
             <span v-else>-</span>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-tab-pane>
       <a-tab-pane key="type" tab="按费用类型">
         <!-- 6. 类型表格错误提示 -->
@@ -197,7 +197,7 @@
             </template>
           </a-alert>
         </template>
-        <VxeTableList
+        <BillTableList
           :columns="typeColumns"
           :data-source="typeData"
           :loading="detailLoading"
@@ -218,7 +218,7 @@
             </span>
             <span v-else>-</span>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-tab-pane>
     </a-tabs>
     </template>
@@ -246,7 +246,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatCard from '@/components/business/StatCard/StatCard.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

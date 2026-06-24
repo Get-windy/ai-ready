@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -139,7 +139,7 @@
             <a @click="handleViewAsset(record)">查看资产</a>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </div>
   </PageContainer>
   </ErrorBoundary>
@@ -154,7 +154,7 @@ import {
   FileTextOutlined, SyncOutlined, ReloadOutlined, WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { depreciationApi } from '@/api/fixed-asset'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { useRouter } from 'vue-router'

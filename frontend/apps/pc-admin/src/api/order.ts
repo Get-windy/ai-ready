@@ -242,8 +242,13 @@ export const salesOrderApi = {
   /**
    * 获取订单统计
    */
-  getStatistics(params: { startDate?: string; endDate?: string }): Promise<ApiResponse<any>> {
-    return request.get('/erp/sale/order/statistics', params)
+  getStatistics(params: { tenantId?: number }): Promise<ApiResponse<{
+    pendingProcessCount: number
+    pendingApprovalCount: number
+    todayOrderCount: number
+    monthOrderCount: number
+  }>> {
+    return request.get('/erp/sale/order/stats', params)
   }
 }
 

@@ -24,7 +24,7 @@
 
       <SearchBar :fields="searchFields" :loading="loading" @search="handleSearch" @reset="handleReset" />
 
-      <VxeTableList
+      <BillTableList
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
@@ -40,7 +40,7 @@
             <a @click="handleView(record)">详情</a>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -54,7 +54,7 @@ import { ReloadOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { useRouter } from 'vue-router'
 import { outboundApi } from '@/api/erp'
 import type { SaleOutbound } from '@/api/erp'

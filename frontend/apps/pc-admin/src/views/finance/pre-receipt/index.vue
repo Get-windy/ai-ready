@@ -61,7 +61,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :min-empty-rows="12"
         :columns="columns"
@@ -151,7 +151,7 @@
             </a-tooltip>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 转收款弹窗 -->
       <a-modal
@@ -286,7 +286,7 @@ import {
   SyncOutlined, ReloadOutlined, EyeOutlined, SwapOutlined, StopOutlined, RollbackOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'

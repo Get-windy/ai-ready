@@ -62,7 +62,7 @@
 
       <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="columns"
         :data-source="tableData"
@@ -165,7 +165,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 岗位表单弹窗 -->
       <FullScreenDetail
@@ -296,7 +296,7 @@
               新增分类
             </a-button>
           </div>
-          <VxeTableList
+          <BillTableList
             :data-source="categoryData"
             :loading="categoryLoading"
             :pagination="{ pageSize: 10, current: 1, total: 0 } as any"
@@ -329,7 +329,7 @@
                 </a-button>
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </div>
       </a-modal>
 
@@ -468,7 +468,7 @@ import {
   ReloadOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { positionApi, type PositionInfo, type PositionCategory, type PositionQuery } from '@/api/position'
 import { departmentApi, type DepartmentInfo } from '@/api/department'
 import { useSubmitLock } from '@/composables'

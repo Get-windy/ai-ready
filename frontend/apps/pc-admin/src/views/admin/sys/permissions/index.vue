@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <VxeTableList
+        <BillTableList
           ref="defTableRef"
           :columns="defColumns"
           :data-source="defData"
@@ -107,7 +107,7 @@
               <a-button type="link" size="small" danger v-permission="'system:permission:delete'" @click="openDefDelete(record)">删除</a-button>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
 
       <!-- 定义表单抽屉 -->
@@ -194,7 +194,7 @@ import {
   PlusOutlined, ExpandOutlined, SettingOutlined,
   UserOutlined, DashboardOutlined, FileTextOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PermissionConfigPanel from '@/components/PermissionConfigPanel/index.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { roleApi } from '@/api/role'

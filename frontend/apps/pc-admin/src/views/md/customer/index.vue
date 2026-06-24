@@ -22,7 +22,7 @@
         </a-button>
       </div>
 
-      <VxeTableList
+      <BillTableList
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -49,7 +49,7 @@
             </a-popconfirm>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </div>
   </PartnerFormLayout>
 </template>
@@ -60,7 +60,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import PartnerFormLayout from '../components/PartnerFormLayout.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { partnerApi } from '@/api/erp/partner'
 import type { Partner } from '@/api/erp/partner'

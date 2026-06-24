@@ -30,7 +30,7 @@
       </a-descriptions>
     </template>
     <template #tab-transactions>
-      <VxeTableList
+      <BillTableList
         :columns="txVxeCols"
         :data-source="transactions"
         row-key="id"
@@ -101,7 +101,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { stockApi, inboundApi, outboundApi, type StockItem } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 

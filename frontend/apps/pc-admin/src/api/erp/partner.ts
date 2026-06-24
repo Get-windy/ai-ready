@@ -181,6 +181,12 @@ export const partnerRoleApi = {
   },
   delete(id: number): Promise<boolean> {
     return request.delete(`/erp/partner/roles/${id}`)
+  },
+  addRole(partyId: number, roleType: string, isDefault?: boolean): Promise<boolean> {
+    return request.post(`/erp/partner/roles/${partyId}/add`, { roleType, isDefault })
+  },
+  removeRole(partyId: number, roleId: number): Promise<boolean> {
+    return request.delete(`/erp/partner/roles/${partyId}/remove/${roleId}`)
   }
 }
 

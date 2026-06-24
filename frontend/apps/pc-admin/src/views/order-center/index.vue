@@ -254,7 +254,7 @@
         ref="tableContainerRef"
         class="table-container"
       >
-        <VxeTableList
+        <BillTableList
           :columns="displayColumns"
           :data-source="displayData"
           row-key="_rowKey"
@@ -351,7 +351,7 @@
               </template>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
 
         <!-- 分页 -->
         <div class="pagination-wrapper">
@@ -423,7 +423,7 @@ import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import {
   EyeOutlined,
   CopyOutlined,
@@ -757,7 +757,7 @@ const emptyContextText = computed(() =>
     : '暂无订单数据'
 )
 
-// ── 行选择（VxeTableList 暂不支持自定义行选择，保留状态供批量操作使用）
+// ── 行选择（BillTableList 暂不支持自定义行选择，保留状态供批量操作使用）
 
 // ── 自适应滚动高度 ──────────────────────────────────────
 

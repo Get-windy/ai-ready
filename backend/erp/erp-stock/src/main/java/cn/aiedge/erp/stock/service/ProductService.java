@@ -23,6 +23,9 @@ public interface ProductService extends IService<Product> {
      * 分页查询产品(含分类、等级名称)
      */
     IPage<Product> getProductPage(Long categoryId, String keyword, String status,
+                                   String brand, String industryCategory,
+                                   String createTimeStart, String createTimeEnd,
+                                   Integer useCoupon, Integer isStandardProduct,
                                    Integer pageNum, Integer pageSize);
 
     /**

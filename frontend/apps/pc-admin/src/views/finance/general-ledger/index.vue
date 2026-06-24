@@ -94,7 +94,7 @@
       </a-button>
     </div>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :min-empty-rows="12"
       :columns="columns"
@@ -129,7 +129,7 @@
           </template>
         </div>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 汇总信息 -->
     <div v-if="summaryData" class="summary-bar">
@@ -149,7 +149,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { FileTextOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, WalletOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { accountingApi, type LedgerRecord, type AccountSubject } from '@/api/finance/accounting'
 

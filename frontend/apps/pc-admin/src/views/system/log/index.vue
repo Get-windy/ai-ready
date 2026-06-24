@@ -61,7 +61,7 @@
 
       <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -124,7 +124,7 @@
             详情
           </a-button>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 详情抽屉 -->
       <a-drawer
@@ -182,7 +182,7 @@ import {
   SyncOutlined,
   ReloadOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { logApi, type OperationLog } from '@/api/log'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 

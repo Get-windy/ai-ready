@@ -33,3 +33,11 @@ export type { DashboardMetricsState } from './useDashboardMetrics'
 
 // Mega Menu hover 延迟控制
 export { useHoverDelay } from './useHoverDelay'
+
+// 通用分类树管理
+export { useCategoryTree } from './useCategoryTree'
+export type { CategoryNode } from './useCategoryTree'
+
+// 通用搜索表单
+export { useSearchForm } from './useSearchForm'
+export type { SearchFieldConfig } from './useSearchForm'

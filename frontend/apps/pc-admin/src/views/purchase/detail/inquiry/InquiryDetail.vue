@@ -40,7 +40,7 @@
     </template>
 
     <template #tab-items>
-      <VxeTableList
+      <BillTableList
         :columns="itemVxeColumns"
         :data-source="inquiry?.items || []"
         row-key="id"
@@ -55,12 +55,12 @@
         <template #amountCell="{ record }">
           ¥{{ record.amount?.toFixed(2) }}
         </template>
-      </VxeTableList>
+      </BillTableList>
       <a-empty v-if="!inquiry?.items || (inquiry as any).items.length === 0" description="暂无询价明细" style="margin-top: 16px" />
     </template>
 
     <template #tab-quotations>
-      <VxeTableList
+      <BillTableList
         :columns="quotationVxeColumns"
         :data-source="inquiry?.quotations || []"
         row-key="id"
@@ -80,7 +80,7 @@
             {{ record.status === 1 ? '已接受' : record.status === 2 ? '已拒绝' : '待回复' }}
           </a-tag>
         </template>
-      </VxeTableList>
+      </BillTableList>
       <a-empty v-if="!inquiry?.quotations || (inquiry as any).quotations.length === 0" description="暂无报价记录" style="margin-top: 16px" />
     </template>
   </DetailLayout>
@@ -93,7 +93,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { inquiryApi, type PurchaseInquiry } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 

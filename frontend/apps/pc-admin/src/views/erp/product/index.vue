@@ -1,309 +1,314 @@
 <template>
-  <ErrorBoundary @error="handleError"><PageContainer full-height>
-    <template #header>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="page-header__breadcrumb">ERP / 基础资料 / 产品管理</span>
-          <h2 class="page-header__title">产品管理</h2>
-        </div>
-        <div class="page-header__right">
-          <a-space :size="12">
-            <span class="data-status">
-              <a-badge :status="loading ? 'processing' : 'success'" />
-              <span v-if="lastUpdateTime" class="update-time">数据更新: {{ lastUpdateTime }}</span>
-              <span v-if="autoRefreshCountdown > 0" class="auto-refresh-badge">
-                <SyncOutlined /> {{ autoRefreshCountdown }}s
-              </span>
-            </span>
-            <a-button size="small" :loading="loading" @click="debounceClick('refresh', refreshAll)">
-              <ReloadOutlined /> 刷新
+  <ErrorBoundary @error="handleError">
+    <PageContainer full-height>
+      <CategoryListLayout
+        :show-category-panel="true"
+        category-title="商品分类"
+        :category-tree-data="categoryTreeData"
+        :category-loading="categoryLoading"
+        :category-error="categoryError"
+        :selected-category-id="selectedCategoryId"
+        :category-expanded-keys="expandedKeys"
+        :tabs="tabs"
+        :active-tab="activeTab"
+        :pagination-current="pagination.current"
+        :pagination-page-size="pagination.pageSize"
+        :pagination-total="pagination.total"
+        current-path="当前路径：全部商品"
+        @category-add="showCategoryModal(null)"
+        @category-retry="fetchCategoryTree"
+        @category-select="onCategorySelect"
+        @category-expand="onExpand"
+        @tab-change="(key: string) => activeTab = key"
+        @search="handleSearch"
+        @page-change="handlePageChange"
+      >
+        <!-- 工具栏左侧 -->
+        <template #toolbar-left>
+          <a-space>
+            <a-button type="primary" class="btn-add" @click="handleAdd">
+              <PlusOutlined /> 新增
             </a-button>
-            <a-button size="small" v-permission="'erp:product:export'" @click="debounceClick('export', handleExport)">
-              <DownloadOutlined /> 导出
+            <a-button size="small" @click="handleImport">
+              <UploadOutlined /> 导入
+            </a-button>
+            <a-button size="small" @click="handleCloudImport">
+              <CloudUploadOutlined /> 云导入
             </a-button>
           </a-space>
-        </div>
-      </div>
-    </template>
+        </template>
 
-    <div class="product-main">
-      <!-- ========== 左侧分类树 ========== -->
-      <div class="category-panel">
-        <div class="category-header">
-          <span class="category-title">产品分类</span>
-          <a-button v-permission="'erp:product:category-edit'" type="link" size="small" @click="showCategoryModal(null)">
-            <PlusOutlined /> 新增
-          </a-button>
-        </div>
-        <div class="category-search">
-          <a-input-search
-            v-model:value="categorySearch"
-            placeholder="搜索分类"
-            size="small"
-          />
-        </div>
-        <div class="category-tree-container">
-          <a-spin :spinning="categoryLoading">
-            <template v-if="categoryError">
-              <div class="category-error">
-                <a-result status="warning" title="分类加载失败" sub-title="点击重试">
-                  <template #extra>
-                    <a-button size="small" @click="retryCategoryTree">
-                      <ReloadOutlined /> 重试
-                    </a-button>
-                  </template>
-                </a-result>
-              </div>
-            </template>
-            <template v-else-if="!categoryLoading && categoryTreeData.length === 0">
-              <div class="category-empty">
-                <InboxOutlined class="category-empty-icon" />
-                <p class="category-empty-text">暂无分类</p>
-                <a-button type="link" size="small" @click="showCategoryModal(null)">
-                  <PlusOutlined /> 新增分类
-                </a-button>
-              </div>
-            </template>
-            <a-tree
-              v-else-if="!categoryLoading"
-              :tree-data="categoryTreeData"
-              :selected-keys="[selectedCategoryId]"
-              :expanded-keys="expandedKeys"
-              show-icon
-              block-node
-              @select="onCategorySelect"
-              @expand="onExpand"
-            >
-              <template #title="{ categoryName, productCount }">
-                <span>{{ categoryName }}</span>
-                <span v-if="productCount !== undefined" class="cat-count">({{ productCount }})</span>
+        <!-- 工具栏右侧 -->
+        <template #toolbar-right>
+          <a-space>
+            <a-button size="small" @click="refreshAll">
+              <ReloadOutlined /> 刷新
+            </a-button>
+            <a-button size="small" @click="handlePrint">
+              <PrinterOutlined /> 打印(F8)
+            </a-button>
+            <a-button size="small" @click="handleExport">
+              <DownloadOutlined /> 导出
+            </a-button>
+            <a-dropdown>
+              <a-button size="small">
+                更多 <DownOutlined />
+              </a-button>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="handleBatchPrice">批量改价</a-menu-item>
+                  <a-menu-item @click="handleBatchStatus">批量改状态</a-menu-item>
+                  <a-menu-item @click="handleBatchDelete">批量删除</a-menu-item>
+                </a-menu>
               </template>
-              <template #icon="{ status }">
-                <FolderOutlined v-if="status !== 0" style="color: #faad14" />
-                <FolderOpenOutlined v-else />
-              </template>
-            </a-tree>
-          </a-spin>
-        </div>
-        <div class="category-footer">
-          <a-button type="link" size="small" :disabled="!selectedCategoryId" @click="editSelectedCategory">
-            编辑
-          </a-button>
-          <a-button type="link" size="small" danger :disabled="!selectedCategoryId" @click="confirmDeleteCategory">删除</a-button>
-        </div>
-      </div>
+            </a-dropdown>
+          </a-space>
+        </template>
 
-      <!-- ========== 右侧产品列表 ========== -->
-      <div class="product-panel">
-        <!-- 统计卡片 -->
-        <a-row :gutter="12" style="margin-bottom: 12px;">
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #1890ff;">
-              <div class="stat-value" style="color:#1890ff">{{ statistics.total }}</div>
-              <div class="stat-label">产品总数</div>
+        <!-- 搜索字段 -->
+        <template #search-fields>
+          <div class="search-row">
+            <div class="search-item">
+              <span class="search-label">筛选条件</span>
+              <a-input
+                v-model:value="searchForm.keyword"
+                placeholder="商品名称/货号/条码/规格"
+                size="small"
+                style="width: 200px"
+                allow-clear
+              />
             </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #722ed1;">
-              <div class="stat-value" style="color:#722ed1">{{ categoryCount }}</div>
-              <div class="stat-label">分类数</div>
+            <div class="search-item">
+              <span class="search-label">品牌</span>
+              <a-input
+                v-model:value="searchForm.brand"
+                placeholder=""
+                size="small"
+                style="width: 120px"
+                allow-clear
+              />
             </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #52c41a;">
-              <div class="stat-value" style="color:#52c41a">{{ statistics.enabled }}</div>
-              <div class="stat-label">已启用</div>
+            <div class="search-item">
+              <span class="search-label">新增日期（起）</span>
+              <a-date-picker
+                v-model:value="searchForm.createTimeStart"
+                size="small"
+                style="width: 140px"
+                placeholder=""
+              />
             </div>
-          </a-col>
-          <a-col :span="6">
-            <div class="stat-card" style="border-top: 3px solid #f5222d;">
-              <div class="stat-value" style="color:#f5222d">{{ statistics.disabled }}</div>
-              <div class="stat-label">已停用</div>
+            <div class="search-item">
+              <span class="search-label">新增日期（止）</span>
+              <a-date-picker
+                v-model:value="searchForm.createTimeEnd"
+                size="small"
+                style="width: 140px"
+                placeholder=""
+              />
             </div>
-          </a-col>
-        </a-row>
-
-        <div class="product-toolbar">
-          <SearchBar
-            :fields="searchFields"
-            :loading="loading"
-            @search="handleSearch"
-            @reset="handleReset"
-          />
-          <div class="toolbar-right-section">
-            <div class="shortcut-hints">
-              <span class="shortcut-hint"><kbd>F5</kbd> 刷新</span>
-              <span class="shortcut-hint"><kbd>Ctrl+N</kbd> 新增</span>
-              <span class="shortcut-hint"><kbd>Ctrl+E</kbd> 导出</span>
+            <div class="search-item">
+              <span class="search-label">显示状态</span>
+              <a-select
+                v-model:value="searchForm.status"
+                size="small"
+                style="width: 120px"
+                placeholder="全部"
+                allow-clear
+              >
+                <a-select-option value="">全部</a-select-option>
+                <a-select-option value="ENABLED">已启用</a-select-option>
+                <a-select-option value="DISABLED">已停用</a-select-option>
+              </a-select>
             </div>
-            <a-space>
-              <PrintButton page-code="erp/product" button-size="small" button-type="default" />
-              <a-button v-permission="'erp:product:create'" type="primary" size="small" @click="router.push('/erp/product/create')">
-                <PlusOutlined /> 新增产品
-              </a-button>
-              <a-button v-permission="'erp:product:price-batch'" size="small" @click="router.push('/erp/product/price-batch')">
-                <DollarOutlined /> 批量价格
-              </a-button>
-              <a-button v-permission="'erp:product:inventory-mode'" size="small" @click="router.push('/erp/product/inventory-mode')">
-                <SettingOutlined /> 库存模式
-              </a-button>
-            </a-space>
+            <div class="search-item">
+              <span class="search-label">使用优惠券</span>
+              <a-select
+                v-model:value="searchForm.useCoupon"
+                size="small"
+                style="width: 100px"
+                placeholder="全部"
+                allow-clear
+              >
+                <a-select-option value="">全部</a-select-option>
+                <a-select-option :value="1">是</a-select-option>
+                <a-select-option :value="0">否</a-select-option>
+              </a-select>
+            </div>
+            <div class="search-item">
+              <span class="search-label">是否标品</span>
+              <a-select
+                v-model:value="searchForm.isStandardProduct"
+                size="small"
+                style="width: 100px"
+                placeholder="全部"
+                allow-clear
+              >
+                <a-select-option value="">全部</a-select-option>
+                <a-select-option :value="1">是</a-select-option>
+                <a-select-option :value="0">否</a-select-option>
+              </a-select>
+            </div>
           </div>
-        </div>
+          <div class="search-row second-row">
+            <div class="search-item">
+              <span class="search-label">所属行业类别</span>
+              <a-select
+                v-model:value="searchForm.industryCategory"
+                size="small"
+                style="width: 140px"
+                placeholder="全部"
+                allow-clear
+              >
+                <a-select-option value="">全部</a-select-option>
+                <a-select-option v-for="item in industryCategoryOptions" :key="item.value" :value="item.value">
+                  {{ item.label }}
+                </a-select-option>
+              </a-select>
+            </div>
+            <a-button type="primary" size="small" class="btn-search" @click="handleSearch">
+              查询
+            </a-button>
+            <a-checkbox v-model:checked="showHierarchy" size="small" style="margin-left: 12px">
+              显示层次结构
+            </a-checkbox>
+          </div>
+        </template>
 
-        <VxeTableList
-          ref="tableRef"
-          :columns="vxeColumns"
-          :data-source="products"
-          :loading="loading"
-          :pagination="pagination"
-          row-key="id"
-          :show-toolbar="false"
-          :show-add="false"
-          :show-search="false"
-          :show-batch-delete="false"
-          @page-change="onPageChange"
-          @selection-change="onSelectionChange"
-          @batch-delete="onBatchDelete"
+        <!-- 表格 -->
+        <template #table>
+          <BillDetailTable
+            ref="tableRef"
+            :columns="detailColumns"
+            :data-source="tableData"
+            :loading="loading"
+            :view-mode="true"
+            @checkbox-change="handleCheckboxChange"
+            @checkbox-all="handleCheckboxAll"
+          >
+            <!-- 自定义：操作列 -->
+            <template #actionCell="{ record, index }">
+              <a-space :size="0">
+                <a-button type="link" size="small" @click="handleEdit(record)">修改</a-button>
+                <a-button type="link" size="small" @click="handleToggleStatus(record)">
+                  {{ record.status === 'ENABLED' ? '停用' : '启用' }}
+                </a-button>
+                <a-dropdown>
+                  <a-button type="link" size="small">更多</a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="handleView(record)">查看详情</a-menu-item>
+                      <a-menu-item @click="handleCopy(record)">复制</a-menu-item>
+                      <a-menu-item danger @click="handleDelete(record)">删除</a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </a-space>
+            </template>
+
+            <!-- 自定义：图片列 -->
+            <template #imageCell="{ record }">
+              <a-image
+                v-if="record.imageUrl"
+                :src="record.imageUrl"
+                style="width: 36px; height: 36px; border-radius: 4px; object-fit: cover;"
+                fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+              />
+              <span v-else class="no-image">-</span>
+            </template>
+
+            <!-- 自定义：商品名称列（可点击） -->
+            <template #productNameCell="{ record }">
+              <a class="cell-link" @click="handleView(record)">{{ record.productName }}</a>
+            </template>
+          </BillDetailTable>
+        </template>
+      </CategoryListLayout>
+
+      <!-- 分类新增/编辑弹窗 -->
+      <FullScreenDetail
+        :visible="categoryModalVisible"
+        :title="editingCategory ? '编辑分类' : '新增分类'"
+        :save-loading="categoryModalLoading"
+        @close="handleCategoryCancel"
+        @save="handleCategoryOk"
+      >
+        <a-form
+          ref="categoryFormRef"
+          :model="categoryForm"
+          :rules="categoryRules"
+          :label-col="{ span: 5 }"
+          :wrapper-col="{ span: 17 }"
         >
-          <template #batch-actions="{ selectedRows }">
-            <a-button v-permission="'erp:product:status'" size="small" @click="batchEnable(selectedRows)">
-              <CheckCircleOutlined /> 批量启用
-            </a-button>
-            <a-button v-permission="'erp:product:status'" size="small" @click="batchDisable(selectedRows)">
-              <StopOutlined /> 批量停用
-            </a-button>
-            <a-button v-permission="'erp:product:delete'" danger size="small" @click="batchDelete(selectedRows)">
-              <DeleteOutlined /> 批量删除
-            </a-button>
-          </template>
-          <template #empty>
-            <EmptyState v-if="productError" image="error" title="加载失败" description="产品数据加载异常，请重试" :show-add="false" size="small" @refresh="fetchProducts" />
-            <EmptyState v-else-if="loading" image="no-data" title="加载中..." description="" :show-actions="false" size="small" />
-            <EmptyState v-else image="no-data" title="暂无产品" description="当前没有产品数据" add-text="新增产品" size="small" @refresh="fetchProducts" @add="() => router.push('/erp/product/create')" />
-          </template>
-          <template #imageCell="{ record }">
-            <a-image
-              v-if="record.imageUrl"
-              :src="record.imageUrl"
-              style="width: 32px; height: 32px; border-radius: 4px; object-fit: cover;"
-              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+          <a-form-item label="分类名称" name="categoryName">
+            <a-input v-model:value="categoryForm.categoryName" placeholder="请输入分类名称" size="small" />
+          </a-form-item>
+          <a-form-item label="分类编码" name="categoryCode">
+            <a-input v-model:value="categoryForm.categoryCode" placeholder="请输入分类编码" size="small" />
+          </a-form-item>
+          <a-form-item label="上级分类">
+            <a-tree-select
+              v-model:value="categoryForm.parentId"
+              :tree-data="categoryTreeData"
+              :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
+              placeholder="无(根节点)"
+              allow-clear
+              size="small"
+              style="width: 100%"
             />
-            <span v-else class="no-image">-</span>
-          </template>
-          <template #statusCell="{ record }">
-            <StatusTag :status="record.status" :map="PRODUCT_STATUS" />
-          </template>
-          <template #productTypeCell="{ record }">
-            <a-tag>{{ productTypeLabel(record.productType) }}</a-tag>
-          </template>
-          <template #productCodeCell="{ record }">
-            <a class="cell-link" @click="viewProduct(record.id)">{{ record.productCode }}</a>
-          </template>
-          <template #productNameCell="{ record }">
-            <a class="cell-link" @click="viewProduct(record.id)">{{ record.productName }}</a>
-          </template>
-          <template #action="{ record }">
-            <a-space :size="4">
-              <a-button v-permission="'erp:product:view'" type="link" size="small" @click="viewProduct(record.id)">查看</a-button>
-              <a-button v-permission="'erp:product:edit'" type="link" size="small" @click="router.push(`/erp/product/${record.id}`)">编辑</a-button>
-              <a-popconfirm title="确定删除该产品？此操作不可恢复。" @confirm="confirmDeleteProduct(record)">
-                <a-button v-permission="'erp:product:delete'" type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
-              <a-button v-permission="'erp:product:status'" type="link" size="small" @click="toggleStatus(record)">
-                {{ record.status === 'ENABLED' ? '停用' : '启用' }}
-              </a-button>
-            </a-space>
-          </template>
-        </VxeTableList>
-      </div>
-    </div>
-
-    <!-- 分类新增/编辑弹窗 -->
-    <FullScreenDetail
-      :visible="categoryModalVisible"
-      :title="editingCategory ? '编辑分类' : '新增分类'"
-      :save-loading="categoryModalLoading"
-      @close="handleCategoryCancel"
-      @save="debounceClick('categoryOk', handleCategoryOk)"
-    >
-      <a-form ref="categoryFormRef" :model="categoryForm" :rules="categoryRules" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
-        <a-form-item label="分类名称" name="categoryName">
-          <a-input v-model:value="categoryForm.categoryName" placeholder="请输入分类名称" size="small" />
-        </a-form-item>
-        <a-form-item label="分类编码" name="categoryCode">
-          <a-input v-model:value="categoryForm.categoryCode" placeholder="请输入分类编码" size="small" />
-        </a-form-item>
-        <a-form-item label="上级分类">
-          <a-tree-select
-            v-model:value="categoryForm.parentId"
-            :tree-data="categoryTreeData"
-            :field-names="{ children: 'children', label: 'categoryName', value: 'id' }"
-            placeholder="无(根节点)"
-            allow-clear
-            size="small"
-            style="width: 100%"
-          />
-        </a-form-item>
-        <a-form-item label="排序">
-          <a-input-number v-model:value="categoryForm.sortOrder" :min="0" size="small" style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </FullScreenDetail>
-  </PageContainer>
+          </a-form-item>
+          <a-form-item label="排序">
+            <a-input-number v-model:value="categoryForm.sortOrder" :min="0" size="small" style="width: 100%" />
+          </a-form-item>
+        </a-form>
+      </FullScreenDetail>
+    </PageContainer>
   </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, reactive, defineExpose } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
-import type { FormInstance, TreeProps } from 'ant-design-vue'
 import {
-  PlusOutlined, ReloadOutlined, FolderOutlined, FolderOpenOutlined, DollarOutlined, SettingOutlined, InboxOutlined,
-  SyncOutlined, DownloadOutlined, CheckCircleOutlined, StopOutlined, DeleteOutlined
+  PlusOutlined,
+  ReloadOutlined,
+  InboxOutlined,
+  UploadOutlined,
+  CloudUploadOutlined,
+  PrinterOutlined,
+  DownloadOutlined,
+  DownOutlined,
 } from '@ant-design/icons-vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import SearchBar from '@/components/SearchBar/SearchBar.vue'
-import EmptyState from '@/components/EmptyState/EmptyState.vue'
-import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
-import PrintButton from '@/components/business/print-button/PrintButton.vue'
-import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
-import StatusTag from '@/components/StatusTag/StatusTag.vue'
-import { PRODUCT_STATUS } from '@/utils/statusConfig'
+import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
+import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 import { productApi, productCategoryApi } from '@/api/erp/product'
 import type { ProductCategory } from '@/api/erp/product'
 import request from '@/utils/request'
 
 const router = useRouter()
 
-// ── 类型定义 ──────────────────────────────────────────
-interface ProductItem {
-  id: number
-  productCode: string
-  productName: string
-  spec: string
-  sku: string
-  unit: string
-  categoryName: string
-  gradeName: string
-  standardPrice: number
-  productType: string
-  status: string
-  imageUrl?: string
-}
+// ── Tab标签 ──
+const tabs = [
+  { key: 'all', label: '全部商品' },
+  { key: 'package', label: '套餐' },
+  { key: 'shelf', label: '商品上架' },
+  { key: 'auth', label: '商品授权' },
+]
+const activeTab = ref('all')
 
-// ── 防抖工具 ──────────────────────────────────────────
-const debounceMap = new Map<string, number>()
-function debounceClick(key: string, fn: () => void, delay = 300) {
-  const now = Date.now()
-  const last = debounceMap.get(key) || 0
-  if (now - last < delay) return
-  debounceMap.set(key, now)
-  fn()
-}
+// ── 行业类别选项 ──
+const industryCategoryOptions = ref([
+  { label: '食品', value: '食品' },
+  { label: '饮料', value: '饮料' },
+  { label: '日用品', value: '日用品' },
+  { label: '电子产品', value: '电子产品' },
+  { label: '服装', value: '服装' },
+  { label: '其他', value: '其他' },
+])
 
 // ── 分类管理 ──
 const categoryLoading = ref(false)
@@ -311,37 +316,8 @@ const categoryError = ref(false)
 const categoryTree = ref<any[]>([])
 const selectedCategoryId = ref<number>(0)
 const expandedKeys = ref<number[]>([])
-const categorySearch = ref('')
 
-const categoryTreeData = computed(() => {
-  if (!categorySearch.value) return categoryTree.value
-  return filterTree(categoryTree.value, categorySearch.value)
-})
-
-// 分类总数（递归统计）
-const categoryCount = computed(() => {
-  function countNodes(nodes: ProductCategory[]): number {
-    let c = 0
-    for (const n of nodes) {
-      c++ // 当前节点
-      if (n.children && n.children.length > 0) c += countNodes(n.children)
-    }
-    return c
-  }
-  return countNodes(categoryTree.value)
-})
-
-function filterTree(tree: ProductCategory[], keyword: string): ProductCategory[] {
-  return tree
-    .map(node => ({
-      ...node,
-      children: node.children ? filterTree(node.children, keyword) : []
-    }))
-    .filter(node =>
-      node.categoryName.includes(keyword) ||
-      (node.children && node.children.length > 0)
-    )
-}
+const categoryTreeData = computed(() => categoryTree.value)
 
 async function fetchCategoryTree() {
   categoryLoading.value = true
@@ -349,21 +325,16 @@ async function fetchCategoryTree() {
   try {
     const data = await productCategoryApi.getTree()
     categoryTree.value = Array.isArray(data) ? data : []
-    // 展开第一层
     const firstLevel = categoryTree.value.map(n => n.id)
     if (firstLevel.length > 0) {
       expandedKeys.value = [...firstLevel]
     }
   } catch (e) {
-    console.error('[产品分类] 加载分类树失败', e)
+    console.error('[商品分类] 加载分类树失败', e)
     categoryError.value = true
   } finally {
     categoryLoading.value = false
   }
-}
-
-function retryCategoryTree() {
-  fetchCategoryTree()
 }
 
 function onCategorySelect(keys: number[]) {
@@ -379,16 +350,16 @@ function onExpand(keys: number[]) {
 const categoryModalVisible = ref(false)
 const categoryModalLoading = ref(false)
 const editingCategory = ref<ProductCategory | null>(null)
-const categoryFormRef = ref<FormInstance>()
+const categoryFormRef = ref<any>(null)
 const categoryForm = reactive({
   categoryName: '',
   categoryCode: '',
   parentId: undefined as number | undefined,
-  sortOrder: 0
+  sortOrder: 0,
 })
 const categoryRules = {
   categoryName: [{ required: true, message: '请输入分类名称' }],
-  categoryCode: [{ required: true, message: '请输入分类编码' }]
+  categoryCode: [{ required: true, message: '请输入分类编码' }],
 }
 
 function showCategoryModal(category: ProductCategory | null) {
@@ -398,44 +369,28 @@ function showCategoryModal(category: ProductCategory | null) {
       categoryName: category.categoryName,
       categoryCode: category.categoryCode,
       parentId: category.parentId || undefined,
-      sortOrder: category.sortOrder || 0
+      sortOrder: category.sortOrder || 0,
     })
   } else {
     Object.assign(categoryForm, {
       categoryName: '',
       categoryCode: '',
       parentId: selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined,
-      sortOrder: 0
+      sortOrder: 0,
     })
   }
   categoryModalVisible.value = true
-}
-
-function editSelectedCategory() {
-  if (!selectedCategoryId.value) return
-  const findCat = (list: ProductCategory[]): ProductCategory | null => {
-    for (const c of list) {
-      if (c.id === selectedCategoryId.value) return c
-      if (c.children) {
-        const found = findCat(c.children)
-        if (found) return found
-      }
-    }
-    return null
-  }
-  const cat = findCat(categoryTree.value)
-  if (cat) showCategoryModal(cat)
 }
 
 async function handleCategoryOk() {
   try {
     await categoryFormRef.value?.validate()
     categoryModalLoading.value = true
-    const catPayload: Partial<import('@/api/erp/product').ProductCategory> = {
+    const catPayload: Partial<ProductCategory> = {
       categoryName: categoryForm.categoryName,
       categoryCode: categoryForm.categoryCode,
       parentId: categoryForm.parentId,
-      sortOrder: categoryForm.sortOrder
+      sortOrder: categoryForm.sortOrder,
     }
     if (editingCategory.value) {
       await productCategoryApi.update(editingCategory.value.id, catPayload)
@@ -457,161 +412,226 @@ async function handleCategoryOk() {
 }
 
 function handleCategoryCancel() {
-  // 检查表单是否有未保存的修改
-  if (categoryForm.categoryName || categoryForm.categoryCode) {
-    Modal.confirm({
-      title: '确认关闭',
-      content: '当前表单有未保存的内容，确定关闭吗？',
-      okText: '确定关闭',
-      cancelText: '继续编辑',
-      onOk: () => { categoryModalVisible.value = false }
-    })
-  } else {
-    categoryModalVisible.value = false
-  }
+  categoryModalVisible.value = false
 }
 
-async function deleteSelectedCategory() {
-  if (!selectedCategoryId.value) return
-  try {
-    await productCategoryApi.delete(selectedCategoryId.value)
-    message.success('删除成功')
-    selectedCategoryId.value = 0
-    await fetchCategoryTree()
-    await fetchProducts()
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '删除失败'
-    message.error(msg)
-  }
-}
+// ── 搜索表单 ──
+const searchForm = reactive({
+  keyword: '',
+  brand: '',
+  createTimeStart: null,
+  createTimeEnd: null,
+  status: '',
+  useCoupon: '',
+  isStandardProduct: '',
+  industryCategory: '',
+})
+const showHierarchy = ref(false)
 
-// ── 自动刷新 ──
-const autoRefreshCountdown = ref(0)
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-// ── 产品列表 ──
+// ── 商品列表 ──
 const loading = ref(false)
-const productError = ref(false)
-const lastUpdateTime = ref('')
-const products = ref<any[]>([])
-const searchKeyword = ref('')
-const statusFilter = ref('')
+const tableData = ref<any[]>([])
+const selectedRows = ref<any[]>([])
+const tableRef = ref<any>(null)
 
-const statistics = ref({ total: 0, enabled: 0, disabled: 0 })
+// 表格列配置
+const detailColumns = computed<DetailColumnConfig[]>(() => [
+  { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
+  { key: 'checkbox', title: '', type: 'checkbox', width: 40, fixed: 'left' },
+  { key: 'action', title: '操作', type: 'action', slotName: 'actionCell', width: 100, fixed: 'left' },
+  { key: 'imageUrl', title: '图片', type: 'slot', slotName: 'imageCell', width: 60 },
+  { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productNameCell', width: 200, sortable: true },
+  { key: 'productCodeAlias', title: '商品货号', type: 'input', width: 120, sortable: true },
+  { key: 'industryCategory', title: '所属行业类别', type: 'input', width: 120, sortable: true },
+  { key: 'barcode', title: '条码', type: 'input', width: 140, sortable: true },
+  { key: 'spec', title: '规格', type: 'input', width: 120, sortable: true },
+  { key: 'model', title: '型号', type: 'input', width: 100, sortable: true },
+  { key: 'origin', title: '产地', type: 'input', width: 100, sortable: true },
+])
 
-const searchFields: any = [
-  { name: 'keyword', label: '关键词', type: 'input', placeholder: '编码/名称/规格' },
-  { name: 'status', label: '状态', type: 'select', placeholder: '请选择状态', options: [
-    { label: '全部', value: '' },
-    { label: '启用', value: 'ENABLED' },
-    { label: '停用', value: 'DISABLED' }
-  ]}
-]
-
-function handleError(err: any) { console.warn("[产品管理] ErrorBoundary 捕获异常:", err) }
-const tableRef = ref()
 const pagination = reactive({
   current: 1,
   pageSize: 20,
   total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  pageSizeOptions: ['10', '20', '50', '100']
 })
-
-const vxeColumns: any = computed(() => [
-  { field: 'productCode', title: '产品编码', width: 120, slots: { default: 'productCodeCell' } },
-  { field: 'productName', title: '产品名称', width: 160, minWidth: 120, slots: { default: 'productNameCell' } },
-  { field: 'imageUrl', title: '图片', width: 56, align: 'center', slots: { default: 'imageCell' } },
-  { field: 'spec', title: '规格', width: 120 },
-  { field: 'sku', title: 'SKU', width: 120 },
-  { field: 'unit', title: '单位', width: 60, align: 'center' },
-  { field: 'categoryName', title: '分类', width: 100 },
-  { field: 'gradeName', title: '产品等级', width: 100 },
-  { field: 'standardPrice', title: '标准售价', width: 100, align: 'right' },
-  { field: 'productType', title: '类型', width: 80, align: 'center', slots: { default: 'productTypeCell' } },
-  { field: 'status', title: '状态', width: 70, align: 'center', slots: { default: 'statusCell' } },
-  { field: '_action', title: '操作', width: 210, fixed: 'right', slots: { default: 'action' } }
-])
-
-function productTypeLabel(type: string) {
-  const map: Record<string, string> = { SINGLE: '单品', KIT: '套件', SERVICE: '服务' }
-  return map[type] || type
-}
 
 async function fetchProducts() {
   loading.value = true
-  productError.value = false
   try {
-    const res = await productApi.page({
-      categoryId: selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined,
-      keyword: searchKeyword.value || undefined,
-      status: statusFilter.value || undefined,
+    const params: any = {
       pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    } as any)
-    products.value = res.records || []
+      pageSize: pagination.pageSize,
+    }
+    if (selectedCategoryId.value > 0) {
+      params.categoryId = selectedCategoryId.value
+    }
+    if (searchForm.keyword) {
+      params.keyword = searchForm.keyword
+    }
+    if (searchForm.status) {
+      params.status = searchForm.status
+    }
+    if (searchForm.brand) {
+      params.brand = searchForm.brand
+    }
+    if (searchForm.industryCategory) {
+      params.industryCategory = searchForm.industryCategory
+    }
+    if (searchForm.createTimeStart) {
+      params.createTimeStart = searchForm.createTimeStart.format('YYYY-MM-DD')
+    }
+    if (searchForm.createTimeEnd) {
+      params.createTimeEnd = searchForm.createTimeEnd.format('YYYY-MM-DD')
+    }
+    if (searchForm.useCoupon !== '' && searchForm.useCoupon !== null && searchForm.useCoupon !== undefined) {
+      params.useCoupon = Number(searchForm.useCoupon)
+    }
+    if (searchForm.isStandardProduct !== '' && searchForm.isStandardProduct !== null && searchForm.isStandardProduct !== undefined) {
+      params.isStandardProduct = Number(searchForm.isStandardProduct)
+    }
+
+    const res = await productApi.page(params)
+    tableData.value = res.records || []
     pagination.total = res.total || 0
-    // 统计当前页启用/停用数量
-    const enabled = products.value.filter(p => p.status === 'ENABLED').length
-    const disabled = products.value.filter(p => p.status === 'DISABLED').length
-    statistics.value = { total: res.total || 0, enabled, disabled }
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
   } catch (e) {
-    console.error('[产品管理] 加载产品列表失败', e)
-    productError.value = true
-    message.error('加载产品列表失败')
+    console.error('[商品列表] 加载失败', e)
+    message.error('加载商品列表失败')
   } finally {
     loading.value = false
   }
 }
 
-function handleSearch(formData?: Record<string, any>) {
-  if (formData) {
-    searchKeyword.value = formData.keyword || ''
-    statusFilter.value = formData.status || ''
-  }
+function handleSearch() {
   pagination.current = 1
   fetchProducts()
 }
 
-function handleReset() {
-  searchKeyword.value = ''
-  statusFilter.value = ''
-  pagination.current = 1
-  fetchProducts()
-}
-
-function onPageChange(page: number, pageSize: number) {
+function handlePageChange(page: number, pageSize: number) {
   pagination.current = page
   pagination.pageSize = pageSize
   fetchProducts()
 }
 
-function viewProduct(id: number) {
-  router.push(`/erp/product/${id}`)
+function handleCheckboxChange(record: any, _rowIndex: number, _checked: boolean) {
+  // BillDetailTable 内部管理选中状态，通过 tableRef 获取
+  selectedRows.value = tableRef.value?.getCheckedRecords?.() || []
 }
 
-async function deleteProduct(id: number) {
+function handleCheckboxAll(_checked: boolean, records: any[]) {
+  selectedRows.value = records
+}
+
+// ── 操作按钮 ──
+function handleAdd() {
+  router.push('/erp/product/create')
+}
+
+function handleEdit(row: any) {
+  router.push(`/erp/product/${row.id}`)
+}
+
+function handleView(row: any) {
+  router.push(`/erp/product/${row.id}`)
+}
+
+function handleToggleStatus(row: any) {
+  const newStatus = row.status === 'ENABLED' ? 'DISABLED' : 'ENABLED'
+  Modal.confirm({
+    title: '确认',
+    content: `确定要${newStatus === 'ENABLED' ? '启用' : '停用'}该商品吗？`,
+    onOk: async () => {
+      try {
+        await productApi.updateStatus(row.id, newStatus)
+        message.success(newStatus === 'ENABLED' ? '已启用' : '已停用')
+        fetchProducts()
+      } catch {
+        message.error('操作失败')
+      }
+    },
+  })
+}
+
+function handleDelete(row: any) {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除商品 "${row.productName}" 吗？此操作不可恢复。`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await productApi.delete(row.id)
+        message.success('删除成功')
+        fetchProducts()
+      } catch {
+        message.error('删除失败')
+      }
+    },
+  })
+}
+
+function handleCopy(row: any) {
+  message.info('复制功能开发中')
+}
+
+function handleImport() {
+  message.info('导入功能开发中')
+}
+
+function handleCloudImport() {
+  message.info('云导入功能开发中')
+}
+
+function handlePrint() {
+  message.info('打印功能开发中')
+}
+
+async function handleExport() {
   try {
-    await productApi.delete(id)
-    message.success('删除成功')
-    await fetchProducts()
+    const blob = await request.get('/erp/product/export', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `商品_${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
   } catch {
-    message.error('删除失败')
+    message.warning('导出失败')
   }
 }
 
-async function toggleStatus(record: ProductItem) {
-  const newStatus = record.status === 'ENABLED' ? 'DISABLED' : 'ENABLED'
-  try {
-    await productApi.updateStatus(record.id, newStatus)
-    message.success(newStatus === 'ENABLED' ? '已启用' : '已停用')
-    await fetchProducts()
-  } catch {
-    message.error('操作失败')
+function handleBatchPrice() {
+  if (selectedRows.value.length === 0) {
+    message.warning('请先选择商品')
+    return
   }
+  router.push('/erp/product/price-batch')
+}
+
+function handleBatchStatus() {
+  message.info('批量改状态功能开发中')
+}
+
+function handleBatchDelete() {
+  if (selectedRows.value.length === 0) {
+    message.warning('请先选择商品')
+    return
+  }
+  Modal.confirm({
+    title: '批量删除',
+    content: `确定要删除选中的 ${selectedRows.value.length} 个商品吗？`,
+    okText: '确认删除',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        await Promise.all(selectedRows.value.map((row: any) => productApi.delete(row.id)))
+        message.success('批量删除成功')
+        fetchProducts()
+      } catch {
+        message.error('批量删除失败')
+      }
+    },
+  })
 }
 
 function refreshAll() {
@@ -619,114 +639,19 @@ function refreshAll() {
   fetchProducts()
 }
 
-async function handleExport() {
-  try {
-    const blob = await request.get('/erp/product/export', { responseType: 'blob' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `产品_${new Date().toISOString().slice(0, 10)}.xlsx`; a.click()
-    window.URL.revokeObjectURL(url); message.success('导出成功')
-  } catch {
-    message.warning('导出失败')
-  }
+function handleError(err: any) {
+  console.warn('[商品列表] ErrorBoundary 捕获异常:', err)
 }
 
-function confirmDeleteCategory() {
-  if (!selectedCategoryId.value) return
-  Modal.confirm({
-    title: '确认删除',
-    content: '确定要删除此产品分类吗？如果分类下有产品，删除可能会失败。',
-    okText: '确认删除',
-    okType: 'danger',
-    onOk: deleteSelectedCategory
-  })
-}
-
-function confirmDeleteProduct(record: ProductItem) {
-  Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除产品 "${record.productName || record.productCode}" 吗？此操作不可恢复。`,
-    okText: '确认删除',
-    okType: 'danger',
-    onOk: () => deleteProduct(record.id)
-  })
-}
-
-// ── 批量操作 ──────────────────────────────────────────
-const selectedIds = ref<number[]>([])
-
-function onSelectionChange(rows: any[], ids: number[]) {
-  selectedIds.value = ids
-}
-
-async function onBatchDelete(ids: number[]) {
-  if (!ids.length) return
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要删除选中的 ${ids.length} 个产品吗？此操作不可恢复。`,
-    okText: '确认删除',
-    okType: 'danger',
-    onOk: async () => {
-      try {
-        await Promise.all(ids.map(id => productApi.delete(id)))
-        message.success(`成功删除 ${ids.length} 个产品`)
-        await fetchProducts()
-      } catch {
-        message.error('批量删除失败')
-      }
-    }
-  })
-}
-
-async function batchDelete(rows: any[]) {
-  const ids = rows.map(r => r.id)
-  await onBatchDelete(ids)
-}
-
-async function batchEnable(rows: any[]) {
-  if (!rows.length) return
-  debounceClick('batchEnable', async () => {
-    try {
-      await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'ENABLED')))
-      message.success(`已启用 ${rows.length} 个产品`)
-      await fetchProducts()
-    } catch {
-      message.error('批量启用失败')
-    }
-  })
-}
-
-async function batchDisable(rows: any[]) {
-  if (!rows.length) return
-  debounceClick('batchDisable', async () => {
-    try {
-      await Promise.all(rows.map(r => productApi.updateStatus(r.id, 'DISABLED')))
-      message.success(`已停用 ${rows.length} 个产品`)
-      await fetchProducts()
-    } catch {
-      message.error('批量停用失败')
-    }
-  })
-}
-
+// ─ 键盘快捷键 ──
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+  if (e.key === 'F5' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault()
-    debounceClick('refresh', refreshAll)
+    refreshAll()
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
     e.preventDefault()
-    if (categoryTree.value.length > 0) {
-      router.push('/erp/product/create')
-    }
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-    e.preventDefault()
-    debounceClick('export', handleExport)
-  }
-  // Ctrl+Enter 快速搜索
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault()
-    handleSearch()
+    handleAdd()
   }
 }
 
@@ -734,244 +659,69 @@ onMounted(() => {
   fetchCategoryTree()
   fetchProducts()
   document.addEventListener('keydown', handleKeydown)
-  autoRefreshCountdown.value = 300
-  refreshTimer = setInterval(() => {
-    fetchCategoryTree()
-    fetchProducts()
-    autoRefreshCountdown.value = 300
-  }, 300000)
-  countdownTimer = setInterval(() => {
-    if (autoRefreshCountdown.value > 0) autoRefreshCountdown.value--
-  }, 1000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
-  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 })
-
-defineExpose({ fetchData: fetchProducts })
 </script>
 
 <style scoped>
-.product-main {
-  display: flex;
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
+/* ── 橙色新增按钮 ── */
+.btn-add {
+  background: #ff6b35 !important;
+  border-color: #ff6b35 !important;
+}
+.btn-add:hover {
+  background: #e55a2b !important;
+  border-color: #e55a2b !important;
 }
 
-/* ── 左侧分类面板 ── */
-.category-panel {
-  width: 260px;
-  min-width: 200px;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #e8e8e8;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.category-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #303133;
-}
-
-.category-search {
-  padding: 8px 12px;
-}
-
-.category-tree-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.category-footer {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.cat-count {
-  font-size: 12px;
-  color: #999;
-  margin-left: 4px;
-}
-
-.category-error {
-  padding: 12px;
-}
-
-.category-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 24px 12px;
-  text-align: center;
-}
-
-.category-empty-icon {
-  font-size: 36px;
-  color: #d9d9d9;
-  margin-bottom: 8px;
-}
-
-.category-empty-text {
-  font-size: 13px;
-  color: #999;
-  margin: 0 0 8px 0;
-}
-
-/* ── 右侧产品面板 ── */
-.product-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.product-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0 12px 0;
-}
-
+/* ── 表格样式 ── */
 .no-image {
   color: #ccc;
 }
 
-/* ── 通用页面头部 ── */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+.cell-link {
+  color: #1890ff;
+  cursor: pointer;
 }
-.page-header__left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.cell-link:hover {
+  text-decoration: underline;
 }
-.page-header__breadcrumb {
-  font-size: 12px;
-  color: #999;
-}
-.page-header__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-.page-header__right {
+
+/* ── 搜索栏布局 ── */
+.search-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
-
-.data-status {
-  display: inline-flex;
+.search-row.second-row {
+  margin-top: 8px;
+}
+.search-item {
+  display: flex;
   align-items: center;
   gap: 6px;
 }
-
-.auto-refresh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #52c41a;
-  white-space: nowrap;
-}
-
-.update-time {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-}
-
-.stat-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  line-height: 1.2;
-}
-
-.stat-label {
+.search-label {
   font-size: 13px;
   color: #666;
-  margin-top: 4px;
+  white-space: nowrap;
+}
+.btn-search {
+  margin-left: 8px;
 }
 
-/* ── 紧凑尺寸 ── */
-:deep(.ant-input-sm),
-:deep(.ant-input-number-sm),
-:deep(.ant-select-single.ant-select-sm .ant-select-selector),
-:deep(.ant-picker-small),
-:deep(.ant-btn-sm) {
-  height: 28px;
-  line-height: 28px;
+/* ── BillDetailTable 样式覆盖 ── */
+:deep(.ss-grid th) {
+  background: #fafafa !important;
+  font-weight: 600 !important;
+  color: #333 !important;
 }
 
-/* ── 快捷键提示 ── */
-.toolbar-right-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.shortcut-hints {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #909399;
-  user-select: none;
-}
-.shortcut-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #f5f7fa;
-}
-.shortcut-hint kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 3px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 11px;
-  color: #606266;
-  background: #fff;
-  border: 1px solid #d0d5dd;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #d0d5dd;
-  line-height: 18px;
+:deep(.ss-row:hover td) {
+  background: #e6f7ff !important;
 }
 </style>

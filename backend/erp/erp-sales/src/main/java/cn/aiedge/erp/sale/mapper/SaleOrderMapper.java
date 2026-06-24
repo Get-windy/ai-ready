@@ -44,4 +44,28 @@ public interface SaleOrderMapper extends BaseMapper<SaleOrder> {
      */
     @Select("SELECT * FROM erp_sale_order WHERE customer_id = #{customerId} ORDER BY order_date DESC")
     List<SaleOrder> selectByCustomerId(@Param("customerId") Long customerId);
+
+    /**
+     * 查询今日新增订单数量（PostgreSQL语法）
+     */
+    @Select("SELECT COUNT(*) FROM erp_sale_order WHERE tenant_id = #{tenantId} AND create_time::date = CURRENT_DATE AND deleted = 0")
+    int countTodayOrders(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询本月新增订单数量（PostgreSQL语法）
+     */
+    @Select("SELECT COUNT(*) FROM erp_sale_order WHERE tenant_id = #{tenantId} AND EXTRACT(YEAR FROM create_time) = EXTRACT(YEAR FROM CURRENT_DATE) AND EXTRACT(MONTH FROM create_time) = EXTRACT(MONTH FROM CURRENT_DATE) AND deleted = 0")
+    int countMonthOrders(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询待审核订单数量（状态=1）
+     */
+    @Select("SELECT COUNT(*) FROM erp_sale_order WHERE tenant_id = #{tenantId} AND status = 1 AND deleted = 0")
+    int countPendingApproval(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询待处理订单数量（状态=2 已审批待出库 或 状态=3 部分出库）
+     */
+    @Select("SELECT COUNT(*) FROM erp_sale_order WHERE tenant_id = #{tenantId} AND status IN (2, 3) AND deleted = 0")
+    int countPendingProcess(@Param("tenantId") Long tenantId);
 }

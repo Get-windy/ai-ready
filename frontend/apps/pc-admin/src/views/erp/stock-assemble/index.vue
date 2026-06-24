@@ -78,7 +78,7 @@
       </a-col>
     </a-row>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableData"
@@ -181,7 +181,7 @@
           </a-tooltip>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 详情抽屉 -->
     <a-drawer v-model:open="detailVisible" title="组装单详情" placement="right" width="80vw">
@@ -363,7 +363,7 @@ import {
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import request from '@/utils/request'

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.base.mapper.WorkflowNodeMapper">
+
+    <resultMap id="BaseResultMap" type="cn.aiedge.base.entity.WorkflowNode">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="definition_id" property="definitionId"/>
+        <result column="node_code" property="nodeCode"/>
+        <result column="node_name" property="nodeName"/>
+        <result column="node_type" property="nodeType"/>
+        <result column="node_order" property="nodeOrder"/>
+        <result column="assignee_type" property="assigneeType"/>
+        <result column="assignee_ids" property="assigneeIds"/>
+        <result column="role_ids" property="roleIds"/>
+        <result column="condition_expr" property="conditionExpr"/>
+        <result column="next_node_id" property="nextNodeId"/>
+        <result column="branch_nodes" property="branchNodes"/>
+        <result column="can_reject" property="canReject"/>
+        <result column="can_transfer" property="canTransfer"/>
+        <result column="time_limit" property="timeLimit"/>
+        <result column="timeout_action" property="timeoutAction"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="create_by" property="createBy"/>
+        <result column="update_by" property="updateBy"/>
+    </resultMap>
+
+    <select id="selectByDefinitionId" resultMap="BaseResultMap">
+        SELECT * FROM workflow_node
+        WHERE definition_id = #{definitionId}
+        AND deleted = 0
+        ORDER BY node_order ASC
+    </select>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT * FROM workflow_node
+        WHERE definition_id = #{definitionId}
+        AND node_code = #{nodeCode}
+        AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <insert id="batchInsert">
+        INSERT INTO workflow_node (
+            id, tenant_id, definition_id, node_code, node_name, node_type, node_order,
+            assignee_type, assignee_ids, role_ids, condition_expr, next_node_id, branch_nodes,
+            can_reject, can_transfer, time_limit, timeout_action, description,
+            deleted, create_time, update_time, create_by, update_by
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.id}, #{item.tenantId}, #{item.definitionId}, #{item.nodeCode}, #{item.nodeName},
+                #{item.nodeType}, #{item.nodeOrder}, #{item.assigneeType}, #{item.assigneeIds},
+                #{item.roleIds}, #{item.conditionExpr}, #{item.nextNodeId}, #{item.branchNodes},
+                #{item.canReject}, #{item.canTransfer}, #{item.timeLimit}, #{item.timeoutAction},
+                #{item.description}, #{item.deleted}, #{item.createTime}, #{item.updateTime},
+                #{item.createBy}, #{item.updateBy}
+            )
+        </foreach>
+    </insert>
+
+    <update id="deleteByDefinitionId">
+        UPDATE workflow_node SET deleted = 1
+        WHERE definition_id = #{definitionId}
+    </update>
+
+</mapper>

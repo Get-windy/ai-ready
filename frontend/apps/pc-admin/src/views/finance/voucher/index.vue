@@ -68,7 +68,7 @@
         </div>
       </div>
 
-          <VxeTableList
+          <BillTableList
       ref="tableRef"
       :min-empty-rows="12"
       :columns="vxeColumns"
@@ -159,7 +159,7 @@
           </template>
         </div>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
       <!-- 新增凭证弹窗 -->
       <FullScreenDetail
@@ -207,7 +207,7 @@
             添加分录行
           </a-button>
 
-          <VxeTableList
+          <BillTableList
             :columns="entryColumns"
             :data-source="addForm.entries"
             :pagination="false as any"
@@ -257,7 +257,7 @@
                 <span class="amount-cell credit">¥{{ getTotalCredit() }}</span>
               </div>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </div>
       </FullScreenDetail>
 
@@ -291,7 +291,7 @@
 
           <a-divider>分录明细</a-divider>
 
-          <VxeTableList
+          <BillTableList
             :columns="entryViewColumns"
             :data-source="currentVoucher.entries || []"
             :pagination="false as any"
@@ -316,7 +316,7 @@
                 <span class="amount-cell credit">¥{{ formatAmount(currentVoucher.creditTotal) }}</span>
               </div>
             </template>
-          </VxeTableList>
+          </BillTableList>
 
           <div class="detail-modal-footer">
             <a-button v-if="currentVoucher.status === 'draft'" type="primary" @click="handleAudit(currentVoucher)">
@@ -372,7 +372,7 @@ import {
   WarningOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { voucherApi } from '@/api/finance'

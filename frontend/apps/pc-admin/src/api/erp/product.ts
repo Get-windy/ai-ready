@@ -130,7 +130,15 @@ export interface Product {
 }
 
 export const productApi = {
-  page(params: PageQuery & { categoryId?: number }): Promise<PageResult<Product>> {
+  page(params: PageQuery & {
+    categoryId?: number
+    brand?: string
+    industryCategory?: string
+    createTimeStart?: string
+    createTimeEnd?: string
+    useCoupon?: number
+    isStandardProduct?: number
+  }): Promise<PageResult<Product>> {
     return request.get('/erp/product/page', params)
   },
   getById(id: number): Promise<Product> {
@@ -443,13 +451,13 @@ export interface MallTag {
 
 export const mallTagApi = {
   list(): Promise<MallTag[]> {
-    return request.get('/erp/mall/tags')
+    return request.get('/erp/mall-tag/list')
   },
   create(data: Partial<MallTag>): Promise<boolean> {
-    return request.post('/erp/mall/tags', data)
+    return request.post('/erp/mall-tag', data)
   },
   delete(id: number): Promise<boolean> {
-    return request.delete(`/erp/mall/tags/${id}`)
+    return request.delete(`/erp/mall-tag/${id}`)
   }
 }
 

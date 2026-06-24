@@ -71,7 +71,7 @@
       <a-tabs v-model:activeKey="activeTab">
         <!-- 列表标签 -->
         <a-tab-pane key="list" tab="应付列表">
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :min-empty-rows="12"
             :columns="columns"
@@ -146,7 +146,7 @@
                 </a-tooltip>
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
 
         <!-- 账龄分析标签 -->
@@ -251,7 +251,7 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { payableApi } from '@/api/finance'

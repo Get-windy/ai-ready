@@ -1,6 +1,6 @@
 <template>
   <div class="approved-approval">
-    <VxeTableList
+    <BillTableList
       :columns="vxeColumns"
       :data-source="dataSource"
       :loading="loading"
@@ -32,7 +32,7 @@
           {{ record.status }}
         </a-tag>
       </template>
-    </VxeTableList>
+    </BillTableList>
   </div>
 </template>
 
@@ -40,7 +40,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { WarningOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 const debounceMap = new Map<string, number>()
 function debounceClick(key: string, fn: () => void, delay = 300) {

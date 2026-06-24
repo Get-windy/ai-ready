@@ -63,7 +63,7 @@
       </div>
 
       <!-- 客户端列表 -->
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -144,7 +144,7 @@
             </a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 注册客户端弹窗 -->
       <FullScreenDetail
@@ -196,7 +196,7 @@ import {
   StopOutlined,
   SyncOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { printingApi, type PrintClientVO } from '@/api/printing'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'

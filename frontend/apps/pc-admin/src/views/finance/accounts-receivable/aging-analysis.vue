@@ -84,7 +84,7 @@
     <!-- 账龄明细表 -->
     <div class="table-area">
       <a-card title="账龄明细">
-        <VxeTableList
+        <BillTableList
           ref="tableRef"
           :columns="vxeColumns"
           :data-source="tableData"
@@ -122,7 +122,7 @@
               {{ record.agingDays }}天
             </a-tag>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </a-card>
     </div>
   </div>
@@ -132,7 +132,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { ClockCircleOutlined, WarningOutlined, ExclamationCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import * as echarts from 'echarts'
 import request from '@/utils/request'
 

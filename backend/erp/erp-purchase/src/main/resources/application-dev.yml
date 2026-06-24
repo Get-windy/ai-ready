@@ -1,13 +1,13 @@
 # 开发环境配置
 spring:
-  datasource:
-    # 默认PostgreSQL, 可选MySQL: jdbc:mysql://localhost:3306/erp_purchase_dev?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    url: jdbc:postgresql://localhost:5432/erp_purchase_dev
-    username: purchase_dev
-    password: DevPassword123!
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 3
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/erp_purchase_dev
+  #   username: purchase_dev
+  #   password: DevPassword123!
+  #   hikari:
+  #     maximum-pool-size: 10
+  #     minimum-idle: 3
   
   redis:
     host: localhost

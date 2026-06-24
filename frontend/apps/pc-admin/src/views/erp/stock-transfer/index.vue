@@ -78,7 +78,7 @@
       </a-col>
     </a-row>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -187,7 +187,7 @@
           </a-dropdown>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 详情抽屉 -->
     <a-drawer
@@ -383,7 +383,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { message, Modal } from 'ant-design-vue'
 import request from '@/utils/request'

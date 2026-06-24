@@ -27,7 +27,7 @@
       </div>
     </template>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -77,7 +77,7 @@
           </span>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 驳回原因弹窗 -->
     <a-modal
@@ -104,7 +104,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { shopUserApi, type ShopUser } from '@/api/erp/mall'
 
 const loading = ref(false)

@@ -85,7 +85,7 @@
         </a-button>
       </template>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tiers"
@@ -136,7 +136,7 @@
             </a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -201,7 +201,7 @@ import { PlusOutlined, DatabaseOutlined, CheckCircleOutlined, StopOutlined, Sett
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { requiredRule, requiredSelectRule } from '@/utils/formRules'

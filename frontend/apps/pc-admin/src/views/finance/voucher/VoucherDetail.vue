@@ -91,7 +91,7 @@
 
     <!-- 分录明细 Tab -->
     <template #tab-entries>
-      <VxeTableList
+      <BillTableList
         :columns="entryVxeColumns"
         :data-source="voucher?.entries || []"
         :pagination="false as any"
@@ -108,7 +108,7 @@
         <template #creditAmountCell="{ record }">
           {{ formatAmount(record.creditAmount) }}
         </template>
-      </VxeTableList>
+      </BillTableList>
       <div v-if="voucher" class="voucher-summary">
         <span class="voucher-summary-label">合计：</span>
         <span>借方：<strong>{{ formatAmount(voucher?.debitTotal) }}</strong></span>
@@ -143,7 +143,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { voucherApi } from '@/api/finance'
 
 const debounceMap = new Map<string, number>()

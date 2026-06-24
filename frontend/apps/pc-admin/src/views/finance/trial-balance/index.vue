@@ -92,7 +92,7 @@
         style="margin-bottom: 16px"
       />
 
-      <VxeTableList
+      <BillTableList
         :min-empty-rows="12"
         :columns="vxeColumns"
         :data-source="tableData"
@@ -125,7 +125,7 @@
             {{ record.subjectCode }} {{ record.subjectName }}
           </span>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
     </div>
   </PageContainer>
@@ -137,7 +137,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { message } from 'ant-design-vue'
 import { AuditOutlined, SearchOutlined, ExportOutlined, CalendarOutlined, LineChartOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'

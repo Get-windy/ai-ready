@@ -77,14 +77,14 @@
       <a-card class="report-tabs-card">
         <a-tabs v-model:activeKey="activeTab">
           <a-tab-pane key="summary" tab="折旧汇总">
-            <VxeTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+            <BillTableList :columns="depreciationVxeColumns" :data-source="monthlyData" :loading="loading" row-key="period" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!loading" class="tab-empty-icon" />
                   <p v-if="!loading" class="tab-empty-text">暂无折旧汇总数据</p>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-tab-pane>
 
           <a-tab-pane key="ledger" tab="资产台账">
@@ -99,7 +99,7 @@
                 <a-button type="primary" @click="fetchLedger" v-permission="'erp:fixed-asset:report:query'">查询</a-button>
               </a-form-item>
             </a-form>
-            <VxeTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 } as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
+            <BillTableList :columns="ledgerVxeColumns" :data-source="ledgerData" :loading="ledgerLoading" row-key="assetCode" :pagination="{ pageSize: 10 } as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false" />
           </a-tab-pane>
 
           <a-tab-pane key="age" tab="账龄分析">
@@ -111,14 +111,14 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="账龄明细">
-                  <VxeTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+                  <BillTableList :columns="ageVxeColumns" :data-source="ageData" :loading="ageLoading" row-key="label" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!ageLoading" class="tab-empty-icon" />
                   <p v-if="!ageLoading" class="tab-empty-text">暂无账龄数据</p>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
                 </a-card>
               </a-col>
             </a-row>
@@ -133,14 +133,14 @@
               </a-col>
               <a-col :span="12">
                 <a-card title="分类明细">
-                  <VxeTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+                  <BillTableList :columns="categoryVxeColumns" :data-source="categoryData" :loading="categoryLoading" row-key="categoryId" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
               <template #empty>
                 <div class="tab-empty">
                   <InboxOutlined v-if="!categoryLoading" class="tab-empty-icon" />
                   <p v-if="!categoryLoading" class="tab-empty-text">暂无分类汇总数据</p>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
                 </a-card>
               </a-col>
             </a-row>
@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { reportApi } from '@/api/fixed-asset'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'

@@ -28,7 +28,7 @@
       </div>
     </template>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -79,7 +79,7 @@
           <a-button v-permission="'erp:mall:banner:delete'" type="link" size="small" danger @click="handleDelete(record)">删除</a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 轮播图表单弹窗 -->
     <FullScreenDetail
@@ -147,7 +147,7 @@ import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { shopBannerApi, type ShopBanner } from '@/api/erp/mall'

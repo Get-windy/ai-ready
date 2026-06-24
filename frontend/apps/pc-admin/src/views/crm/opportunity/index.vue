@@ -197,7 +197,7 @@
 
       <!-- 列表视图 -->
       <template v-if="activeTab === 'list'">
-        <VxeTableList
+        <BillTableList
           ref="tableRef"
           :columns="vxeColumns"
           :data-source="tableDataSource"
@@ -282,7 +282,7 @@
               </a-dropdown>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </template>
 
       <!-- 统计分析 -->
@@ -300,14 +300,14 @@
           </a-col>
         </a-row>
         <a-card title="阶段详情统计" size="small" style="margin-top: 16px">
-          <VxeTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList :columns="stageStatsVxeColumns" :data-source="stageStatsData" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #amountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.amount) }}</span>
             </template>
             <template #avgAmountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.avgAmount) }}</span>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-card>
       </template>
       </template>
@@ -451,14 +451,14 @@
           </a-timeline>
 
           <a-divider>关联报价单</a-divider>
-          <VxeTableList :columns="quotationVxeColumns" :data-source="detailData.quotations" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList :columns="quotationVxeColumns" :data-source="detailData.quotations" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #totalAmountCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
             </template>
             <template #statusCell="{ record }">
               <a-tag :color="getQuotationStatusColor(record.status)">{{ record.statusLabel }}</a-tag>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </template>
       </a-spin>
     </a-drawer>
@@ -487,7 +487,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -1296,7 +1296,7 @@ defineExpose({ handleQuery: fetchData })
   padding: 0 4px;
 }
 
-/* 让 VxeTableList 填满剩余空间 */
+/* 让 BillTableList 填满剩余空间 */
 .vxe-table-list-wrapper {
   flex: 1;
   min-height: 0;

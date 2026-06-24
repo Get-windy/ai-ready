@@ -3,14 +3,14 @@ server:
   port: 8081
 
 spring:
-  datasource:
-    # 默认PostgreSQL, 可选MySQL: jdbc:mysql://test-mysql:3306/erp_purchase_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&allowPublicKeyRetrieval=true
-    url: jdbc:postgresql://test-postgres:5432/erp_purchase_test
-    username: purchase_test
-    password: ${TEST_DB_PASSWORD}
-    hikari:
-      maximum-pool-size: 15
-      minimum-idle: 5
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   url: jdbc:postgresql://test-postgres:5432/erp_purchase_test
+  #   username: purchase_test
+  #   password: ${TEST_DB_PASSWORD}
+  #   hikari:
+  #     maximum-pool-size: 15
+  #     minimum-idle: 5
   
   redis:
     host: test-redis

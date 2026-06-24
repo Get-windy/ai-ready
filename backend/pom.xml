@@ -14,7 +14,7 @@
     
     <groupId>cn.aiedge</groupId>
     <artifactId>ai-ready-backend</artifactId>
-    <version>0.3.3</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>ERP Parent Project</name>
     <description>ERP System Parent Project with unified dependency management</description>
@@ -35,11 +35,17 @@
         <!-- DMS Module -->
         <module>dms</module>
 
+        <!-- HR Module -->
+        <module>hr</module>
+
         <!-- Tests -->
         <module>tests</module>
     </modules>
     
     <properties>
+        <!-- 项目版本号，统一管理，所有子模块通过 ${revision} 引用 -->
+        <revision>0.3.4</revision>
+
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -378,6 +384,7 @@
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
+                        <encoding>UTF-8</encoding>
                         <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
@@ -408,6 +415,28 @@
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
                 <executions/>
+            </plugin>
+            <!-- flatten-maven-plugin: 将 ${revision} 替换为实际版本号，确保 install/deploy 的 POM 正确 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>flatten</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals><goal>clean</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

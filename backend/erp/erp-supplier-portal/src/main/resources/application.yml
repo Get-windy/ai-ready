@@ -3,19 +3,18 @@ spring:
   application:
     name: erp-supplier-portal
   
-  # 数据源配置 (默认PostgreSQL, 可选MySQL)
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    # 可选MySQL: jdbc:mysql://localhost:3306/erp_supplier?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    url: jdbc:postgresql://localhost:5432/erp_supplier
-    username: root
-    password: root123456
-    hikari:
-      connection-timeout: 30000
-      maximum-pool-size: 20
-      minimum-idle: 5
-      idle-timeout: 600000
-      max-lifetime: 1800000
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:postgresql://localhost:5432/erp_supplier
+  #   username: root
+  #   password: root123456
+  #   hikari:
+  #     connection-timeout: 30000
+  #     maximum-pool-size: 20
+  #     minimum-idle: 5
+  #     idle-timeout: 600000
+  #     max-lifetime: 1800000
   
   # JPA配置
   jpa:
@@ -301,9 +300,9 @@ spring:
   config:
     activate:
       on-profile: dev
-  datasource:
-    # 可选MySQL: jdbc:mysql://localhost:3306/erp_supplier_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    url: jdbc:postgresql://localhost:5432/erp_supplier_dev
+  # [数据源已统一到 core-api 主模块管理]
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/erp_supplier_dev
   redis:
     host: localhost
     port: 6379
@@ -318,11 +317,11 @@ spring:
   config:
     activate:
       on-profile: test
-  datasource:
-    # 可选MySQL: jdbc:mysql://test-db:3306/erp_supplier_test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    url: jdbc:postgresql://test-postgres:5432/erp_supplier_test
-    username: test_user
-    password: test_password
+  # [数据源已统一到 core-api 主模块管理]
+  # datasource:
+  #   url: jdbc:postgresql://test-postgres:5432/erp_supplier_test
+  #   username: test_user
+  #   password: test_password
   redis:
     host: test-redis
     port: 6379
@@ -336,14 +335,14 @@ spring:
   config:
     activate:
       on-profile: prod
-  datasource:
-    # 可选MySQL: jdbc:mysql://prod-db-cluster:3306/erp_supplier?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-    url: jdbc:postgresql://prod-postgres-cluster:5432/erp_supplier
-    username: ${DB_USERNAME:prod_user}
-    password: ${DB_PASSWORD:prod_password}
-    hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
+  # [数据源已统一到 core-api 主模块管理]
+  # datasource:
+  #   url: jdbc:postgresql://prod-postgres-cluster:5432/erp_supplier
+  #   username: ${DB_USERNAME:prod_user}
+  #   password: ${DB_PASSWORD:prod_password}
+  #   hikari:
+  #     maximum-pool-size: 50
+  #     minimum-idle: 10
   redis:
     host: ${REDIS_HOST:prod-redis}
     port: ${REDIS_PORT:6379}

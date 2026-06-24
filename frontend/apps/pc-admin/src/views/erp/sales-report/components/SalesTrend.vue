@@ -126,7 +126,7 @@
     <!-- 趋势明细表格 -->
     <a-card title="趋势明细" size="small" style="margin-top: 16px">
       <div class="table-container">
-        <VxeTableList
+        <BillTableList
           :columns="trendVxeColumns"
           :data-source="trendData"
           :loading="loading"
@@ -152,7 +152,7 @@
               {{ Math.abs(record.growth) }}%
             </span>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </a-card>
   </div>
@@ -169,7 +169,7 @@ import {
   DollarOutlined,
   LineChartOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { salesReportApi } from '@/api/sales-report'
 
 // ── 防抖工具 ──────────────────────────────────────────

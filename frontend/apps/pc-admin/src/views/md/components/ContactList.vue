@@ -5,38 +5,38 @@
     </div>
 
     <!-- 常用联系人（首行） -->
-    <div class="contact-block" v-if="rows.length > 0">
+    <div class="contact-block" v-if="firstRow">
       <div class="contact-block-label">
         <span class="contact-label-text">常用联系人</span>
-        <a-tag v-if="rows[0].isDefault" color="red" style="margin-left:6px;font-size:11px">默认</a-tag>
+        <a-tag v-if="firstRow.isDefault" color="red" style="margin-left:6px;font-size:11px">默认</a-tag>
         <template v-if="showMallAccount">
           <a-checkbox
-            :checked="!!rows[0].openMallAccount"
-            @update:checked="(checked) => rows[0].openMallAccount = checked ? 1 : 0"
+            :checked="!!firstRow.openMallAccount"
+            @update:checked="(checked) => firstRow.openMallAccount = checked ? 1 : 0"
             style="margin-left: 12px; font-size: 13px; font-weight: 400; color: #8c8c8c">
             开通商城帐号
           </a-checkbox>
         </template>
       </div>
       <div class="contact-fields">
-        <input class="c-input" v-model="rows[0].contactName" placeholder="联系人*" />
-        <input class="c-input" v-model="rows[0].contactPhone" placeholder="手机*" />
-        <input class="c-input" v-model="rows[0].contactEmail" placeholder="邮箱" />
-        <input class="c-input" v-model="rows[0].position" placeholder="职位" />
-        <input class="c-input" v-model="rows[0].department" placeholder="部门" />
+        <input class="c-input" v-model="firstRow.contactName" placeholder="联系人*" />
+        <input class="c-input" v-model="firstRow.contactPhone" placeholder="手机*" />
+        <input class="c-input" v-model="firstRow.contactEmail" placeholder="邮箱" />
+        <input class="c-input" v-model="firstRow.position" placeholder="职位" />
+        <input class="c-input" v-model="firstRow.department" placeholder="部门" />
       </div>
       <div class="contact-fields" style="margin-top:6px">
-        <input class="c-input" v-model="rows[0].region" placeholder="所在地区" />
-        <input class="c-input c-input-wide" v-model="rows[0].detailAddress" placeholder="详情地址" />
+        <input class="c-input" v-model="firstRow.region" placeholder="所在地区" />
+        <input class="c-input c-input-wide" v-model="firstRow.detailAddress" placeholder="详情地址" />
         <a-button size="small" class="c-locate-btn">设置定位</a-button>
         <template v-if="showMallAccount">
-          <a-select v-model:value="rows[0].deliveryMethod" placeholder="配送方式" size="small" class="c-select" allow-clear>
+          <a-select v-model:value="firstRow.deliveryMethod" placeholder="配送方式" size="small" class="c-select" allow-clear>
             <a-select-option value="EXPRESS">快递</a-select-option>
             <a-select-option value="SELF_PICKUP">自提</a-select-option>
             <a-select-option value="DELIVERY">配送</a-select-option>
             <a-select-option value="LOGISTICS">物流</a-select-option>
           </a-select>
-          <input class="c-input" v-model="rows[0].deliveryRoute" placeholder="配送线路" style="min-width:80px;flex:0.3" />
+          <input class="c-input" v-model="firstRow.deliveryRoute" placeholder="配送线路" style="min-width:80px;flex:0.3" />
         </template>
       </div>
     </div>
@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import type { PartnerContact } from '@/api/erp/partner'
+import type { PartyContact } from '@/api/erp/partner'
 
 export interface ContactRowData extends PartyContact {
   _uid: number
@@ -98,7 +98,11 @@ export interface ContactRowData extends PartyContact {
   detailAddress?: string
   deliveryMethod?: string
   deliveryRoute?: string
-  openMallAccount?: number | boolean
+  openMallAccount?: number
+  // 扩展字段（兼容旧数据）
+  isDefault?: number
+  contactPhone?: string
+  contactEmail?: string
 }
 
 const props = defineProps<{
@@ -177,6 +181,9 @@ watch(() => props.contacts, (val) => {
 }, { deep: true })
 
 const otherRows = computed(() => rows.value.slice(1))
+
+// 首行联系人（常用联系人）
+const firstRow = computed(() => rows.value.length > 0 ? rows.value[0] : null)
 
 function addContact() {
   rows.value.push({

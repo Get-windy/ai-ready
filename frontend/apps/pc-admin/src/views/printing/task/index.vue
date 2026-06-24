@@ -89,7 +89,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -185,7 +185,7 @@
             </a-button>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 任务详情弹窗 -->
       <a-modal
@@ -311,7 +311,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { printingApi, type PrintTaskVO, type PrintTaskQuery, type PrintExecuteRequest, type PrintChainVO } from '@/api/printing'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -420,7 +420,7 @@ const vxeColumns = computed(() => [
   { type: 'action', title: '操作', width: 220, fixed: 'right' }
 ])
 
-// 筛选字段（用于 VxeTableList 内置面板）
+// 筛选字段（用于 BillTableList 内置面板）
 const filterFields = computed<FilterField[]>(() => [
   { key: 'pageCode', label: '页面编码', type: 'input', placeholder: '请输入页面编码' },
   { key: 'documentType', label: '单据类型', type: 'input', placeholder: '请输入单据类型' },

@@ -1,10 +1,12 @@
 package cn.aiedge.base.config;
 
+import cn.aiedge.base.interceptor.DataScopeInterceptor;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
+import com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
@@ -21,7 +23,7 @@ import java.util.Set;
 
 /**
  * MyBatis-Plus 配置类
- * 包含全局租户隔离拦截器和分页插件
+ * 包含全局租户隔离拦截器、数据权限拦截器和分页插件
  */
 @Configuration
 public class MyBatisPlusConfig {
@@ -38,7 +40,9 @@ public class MyBatisPlusConfig {
         "sys_user_tenant",        // 用户租户关联表（登录时需要无租户过滤查询）
         "sys_user",               // 用户表（登录时需要无租户过滤查询）
         "sys_login_log",          // 登录日志表
-        "flyway_schema_history"   // Flyway迁移历史表
+        "flyway_schema_history",  // Flyway迁移历史表
+        "sys_print_chain_item",   // 打印链路项（无tenant_id列）
+        "sys_screenshot_task"     // 截图任务（无tenant_id列）
     ));
 
     /** 临时租户ID（ThreadLocal）- 用于登录等未认证场景 */
@@ -83,7 +87,7 @@ public class MyBatisPlusConfig {
     }
 
     /**
-     * 分页插件 + 租户隔离插件
+     * 分页插件 + 租户隔离插件 + 数据权限插件
      */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
@@ -126,6 +130,9 @@ public class MyBatisPlusConfig {
                     .anyMatch(col -> tenantIdColumn.equalsIgnoreCase(col.getColumnName()));
             }
         }));
+
+        // 数据权限插件 — 根据 @DataScope 注解注入行级权限条件
+        interceptor.addInnerInterceptor(new DataScopeInterceptor());
 
         return interceptor;
     }

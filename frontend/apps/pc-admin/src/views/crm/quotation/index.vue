@@ -90,7 +90,7 @@
         </a-row>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -196,7 +196,7 @@
           <template #statusCell="{ record }">
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
-      </VxeTableList>
+      </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -262,7 +262,7 @@
         </a-row>
 
         <a-divider>报价明细</a-divider>
-        <VxeTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+        <BillTableList :columns="itemVxeColumns" :data-source="formData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
           <template #productNameCell="{ record }">
             <a-input v-model:value="record.productName" placeholder="产品名称" size="small" />
           </template>
@@ -287,7 +287,7 @@
           <template #action="{ index }">
             <a @click="removeItem(index)" v-if="formData.items.length > 1" class="delete-link">删除</a>
           </template>
-        </VxeTableList>
+        </BillTableList>
         <a-button type="dashed" block @click="addItem" style="margin-top: 16px">
           <template #icon><PlusOutlined /></template>
           添加产品
@@ -360,14 +360,14 @@
           </a-descriptions>
 
           <a-divider>报价明细</a-divider>
-          <VxeTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList :columns="detailItemVxeColumns" :data-source="detailData.items" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #subtotalCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.subtotal) }}</span>
             </template>
             <template #priceCell="{ record }">
               <span class="amount-cell">¥{{ formatAmount(record.price) }}</span>
             </template>
-          </VxeTableList>
+          </BillTableList>
 
           <div class="detail-footer">
             <a-space>
@@ -387,7 +387,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -1075,7 +1075,7 @@ defineExpose({ handleQuery: fetchData })
   border-top: 1px solid #f0f0f0;
 }
 
-/* 让 VxeTableList 填满剩余空间 */
+/* 让 BillTableList 填满剩余空间 */
 .vxe-table-list-wrapper {
   flex: 1;
   min-height: 0;

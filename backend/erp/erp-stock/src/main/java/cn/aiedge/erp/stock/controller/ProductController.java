@@ -48,9 +48,16 @@ public class ProductController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String industryCategory,
+            @RequestParam(required = false) String createTimeStart,
+            @RequestParam(required = false) String createTimeEnd,
+            @RequestParam(required = false) Integer useCoupon,
+            @RequestParam(required = false) Integer isStandardProduct,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize) {
-        return Result.ok(productService.getProductPage(categoryId, keyword, status, pageNum, pageSize));
+        return Result.ok(productService.getProductPage(categoryId, keyword, status, brand, industryCategory,
+                createTimeStart, createTimeEnd, useCoupon, isStandardProduct, pageNum, pageSize));
     }
 
     @Operation(summary = "获取产品详情(含等级价格)")

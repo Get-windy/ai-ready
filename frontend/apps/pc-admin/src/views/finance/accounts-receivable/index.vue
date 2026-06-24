@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :min-empty-rows="12"
         :columns="columns"
@@ -159,7 +159,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 详情弹窗 -->
       <FullScreenDetail
@@ -199,7 +199,7 @@
         <!-- 收款记录 -->
         <div class="detail-payment-section">
           <div class="detail-payment-title">收款记录</div>
-          <VxeTableList
+          <BillTableList
             :columns="paymentColumns"
             :data-source="paymentRecords"
             :pagination="false as any"
@@ -214,7 +214,7 @@
             <template #amountCell="{ record }">
               <span class="amount-cell success">¥{{ formatAmount(record.amount) }}</span>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </div>
 
         <div style="margin-top:16px;text-align:right;display:flex;justify-content:flex-end;gap:8px">
@@ -328,7 +328,7 @@ import {
   EllipsisOutlined, CheckCircleOutlined, ExclamationCircleOutlined, WarningOutlined,
   FileTextOutlined, ReloadOutlined, SyncOutlined, HistoryOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { receivableV1Api } from '@/api/finance/receivable'

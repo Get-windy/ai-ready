@@ -94,7 +94,7 @@
 
       <!-- 表格模式 -->
       <div v-else class="table-container">
-        <VxeTableList
+        <BillTableList
           :columns="vxeColumns"
           :data-source="dataSource"
           :loading="loading"
@@ -130,7 +130,7 @@
               :format="(p: number) => `${p}%`"
             />
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </a-card>
   </div>
@@ -139,7 +139,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import * as echarts from 'echarts'
 import { ExportOutlined } from '@ant-design/icons-vue'
 import { salesReportApi, type ProductRankItem } from '@/api/sales-report'

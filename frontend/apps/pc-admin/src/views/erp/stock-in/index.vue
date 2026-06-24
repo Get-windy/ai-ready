@@ -102,7 +102,7 @@
       </div>
 
       <!-- 数据表格 -->
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableData"
@@ -145,7 +145,7 @@
             />
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <!-- 详情弹窗 -->
@@ -362,7 +362,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import request from '@/utils/request'
 import { INBOUND_STATUS } from '@/utils/statusConfig'

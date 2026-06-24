@@ -85,7 +85,7 @@
         </a-row>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -184,7 +184,7 @@
           <template #statusCell="{ record }">
             <a-tag :color="getStatusColor(record.status)">{{ getStatusText(record.status) }}</a-tag>
           </template>
-      </VxeTableList>
+      </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -356,7 +356,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -1001,7 +1001,7 @@ defineExpose({ handleQuery: fetchData })
 
 
 
-/* 让 VxeTableList 填满剩余空间 */
+/* 让 BillTableList 填满剩余空间 */
 .vxe-table-list-wrapper {
   flex: 1;
   min-height: 0;

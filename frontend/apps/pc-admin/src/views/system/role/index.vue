@@ -55,7 +55,7 @@
 
       <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableDataSource"
@@ -114,7 +114,7 @@
           <a-button type="link" size="small" danger v-permission="'system:role:delete'" @click="handleDeleteConfirm(record)">删除</a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 角色表单弹窗 -->
     <FullScreenDetail :visible="modalVisible" :title="modalTitle" :dirty="formDirty" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
@@ -201,7 +201,7 @@ import { roleBillTypeApi, type BillTypeDetail } from '@/api/roleBillType'
 import { dictItemApi } from '@/api/dict'
 import { useSubmitLock } from '@/composables'
 import { useUserStore } from '@/stores/user'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 

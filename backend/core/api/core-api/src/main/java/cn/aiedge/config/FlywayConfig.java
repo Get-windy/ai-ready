@@ -14,6 +14,8 @@ public class FlywayConfig {
     @Bean
     public FlywayMigrationStrategy flywayMigrationStrategy() {
         return flyway -> {
+            // 先修复checksum不匹配和缺失的记录
+            flyway.repair();
             // 执行迁移，如果失败则抛出异常阻止应用启动
             flyway.migrate();
         };

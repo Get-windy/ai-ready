@@ -1,8 +1,17 @@
 <template>
   <div class="bill-detail-table" :class="{ 'table-expanded': expanded }">
+    <!-- Loading 遮罩 -->
+    <div v-if="loading" class="table-loading-mask">
+      <span class="loading-spinner"></span>
+      <span>加载中...</span>
+    </div>
     <!-- 表格容器 -->
-    <div class="spreadsheet-table" ref="tableContainerRef" :style="{ maxHeight: expanded ? 'none' : maxHeight + 'px' }">
-      <table class="ss-grid">
+    <div class="spreadsheet-table" ref="tableContainerRef" :style="spreadsheetTableStyle">
+      <!-- 空数据提示（没有 minRows 时才显示） -->
+      <div v-if="!loading && dataSource.length === 0 && !minRows" class="table-empty-text">
+        暂无数据
+      </div>
+      <table v-else class="ss-grid">
         <thead>
           <tr>
             <th
@@ -17,6 +26,15 @@
                   <SettingOutlined />
                 </span>
               </template>
+              <!-- ═══ checkbox 列：全选复选框 ═══ -->
+              <template v-else-if="col.type === 'checkbox'">
+                <input
+                  type="checkbox"
+                  class="ss-checkbox ss-checkbox-header"
+                  :checked="checkedRows.size === realDataCount && realDataCount > 0"
+                  @change="(e) => checkAll((e.target as HTMLInputElement).checked)"
+                />
+              </template>
               <!-- ═══ 商品名称列：内嵌扫描枪开关 ═══ -->
               <template v-else-if="col.showScanToggle">
                 <span class="th-title">{{ col.title }}</span>
@@ -24,31 +42,78 @@
                   <span class="th-scan-label">扫描枪录入</span>
                 </a-tooltip>
                 <a-switch v-model:checked="scanEnabled" size="small" class="th-scan-switch" />
-                <span class="th-sort-icon" title="排序">UpDownArrow</span>
+                <span
+                  v-if="col.sortable"
+                  class="th-sort-icon"
+                  :class="getSortIconClass(col)"
+                  @click="toggleSort(col)"
+                  :title="col.tooltip || '点击排序'"
+                >
+                  <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
+                  <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
+                  <span v-else class="sort-neutral"><CaretUpOutlined /><CaretDownOutlined /></span>
+                </span>
               </template>
               <!-- ═══ 普通列标题 ═══ -->
               <template v-else>
                 <span class="th-title">{{ col.title }}</span>
-                <span v-if="col.type !== 'action'" class="th-sort-icon" title="排序">UpDownArrow</span>
+                <span
+                  v-if="col.sortable"
+                  class="th-sort-icon"
+                  :class="getSortIconClass(col)"
+                  @click="toggleSort(col)"
+                  :title="col.tooltip || '点击排序'"
+                >
+                  <CaretUpOutlined v-if="sortState.key === col.key && sortState.order === 'asc'" />
+                  <CaretDownOutlined v-else-if="sortState.key === col.key && sortState.order === 'desc'" />
+                  <span v-else class="sort-neutral"><CaretUpOutlined /><CaretDownOutlined /></span>
+                </span>
               </template>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(record, rowIndex) in props.dataSource" :key="record.id || rowIndex" class="ss-row">
+          <tr v-for="(record, rowIndex) in displayRows" :key="record.id || rowIndex" class="ss-row" :class="{ 'ss-empty-row': record._isEmptyRow }">
             <td
               v-for="col in visibleColumns"
               :key="col.key"
               :class="getCellClass(col)"
               :style="{ width: col.width ? col.width + 'px' : 'auto' }"
             >
+              <!-- 空行 -->
+              <template v-if="record._isEmptyRow">
+                <span class="ss-empty-cell"></span>
+              </template>
               <!-- 行号 -->
-              <template v-if="col.type === 'rowNo'">
+              <template v-else-if="col.type === 'rowNo'">
                 <span class="ss-row-no">{{ rowIndex + 1 }}</span>
+              </template>
+              <!-- 复选框列 -->
+              <template v-else-if="col.type === 'checkbox'">
+                <input
+                  type="checkbox"
+                  class="ss-checkbox"
+                  :checked="isChecked(record, rowIndex)"
+                  @change="(e) => handleCheckboxChange(record, rowIndex, (e.target as HTMLInputElement).checked)"
+                />
               </template>
               <!-- 操作列 -->
               <template v-else-if="col.type === 'action'">
                 <slot :name="col.slotName || 'actionCell'" :record="record" :index="rowIndex" :empty="false" />
+              </template>
+              <!-- 按钮列 -->
+              <template v-else-if="col.type === 'button'">
+                <div class="ss-button-cell">
+                  <template v-for="(btn, bi) in col.buttons" :key="bi">
+                    <a-button
+                      :type="btn.type || 'link'"
+                      size="small"
+                      @click="btn.onClick?.(record, rowIndex)"
+                    >
+                      {{ btn.label }}
+                    </a-button>
+                  </template>
+                </div>
               </template>
               <!-- 自定义插槽列 -->
               <template v-else-if="col.type === 'slot'">
@@ -196,7 +261,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick } from 'vue'
-import { SettingOutlined, FullscreenOutlined } from '@ant-design/icons-vue'
+import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons-vue'
 import { Modal, Button, Checkbox, Select, InputNumber } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
@@ -210,20 +275,32 @@ const props = withDefaults(defineProps<{
   dataSource: any[]
   /** 是否查看模式 */
   viewMode?: boolean
-  /** 表格最大高度 */
+  /** 表格最大高度（0=不限制，由 flex 父容器驱动高度；>0 时用 inline style 限制） */
   maxHeight?: number
   /** 合计列定义 */
   summaryColumns?: { key: string; value: number; highlight?: boolean }[]
+  /** 是否加载中 */
+  loading?: boolean
+  /** 最小显示行数（不足时用空行填充） */
+  minRows?: number
 }>(), {
   viewMode: false,
-  maxHeight: 400,
+  maxHeight: 0,
   summaryColumns: () => [],
+  loading: false,
+  minRows: 20,
 })
 
 const emit = defineEmits<{
   'cellChange': [record: any, fieldKey: string, value: any]
   /** 展开/收起状态变化 */
   'expand-change': [expanded: boolean]
+  /** 复选框变化 */
+  'checkbox-change': [record: any, rowIndex: number, checked: boolean]
+  /** 全选/取消全选 */
+  'checkbox-all': [checked: boolean, records: any[]]
+  /** 排序变化 */
+  'sort-change': [key: string | null, order: 'asc' | 'desc' | null]
 }>()
 
 // ═══ 状态 ═══
@@ -233,7 +310,142 @@ const scanEnabled = ref(false)
 const tableContainerRef = ref<HTMLElement>()
 const colPanelRef = ref<HTMLElement>()
 
+// 排序状态
+const sortState = reactive<{
+  key: string | null
+  order: 'asc' | 'desc' | null
+}>({
+  key: null,
+  order: null,
+})
+
+// 复选框状态
+const checkedRows = ref<Set<number>>(new Set())
+const checkedRecords = ref<any[]>([])
+
 const isViewMode = computed(() => props.viewMode)
+
+/** 表格容器样式
+ * ⚠️ maxHeight 默认不应用（maxHeight prop 默认值 = 0），
+ *    高度完全由 flex 链驱动。如果外部传入 maxHeight > 0，
+ *    会用 inline style 限制高度，此时 flex 和 maxHeight 取小值，
+ *    可能导致 .spreadsheet-table 下方出现空白区域。
+ *    推荐：在 flex 布局中不要传 maxHeight，让组件自适应。
+ */
+const spreadsheetTableStyle = computed(() => {
+  if (expanded.value) return { maxHeight: '70vh' }
+  if (props.maxHeight > 0) return { maxHeight: props.maxHeight + 'px' }
+  return {}
+})
+
+// ═══ 数据行（带空行填充和排序） ═══
+const displayRows = computed(() => {
+  let data = [...props.dataSource]
+
+  // 应用排序
+  if (sortState.key && sortState.order) {
+    const col = props.columns.find(c => c.key === sortState.key)
+    if (col?.sorter) {
+      data.sort(col.sorter)
+    } else {
+      // 默认排序逻辑
+      data.sort((a, b) => {
+        const valA = a[sortState.key!]
+        const valB = b[sortState.key!]
+        if (valA == null && valB == null) return 0
+        if (valA == null) return 1
+        if (valB == null) return -1
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return valA - valB
+        }
+        return String(valA).localeCompare(String(valB))
+      })
+    }
+    if (sortState.order === 'desc') {
+      data.reverse()
+    }
+  }
+
+  // 空行填充
+  const minRows = props.minRows || 0
+  if (data.length < minRows) {
+    for (let i = data.length; i < minRows; i++) {
+      data.push({ _isEmptyRow: true, id: `empty-${i}` })
+    }
+  }
+  return data
+})
+
+// 真实数据行数（排除空行）
+const realDataCount = computed(() => props.dataSource.length)
+
+// ═══ 排序功能 ═══
+function toggleSort(col: DetailColumnConfig) {
+  if (!col.sortable) return
+
+  if (sortState.key === col.key) {
+    // 循环切换排序状态：null -> asc -> desc -> null
+    if (sortState.order === 'asc') {
+      sortState.order = 'desc'
+    } else if (sortState.order === 'desc') {
+      sortState.key = null
+      sortState.order = null
+    } else {
+      sortState.order = 'asc'
+    }
+  } else {
+    sortState.key = col.key
+    sortState.order = 'asc'
+  }
+
+  emit('sort-change', sortState.key, sortState.order)
+}
+
+function getSortIconClass(col: DetailColumnConfig) {
+  if (sortState.key !== col.key) return 'sort-none'
+  return sortState.order === 'asc' ? 'sort-asc' : 'sort-desc'
+}
+
+// ═══ 复选框方法 ═══
+function isChecked(record: any, rowIndex: number): boolean {
+  return checkedRows.value.has(rowIndex)
+}
+
+function handleCheckboxChange(record: any, rowIndex: number, checked: boolean) {
+  if (checked) {
+    checkedRows.value.add(rowIndex)
+    checkedRecords.value.push(record)
+  } else {
+    checkedRows.value.delete(rowIndex)
+    const idx = checkedRecords.value.indexOf(record)
+    if (idx > -1) {
+      checkedRecords.value.splice(idx, 1)
+    }
+  }
+  emit('checkbox-change', record, rowIndex, checked)
+}
+
+function checkAll(checked: boolean) {
+  checkedRows.value.clear()
+  checkedRecords.value = []
+  if (checked) {
+    // 只选择真实数据行，排除空行
+    props.dataSource.forEach((record, index) => {
+      checkedRows.value.add(index)
+      checkedRecords.value.push(record)
+    })
+  }
+  emit('checkbox-all', checked, [...checkedRecords.value])
+}
+
+function getCheckedRecords(): any[] {
+  return [...checkedRecords.value]
+}
+
+// 暴露方法给父组件
+defineExpose({
+  getCheckedRecords,
+})
 
 // ═══ 列设置（运行时） ═══
 const defaultSettings = computed<ColumnSetting[]>(() =>
@@ -336,7 +548,10 @@ function getCellClass(col: DetailColumnConfig) {
     'ss-fixed-left': col.fixed === 'left',
     'ss-fixed-right': col.fixed === 'right',
     'ss-cell-number': col.type === 'number',
-    'ss-cell-action': col.type === 'action',
+    'ss-cell-action': col.type === 'action' || col.type === 'button',
+    'ss-cell-checkbox': col.type === 'checkbox',
+    'ss-cell-center': col.align === 'center',
+    'ss-cell-right': col.align === 'right',
   }
 }
 
@@ -372,7 +587,19 @@ function updateCell(record: any, fieldKey: string, value: any) {
 /** 获取查看模式的显示值 */
 function getCellDisplayValue(col: DetailColumnConfig, record: any): string {
   const raw = record[col.key]
-  if (raw === undefined || raw === null || raw === '') return ''
+  if (raw === undefined || raw === null || raw === '') {
+    // 即使值为空，如果有 formatter 也调用它
+    if (col.formatter) {
+      return col.formatter(raw, record)
+    }
+    return ''
+  }
+
+  // 使用 formatter
+  if (col.formatter) {
+    return col.formatter(raw, record)
+  }
+
   if (col.type === 'select' && col.options) {
     const opt = col.options.find(o => String(o.value) === String(raw))
     return opt?.label || String(raw)
@@ -430,50 +657,149 @@ function onDrop(_index: number) {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
-/* ═ 表格容器 ═══ */
+/* ═══ Loading 遮罩 ═══ */
+.table-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 10;
+  font-size: 13px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ═══ 空数据提示 ═══ */
+.table-empty-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  color: #999;
+  font-size: 13px;
+}
+
+/* ═ 表格容器 ═══
+ * ⚠️ 父容器链必须满足以下条件，sticky 表头才能正常工作：
+ *   1. 每层都需要 overflow: hidden（ containment ）
+ *   2. 每层都需要 display: flex; flex-direction: column（让 flex: 1 生效）
+ *   3. 不要给 .spreadsheet-table 设置固定 maxHeight 内联样式，
+ *      否则会破坏 flex 高度分配，导致滚动极值时表头 1px 跳动。
+ *      maxHeight 只在展开模式（70vh）或外部显式传入 > 0 时才应用。
+ */
 .spreadsheet-table {
   flex: 1;
-  overflow: auto;
-  border: 1px solid #d9d9d9;
+  overflow: auto;          /* 唯一的滚动容器，sticky th 相对它定位 */
+  border: 1px solid #e8e8e8;
   border-bottom: none;
 }
 
+/* ⚠️ 必须用 separate，不能用 collapse！
+ * border-collapse: collapse + position: sticky 有两个严重问题：
+ *   1. 折叠边框在 thead/tbody 之间共享，吸顶时边框跟着 tbody 滚走，
+ *      表头和表体之间出现"分隔线消失"的视觉 bug。
+ *   2. 折叠边框居中于单元格边缘，导致 sticky top:0 的定位基准
+ *      与初始位置有 0.5px 偏移，滚动时表头出现 1px 跳动。
+ * separate + border-spacing: 0 完美避开这两个问题。
+ */
 .ss-grid {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ─── 表头 ── */
+.ss-grid thead {
+  background: #fafafa;
+}
+/* ⚠️ 边框策略：只画 right + bottom，不画 top + left。
+ * 原因：separate 模式下相邻单元格边框不折叠，如果四边都画会出现 2px 双线。
+ * 只画 right + bottom 可保证任意两格之间恰好 1px 线条：
+ *   - 左边的格子画 right，右边的格子不画 left → 合计 1px
+ *   - 上面的格子画 bottom，下面的格子不画 top → 合计 1px
+ * 外框由 .spreadsheet-table 容器的 border 提供（top/left/right），
+ * 底部由最后一行的 border-bottom 提供。
+ */
 .ss-grid th {
   background: #fafafa;
-  border: 1px solid #e8e8e8;
+  border-right: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;   /* th 的底边框 = 表头与表体的分隔线，吸顶时跟着 th 走 */
   padding: 0 6px;
   text-align: center;
   font-weight: 600;
   color: #262626;
-  font-size: 12px;
+  font-size: 13px;
   height: 32px;
   position: sticky;
-  top: 0;
-  z-index: 2;
+  top: 0;          /* ⚠️ 必须是 0，不能是 -1px！-1px 会导致滚动时表头跳动 1px */
+  z-index: 10;
   white-space: nowrap;
   vertical-align: middle;
   user-select: none;
 }
 
 .ss-grid td {
-  border: 1px solid #e8e8e8;
+  border-right: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
   padding: 0;
   height: 28px;
   vertical-align: middle;
 }
 
+/* 最后一列不画右边线，容器提供右边框 */
+.ss-grid th:last-child,
+.ss-grid td:last-child {
+  border-right: none;
+}
+
+/* 左对齐列：左侧 5px 间距 */
+.ss-grid td:not(.ss-cell-center):not(.ss-cell-right):not(.ss-cell-number):not(.ss-cell-action):not(.ss-cell-checkbox) {
+  padding-left: 5px;
+}
+
+/* 右对齐列（数字列 + 显式右对齐）：右侧 5px 间距 */
+.ss-grid td.ss-cell-number,
+.ss-grid td.ss-cell-right {
+  padding-right: 5px;
+}
+
 .ss-row:hover td {
   background: #f5f7fa;
+}
+
+/* 空行样式 */
+.ss-empty-row td {
+  background: #fafafa;
+}
+
+.ss-empty-cell {
+  display: block;
+  height: 28px;
 }
 
 .ss-row-no {
@@ -531,10 +857,41 @@ function onDrop(_index: number) {
   color: #bfbfbf;
   cursor: pointer;
   margin-left: 2px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
 .th-sort-icon:hover {
   color: #1890ff;
+}
+
+
+
+.sort-asc {
+  color: #1890ff;
+}
+
+.sort-desc {
+  color: #1890ff;
+}
+
+.sort-neutral {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 0.8;
+  font-size: 8px;
+  color: #bfbfbf;
+}
+.sort-neutral .anticon {
+  font-size: 9px;
+}
+
+.sort-order-badge {
+  font-size: 10px;
+  margin-left: 1px;
+  font-weight: bold;
 }
 
 /* ═══ 原生输入框样式（无嵌套感） ═══ */
@@ -544,7 +901,7 @@ function onDrop(_index: number) {
   border: none !important;
   outline: none !important;
   background: transparent !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   color: #262626;
   padding: 0 6px !important;
   box-sizing: border-box;
@@ -608,15 +965,50 @@ function onDrop(_index: number) {
 .ss-cell-text {
   display: block;
   padding: 0 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: #262626;
   line-height: 28px;
 }
 
-/* ═══ 合计行（tfoot） ═══ */
-/* ─── 操作列内容居中 ─── */
+/* ═══ 复选框样式 ═══ */
+.ss-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  margin: 0 auto;
+  display: block;
+}
+
+.ss-checkbox-header {
+  margin: 0 auto;
+}
+
+/* ═══ 按钮列样式 ═══ */
+.ss-button-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+}
+
+/* ─── 操作列内容居中 ── */
 .ss-grid td.ss-cell-action {
   text-align: center;
+}
+
+/* ─── 统一 Ant Design 按钮字体为 13px ─── */
+:deep(.ant-btn) {
+  font-size: 13px !important;
+}
+:deep(.ant-btn.ant-btn-sm) {
+  height: 24px;
+  padding: 0 6px;
+}
+:deep(.ant-btn.ant-btn-link) {
+  height: auto;
+  line-height: 1.4;
+  padding: 0 4px;
 }
 .ss-grid td.ss-cell-action :deep(.ant-space) {
   display: inline-flex;
@@ -624,13 +1016,15 @@ function onDrop(_index: number) {
   width: 100%;
 }
 
+/* ═══ 合计行（tfoot） ═══ */
 .ss-summary-tr td {
   background: #fafafa;
-  border: 1px solid #e8e8e8;
+  border-right: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
   padding: 0 6px;
   height: 30px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   vertical-align: middle;
 }
 
@@ -662,9 +1056,15 @@ function onDrop(_index: number) {
   font-size: 12px;
 }
 
-/* ═══ 展开模式：隐藏边框，全屏 ═══ */
+/* ═══ 展开模式：隐藏边框，可滚动 ═══ */
+.table-expanded {
+  overflow-y: auto;
+  min-height: auto;
+}
+
 .table-expanded .spreadsheet-table {
   border: none;
+  flex: none;
 }
 
 .table-expanded .detail-expand {

@@ -83,7 +83,7 @@
     </a-card>
 
     <a-card :bordered="false" class="table-card">
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="inquiries"
@@ -150,7 +150,7 @@
             </template>
           </div>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <a-modal
@@ -416,7 +416,7 @@ const handleBack = () => {
 </script>
 
 <style scoped>
-/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
 .page-content {
   flex: 1;
   display: flex;

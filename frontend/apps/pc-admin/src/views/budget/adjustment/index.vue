@@ -64,7 +64,7 @@
       <!-- 骨架屏 -->
       <a-skeleton v-if="loading && tableData.length === 0" active :paragraph="{ rows: 8 }" style="padding: 20px;" />
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -150,7 +150,7 @@
             </a-tooltip>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 全屏详情抽屉（新建/编辑） -->
       <FullScreenDetail
@@ -222,7 +222,7 @@ import {
   EyeOutlined, EditOutlined, EllipsisOutlined, CheckCircleOutlined, AuditOutlined, CloseCircleOutlined, SearchOutlined, InboxOutlined,
   FileOutlined, ClockCircleOutlined, DollarOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, DownloadOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { budgetAdjustmentApi, annualBudgetApi, type BudgetAdjustment } from '@/api/budget'

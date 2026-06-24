@@ -67,7 +67,7 @@
                 </a-button>
               </div>
             </template>
-            <VxeTableList
+            <BillTableList
               :columns="processDurationVxeColumns"
               :data-source="processDurationData"
               :pagination="false as any"
@@ -94,7 +94,7 @@
                   </template>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-card>
         </a-col>
 
@@ -120,7 +120,7 @@
                 </a-select>
               </div>
             </template>
-            <VxeTableList
+            <BillTableList
               :columns="nodeDurationVxeColumns"
               :data-source="nodeDurationData"
               :pagination="false as any"
@@ -147,7 +147,7 @@
                   </template>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-card>
         </a-col>
       </a-row>
@@ -170,7 +170,7 @@
                 />
               </div>
             </template>
-            <VxeTableList
+            <BillTableList
               :columns="efficiencyVxeColumns"
               :data-source="efficiencyData"
               :pagination="false as any"
@@ -209,7 +209,7 @@
                   </template>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-card>
         </a-col>
       </a-row>
@@ -245,7 +245,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { SyncOutlined, ReloadOutlined, WarningOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -512,7 +512,7 @@ defineExpose({ handleQuery: handleRefresh })
 </script>
 
 <style scoped>
-/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
 .page-content {
   flex: 1;
   display: flex;

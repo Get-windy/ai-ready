@@ -96,7 +96,7 @@
     </a-card>
 
     <a-card :bordered="false" class="table-card">
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="performances"
@@ -150,7 +150,7 @@
             </template>
           </div>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <a-modal
@@ -198,7 +198,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supplierApi } from '@/api/supplier'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { requiredRule } from '@/utils/formRules'
 import type { FormInstance } from 'ant-design-vue'
 import request from '@/utils/request'
@@ -437,7 +437,7 @@ const handleBack = () => {
 </script>
 
 <style scoped>
-/* ── 让 VxeTableList 填满剩余空间 ──────────────────────── */
+/* ── 让 BillTableList 填满剩余空间 ──────────────────────── */
 .page-content {
   flex: 1;
   display: flex;

@@ -62,7 +62,7 @@
 
       <a-skeleton active v-if="loading && tableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -160,7 +160,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 新增/编辑租户弹窗 -->
       <FullScreenDetail :visible="modalVisible" :title="modalTitle" :dirty="formDirty" :save-loading="submittingLoading" :show-save-and-new="!isEdit" @save="handleModalOk" @close="handleFormClose" @save-and-new="handleFormSaveAndNew">
@@ -411,7 +411,7 @@ import {
   ReloadOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { tenantApi, type TenantInfo } from '@/api/tenant'
 import { useSubmitLock } from '@/composables'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'

@@ -116,7 +116,7 @@
 
     <!-- 数据表格 -->
     <div class="table-area">
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableData"
@@ -165,7 +165,7 @@
             <PrintButton :record="record" :business-id="record.id" business-type="payment_record" button-type="link" button-size="small" tooltip="打印" />
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </div>
 
     <a-modal
@@ -197,7 +197,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { WarningOutlined, ReloadOutlined, SearchOutlined, InboxOutlined, PlusOutlined, ExportOutlined, DollarOutlined, CalendarOutlined, FileTextOutlined, LineChartOutlined } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 
 const debounceMap = new Map<string, number>()

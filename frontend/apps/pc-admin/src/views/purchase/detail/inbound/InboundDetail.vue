@@ -25,7 +25,7 @@
       </a-descriptions>
     </template>
     <template #tab-items>
-      <VxeTableList
+      <BillTableList
         :columns="itemVxeColumns"
         :data-source="data?.items || []"
         row-key="id"
@@ -40,7 +40,7 @@
         <template #amountCell="{ record }">
           ¥{{ record.amount?.toFixed(2) }}
         </template>
-      </VxeTableList>
+      </BillTableList>
       <a-empty v-if="!data?.items || (data as any).items.length === 0" description="暂无入库明细" style="margin-top: 16px" />
     </template>
   </DetailLayout>
@@ -53,7 +53,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DetailLayout } from '@ai-ready/components'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { inboundApi, type PurchaseInbound } from '@/api/erp'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 

@@ -59,7 +59,7 @@
 
       <a-skeleton active v-if="loading && menuTree.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="menuTree"
@@ -159,7 +159,7 @@
           <template #icon><DeleteOutlined /></template>删除
         </a-button>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 菜单编辑弹窗 -->
     <FullScreenDetail
@@ -396,7 +396,7 @@ import {
   NodeExpandOutlined,
   NodeCollapseOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import menuApi, { type MenuInfo, type MenuQuery, type MenuSaveRequest, type MenuUpdateRequest } from '@/api/menu'
@@ -430,7 +430,7 @@ const queryForm = reactive<MenuQuery>({
 const menuTree = ref<MenuInfo[]>([])
 const loading = ref(false)
 const isExpandAll = ref(false)
-const tableRef = ref<InstanceType<typeof VxeTableList> | null>(null)
+const tableRef = ref<InstanceType<typeof BillTableList> | null>(null)
 
 // 上级菜单树（过滤掉按钮，添加虚拟根节点）
 const parentMenuTree = computed(() => {

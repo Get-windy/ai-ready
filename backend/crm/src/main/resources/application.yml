@@ -4,11 +4,12 @@ server:
 spring:
   application:
     name: crm-marketing
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/ai_ready?useUnicode=true&characterEncoding=utf8
-    username: postgres
-    password: postgres
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:postgresql://localhost:5432/ai_ready?useUnicode=true&characterEncoding=utf8
+  #   username: postgres
+  #   password: postgres
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai

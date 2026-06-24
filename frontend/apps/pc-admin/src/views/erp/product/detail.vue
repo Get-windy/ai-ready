@@ -478,9 +478,9 @@ async function loadProduct(id: number) {
       retailPrice: prod.retailPrice,
       shelfLifeDays: prod.shelfLifeDays
     })
-    // 并行加载: 等级价格 + 库存模式 + 库存信息
+    // 并行加载: 等级价格 + 库存模式 + 库存信息（各接口独立容错，互不影响）
     const [prices] = await Promise.all([
-      productGradePriceApi.getByProduct(id),
+      productGradePriceApi.getByProduct(id).catch(() => []),
       inventoryModeApi.get().then(mode => { inventoryMode.value = mode }).catch(() => {}),
       request.get(`/erp/stock/by-product/${id}`).then((res: any) => {
         if ((res as any)?.id) stockInfo.value = res

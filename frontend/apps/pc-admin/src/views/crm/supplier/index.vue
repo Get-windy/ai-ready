@@ -97,7 +97,7 @@
         <a-tab-pane key="inactive" tab="暂停合作" />
       </a-tabs>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableDataSource"
@@ -170,7 +170,7 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
       </template>
     </ErrorBoundary>
 
@@ -265,19 +265,19 @@
             <a-col :span="6"><a-statistic title="综合评分" :value="detailData.totalScore" suffix="分" :value-style="{ color: '#1890ff' }" /></a-col>
           </a-row>
           <a-divider>最近采购订单</a-divider>
-          <VxeTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+          <BillTableList :columns="orderVxeColumns" :data-source="detailData.recentOrders" :pagination="false as any" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
             <template #amountCell="{ record }"><span class="amount">¥{{ formatAmount(record.amount) }}</span></template>
             <template #statusCell="{ record }"><a-tag :color="getOrderStatusColor(record.status)">{{ record.statusLabel }}</a-tag></template>
-          </VxeTableList>
+          </BillTableList>
         </template>
       </a-spin>
     </a-drawer>
 
     <a-modal v-model:open="productsModalVisible" :title="productsModalTitle" width="900px" :footer="null">
-      <VxeTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+      <BillTableList :columns="productsVxeColumns" :data-source="productsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
         <template #priceCell="{ record }"><span class="amount">¥{{ formatAmount(record.price) }}</span></template>
         <template #statusCell="{ record }"><a-tag :color="record.status === '正常供应' ? 'green' : 'orange'">{{ record.status }}</a-tag></template>
-      </VxeTableList>
+      </BillTableList>
     </a-modal>
 
     <a-modal v-model:open="evaluateModalVisible" title="供应商评估" width="600px" @ok="handleEvaluateSubmit">
@@ -313,9 +313,9 @@
     </a-modal>
 
     <a-modal v-model:open="contactsModalVisible" :title="contactsModalTitle" width="700px" :footer="null">
-      <VxeTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
+      <BillTableList :columns="contactsVxeColumns" :data-source="contactsData" :pagination="false as any" row-key="id" :show-toolbar="false" :selectable="false" :show-add="false" :show-search="false" :show-export="false" :show-batch-delete="false">
         <template #isPrimaryCell="{ record }"><a-tag :color="record.isPrimary === '是' ? 'blue' : 'default'">{{ record.isPrimary }}</a-tag></template>
-      </VxeTableList>
+      </BillTableList>
     </a-modal>
   </PageContainer>
 </template>
@@ -326,7 +326,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined, EyeOutlined, EditOutlined, ShoppingOutlined, StarOutlined, MoreOutlined, CopyOutlined, ReloadOutlined, SyncOutlined, WarningOutlined, SearchOutlined, InboxOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -858,7 +858,7 @@ defineExpose({ handleQuery: fetchData })
   margin: 0 24px;
 }
 
-/* 让 VxeTableList 填满剩余空间 */
+/* 让 BillTableList 填满剩余空间 */
 .vxe-table-list-wrapper {
   flex: 1;
   min-height: 0;

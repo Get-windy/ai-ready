@@ -99,7 +99,7 @@
           </a-space>
         </div>
 
-        <VxeTableList
+        <BillTableList
           ref="tableRef"
           :columns="vxeColumns"
           :data-source="dataList"
@@ -128,7 +128,7 @@
               <a-button v-if="record.status === 'DRAFT'" v-permission="'erp:expense:application:delete'" type="link" size="small" danger @click="confirmDelete(record.id)">删除</a-button>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </div>
     </template>
@@ -148,7 +148,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { EXPENSE_APPLICATION_STATUS } from '@/utils/statusConfig'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

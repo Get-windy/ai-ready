@@ -92,7 +92,7 @@
       </a-button>
     </div>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="dataList"
@@ -119,7 +119,7 @@
           <a-button v-if="record.status === 'PENDING'" v-permission="'erp:expense:payment:cancel'" type="link" size="small" danger @click="confirmCancel(record.id)">取消</a-button>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 新增付款弹窗 -->
     <FullScreenDetail :visible="createModalVisible" title="新增付款" :save-loading="createLoading" @close="handleCreateCancel" @save="handleCreateOk">
@@ -174,7 +174,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatCard from '@/components/business/StatCard/StatCard.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'

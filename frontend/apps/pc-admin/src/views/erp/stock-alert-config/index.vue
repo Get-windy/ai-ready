@@ -52,7 +52,7 @@
       </a-col>
     </a-row>
 
-    <VxeTableList
+    <BillTableList
       ref="tableRef"
       :columns="vxeColumns"
       :data-source="tableData"
@@ -95,7 +95,7 @@
           </a-popconfirm>
         </a-space>
       </template>
-    </VxeTableList>
+    </BillTableList>
 
     <!-- 编辑/新建弹窗 -->
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑预警配置' : '新建预警配置'" @ok="handleSave" :confirm-loading="saving" width="600px" destroy-on-close>
@@ -144,7 +144,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, SyncOutlined, AlertOutlined, CheckCircleOutlined, ExclamationCircleOutlined, FireOutlined, BellOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import request from '@/utils/request'
 

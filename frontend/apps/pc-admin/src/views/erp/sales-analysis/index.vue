@@ -202,7 +202,7 @@
               <EmptyState title="暂无客户排行数据" description="当前筛选条件下没有客户排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
             </div>
             <div v-else class="ranking-table-container">
-              <VxeTableList
+              <BillTableList
                 :columns="customerRankVxeColumns"
                 :data-source="customerRankData"
                 :pagination="noPagination"
@@ -233,7 +233,7 @@
                     {{ Math.abs(record.growth) }}%
                   </span>
                 </template>
-              </VxeTableList>
+              </BillTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -268,7 +268,7 @@
               <EmptyState title="暂无产品排行数据" description="当前筛选条件下没有产品排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
             </div>
             <div v-else class="ranking-table-container">
-              <VxeTableList
+              <BillTableList
                 :columns="productRankVxeColumns"
                 :data-source="productRankData"
                 :pagination="noPagination"
@@ -306,7 +306,7 @@
                     :format="(p: number) => `${p}%`"
                   />
                 </template>
-              </VxeTableList>
+              </BillTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -336,7 +336,7 @@
               <EmptyState title="暂无人员排行数据" description="当前筛选条件下没有人员排行数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
             </div>
             <div v-else class="ranking-table-container">
-              <VxeTableList
+              <BillTableList
                 :columns="salespersonRankVxeColumns"
                 :data-source="salespersonRankData"
                 :pagination="noPagination"
@@ -374,7 +374,7 @@
                     :format="(p: number) => `${p}%`"
                   />
                 </template>
-              </VxeTableList>
+              </BillTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -404,7 +404,7 @@
               <EmptyState title="暂无区域数据" description="当前筛选条件下没有区域销售数据" size="small" show-actions :show-add="false" :show-refresh="true" @refresh="loadData" />
             </div>
             <div v-else class="ranking-table-container">
-              <VxeTableList
+              <BillTableList
                 :columns="regionVxeColumns"
                 :data-source="regionData"
                 :pagination="noPagination"
@@ -426,7 +426,7 @@
                     {{ Math.abs(record.growth) }}%
                   </span>
                 </template>
-              </VxeTableList>
+              </BillTableList>
             </div>
           </a-card>
         </a-tab-pane>
@@ -514,7 +514,7 @@
         <a-skeleton active :paragraph="{ rows: 6 }" />
       </template>
       <template v-else>
-        <VxeTableList
+        <BillTableList
           v-if="drillDownData.length > 0"
           :columns="drillDownColumns"
           :data-source="drillDownData"
@@ -533,7 +533,7 @@
           <template #drillMarginCell="{ record }">
             {{ record.margin?.toFixed?.(1) ?? 0 }}%
           </template>
-        </VxeTableList>
+        </BillTableList>
         <EmptyState v-else title="暂无明细数据" description="当前筛选条件下没有明细数据" :show-add="false" />
       </template>
     </a-drawer>
@@ -564,7 +564,7 @@ import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import type { StatusMap } from '@/utils/statusConfig'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import request from '@/utils/request'
 import { salesAnalysisApi, type SalesOverview, type CustomerRankItem, type ProductRankItem, type SalespersonRankItem, type RegionItem, type DrillDownItem, type CompareData, type SalesAnalysisQuery } from '@/api/sales-analysis'
 

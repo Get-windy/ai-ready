@@ -103,7 +103,7 @@
             </a-space>
           </div>
 
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :columns="vxeColumns"
             :data-source="list"
@@ -140,7 +140,7 @@
                 <a-button type="link" size="small" v-permission="'erp:partner:delete'" danger @click="handleDelete(record)">删除</a-button>
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { PARTNER_STATUS } from '@/utils/statusConfig'

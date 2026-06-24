@@ -95,7 +95,7 @@
           </a-space>
         </div>
 
-        <VxeTableList
+        <BillTableList
           ref="tableRef"
           :columns="vxeColumns"
           :data-source="dataList"
@@ -123,7 +123,7 @@
           <template #empty>
             <EmptyState v-if="!loading" title="暂无数据" description="暂无报销记录" size="small" :show-actions="false" />
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </div>
     </template>
@@ -142,7 +142,7 @@ import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import type { SearchField } from '@/components/SearchBar/SearchBar.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import StatusTag from '@/components/StatusTag/StatusTag.vue'
 import { EXPENSE_REIMBURSEMENT_STATUS } from '@/utils/statusConfig'
 import PrintButton from '@/components/business/print-button/PrintButton.vue'

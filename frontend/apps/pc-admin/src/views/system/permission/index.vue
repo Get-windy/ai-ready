@@ -111,7 +111,7 @@
 
         <a-skeleton active v-if="defLoading && permissionDefData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-        <VxeTableList
+        <BillTableList
           ref="defTableRef"
           :columns="defVxeColumns"
           :data-source="permissionDefData"
@@ -176,7 +176,7 @@
               <a-button type="link" size="small" danger v-permission="'system:permission:delete'" @click="handleDefDelete(record)">删除</a-button>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
 
       <!-- 权限定义表单抽屉 -->
@@ -273,7 +273,7 @@ import {
   SyncOutlined, ReloadOutlined,
   UserOutlined, DashboardOutlined, FileTextOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import PermissionConfigPanel from '@/components/PermissionConfigPanel/index.vue'
 import { permissionApi, type PermissionInfo } from '@/api/permission'
 import { roleApi, type RoleInfo } from '@/api/role'

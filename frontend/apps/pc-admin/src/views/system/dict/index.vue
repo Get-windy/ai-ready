@@ -62,7 +62,7 @@
 
       <a-skeleton active v-if="typeLoading && typeTableData.length === 0" :paragraph="{ rows: 8 }" style="padding: 24px;" />
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="typeTableData"
@@ -129,7 +129,7 @@
                 新增字典项
               </a-button>
             </div>
-            <VxeTableList
+            <BillTableList
               :data-source="dictItemMap[record.id] || []"
               :loading="itemLoadingMap[record.id]"
               :pagination="false as any"
@@ -154,10 +154,10 @@
                   </a-button>
                 </a-space>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </div>
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 字典类型表单弹窗 -->
       <FullScreenDetail
@@ -265,7 +265,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { PlusOutlined, BookOutlined, UnorderedListOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons-vue'
-import VxeTableList, { type FilterField } from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
 import { dictTypeApi, dictItemApi, type DictType, type DictItem } from '@/api/dict'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'

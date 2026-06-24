@@ -12,18 +12,18 @@ server:
     connection-timeout: 5000
 
 spring:
-  datasource:
-    # 默认PostgreSQL, 可选MySQL: jdbc:mysql://prod-mysql-cluster:3306/erp_purchase_prod?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
-    url: jdbc:postgresql://prod-postgres-cluster:5432/erp_purchase_prod
-    username: purchase_prod
-    password: ${PROD_DB_PASSWORD}
-    hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
-      connection-timeout: 30000
-      idle-timeout: 300000
-      max-lifetime: 1800000
-      connection-test-query: SELECT 1
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   url: jdbc:postgresql://prod-postgres-cluster:5432/erp_purchase_prod
+  #   username: purchase_prod
+  #   password: ${PROD_DB_PASSWORD}
+  #   hikari:
+  #     maximum-pool-size: 50
+  #     minimum-idle: 10
+  #     connection-timeout: 30000
+  #     idle-timeout: 300000
+  #     max-lifetime: 1800000
+  #     connection-test-query: SELECT 1
   
   redis:
     host: prod-redis-cluster

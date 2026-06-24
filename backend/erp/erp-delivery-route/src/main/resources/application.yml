@@ -2,11 +2,12 @@ spring:
   application:
     name: erp-delivery-route
   
-  datasource:
-    url: jdbc:postgresql://localhost:5432/ai_ready
-    username: postgres
-    password: postgres
-    driver-class-name: org.postgresql.Driver
+  # [数据源已统一到 core-api 主模块管理，各子模块不再单独配置数据库连接]
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/ai_ready
+  #   username: postgres
+  #   password: postgres
+  #   driver-class-name: org.postgresql.Driver
   
   redis:
     host: localhost

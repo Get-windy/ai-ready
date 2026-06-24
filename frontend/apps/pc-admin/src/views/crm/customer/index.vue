@@ -91,7 +91,7 @@
           </a-row>
         </div>
 
-        <VxeTableList
+        <BillTableList
           ref="tableRef"
           :columns="vxeColumns"
           :data-source="tableDataSource"
@@ -187,7 +187,7 @@
               </a-dropdown>
             </a-space>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </template>
 
       <!-- 看板视图 -->
@@ -393,7 +393,7 @@
         </a-button>
       </a-upload>
       <a-divider>字段映射</a-divider>
-      <VxeTableList
+      <BillTableList
         :columns="importMappingVxeColumns"
         :data-source="importFieldMapping"
         :pagination="false as any"
@@ -413,7 +413,7 @@
           <template #statusCell="{ record }">
             <a-tag :color="record.status === 0 ? 'success' : 'error'">{{ record.status === 0 ? '正常' : '停用' }}</a-tag>
           </template>
-      </VxeTableList>
+      </BillTableList>
     </a-modal>
   </PageContainer>
 </template>
@@ -424,7 +424,7 @@ import { useRouter } from 'vue-router'
 import { onBeforeRouteLeave } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
@@ -1189,7 +1189,7 @@ defineExpose({ handleQuery: fetchData })
 
 
 
-/* 让 VxeTableList 填满剩余空间 */
+/* 让 BillTableList 填满剩余空间 */
 .vxe-table-list-wrapper {
   flex: 1;
   min-height: 0;

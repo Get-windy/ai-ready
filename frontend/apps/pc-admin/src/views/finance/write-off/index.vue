@@ -63,7 +63,7 @@
       <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
         <!-- 收款核销 -->
         <a-tab-pane key="receipt" tab="收款核销">
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :min-empty-rows="12"
             :columns="receiptColumns"
@@ -133,12 +133,12 @@
                 />
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
 
         <!-- 付款核销 -->
         <a-tab-pane key="payment" tab="付款核销">
-          <VxeTableList
+          <BillTableList
             ref="tableRef"
             :columns="paymentColumns"
             :data-source="paymentTableData"
@@ -207,7 +207,7 @@
                 />
               </a-space>
             </template>
-          </VxeTableList>
+          </BillTableList>
         </a-tab-pane>
       </a-tabs>
 
@@ -307,7 +307,7 @@ import {
   SyncOutlined, ReloadOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 import { receiptApi, paymentApi } from '@/api/finance'

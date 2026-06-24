@@ -83,7 +83,7 @@
         <a-card size="small">
           <a-tabs v-model:activeKey="detailTab" size="small">
             <a-tab-pane key="depreciation" tab="折旧历史" :disabled="depreciationLoading">
-              <VxeTableList
+              <BillTableList
                 :columns="depreciationVxeColumns"
                 :data-source="depreciationData"
                 :loading="depreciationLoading"
@@ -98,7 +98,7 @@
               />
             </a-tab-pane>
             <a-tab-pane key="transfer" tab="转移记录">
-              <VxeTableList
+              <BillTableList
                 :columns="transferVxeColumns"
                 :data-source="transferData"
                 :loading="transferLoading"
@@ -113,7 +113,7 @@
               />
             </a-tab-pane>
             <a-tab-pane key="disposal" tab="处置信息">
-              <VxeTableList
+              <BillTableList
                 :columns="disposalVxeColumns"
                 :data-source="disposalData"
                 :loading="disposalLoading"
@@ -142,7 +142,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { fixedAssetApi, depreciationApi, transferApi, disposalApi } from '@/api/fixed-asset'
 type FixedAsset = any

@@ -27,7 +27,7 @@
       <!-- 换货明细 -->
       <a-divider />
       <h4>换货明细</h4>
-      <VxeTableList
+      <BillTableList
         :columns="itemVxeColumns"
         :data-source="items"
         :loading="loading"
@@ -43,7 +43,7 @@
         <template #subtotalCell="{ record }">
           ¥{{ (record.exchangeQuantity * record.exchangePrice).toFixed(2) }}
         </template>
-      </VxeTableList>
+      </BillTableList>
 
       <!-- 审批记录 -->
       <template v-if="approvalRecords.length > 0">
@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 
 // ── 防抖工具 ──────────────────────────────────────────
 const debounceMap = new Map<string, number>()

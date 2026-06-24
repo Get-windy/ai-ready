@@ -128,7 +128,7 @@
     <!-- 销售明细表格 -->
     <a-card title="销售明细" size="small" style="margin-top: 16px">
       <div class="table-container">
-        <VxeTableList
+        <BillTableList
           :columns="detailVxeColumns"
           :data-source="detailData"
           :loading="loading"
@@ -147,7 +147,7 @@
           <template #avgOrderValueCell="{ record }">
             <span class="amount-cell">¥{{ formatAmount(record.avgOrderValue) }}</span>
           </template>
-        </VxeTableList>
+        </BillTableList>
       </div>
     </a-card>
   </div>
@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import * as echarts from 'echarts'
 import {
   DollarOutlined,

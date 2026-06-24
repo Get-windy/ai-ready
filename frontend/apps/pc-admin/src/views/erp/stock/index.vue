@@ -112,7 +112,7 @@
         </a-space>
       </div>
 
-      <VxeTableList
+      <BillTableList
         ref="tableRef"
         :columns="vxeColumns"
         :data-source="tableData"
@@ -166,12 +166,12 @@
             </a-dropdown>
           </a-space>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-card>
 
     <!-- 库存明细弹窗 -->
     <a-modal v-model:open="logModalVisible" title="库存明细" :footer="null" width="800px">
-      <VxeTableList
+      <BillTableList
         :columns="logVxeColumns"
         :data-source="stockLogs"
         :show-toolbar="false"
@@ -185,7 +185,7 @@
         <template #typeCell="{ record }">
           <a-tag :color="record.type === 'in' ? 'green' : 'red'">{{ record.type === 'in' ? '入库' : '出库' }}</a-tag>
         </template>
-      </VxeTableList>
+      </BillTableList>
     </a-modal>
 
     <!-- 库存详情弹窗 -->
@@ -267,7 +267,7 @@ import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { LoginOutlined, LogoutOutlined, AuditOutlined, ExportOutlined, DatabaseOutlined, AlertOutlined, ExclamationCircleOutlined, CheckCircleOutlined, SyncOutlined, ReloadOutlined, WarningOutlined, LockOutlined, UnlockOutlined, DownOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import SearchBar from '@/components/SearchBar/SearchBar.vue'
 import EmptyState from '@/components/EmptyState/EmptyState.vue'

@@ -104,7 +104,7 @@
         <!-- 差异分析表 -->
         <a-col :span="24">
           <a-card title="预算差异分析" class="table-card">
-            <VxeTableList
+            <BillTableList
               :data-source="varianceData"
               :columns="varianceVxeColumns"
               :loading="varianceLoading"
@@ -129,7 +129,7 @@
                   <p style="color: #999; margin-top: 12px;">暂无差异分析数据</p>
                 </div>
               </template>
-            </VxeTableList>
+            </BillTableList>
           </a-card>
         </a-col>
       </a-row>
@@ -146,7 +146,7 @@ import {
   FileTextOutlined, DollarOutlined, PieChartOutlined, PercentageOutlined,
   SyncOutlined, ReloadOutlined, WarningOutlined, InboxOutlined
 } from '@ant-design/icons-vue'
-import VxeTableList from '@/components/VxeTableList/VxeTableList.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import { budgetReportApi } from '@/api/budget'
 import * as echarts from 'echarts'
