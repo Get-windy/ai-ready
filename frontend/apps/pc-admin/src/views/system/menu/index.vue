@@ -124,6 +124,7 @@
         :data-source="paginatedRows"
         :loading="loading"
         :pagination="false as any"
+        size="small"
         row-key="id"
         :bordered="true"
         class="menu-tree-table"
@@ -529,7 +530,9 @@ const flatMenuRows = computed<FlatRow[]>(() => {
   const walk = (nodes: MenuInfo[], level: number) => {
     for (const node of nodes) {
       const hasChildren = !!(node.children?.length)
-      result.push({ ...node, _level: level, _hasChildren: hasChildren } as FlatRow)
+      // 剔除 children，避免 Ant Design 检测到 children 自动生成展开列
+      const { children: _children, ...rest } = node
+      result.push({ ...rest, _level: level, _hasChildren: hasChildren } as FlatRow)
       if (hasChildren && expandedSet.has(node.id)) {
         walk(node.children!, level + 1)
       }
@@ -1114,54 +1117,115 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
 .menu-management > :deep(.ant-table-wrapper) {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: auto;          /* 唯一的滚动容器，sticky th 相对它定位 */
 }
 
 /* ── a-table 仿 BillDetailTable 样式 ─────────────────────────── */
+/* 表格本体：必须 separate + spacing:0，sticky 才能正常工作 */
 .menu-tree-table :deep(.ant-table) {
   font-size: 13px;
   border: 1px solid #e8e8e8;
   border-bottom: none;
 }
+.menu-tree-table :deep(.ant-table .ant-table-content) {
+  border: 1px solid #e8e8e8;
+  border-bottom: none;
+}
+.menu-tree-table :deep(.ant-table table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+/* 表头行 — sticky 吸顶，与 BillDetailTable .ss-grid th 一致 */
 .menu-tree-table :deep(.ant-table-thead > tr > th) {
-  background: #fafafa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fafafa !important;
   border-right: 1px solid #e8e8e8;
   border-bottom: 1px solid #e8e8e8;
-  padding: 0 6px;
+  padding: 0 6px !important;
   text-align: center;
   font-weight: 600;
   color: #262626;
   font-size: 13px;
-  height: 32px;
-  line-height: 32px;
+  height: 32px !important;
+  line-height: 32px !important;
   white-space: nowrap;
   vertical-align: middle;
 }
 .menu-tree-table :deep(.ant-table-thead > tr > th:last-child) {
   border-right: none;
 }
-.menu-tree-table :deep(.ant-table-tbody > tr > td) {
+/* 数据行 — BillDetailTable .ss-grid td 参数
+ * ⚠️ Ant Design Vue 4.x CSS-in-JS 注入 padding，必须 !important 覆盖 */
+.menu-tree-table :deep(.ant-table-tbody > tr),
+.menu-tree-table :deep(.ant-table-row) {
+  height: 28px !important;
+}
+.menu-tree-table :deep(.ant-table-tbody > tr > td),
+.menu-tree-table :deep(.ant-table-cell) {
   border-right: 1px solid #e8e8e8;
   border-bottom: 1px solid #e8e8e8;
-  padding: 0 6px;
-  height: 28px;
-  line-height: 28px;
+  padding: 0 6px !important;
+  height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+  font-size: 13px;
+  vertical-align: middle;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+/* 行内组件尺寸约束，防止撑高行 */
+.menu-tree-table :deep(.ant-table-tbody .ant-switch) {
+  height: 18px !important;
+  line-height: 18px !important;
+  min-width: 36px;
+  margin: 0;
+  vertical-align: middle;
+}
+.menu-tree-table :deep(.ant-table-tbody .ant-switch .ant-switch-handle) {
+  width: 14px;
+  height: 14px;
+  top: 2px;
+  inset-inline-start: 2px;
+}
+.menu-tree-table :deep(.ant-table-tbody .ant-switch-checked .ant-switch-handle) {
+  inset-inline-start: calc(100% - 14px - 2px);
+}
+.menu-tree-table :deep(.ant-table-tbody .ant-tag) {
+  margin: 0 !important;
+  padding: 0 4px !important;
+  line-height: 18px !important;
+  height: 18px !important;
+  font-size: 12px;
+  vertical-align: middle;
+}
+/* 操作按钮尺寸约束 */
+.menu-tree-table :deep(.ant-table-tbody .ant-btn-link) {
+  height: 22px !important;
+  line-height: 22px !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
   font-size: 13px;
   vertical-align: middle;
 }
+/* 操作列禁止换行 */
 .menu-tree-table :deep(.ant-table-tbody > tr > td:last-child) {
   border-right: none;
+  white-space: nowrap !important;
 }
-.menu-tree-table :deep(.ant-table-tbody > tr:hover > td) {
-  background: #f5f7fa;
+/* 全局约束：所有行内元素垂直居中，防止撑高 */
+.menu-tree-table :deep(.ant-table-tbody > tr > td *) {
+  vertical-align: middle;
 }
-.menu-tree-table :deep(.ant-table-tbody > tr.ant-table-row-selected > td) {
-  background: #e6f7ff;
+/* 行悬浮 — BillDetailTable .ss-row:hover td */
+.menu-tree-table :deep(.ant-table-tbody > tr:hover > td),
+.menu-tree-table :deep(.ant-table-tbody > tr:hover > .ant-table-cell) {
+  background: #f5f7fa !important;
 }
-/* 分页样式 */
-.menu-tree-table :deep(.ant-table-pagination) {
-  padding: 8px 0;
-  margin: 0;
+.menu-tree-table :deep(.ant-table-tbody > tr.ant-table-row-selected > td),
+.menu-tree-table :deep(.ant-table-tbody > tr.ant-table-row-selected > .ant-table-cell) {
+  background: #e6f7ff !important;
 }
 /* 空数据提示 */
 .menu-tree-table :deep(.ant-table-placeholder) {
@@ -1175,6 +1239,7 @@ function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
   padding: 0 4px;
   height: 24px;
   font-size: 13px;
+  line-height: 1.4;
 }
 /* 表格内容溢出省略 */
 .menu-tree-table :deep(.ant-table-cell-ellipsis) {

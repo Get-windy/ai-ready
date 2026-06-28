@@ -7,7 +7,7 @@
           <span class="detail-title">{{ title }}</span>
         </div>
         <div class="detail-header-right">
-          <a-tooltip title="关闭 (Esc)">
+          <a-tooltip title="关闭 (Esc)" placement="right" :mouse-enter-delay="0.5">
             <a-button size="small" class="detail-close-btn" @click="handleClose">
               <template #icon><CloseOutlined /></template>
             </a-button>
@@ -189,6 +189,7 @@ function handleSaveAndNew() {
 .detail-close-btn {
   width: 28px;
   height: 28px;
+  margin-right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
