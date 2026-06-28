@@ -3,12 +3,17 @@ package cn.aiedge.base.config;
 import cn.hutool.crypto.digest.BCrypt;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
  * 数据库初始化器
  * 应用启动时自动检查并创建基础表
+ *
+ * 注意：sys_menu 相关操作延迟到 ApplicationReadyEvent 后执行，
+ * 避免与 Flyway 迁移产生锁竞争（Flyway 需要排他锁修改 sys_menu 表）。
  */
 @Slf4j
 @Component
@@ -26,6 +31,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         try {
             // 先确保字段存在（每个列操作单独try-catch，避免一个失败中断全部）
+            // 注意：sys_menu 字段的添加已移到 ensureMenuSchemaSafe() 中延迟执行
             ensureColumnsExistSafely();
         } catch (Exception e) {
             log.warn("检查/添加字段时出错（非致命）: {}", e.getMessage());
@@ -75,7 +81,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("fixErpStockMissingColumns 失败: {}", e.getMessage());
         }
 
-        // 补充 batch_number 可能缺少的列
+        // 补充 batch_number 缺失的列
         try {
             safeAddColumn("batch_number", "expiration_date", "DATE");
         } catch (Exception e) {
@@ -89,12 +95,51 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.warn("fixErpProductMissingColumns 失败: {}", e.getMessage());
         }
 
+        // 注意：ensureMenuData() 已移到 onApplicationReady() 中延迟执行
+        // 避免与 Flyway 迁移产生锁竞争
+    }
+
+    /**
+     * 应用启动完成后执行 sys_menu 相关操作。
+     * 此时 Flyway 迁移已完成，不会有锁竞争问题。
+     *
+     * 执行内容：
+     * 1. 添加 sys_menu 表的新字段（Mega Menu 改造）
+     * 2. 确保默认菜单数据存在
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        log.info("应用启动完成，开始执行 sys_menu 相关初始化...");
+
+        // 确保 sys_menu 字段存在（Mega Menu 改造新增的字段）
+        try {
+            ensureMenuSchemaSafe();
+        } catch (Exception e) {
+            log.warn("ensureMenuSchemaSafe 失败: {}", e.getMessage());
+        }
+
         // 确保默认菜单数据存在（sys_menu 和 sys_role_menu）
         try {
             ensureMenuData();
         } catch (Exception e) {
             log.warn("ensureMenuData 失败: {}", e.getMessage());
         }
+
+        log.info("sys_menu 相关初始化完成");
+    }
+
+    /**
+     * 确保 sys_menu 表的字段存在（Mega Menu 改造新增字段）
+     * 从 ensureColumnsExistSafely() 中分离出来，延迟到 ApplicationReadyEvent 后执行
+     */
+    private void ensureMenuSchemaSafe() {
+        safeAddColumn("sys_menu", "display_mode", "SMALLINT DEFAULT 0");
+        safeAddColumn("sys_menu", "list_path", "VARCHAR(255)");
+        safeAddColumn("sys_menu", "tag_label", "VARCHAR(20)");
+        safeAddColumn("sys_menu", "menu_level", "SMALLINT DEFAULT 0");
+        safeAddColumn("sys_menu", "biz_flow_tag", "VARCHAR(50)");
+        safeAddColumn("sys_menu", "display_group", "INTEGER DEFAULT 0");
+        safeAddColumn("sys_menu", "link_icon", "VARCHAR(200)");
     }
 
     private void fixErpPurchaseOrderColumns() {

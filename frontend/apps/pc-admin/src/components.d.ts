@@ -97,6 +97,8 @@ declare module 'vue' {
     FullScreenDetail: typeof import('./components/FullScreenDetail/FullScreenDetail.vue')['default']
     GlobalErrorFallback: typeof import('./components/ErrorBoundary/GlobalErrorFallback.vue')['default']
     GlobalSearch: typeof import('./components/GlobalSearch/GlobalSearch.vue')['default']
+    InlineField: typeof import('./components/FormField/InlineField.vue')['default']
+    LabelField: typeof import('./components/FormField/LabelField.vue')['default']
     LocaleSwitcher: typeof import('./components/LocaleSwitcher.vue')['default']
     MegaMenuPanel: typeof import('./components/MegaMenuPanel/MegaMenuPanel.vue')['default']
     NodeLibrary: typeof import('./components/Workflow/Canvas/NodeLibrary.vue')['default']

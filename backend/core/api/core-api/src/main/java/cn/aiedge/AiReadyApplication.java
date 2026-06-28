@@ -99,7 +99,7 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.fixedasset.model",
     "cn.aiedge.erp.budget.model"
 })
-@MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.erp.supplier.repository"},
+@MapperScan(value = {"cn.aiedge.**.mapper", "cn.aiedge.**.dao", "cn.aiedge.common.serial.mapper", "cn.aiedge.erp.supplier.repository"},
             nameGenerator = FullyQualifiedBeanNameGenerator.class)
 @OpenAPIDefinition(
     info = @Info(

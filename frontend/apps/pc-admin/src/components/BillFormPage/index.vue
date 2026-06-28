@@ -41,88 +41,50 @@
 
     <!-- ═══ Zone 2: 基本信息选择器 ═══ -->
     <div class="bill-basic-info">
-      <div class="info-row">
-        <div
-          v-for="field in basicInfoFields"
-          :key="field.key"
-          class="info-field"
-          :class="{
-            'info-field--required': field.required,
-            'info-field--narrow': field.width === 'narrow',
-            'info-field--wide': field.width === 'wide',
-          }"
-        >
-          <label>{{ field.label }}</label>
-          <div class="field-input-wrap">
-            <!-- ── 查看模式：纯文本 ── -->
-            <template v-if="isViewMode">
-              <span class="field-view-text">{{ getFieldDisplayValue(field) }}</span>
-            </template>
-            <!-- ── 编辑模式：输入控件 ── -->
-            <template v-else>
-              <a-select
-                v-if="field.type === 'select'"
-                :value="(modelValue as any)[field.key]"
-                :placeholder="field.placeholder"
-                show-search
-                :filter-option="filterOption"
-                :loading="field.loading"
-                size="small"
-                style="flex:1"
-                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-                @change="(val: any) => emit('fieldChange', field.key, val)"
-              >
-                <a-select-option v-for="opt in field.options" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-              <a-date-picker
-                v-else-if="field.type === 'date'"
-                :value="(modelValue as any)[field.key]"
-                style="width:100%"
-                :format="field.format || 'YYYY-MM-DD'"
-                value-format="YYYY-MM-DD"
-                size="small"
-                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-              />
-              <a-input-number
-                v-else-if="field.type === 'number'"
-                :value="(modelValue as any)[field.key]"
-                :placeholder="field.placeholder"
-                :precision="field.precision"
-                :min="field.min"
-                :max="field.max"
-                size="small"
-                style="flex:1"
-                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-              />
-              <a-textarea
-                v-else-if="field.type === 'textarea'"
-                :value="(modelValue as any)[field.key]"
-                :placeholder="field.placeholder"
-                :rows="2"
-                size="small"
-                style="flex:1"
-                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-              />
-              <a-input
-                v-else
-                :value="(modelValue as any)[field.key]"
-                :placeholder="field.placeholder"
-                size="small"
-                style="flex:1"
-                @update:value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
-              />
-              <a-button
-                v-if="field.searchBtn"
-                type="link" size="small" class="field-search-btn"
-                @click="emit('searchBtn', field.key, field.searchBtn)"
-              >
-                {{ field.searchBtn }}
-              </a-button>
-            </template>
-          </div>
-        </div>
+      <!-- 流式布局：inline模式，自动换行 -->
+      <div class="info-flow">
+        <template v-for="field in basicInfoFields" :key="field.key">
+          <!-- inlineLabel 模式：使用 InlineField -->
+          <InlineField
+            v-if="field.inlineLabel"
+            :type="field.type"
+            :label="field.label"
+            :model-value="(modelValue as any)[field.key]"
+            :options="field.options"
+            :format="field.format"
+            :precision="field.precision"
+            :min="field.min"
+            :max="field.max"
+            :loading="field.loading"
+            :search-btn="field.searchBtn"
+            :width="field.width"
+            :view-mode="isViewMode"
+            @update:model-value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+            @change="(val: any) => emit('fieldChange', field.key, val)"
+            @search-btn="emit('searchBtn', field.key, field.searchBtn)"
+          />
+          <!-- 默认模式：使用 LabelField -->
+          <LabelField
+            v-else
+            :type="field.type"
+            :label="field.label"
+            :required="field.required"
+            :model-value="(modelValue as any)[field.key]"
+            :placeholder="field.placeholder"
+            :options="field.options"
+            :format="field.format"
+            :precision="field.precision"
+            :min="field.min"
+            :max="field.max"
+            :loading="field.loading"
+            :search-btn="field.searchBtn"
+            :width="field.width"
+            :view-mode="isViewMode"
+            @update:model-value="(val: any) => emit('update:modelValue', { ...modelValue, [field.key]: val })"
+            @change="(val: any) => emit('fieldChange', field.key, val)"
+            @search-btn="emit('searchBtn', field.key, field.searchBtn)"
+          />
+        </template>
       </div>
     </div>
 
@@ -260,6 +222,8 @@ import {
   PaperClipOutlined,
   DownOutlined,
 } from '@ant-design/icons-vue'
+import InlineField from '@/components/FormField/InlineField.vue'
+import LabelField from '@/components/FormField/LabelField.vue'
 import type {
   BillHeaderConfig,
   BasicInfoField,
@@ -419,52 +383,16 @@ function getTabFieldDisplayValue(tf: TabField): string {
 /* ═══ Zone 2: 基本信息 ═══ */
 .bill-basic-info {
   background: #fff;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-bottom: 1px solid #e8e8e8;
   flex-shrink: 0;
 }
 
-.info-row {
+.info-flow {
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
   flex-wrap: wrap;
-}
-
-.info-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-  min-width: 120px;
-}
-
-.info-field--narrow {
-  flex: 0 0 160px;
-}
-
-.info-field--wide {
-  flex: 2;
-  min-width: 200px;
-}
-
-.info-field label {
-  font-size: 12px;
-  color: #595959;
-  white-space: nowrap;
-}
-
-.info-field--required label::after {
-  content: '*';
-  color: #ff4d4f;
-  margin-left: 2px;
-}
-
-.field-input-wrap {
-  display: flex;
+  gap: 8px;
   align-items: center;
-  gap: 2px;
 }
 
 .field-view-text {
@@ -472,14 +400,6 @@ function getTabFieldDisplayValue(tf: TabField): string {
   color: #262626;
   line-height: 26px;
   padding: 0 4px;
-}
-
-.field-search-btn {
-  padding: 0 4px;
-  font-size: 11px;
-  color: #1890ff;
-  flex-shrink: 0;
-  line-height: 1;
 }
 
 /* ═══ Zone 3: 明细表格 ═══ */

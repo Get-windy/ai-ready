@@ -3,11 +3,11 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.entity.Permission;
 import cn.aiedge.base.entity.Role;
 import cn.aiedge.base.entity.User;
-import cn.aiedge.base.entity.UserRole;
+import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.PermissionMapper;
 import cn.aiedge.base.mapper.RoleMapper;
 import cn.aiedge.base.mapper.UserMapper;
-import cn.aiedge.base.mapper.UserRoleMapper;
+import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.service.UserService;
 import cn.aiedge.common.dto.user.*;
 import cn.aiedge.common.exception.BusinessException;
@@ -42,7 +42,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
-    private final UserRoleMapper userRoleMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -320,9 +320,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         
         // 添加新角色
         if (!CollectionUtils.isEmpty(roleIds)) {
-            List<UserRole> userRoles = roleIds.stream()
+            List<SysUserRole> userRoles = roleIds.stream()
                     .map(roleId -> {
-                        UserRole ur = new UserRole();
+                        SysUserRole ur = new SysUserRole();
                         ur.setUserId(userId);
                         ur.setRoleId(roleId);
                         ur.setCreateTime(LocalDateTime.now());

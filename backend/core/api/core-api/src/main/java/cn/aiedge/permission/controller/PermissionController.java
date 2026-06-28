@@ -28,7 +28,7 @@ import java.util.Set;
  */
 @Tag(name = "权限管理", description = "权限、角色、用户权限的管理接口")
 @RestController
-@RequestMapping("/api/permission")
+@RequestMapping("/api/user-permission")
 @RequiredArgsConstructor
 @SaCheckLogin
 public class PermissionController {

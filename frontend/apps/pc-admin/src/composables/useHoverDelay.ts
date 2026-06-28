@@ -25,7 +25,7 @@ export function useHoverDelay(openDelay = 150, closeDelay = 300) {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
   }
 
-  function handleTargetEnter(item: MenuInfo, el?: HTMLElement) {
+  function handleTargetEnter(item: MenuInfo, el?: HTMLElement, openDelayOverride?: number) {
     clearTimers()
     hoveredItem.value = item
     if (el) {
@@ -39,7 +39,7 @@ export function useHoverDelay(openDelay = 150, closeDelay = 300) {
     }
     openTimer = setTimeout(() => {
       isOpen.value = true
-    }, openDelay)
+    }, openDelayOverride ?? openDelay)
   }
 
   function handleTargetLeave() {

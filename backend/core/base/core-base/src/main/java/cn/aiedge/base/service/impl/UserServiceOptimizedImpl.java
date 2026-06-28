@@ -3,11 +3,11 @@ package cn.aiedge.base.service.impl;
 import cn.aiedge.base.entity.Permission;
 import cn.aiedge.base.entity.Role;
 import cn.aiedge.base.entity.User;
-import cn.aiedge.base.entity.UserRole;
+import cn.aiedge.base.entity.SysUserRole;
 import cn.aiedge.base.mapper.PermissionMapper;
 import cn.aiedge.base.mapper.RoleMapper;
 import cn.aiedge.base.mapper.UserMapper;
-import cn.aiedge.base.mapper.UserRoleMapper;
+import cn.aiedge.base.mapper.SysUserRoleMapper;
 import cn.aiedge.base.service.UserService;
 import cn.aiedge.common.dto.user.*;
 import cn.aiedge.common.exception.BusinessException;
@@ -58,7 +58,7 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     private PermissionMapper permissionMapper;
     
     @Autowired
-    private UserRoleMapper userRoleMapper;
+    private SysUserRoleMapper userRoleMapper;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -123,8 +123,8 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
                 .collect(Collectors.toList());
         
         // 批量获取用户角色映射
-        List<UserRole> userRoles = userRoleMapper.selectList(
-                new LambdaQueryWrapper<UserRole>().in(UserRole::getUserId, userIds));
+        List<SysUserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, userIds));
         
         // 转换为VO
         List<UserVO> voList = result.getRecords().stream()
@@ -408,9 +408,9 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
         
         // 添加新角色
         if (!CollectionUtils.isEmpty(roleIds)) {
-            List<UserRole> userRoles = roleIds.stream()
+            List<SysUserRole> userRoles = roleIds.stream()
                     .map(roleId -> {
-                        UserRole ur = new UserRole();
+                        SysUserRole ur = new SysUserRole();
                         ur.setUserId(userId);
                         ur.setRoleId(roleId);
                         ur.setCreateTime(LocalDateTime.now());
@@ -508,14 +508,14 @@ public class UserServiceOptimizedImpl extends ServiceImpl<UserMapper, User> impl
     /**
      * 转换为VO（带批量角色信息）
      */
-    private UserVO convertToVOWithRoles(User user, List<UserRole> allUserRoles) {
+    private UserVO convertToVOWithRoles(User user, List<SysUserRole> allUserRoles) {
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         
         // 从批量数据中提取当前用户的角色
         List<Long> roleIds = allUserRoles.stream()
                 .filter(ur -> ur.getUserId().equals(user.getId()))
-                .map(UserRole::getRoleId)
+                .map(SysUserRole::getRoleId)
                 .collect(Collectors.toList());
         
         vo.setRoleIds(roleIds);

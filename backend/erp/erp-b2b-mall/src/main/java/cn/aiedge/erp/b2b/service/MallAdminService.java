@@ -1,6 +1,6 @@
 package cn.aiedge.erp.b2b.service;
 
-import cn.aiedge.erp.b2b.model.MallOrder;
+import cn.aiedge.erp.b2b.dao.ErpSaleOrderMall;
 import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.aiedge.erp.b2b.model.ShopBanner;
 import cn.aiedge.erp.b2b.model.ShopConfig;
@@ -98,14 +98,14 @@ public interface MallAdminService {
     // ==================== 订单管理 ====================
 
     /**
-     * 分页查询商城订单（管理端）
+     * 分页查询商城订单（管理端，数据源 erp_sale_order）
      */
-    Page<MallOrder> pageOrders(Integer pageNum, Integer pageSize, String keyword, String orderStatus);
+    Page<ErpSaleOrderMall> pageOrders(Integer pageNum, Integer pageSize, String keyword, String orderStatus);
 
     /**
-     * 获取订单详情（含明细）
+     * 获取订单详情（数据源 erp_sale_order）
      */
-    MallOrder getOrderDetail(Long id);
+    ErpSaleOrderMall getOrderDetail(Long id);
 
     /**
      * 管理端审核通过订单

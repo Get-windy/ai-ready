@@ -3,10 +3,10 @@ package cn.aiedge.erp.b2b.service;
 import cn.aiedge.common.exception.BusinessException;
 import cn.aiedge.erp.b2b.dto.CartAddRequest;
 import cn.aiedge.erp.b2b.dto.CartDTO;
+import cn.aiedge.erp.b2b.dao.ErpProductMall;
+import cn.aiedge.erp.b2b.dao.ErpProductMallMapper;
 import cn.aiedge.erp.b2b.mapper.MallCartMapper;
-import cn.aiedge.erp.b2b.mapper.MallProductMapper;
 import cn.aiedge.erp.b2b.model.MallCart;
-import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class MallCartServiceImpl implements MallCartService {
 
     private final MallCartMapper mallCartMapper;
-    private final MallProductMapper mallProductMapper;
+    private final ErpProductMallMapper erpProductMallMapper;
 
     /** 获取当前登录用户的租户ID */
     private Long getTenantId() {
@@ -57,10 +57,10 @@ public class MallCartServiceImpl implements MallCartService {
         Long tenantId = getTenantId();
 
         // Check if product exists
-        MallProduct product = mallProductMapper.selectOne(
-                new LambdaQueryWrapper<MallProduct>()
-                        .eq(MallProduct::getProductId, request.getProductId())
-                        .eq(MallProduct::getDeleted, 0)
+        ErpProductMall product = erpProductMallMapper.selectOne(
+                new LambdaQueryWrapper<ErpProductMall>()
+                        .eq(ErpProductMall::getProductId, request.getProductId())
+                        .eq(ErpProductMall::getDeleted, 0)
         );
         if (product == null) {
             throw BusinessException.notFound("商品不存在: " + request.getProductId());
@@ -160,10 +160,10 @@ public class MallCartServiceImpl implements MallCartService {
         );
 
         for (MallCart item : cartItems) {
-            MallProduct product = mallProductMapper.selectOne(
-                    new LambdaQueryWrapper<MallProduct>()
-                            .eq(MallProduct::getProductId, item.getProductId())
-                            .eq(MallProduct::getTenantId, tenantId)
+            ErpProductMall product = erpProductMallMapper.selectOne(
+                    new LambdaQueryWrapper<ErpProductMall>()
+                            .eq(ErpProductMall::getProductId, item.getProductId())
+                            .eq(ErpProductMall::getTenantId, tenantId)
             );
             if (product != null && product.getStockQuantity() < item.getQuantity()) {
                 throw BusinessException.badRequest("商品库存不足: " + item.getProductName()

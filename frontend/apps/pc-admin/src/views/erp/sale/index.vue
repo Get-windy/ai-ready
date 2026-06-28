@@ -1,15 +1,6 @@
 <template>
   <ErrorBoundary @error="handleError">
     <PageContainer title="订单处理中心" full-height>
-      <!-- 面包屑导航 -->
-      <template #breadcrumb>
-        <a-breadcrumb>
-          <a-breadcrumb-item>ERP管理</a-breadcrumb-item>
-          <a-breadcrumb-item>销售管理</a-breadcrumb-item>
-          <a-breadcrumb-item>订单处理中心</a-breadcrumb-item>
-        </a-breadcrumb>
-      </template>
-
       <!-- 状态栏 -->
       <template #headerExtra>
         <a-space :size="12">
@@ -61,111 +52,123 @@
 
       <!-- 搜索筛选区域 -->
       <div class="search-area">
-        <a-form layout="inline" :model="searchParams">
-          <a-form-item label="订单编号">
-            <a-input v-model:value="searchParams.orderNo" placeholder="请输入订单编号" allow-clear style="width: 180px" />
-          </a-form-item>
-          <a-form-item label="客户名称">
-            <a-select
-              v-model:value="searchParams.customerId"
-              placeholder="请选择客户"
-              allow-clear
-              show-search
-              :filter-option="filterOption"
-              style="width: 200px"
-            >
-              <a-select-option v-for="c in customerOptions" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="订单状态">
-            <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 150px">
-              <a-select-option v-for="[key, val] in Object.entries(ORDER_STATUS_MAP)" :key="key" :value="Number(key)">
-                <a-tag :color="val.color" style="margin-right: 4px">{{ val.text }}</a-tag>
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="时间范围">
-            <a-range-picker
-              v-model:value="dateRange"
-              :placeholder="['开始日期', '结束日期']"
-              style="width: 240px"
-              @change="handleDateChange"
-            />
-          </a-form-item>
-          <a-form-item>
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ClearOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-form-item>
+        <a-form layout="inline" :model="searchParams" class="search-form">
+          <a-row :gutter="16" align="middle">
+            <a-col :span="6">
+              <a-form-item label="订单编号">
+                <a-input v-model:value="searchParams.orderNo" placeholder="请输入订单编号" allow-clear />
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item label="客户名称">
+                <a-select
+                  v-model:value="searchParams.customerId"
+                  placeholder="请选择客户"
+                  allow-clear
+                  show-search
+                  :filter-option="filterOption"
+                >
+                  <a-select-option v-for="c in customerOptions" :key="c.id" :value="c.id">
+                    {{ c.name }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="4">
+              <a-form-item label="订单状态">
+                <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+                  <a-select-option v-for="[key, val] in Object.entries(ORDER_STATUS_MAP)" :key="key" :value="Number(key)">
+                    <a-tag :color="val.color" style="margin-right: 4px">{{ val.text }}</a-tag>
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="6">
+              <a-form-item label="时间范围">
+                <a-range-picker
+                  v-model:value="dateRange"
+                  :placeholder="['开始日期', '结束日期']"
+                  @change="handleDateChange"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="2">
+              <a-form-item>
+                <a-space>
+                  <a-button type="primary" @click="handleSearch">
+                    <template #icon><SearchOutlined /></template>
+                    搜索
+                  </a-button>
+                  <a-button @click="handleReset">
+                    <template #icon><ClearOutlined /></template>
+                    重置
+                  </a-button>
+                </a-space>
+              </a-form-item>
+            </a-col>
+          </a-row>
         </a-form>
       </div>
 
-      <!-- 数据表格 -->
+      <!-- 使用系统表格组件 -->
       <div class="table-area">
-        <a-table
-          :columns="columns"
+        <BillTableList
+          :columns="billColumns"
           :data-source="tableData"
           :loading="loading"
-          :pagination="pagination"
-          :row-selection="rowSelection"
-          :scroll="{ x: 900 }"
+          :pagination="billPagination"
+          :show-toolbar="false"
+          :show-search="false"
+          :show-add="false"
+          :show-export="false"
+          :show-batch-delete="false"
+          :selectable="false"
           row-key="id"
-          @change="handleTableChange"
+          @page-change="handleBillPageChange"
         >
           <!-- 订单编号 -->
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.dataIndex === 'orderNo'">
-              <a-button type="link" size="small" @click="handleView(record)">
-                {{ record.orderNo }}
-              </a-button>
-            </template>
-            <!-- 订单金额 -->
-            <template v-if="column.dataIndex === 'totalAmount'">
-              <span class="currency-value">¥{{ formatAmount(record.totalAmount) }}</span>
-            </template>
-            <!-- 订单状态 -->
-            <template v-if="column.dataIndex === 'status'">
-              <a-tag :color="getStatusColor(record.status)">
-                {{ getStatusText(record.status) }}
-              </a-tag>
-            </template>
-            <!-- 操作列 -->
-            <template v-if="column.key === 'action'">
-              <a-space :size="4">
-                <a-tooltip title="查看详情">
-                  <a-button type="link" size="small" @click="handleView(record)">
-                    查看详情
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip v-if="record.status === OrderStatus.DRAFT || record.status === OrderStatus.PENDING" title="编辑订单">
-                  <a-button type="link" size="small" @click="handleEdit(record)">
-                    编辑
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip v-else title="已审批订单不可编辑">
-                  <a-button type="link" size="small" disabled>编辑</a-button>
-                </a-tooltip>
-                <a-tooltip v-if="record.status === OrderStatus.DRAFT" title="删除订单">
-                  <a-button type="link" size="small" danger @click="handleDelete(record)">
-                    删除
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip v-else title="非草稿状态不可删除">
-                  <a-button type="link" size="small" disabled danger>删除</a-button>
-                </a-tooltip>
-              </a-space>
-            </template>
+          <template #orderNoCell="{ record }">
+            <a-button type="link" size="small" @click="handleView(record)">
+              {{ record.orderNo }}
+            </a-button>
           </template>
-        </a-table>
+          <!-- 订单金额 -->
+          <template #totalAmountCell="{ record }">
+            <span class="currency-value">¥{{ formatAmount(record.totalAmount) }}</span>
+          </template>
+          <!-- 订单状态 -->
+          <template #statusCell="{ record }">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+          <!-- 操作列 -->
+          <template #actionCell="{ record }">
+            <a-space :size="4">
+              <a-tooltip title="查看详情">
+                <a-button type="link" size="small" @click="handleView(record)">
+                  详情
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-if="record.status === OrderStatus.DRAFT || record.status === OrderStatus.PENDING" title="编辑订单">
+                <a-button type="link" size="small" @click="handleEdit(record)">
+                  编辑
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-else title="已审批订单不可编辑">
+                <a-button type="link" size="small" disabled>编辑</a-button>
+              </a-tooltip>
+              <a-tooltip v-if="record.status === OrderStatus.DRAFT" title="删除订单">
+                <a-button type="link" size="small" danger @click="handleDelete(record)">
+                  删除
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-else title="非草稿状态不可删除">
+                <a-button type="link" size="small" disabled danger>删除</a-button>
+              </a-tooltip>
+            </a-space>
+          </template>
+        </BillTableList>
       </div>
 
       <!-- 详情弹窗 -->
@@ -235,6 +238,7 @@ import {
 import { salesOrderApi, OrderStatus, type SalesOrder } from '@/api/order'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import BillTableList from '@/components/BillTableList/BillTableList.vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 
@@ -312,23 +316,30 @@ function getStatusColor(status: number): string {
   return ORDER_STATUS_MAP[status]?.color || 'default'
 }
 
-// ── 表格列配置 ────────────────────────────────────────
+// ── 表格列配置（BillTableList格式）────────────────────────────────
 
-const columns = [
-  { title: '订单编号', dataIndex: 'orderNo', width: 160 },
-  { title: '客户名称', dataIndex: 'customerName', width: 180 },
-  { title: '订单金额', dataIndex: 'totalAmount', width: 120, align: 'right' as const },
-  { title: '订单状态', dataIndex: 'status', width: 100, align: 'center' as const },
-  { title: '创建时间', dataIndex: 'createTime', width: 160 },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
+const billColumns = [
+  { title: '订单编号', field: 'orderNo', key: 'orderNo', width: 160, type: 'slot', slotName: 'orderNoCell' },
+  { title: '客户名称', field: 'customerName', key: 'customerName', width: 180 },
+  { title: '订单金额', field: 'totalAmount', key: 'totalAmount', width: 120, align: 'right', type: 'slot', slotName: 'totalAmountCell' },
+  { title: '订单状态', field: 'status', key: 'status', width: 100, align: 'center', type: 'slot', slotName: 'statusCell' },
+  { title: '创建时间', field: 'createTime', key: 'createTime', width: 160 },
+  { title: '操作', key: 'action', type: 'action', width: 180, fixed: 'right', slotName: 'actionCell' }
 ]
+
+// BillTableList 分页配置
+const billPagination = computed(() => ({
+  current: pagination.current,
+  pageSize: pagination.pageSize,
+  total: pagination.total
+}))
 
 const detailColumns = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' as const },
-  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' as const },
-  { title: '金额', dataIndex: 'amount', width: 120, align: 'right' as const }
+  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
+  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' },
+  { title: '金额', dataIndex: 'amount', width: 120, align: 'right' }
 ]
 
 // ── 数据加载 ────────────────────────────────────────
@@ -416,6 +427,13 @@ const handleReset = () => {
 const handleTableChange = (pag: any) => {
   pagination.current = pag.current
   pagination.pageSize = pag.pageSize
+  fetchData()
+}
+
+// BillTableList 分页处理
+const handleBillPageChange = (page: number, pageSize: number) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
   fetchData()
 }
 
@@ -557,6 +575,47 @@ onUnmounted(() => {
   border-radius: 8px;
   margin-bottom: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.search-form {
+  width: 100%;
+}
+
+.search-form .ant-form-item {
+  margin-bottom: 0;
+  margin-right: 0;
+}
+
+.search-form .ant-form-item-label {
+  padding-right: 8px;
+}
+
+.search-form .ant-form-item-label > label {
+  font-size: 14px;
+  color: #333;
+}
+
+.search-form .ant-input,
+.search-form .ant-select,
+.search-form .ant-picker {
+  width: 100%;
+  height: 28px;
+}
+
+.search-form .ant-select-selector,
+.search-form .ant-picker-input {
+  height: 28px !important;
+}
+
+.search-form .ant-select-selection-item,
+.search-form .ant-picker-input > input {
+  line-height: 26px !important;
+}
+
+.search-form .ant-btn {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 /* 表格区域 */

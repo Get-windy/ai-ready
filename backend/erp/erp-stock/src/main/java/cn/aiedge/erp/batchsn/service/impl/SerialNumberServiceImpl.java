@@ -1,5 +1,6 @@
 package cn.aiedge.erp.batchsn.service.impl;
 
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.batchsn.entity.SerialFlowRecord;
 import cn.aiedge.erp.batchsn.entity.SerialNumber;
 import cn.aiedge.erp.batchsn.enums.SnStatusEnum;
@@ -32,6 +33,7 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
 
     private final SerialNumberMapper serialNumberMapper;
     private final SerialFlowRecordMapper serialFlowRecordMapper;
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -59,10 +61,7 @@ public class SerialNumberServiceImpl extends ServiceImpl<SerialNumberMapper, Ser
     }
 
     private String generateSerialNo(SerialNumber serial) {
-        String prefix = "SN";
-        String dateStr = LocalDate.now().toString().replace("-", "");
-        String seq = String.format("%06d", System.currentTimeMillis() % 1000000);
-        return prefix + dateStr + seq;
+        return bizNumberGeneratorService.nextSerialNo();
     }
 
     @Override

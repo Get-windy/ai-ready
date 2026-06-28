@@ -12,7 +12,7 @@
         <span v-show="!sidebarCollapsed" class="mega-sidebar-logo-text">企智连</span>
       </div>
 
-      <div class="mega-sidebar-items">
+      <div ref="sidebarItemsRef" class="mega-sidebar-items">
         <div
           v-for="menu in userStore.menus"
           :key="menu.id"
@@ -25,6 +25,8 @@
           <span v-show="!sidebarCollapsed" class="mega-sidebar-label">{{ menu.menuName }}</span>
           <div v-if="!isDashboard(menu) && !sidebarCollapsed" class="mega-sidebar-hover-bar" />
         </div>
+        <!-- Spacer: 动态增高以创造滚动空间 -->
+        <div ref="sidebarSpacerRef" class="mega-sidebar-spacer" />
       </div>
 
       <!-- MegaMenuPanel 弹出面板（折叠时不显示） -->
@@ -36,6 +38,7 @@
           @panel-enter="hoverState.handlePanelEnter()"
           @panel-leave="hoverState.handlePanelLeave()"
           @navigate="hoverState.close()"
+          @measure="handlePanelMeasure"
         />
       </Teleport>
     </div>
@@ -397,6 +400,14 @@ const sidebarCollapsed = ref(false)
 // Mega Menu hover 延迟控制
 const hoverState = useHoverDelay(150, 300)
 
+// 侧边栏菜单列表引用（用于自动滚动）
+const sidebarItemsRef = ref<HTMLElement | null>(null)
+const sidebarSpacerRef = ref<HTMLElement | null>(null)
+// 保存的原始滚动位置（面板关闭时恢复）
+let savedSidebarScrollTop: number | null = null
+// 面板高度缓存（menuId → 实际像素高度，避免估算过高导致不必要的滚动）
+const panelHeightCache = new Map<number, number>()
+
 // 通知系统（基于WebSocket实时推送）
 const notif = useNotification()
 
@@ -494,6 +505,22 @@ watch(() => route.path, (path) => {
   }
 }, { immediate: true })
 
+// 面板关闭时恢复侧边栏滚动位置并收起 spacer
+watch(
+  () => hoverState.isOpen.value,
+  (isOpen) => {
+    if (!isOpen && savedSidebarScrollTop !== null && sidebarItemsRef.value && sidebarSpacerRef.value) {
+      const container = sidebarItemsRef.value
+      const spacer = sidebarSpacerRef.value
+      // 收起 spacer
+      spacer.style.height = '0px'
+      // 恢复滚动位置
+      container.scrollTo({ top: savedSidebarScrollTop, behavior: 'smooth' })
+      savedSidebarScrollTop = null
+    }
+  }
+)
+
 // 根据当前路由同步移动端菜单选中项
 function syncMenuKeys(path: string) {
   for (const menu of userStore.menus) {
@@ -539,6 +566,28 @@ function isDashboard(menu: MenuInfo): boolean {
   return menu.menuName === '工作台' || menu.menuName === '首页' || menu.path === '/dashboard'
 }
 
+/** 接收 MegaMenuPanel 实际高度并缓存 */
+function handlePanelMeasure(height: number) {
+  const menu = hoverState.hoveredItem.value
+  if (menu?.id) {
+    panelHeightCache.set(menu.id, height)
+  }
+}
+
+/** 估算面板高度：优先用缓存，否则按最多子项列数计算 */
+function estimatePanelHeight(menu: MenuInfo): number {
+  if (menu.id && panelHeightCache.has(menu.id)) {
+    return panelHeightCache.get(menu.id)!
+  }
+  const columns = (menu.children || []).filter(c => c.children?.length)
+  let maxItems = 0
+  for (const col of columns) {
+    maxItems = Math.max(maxItems, col.children?.length ?? 0)
+  }
+  // 每子项约 28px + 列头 40px + 面板 padding 24px
+  return Math.max(120, 40 + 24 + maxItems * 28)
+}
+
 /** 处理侧边栏悬停事件（只有非工作台的父级菜单才显示面板） */
 function handleSidebarHover(menu: MenuInfo, el: HTMLElement) {
   // 工作台是叶子节点，不显示面板，但要关闭已展开的面板
@@ -548,7 +597,52 @@ function handleSidebarHover(menu: MenuInfo, el: HTMLElement) {
   }
   // 只有有子菜单的才显示面板
   if (menu.children?.length) {
-    hoverState.handleTargetEnter(menu, el)
+    const rect = el.getBoundingClientRect()
+    const viewportBottom = window.innerHeight
+    const panelEstHeight = estimatePanelHeight(menu)
+    const availableSpace = viewportBottom - rect.top - 16
+
+    // 面板超出视口底部 → 通过 spacer 创造滚动空间
+    if (availableSpace < panelEstHeight && sidebarItemsRef.value && sidebarSpacerRef.value) {
+      const container = sidebarItemsRef.value
+      const spacer = sidebarSpacerRef.value
+
+      // 首次悬停时保存原始滚动位置（面板关闭时恢复）
+      if (savedSidebarScrollTop === null) {
+        savedSidebarScrollTop = container.scrollTop
+      }
+
+      // 直接测量所有子项的实际高度（不依赖 scrollHeight）
+      let contentHeight = 0
+      for (const child of Array.from(container.children)) {
+        if (child !== spacer) {
+          contentHeight += child.getBoundingClientRect().height
+        }
+      }
+      // 加上 gap 高度（子项数量 - 1）× 2px
+      const itemCount = container.children.length - 1 // 减去 spacer
+      contentHeight += Math.max(0, itemCount - 1) * 2
+      // 加上 padding
+      const style = getComputedStyle(container)
+      contentHeight += parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+
+      const neededScroll = panelEstHeight - availableSpace
+      const spacerHeight = Math.max(0, container.clientHeight + neededScroll - contentHeight + 20)
+
+      spacer.style.transition = 'none'
+      spacer.style.height = spacerHeight + 'px'
+
+      // 等两帧让布局生效
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          container.scrollTo({ top: neededScroll, behavior: 'instant' })
+          // 滚动后捕获元素的正确位置，延迟打开面板
+          hoverState.handleTargetEnter(menu, el, 200)
+        })
+      })
+    } else {
+      hoverState.handleTargetEnter(menu, el)
+    }
   }
 }
 
@@ -764,12 +858,35 @@ const clearAllFavorites = () => {
 
 .mega-sidebar-items {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* Spacer: 动态增高创造滚动空间，让底部菜单项可以滚到更高位置 */
+.mega-sidebar-spacer {
+  flex-shrink: 0;
+  flex-grow: 0;
+  height: 0;
+  transition: height 0.15s ease;
+}
+
+/* 滚动条样式 — 细窄半透明，避免挤占菜单空间 */
+.mega-sidebar-items::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mega-sidebar-items::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.mega-sidebar-items::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .mega-sidebar-item {
@@ -784,6 +901,8 @@ const clearAllFavorites = () => {
   color: rgba(255, 255, 255, 0.65);
   transition: all 0.2s;
   user-select: none;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 
 /* 折叠状态下菜单项只居中显示图标 */

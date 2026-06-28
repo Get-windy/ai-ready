@@ -15,7 +15,7 @@ import java.util.Map;
  * 存储配置控制器
  */
 @RestController
-@RequestMapping("/api/storage")
+@RequestMapping("/api/storage-config")
 @RequiredArgsConstructor
 @Tag(name = "存储配置", description = "存储服务配置管理")
 public class StorageConfigController {

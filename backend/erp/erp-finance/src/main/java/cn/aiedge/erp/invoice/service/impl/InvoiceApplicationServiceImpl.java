@@ -1,6 +1,7 @@
 package cn.aiedge.erp.invoice.service.impl;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.invoice.model.entity.InvoiceApplication;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
 import cn.aiedge.erp.invoice.repository.InvoiceApplicationRepository;
@@ -24,6 +25,9 @@ public class InvoiceApplicationServiceImpl implements InvoiceApplicationService 
 
     @Autowired
     private InvoiceApplicationRepository invoiceApplicationRepository;
+
+    @Autowired
+    private BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public InvoiceApplication createInvoiceApplication(InvoiceApplication application) {
@@ -232,8 +236,8 @@ public class InvoiceApplicationServiceImpl implements InvoiceApplicationService 
      * 生成申请单号
      */
     private String generateApplicationNumber() {
-        String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String sequencePart = String.format("%05d", (int)(Math.random() * 100000));
-        return "APP-" + datePart + "-" + sequencePart;
+        // 格式: APP-YYYYMMDD-XXXXX (递增序列号)
+        String number = bizNumberGeneratorService.nextApplicationNo();
+        return number.substring(0, 3) + "-" + number.substring(3, 11) + "-" + number.substring(11);
     }
 }

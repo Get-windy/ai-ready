@@ -1,5 +1,6 @@
 package cn.aiedge.erp.invoice.service.impl;
 
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.invoice.model.entity.Invoice;
 import cn.aiedge.erp.invoice.model.entity.InvoiceApplication;
 import cn.aiedge.erp.invoice.model.enums.InvoiceStatus;
@@ -26,6 +27,9 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public Optional<Invoice> getInvoiceById(Long id) {
@@ -321,11 +325,9 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     public String generateInvoiceNumber() {
-        // 生成发票号码的逻辑
-        // 格式: INV-YYYYMMDD-XXXXX
-        String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String sequencePart = String.format("%05d", (int)(Math.random() * 100000));
-        return "INV-" + datePart + "-" + sequencePart;
+        // 格式: INV-YYYYMMDD-XXXXX (递增序列号)
+        String number = bizNumberGeneratorService.nextInvoiceNo();
+        return number.substring(0, 3) + "-" + number.substring(3, 11) + "-" + number.substring(11);
     }
 
     @Override

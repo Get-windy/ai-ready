@@ -55,8 +55,8 @@ export interface BasicInfoField {
   format?: string
   /** 搜索按钮文本（如 "+Q"、"Q"） */
   searchBtn?: string
-  /** 字段宽度：'default' | 'narrow' | 'wide' */
-  width?: 'default' | 'narrow' | 'wide'
+  /** 字段宽度：'default' | 'narrow' | 'wide' 或具体像素值 */
+  width?: 'default' | 'narrow' | 'wide' | number
   /** 是否加载中 */
   loading?: boolean
   /** 数字精度（type=number 时使用） */
@@ -67,6 +67,10 @@ export interface BasicInfoField {
   max?: number
   /** 栅格占列数：12=半行，24=整行（映射到 width='wide'） */
   span?: number
+  /** 所在行号（1=第一行，2=第二行等），用于多行布局 */
+  row?: number
+  /** 内嵌标签模式：true 时隐藏外部 label，将 label 显示在 placeholder 中 */
+  inlineLabel?: boolean
 }
 
 // ── 底部标签页字段 ──

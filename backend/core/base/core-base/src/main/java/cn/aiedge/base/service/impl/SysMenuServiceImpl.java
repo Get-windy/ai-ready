@@ -260,7 +260,8 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu>
             // 系统租户：跳过 sys_tenant_menu 授权检查，仅按角色权限过滤
             if (isSuperAdmin) {
                 // 超管返回 tenant-admin + system-admin 全部菜单
-                return buildMenuTree(getAllMenusForSystemAdmin(), 0L);
+                List<SysMenu> allMenus = getAllMenusForSystemAdmin();
+                return buildMenuTree(allMenus, 0L);
             }
             // 系统租户内普通用户：按角色菜单关联过滤
             List<Long> roleIds = baseMapper.selectRoleIdsByUserId(userId);

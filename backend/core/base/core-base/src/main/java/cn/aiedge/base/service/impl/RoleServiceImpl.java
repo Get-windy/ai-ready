@@ -39,8 +39,8 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
-    private final RolePermissionMapper rolePermissionMapper;
-    private final UserRoleMapper userRoleMapper;
+    private final SysRolePermissionMapper rolePermissionMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final StpInterfaceImpl stpInterface;
     private final SysOperLogService operLogService;
     private final ObjectMapper objectMapper;
@@ -208,7 +208,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
         // 检查是否有用户关联
         long userCount = userRoleMapper.selectCount(
-                new LambdaQueryWrapper<UserRole>().eq(UserRole::getRoleId, id)
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id)
         );
         
         if (userCount > 0) {
@@ -233,7 +233,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         
         // 检查是否有用户关联
         long userCount = userRoleMapper.selectCount(
-                new LambdaQueryWrapper<UserRole>().in(UserRole::getRoleId, ids)
+                new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getRoleId, ids)
         );
         
         if (userCount > 0) {
@@ -277,9 +277,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
         // 添加新权限
         if (!CollectionUtils.isEmpty(permissionIds)) {
-            List<RolePermission> rolePermissions = permissionIds.stream()
+            List<SysRolePermission> rolePermissions = permissionIds.stream()
                     .map(permissionId -> {
-                        RolePermission rp = new RolePermission();
+                        SysRolePermission rp = new SysRolePermission();
                         rp.setRoleId(roleId);
                         rp.setPermissionId(permissionId);
                         rp.setCreateTime(LocalDateTime.now());
@@ -291,10 +291,10 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
         // 清除该角色下所有用户的权限缓存
         try {
-            List<UserRole> userRoles = userRoleMapper.selectList(
-                    new LambdaQueryWrapper<UserRole>().eq(UserRole::getRoleId, roleId)
+            List<SysUserRole> userRoles = userRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, roleId)
             );
-            for (UserRole userRole : userRoles) {
+            for (SysUserRole userRole : userRoles) {
                 stpInterface.clearUserPermissionCache(userRole.getUserId());
             }
             if (!userRoles.isEmpty()) {

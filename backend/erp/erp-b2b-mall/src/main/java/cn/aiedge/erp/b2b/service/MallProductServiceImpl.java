@@ -1,12 +1,12 @@
 package cn.aiedge.erp.b2b.service;
 
 import cn.aiedge.common.exception.BusinessException;
+import cn.aiedge.erp.b2b.dao.ErpProductMall;
+import cn.aiedge.erp.b2b.dao.ErpProductMallMapper;
 import cn.aiedge.erp.b2b.dto.PageResult;
 import cn.aiedge.erp.b2b.dto.ProductDetailDTO;
 import cn.aiedge.erp.b2b.dto.ProductListDTO;
-import cn.aiedge.erp.b2b.mapper.MallProductMapper;
 import cn.aiedge.erp.b2b.mapper.ShopBannerMapper;
-import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.aiedge.erp.b2b.model.ShopBanner;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -19,12 +19,16 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 商城商品服务
+ * 数据源为 v_mall_product 视图（来自 erp_product + erp_stock）
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MallProductServiceImpl implements MallProductService {
 
-    private final MallProductMapper mallProductMapper;
+    private final ErpProductMallMapper erpProductMallMapper;
     private final ShopBannerMapper shopBannerMapper;
 
     /** 获取当前登录用户的租户ID */
@@ -37,21 +41,21 @@ public class MallProductServiceImpl implements MallProductService {
     public PageResult<ProductListDTO> listProducts(int page, int size, String categoryId, String keyword) {
         log.info("查询商品列表: page={}, size={}, categoryId={}, keyword={}", page, size, categoryId, keyword);
 
-        LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MallProduct::getDeleted, 0);
-        wrapper.eq(MallProduct::getStatus, "ON_SHELF");
-        wrapper.eq(MallProduct::getTenantId, getTenantId());
+        LambdaQueryWrapper<ErpProductMall> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ErpProductMall::getDeleted, 0);
+        wrapper.eq(ErpProductMall::getStatus, "ON_SHELF");
+        wrapper.eq(ErpProductMall::getTenantId, getTenantId());
 
         if (categoryId != null && !categoryId.isEmpty()) {
-            wrapper.eq(MallProduct::getCategoryId, categoryId);
+            wrapper.eq(ErpProductMall::getCategoryId, categoryId);
         }
         if (keyword != null && !keyword.isEmpty()) {
-            wrapper.like(MallProduct::getProductName, keyword);
+            wrapper.like(ErpProductMall::getProductName, keyword);
         }
 
-        wrapper.orderByDesc(MallProduct::getSalesCount, MallProduct::getCreateTime);
+        wrapper.orderByDesc(ErpProductMall::getSalesCount, ErpProductMall::getCreateTime);
 
-        IPage<MallProduct> productPage = mallProductMapper.selectPage(new Page<>(page, size), wrapper);
+        IPage<ErpProductMall> productPage = erpProductMallMapper.selectPage(new Page<>(page, size), wrapper);
 
         List<ProductListDTO> records = productPage.getRecords().stream()
                 .map(this::convertToListDTO)
@@ -69,7 +73,7 @@ public class MallProductServiceImpl implements MallProductService {
     @Override
     public ProductDetailDTO getProductDetail(Long id) {
         log.info("获取商品详情: {}", id);
-        MallProduct product = mallProductMapper.selectById(id);
+        ErpProductMall product = erpProductMallMapper.selectById(id);
         if (product == null) {
             throw BusinessException.notFound("商品不存在: " + id);
         }
@@ -95,14 +99,14 @@ public class MallProductServiceImpl implements MallProductService {
     @Override
     public List<Map<String, Object>> getCategories() {
         log.info("获取商品分类列表");
-        // 从 mall_product 表中提取所有存在的分类
-        List<MallProduct> products = mallProductMapper.selectList(
-                new LambdaQueryWrapper<MallProduct>()
-                        .eq(MallProduct::getDeleted, 0)
-                        .eq(MallProduct::getTenantId, getTenantId())
-                        .isNotNull(MallProduct::getCategoryId)
-                        .select(MallProduct::getCategoryId, MallProduct::getCategoryName)
-                        .groupBy(MallProduct::getCategoryId, MallProduct::getCategoryName)
+        // 从 v_mall_product 视图中提取所有存在的分类
+        List<ErpProductMall> products = erpProductMallMapper.selectList(
+                new LambdaQueryWrapper<ErpProductMall>()
+                        .eq(ErpProductMall::getDeleted, 0)
+                        .eq(ErpProductMall::getTenantId, getTenantId())
+                        .isNotNull(ErpProductMall::getCategoryId)
+                        .select(ErpProductMall::getCategoryId, ErpProductMall::getCategoryName)
+                        .groupBy(ErpProductMall::getCategoryId, ErpProductMall::getCategoryName)
         );
 
         return products.stream().map(p -> {
@@ -117,28 +121,28 @@ public class MallProductServiceImpl implements MallProductService {
     @Override
     public List<ProductListDTO> getRecommendations() {
         log.info("获取推荐商品");
-        LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MallProduct::getDeleted, 0);
-        wrapper.eq(MallProduct::getStatus, "ON_SHELF");
-        wrapper.eq(MallProduct::getTenantId, getTenantId());
-        wrapper.orderByDesc(MallProduct::getSalesCount);
+        LambdaQueryWrapper<ErpProductMall> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ErpProductMall::getDeleted, 0);
+        wrapper.eq(ErpProductMall::getStatus, "ON_SHELF");
+        wrapper.eq(ErpProductMall::getTenantId, getTenantId());
+        wrapper.orderByDesc(ErpProductMall::getSalesCount);
         wrapper.last("LIMIT 10");
 
-        List<MallProduct> products = mallProductMapper.selectList(wrapper);
+        List<ErpProductMall> products = erpProductMallMapper.selectList(wrapper);
         return products.stream().map(this::convertToListDTO).collect(Collectors.toList());
     }
 
     @Override
     public List<ProductListDTO> getHotProducts() {
         log.info("获取热销商品");
-        LambdaQueryWrapper<MallProduct> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(MallProduct::getDeleted, 0);
-        wrapper.eq(MallProduct::getStatus, "ON_SHELF");
-        wrapper.eq(MallProduct::getTenantId, getTenantId());
-        wrapper.orderByDesc(MallProduct::getSalesCount);
+        LambdaQueryWrapper<ErpProductMall> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ErpProductMall::getDeleted, 0);
+        wrapper.eq(ErpProductMall::getStatus, "ON_SHELF");
+        wrapper.eq(ErpProductMall::getTenantId, getTenantId());
+        wrapper.orderByDesc(ErpProductMall::getSalesCount);
         wrapper.last("LIMIT 10");
 
-        List<MallProduct> products = mallProductMapper.selectList(wrapper);
+        List<ErpProductMall> products = erpProductMallMapper.selectList(wrapper);
         return products.stream().map(this::convertToListDTO).collect(Collectors.toList());
     }
 
@@ -163,7 +167,7 @@ public class MallProductServiceImpl implements MallProductService {
         }).collect(Collectors.toList());
     }
 
-    private ProductListDTO convertToListDTO(MallProduct product) {
+    private ProductListDTO convertToListDTO(ErpProductMall product) {
         ProductListDTO dto = new ProductListDTO();
         dto.setId(product.getId());
         dto.setProductId(product.getProductId());

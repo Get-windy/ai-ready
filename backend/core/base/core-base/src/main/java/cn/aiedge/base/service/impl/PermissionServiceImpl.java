@@ -1,9 +1,9 @@
 package cn.aiedge.base.service.impl;
 
 import cn.aiedge.base.entity.Permission;
-import cn.aiedge.base.entity.RolePermission;
+import cn.aiedge.base.entity.SysRolePermission;
 import cn.aiedge.base.mapper.PermissionMapper;
-import cn.aiedge.base.mapper.RolePermissionMapper;
+import cn.aiedge.base.mapper.SysRolePermissionMapper;
 import cn.aiedge.base.service.PermissionService;
 import cn.aiedge.common.dto.permission.*;
 import cn.aiedge.common.exception.BusinessException;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class PermissionServiceImpl extends ServiceImpl<PermissionMapper, Permission> implements PermissionService {
 
     private final PermissionMapper permissionMapper;
-    private final RolePermissionMapper rolePermissionMapper;
+    private final SysRolePermissionMapper rolePermissionMapper;
 
     @Override
     public PageResult<PermissionDetailVO> pageList(PermissionQueryRequest request) {
@@ -149,7 +149,7 @@ public class PermissionServiceImpl extends ServiceImpl<PermissionMapper, Permiss
         
         // 检查是否有角色关联
         long roleCount = rolePermissionMapper.selectCount(
-                new LambdaQueryWrapper<RolePermission>().eq(RolePermission::getPermissionId, id)
+                new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getPermissionId, id)
         );
         
         if (roleCount > 0) {
@@ -180,7 +180,7 @@ public class PermissionServiceImpl extends ServiceImpl<PermissionMapper, Permiss
         
         // 检查是否有角色关联
         long roleCount = rolePermissionMapper.selectCount(
-                new LambdaQueryWrapper<RolePermission>().in(RolePermission::getPermissionId, ids)
+                new LambdaQueryWrapper<SysRolePermission>().in(SysRolePermission::getPermissionId, ids)
         );
         
         if (roleCount > 0) {

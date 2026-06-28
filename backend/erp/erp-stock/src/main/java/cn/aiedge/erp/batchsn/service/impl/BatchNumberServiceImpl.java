@@ -1,5 +1,6 @@
 package cn.aiedge.erp.batchsn.service.impl;
 
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 import cn.aiedge.erp.batchsn.entity.BatchFlowRecord;
 import cn.aiedge.erp.batchsn.entity.BatchNumber;
 import cn.aiedge.erp.batchsn.enums.BatchStatusEnum;
@@ -33,6 +34,7 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
 
     private final BatchNumberMapper batchNumberMapper;
     private final BatchFlowRecordMapper batchFlowRecordMapper;
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -60,12 +62,7 @@ public class BatchNumberServiceImpl extends ServiceImpl<BatchNumberMapper, Batch
     }
 
     private String generateBatchNo(BatchNumber batch) {
-        String prefix = "B";
-        String dateStr = batch.getProductionDate() != null
-            ? batch.getProductionDate().toString().replace("-", "")
-            : LocalDate.now().toString().replace("-", "");
-        String seq = String.format("%04d", System.currentTimeMillis() % 10000);
-        return prefix + dateStr + seq;
+        return bizNumberGeneratorService.nextBatchNo();
     }
 
     @Override

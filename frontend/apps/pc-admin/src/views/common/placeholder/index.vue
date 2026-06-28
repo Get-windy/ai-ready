@@ -1,50 +1,43 @@
 <template>
-  <PageContainer full-height>
-    <div class="placeholder-page">
-      <div class="placeholder-icon">
-        <BuildOutlined />
-      </div>
-      <h3>{{ pageTitle }}</h3>
-      <p>功能开发中，敬请期待...</p>
-    </div>
-  </PageContainer>
+  <div class="placeholder-page">
+    <a-result
+      status="info"
+      :title="pageTitle"
+      sub-title="该功能正在开发中，敬请期待"
+    >
+      <template #extra>
+        <a-button type="primary" @click="goBack">返回</a-button>
+      </template>
+    </a-result>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { BuildOutlined } from '@ant-design/icons-vue'
-import PageContainer from '@/components/PageContainer/PageContainer.vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
-const pageTitle = computed(() => (route.meta?.title as string) || '开发中')
+const router = useRouter()
+
+const pageTitle = computed(() => {
+  const title = route.meta?.title as string | undefined
+  return title ? `"${title}" 功能开发中` : '功能开发中'
+})
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
 </script>
 
 <style scoped>
 .placeholder-page {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #909399;
-}
-
-.placeholder-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: #c0c4cc;
-}
-
-.placeholder-page h3 {
-  font-size: 18px;
-  color: #606266;
-  margin: 0 0 8px 0;
-}
-
-.placeholder-page p {
-  font-size: 14px;
-  color: #909399;
-  margin: 0;
+  align-items: center;
+  min-height: 60vh;
 }
 </style>

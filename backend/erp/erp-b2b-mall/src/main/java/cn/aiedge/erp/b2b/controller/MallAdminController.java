@@ -1,7 +1,7 @@
 package cn.aiedge.erp.b2b.controller;
 
 import cn.aiedge.base.vo.Result;
-import cn.aiedge.erp.b2b.model.MallOrder;
+import cn.aiedge.erp.b2b.dao.ErpSaleOrderMall;
 import cn.aiedge.erp.b2b.model.MallProduct;
 import cn.aiedge.erp.b2b.model.ShopBanner;
 import cn.aiedge.erp.b2b.model.ShopConfig;
@@ -159,7 +159,7 @@ public class MallAdminController {
 
     @GetMapping("/order/page")
     @Operation(summary = "分页查询商城订单")
-    public Result<Page<MallOrder>> pageOrders(
+    public Result<Page<ErpSaleOrderMall>> pageOrders(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize,
             @RequestParam(required = false) String keyword,
@@ -169,7 +169,7 @@ public class MallAdminController {
 
     @GetMapping("/order/{id}")
     @Operation(summary = "获取订单详情")
-    public Result<MallOrder> getOrderDetail(@PathVariable Long id) {
+    public Result<ErpSaleOrderMall> getOrderDetail(@PathVariable Long id) {
         return Result.ok(mallAdminService.getOrderDetail(id));
     }
 

@@ -27,7 +27,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/tenant")
+@RequestMapping("/api/tenant-registration")
 @Tag(name = "租户注册审批", description = "租户自助注册、审批、驳回")
 public class TenantRegistrationController {
 

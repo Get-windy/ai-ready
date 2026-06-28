@@ -82,8 +82,8 @@
         <!-- XXL-Job -->
         <xxl-job.version>2.4.1</xxl-job.version>
 
-        <!-- Flyway -->
-        <flyway.version>9.22.3</flyway.version>
+        <!-- Flyway (10.x+ supports PostgreSQL 16+) -->
+        <flyway.version>10.20.1</flyway.version>
 
         <!-- API Documentation -->
         <springdoc.version>2.5.0</springdoc.version>
@@ -161,6 +161,11 @@
             <dependency>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-core</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
                 <version>${flyway.version}</version>
             </dependency>
 
@@ -464,4 +469,43 @@
             <url>https://repo.maven.apache.org/maven2</url>
         </pluginRepository>
     </pluginRepositories>
+
+    <profiles>
+        <!-- sync-engine Docker构建支持：mvn package -Dinclude-sync-engine -->
+        <profile>
+            <id>with-sync-engine</id>
+            <activation>
+                <property>
+                    <name>include-sync-engine</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>build-sync-engine</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>docker</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>-t</argument>
+                                        <argument>ai-ready/sync-engine:${project.version}</argument>
+                                        <argument>./sync-engine</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

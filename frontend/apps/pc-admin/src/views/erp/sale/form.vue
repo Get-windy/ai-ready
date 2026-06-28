@@ -260,14 +260,15 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 const accountOptions = ref<any[]>([])
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  { key: 'customerId', label: '客户', type: 'select', required: true, placeholder: '请选择客户', options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'warehouseId', label: '发货仓库', type: 'select', required: true, placeholder: '请选择仓库', options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'salespersonId', label: '经手人', type: 'select', required: true, placeholder: '请选择经手人', options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'orderDate', label: '单据日期', type: 'date', required: true },
-  { key: 'saleType', label: '销售类型', type: 'select', required: true, options: [{ label: '正常销售', value: 1 }, { label: '样品销售', value: 2 }, { label: '促销销售', value: 3 }] },
-  { key: 'receiverName', label: '收货人', type: 'input', placeholder: '请输入收货人', searchBtn: 'Q' },
-  { key: 'receiverPhone', label: '联系电话', type: 'input', placeholder: '请输入联系电话', width: 'narrow' },
-  { key: 'receiverAddress', label: '收货地址', type: 'input', placeholder: '请输入收货地址', width: 'wide' },
+  // 流式布局：按宽度排列，自动换行
+  { key: 'customerId', label: '客户', type: 'select', required: true, inlineLabel: true, width: 435, options: optionRefs.customers.map((c: any) => ({ label: c.name, value: c.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'warehouseId', label: '发货仓库', type: 'select', required: true, inlineLabel: true, width: 210, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'salespersonId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'orderDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 210 },
+  { key: 'saleType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 210, options: [{ label: '正常销售', value: 1 }, { label: '样品销售', value: 2 }, { label: '促销销售', value: 3 }] },
+  { key: 'receiverName', label: '收货人', type: 'input', inlineLabel: true, width: 210, searchBtn: 'Q' },
+  { key: 'receiverPhone', label: '联系电话', type: 'input', inlineLabel: true, width: 210 },
+  { key: 'receiverAddress', label: '收货地址', type: 'input', inlineLabel: true, width: 660 },
 ])
 
 const tabsConfig = computed<BillTabConfig[]>(() => [

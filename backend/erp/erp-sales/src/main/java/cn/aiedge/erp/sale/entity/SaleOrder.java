@@ -159,6 +159,41 @@ public class SaleOrder {
     private String remark;
 
     /**
+     * 订单来源（1-内部销售 2-B2B商城 3-B2C零售 4-H5商城 5-小程序）
+     */
+    private Integer orderSource;
+
+    /**
+     * 支付方式（ALIPAY/WECHAT/UNIONPAY/BANK/CASH）
+     */
+    private String paymentMethod;
+
+    /**
+     * 支付状态（0-待支付 1-支付中 2-已支付 3-已退款）
+     */
+    private Integer paymentStatus;
+
+    /**
+     * 发货状态（0-待发货 1-部分发货 2-已发货 3-已签收）
+     */
+    private Integer deliveryStatus;
+
+    /**
+     * 收货人（别名）
+     */
+    private String consignee;
+
+    /**
+     * 收货人电话（别名）
+     */
+    private String consigneePhone;
+
+    /**
+     * 收货地址（详细）
+     */
+    private String consigneeAddress;
+
+    /**
      * 扩展信息（JSON）
      */
     @TableField(typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
