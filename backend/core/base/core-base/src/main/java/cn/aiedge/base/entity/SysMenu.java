@@ -1,6 +1,8 @@
 package cn.aiedge.base.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -78,16 +80,22 @@ public class SysMenu {
     /**
      * 排序号
      */
+    @JsonProperty("sortOrder")
+    @JsonAlias("sort")
     private Integer sort;
 
     /**
      * 是否外链（0-否 1-是）
      */
+    @JsonProperty("external")
+    @JsonAlias({ "isExternal", "external" })
     private Integer isExternal;
 
     /**
      * 是否缓存（0-否 1-是）
      */
+    @JsonProperty("keepAlive")
+    @JsonAlias({ "isCache", "keepAlive" })
     private Integer isCache;
 
     /**

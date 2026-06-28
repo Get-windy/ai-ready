@@ -28,7 +28,7 @@ interface MenuItem {
   routeName?: string
   redirect?: string
   icon?: string
-  sort: number
+  sortOrder: number
   isExternal?: number
   isCache?: number
   visible: number
@@ -733,7 +733,7 @@ function transformMenuToRoutes(menu: MenuItem, parentPath: string = ''): RouteRe
 function buildMenuTree(menus: MenuItem[], parentId: number = 0): MenuItem[] {
   return menus
     .filter(menu => menu.parentId === parentId)
-    .sort((a, b) => a.sort - b.sort)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
     .map(menu => ({
       ...menu,
       children: buildMenuTree(menus, menu.id)
