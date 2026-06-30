@@ -58,6 +58,16 @@
         style="flex:1"
         @update:value="emitValue"
       />
+      <a-textarea
+        v-else-if="type === 'textarea'"
+        :value="modelValue"
+        :placeholder="label"
+        :disabled="disabled"
+        size="small"
+        :auto-size="{ minRows: 2, maxRows: 4 }"
+        style="flex:1"
+        @update:value="emitValue"
+      />
       <a-input
         v-else
         :value="modelValue"
@@ -86,7 +96,7 @@ defineOptions({ name: 'InlineField' })
 
 const props = withDefaults(defineProps<{
   /** 字段类型 */
-  type: 'select' | 'tree-select' | 'date' | 'number' | 'input'
+  type: 'select' | 'tree-select' | 'date' | 'number' | 'input' | 'textarea'
   /** 标签文本（显示在 placeholder 中） */
   label: string
   /** 当前值 */

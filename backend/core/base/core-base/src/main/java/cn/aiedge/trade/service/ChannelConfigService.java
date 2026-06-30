@@ -59,4 +59,9 @@ public interface ChannelConfigService {
      * 初始化渠道连接
      */
     boolean initializeChannel(Long id);
+
+    /**
+     * 同步渠道数据（从外部平台拉取订单/商品等）
+     */
+    Map<String, Object> syncChannelData(Long id);
 }

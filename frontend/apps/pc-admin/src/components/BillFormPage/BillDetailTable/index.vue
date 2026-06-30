@@ -107,6 +107,7 @@
                   <template v-for="(btn, bi) in col.buttons" :key="bi">
                     <a-button
                       :type="btn.type || 'link'"
+                      :danger="btn.danger"
                       size="small"
                       @click="btn.onClick?.(record, rowIndex)"
                     >

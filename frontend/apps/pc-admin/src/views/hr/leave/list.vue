@@ -56,7 +56,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-async function handleApprove(record: HrLeaveRequest) {
+async function handleApprove(record: any) {
   Modal.confirm({ title: '确认批准', content: '确定批准该请假申请吗？', onOk: async () => {
     await hrLeaveRequestApi.approve(record.id)
     message.success('批准成功')
@@ -64,7 +64,7 @@ async function handleApprove(record: HrLeaveRequest) {
   }})
 }
 
-async function handleReject(record: HrLeaveRequest) {
+async function handleReject(record: any) {
   Modal.confirm({ title: '确认拒绝', content: '确定拒绝该请假申请吗？', okType: 'danger', onOk: async () => {
     await hrLeaveRequestApi.reject(record.id)
     message.success('已拒绝')

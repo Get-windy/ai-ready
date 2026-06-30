@@ -442,7 +442,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, defineOptions } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -467,6 +467,8 @@ import request from '@/utils/request'
 import type { VxeTableInstance } from 'vxe-table'
 
 import { useTabsStore } from '@/stores/tabs'
+
+defineOptions({ name: 'ProductForm' })
 
 const route = useRoute()
 const router = useRouter()

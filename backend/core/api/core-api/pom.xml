@@ -96,10 +96,10 @@
             <groupId>cn.aiedge.erp</groupId>
             <artifactId>erp-budget</artifactId>
         </dependency>
-        <!-- ERP B2B订货平台模块 -->
+        <!-- ERP 订货商城模块 -->
         <dependency>
             <groupId>cn.aiedge.erp</groupId>
-            <artifactId>erp-b2b-mall</artifactId>
+            <artifactId>erp-mall</artifactId>
         </dependency>
 
         <!-- WMS 仓储管理模块 -->

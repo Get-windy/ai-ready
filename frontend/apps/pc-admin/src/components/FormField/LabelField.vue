@@ -1,5 +1,9 @@
 <template>
-  <div class="label-field" :class="{ 'label-field--required': required, 'label-field--narrow': width === 'narrow', 'label-field--wide': width === 'wide' }">
+  <div
+    class="label-field"
+    :class="{ 'label-field--required': required, 'label-field--narrow': width === 'narrow', 'label-field--wide': width === 'wide' }"
+    :style="typeof width === 'number' ? { flex: `0 0 ${width}px`, minWidth: `${width}px` } : {}"
+  >
     <label>{{ label }}</label>
     <div class="label-field-input">
       <!-- 查看模式 -->
@@ -129,7 +133,7 @@ const props = withDefaults(defineProps<{
   /** 搜索按钮文本 */
   searchBtn?: string
   /** 字段宽度 */
-  width?: 'default' | 'narrow' | 'wide'
+  width?: 'default' | 'narrow' | 'wide' | number
   /** 查看模式 */
   viewMode?: boolean
 }>(), {

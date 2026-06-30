@@ -178,18 +178,24 @@ const T = '[DEBUG:token]'
  * 检查 Token 是否已过期（仅检查 exp 字段，不做签名验证）
  * 对于非 JWT 格式的 token（如 UUID），本地无法判断，需后端验证
  */
+// 缓存已检查过的非 JWT token，避免重复日志
+let loggedNonJwtToken: string | null = null
+
 export function isTokenExpired(token: string): boolean {
   try {
     // JWT token 格式: header.payload.signature
     const payload = JSON.parse(atob(token.split('.')[1]))
     const exp = payload.exp * 1000 // 转换为毫秒
     const expired = Date.now() >= exp - 60000 // 提前1分钟判定过期
-    console.warn(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
+    console.debug(`${T} isTokenExpired: exp=${new Date(exp).toISOString()}, expired=${expired}`)
     return expired
   } catch {
     // 非 JWT 格式（如 UUID token）→ 本地无法判断，返回 false
     // 由 verifyToken() 进行后端验证
-    console.warn(`${T} isTokenExpired: 非JWT格式, 需要后端验证`)
+    if (token !== loggedNonJwtToken) {
+      loggedNonJwtToken = token
+      console.info(`${T} isTokenExpired: 非JWT格式, 将依赖后端验证`)
+    }
     return false
   }
 }

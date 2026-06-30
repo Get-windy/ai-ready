@@ -41,6 +41,49 @@
           </a-space>
         </template>
       </BillTableList>
+
+      <!-- 详情抽屉 -->
+      <a-drawer
+        v-model:open="detailVisible"
+        title="采购退货单详情"
+        :width="520"
+        :loading="detailLoading"
+      >
+        <template v-if="detailData">
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item label="退货单号" :span="2">{{ detailData.returnNo }}</a-descriptions-item>
+            <a-descriptions-item label="源订单号" :span="2">{{ detailData.orderNo || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="供应商" :span="2">{{ detailData.supplierName }}</a-descriptions-item>
+            <a-descriptions-item label="退货日期">{{ detailData.returnDate }}</a-descriptions-item>
+            <a-descriptions-item label="金额">
+              <span style="color: #ff4d4f; font-weight: 600;">
+                {{ detailData.totalAmount != null ? `¥${detailData.totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '-' }}
+              </span>
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="statusMap[detailData.status]?.color">{{ statusMap[detailData.status]?.text }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="制单人">{{ detailData.creatorName || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="创建时间" :span="2">{{ detailData.createTime }}</a-descriptions-item>
+          </a-descriptions>
+          <div style="margin-top: 16px;">
+            <a-space>
+              <a-button
+                v-if="detailData.status === 0"
+                type="primary"
+                size="small"
+                @click="handleApprove(detailData)"
+              >审核通过</a-button>
+              <a-button
+                v-if="detailData.status === 0"
+                danger
+                size="small"
+                @click="handleReject(detailData)"
+              >驳回</a-button>
+            </a-space>
+          </div>
+        </template>
+      </a-drawer>
     </PageContainer>
   </ErrorBoundary>
 </template>
@@ -49,7 +92,7 @@
 defineOptions({ name: 'PurchaseReturnPage' })
 
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
@@ -126,9 +169,50 @@ async function fetchData() {
   }
 }
 
-function handleView(record: PurchaseReturn) {
-  // TODO: 导航到详情页
-  message.info(`查看退货单: ${record.returnNo}`)
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref<PurchaseReturn | null>(null)
+
+async function handleView(record: PurchaseReturn) {
+  detailVisible.value = true
+  detailLoading.value = true
+  detailData.value = null
+  try {
+    const res = await purchaseReturnApi.getById(record.id)
+    detailData.value = (res as any)?.data || (res as any) || record
+  } catch (e) {
+    detailData.value = record
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+async function handleApprove(record: PurchaseReturn) {
+  try {
+    await purchaseReturnApi.approve(record.id)
+    message.success('审核通过')
+    detailVisible.value = false
+    fetchData()
+  } catch (e) {
+    message.error('审核失败')
+  }
+}
+
+function handleReject(record: PurchaseReturn) {
+  Modal.confirm({
+    title: '确认驳回',
+    content: `确定要驳回退货单 ${record.returnNo} 吗？`,
+    onOk: async () => {
+      try {
+        await purchaseReturnApi.reject(record.id)
+        message.success('已驳回')
+        detailVisible.value = false
+        fetchData()
+      } catch (e) {
+        message.error('驳回失败')
+      }
+    }
+  })
 }
 
 function handleError(error: any) {

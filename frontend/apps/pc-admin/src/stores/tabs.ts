@@ -16,6 +16,8 @@ export interface TabItem {
   pinned?: boolean
   /** 路由名称（用于 keep-alive） */
   routeName?: string
+  /** 组件名称（用于 keep-alive include 匹配） */
+  componentName?: string
   /** 是否正在加载 */
   loading?: boolean
   /** 是否包含未保存内容 */
@@ -25,6 +27,11 @@ export interface TabItem {
 export const useTabsStore = defineStore('tabs', () => {
   const tabs = ref<TabItem[]>([])
   const activeTabPath = ref('')
+
+  /** 当前所有打开的标签页的组件名称列表（用于 keep-alive include） */
+  const cachedComponentNames = computed<string[]>(() =>
+    tabs.value.map(t => t.componentName).filter((n): n is string => !!n)
+  )
 
   const activeTab = computed(() => {
     return tabs.value.find(t => t.path === activeTabPath.value)
@@ -117,6 +124,7 @@ export const useTabsStore = defineStore('tabs', () => {
     activeTabPath,
     activeTab,
     tabCount,
+    cachedComponentNames,
     initTabs,
     openTab,
     closeTab,

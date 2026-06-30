@@ -29,7 +29,7 @@
                   <a-form-item label="物流公司名称" name="partnerName"><a-input v-model:value="form.partnerName" placeholder="请输入物流公司名称" size="small" /></a-form-item>
                 </a-col>
                 <a-col :span="12">
-                  <a-form-item label="物流公司编号"><a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled><template #suffix><a-button size="small" type="link" @click="generateCode">重新生成</a-button></template></a-input></a-form-item>
+                  <a-form-item label="物流公司编号"><a-input v-model:value="form.partnerCode" placeholder="由系统自动生成" size="small" disabled /></a-form-item>
                 </a-col>
               </a-row>
               <a-row :gutter="24">

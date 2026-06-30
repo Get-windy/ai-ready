@@ -4,10 +4,14 @@ import cn.aiedge.erp.party.entity.Party;
 import cn.aiedge.erp.party.mapper.PartyMapper;
 import cn.aiedge.erp.party.service.PartyService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -97,5 +101,111 @@ public class PartyServiceImpl extends ServiceImpl<PartyMapper, Party> implements
     public boolean hasTransactions(Long partyId) {
         Long count = this.baseMapper.hasTransactions(partyId);
         return count != null && count > 0;
+    }
+
+    @Override
+    public IPage<Party> getPartyPage(String keyword, Integer partyType, Integer status,
+                                     Long categoryId, String settleType, String region,
+                                     String handler, String address,
+                                     LocalDate createTimeStart, LocalDate createTimeEnd,
+                                     LocalDate lastTradeStart, LocalDate lastTradeEnd,
+                                     Integer pageNum, Integer pageSize) {
+        LambdaQueryWrapper<Party> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Party::getDeleted, 0);
+
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(Party::getPartyCode, keyword)
+                    .or().like(Party::getPartyName, keyword)
+                    .or().like(Party::getShortName, keyword)
+                    .or().like(Party::getPhone, keyword));
+        }
+        if (partyType != null) {
+            wrapper.eq(Party::getPartyType, partyType);
+        }
+        if (status != null) {
+            wrapper.eq(Party::getStatus, status);
+        }
+        if (categoryId != null) {
+            wrapper.eq(Party::getCategoryId, categoryId);
+        }
+        if (StringUtils.hasText(settleType)) {
+            wrapper.eq(Party::getSettlementType, "挂账".equals(settleType) ? 1 : 0);
+        }
+        if (StringUtils.hasText(address)) {
+            wrapper.and(w -> w.like(Party::getRegisteredAddress, address)
+                    .or().like(Party::getBusinessAddress, address));
+        }
+        if (createTimeStart != null) {
+            wrapper.ge(Party::getCreateTime, createTimeStart.atStartOfDay());
+        }
+        if (createTimeEnd != null) {
+            wrapper.le(Party::getCreateTime, createTimeEnd.plusDays(1).atStartOfDay());
+        }
+        if (lastTradeStart != null) {
+            wrapper.ge(Party::getLastTradeDate, lastTradeStart);
+        }
+        if (lastTradeEnd != null) {
+            wrapper.le(Party::getLastTradeDate, lastTradeEnd);
+        }
+
+        wrapper.orderByDesc(Party::getCreateTime);
+        return this.page(new Page<>(pageNum != null ? pageNum : 1, pageSize != null ? pageSize : 20), wrapper);
+    }
+
+    @Override
+    public List<Party> search(String keyword, Integer partyType) {
+        LambdaQueryWrapper<Party> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Party::getDeleted, 0);
+        wrapper.eq(Party::getStatus, 1);
+        if (partyType != null) {
+            wrapper.eq(Party::getPartyType, partyType);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(Party::getPartyCode, keyword)
+                    .or().like(Party::getPartyName, keyword)
+                    .or().like(Party::getShortName, keyword)
+                    .or().like(Party::getPhone, keyword));
+        }
+        wrapper.orderByDesc(Party::getCreateTime);
+        wrapper.last("LIMIT 50");
+        return this.baseMapper.selectList(wrapper);
+    }
+
+    @Override
+    public List<Party> getPartyList(Integer partyType, Integer status, Integer pageSize) {
+        LambdaQueryWrapper<Party> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Party::getDeleted, 0);
+        if (partyType != null) {
+            wrapper.eq(Party::getPartyType, partyType);
+        }
+        if (status != null) {
+            wrapper.eq(Party::getStatus, status);
+        } else {
+            wrapper.eq(Party::getStatus, 1);
+        }
+        wrapper.orderByDesc(Party::getCreateTime);
+        if (pageSize != null && pageSize > 0) {
+            wrapper.last("LIMIT " + pageSize);
+        }
+        return this.baseMapper.selectList(wrapper);
+    }
+
+    @Override
+    public Integer getNextSeq(String prefix) {
+        LambdaQueryWrapper<Party> wrapper = new LambdaQueryWrapper<>();
+        wrapper.likeRight(Party::getPartyCode, prefix);
+        wrapper.eq(Party::getDeleted, 0);
+        wrapper.orderByDesc(Party::getId);
+        wrapper.last("LIMIT 1");
+        Party last = this.baseMapper.selectOne(wrapper);
+        if (last == null || last.getPartyCode() == null) {
+            return 1;
+        }
+        String numPart = last.getPartyCode().substring(prefix.length());
+        try {
+            return Integer.parseInt(numPart) + 1;
+        } catch (NumberFormatException e) {
+            return 1;
+        }
     }
 }

@@ -33,11 +33,7 @@
                 </a-col>
                 <a-col :span="12">
                   <a-form-item label="客户编号" name="partnerCode">
-                    <a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled>
-                      <template #suffix>
-                        <a-button size="small" type="link" @click="generateCode">重新生成</a-button>
-                      </template>
-                    </a-input>
+                    <a-input v-model:value="form.partnerCode" placeholder="由系统自动生成" size="small" disabled />
                   </a-form-item>
                 </a-col>
               </a-row>
@@ -337,12 +333,14 @@ import type { FormInstance } from 'ant-design-vue'
 import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
-import { generatePartnerCodeAsync } from '../utils/generateCode'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
 import { userApi, type UserInfo } from '@/api/user'
 import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 import request from '@/utils/request'
+import { generatePartnerCodeAsync } from '../utils/generateCode'
+
+async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('customer') }
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -406,7 +404,6 @@ const formRules: Record<string, any> = {
   partnerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
 }
 
-async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('customer') }
 async function loadCategories() { try { categories.value = await partnerCategoryApi.getTree('CUSTOMER') } catch { categories.value = [] } }
 async function loadGrades() { try { grades.value = await partnerGradeApi.list('CUSTOMER') } catch { grades.value = [] } }
 async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
@@ -446,7 +443,6 @@ async function handleCertUpload(e: Event, type: 'license' | 'permit') {
 
 async function doSubmit(): Promise<number | null> {
   try { await formRef.value?.validate() } catch { return null }
-  if (!form.partnerCode) await generateCode()
   const roles = ['CUSTOMER', ...otherRoleOptions.value.filter(o => o.checked).map(o => o.value)]
   try {
     const result = await partnerApi.create({
@@ -527,7 +523,7 @@ async function handleSaveAndNew() {
 }
 
 function handleKeydown(e: KeyboardEvent) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit() } }
-onMounted(() => { generateCode(); loadCategories(); loadGrades(); loadUsers(); loadWarehouses(); document.addEventListener('keydown', handleKeydown) })
+onMounted(() => { loadCategories(); loadGrades(); loadUsers(); loadWarehouses(); document.addEventListener('keydown', handleKeydown) })
 onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
 </script>
 

@@ -48,7 +48,7 @@ export async function generatePartnerCodeAsync(
 ): Promise<string> {
   const prefix = getPrefix(type)
   try {
-    const res = await request.get('/erp/partner/next-seq', { params: { prefix } })
+    const res = await request.get('/erp/md/customer/next-seq', { params: { prefix } })
     const seq = (res as any)?.seq ?? (res as any)?.data?.seq ?? 1
     return generateCode(prefix, seq)
   } catch {

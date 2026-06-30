@@ -1,87 +1,89 @@
 <template>
-  <slot v-if="!hasError" />
-  <div
-    v-else
-    class="error-boundary-fallback"
-    role="alert"
-    aria-live="assertive"
-    aria-atomic="true"
-  >
-    <a-result
-      status="error"
-      :title="errorTitle"
-      :sub-title="errorSubtitle"
+  <div class="error-boundary-root">
+    <slot v-if="!hasError" />
+    <div
+      v-else
+      class="error-boundary-fallback"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
     >
-      <template #extra>
-        <a-space>
-          <a-button
-            type="primary"
-            aria-label="重新尝试加载页面"
-            @click="handleRetry"
+      <a-result
+        status="error"
+        :title="errorTitle"
+        :sub-title="errorSubtitle"
+      >
+        <template #extra>
+          <a-space>
+            <a-button
+              type="primary"
+              aria-label="重新尝试加载页面"
+              @click="handleRetry"
+            >
+              <template #icon>
+                <ReloadOutlined aria-hidden="true" />
+              </template>
+              重新尝试
+            </a-button>
+            <a-button
+              aria-label="返回首页"
+              @click="handleGoHome"
+            >
+              <template #icon>
+                <HomeOutlined aria-hidden="true" />
+              </template>
+              返回首页
+            </a-button>
+            <a-button
+              type="link"
+              aria-label="查看错误详情"
+              @click="handleShowDetails"
+            >
+              查看详情
+            </a-button>
+          </a-space>
+        </template>
+      </a-result>
+
+      <!-- 错误详情弹窗 -->
+      <a-modal
+        v-model:open="showDetails"
+        title="错误详情"
+        aria-label="错误详情对话框"
+        :aria-modal="true"
+        :footer="null"
+        width="600px"
+      >
+        <div class="error-details">
+          <a-descriptions
+            :column="1"
+            bordered
+            size="small"
           >
-            <template #icon>
-              <ReloadOutlined aria-hidden="true" />
-            </template>
-            重新尝试
-          </a-button>
-          <a-button
-            aria-label="返回首页"
-            @click="handleGoHome"
+            <a-descriptions-item label="错误类型">
+              {{ errorInfo?.name || 'Unknown' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="错误消息">
+              {{ errorInfo?.message || '无' }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发生时间">
+              {{ errorTime }}
+            </a-descriptions-item>
+            <a-descriptions-item label="组件路径">
+              {{ componentPath || '未知' }}
+            </a-descriptions-item>
+          </a-descriptions>
+
+          <div
+            v-if="errorInfo?.stack"
+            class="error-stack"
           >
-            <template #icon>
-              <HomeOutlined aria-hidden="true" />
-            </template>
-            返回首页
-          </a-button>
-          <a-button
-            type="link"
-            aria-label="查看错误详情"
-            @click="handleShowDetails"
-          >
-            查看详情
-          </a-button>
-        </a-space>
-      </template>
-    </a-result>
-    
-    <!-- 错误详情弹窗 -->
-    <a-modal
-      v-model:open="showDetails"
-      title="错误详情"
-      aria-label="错误详情对话框"
-      :aria-modal="true"
-      :footer="null"
-      width="600px"
-    >
-      <div class="error-details">
-        <a-descriptions
-          :column="1"
-          bordered
-          size="small"
-        >
-          <a-descriptions-item label="错误类型">
-            {{ errorInfo?.name || 'Unknown' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="错误消息">
-            {{ errorInfo?.message || '无' }}
-          </a-descriptions-item>
-          <a-descriptions-item label="发生时间">
-            {{ errorTime }}
-          </a-descriptions-item>
-          <a-descriptions-item label="组件路径">
-            {{ componentPath || '未知' }}
-          </a-descriptions-item>
-        </a-descriptions>
-        
-        <div
-          v-if="errorInfo?.stack"
-          class="error-stack"
-        >
-          <a-divider>错误堆栈</a-divider>
-          <pre class="stack-trace">{{ errorInfo.stack }}</pre>
+            <a-divider>错误堆栈</a-divider>
+            <pre class="stack-trace">{{ errorInfo.stack }}</pre>
+          </div>
         </div>
-      </div>
-    </a-modal>
+      </a-modal>
+    </div>
   </div>
 </template>
 

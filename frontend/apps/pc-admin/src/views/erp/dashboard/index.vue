@@ -210,7 +210,7 @@ async function loadData() {
       returnRes
     ] = await Promise.allSettled([
       request.get('/erp/product/list', { pageSize: 1 }),
-      request.get('/erp/partner/list', { pageSize: 1 }),
+      request.get('/erp/md/customer/list', { pageSize: 1 }),
       request.get('/erp/purchase/inbound/page', { pageSize: 999, status: 0 }),
       request.get('/erp/sale/outbound/page', { pageSize: 999, status: 0 }),
       request.get('/erp/stock/check/page', { pageSize: 999, status: 0 }),

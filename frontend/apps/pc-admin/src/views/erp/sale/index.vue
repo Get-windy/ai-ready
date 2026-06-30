@@ -337,9 +337,9 @@ const billPagination = computed(() => ({
 const detailColumns = [
   { title: '产品编码', dataIndex: 'productCode', width: 120 },
   { title: '产品名称', dataIndex: 'productName', width: 180 },
-  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' },
-  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' },
-  { title: '金额', dataIndex: 'amount', width: 120, align: 'right' }
+  { title: '数量', dataIndex: 'quantity', width: 80, align: 'right' as const },
+  { title: '单价', dataIndex: 'unitPrice', width: 100, align: 'right' as const },
+  { title: '金额', dataIndex: 'amount', width: 120, align: 'right' as const }
 ]
 
 // ── 数据加载 ────────────────────────────────────────
@@ -449,7 +449,7 @@ const filterOption = (input: string, option: any) => {
 const fetchDetail = async (id: number) => {
   detailLoading.value = true
   try {
-    const res = await salesOrderApi.getById(id)
+    const res = await salesOrderApi.getById(id) as any
     detailData.value = res.data || res || null
   } catch (error: any) {
     console.warn('[销售订单] 获取详情失败', error)

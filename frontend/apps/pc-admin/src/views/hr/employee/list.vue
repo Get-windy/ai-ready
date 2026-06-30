@@ -77,7 +77,7 @@
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="员工编号">
-              <a-input v-model:value="form.employeeNo" placeholder="请输入员工编号" :disabled="editingId" />
+              <a-input v-model:value="form.employeeNo" placeholder="请输入员工编号" :disabled="!!editingId" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -152,6 +152,46 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 合同列表弹窗 -->
+    <a-modal
+      v-model:open="contractsModalVisible"
+      title="合同列表"
+      width="720px"
+      :footer="null"
+      :destroy-on-close="true"
+    >
+      <a-table
+        :data-source="contractsList"
+        :loading="contractsLoading"
+        :pagination="false"
+        row-key="id"
+        size="small"
+      >
+        <a-table-column title="合同编号" data-index="contractNo" :width="140" />
+        <a-table-column title="合同名称" data-index="contractName" />
+        <a-table-column title="合同类型" :width="100">
+          <template #default="{ record }">
+            {{ CONTRACT_TYPE_MAP[record.contractType] || record.contractType }}
+          </template>
+        </a-table-column>
+        <a-table-column title="开始日期" data-index="startDate" :width="100" />
+        <a-table-column title="结束日期" data-index="endDate" :width="100" />
+        <a-table-column title="约定薪资" data-index="salaryAmount" :width="100">
+          <template #default="{ record }">
+            ¥{{ record.salaryAmount?.toFixed(2) ?? '-' }}
+          </template>
+        </a-table-column>
+        <a-table-column title="状态" :width="70">
+          <template #default="{ record }">
+            {{ CONTRACT_STATUS_MAP[record.status] || record.status }}
+          </template>
+        </a-table-column>
+      </a-table>
+      <div v-if="!contractsList.length" style="text-align:center;padding:24px;color:#999;">
+        暂无合同记录
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -161,7 +201,11 @@ import { message, Modal } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import {
   hrEmployeeApi,
+  hrContractApi,
   type HrEmployee,
+  type HrContract,
+  CONTRACT_TYPE_MAP,
+  CONTRACT_STATUS_MAP,
   GENDER_MAP,
   EDUCATION_MAP,
   EMPLOYEE_STATUS_MAP
@@ -226,7 +270,7 @@ function showCreateModal() {
   modalVisible.value = true
 }
 
-function showEditModal(record: HrEmployee) {
+function showEditModal(record: any) {
   editingId.value = record.id
   Object.assign(form, {
     employeeNo: record.employeeNo,
@@ -264,7 +308,7 @@ async function handleSave() {
   }
 }
 
-async function handleRegularize(record: HrEmployee) {
+async function handleRegularize(record: any) {
   Modal.confirm({
     title: '确认转正',
     content: `确定要将员工 "${record.employeeName}" 转为正式员工吗？`,
@@ -276,7 +320,7 @@ async function handleRegularize(record: HrEmployee) {
   })
 }
 
-async function handleResign(record: HrEmployee) {
+async function handleResign(record: any) {
   Modal.confirm({
     title: '确认离职',
     content: `确定要将员工 "${record.employeeName}" 办理离职吗？`,
@@ -289,9 +333,20 @@ async function handleResign(record: HrEmployee) {
   })
 }
 
-function showContracts(record: HrEmployee) {
-  // TODO: 显示合同列表弹窗
-  message.info('合同管理功能待实现')
+const contractsModalVisible = ref(false)
+const contractsList = ref<HrContract[]>([])
+const contractsLoading = ref(false)
+
+async function showContracts(record: any) {
+  contractsLoading.value = true
+  try {
+    contractsList.value = await hrContractApi.listByEmployee(record.id) || []
+  } catch {
+    contractsList.value = []
+  } finally {
+    contractsLoading.value = false
+  }
+  contractsModalVisible.value = true
 }
 
 onMounted(loadData)

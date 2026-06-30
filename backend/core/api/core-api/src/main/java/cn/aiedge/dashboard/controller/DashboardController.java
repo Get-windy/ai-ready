@@ -1,24 +1,39 @@
 package cn.aiedge.dashboard.controller;
 
+import cn.aiedge.base.utils.SecurityUtils;
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.erp.order.service.IPurchaseOrderService;
+import cn.aiedge.erp.sale.mapper.SaleOrderMapper;
+import cn.aiedge.erp.stock.service.StockService;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 仪表盘控制器
  * 提供工作台首页的 KPI 统计、趋势图、待办事项和库存预警数据
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
 @SaCheckLogin
+@RequiredArgsConstructor
 @Tag(name = "仪表盘", description = "工作台首页数据接口")
 public class DashboardController {
+
+    private final SaleOrderMapper saleOrderMapper;
+    private final IPurchaseOrderService purchaseOrderService;
+    private final StockService stockService;
 
     /**
      * 获取仪表盘 KPI 统计数据
@@ -26,27 +41,72 @@ public class DashboardController {
     @GetMapping("/stats")
     @Operation(summary = "获取KPI统计数据")
     public Result<Map<String, Object>> getStats() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
         Map<String, Object> stats = new LinkedHashMap<>();
 
-        stats.put("todaySales", Map.of(
-            "value", 128650.00,
-            "trend", 12.5,
-            "trendType", "up"
-        ));
-        stats.put("todayPurchase", Map.of(
-            "value", 85600.00,
-            "trend", -3.2,
-            "trendType", "down"
-        ));
-        stats.put("pendingApprovals", Map.of(
-            "value", 7,
-            "trendType", "warn"
-        ));
-        stats.put("stockAlerts", Map.of(
-            "value", 4,
-            "trend", -1,
-            "trendType", "down"
-        ));
+        try {
+            // 今日销售总额（从明细汇总）
+            BigDecimal todaySales = saleOrderMapper.sumTodaySalesAmount(tenantId);
+            BigDecimal yesterdaySales = saleOrderMapper.sumMonthSalesAmount(tenantId)
+                .subtract(todaySales); // 近似：用本月减去今日作为对比基准
+            double salesTrend = yesterdaySales.compareTo(BigDecimal.ZERO) > 0
+                ? todaySales.subtract(yesterdaySales).divide(yesterdaySales, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100)).doubleValue()
+                : 0.0;
+
+            stats.put("todaySales", Map.of(
+                "value", todaySales.doubleValue(),
+                "trend", Math.round(salesTrend * 10.0) / 10.0,
+                "trendType", salesTrend >= 0 ? "up" : "down"
+            ));
+        } catch (Exception e) {
+            log.warn("查询销售数据失败", e);
+            stats.put("todaySales", Map.of("value", 0, "trend", 0, "trendType", "up"));
+        }
+
+        try {
+            // 采购统计（使用订单中心模块）
+            LocalDate now = LocalDate.now();
+            var monthStart = now.withDayOfMonth(1).atStartOfDay();
+            var monthEnd = now.plusDays(1).atStartOfDay();
+            var purchaseStats = purchaseOrderService.getPurchaseStatistics(tenantId, monthStart, monthEnd);
+            Object poAmount = purchaseStats.getTotalAmount();
+            double poValue = poAmount instanceof BigDecimal ? ((BigDecimal) poAmount).doubleValue() : 0.0;
+
+            stats.put("todayPurchase", Map.of(
+                "value", poValue,
+                "trend", 0.0,
+                "trendType", "up"
+            ));
+        } catch (Exception e) {
+            log.warn("查询采购数据失败", e);
+            stats.put("todayPurchase", Map.of("value", 0, "trend", 0, "trendType", "up"));
+        }
+
+        try {
+            // 待审批数量（销售订单 + 采购订单）
+            int salePending = saleOrderMapper.countPendingApproval(tenantId);
+            stats.put("pendingApprovals", Map.of(
+                "value", salePending,
+                "trendType", salePending > 0 ? "warn" : "safe"
+            ));
+        } catch (Exception e) {
+            log.warn("查询待审批数据失败", e);
+            stats.put("pendingApprovals", Map.of("value", 0, "trendType", "safe"));
+        }
+
+        try {
+            // 库存预警数量
+            int alertCount = stockService.checkStockAlert().size();
+            stats.put("stockAlerts", Map.of(
+                "value", alertCount,
+                "trend", 0,
+                "trendType", alertCount > 0 ? "warn" : "safe"
+            ));
+        } catch (Exception e) {
+            log.warn("查询库存预警失败", e);
+            stats.put("stockAlerts", Map.of("value", 0, "trend", 0, "trendType", "safe"));
+        }
 
         return Result.ok(stats);
     }
@@ -57,19 +117,65 @@ public class DashboardController {
     @GetMapping("/trend")
     @Operation(summary = "获取销售趋势图数据")
     public Result<Map<String, Object>> getTrend() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
         LocalDate today = LocalDate.now();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM-dd");
+
+        // 过去7天日期列表
         List<String> categories = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             categories.add(today.minusDays(i).format(fmt));
         }
 
+        // 销售额和采购额趋势
+        List<BigDecimal> salesData = new ArrayList<>(Collections.nCopies(7, BigDecimal.ZERO));
+        List<BigDecimal> purchaseData = new ArrayList<>(Collections.nCopies(7, BigDecimal.ZERO));
+        LocalDate start = today.minusDays(6);
+
+        try {
+            String startDate = today.minusDays(6).toString();
+            String endDate = today.plusDays(1).toString(); // 排除当天之后
+            var dailySales = saleOrderMapper.selectDailySalesTrend(tenantId, startDate, endDate);
+            for (var row : dailySales) {
+                String day = row.get("day").toString();
+                LocalDate d = LocalDate.parse(day);
+                int idx = 6 - (int) today.datesUntil(d.plusDays(1)).count() + 1;
+                // 简化：从日期差值计算索引
+                long diff = d.toEpochDay() - today.minusDays(6).toEpochDay();
+                if (diff >= 0 && diff < 7) {
+                    salesData.set((int) diff, (BigDecimal) row.get("amount"));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询销售趋势失败", e);
+        }
+
+        try {
+            // 采购趋势（简化：从采购统计获取）
+            var purchaseStats = purchaseOrderService.getPurchaseStatistics(tenantId, start.atStartOfDay(), today.plusDays(1).atStartOfDay());
+            Object poAmount = purchaseStats.getTotalAmount();
+            double totalAmt = poAmount instanceof BigDecimal ? ((BigDecimal) poAmount).doubleValue() : 0.0;
+            // 每日平均，作为近似趋势
+            double dailyAvg = totalAmt / 7.0;
+            for (int i = 0; i < 7; i++) {
+                purchaseData.set(i, BigDecimal.valueOf(dailyAvg));
+            }
+        } catch (Exception e) {
+            log.warn("查询采购趋势失败", e);
+        }
+
+        // 利润 ≈ 销售额 - 采购额
+        List<BigDecimal> profitData = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            profitData.add(salesData.get(i).subtract(purchaseData.get(i)));
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("categories", categories);
         result.put("series", List.of(
-            Map.of("name", "销售额", "data", List.of(45200, 53800, 61200, 58700, 72300, 68900, 82500)),
-            Map.of("name", "采购额", "data", List.of(32100, 29800, 35600, 41200, 38500, 42900, 39800)),
-            Map.of("name", "利润", "data", List.of(13100, 16500, 18300, 17200, 21800, 19500, 24700))
+            Map.of("name", "销售额", "data", salesData.stream().map(BigDecimal::doubleValue).collect(Collectors.toList())),
+            Map.of("name", "采购额", "data", purchaseData.stream().map(BigDecimal::doubleValue).collect(Collectors.toList())),
+            Map.of("name", "利润", "data", profitData.stream().map(BigDecimal::doubleValue).collect(Collectors.toList()))
         ));
 
         return Result.ok(result);
@@ -81,49 +187,38 @@ public class DashboardController {
     @GetMapping("/todos")
     @Operation(summary = "获取待办事项列表")
     public Result<List<Map<String, Object>>> getTodos() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
         List<Map<String, Object>> todos = new ArrayList<>();
 
-        Map<String, Object> todo1 = new LinkedHashMap<>();
-        todo1.put("id", 1);
-        todo1.put("title", "采购订单 PO-2026-0056 待审批");
-        todo1.put("time", "10 分钟前");
-        todo1.put("type", "approval");
-        todos.add(todo1);
+        try {
+            // 待审批销售订单
+            var pendingOrders = saleOrderMapper.selectPendingOrders(tenantId);
+            for (var order : pendingOrders) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", order.getId());
+                item.put("title", "销售订单 " + order.getOrderNo() + " 待审批");
+                item.put("time", "待审批");
+                item.put("type", "approval");
+                todos.add(item);
+            }
+        } catch (Exception e) {
+            log.warn("查询待审批销售订单失败", e);
+        }
 
-        Map<String, Object> todo2 = new LinkedHashMap<>();
-        todo2.put("id", 2);
-        todo2.put("title", "销售合同 CT-2026-0032 待审核");
-        todo2.put("time", "30 分钟前");
-        todo2.put("type", "approval");
-        todos.add(todo2);
-
-        Map<String, Object> todo3 = new LinkedHashMap<>();
-        todo3.put("id", 3);
-        todo3.put("title", "库存预警：A类物料螺丝(MC-001)低于安全库存");
-        todo3.put("time", "1 小时前");
-        todo3.put("type", "alert");
-        todos.add(todo3);
-
-        Map<String, Object> todo4 = new LinkedHashMap<>();
-        todo4.put("id", 4);
-        todo4.put("title", "库存预警：B类物料轴承(MC-008)低于安全库存");
-        todo4.put("time", "2 小时前");
-        todo4.put("type", "alert");
-        todos.add(todo4);
-
-        Map<String, Object> todo5 = new LinkedHashMap<>();
-        todo5.put("id", 5);
-        todo5.put("title", "应收账款-XX公司 已逾期3天，请跟进");
-        todo5.put("time", "昨天");
-        todo5.put("type", "info");
-        todos.add(todo5);
-
-        Map<String, Object> todo6 = new LinkedHashMap<>();
-        todo6.put("id", 6);
-        todo6.put("title", "本月财务报表待生成");
-        todo6.put("time", "昨天");
-        todo6.put("type", "info");
-        todos.add(todo6);
+        try {
+            // 库存预警
+            var alerts = stockService.checkStockAlert();
+            for (var alert : alerts) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", alert.getProductId());
+                item.put("title", "库存预警：" + alert.getProductName() + " 库存不足（当前:" + alert.getAvailableQuantity() + "）");
+                item.put("time", "实时");
+                item.put("type", "alert");
+                todos.add(item);
+            }
+        } catch (Exception e) {
+            log.warn("查询库存预警失败", e);
+        }
 
         return Result.ok(todos);
     }
@@ -136,41 +231,22 @@ public class DashboardController {
     public Result<List<Map<String, Object>>> getAlerts() {
         List<Map<String, Object>> alerts = new ArrayList<>();
 
-        Map<String, Object> alert1 = new LinkedHashMap<>();
-        alert1.put("id", 1);
-        alert1.put("code", "MC-001");
-        alert1.put("name", "不锈钢螺丝 M8×30");
-        alert1.put("current", 15);
-        alert1.put("safe", 100);
-        alert1.put("level", "high");
-        alerts.add(alert1);
-
-        Map<String, Object> alert2 = new LinkedHashMap<>();
-        alert2.put("id", 2);
-        alert2.put("code", "MC-008");
-        alert2.put("name", "深沟球轴承 6205");
-        alert2.put("current", 8);
-        alert2.put("safe", 50);
-        alert2.put("level", "high");
-        alerts.add(alert2);
-
-        Map<String, Object> alert3 = new LinkedHashMap<>();
-        alert3.put("id", 3);
-        alert3.put("code", "MC-015");
-        alert3.put("name", "铜管 Φ12×1.5");
-        alert3.put("current", 42);
-        alert3.put("safe", 80);
-        alert3.put("level", "low");
-        alerts.add(alert3);
-
-        Map<String, Object> alert4 = new LinkedHashMap<>();
-        alert4.put("id", 4);
-        alert4.put("code", "MC-023");
-        alert4.put("name", "密封圈 O型 Φ50");
-        alert4.put("current", 35);
-        alert4.put("safe", 60);
-        alert4.put("level", "low");
-        alerts.add(alert4);
+        try {
+            var stockAlerts = stockService.checkStockAlert();
+            for (var alert : stockAlerts) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", alert.getId());
+                item.put("code", alert.getProductCode());
+                item.put("name", alert.getProductName());
+                item.put("current", alert.getAvailableQuantity());
+                item.put("safe", alert.getSafetyStock() != null ? alert.getSafetyStock() : 0);
+                item.put("level", alert.getAvailableQuantity() != null && alert.getAvailableQuantity().compareTo(
+    alert.getSafetyStock() != null ? alert.getSafetyStock().multiply(new java.math.BigDecimal("0.5")) : new java.math.BigDecimal("10")) <= 0 ? "high" : "low");
+                alerts.add(item);
+            }
+        } catch (Exception e) {
+            log.warn("查询库存预警列表失败", e);
+        }
 
         return Result.ok(alerts);
     }

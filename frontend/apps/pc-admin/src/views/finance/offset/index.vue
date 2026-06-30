@@ -274,7 +274,7 @@ const searchForm = reactive({
 
 const filterFields = [
   { key: 'partyName', label: '对方名称', type: 'input' as const, placeholder: '对方名称' },
-  { key: 'offsetDate', label: '对冲日期', type: 'date' as const },
+  { key: 'offsetDate', label: '对冲日期', type: 'dateRange' as const },
   { key: 'status', label: '状态', type: 'select' as const, options: [
     { label: '草稿', value: 'draft' },
     { label: '已完成', value: 'completed' },

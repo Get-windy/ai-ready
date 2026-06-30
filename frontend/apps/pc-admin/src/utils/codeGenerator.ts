@@ -1,8 +1,8 @@
 /**
  * 通用业务编号生成器
  *
- * 格式：前缀 + "-" + 8位年月日 + N位序列号（N>=3，自动扩展，永不溢出）
- * 示例：XSDD-20260621001, KH-20260621001
+ * 格式：前缀 + "-" + 8位年月日 + "-" + N位序列号（N>=3，自动扩展，永不溢出）
+ * 示例：XSDD-20260621-001, KH-20260621-001
  *
  * 序列号递进规则（逐位用字母替换数字）：
  *   以3位为例：
@@ -15,9 +15,9 @@
  *
  * 使用方式：
  *   import { generateCode } from '@/utils/codeGenerator'
- *   generateCode('XSDD')  // 销售订单：XSDD-20260621001
- *   generateCode('KH')    // 客户编号：KH-20260621001
- *   generateCode('PO')    // 采购订单：PO-20260621001
+ *   generateCode('XSDD')  // 销售订单：XSDD-20260621-001
+ *   generateCode('KH')    // 客户编号：KH-20260621-001
+ *   generateCode('PO')    // 采购订单：PO-20260621-001
  *
  *   // 异步版本（从后端获取当日最大序号）
  *   const code = await generateCodeAsync('XSDD', '/api/sales/max-seq')
@@ -110,10 +110,24 @@ function getTodayStr(): string {
  * 通用业务编号生成（同步版，前端生成序列号）
  * @param prefix 编号前缀，如 'XSDD', 'KH', 'PO', 'CGDD'
  * @param seq    序列号（1-based），如从后端获取当日最大值+1
- * @returns 完整编号，如 XSDD-20260621001
+ * @returns 完整编号，如 XSDD-20260621-001
  */
 export function generateCode(prefix: string, seq: number): string {
-  return `${prefix}-${getTodayStr()}${encodeSequence(seq)}`
+  return `${prefix}-${getTodayStr()}-${encodeSequence(seq)}`
+}
+
+/** 前端演示/降级用的自增计数器（每日重置） */
+let demoSeqCounter = 0
+let demoSeqDate = getTodayStr()
+
+function getNextDemoSeq(): number {
+  const today = getTodayStr()
+  if (today !== demoSeqDate) {
+    demoSeqCounter = 0
+    demoSeqDate = today
+  }
+  demoSeqCounter++
+  return demoSeqCounter
 }
 
 /**
@@ -129,18 +143,16 @@ export async function generateCodeAsync(prefix: string, apiPath: string): Promis
     const seq = res?.seq ?? res?.data?.seq ?? 1
     return generateCode(prefix, seq)
   } catch {
-    // 后端不可用时降级为随机序号
-    const seq = Math.floor(Math.random() * 999) + 1
-    return generateCode(prefix, seq)
+    // 后端不可用时降级为自增序列
+    return generateCode(prefix, getNextDemoSeq())
   }
 }
 
 /**
- * 通用业务编号生成（随机序列号，仅用于演示/预览）
+ * 通用业务编号生成（自增序列号，仅用于演示/预览/降级）
  * @param prefix 编号前缀
- * @returns 完整编号（序列号随机）
+ * @returns 完整编号（当前会话内自增）
  */
 export function generateCodeDemo(prefix: string): string {
-  const seq = Math.floor(Math.random() * 2000) + 1
-  return generateCode(prefix, seq)
+  return generateCode(prefix, getNextDemoSeq())
 }

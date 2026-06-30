@@ -27,7 +27,7 @@
           />
           <a-range-picker
             v-model:value="dateRange"
-            placeholder="时间段"
+            :placeholder="['开始日期', '结束日期']"
             style="width: 240px"
           />
           <a-button type="primary" @click="handleSearch">

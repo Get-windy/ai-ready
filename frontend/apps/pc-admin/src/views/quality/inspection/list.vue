@@ -96,7 +96,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-function showCompleteModal(record: QualityInspection) {
+function showCompleteModal(record: any) {
   completeForm.id = record.id
   completeForm.result = 'PASS'
   completeForm.passQuantity = record.sampleQuantity
@@ -111,7 +111,7 @@ async function handleComplete() {
   loadData()
 }
 
-function showDefectModal(record: QualityInspection) {
+function showDefectModal(record: any) {
   defectForm.inspectionId = record.id
   defectForm.defectType = 'QUALITY'
   defectForm.defectDesc = ''

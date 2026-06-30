@@ -85,6 +85,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import type { ColumnsType } from 'ant-design-vue/es/table'
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
 import { productApi, productCategoryApi } from '@/api/erp/product'
 
@@ -140,20 +141,20 @@ const pagination = reactive({
 })
 
 // ── 表格列配置 ──
-const columns = [
+const columns: ColumnsType<any> = [
   { title: '编码', dataIndex: 'code', width: 100 },
   { title: '名称', dataIndex: 'name', width: 150 },
   { title: '条码', dataIndex: 'barcode', width: 100 },
   { title: '规格', dataIndex: 'specification', width: 80 },
   { title: '单位', dataIndex: 'unit', width: 60 },
-  { title: '零售价', dataIndex: 'retailPrice', width: 80, align: 'right' },
-  { title: '成本价', dataIndex: 'costPrice', width: 80, align: 'right' },
-  { title: '可用库存', dataIndex: 'availableStock', width: 80, align: 'right' },
+  { title: '零售价', dataIndex: 'retailPrice', width: 80, align: 'right' as const },
+  { title: '成本价', dataIndex: 'costPrice', width: 80, align: 'right' as const },
+  { title: '可用库存', dataIndex: 'availableStock', width: 80, align: 'right' as const },
 ]
 
 // ── 行选择配置 ──
 const rowSelection = computed(() => ({
-  type: props.multiple ? 'checkbox' : 'radio',
+  type: (props.multiple ? 'checkbox' : 'radio') as 'checkbox' | 'radio',
   selectedRowKeys: selectedRows.value.map(r => r.id),
   onChange: (keys: number[], rows: any[]) => {
     selectedRows.value = rows
@@ -174,7 +175,8 @@ async function fetchData() {
     })
     if (res) {
       // 映射字段名：后端 productCode/productName -> 前端 code/name
-      tableData.value = (res.records || res.data?.records || []).map((p: any) => ({
+      const data = res as any
+      tableData.value = (data.records || data.data?.records || []).map((p: any) => ({
         id: p.id,
         code: p.productCode || p.code || '',
         name: p.productName || p.name || '',
@@ -186,7 +188,7 @@ async function fetchData() {
         availableStock: p.availableStock || 0,
         salePrice: p.wholesalePrice || p.standardPrice || 0,
       }))
-      pagination.total = res.total || res.data?.total || 0
+      pagination.total = data.total || data.data?.total || 0
     }
   } catch (error: any) {
     console.warn('[ProductSelectModal] 加载商品列表失败', error)

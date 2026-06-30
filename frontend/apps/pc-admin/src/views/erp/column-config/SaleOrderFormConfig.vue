@@ -134,10 +134,60 @@
       </a-tab-pane>
     </a-tabs>
   </a-modal>
+
+  <!-- ── 默认值选择器弹窗 ─────────────────────────────── -->
+  <a-modal
+    v-model:open="selectorVisible"
+    :title="`选择${selectorFieldLabel}`"
+    width="480px"
+    @ok="handleSelectorConfirm"
+    @cancel="selectorVisible = false"
+  >
+    <div style="margin-bottom: 12px;">
+      <a-input
+        v-model:value="selectorSearchText"
+        placeholder="搜索..."
+        allow-clear
+        @input="handleSelectorSearch"
+      />
+    </div>
+    <div style="max-height: 300px; overflow-y: auto;">
+      <a-radio-group v-model:value="selectorSelectedId" style="width: 100%;">
+        <div
+          v-for="opt in filteredSelectorOptions"
+          :key="opt.id"
+          style="padding: 6px 8px; border-bottom: 1px solid #f0f0f0;"
+        >
+          <a-radio :value="opt.id">{{ opt.name }}</a-radio>
+        </div>
+        <div v-if="!filteredSelectorOptions.length" style="text-align: center; color: #999; padding: 20px;">
+          暂无数据
+        </div>
+      </a-radio-group>
+    </div>
+  </a-modal>
+
+  <!-- ── 默认值详细配置弹窗 ─────────────────────────────── -->
+  <a-modal
+    v-model:open="configDetailVisible"
+    title="录单默认值详细配置"
+    width="520px"
+    @ok="handleConfigDetailConfirm"
+  >
+    <a-form layout="vertical">
+      <a-form-item v-for="df in configDetailFields" :key="df.key" :label="df.label">
+        <a-input v-model:value="df.value" :placeholder="`输入${df.label}默认值`" />
+      </a-form-item>
+      <a-form-item label="优先级">
+        <a-checkbox v-model:checked="configDetailPriority">录单默认值优先（覆盖上次输入）</a-checkbox>
+      </a-form-item>
+    </a-form>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
+import request from '@/utils/request'
 
 // ── Props & Emits ──
 const props = defineProps<{
@@ -272,6 +322,25 @@ const printSettings = reactive<PrintSettings>({
   printAfterSubmit: false,
 })
 
+// ── 选择器弹窗状态 ──
+const selectorVisible = ref(false)
+const selectorFieldKey = ref('')
+const selectorFieldLabel = ref('')
+const selectorOptions = ref<Array<{ id: number | string; name: string }>>([])
+const selectorSelectedId = ref<number | string | null>(null)
+const selectorSearchText = ref('')
+
+const filteredSelectorOptions = computed(() => {
+  const kw = selectorSearchText.value.trim().toLowerCase()
+  if (!kw) return selectorOptions.value
+  return selectorOptions.value.filter(o => o.name.toLowerCase().includes(kw))
+})
+
+// ── 详细配置弹窗状态 ──
+const configDetailVisible = ref(false)
+const configDetailFields = ref<Array<{ key: string; label: string; value: string }>>([])
+const configDetailPriority = ref(false)
+
 // ── 同步 open prop ──
 watch(() => props.open, (val) => {
   visible.value = val
@@ -380,16 +449,96 @@ function handleResetPageConfig() {
   savePageConfig()
 }
 
-function handleAddDefault(_key: string) {
-  // TODO: 弹出选择器让用户选择默认值
+function handleAddDefault(key: string) {
+  const field = defaultFields.value.find(f => f.key === key)
+  if (!field) return
+  selectorFieldKey.value = key
+  selectorFieldLabel.value = field.label
+  selectorSelectedId.value = null
+  selectorSearchText.value = ''
+  selectorOptions.value = []
+  selectorVisible.value = true
+  loadSelectorOptions(key)
 }
 
-function handleSearchDefault(_key: string) {
-  // TODO: 弹出搜索选择器
+function handleSearchDefault(key: string) {
+  const field = defaultFields.value.find(f => f.key === key)
+  if (!field) return
+  selectorFieldKey.value = key
+  selectorFieldLabel.value = field.label
+  selectorSelectedId.value = null
+  selectorSearchText.value = ''
+  selectorOptions.value = []
+  selectorVisible.value = true
+  loadSelectorOptions(key, true)
+}
+
+async function loadSelectorOptions(key: string, focusSearch = false) {
+  try {
+    let options: Array<{ id: number | string; name: string }> = []
+    if (key === 'customerName') {
+      const res = await request.get('/erp/md/customer/list', { partnerType: 'customer', status: 'ENABLED', pageSize: 200 })
+      const records = res?.records || res?.data?.records || res || []
+      options = (Array.isArray(records) ? records : []).map((c: any) => ({ id: c.id, name: c.name || c.customerName }))
+    } else if (key === 'warehouseName') {
+      const res = await request.get('/wms/warehouse/list-all')
+      const data = res?.data || res || []
+      options = (Array.isArray(data) ? data : []).map((w: any) => ({ id: w.id ?? w.warehouseId, name: w.warehouseName || w.name }))
+    } else if (key === 'salespersonName') {
+      const res = await request.get('/user/list', { status: 1, pageSize: 200 })
+      const records = res?.records || res?.data?.records || res || []
+      options = (Array.isArray(records) ? records : []).map((u: any) => ({ id: u.id ?? u.userId, name: u.nickname || u.username || u.realName }))
+    } else if (key === 'logisticsCompany') {
+      const res = await request.get('/erp/partner/page', { partnerType: 'logistics', pageSize: 200 })
+      const records = res?.records || res?.data?.records || res || []
+      options = (Array.isArray(records) ? records : []).map((l: any) => ({ id: l.id ?? l.partnerId, name: l.name || l.partnerName }))
+    }
+    selectorOptions.value = options
+    if (focusSearch) {
+      setTimeout(() => {
+        const input = document.querySelector('.ant-modal input[placeholder="搜索..."]') as HTMLInputElement
+        input?.focus()
+      }, 100)
+    }
+  } catch (e) {
+    selectorOptions.value = []
+  }
+}
+
+function handleSelectorSearch() {
+  // 过滤在前端 computed 中自动完成
+}
+
+function handleSelectorConfirm() {
+  if (selectorSelectedId.value == null) {
+    selectorVisible.value = false
+    return
+  }
+  const opt = selectorOptions.value.find(o => o.id === selectorSelectedId.value)
+  if (opt) {
+    const field = defaultFields.value.find(f => f.key === selectorFieldKey.value)
+    if (field) {
+      field.value = opt.name
+    }
+  }
+  selectorVisible.value = false
+  saveDefaultConfig()
 }
 
 function handleConfigDefault() {
-  // TODO: 打开默认值详细配置
+  configDetailFields.value = defaultFields.value.map(df => ({ ...df }))
+  configDetailPriority.value = defaultPriority.value
+  configDetailVisible.value = true
+}
+
+function handleConfigDetailConfirm() {
+  configDetailFields.value.forEach(cf => {
+    const field = defaultFields.value.find(f => f.key === cf.key)
+    if (field) field.value = cf.value
+  })
+  defaultPriority.value = configDetailPriority.value
+  configDetailVisible.value = false
+  saveDefaultConfig()
 }
 
 function handleSaveDefault() {

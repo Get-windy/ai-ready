@@ -84,6 +84,13 @@ public class Party {
 
     private String remark;
 
+    // ── 个人会员扩展字段（party_level = 'MEMBER' 时使用） ──
+    private String memberCardNo;
+
+    private LocalDate birthday;
+
+    private Integer points;
+
     @TableField(fill = FieldFill.INSERT)
     private Long createBy;
 

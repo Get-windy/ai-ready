@@ -53,7 +53,9 @@ export interface DetailColumnConfig {
   /** 按钮配置（type=button 时使用） */
   buttons?: Array<{
     label: string
-    type?: 'primary' | 'link' | 'default' | 'danger'
+    type?: 'primary' | 'link' | 'default'
+    /** 是否为危险按钮（红色） */
+    danger?: boolean
     onClick?: (record: any, index: number) => void
   }>
   /** 自定义格式化函数 */

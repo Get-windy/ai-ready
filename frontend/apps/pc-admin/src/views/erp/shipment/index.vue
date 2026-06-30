@@ -881,8 +881,8 @@ const contactOptions = ref<any[]>([])
 async function loadCustomers() {
   customerLoading.value = true
   try {
-    const res = await request.get('/erp/partner/list', {
-      params: { partnerType: 'CUSTOMER', pageSize: 200 }
+    const res = await request.get('/erp/md/customer/list', {
+      params: { partnerType: 'customer', pageSize: 200 }
     })
     customerOptions.value = (res.data?.records || res.data || []).map((c: any) => ({
       value: c.id,

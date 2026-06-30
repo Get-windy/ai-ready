@@ -616,7 +616,7 @@ onBeforeRouteLeave((to, from, next) => {
 })
 
 // 表格列配置（Ant Design Vue 格式）
-const tableColumns = [
+const tableColumns: any[] = [
   { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 220, ellipsis: true },
   { title: '上级菜单', dataIndex: 'parentName', key: 'parentName', width: 100, ellipsis: true },
   { title: '权限标识', dataIndex: 'menuCode', key: 'menuCode', width: 150, ellipsis: true },
@@ -832,7 +832,7 @@ const handleAdd = () => {
 }
 
 // 新增子菜单
-const handleAddChild = (row: MenuInfo) => {
+const handleAddChild = (row: any) => {
   dialogTitle.value = `新增子菜单 - ${row.menuName}`
   resetForm()
   formData.parentId = row.id
@@ -841,7 +841,7 @@ const handleAddChild = (row: MenuInfo) => {
 }
 
 // 编辑菜单
-const handleEdit = (row: MenuInfo) => {
+const handleEdit = (row: any) => {
   dialogTitle.value = '编辑菜单'
   resetForm()
   Object.assign(formData, {
@@ -873,7 +873,7 @@ const handleEdit = (row: MenuInfo) => {
 }
 
 // 删除菜单
-const handleDelete = async (row: MenuInfo) => {
+const handleDelete = async (row: any) => {
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除菜单"${row.menuName}"吗？删除后不可恢复！`,
@@ -958,7 +958,7 @@ const handleFormSaveAndNew = () => {
 }
 
 // 状态变更
-const handleStatusChange = async (row: MenuInfo, status: number) => {
+const handleStatusChange = async (row: any, status: number) => {
   try {
     await menuApi.updateStatus(row.id, status)
     message.success('状态更新成功')
@@ -971,7 +971,7 @@ const handleStatusChange = async (row: MenuInfo, status: number) => {
 }
 
 // 分配角色（正向逻辑：遍历所选角色，逐一更新其菜单列表）
-const handleAssignRole = async (row: MenuInfo) => {
+const handleAssignRole = async (row: any) => {
   currentMenu.value = row
   selectedRoles.value = []
   roleDialogVisible.value = true

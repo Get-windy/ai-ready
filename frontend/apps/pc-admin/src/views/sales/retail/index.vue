@@ -3,6 +3,9 @@
     <PageContainer title="零售单" full-height>
       <template #headerExtra>
         <a-space :size="12">
+          <a-button type="primary" @click="$router.push('/sales/retail/create')">
+            <template #icon><PlusOutlined /></template>新增零售单
+          </a-button>
           <a-badge :status="loading ? 'processing' : (hasError ? 'error' : 'success')" />
           <span v-if="lastUpdateTime" class="update-time">最后更新: {{ lastUpdateTime }}</span>
           <a-button size="small" @click="fetchData"><template #icon><ReloadOutlined /></template></a-button>
@@ -45,7 +48,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import type { Dayjs } from 'dayjs'
-import { ReloadOutlined, SearchOutlined, ClearOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, SearchOutlined, ClearOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import BillTableList from '@/components/BillTableList/BillTableList.vue'
@@ -78,7 +81,7 @@ const handleDateChange = (dates: [Dayjs, Dayjs] | null) => {
 const fetchData = async () => {
   loading.value = true; hasError.value = false
   try {
-    const res: any = await request.get('/api/sales/retail/page', {
+    const res: any = await request.get('/sales/retail/page', {
       params: { page: pagination.current, size: pagination.pageSize, ...searchParams }
     })
     if (res) {

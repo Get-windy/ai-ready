@@ -57,7 +57,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-async function handleApprove(record: RefundRequest, approved: boolean) {
+async function handleApprove(record: any, approved: boolean) {
   Modal.confirm({
     title: approved ? '确认批准' : '确认拒绝',
     content: approved ? '确定批准该退款请求吗？' : '确定拒绝该退款请求吗？',

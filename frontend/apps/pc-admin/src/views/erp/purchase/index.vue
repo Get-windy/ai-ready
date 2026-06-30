@@ -108,32 +108,30 @@
           </div>
         </template>
 
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.field === 'status'">
-            <StatusTag :status="record.status" :map="PURCHASE_ORDER_STATUS" />
-          </template>
-          <template v-else-if="column.field === 'totalAmount'">
-            <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
-          </template>
-          <template v-else-if="column.type === 'action'">
-            <a-space>
-              <a-tooltip title="查看">
-                <a-button v-permission="'purchase:order:detail'" type="link" size="small" @click="handleView(record)">
-                  <template #icon><EyeOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status === 0" title="提交审批">
-                <a-button v-permission="'purchase:order:submit'" type="link" size="small" @click="handleSubmit(record)">
-                  <template #icon><SendOutlined /></template>
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="record.status === 1" title="审批通过">
-                <a-button v-permission="'purchase:order:approve'" type="link" size="small" @click="handleApprove(record)">
-                  <template #icon><CheckCircleOutlined /></template>
-                </a-button>
-              </a-tooltip>
-            </a-space>
-          </template>
+        <template #statusCell="{ record }">
+          <StatusTag :status="record.status" :map="PURCHASE_ORDER_STATUS" />
+        </template>
+        <template #totalAmountCell="{ record }">
+          <span class="amount-cell">¥{{ formatAmount(record.totalAmount) }}</span>
+        </template>
+        <template #actionCell="{ record }">
+          <a-space>
+            <a-tooltip title="查看">
+              <a-button v-permission="'purchase:order:detail'" type="link" size="small" @click="handleView(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 0" title="提交审批">
+              <a-button v-permission="'purchase:order:submit'" type="link" size="small" @click="handleSubmit(record)">
+                <template #icon><SendOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.status === 1" title="审批通过">
+              <a-button v-permission="'purchase:order:approve'" type="link" size="small" @click="handleApprove(record)">
+                <template #icon><CheckCircleOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-space>
         </template>
       </BillTableList>
     </PageContainer>
@@ -656,8 +654,8 @@ const filterOption = (input: string, option: any) => {
 const handleSupplierSearch = async (keyword: string) => {
   supplierLoading.value = true
   try {
-    const res = await request.get('/erp/partner/list', {
-      params: { partnerType: 'SUPPLIER', keyword, pageSize: 50 }
+    const res = await request.get('/erp/md/customer/list', {
+      params: { partnerType: 'supplier', keyword, pageSize: 50 }
     })
     supplierOptions.value = (res.data?.records || res.data || []).map((s: any) => ({
       value: s.id,

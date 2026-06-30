@@ -23,6 +23,26 @@ public class PartyController {
 
     private final PartyService partyService;
 
+    @Operation(summary = "搜索往来单位（按名称/手机/卡号模糊匹配）")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<Party>>> search(
+            @RequestParam String keyword,
+            @RequestParam(required = false) Integer partyType) {
+        LambdaQueryWrapper<Party> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Party::getDeleted, 0);
+        if (partyType != null) {
+            wrapper.eq(Party::getPartyType, partyType);
+        }
+        wrapper.and(w -> w
+                .like(Party::getPartyName, keyword)
+                .or().like(Party::getPhone, keyword)
+                .or().like(Party::getMemberCardNo, keyword)
+        );
+        wrapper.last("LIMIT 20");
+        List<Party> list = partyService.list(wrapper);
+        return ResponseEntity.ok(ApiResponse.ok(list));
+    }
+
     @Operation(summary = "获取往来单位详情")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Party>> getById(@PathVariable Long id) {

@@ -522,3 +522,90 @@ export const purchaseStatsApi = {
     return request.get('/erp/purchase/order/stats', { tenantId: tenantId || 1 })
   }
 }
+
+// ── 零售单 ────────────────────────────────────────────────
+export interface RetailOrder {
+  id: number
+  retailNo: string
+  customerId: number
+  customerName: string
+  amount: number
+  paymentMethod: string
+  status: number
+  remark?: string
+  createTime: string
+  warehouseId?: number
+  warehouseName?: string
+  handlerId?: number
+  handlerName?: string
+  orderDate?: string
+  memberCardNo?: string
+  memberName?: string
+  directDiscount?: number
+  couponDiscount?: number
+  promoDiscount?: number
+  payableAmount?: number
+  cashAmount?: number
+  cardAmount?: number
+  prepaidAmount?: number
+  transferAmount?: number
+  combinedPayment?: boolean
+  changeAmount?: number
+  prepaidBalance?: number
+  items?: RetailOrderItem[]
+  [key: string]: any
+}
+
+export interface RetailOrderItem {
+  id?: number
+  productId?: number
+  productName?: string
+  itemCode?: string
+  barcode?: string
+  unit?: string
+  quantity: number
+  unitPrice: number
+  amount: number
+  bigPack?: number
+  midPack?: number
+  smallPack?: number
+  remark?: string
+  [key: string]: any
+}
+
+export const retailOrderApi = {
+  getPage(params: any): Promise<any> {
+    return request.get('/sales/retail/page', params)
+  },
+  getDetail(id: number): Promise<any> {
+    return request.get(`/sales/retail/${id}`)
+  },
+  create(data: any): Promise<any> {
+    return request.post('/sales/retail', data)
+  },
+  update(id: number, data: any): Promise<any> {
+    return request.put(`/sales/retail/${id}`, data)
+  },
+  delete(id: number): Promise<any> {
+    return request.delete(`/sales/retail/${id}`)
+  },
+}
+
+// ── 会员（个人客户，party_level=MEMBER）────────────────────────
+export const memberApi = {
+  /** 搜索会员（按手机号/会员卡号/姓名） */
+  search(keyword: string): Promise<any[]> {
+    return request.get('/erp/party/search', { keyword, partyType: 1 }).then((res: any) => {
+      const list = res?.data || res || []
+      // 只返回 party_level='MEMBER' 的记录
+      return list.filter((p: any) => p.partyLevel === 'MEMBER' || p.party_level === 'MEMBER')
+    })
+  },
+  /** 获取默认散客 */
+  getWalkIn(): Promise<any> {
+    return request.get('/erp/party/search', { keyword: '散客', partyType: 1 }).then((res: any) => {
+      const list = res?.data || res || []
+      return list.find((p: any) => p.partyCode === 'WALKIN' || p.party_code === 'WALKIN') || null
+    })
+  },
+}

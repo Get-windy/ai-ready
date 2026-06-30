@@ -1,6 +1,7 @@
 <template>
   <ErrorBoundary @error="handleError">
     <BillFormPage
+      v-model="formData"
       title="用户审核"
       :fields="formFields"
       :loading="loading"
@@ -24,18 +25,19 @@
   </ErrorBoundary>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
-import BillFormPage from '@/components/BillFormPage/BillFormPage.vue'
+import BillFormPage from '@/components/BillFormPage/index.vue'
 import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
+const formData = reactive<Record<string, any>>({})
 
 const formFields = [
   { key: 'username', label: '用户名', type: 'input' as const, span: 12 },

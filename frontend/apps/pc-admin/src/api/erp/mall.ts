@@ -1,5 +1,5 @@
 /**
- * B2B 商城管理后台 API 模块
+ * 订货商城管理后台 API 模块（支持企业客户 + 个人会员）
  */
 import request, { type ApiResponse } from '@/utils/request'
 import type { PageQuery } from '@/api/erp'

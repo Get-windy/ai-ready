@@ -701,7 +701,7 @@ const fetchCustomers = async (keyword?: string) => {
   try {
     const params: Record<string, any> = { partnerType: 'CUSTOMER', pageSize: 200 }
     if (keyword) params.keyword = keyword
-    const res = await request.get('/erp/partner/list', { params })
+    const res = await request.get('/erp/md/customer/list', { params })
     customerOptions.value = res.data?.records || res.data || []
   } catch (e) {
     console.warn('[退货管理] 获取客户列表失败', e)

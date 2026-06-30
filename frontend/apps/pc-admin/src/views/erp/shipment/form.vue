@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted, nextTick, defineOptions } from 'vue'
 import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -84,6 +84,8 @@ import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillF
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { outboundApi } from '@/api/erp'
 import { useUserStore } from '@/stores/user'
+
+defineOptions({ name: 'ShipmentForm' })
 
 const userStore = useUserStore()
 const currentUserName = computed(() => userStore?.userInfo?.nickname || userStore?.userInfo?.username || '')

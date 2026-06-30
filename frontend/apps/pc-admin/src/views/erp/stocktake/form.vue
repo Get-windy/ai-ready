@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted, nextTick, defineOptions } from 'vue'
 import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -78,6 +78,8 @@ import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTab
 import type { BillHeaderConfig, BasicInfoField, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { stockCheckApi } from '@/api/erp'
+
+defineOptions({ name: 'StockTakeForm' })
 
 const tableMaxHeight = ref(400)
 

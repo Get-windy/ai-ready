@@ -1,82 +1,104 @@
 import request, { type ApiResponse, type PageResponse } from '@/utils/request'
 
-// 系统配置信息
-export interface ConfigInfo {
+// 系统配置信息（匹配后端 SystemConfig 模型）
+export interface SystemConfig {
   id: number
   configKey: string
   configValue: string
+  configType: string       // system/business/security/integration
+  configGroup: string      // basic/login/password/session/upload/email/sms
+  configName: string
   description: string
-  groupName: string
-  createTime?: string
-  updateTime?: string
+  valueType: string        // string/number/boolean/json/list
+  defaultValue: string
+  enabled: boolean
+  systemConfig: boolean
+  createTime: string
+  updateTime: string
+  tenantId: number
 }
 
 // 配置查询参数
 export interface ConfigQuery {
-  configKey?: string
-  groupName?: string
+  configType?: string
+  configGroup?: string
   pageNum?: number
   pageSize?: number
-}
-
-// 配置保存请求
-export interface ConfigSaveRequest {
-  configKey: string
-  configValue: string
-  description: string
-  groupName: string
-}
-
-// 配置更新请求
-export interface ConfigUpdateRequest extends ConfigSaveRequest {
-  id: number
 }
 
 // 系统配置API
 export const configApi = {
   // 分页查询配置
-  getPage(params: ConfigQuery): Promise<ApiResponse<PageResponse<ConfigInfo>>> {
+  getPage(params: ConfigQuery): Promise<ApiResponse<PageResponse<SystemConfig>>> {
     return request.get('/config/page', params)
   },
 
-  // 获取配置详情
-  getById(id: number): Promise<ApiResponse<ConfigInfo>> {
-    return request.get(`/config/${id}`)
+  // 获取配置列表
+  getList(params: { configType?: string; configGroup?: string }): Promise<any> {
+    return request.get('/config/list', params)
   },
 
-  // 按配置键获取配置
-  getByKey(configKey: string): Promise<ApiResponse<ConfigInfo>> {
-    return request.get(`/config/key/${configKey}`)
+  // 获取配置Map
+  getMap(configGroup?: string): Promise<Record<string, string>> {
+    return request.get('/config/map', { configGroup })
   },
 
-  // 创建配置
-  create(data: ConfigSaveRequest): Promise<ApiResponse<ConfigInfo>> {
-    return request.post('/config', data)
+  // 按配置键获取值
+  getValue(configKey: string): Promise<any> {
+    return request.get(`/config/value/${configKey}`)
   },
 
-  // 更新配置
-  update(data: ConfigUpdateRequest): Promise<ApiResponse<ConfigInfo>> {
-    return request.put(`/config/${data.id}`, data)
+  // 保存配置
+  save(data: Partial<SystemConfig>): Promise<any> {
+    return request.post('/config/save', data)
+  },
+
+  // 保存配置值
+  saveValue(configKey: string, configValue: string): Promise<any> {
+    return request.post('/config/save-value', { configKey, configValue })
+  },
+
+  // 批量保存配置
+  batchSave(configs: Record<string, string>): Promise<any> {
+    return request.post('/config/batch-save', configs)
   },
 
   // 删除配置
-  delete(id: number): Promise<ApiResponse<void>> {
-    return request.delete(`/config/${id}`)
+  delete(configKey: string): Promise<any> {
+    return request.delete(`/config/${configKey}`)
   },
 
   // 批量删除
-  batchDelete(ids: number[]): Promise<ApiResponse<void>> {
-    return request.delete('/config/batch', { data: ids })
+  batchDelete(ids: number[]): Promise<any> {
+    return request.delete('/config/batch', { data: ids } as any)
   },
 
-  // 获取所有配置分组
-  getGroups(): Promise<ApiResponse<string[]>> {
-    return request.get('/config/groups')
+  // 获取配置变更日志
+  getChangeLogs(configKey: string): Promise<ApiResponse<any[]>> {
+    return request.get(`/config/logs/${configKey}`)
   },
 
   // 刷新配置缓存
-  refreshCache(): Promise<ApiResponse<void>> {
+  refreshCache(configKey?: string): Promise<any> {
+    if (configKey) {
+      return request.post('/config/refresh-cache', null, { params: { configKey } })
+    }
     return request.post('/config/refresh-cache')
+  },
+
+  // 导出配置
+  exportConfigs(params?: { configType?: string; configGroup?: string }): Promise<any> {
+    return request.get('/config/export', params)
+  },
+
+  // 获取配置类型列表
+  getConfigTypes(): Promise<any> {
+    return request.get('/config/types')
+  },
+
+  // 获取配置分组列表
+  getConfigGroups(): Promise<any> {
+    return request.get('/config/groups')
   }
 }
 

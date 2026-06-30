@@ -31,10 +31,18 @@ public class PickServiceImpl implements PickService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WmsPickWave createWave(List<Long> saleOrderIds) {
-        // TODO: 从销售订单获取数据并创建拣货波次
         WmsPickWave wave = new WmsPickWave();
+        wave.setWaveNo("WV-" + System.currentTimeMillis());
         wave.setStatus(0); // 待分配
+        wave.setWaveType(1); // 按单波次
+        wave.setPriority(1); // 普通
+        wave.setOrderCount(saleOrderIds.size());
+        wave.setItemCount(0);
+        wave.setTotalQuantity(java.math.BigDecimal.ZERO);
+        wave.setPickedQuantity(java.math.BigDecimal.ZERO);
+        wave.setRemark("由销售订单自动创建，订单数: " + saleOrderIds.size());
         waveMapper.insert(wave);
+        log.info("创建拣货波次: waveId={}, waveNo={}, saleOrderIds={}", wave.getId(), wave.getWaveNo(), saleOrderIds);
         return wave;
     }
 

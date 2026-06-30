@@ -35,7 +35,7 @@
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑标准' : '新增标准'" width="600px" @ok="handleSave">
       <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
         <a-form-item label="标准编码">
-          <a-input v-model:value="form.standardCode" placeholder="请输入标准编码" :disabled="editingId" />
+          <a-input v-model:value="form.standardCode" placeholder="请输入标准编码" :disabled="!!editingId" />
         </a-form-item>
         <a-form-item label="标准名称" required>
           <a-input v-model:value="form.standardName" placeholder="请输入标准名称" />
@@ -101,7 +101,7 @@ function showCreateModal() {
   modalVisible.value = true
 }
 
-function showEditModal(record: QualityStandard) {
+function showEditModal(record: any) {
   editingId.value = record.id
   Object.assign(form, {
     standardCode: record.standardCode,
@@ -119,10 +119,10 @@ async function handleSave() {
   if (!form.standardName || !form.inspectionType) { message.warning('请填写必要字段'); return }
   try {
     if (editingId.value) {
-      await qualityStandardApi.update(editingId.value, form)
+      await qualityStandardApi.update(editingId.value, form as any)
       message.success('更新成功')
     } else {
-      await qualityStandardApi.create(form)
+      await qualityStandardApi.create(form as any)
       message.success('创建成功')
     }
     modalVisible.value = false
@@ -130,7 +130,7 @@ async function handleSave() {
   } catch (e) { message.error('保存失败') }
 }
 
-async function handleDelete(record: QualityStandard) {
+async function handleDelete(record: any) {
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除标准 "${record.standardName}" 吗？`,

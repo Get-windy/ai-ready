@@ -79,7 +79,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-function showHandleModal(record: QualityDefectHandle) {
+function showHandleModal(record: any) {
   handleForm.id = record.id
   handleForm.handleType = 'REWORK'
   handleForm.handleQuantity = record.handleQuantity

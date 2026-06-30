@@ -74,4 +74,11 @@ public class ChannelConfigController {
     public Result<Boolean> initialize(@PathVariable Long id) {
         return Result.success(service.initializeChannel(id));
     }
+
+    @Operation(summary = "同步渠道数据", description = "从外部平台同步订单/商品等数据")
+    @PostMapping("/{id}/sync")
+    public Result<java.util.Map<String, Object>> sync(@PathVariable Long id) {
+        java.util.Map<String, Object> result = service.syncChannelData(id);
+        return Result.success(result);
+    }
 }

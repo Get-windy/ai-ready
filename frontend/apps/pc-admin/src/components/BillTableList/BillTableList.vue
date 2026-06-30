@@ -167,6 +167,7 @@ import {
 } from '@ant-design/icons-vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import { usePermission } from '@/composables/usePermission'
 
 // ── 防抖工具 ──
 const debounceMap = new Map<string, number>()
@@ -272,10 +273,10 @@ const tableData = computed(() => props.dataSource)
 const convertedColumns = computed(() => convertColumns(props.columns))
 
 // ========== 权限检查 ==========
+const { checkPermission } = usePermission()
 function hasPermission(permission: string): boolean {
   if (!permission) return true
-  // TODO: 集成实际权限检查逻辑
-  return true
+  return checkPermission(permission)
 }
 
 // ========== 事件处理 ==========

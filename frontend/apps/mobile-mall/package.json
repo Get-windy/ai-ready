@@ -1,7 +1,7 @@
 {
   "name": "mobile-mall",
   "version": "0.3.0",
-  "description": "用户商城手机端 - B2B/B2C商城应用",
+  "description": "订货商城手机端 - 统一B2B企业客户与B2C个人会员",
   "type": "module",
   "scripts": {
     "dev": "vite",

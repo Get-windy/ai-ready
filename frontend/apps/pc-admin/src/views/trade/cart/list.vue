@@ -14,7 +14,7 @@
           :data-source="tableData"
           :loading="loading"
           row-key="id"
-          :pagination="false"
+          :pagination="false as any"
           :show-toolbar="false" :show-search="false" :show-add="false" :show-export="false" :show-batch-delete="false"
           :selectable="false"
         >

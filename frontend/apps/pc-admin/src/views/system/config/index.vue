@@ -108,8 +108,8 @@
           </div>
         </template>
 
-        <template #groupNameCell="{ record }">
-          <a-tag color="blue">{{ record.groupName }}</a-tag>
+        <template #configGroupCell="{ record }">
+          <a-tag color="blue">{{ record.configGroup }}</a-tag>
         </template>
         <template #configValueCell="{ record }">
           <span
@@ -181,9 +181,9 @@
               :rows="2"
             />
           </a-form-item>
-          <a-form-item label="分组" name="groupName">
+          <a-form-item label="分组" name="configGroup">
             <a-input
-              v-model:value="formState.groupName"
+              v-model:value="formState.configGroup"
               placeholder="请输入分组名称，如 SYS/UPLOAD/EMAIL"
             />
           </a-form-item>
@@ -211,20 +211,20 @@ import {
   LockOutlined
 } from '@ant-design/icons-vue'
 import BillTableList, { type FilterField } from '@/components/BillTableList/BillTableList.vue'
-import { configApi, type ConfigInfo } from '@/api/config'
+import { configApi, type SystemConfig } from '@/api/config'
 import PageContainer from '@/components/PageContainer/PageContainer.vue'
 import FullScreenDetail from '@/components/FullScreenDetail/FullScreenDetail.vue'
 
 // 搜索表单
 const searchForm = reactive({
   configKey: '',
-  groupName: undefined as string | undefined
+  configGroup: undefined as string | undefined
 })
 
 const groupOptions = ref<string[]>([])
 
 // 表格数据
-const tableData = ref<ConfigInfo[]>([])
+const tableData = ref<SystemConfig[]>([])
 const loading = ref(false)
 const selectedRowKeys = ref<number[]>([])
 const lastUpdateTime = ref('')
@@ -245,7 +245,7 @@ function debounceClick(key: string, fn: (...args: any[]) => any) {
 }
 
 // ── 统计数据 ────────────────────────────────────────────
-const groupCount = computed(() => new Set(tableData.value.map(c => c.groupName)).size)
+const groupCount = computed(() => new Set(tableData.value.map(c => c.configGroup)).size)
 const sensitiveCount = computed(() => tableData.value.filter(c => isSensitiveKey(c.configKey)).length)
 
 // ── 数据源 ────────────────────────────────────────────
@@ -266,7 +266,7 @@ const vxeColumns = computed(() => [
   { field: 'configKey', title: '配置键', width: 200, showOverflow: 'tooltip' },
   { field: 'configValue', title: '配置值', width: 300, showOverflow: 'tooltip', slotName: 'configValueCell' },
   { field: 'description', title: '描述', width: 200, showOverflow: 'tooltip' },
-  { field: 'groupName', title: '分组', width: 120, slotName: 'groupNameCell' },
+  { field: 'configGroup', title: '分组', width: 120, slotName: 'configGroupCell' },
   { field: 'createTime', title: '创建时间', width: 160 },
   { type: 'action', title: '操作', width: 140, fixed: 'right' }
 ])
@@ -274,7 +274,7 @@ const vxeColumns = computed(() => [
 // 筛选字段
 const filterFields = computed<FilterField[]>(() => [
   { key: 'configKey', label: '配置键', type: 'input', placeholder: '请输入配置键' },
-  { key: 'groupName', label: '分组', type: 'select', options: groupOptions.value.map(g => ({ label: g, value: g })) },
+  { key: 'configGroup', label: '分组', type: 'select', options: groupOptions.value.map(g => ({ label: g, value: g })) },
 ])
 
 // 弹窗
@@ -289,7 +289,7 @@ const formState = reactive({
   configKey: '',
   configValue: '',
   description: '',
-  groupName: ''
+  configGroup: ''
 })
 
 // ── 表单脏检测 ──────────────────────────────────────────
@@ -317,7 +317,7 @@ onBeforeRouteLeave((to, from, next) => {
 const formRules: any = {
   configKey: { required: true, message: '请输入配置键', trigger: 'blur' },
   configValue: { required: true, message: '请输入配置值', trigger: 'blur' },
-  groupName: { required: true, message: '请输入分组', trigger: 'blur' }
+  configGroup: { required: true, message: '请输入分组', trigger: 'blur' }
 }
 
 // ── 刷新 ──────────────────────────────────────────────
@@ -355,7 +355,7 @@ const fetchData = async () => {
 
 const fetchGroups = async () => {
   try {
-    const res = await configApi.getGroups()
+    const res = await configApi.getConfigGroups()
     if (res.data) {
       groupOptions.value = res.data
     }
@@ -372,14 +372,14 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  Object.assign(searchForm, { configKey: '', groupName: undefined })
+  Object.assign(searchForm, { configKey: '', configGroup: undefined })
   handleSearch()
 }
 
 // 筛选变化
 const handleFilterChange = (filters: Record<string, any>) => {
   if (Object.keys(filters).length === 0) {
-    Object.assign(searchForm, { configKey: '', groupName: undefined })
+    Object.assign(searchForm, { configKey: '', configGroup: undefined })
   } else {
     Object.assign(searchForm, filters)
   }
@@ -397,27 +397,27 @@ const handlePageChange = (page: number, pageSize: number) => {
 // 新增
 const handleAdd = () => {
   isEdit.value = false
-  Object.assign(formState, { id: 0, configKey: '', configValue: '', description: '', groupName: '' })
+  Object.assign(formState, { id: 0, configKey: '', configValue: '', description: '', configGroup: '' })
   modalVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 编辑
-const handleEdit = (record: ConfigInfo) => {
+const handleEdit = (record: SystemConfig) => {
   isEdit.value = true
   Object.assign(formState, {
     id: record.id,
     configKey: record.configKey,
     configValue: record.configValue,
     description: record.description,
-    groupName: record.groupName
+    configGroup: record.configGroup
   })
   modalVisible.value = true
   nextTick(() => { saveFormSnapshot(); watchReady = true })
 }
 
 // 删除
-const handleDeleteConfirm = (record: ConfigInfo) => {
+const handleDeleteConfirm = (record: SystemConfig) => {
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除配置 "${record.configKey}" 吗？此操作不可撤销。`,
@@ -427,7 +427,7 @@ const handleDeleteConfirm = (record: ConfigInfo) => {
     centered: true,
     async onOk() {
       try {
-        await configApi.delete(record.id)
+        await configApi.delete(record.configKey)
         message.success('删除成功')
         fetchData()
       } catch (err) {
@@ -493,10 +493,10 @@ const handleModalOk = async () => {
     modalLoading.value = true
 
     if (isEdit.value) {
-      await configApi.update(formState as any)
+      await configApi.save(formState as any)
       message.success('更新成功')
     } else {
-      await configApi.create(formState as any)
+      await configApi.save(formState as any)
       message.success('创建成功')
     }
 
@@ -529,7 +529,7 @@ const handleFormSaveAndNew = async () => {
   try {
     await formRef.value?.validate()
     modalLoading.value = true
-    await configApi.create(formState as any)
+    await configApi.save(formState as any)
     message.success('创建成功')
     fetchData()
     handleAdd()

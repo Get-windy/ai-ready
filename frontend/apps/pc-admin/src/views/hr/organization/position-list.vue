@@ -45,7 +45,7 @@
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑岗位' : '新增岗位'" width="500px" @ok="handleSave">
       <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
         <a-form-item label="岗位编码">
-          <a-input v-model:value="form.positionCode" placeholder="请输入岗位编码" :disabled="editingId" />
+          <a-input v-model:value="form.positionCode" placeholder="请输入岗位编码" :disabled="!!editingId" />
         </a-form-item>
         <a-form-item label="岗位名称" required>
           <a-input v-model:value="form.positionName" placeholder="请输入岗位名称" />
@@ -111,7 +111,7 @@ function showCreateModal() {
   modalVisible.value = true
 }
 
-function showEditModal(record: HrPosition) {
+function showEditModal(record: any) {
   editingId.value = record.id
   Object.assign(form, {
     positionCode: record.positionCode,
@@ -138,7 +138,7 @@ async function handleSave() {
   } catch (e) { message.error('保存失败') }
 }
 
-async function handleDelete(record: HrPosition) {
+async function handleDelete(record: any) {
   Modal.confirm({
     title: '确认删除',
     content: `确定要删除岗位 "${record.positionName}" 吗？`,

@@ -230,6 +230,13 @@ public class HrController {
         return Result.success();
     }
 
+    @Operation(summary = "生成月度薪资")
+    @PostMapping("/salary/payment/generate")
+    public Result<Void> generateMonthlyPayment(@RequestParam String paymentMonth) {
+        salaryPaymentService.generateMonthlyPayment(paymentMonth);
+        return Result.success();
+    }
+
     // ── 绩效管理 ────────────────────────────────────
 
     @Operation(summary = "分页查询绩效考核")

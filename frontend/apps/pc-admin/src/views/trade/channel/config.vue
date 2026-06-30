@@ -47,7 +47,7 @@
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑渠道配置' : '新增渠道'" width="700px" @ok="handleSave">
       <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 18 }">
         <a-form-item label="渠道编码">
-          <a-select v-model:value="form.channelCode" placeholder="请选择渠道" :disabled="editingId">
+          <a-select v-model:value="form.channelCode" placeholder="请选择渠道" :disabled="!!editingId">
             <a-select-option value="TAOBAO">淘宝/天猫</a-select-option>
             <a-select-option value="JD">京东</a-select-option>
             <a-select-option value="PDD">拼多多</a-select-option>
@@ -127,7 +127,7 @@ function showCreateModal() {
   modalVisible.value = true
 }
 
-function showEditModal(record: ExternalChannelConfig) {
+function showEditModal(record: any) {
   editingId.value = record.id
   Object.assign(form, {
     channelCode: record.channelCode,
@@ -161,21 +161,28 @@ async function handleSave() {
   } catch (e) { message.error('保存失败') }
 }
 
-async function handleToggleSync(record: ExternalChannelConfig, checked: boolean) {
+async function handleToggleSync(record: any, checked: boolean) {
   await channelConfigApi.toggleStatus(record.id, checked)
   message.success(checked ? '已启用同步' : '已禁用同步')
   loadData()
 }
 
-async function handleInitialize(record: ExternalChannelConfig) {
+async function handleInitialize(record: any) {
   await channelConfigApi.initialize(record.id)
   message.success('初始化完成')
   loadData()
 }
 
-async function handleSync(record: ExternalChannelConfig) {
+async function handleSync(record: any) {
   message.info('开始同步...')
-  // TODO: 调用同步接口
+  try {
+    const result = await channelConfigApi.sync(record.id)
+    const data = result.data
+    message.success(`同步完成！同步订单: ${data.syncedOrders}，同步商品: ${data.syncedProducts}`)
+    loadData()
+  } catch (e: any) {
+    message.error('同步失败: ' + (e.message || '未知错误'))
+  }
 }
 
 onMounted(loadData)

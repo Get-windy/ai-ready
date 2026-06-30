@@ -26,7 +26,7 @@
             <a-col :span="16">
               <a-row :gutter="24">
                 <a-col :span="12"><a-form-item label="单位名称" name="partnerName"><a-input v-model:value="form.partnerName" placeholder="请输入单位名称" size="small" /></a-form-item></a-col>
-                <a-col :span="12"><a-form-item label="单位编号"><a-input v-model:value="form.partnerCode" placeholder="自动生成" size="small" disabled><template #suffix><a-button size="small" type="link" @click="generateCode">重新生成</a-button></template></a-input></a-form-item></a-col>
+                <a-col :span="12"><a-form-item label="单位编号"><a-input v-model:value="form.partnerCode" placeholder="由系统自动生成" size="small" disabled /></a-form-item></a-col>
               </a-row>
               <a-row :gutter="24">
                 <a-col :span="12"><a-form-item label="单位类别"><a-select v-model:value="form.partnerCategoryId" placeholder="请选择类别" allow-clear size="small"><a-select-option v-for="c in categories" :key="c.id" :value="c.id">{{ c.categoryName }}</a-select-option></a-select></a-form-item></a-col>
@@ -169,12 +169,14 @@ import type { FormInstance } from 'ant-design-vue'
 import { ArrowLeftOutlined, CaretDownOutlined, CaretRightOutlined, PictureOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { partnerApi, partnerCategoryApi, partnerGradeApi, partnerContactApi, partnerBankAccountApi, partnerRoleApi, type PartyContact } from '@/api/erp/partner'
 import type { PartnerCategory, PartnerGrade } from '@/api/erp/partner'
-import { generatePartnerCodeAsync } from '../utils/generateCode'
 import ContactList, { type ContactRowData } from '../components/ContactList.vue'
 import AttachmentUpload from '../components/AttachmentUpload.vue'
 import { userApi, type UserInfo } from '@/api/user'
 import { warehouseApi, type WmsWarehouse } from '@/api/wms/warehouse'
 import request from '@/utils/request'
+import { generatePartnerCodeAsync } from '../utils/generateCode'
+
+async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('partner') }
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -222,7 +224,6 @@ const form = reactive({
 
 const formRules: Record<string, any> = { partnerName: [{ required: true, message: '请输入单位名称', trigger: 'blur' }] }
 
-async function generateCode() { form.partnerCode = await generatePartnerCodeAsync('partner') }
 async function loadCategories() { try { categories.value = await partnerCategoryApi.getTree('OTHER') } catch { categories.value = [] } }
 async function loadGrades() { try { grades.value = await partnerGradeApi.list('OTHER') } catch { grades.value = [] } }
 async function loadUsers() { try { const res = await userApi.getList(); users.value = (res as any)?.data || (res as any) || [] } catch { users.value = [] } }
@@ -258,7 +259,6 @@ async function handleCertUpload(e: Event, type: 'license' | 'permit') {
 
 async function doSubmit(): Promise<number|null> {
   try { await formRef.value?.validate() } catch { return null }
-  if (!form.partnerCode) await generateCode()
   try {
     const result = await partnerApi.create({
       ...form, partnerType:'OTHER', status:statusChecked.value?'ENABLED':'DISABLED',
@@ -335,7 +335,7 @@ async function handleSaveAndNew(){
 }
 
 function handleKeydown(e:KeyboardEvent){if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();handleSubmit()}}
-onMounted(()=>{generateCode();loadCategories();loadGrades();loadUsers();loadWarehouses();document.addEventListener('keydown',handleKeydown)})
+onMounted(()=>{loadCategories();loadGrades();loadUsers();loadWarehouses();document.addEventListener('keydown',handleKeydown)})
 onUnmounted(()=>{document.removeEventListener('keydown',handleKeydown)})
 </script>
 

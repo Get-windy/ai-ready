@@ -115,7 +115,7 @@ async function handleExecute() {
   loadData()
 }
 
-function showHandleModal(record: PaymentReconciliation) {
+function showHandleModal(record: any) {
   handleForm.id = record.id
   handleForm.remark = ''
   handleModalVisible.value = true

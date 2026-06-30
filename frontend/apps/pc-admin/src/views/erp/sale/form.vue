@@ -1,89 +1,93 @@
 <template>
-  <BillFormPage
-    v-model="formData"
-    :header="headerConfig"
-    :basic-info-fields="basicInfoFields"
-    :tabs="tabsConfig"
-    :summary="summaryConfig"
-    :footer="footerConfig"
-    @action="handleAction"
-    @field-change="handleFieldChange"
-    @search-btn="handleSearchBtn"
-    @draft="handleSaveDraft"
-    @submit="handleSubmit"
-  >
-    <!-- ═══ Zone 3: 商品明细表格 ═══ -->
-    <template #detail-table="{ onExpandChange }">
-      <BillDetailTable
-        :columns="detailColumns"
-        :data-source="formData.products"
-        :max-height="tableMaxHeight"
-        :summary-columns="tableSummaryColumns"
-        @cell-change="handleCellChange"
-        @expand-change="onExpandChange"
-        @open-select-modal="handleOpenProductSelectModal"
-      >
-        <!-- 自定义：操作列 -->
-        <template #actionCell="{ index, empty }">
-          <template v-if="!empty">
-          <a-space :size="2">
-            <a-button type="link" size="small" class="action-add-btn" @click="handleInsertProduct(index)">
-              <PlusCircleOutlined />
-            </a-button>
-            <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
-              <MinusCircleOutlined />
-            </a-button>
-          </a-space>
-          </template>
-          <template v-else>
+  <div class="form-page-container" style="height:100%;display:flex;flex-direction:column;">
+    <BillFormPage
+      v-model="formData"
+      :header="headerConfig"
+      :basic-info-fields="basicInfoFields"
+      :tabs="tabsConfig"
+      :summary="summaryConfig"
+      :footer="footerConfig"
+      @action="handleAction"
+      @field-change="handleFieldChange"
+      @search-btn="handleSearchBtn"
+      @draft="handleSaveDraft"
+      @submit="handleSubmit"
+    >
+      <!-- ═══ Zone 3: 商品明细表格 ═══ -->
+      <template #detail-table="{ onExpandChange }">
+        <BillDetailTable
+          :columns="detailColumns"
+          :data-source="formData.products"
+          :max-height="tableMaxHeight"
+          :summary-columns="tableSummaryColumns"
+          @cell-change="handleCellChange"
+          @expand-change="onExpandChange"
+          @open-select-modal="handleOpenProductSelectModal"
+        >
+          <!-- 自定义：操作列 -->
+          <template #actionCell="{ index, empty }">
+            <template v-if="!empty">
             <a-space :size="2">
-              <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct()">
+              <a-button type="link" size="small" class="action-add-btn" @click="handleInsertProduct(index)">
                 <PlusCircleOutlined />
               </a-button>
-              <a-button type="link" size="small" class="action-del-btn" disabled>
+              <a-button type="link" size="small" class="action-del-btn" @click="handleRemoveProduct(index)">
                 <MinusCircleOutlined />
               </a-button>
             </a-space>
+            </template>
+            <template v-else>
+              <a-space :size="2">
+                <a-button type="link" size="small" class="action-add-btn" @click="handleAddProduct()">
+                  <PlusCircleOutlined />
+                </a-button>
+                <a-button type="link" size="small" class="action-del-btn" disabled>
+                  <MinusCircleOutlined />
+                </a-button>
+              </a-space>
+            </template>
           </template>
-        </template>
-      </BillDetailTable>
-    </template>
+        </BillDetailTable>
+      </template>
 
-    <!-- ═══ Zone 4 补充: 备注 + 单据信息 ═══ -->
-    <template #bottom-extra>
-      <div class="remark-section">
-        <div class="remark-row">
-          <span class="remark-label">单据备注</span>
-          <a-input v-model:value="formData.orderRemark" size="small" class="remark-input" />
+      <!-- ═══ Zone 4 补充: 备注 + 单据信息 ═══ -->
+      <template #bottom-extra>
+        <div class="remark-section">
+          <div class="remark-row">
+            <span class="remark-label">单据备注</span>
+            <a-input v-model:value="formData.orderRemark" size="small" class="remark-input" />
+          </div>
+          <div class="remark-row">
+            <span class="remark-label">买家备注</span>
+            <a-input v-model:value="formData.buyerRemark" size="small" class="remark-input" />
+          </div>
         </div>
-        <div class="remark-row">
-          <span class="remark-label">买家备注</span>
-          <a-input v-model:value="formData.buyerRemark" size="small" class="remark-input" />
+        <div class="doc-info-row">
+          <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
+          <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
+          <span class="doc-info-item">打印次数 0</span>
+          <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
+          <span class="doc-info-item">源单 <a-tag size="small">0</a-tag></span>
         </div>
-      </div>
-      <div class="doc-info-row">
-        <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
-        <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
-        <span class="doc-info-item">打印次数 0</span>
-        <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
-        <span class="doc-info-item">源单 <a-tag size="small">0</a-tag></span>
-      </div>
-    </template>
-  </BillFormPage>
+      </template>
+    </BillFormPage>
 
-  <!-- ═══ 表单配置弹窗 ═══ -->
-  <SaleOrderFormConfig v-model:open="showFormConfig" />
+    <!-- ═══ 表单配置弹窗 ═══ -->
+    <SaleOrderFormConfig v-model:open="showFormConfig" />
 
-  <!-- ═══ 产品选择弹窗 ═══ -->
-  <ProductSelectModal
-    v-model:open="showProductSelect"
-    :multiple="true"
-    @confirm="handleProductSelectConfirm"
-  />
+    <!-- ═══ 产品选择弹窗 ═══ -->
+    <ProductSelectModal
+      v-model:open="showProductSelect"
+      :multiple="true"
+      @confirm="handleProductSelectConfirm"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick } from 'vue'
+
+defineOptions({ name: 'SaleForm' })
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {

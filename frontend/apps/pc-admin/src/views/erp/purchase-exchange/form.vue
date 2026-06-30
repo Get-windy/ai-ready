@@ -164,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, defineOptions } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue'
@@ -191,6 +191,8 @@ interface ExchangeItem {
   exchangePrice: number
   unit: string
 }
+
+defineOptions({ name: 'PurchaseExchangeForm' })
 
 const router = useRouter()
 const route = useRoute()

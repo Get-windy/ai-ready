@@ -60,59 +60,77 @@ export interface Partner {
   id: number
   partnerCode: string
   partnerName: string
-  partnerShortName: string
+  partnerShortName?: string
   partnerType: string
-  partnerCategoryId: number
-  partnerGradeId: number
-  categoryName: string
-  gradeName: string
-  unifiedSocialCode: string
-  taxId: string
-  legalPerson: string
-  registeredCapital: number
-  companyPhone: string
-  companyEmail: string
-  contactPerson: string
-  contactPhone: string
-  contactEmail: string
-  province: string
-  city: string
-  district: string
-  detailAddress: string
-  creditLimit: number
-  creditDays: number
-  paymentTerms: string
-  settleType: string
-  taxRate: number
-  openingBalance: number
-  currentBalance: number
-  remark: string
+  partnerCategoryId?: number
+  partnerGradeId?: number
+  categoryId?: number
+  categoryName?: string
+  gradeName?: string
+  unifiedSocialCode?: string
+  taxId?: string
+  taxNumber?: string
+  legalPerson?: string
+  registeredCapital?: number
+  companyPhone?: string
+  companyEmail?: string
+  phone?: string
+  email?: string
+  contactPerson?: string
+  contactPhone?: string
+  contactEmail?: string
+  province?: string
+  city?: string
+  district?: string
+  detailAddress?: string
+  address?: string
+  creditLimit?: number
+  creditDays?: number
+  paymentTerms?: string
+  settleType?: string
+  taxRate?: number
+  openingBalance?: number
+  currentBalance?: number
+  remark?: string
   status: string
-  createTime: string
+  statusDesc?: string
+  website?: string
+  fax?: string
+  bankName?: string
+  bankAccount?: string
+  shortName?: string
+  createTime?: string
+  updateTime?: string
 }
 
 export const partnerApi = {
-  page(params: PageQuery & { partnerType?: string; categoryId?: number }): Promise<PageResult<Partner>> {
-    return request.get('/erp/partner/page', params)
+  page(params: PageQuery & { partnerType?: string; categoryId?: number; keyword?: string }): Promise<PageResult<Partner>> {
+    return request.get('/erp/md/customer/page', params)
   },
   getById(id: number): Promise<Partner> {
-    return request.get(`/erp/partner/${id}`)
+    return request.get(`/erp/md/customer/${id}`)
   },
   search(keyword: string, partnerType?: string): Promise<Partner[]> {
-    return request.get('/erp/partner/search', { params: { keyword, partnerType } })
+    return request.get('/erp/md/customer/search', { params: { keyword, partnerType } })
   },
-  create(data: Partial<Partner>): Promise<boolean> {
-    return request.post('/erp/partner', data)
+  list(partnerType?: string, status?: string, pageSize?: number): Promise<Partner[]> {
+    return request.get('/erp/md/customer/list', { params: { partnerType, status, pageSize } })
   },
-  update(id: number, data: Partial<Partner>): Promise<boolean> {
-    return request.put(`/erp/partner/${id}`, data)
+  create(data: Record<string, any>): Promise<boolean> {
+    return request.post('/erp/md/customer', data)
+  },
+  update(id: number, data: Record<string, any>): Promise<boolean> {
+    return request.put(`/erp/md/customer/${id}`, data)
   },
   updateStatus(id: number, status: string): Promise<boolean> {
-    return request.put(`/erp/partner/${id}/status`, null, { params: { status } })
+    return request.put(`/erp/md/customer/${id}/status`, null, { params: { status } })
   },
   delete(id: number): Promise<boolean> {
-    return request.delete(`/erp/partner/${id}`)
-  }
+    return request.delete(`/erp/md/customer/${id}`)
+  },
+  getNextSeq(prefix: string): Promise<{ seq: number }> {
+    return request.get('/erp/md/customer/next-seq', { params: { prefix } })
+  },
 }
 
 // ── 联系人 ──

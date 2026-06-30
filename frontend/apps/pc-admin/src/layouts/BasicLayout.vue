@@ -330,11 +330,9 @@
       >
         <router-view v-slot="{ Component, route }">
           <transition name="fade" mode="out-in">
-            <div :key="route.fullPath" style="height: 100%">
-              <keep-alive :include="cachedRoutes">
-                <component :is="Component" />
-              </keep-alive>
-            </div>
+            <keep-alive :include="tabsStore.cachedComponentNames" :max="15">
+              <component :is="Component" />
+            </keep-alive>
           </transition>
         </router-view>
       </a-layout-content>
@@ -346,6 +344,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import {
@@ -411,12 +410,7 @@ const panelHeightCache = new Map<number, number>()
 // 通知系统（基于WebSocket实时推送）
 const notif = useNotification()
 
-// 缓存的路由（keep-alive）
-const cachedRoutes = computed(() => {
-  return tabsStore.tabs.filter(t => t.routeName && t.routeName !== route.name?.toString()).map(t => t.routeName!) || []
-})
-
-	// 侧边栏展开状态持久化（多标签页切换/刷新后恢复）（使用 store 中的用户可访问租户列表）
+// 侧边栏展开状态持久化（多标签页切换/刷新后恢复）（使用 store 中的用户可访问租户列表）
 const tenantSwitching = ref(false)
 const currentTenantName = computed(() => {
   const found = userStore.userTenants.find(t => t.id === userStore.tenantId)
@@ -479,12 +473,37 @@ onMounted(() => {
   fetchTenants()
 })
 
+// ── 组件名称映射（用于 keep-alive include 缓存管理）──
+const FORM_COMPONENT_NAMES: Record<string, string> = {
+  '/sales/order/form': 'SaleForm',
+  '/erp/sale/form': 'SaleForm',
+  '/erp/purchase/form': 'PurchaseForm',
+  '/erp/stock-in/form': 'StockInForm',
+  '/erp/stocktake/form': 'StockTakeForm',
+  '/erp/return/form': 'ReturnForm',
+  '/erp/shipment/form': 'ShipmentForm',
+  '/erp/sale-outbound/form': 'SaleOutboundForm',
+  '/erp/purchase-exchange/form': 'PurchaseExchangeForm',
+  '/erp/product/form': 'ProductForm',
+}
+
+function getComponentName(path: string, route: RouteLocationNormalizedLoaded): string | undefined {
+  // 表单页面才需要缓存（通过路径映射表匹配）
+  const mapped = FORM_COMPONENT_NAMES[path]
+  if (mapped) return mapped
+  // 尝试从路由元信息获取（后端菜单可配置）
+  if (route.meta?.componentName) return route.meta.componentName as string
+  // 非表单页面不缓存
+  return undefined
+}
+
 // 路由变化时同步标签页
 watch(() => route.path, (path) => {
   tabsStore.openTab({
     path,
     title: currentTitle.value,
-    routeName: route.name?.toString()
+    routeName: route.name?.toString(),
+    componentName: getComponentName(path, route),
   })
   // 记录最近浏览
   if (path !== '/dashboard' && path !== '/login') {

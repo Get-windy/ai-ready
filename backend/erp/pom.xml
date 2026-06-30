@@ -27,7 +27,7 @@
         <module>erp-observability</module>
         <module>erp-printing</module>
         <module>erp-delivery-route</module>
-        <module>erp-b2b-mall</module>
+        <module>erp-mall</module>
         <module>erp-fixed-asset</module>
         <module>erp-budget</module>
         <module>erp-partner</module>

@@ -100,6 +100,15 @@ export interface HrContract {
   status: number
 }
 
+export const CONTRACT_TYPE_MAP: Record<number, string> = { 1: '固定期限', 2: '无固定期限', 3: '试用期' }
+export const CONTRACT_STATUS_MAP: Record<number, string> = { 0: '待签', 1: '生效', 2: '到期', 3: '终止' }
+
+export const hrContractApi = {
+  listByEmployee(employeeId: number): Promise<HrContract[]> {
+    return request.get(`/hr/employees/${employeeId}/contracts`)
+  }
+}
+
 // ── 考勤管理 ──
 
 export interface HrAttendance {
@@ -204,6 +213,9 @@ export const hrSalaryApi = {
   },
   confirmPayment(id: number): Promise<boolean> {
     return request.put(`/hr/salary/payment/${id}/confirm`)
+  },
+  generateMonthlyPayment(paymentMonth: string): Promise<boolean> {
+    return request.post('/hr/salary/payment/generate', null, { params: { paymentMonth } })
   }
 }
 

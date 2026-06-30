@@ -14,8 +14,7 @@ import cn.aiedge.erp.party.entity.CustomerGrade;
 import cn.aiedge.erp.stock.entity.Product;
 import cn.aiedge.erp.stock.service.ProductService;
 import cn.aiedge.erp.stock.service.ProductUnitService;
-import cn.aiedge.erp.partner.entity.Partner;
-import cn.aiedge.erp.partner.service.IPartnerService;
+import cn.aiedge.erp.party.service.PartyGradeRelationService;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -44,6 +43,7 @@ import cn.aiedge.erp.pricing.service.PriceEngineService;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationRequest;
 import cn.aiedge.erp.pricing.strategy.entity.PriceCalculationResult;
 import cn.aiedge.erp.pricing.strategy.entity.PricingStrategy;
+import cn.aiedge.common.serial.BizNumberGeneratorService;
 
 @Slf4j
 @Service
@@ -60,7 +60,10 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
     private final CustomerGradeService customerGradeService;
     private final ProductService productService;
     private final ProductUnitService productUnitService;
-    private final IPartnerService partnerService;
+    private final PartyGradeRelationService partyGradeRelationService;
+
+    // 注入业务编号生成服务
+    private final BizNumberGeneratorService bizNumberGeneratorService;
 
     @Override
     public Page<SaleOrderDTO> pageOrders(Page<SaleOrder> page, Long tenantId, String orderNo,
@@ -326,8 +329,35 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
     @Override
     public String generateOrderNo() {
-        String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        return "SO" + dateStr + IdUtil.fastSimpleUUID().substring(0, 6).toUpperCase();
+        // 获取当前用户语言偏好，如果没有则默认使用中文
+        String userLocale = getUserLocaleOrDefault();
+        if ("en_US".equalsIgnoreCase(userLocale) || "en".equalsIgnoreCase(userLocale)) {
+            return bizNumberGeneratorService.nextNumber("SO", 1L, userLocale);
+        } else {
+            // 默认使用中文拼音前缀
+            return bizNumberGeneratorService.nextSaleOrderNo();
+        }
+    }
+
+    /**
+     * 获取当前用户语言偏好，默认为中文
+     */
+    private String getUserLocaleOrDefault() {
+        // 在实际实现中，这里应该获取当前登录用户信息并查询其语言偏好
+        // 临时实现：目前返回中文默认值，后续可以根据实际情况完善
+        try {
+            // 检查用户是否已登录
+            if (StpUtil.isLogin()) {
+                // 实际应用中，这里应该通过用户服务查询用户语言偏好
+                // 例如：userService.getUserLanguagePreference(StpUtil.getLoginIdAsLong())
+
+                // 暂时返回中文作为默认值，实际应用中可从用户配置或系统配置中获取
+                return "zh_CN";
+            }
+        } catch (Exception e) {
+            log.warn("获取用户语言偏好失败，使用默认值: {}", e.getMessage());
+        }
+        return "zh_CN"; // 默认中文
     }
 
     /**
@@ -472,24 +502,20 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
     /**
      * 获取客户等级代码
-     * 根据客户ID查找对应的客户等级（通过Partner实体获取）
+     * 通过 PartyGradeRelationService 从 biz_party_grade_relation 表获取客户等级
      */
     private String getCustomerGradeCode(Long customerId) {
         if (customerId == null) return null;
 
         try {
-            // 通过Partner实体获取客户等级信息
-            Partner partner = partnerService.getById(customerId);
-            if (partner != null && partner.getPartnerGradeId() != null) {
-                // 通过PartnerGradeId获取等级代码
-                // 这里可能需要通过CustomerGradeService根据ID获取等级代码
-                CustomerGrade customerGrade = customerGradeService.getById(partner.getPartnerGradeId());
+            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
+            if (gradeId != null) {
+                CustomerGrade customerGrade = customerGradeService.getById(gradeId);
                 if (customerGrade != null) {
                     return customerGrade.getGradeCode();
                 }
             }
 
-            // 如果Partner中没有客户等级信息，尝试从客户等级服务中获取默认等级
             CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
             return defaultGrade != null ? defaultGrade.getGradeCode() : "DEFAULT";
         } catch (Exception e) {
@@ -500,23 +526,20 @@ public class SaleOrderServiceImpl extends ServiceImpl<SaleOrderMapper, SaleOrder
 
     /**
      * 获取客户等级名称
-     * 根据客户ID查找对应的客户等级（通过Partner实体获取）
+     * 通过 PartyGradeRelationService 从 biz_party_grade_relation 表获取客户等级
      */
     private String getCustomerGradeName(Long customerId) {
         if (customerId == null) return null;
 
         try {
-            // 通过Partner实体获取客户等级信息
-            Partner partner = partnerService.getById(customerId);
-            if (partner != null && partner.getPartnerGradeId() != null) {
-                // 通过PartnerGradeId获取等级名称
-                CustomerGrade customerGrade = customerGradeService.getById(partner.getPartnerGradeId());
+            Long gradeId = partyGradeRelationService.getCurrentGradeId(customerId);
+            if (gradeId != null) {
+                CustomerGrade customerGrade = customerGradeService.getById(gradeId);
                 if (customerGrade != null) {
                     return customerGrade.getGradeName();
                 }
             }
 
-            // 如果Partner中没有客户等级信息，尝试从客户等级服务中获取默认等级
             CustomerGrade defaultGrade = customerGradeService.getDefaultGrade();
             return defaultGrade != null ? defaultGrade.getGradeName() : "默认等级";
         } catch (Exception e) {

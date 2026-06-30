@@ -670,8 +670,8 @@ async function loadWarehouseOptions() {
 
 async function loadSupplierOptions() {
   try {
-    const res = await request.get('/erp/partner/list', {
-      params: { partnerType: 'SUPPLIER', pageSize: 200 }
+    const res = await request.get('/erp/md/customer/list', {
+      params: { partnerType: 'supplier', pageSize: 200 }
     })
     const data = res?.data ?? res
     supplierOptions.value = Array.isArray(data) ? data : (data?.records || [])

@@ -122,7 +122,10 @@ export const channelConfigApi = {
     request.post<Result<void>>(`/api/trade/channel/${id}/toggle`, null, { params: { enabled } }),
 
   initialize: (id: number) =>
-    request.post<Result<boolean>>(`/api/trade/channel/${id}/initialize`)
+    request.post<Result<boolean>>(`/api/trade/channel/${id}/initialize`),
+
+  sync: (id: number) =>
+    request.post<Result<{ syncedOrders: number; syncedProducts: number; message: string }>>(`/api/trade/channel/${id}/sync`)
 }
 
 // 外部订单 API

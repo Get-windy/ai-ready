@@ -59,7 +59,6 @@ import io.swagger.v3.oas.annotations.info.License;
     "cn.aiedge.erp.delivery",
     "cn.aiedge.erp.customer",
     "cn.aiedge.erp.party",
-    "cn.aiedge.erp.partner",
     "cn.aiedge.erp.product.kit",
     "cn.aiedge.erp.payment",
     "cn.aiedge.erp.pricing",

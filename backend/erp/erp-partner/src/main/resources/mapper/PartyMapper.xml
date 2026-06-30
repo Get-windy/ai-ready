@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.aiedge.erp.party.mapper.PartyMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.aiedge.erp.party.entity.Party">
+        <id column="id" property="id"/>
+        <result column="party_code" property="partyCode"/>
+        <result column="party_name" property="partyName"/>
+        <result column="short_name" property="shortName"/>
+        <result column="party_type" property="partyType"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="party_level" property="partyLevel"/>
+        <result column="credit_limit" property="creditLimit"/>
+        <result column="current_debt" property="currentDebt"/>
+        <result column="settlement_type" property="settlementType"/>
+        <result column="settlement_days" property="settlementDays"/>
+        <result column="unified_code" property="unifiedCode"/>
+        <result column="business_license" property="businessLicense"/>
+        <result column="tax_number" property="taxNumber"/>
+        <result column="bank_name" property="bankName"/>
+        <result column="bank_account" property="bankAccount"/>
+        <result column="phone" property="phone"/>
+        <result column="fax" property="fax"/>
+        <result column="email" property="email"/>
+        <result column="website" property="website"/>
+        <result column="legal_person" property="legalPerson"/>
+        <result column="legal_person_phone" property="legalPersonPhone"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="create_by" property="createBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <!-- 分页查询（支持过滤条件） -->
+    <select id="selectPartyPage" resultMap="BaseResultMap">
+        SELECT p.*, c.category_name
+        FROM biz_party p
+        LEFT JOIN biz_party_category c ON p.category_id = c.id AND c.deleted = 0
+        <where>
+            p.deleted = 0
+            <if test="ew != null and ew.partyType != null">
+                AND p.party_type = #{ew.partyType}
+            </if>
+            <if test="ew != null and ew.status != null">
+                AND p.status = #{ew.status}
+            </if>
+            <if test="ew != null and ew.categoryId != null">
+                AND p.category_id = #{ew.categoryId}
+            </if>
+            <if test="ew != null and ew.keyword != null and ew.keyword != ''">
+                AND (p.party_name LIKE CONCAT('%', #{ew.keyword}, '%')
+                   OR p.party_code LIKE CONCAT('%', #{ew.keyword}, '%')
+                   OR p.phone LIKE CONCAT('%', #{ew.keyword}, '%'))
+            </if>
+            <if test="ew != null and ew.settleType != null and ew.settleType != ''">
+                AND p.settlement_type = #{ew.settleType}
+            </if>
+            <if test="ew != null and ew.createTimeStart != null">
+                AND p.create_time &gt;= #{ew.createTimeStart}
+            </if>
+            <if test="ew != null and ew.createTimeEnd != null">
+                AND p.create_time &lt;= #{ew.createTimeEnd}
+            </if>
+        </where>
+        ORDER BY p.create_time DESC
+    </select>
+
+    <select id="selectPartyList" resultMap="BaseResultMap">
+        SELECT p.*
+        FROM biz_party p
+        <where>
+            p.deleted = 0
+            <if test="ew != null and ew.partyType != null">
+                AND p.party_type = #{ew.partyType}
+            </if>
+            <if test="ew != null and ew.status != null">
+                AND p.status = #{ew.status}
+            </if>
+        </where>
+        ORDER BY p.create_time DESC
+        LIMIT #{ew.pageSize}
+    </select>
+
+    <select id="searchParties" resultMap="BaseResultMap">
+        SELECT p.*
+        FROM biz_party p
+        <where>
+            p.deleted = 0
+            AND (p.party_name LIKE CONCAT('%', #{ew.keyword}, '%')
+               OR p.party_code LIKE CONCAT('%', #{ew.keyword}, '%')
+               OR p.phone LIKE CONCAT('%', #{ew.keyword}, '%'))
+            <if test="ew != null and ew.partyType != null">
+                AND p.party_type = #{ew.partyType}
+            </if>
+        </where>
+        ORDER BY p.create_time DESC
+        LIMIT 20
+    </select>
+
+    <select id="getNextSeq" resultType="java.lang.Integer">
+        SELECT COALESCE(MAX(CAST(SUBSTRING(p.party_code, LENGTH(#{prefix}) + 1) AS INTEGER)), 0) + 1
+        FROM biz_party p
+        WHERE p.party_code LIKE CONCAT(#{prefix}, '%')
+          AND p.deleted = 0
+    </select>
+</mapper>

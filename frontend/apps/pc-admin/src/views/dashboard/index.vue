@@ -295,8 +295,15 @@ function formatMoney(n: number): string {
 }
 
 function formatKpiValue(ind: KpiIndicator): string {
-  // TODO: 从 API 数据获取
-  return '0'
+  const val = (realtime.value as Record<string, any>)[ind.apiField]
+  if (val == null) return '0'
+  if (typeof val === 'number') {
+    if (ind.prefix === '¥') {
+      return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }
+    return val.toLocaleString('zh-CN')
+  }
+  return String(val)
 }
 
 // ── 数据加载 ──────────────────────────────────

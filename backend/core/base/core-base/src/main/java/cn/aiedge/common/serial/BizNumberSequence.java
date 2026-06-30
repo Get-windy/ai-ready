@@ -21,8 +21,10 @@ public class BizNumberSequence {
     /** 业务类型（SN=序列号, BN=批次号, INV=发票, SO=销售单, PO=采购单 等） */
     private String bizType;
 
+    /** 语言区域（zh_CN=中文, en_US=英文 等） */
+    private String locale;
+
     /** 当前日期 YYYYMMDD，每日重置 */
-    @com.baomidou.mybatisplus.annotation.TableField("seq_date")
     private String seqDate;
 
     /** 当前序列值 */

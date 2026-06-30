@@ -81,7 +81,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-function showRawData(record: ExternalOrderRaw) {
+function showRawData(record: any) {
   try {
     rawJsonData.value = JSON.stringify(JSON.parse(record.rawData), null, 2)
   } catch {
@@ -90,7 +90,7 @@ function showRawData(record: ExternalOrderRaw) {
   rawDataModalVisible.value = true
 }
 
-async function handleRetry(record: ExternalOrderRaw) {
+async function handleRetry(record: any) {
   await externalOrderApi.retry(record.id)
   message.success('已重新加入处理队列')
   loadData()

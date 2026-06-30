@@ -121,12 +121,26 @@ request.interceptors.response.use(
   }
 )
 
+// ── 身份体系 ──
+export interface IdentityItem {
+  partyId?: number
+  type?: 'MEMBER' | 'ENTERPRISE'
+  name?: string
+  code?: string
+  memberCardNo?: string
+  phone?: string
+}
+
 export const api = {
   auth: {
     login: (data: { username: string; password: string }) => request.post('/auth/login', data),
     register: (data: any) => request.post('/auth/register', data),
     logout: () => request.post('/auth/logout'),
-    refreshToken: () => request.post('/auth/refresh-token')
+    refreshToken: () => request.post('/auth/refresh-token'),
+    /** 获取当前用户可切换的所有身份（个人会员 + 企业客户） */
+    getIdentities: () => request.get<{ data: IdentityItem[] }>('/auth/identities'),
+    /** 切换下单身份 */
+    switchIdentity: (partyId: number) => request.post('/auth/switch-identity', null, { params: { partyId } })
   },
 
   user: {

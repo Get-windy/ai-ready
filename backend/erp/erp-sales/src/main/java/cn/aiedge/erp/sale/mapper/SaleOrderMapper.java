@@ -68,4 +68,34 @@ public interface SaleOrderMapper extends BaseMapper<SaleOrder> {
      */
     @Select("SELECT COUNT(*) FROM erp_sale_order WHERE tenant_id = #{tenantId} AND status IN (2, 3) AND deleted = 0")
     int countPendingProcess(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询今日销售总额（关联明细表按金额汇总）
+     */
+    @Select("SELECT COALESCE(SUM(i.amount), 0) FROM erp_sale_order o " +
+            "INNER JOIN erp_sale_order_item i ON o.id = i.order_id " +
+            "WHERE o.tenant_id = #{tenantId} AND o.create_time::date = CURRENT_DATE AND o.deleted = 0")
+    java.math.BigDecimal sumTodaySalesAmount(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询本月销售总额
+     */
+    @Select("SELECT COALESCE(SUM(i.amount), 0) FROM erp_sale_order o " +
+            "INNER JOIN erp_sale_order_item i ON o.id = i.order_id " +
+            "WHERE o.tenant_id = #{tenantId} " +
+            "AND EXTRACT(YEAR FROM o.create_time) = EXTRACT(YEAR FROM CURRENT_DATE) " +
+            "AND EXTRACT(MONTH FROM o.create_time) = EXTRACT(MONTH FROM CURRENT_DATE) " +
+            "AND o.deleted = 0")
+    java.math.BigDecimal sumMonthSalesAmount(@Param("tenantId") Long tenantId);
+
+    /**
+     * 查询指定日期范围的每日销售趋势
+     */
+    @Select("SELECT DATE(o.create_time) as day, COALESCE(SUM(i.amount), 0) as amount " +
+            "FROM erp_sale_order o INNER JOIN erp_sale_order_item i ON o.id = i.order_id " +
+            "WHERE o.tenant_id = #{tenantId} AND o.create_time >= #{startDate} AND o.create_time < #{endDate} AND o.deleted = 0 " +
+            "GROUP BY DATE(o.create_time) ORDER BY day")
+    List<java.util.Map<String, Object>> selectDailySalesTrend(@Param("tenantId") Long tenantId,
+                                                               @Param("startDate") String startDate,
+                                                               @Param("endDate") String endDate);
 }

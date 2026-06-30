@@ -18,9 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 // ── 岗位服务实现 ──
@@ -238,6 +241,11 @@ class HrSalaryStructureServiceImpl extends ServiceImpl<HrSalaryStructureMapper, 
 @Service
 @RequiredArgsConstructor
 class HrSalaryPaymentServiceImpl extends ServiceImpl<HrSalaryPaymentMapper, HrSalaryPayment> implements HrSalaryPaymentService {
+
+    private final HrEmployeeMapper employeeMapper;
+    private final HrSalaryStructureMapper salaryStructureMapper;
+    private final HrAttendanceMapper attendanceMapper;
+
     @Override
     public Page<HrSalaryPayment> pagePayments(Page<HrSalaryPayment> page, Long tenantId, Long employeeId, String paymentMonth) {
         LambdaQueryWrapper<HrSalaryPayment> wrapper = new LambdaQueryWrapper<>();
@@ -247,12 +255,126 @@ class HrSalaryPaymentServiceImpl extends ServiceImpl<HrSalaryPaymentMapper, HrSa
                .orderByDesc(HrSalaryPayment::getPaymentMonth);
         return page(page, wrapper);
     }
+
     @Override
     @Transactional
     public void generateMonthlyPayment(String paymentMonth) {
-        // TODO: 实现薪资计算逻辑
-        log.info("生成月度薪资: month={}", paymentMonth);
+        // 1. 获取所有在职(1)和试用(2)的员工
+        List<HrEmployee> employees = employeeMapper.selectList(
+            new LambdaQueryWrapper<HrEmployee>()
+                .in(HrEmployee::getStatus, 1, 2)
+                .eq(HrEmployee::getDeleted, 0)
+        );
+
+        if (employees.isEmpty()) {
+            log.warn("无在职员工，跳过薪资生成: month={}", paymentMonth);
+            return;
+        }
+
+        LocalDate monthStart = LocalDate.parse(paymentMonth + "-01");
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+        int workDays = calculateWorkDays(monthStart, monthEnd);
+
+        List<HrSalaryPayment> payments = new ArrayList<>();
+
+        for (HrEmployee employee : employees) {
+            try {
+                // 2. 获取员工有效薪资结构
+                HrSalaryStructure structure = salaryStructureMapper.selectEffectiveByEmployeeId(employee.getId());
+                if (structure == null) {
+                    log.warn("员工 {} 无有效薪资结构，跳过", employee.getEmployeeNo());
+                    continue;
+                }
+
+                // 3. 获取当月考勤数据
+                List<HrAttendance> attendances = attendanceMapper.selectByEmployeeAndMonth(employee.getId(), paymentMonth);
+
+                // 4. 计算工时和缺勤
+                long totalWorkMinutes = attendances.stream()
+                    .filter(a -> a.getClockInTime() != null && a.getClockOutTime() != null)
+                    .mapToLong(a -> {
+                        long minutes = java.time.Duration.between(a.getClockInTime(), a.getClockOutTime()).toMinutes();
+                        return Math.max(minutes, 0);
+                    })
+                    .sum();
+
+                long absentDays = attendances.stream()
+                    .filter(a -> "ABSENT".equals(a.getStatus()))
+                    .count();
+
+                // 5. 计算各薪资项
+                BigDecimal baseAmount = valueOrZero(structure.getBaseSalary());
+                BigDecimal performanceAmount = valueOrZero(structure.getPerformanceSalary());
+                BigDecimal allowanceAmount = BigDecimal.ZERO
+                    .add(valueOrZero(structure.getPositionAllowance()))
+                    .add(valueOrZero(structure.getTransportAllowance()))
+                    .add(valueOrZero(structure.getMealAllowance()))
+                    .add(valueOrZero(structure.getHousingAllowance()))
+                    .add(valueOrZero(structure.getOtherAllowance()));
+
+                // 加班工资 = (实际工时 - 标准工时) * 时薪 * 1.5
+                BigDecimal dailyRate = workDays > 0
+                    ? baseAmount.divide(BigDecimal.valueOf(workDays), 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+                BigDecimal hourlyRate = dailyRate.divide(BigDecimal.valueOf(8), 2, RoundingMode.HALF_UP);
+                long standardMinutes = workDays * 8L * 60L;
+                long overtimeMinutes = Math.max(0, totalWorkMinutes - standardMinutes);
+                BigDecimal overtimeAmount = hourlyRate
+                    .multiply(BigDecimal.valueOf(overtimeMinutes))
+                    .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("1.5"));
+
+                // 缺勤扣款 = 缺勤天数 * 日薪
+                BigDecimal deductAmount = dailyRate.multiply(BigDecimal.valueOf(absentDays));
+
+                // 社保和公积金
+                BigDecimal socialBase = valueOrZero(structure.getSocialBase());
+                BigDecimal fundBase = valueOrZero(structure.getFundBase());
+                BigDecimal socialDeduct = socialBase.multiply(new BigDecimal("0.105")).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal fundDeduct = fundBase.multiply(new BigDecimal("0.12")).setScale(2, RoundingMode.HALF_UP);
+
+                // 应纳税所得额 = 总收入 - 社保 - 公积金 - 起征点(5000)
+                BigDecimal grossAmount = baseAmount.add(performanceAmount).add(allowanceAmount).add(overtimeAmount);
+                BigDecimal taxableIncome = grossAmount.subtract(socialDeduct).subtract(fundDeduct).subtract(new BigDecimal("5000"));
+                BigDecimal taxDeduct = calculatePersonalTax(taxableIncome);
+
+                // 实发金额 = 总收入 - 社保 - 公积金 - 个税 - 缺勤扣款
+                BigDecimal actualAmount = grossAmount
+                    .subtract(socialDeduct).subtract(fundDeduct)
+                    .subtract(taxDeduct).subtract(deductAmount);
+
+                // 6. 创建发放记录
+                HrSalaryPayment payment = new HrSalaryPayment();
+                payment.setTenantId(employee.getTenantId());
+                payment.setEmployeeId(employee.getId());
+                payment.setPaymentMonth(paymentMonth);
+                payment.setBaseAmount(baseAmount);
+                payment.setPerformanceAmount(performanceAmount);
+                payment.setAllowanceAmount(allowanceAmount);
+                payment.setOvertimeAmount(overtimeAmount);
+                payment.setDeductAmount(deductAmount);
+                payment.setSocialDeduct(socialDeduct);
+                payment.setFundDeduct(fundDeduct);
+                payment.setTaxDeduct(taxDeduct);
+                payment.setActualAmount(actualAmount);
+                payment.setStatus(0); // 待发放
+
+                payments.add(payment);
+                log.debug("生成薪资: employee={}, 应发={}, 实发={}",
+                    employee.getEmployeeNo(), grossAmount, actualAmount);
+
+            } catch (Exception e) {
+                log.error("生成员工 {} 薪资失败: {}", employee.getEmployeeNo(), e.getMessage(), e);
+            }
+        }
+
+        // 7. 批量保存
+        if (!payments.isEmpty()) {
+            saveBatch(payments);
+            log.info("批量生成薪资完成: month={}, 人数={}", paymentMonth, payments.size());
+        }
     }
+
     @Override
     @Transactional
     public void confirmPayment(Long id) {
@@ -263,6 +385,59 @@ class HrSalaryPaymentServiceImpl extends ServiceImpl<HrSalaryPaymentMapper, HrSa
         payment.setUpdateTime(LocalDateTime.now());
         updateById(payment);
         log.info("确认发放薪资: id={}", id);
+    }
+
+    /**
+     * 计算月度个税（累计预扣法简化版）
+     */
+    private BigDecimal calculatePersonalTax(BigDecimal taxableIncome) {
+        if (taxableIncome.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        // 七级超额累进税率（月度）
+        BigDecimal[][] brackets = {
+            {new BigDecimal("3000"), new BigDecimal("0.03")},
+            {new BigDecimal("9000"), new BigDecimal("0.10")},   // 3000~12000
+            {new BigDecimal("13000"), new BigDecimal("0.20")},  // 12000~25000
+            {new BigDecimal("10000"), new BigDecimal("0.25")},  // 25000~35000
+            {new BigDecimal("20000"), new BigDecimal("0.30")},  // 35000~55000
+            {new BigDecimal("25000"), new BigDecimal("0.35")}   // 55000~80000
+        };
+        // 超过80000部分: 45%
+
+        BigDecimal remaining = taxableIncome;
+        BigDecimal tax = BigDecimal.ZERO;
+
+        for (BigDecimal[] bracket : brackets) {
+            BigDecimal limit = bracket[0];
+            BigDecimal rate = bracket[1];
+            if (remaining.compareTo(limit) > 0) {
+                tax = tax.add(limit.multiply(rate));
+                remaining = remaining.subtract(limit);
+            } else {
+                tax = tax.add(remaining.multiply(rate));
+                return tax.setScale(2, RoundingMode.HALF_UP);
+            }
+        }
+        // 超过80000部分
+        tax = tax.add(remaining.multiply(new BigDecimal("0.45")));
+        return tax.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal valueOrZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private int calculateWorkDays(LocalDate start, LocalDate end) {
+        int workDays = 0;
+        LocalDate date = start;
+        while (!date.isAfter(end)) {
+            if (date.getDayOfWeek().getValue() <= 5) {
+                workDays++;
+            }
+            date = date.plusDays(1);
+        }
+        return workDays;
     }
 }
 

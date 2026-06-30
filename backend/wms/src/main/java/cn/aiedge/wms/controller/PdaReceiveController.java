@@ -1,6 +1,7 @@
 package cn.aiedge.wms.controller;
 
 import cn.aiedge.base.vo.Result;
+import cn.aiedge.wms.entity.WmsReceiptDetail;
 import cn.aiedge.wms.entity.WmsReceiptTask;
 import cn.aiedge.wms.receipt.service.ReceiptService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -58,12 +59,56 @@ public class PdaReceiveController {
         if (request.barcode() == null || request.barcode().isBlank()) {
             return Result.fail("条码不能为空");
         }
-        // TODO: 根据条码查找明细并记录扫描数量
         log.info("PDA扫码收货: taskId={}, barcode={}", id, request.barcode());
-        return Result.ok(Map.of(
+
+        // 根据条码查找收货明细
+        WmsReceiptTask task = receiptService.getTaskById(id);
+        if (task == null) {
+            return Result.fail("收货任务不存在");
+        }
+
+        java.util.List<WmsReceiptDetail> details = receiptService.listByTaskId(id);
+        WmsReceiptDetail matchedDetail = null;
+        for (WmsReceiptDetail detail : details) {
+            if (request.barcode().equals(detail.getProductCode())
+                    || request.barcode().equals(detail.getBatchNo())) {
+                matchedDetail = detail;
+                break;
+            }
+        }
+
+        if (matchedDetail == null) {
+            return Result.fail("未找到匹配的商品条码: " + request.barcode());
+        }
+
+        // 记录扫描数量（每次扫码+1）
+        java.math.BigDecimal currentReceived = matchedDetail.getReceivedQuantity() != null
+                ? matchedDetail.getReceivedQuantity() : java.math.BigDecimal.ZERO;
+        matchedDetail.setReceivedQuantity(currentReceived.add(java.math.BigDecimal.ONE));
+
+        // 如果实收数量达到应收数量，标记为已收货
+        if (matchedDetail.getReceivedQuantity().compareTo(matchedDetail.getExpectedQuantity()) >= 0) {
+            matchedDetail.setStatus(1); // 已收货
+        }
+        receiptService.updateDetail(matchedDetail);
+
+        // 更新任务总已收数量
+        java.math.BigDecimal totalReceived = task.getReceivedQuantity() != null
+                ? task.getReceivedQuantity() : java.math.BigDecimal.ZERO;
+        task.setReceivedQuantity(totalReceived.add(java.math.BigDecimal.ONE));
+        if (task.getStatus() == 0) {
+            task.setStatus(1); // 收货中
+        }
+        receiptService.updateTask(task);
+
+        return Result.ok(java.util.Map.of(
                 "barcode", request.barcode(),
                 "scanned", true,
-                "taskId", id
+                "taskId", id,
+                "detailId", matchedDetail.getId(),
+                "productName", matchedDetail.getProductName() != null ? matchedDetail.getProductName() : "",
+                "receivedQuantity", matchedDetail.getReceivedQuantity(),
+                "expectedQuantity", matchedDetail.getExpectedQuantity()
         ));
     }
 

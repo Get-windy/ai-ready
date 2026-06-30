@@ -70,7 +70,7 @@ async function loadData() {
 
 function handleTableChange(p: any) { pagination.current = p.current; pagination.pageSize = p.pageSize; loadData() }
 
-function showConfirmModal(record: PaymentRequest) {
+function showConfirmModal(record: any) {
   confirmForm.id = record.id
   confirmForm.channelOrderNo = ''
   confirmModalVisible.value = true
@@ -84,7 +84,7 @@ async function handleConfirm() {
   loadData()
 }
 
-async function handleCancel(record: PaymentRequest) {
+async function handleCancel(record: any) {
   Modal.confirm({
     title: '确认取消',
     content: '确定取消该支付请求吗？',
