@@ -52,6 +52,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/form': () => import('@/views/erp/product/form.vue'),
   'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
   'erp/product/inventory-mode': () => import('@/views/erp/product/inventory-mode.vue'),
+  'erp/product/grade': () => import('@/views/erp/product/grade.vue'),
   'erp/column-config/sale-order-item': () => import('@/views/erp/column-config/SaleOrderItemColumnConfig.vue'),
   'partner/index': () => import('@/views/erp/partner/index.vue'),
   'partner/detail': () => import('@/views/erp/partner/detail.vue'),
@@ -133,12 +134,11 @@ const componentMap: Record<string, () => Promise<any>> = {
   // ERP 模块
   'erp/sale/index': () => import('@/views/erp/sale/index.vue'),
   'erp/sale/form': () => import('@/views/erp/sale/form.vue'),
-  'erp/sale-outbound/index': () => import('@/views/erp/sale-outbound/index.vue'),
-  'erp/sale-outbound/form': () => import('@/views/erp/sale-outbound/form.vue'),
   'erp/stock/index': () => import('@/views/erp/stock/index.vue'),
   'erp/sales-analysis/index': () => import('@/views/erp/sales-analysis/index.vue'),
   'erp/sales-report/index': () => import('@/views/erp/sales-report/index.vue'),
   'erp/purchase-exchange/index': () => import('@/views/erp/purchase-exchange/index.vue'),
+  'erp/purchase-exchange/form': () => import('@/views/erp/purchase-exchange/form.vue'),
   'erp/purchase-return/index': () => import('@/views/erp/purchase-return/index.vue'),
   'erp/stock-in/index': () => import('@/views/erp/stock-in/index.vue'),
   'erp/stock-out/index': () => import('@/views/erp/stock-transfer/index.vue'),
@@ -364,10 +364,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'purchase/sales-driven/index': () => import('@/views/purchase/sales-driven/index.vue'),
   'purchase/inbound': () => import('@/views/purchase/inbound/index.vue'),
   'purchase/inbound/index': () => import('@/views/purchase/inbound/index.vue'),
-  'purchase/return': () => import('@/views/purchase/return/index.vue'),
-  'purchase/return/index': () => import('@/views/purchase/return/index.vue'),
-  'purchase/exchange': () => import('@/views/purchase/exchange/index.vue'),
-  'purchase/exchange/index': () => import('@/views/purchase/exchange/index.vue'),
   'purchase/cost-sharing': () => import('@/views/purchase/cost-sharing/index.vue'),
   'purchase/cost-sharing/index': () => import('@/views/purchase/cost-sharing/index.vue'),
   'purchase/doc-query': () => import('@/views/purchase/doc-query/index.vue'),
@@ -1169,6 +1165,12 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       meta: { title: '库存管理模式', icon: 'SettingOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
+      path: 'erp/product/grade',
+      name: 'ErpProductGrade',
+      component: () => import('@/views/erp/product/grade.vue'),
+      meta: { title: '价格等级管理', icon: 'CrownOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
       path: 'purchase/order/:id',
       name: 'PurchaseOrderDetail',
       component: () => import('@/views/erp/purchase/form.vue'),
@@ -1476,6 +1478,38 @@ function getRequiredRoutes(): RouteRecordRaw[] {
       name: 'ErpPurchaseReturn',
       component: () => import('@/views/erp/purchase-return/index.vue'),
       meta: { title: '采购退货', icon: 'RollbackOutlined', keepAlive: true, requiresAuth: true, hidden: true, billType: '504' }
+    },
+    // ═══ 零售单表单路由 ═══
+    {
+      path: 'sales/retail/form',
+      name: 'RetailForm',
+      component: () => import('@/views/sales/retail/form.vue'),
+      meta: { title: '新增零售单', icon: 'ShoppingCartOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'sales/retail/form/:id',
+      name: 'RetailFormDetail',
+      component: () => import('@/views/sales/retail/form.vue'),
+      meta: { title: '零售单详情', icon: 'ShoppingCartOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'sales/retail/create',
+      name: 'RetailCreate',
+      component: () => import('@/views/sales/retail/form.vue'),
+      meta: { title: '新增零售单', icon: 'ShoppingCartOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    // ═══ 商城用户审核表单 ══
+    {
+      path: 'mall/user-audit/form',
+      name: 'MallUserAuditForm',
+      component: () => import('@/views/erp/mall/user-audit/form.vue'),
+      meta: { title: '用户审核', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'mall/user-audit/form/:id',
+      name: 'MallUserAuditFormDetail',
+      component: () => import('@/views/erp/mall/user-audit/form.vue'),
+      meta: { title: '用户审核详情', icon: 'UserOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
   ]
 }

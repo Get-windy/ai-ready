@@ -56,23 +56,29 @@ public class ProductUnit {
     /** 最低折扣(%) */
     private BigDecimal minDiscount;
 
-    /** 餐饮店价格 */
-    private BigDecimal restaurantPrice;
+    /** 价格等级1 */
+    private BigDecimal gradePrice1;
 
-    /** 食堂团餐价格 */
-    private BigDecimal canteenPrice;
+    /** 价格等级2 */
+    private BigDecimal gradePrice2;
 
-    /** 外围餐饮店价格 */
-    private BigDecimal outerRestaurantPrice;
+    /** 价格等级3 */
+    private BigDecimal gradePrice3;
 
-    /** 自助vip价格 */
-    private BigDecimal selfVipPrice;
+    /** 价格等级4 */
+    private BigDecimal gradePrice4;
 
-    /** 大团餐价格 */
-    private BigDecimal groupMealPrice;
+    /** 价格等级5 */
+    private BigDecimal gradePrice5;
 
-    /** 重点vip价格 */
-    private BigDecimal keyVipPrice;
+    /** 价格等级6 */
+    private BigDecimal gradePrice6;
+
+    /** 价格等级7 */
+    private BigDecimal gradePrice7;
+
+    /** 价格等级8 */
+    private BigDecimal gradePrice8;
 
     @TableLogic
     private Integer deleted;

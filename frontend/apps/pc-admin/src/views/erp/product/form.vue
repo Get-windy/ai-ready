@@ -168,6 +168,9 @@
                     <a-button type="link" size="small" @click="showUnitGroupDialog">
                       <ApartmentOutlined /> 选择单位组
                     </a-button>
+                    <a-button type="link" size="small" @click="openGradeManage">
+                      <CrownOutlined /> 管理价格等级
+                    </a-button>
                     <a-button size="small" @click="batchCalcPrice">
                       <CalculatorOutlined /> 批量计算价格
                     </a-button>
@@ -201,12 +204,14 @@
                   <vxe-column field="retailPrice" title="零售价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
                   <vxe-column field="minSalePrice" title="最低售价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
                   <vxe-column field="minDiscount" title="最低折扣(%)" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0, max: 100 } } as any)" />
-                  <vxe-column field="restaurantPrice" title="餐饮店" width="90" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="canteenPrice" title="食堂团餐" width="90" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="outerRestaurantPrice" title="外围餐饮店" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="selfVipPrice" title="自助vip" width="90" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="groupMealPrice" title="大团餐" width="90" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="keyVipPrice" title="重点vip" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
+                  <vxe-column
+                    v-for="g in gradePriceColumns"
+                    :key="g.field"
+                    :field="g.field"
+                    :title="g.title"
+                    width="90"
+                    :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)"
+                  />
                   <vxe-column title="操作" width="60" fixed="right">
                     <template #default="{ rowIndex }">
                       <a-button type="link" size="small" danger @click="removeUnitRow(rowIndex)">删除</a-button>
@@ -442,12 +447,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, defineOptions } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, defineOptions } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   LeftOutlined, SaveOutlined, DownOutlined, PlusOutlined, UploadOutlined,
-  ApartmentOutlined, CalculatorOutlined, VideoCameraOutlined,
+  ApartmentOutlined, CalculatorOutlined, VideoCameraOutlined, CrownOutlined,
   CloseOutlined, PlusCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons-vue'
 import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
@@ -456,10 +461,12 @@ import {
   productApi,
   productFormApi,
   productRecommendApi,
+  productGradeApi,
   mallTagApi,
   type Product,
   type ProductCategory,
   type ProductUnit,
+  type ProductGrade,
   type ProductRecommend,
   type MallTag
 } from '@/api/erp/product'
@@ -608,6 +615,29 @@ const unitTypeOptions = [
   { label: '小单位', value: 'SMALL' }
 ]
 
+// ── 价格等级（从API动态加载，最多8个） ──
+const gradeList = ref<ProductGrade[]>([])
+const gradePriceFieldMap = [
+  'gradePrice1', 'gradePrice2', 'gradePrice3', 'gradePrice4',
+  'gradePrice5', 'gradePrice6', 'gradePrice7', 'gradePrice8'
+]
+
+const gradePriceColumns = computed(() => {
+  // 最多展示8个等级价格列（受DB列数限制）
+  return gradeList.value.slice(0, 8).map((g, i) => ({
+    field: gradePriceFieldMap[i],
+    title: g.gradeName
+  }))
+})
+
+async function loadGrades() {
+  try {
+    gradeList.value = await productGradeApi.list()
+  } catch {
+    gradeList.value = []
+  }
+}
+
 const unitList = ref<ProductUnit[]>([])
 
 function addUnitRow() {
@@ -631,6 +661,11 @@ function removeUnitRow(index: number) {
 
 function showUnitGroupDialog() {
   message.info('单位组配置功能开发中，暂可手动添加单位')
+}
+
+function openGradeManage() {
+  const routeData = router.resolve({ path: '/erp/product/grade' })
+  window.open(routeData.href, '_blank')
 }
 
 function batchCalcPrice() {
@@ -814,10 +849,11 @@ async function init() {
       productId.value = Number(route.params.id)
     }
 
-    // 并行加载：分类树 + 标签
+    // 并行加载：分类树 + 标签 + 等级
     const [cats] = await Promise.all([
       productCategoryApi.getTree(),
-      loadTags()
+      loadTags(),
+      loadGrades()
     ])
     categoryTree.value = cats
 
@@ -1000,12 +1036,14 @@ async function saveAction(action: string) {
       retailPrice: u.retailPrice,
       minSalePrice: u.minSalePrice,
       minDiscount: u.minDiscount,
-      restaurantPrice: u.restaurantPrice,
-      canteenPrice: u.canteenPrice,
-      outerRestaurantPrice: u.outerRestaurantPrice,
-      selfVipPrice: u.selfVipPrice,
-      groupMealPrice: u.groupMealPrice,
-      keyVipPrice: u.keyVipPrice
+      gradePrice1: u.gradePrice1,
+      gradePrice2: u.gradePrice2,
+      gradePrice3: u.gradePrice3,
+      gradePrice4: u.gradePrice4,
+      gradePrice5: u.gradePrice5,
+      gradePrice6: u.gradePrice6,
+      gradePrice7: u.gradePrice7,
+      gradePrice8: u.gradePrice8
     }))
 
     const recommendsPayload = recommendList.value.map(r => ({

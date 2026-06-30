@@ -1,10 +1,10 @@
 <template>
-  <div class="form-page-container" style="height:100%;display:flex;flex-direction:column;">
+  <div class="retail-form-page">
     <BillFormPage
       v-model="formData"
       :header="headerConfig"
       :basic-info-fields="basicInfoFields"
-      :tabs="tabsConfig"
+      :tabs="[]"
       :summary="summaryConfig"
       :footer="footerConfig"
       @action="handleAction"
@@ -13,8 +13,20 @@
       @draft="handleHoldOrder"
       @submit="handleSettle"
     >
-      <!-- ═══ Zone 3: 商品明细表格 ═══ -->
+      <!-- ═══ 商品明细表格 ═══ -->
       <template #detail-table="{ onExpandChange }">
+        <!-- 商品搜索行 -->
+        <div class="product-search-row">
+          <span class="search-label">商品 条码/名称/编码(F1)</span>
+          <a-input
+            ref="productSearchInput"
+            v-model:value="productSearchText"
+            placeholder="条码/名称/编码"
+            size="small"
+            class="product-search-input"
+            @pressEnter="handleProductSearch"
+          />
+        </div>
         <BillDetailTable
           :columns="detailColumns"
           :data-source="formData.products"
@@ -49,19 +61,135 @@
         </BillDetailTable>
       </template>
 
-      <!-- ═══ Zone 4 补充: 备注 + 单据信息 ═══ -->
+      <!-- ═══ 底部面板：优惠 + 收款 ═══ -->
       <template #bottom-extra>
-        <div class="remark-section">
-          <div class="remark-row">
-            <span class="remark-label">单据备注</span>
-            <a-input v-model:value="formData.orderRemark" size="small" class="remark-input" />
+        <div class="retail-bottom-layout">
+          <!-- 左侧：优惠 + 备注 + 单据信息 -->
+          <div class="retail-bottom-left">
+            <!-- 优惠行 -->
+            <div class="discount-row">
+              <div class="discount-field">
+                <span class="discount-label">直接优惠</span>
+                <a-input-number
+                  v-model:value="directDiscount"
+                  :min="0"
+                  :precision="2"
+                  size="small"
+                  style="width: 140px"
+                  placeholder="0"
+                />
+              </div>
+              <div class="discount-field">
+                <span class="discount-label">优惠券</span>
+                <a-input size="small" style="width: 140px" placeholder="选择优惠券" readonly>
+                  <template #suffix><SearchOutlined style="color:#bbb;cursor:pointer" /></template>
+                </a-input>
+              </div>
+              <div class="discount-field">
+                <span class="discount-label">促销优惠</span>
+                <a-input-number :value="promoDiscount" :min="0" :precision="2" size="small" disabled style="width: 100px" />
+              </div>
+              <div class="discount-field">
+                <span class="discount-label">此前积分</span>
+                <span class="discount-value">{{ prevPoints }}</span>
+              </div>
+            </div>
+            <!-- 单据备注 -->
+            <div class="remark-row">
+              <span class="remark-label">单据备注</span>
+              <a-input v-model:value="formData.orderRemark" size="small" class="remark-input" />
+            </div>
+            <!-- 单据信息 -->
+            <div class="doc-info-row">
+              <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
+              <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
+              <span class="doc-info-item">打印次数 0</span>
+              <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
+            </div>
           </div>
-        </div>
-        <div class="doc-info-row">
-          <span class="doc-info-item">制单人 <a-tag color="blue" size="small">{{ currentUserName || '系统' }}</a-tag></span>
-          <span class="doc-info-item">制单时间 {{ formatNow() }}</span>
-          <span class="doc-info-item">打印次数 0</span>
-          <a-button type="link" size="small" class="doc-info-link">打印记录</a-button>
+
+          <!-- 右侧：收款面板 -->
+          <div class="retail-payment-panel">
+            <div class="payment-title">收款</div>
+            <div class="payment-buttons">
+              <button
+                class="pay-btn pay-btn-cash"
+                :class="{ active: cashAmount > 0 }"
+                @click="focusPayment('cash')"
+              >
+                <span class="pay-btn-icon">💵</span>
+                <span>现金</span>
+              </button>
+              <button
+                class="pay-btn pay-btn-card"
+                :class="{ active: cardAmount > 0 }"
+                @click="focusPayment('card')"
+              >
+                <span class="pay-btn-icon">💳</span>
+                <span>银行卡</span>
+              </button>
+              <button
+                class="pay-btn pay-btn-prepaid"
+                :class="{ active: prepaidAmount > 0 }"
+                @click="focusPayment('prepaid')"
+              >
+                <span class="pay-btn-icon">📥</span>
+                <span>预收款</span>
+              </button>
+            </div>
+            <div class="payment-buttons">
+              <button
+                class="pay-btn pay-btn-transfer-green"
+                :class="{ active: transferAmount > 0 }"
+                @click="focusPayment('transfer')"
+              >
+                <span class="pay-btn-icon">✅</span>
+                <span>转账</span>
+              </button>
+              <button
+                class="pay-btn pay-btn-transfer-blue"
+                @click="message.info('支付宝收款开发中')"
+              >
+                <span class="pay-btn-icon">🔵</span>
+                <span>转账</span>
+              </button>
+              <label class="combined-payment-label">
+                <a-checkbox v-model:checked="combinedPayment" />
+                <span>组合收款</span>
+              </label>
+            </div>
+            <!-- 收款明细 -->
+            <div class="payment-details">
+              <div class="payment-detail-row">
+                <span class="payment-detail-label">应收金额</span>
+                <span class="payment-detail-value text-red">{{ payableAmount.toFixed(2) }}</span>
+                <div class="payment-input-wrap">
+                  <span class="payment-input-label">现金</span>
+                  <a-input-number
+                    v-model:value="cashAmount"
+                    :min="0"
+                    :precision="2"
+                    size="small"
+                    style="width: 110px"
+                    @change="updateChangeAmount"
+                  />
+                  <span class="payment-input-unit">元</span>
+                </div>
+              </div>
+              <div class="payment-detail-row">
+                <span class="payment-detail-label">可用预收</span>
+                <span class="payment-detail-value">{{ formData.prepaidBalance || 0 }}</span>
+                <div class="payment-input-wrap">
+                  <span class="payment-input-label">预收余额</span>
+                  <span class="payment-input-value">{{ prepaidBalanceDisplay }}</span>
+                </div>
+              </div>
+              <div class="payment-detail-row">
+                <span class="payment-detail-label">找零金额</span>
+                <span class="payment-detail-value">{{ changeAmount.toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
     </BillFormPage>
@@ -91,7 +219,7 @@
           >
             <a-list-item-meta
               :title="item.partyName || item.name"
-              :description="`手机: ${item.phone || '-'} | 卡号: ${item.memberCardNo || item.member_card_no || '-'}`"
+              :description="`手机: ${item.phone || '-'} | 卡号: ${item.memberCardNo || '-'}`"
             />
             <template #extra>
               <a-tag v-if="selectedMemberId === item.id" color="blue">已选</a-tag>
@@ -118,20 +246,17 @@ defineOptions({ name: 'RetailForm' })
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
-  PrinterOutlined,
-  ClockCircleOutlined,
   PlusCircleOutlined,
   MinusCircleOutlined,
-  UserOutlined,
+  SearchOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import ProductSelectModal from '@/components/ProductSelectModal/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
-import type { BillHeaderConfig, BasicInfoField, BillTabConfig, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
+import type { BillHeaderConfig, BasicInfoField, SummaryRow, BillFooterConfig } from '@/components/BillFormPage/types'
 import { useBillForm } from '@/components/BillFormPage/useBillForm'
 import { retailOrderApi, memberApi } from '@/api/erp'
-import optionsApi from '@/api/options'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -142,6 +267,8 @@ const currentUserName = computed(() => userStore?.userInfo?.nickname || userStor
 // ═══ 弹窗状态 ═══
 const showProductSelect = ref(false)
 const currentSelectRowIndex = ref(-1)
+const productSearchText = ref('')
+const productSearchInput = ref()
 
 // ═══ 会员搜索状态 ═══
 const showMemberSearch = ref(false)
@@ -151,23 +278,26 @@ const memberSearching = ref(false)
 const selectedMemberId = ref<number | null>(null)
 const selectedMember = ref<any>(null)
 
-// ═══════════════════════════════════════
-// useBillForm composable
-// ═══════════════════════════════════════
+// ═══ POS 模式 ═══
+const posMode = ref(true)
+const simpleMode = ref(false)
 
-const tableMaxHeight = ref(400)
-const directDiscount = ref(0)
-const couponDiscount = ref(0)
-const promoDiscount = ref(0)
-const prevPoints = ref(0)
-
-// 支付方式与金额
+// ═══ 支付金额 ═══
 const cashAmount = ref(0)
 const cardAmount = ref(0)
 const prepaidAmount = ref(0)
 const transferAmount = ref(0)
 const changeAmount = ref(0)
+const combinedPayment = ref(false)
 
+// ══ 优惠 ═══
+const directDiscount = ref(0)
+const promoDiscount = ref(0)
+const prevPoints = ref(0)
+
+const tableMaxHeight = ref(400)
+
+// ── useBillForm ──
 const {
   formData,
   loadingOptions,
@@ -182,7 +312,7 @@ const {
   totalQuantity,
   totalAmount,
 } = useBillForm({
-  billPrefix: 'LSDD',
+  billPrefix: 'LSD',
   api: {
     create: retailOrderApi.create,
     update: retailOrderApi.update,
@@ -194,7 +324,7 @@ const {
     itemCode: '', barcode: '', unit: '',
     batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
     bigPack: 0, midPack: 0, smallPack: 0,
-    unitPrice: 0, scanMode: false,
+    unitPrice: 0, scanMode: false, quantity: 0,
   },
   transformPayload: (fd, status) => ({
     ...fd,
@@ -211,7 +341,6 @@ const {
     memberCardNo: fd.memberCardNo || '',
     memberName: fd.memberName || '',
     directDiscount: directDiscount.value,
-    couponDiscount: couponDiscount.value,
     promoDiscount: promoDiscount.value,
     prevPoints: prevPoints.value,
     payableAmount: payableAmount.value,
@@ -219,9 +348,7 @@ const {
     cardAmount: cardAmount.value,
     prepaidAmount: prepaidAmount.value,
     transferAmount: transferAmount.value,
-    combinedPayment: (cashAmount.value > 0 && cardAmount.value > 0) ||
-                     (cashAmount.value > 0 && transferAmount.value > 0) ||
-                     (cardAmount.value > 0 && transferAmount.value > 0),
+    combinedPayment: combinedPayment.value,
     changeAmount: changeAmount.value,
     prepaidBalance: fd.prepaidBalance || 0,
     remark: fd.orderRemark,
@@ -243,7 +370,7 @@ const {
   }),
 })
 
-// 初始化零售单特有字段
+// ── 初始化零售单字段 ─
 if (!('customerId' in formData)) Object.assign(formData, {
   customerId: undefined,
   customerName: '散客',
@@ -263,10 +390,10 @@ if (!('customerId' in formData)) Object.assign(formData, {
 const totalBigPack = computed(() => formData.products.reduce((s: number, p: any) => s + (p.bigPack || 0), 0))
 const totalMidPack = computed(() => formData.products.reduce((s: number, p: any) => s + (p.midPack || 0), 0))
 const totalSmallPack = computed(() => formData.products.reduce((s: number, p: any) => s + (p.smallPack || 0), 0))
-
-const totalDiscount = computed(() => directDiscount.value + couponDiscount.value + promoDiscount.value)
+const totalDiscount = computed(() => directDiscount.value + promoDiscount.value)
 const payableAmount = computed(() => Math.max(0, totalAmount.value - totalDiscount.value))
 const totalPaid = computed(() => cashAmount.value + cardAmount.value + prepaidAmount.value + transferAmount.value)
+const prepaidBalanceDisplay = computed(() => (formData.prepaidBalance || 0).toFixed(2))
 
 const tableSummaryColumns = computed(() => [
   { key: 'quantity', value: totalQuantity.value, highlight: true },
@@ -284,11 +411,6 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   orderNo: formData.orderNo || formData.retailNo,
   showAttachment: true,
   actions: [
-    { key: 'print', label: '打印(F8)', icon: PrinterOutlined, children: [
-      { key: 'print-receipt', label: '打印小票' },
-      { key: 'print-summary', label: '打印汇总' },
-    ]},
-    { key: 'history', label: '历史', icon: ClockCircleOutlined },
     { key: 'more', label: '更多', children: [
       { key: 'copy-order', label: '复制零售单' },
       { key: 'export', label: '导出' },
@@ -297,56 +419,31 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
 }))
 
 const basicInfoFields = computed<BasicInfoField[]>(() => [
-  // 客户/会员行：默认散客，点击Q按钮打开会员搜索弹窗
   {
     key: 'customerName',
-    label: '客户/会员',
+    label: '客户',
     type: 'input',
     inlineLabel: true,
-    width: 300,
+    width: 220,
     placeholder: '散客',
-    searchBtn: 'Q',
+    searchBtn: '+Q',
   },
-  { key: 'warehouseId', label: '仓库', type: 'select', required: true, inlineLabel: true, width: 210, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 210, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
-  { key: 'orderDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 210 },
-  { key: 'saleType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 210, options: [{ label: '正常零售', value: 'NORMAL' }, { label: '退货', value: 'RETURN' }] },
-])
-
-const tabsConfig = computed<BillTabConfig[]>(() => [
-  { key: 'payment', tab: '收款', fields: [
-    { key: '_cashAmount', label: '现金', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: '_cardAmount', label: '银行卡', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: '_prepaidAmount', label: '预收款', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: '_transferAmount', label: '转账', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: '_changeAmount', label: '找零', type: 'number', disabled: true, precision: 2 },
-    { key: '_prepaidBalance', label: '预收余额', type: 'number', disabled: true, precision: 2 },
-  ]},
-  { key: 'discount', tab: '优惠', fields: [
-    { key: '_directDiscount', label: '直接优惠', type: 'number', placeholder: '手动折扣金额', precision: 2 },
-    { key: '_couponDiscount', label: '优惠券抵扣', type: 'number', placeholder: '0.00', precision: 2 },
-    { key: '_promoDiscount', label: '促销优惠', type: 'number', placeholder: '活动折扣', precision: 2 },
-    { key: '_prevPoints', label: '此前积分', type: 'number', disabled: true, precision: 0 },
-  ]},
-  { key: 'member', tab: '会员信息', fields: [
-    { key: 'memberCardNo', label: '会员卡号', type: 'input', placeholder: '读卡/输入卡号', suffixBtn: 'Q' },
-    { key: 'memberName', label: '会员姓名', type: 'input', disabled: true },
-    { key: '_prevPoints', label: '当前积分', type: 'number', disabled: true, precision: 0 },
-  ]},
+  { key: 'memberCardNo', label: '会员卡号', type: 'input', inlineLabel: true, width: 200, placeholder: '输入卡号/电话号码' },
+  { key: 'warehouseId', label: '出库仓库', type: 'select', required: true, inlineLabel: true, width: 180, options: optionRefs.warehouses.map((w: any) => ({ label: w.name, value: w.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'handlerId', label: '经手人', type: 'select', required: true, inlineLabel: true, width: 160, options: optionRefs.users.map((u: any) => ({ label: u.name, value: u.id })), searchBtn: '+Q', loading: loadingOptions.value },
+  { key: 'orderDate', label: '单据日期', type: 'date', required: true, inlineLabel: true, width: 160 },
+  { key: 'saleType', label: '销售类型', type: 'select', required: true, inlineLabel: true, width: 160, options: [{ label: '正常销售', value: 'NORMAL' }, { label: '退货', value: 'RETURN' }] },
 ])
 
 const summaryConfig = computed<SummaryRow[]>(() => [
-  { label: '零售数量', value: totalQuantity.value, statusLabel: payableAmount.value > 0 ? '待收款' : '已结清' },
+  { label: '零售数量', value: totalQuantity.value },
   { label: '商品金额', value: totalAmount.value.toFixed(2) },
-  { label: '优惠合计', value: totalDiscount.value.toFixed(2), divider: true, showMore: true },
   { label: '应收金额', value: payableAmount.value.toFixed(2), highlight: true },
-  { label: '已收金额', value: totalPaid.value.toFixed(2) },
-  { label: '找零', value: changeAmount.value.toFixed(2) },
 ])
 
 const footerConfig = computed<BillFooterConfig>(() => ({
   amountLabel: '本单应收',
-  amountValue: `¥${payableAmount.value.toFixed(2)}`,
+  amountValue: `\u00a5${payableAmount.value.toFixed(2)}`,
   amountHighlight: true,
   draftBtnText: '挂单',
   draftShortcut: 'F3',
@@ -357,7 +454,7 @@ const footerConfig = computed<BillFooterConfig>(() => ({
 
 // ═══════════════════════════════════════
 // 明细表格列配置
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
 
 const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'rowNo', title: '', type: 'rowNo', width: 40, fixed: 'left' },
@@ -374,18 +471,14 @@ const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'itemCode', title: '货号', type: 'input', width: 100 },
   { key: 'barcode', title: '条码', type: 'input', width: 120 },
   { key: 'unit', title: '计价单位', type: 'input', width: 80 },
-  { key: 'availableStock', title: '可用库存', type: 'number', width: 100, precision: 2 },
+  { key: 'availableStock', title: '可用库存', type: 'number', width: 90, precision: 2 },
   { key: 'batchCode', title: '批次条码', type: 'input', width: 120 },
   { key: 'productionDate', title: '生产日期', type: 'date', width: 110 },
-  { key: 'shelfLife', title: '保质期', type: 'input', width: 80 },
+  { key: 'shelfLife', title: '保质期', type: 'input', width: 70 },
   { key: 'expiryDate', title: '到期日期', type: 'date', width: 110 },
-  { key: 'quantity', title: '数量', type: 'number', width: 90, precision: 2 },
-  { key: 'bigPack', title: '大包装', type: 'number', width: 80, precision: 0 },
-  { key: 'midPack', title: '中包装', type: 'number', width: 80, precision: 0 },
-  { key: 'smallPack', title: '小包装', type: 'number', width: 80, precision: 0 },
-  { key: 'unitPrice', title: '单价', type: 'number', width: 90, precision: 2 },
-  { key: 'amount', title: '金额', type: 'number', width: 90, precision: 2 },
-  { key: 'remark', title: '备注', type: 'input', width: 120 },
+  { key: 'quantity', title: '数量', type: 'number', width: 80, precision: 2 },
+  { key: 'bigPack', title: '大包装', type: 'number', width: 70, precision: 0 },
+  { key: 'midPack', title: '中包装', type: 'number', width: 70, precision: 0 },
 ])
 
 // ═══════════════════════════════════════
@@ -399,24 +492,17 @@ function handleInsertProduct(index: number) {
     itemCode: '', barcode: '', unit: '',
     batchCode: '', productionDate: '', shelfLife: '', expiryDate: '',
     bigPack: 0, midPack: 0, smallPack: 0,
-    unitPrice: 0, scanMode: false,
-    productName: '', quantity: 0, remark: '',
+    unitPrice: 0, scanMode: false, quantity: 0,
+    productName: '', remark: '',
   }
   formData.products.splice(index + 1, 0, newProduct)
 }
 
 function handleFieldChange(fieldKey: string, val: any) {
   baseFieldChange(fieldKey, val)
-  // 处理收款字段
-  if (fieldKey === '_cashAmount') cashAmount.value = val || 0
-  if (fieldKey === '_cardAmount') cardAmount.value = val || 0
-  if (fieldKey === '_prepaidAmount') prepaidAmount.value = val || 0
-  if (fieldKey === '_transferAmount') transferAmount.value = val || 0
-  // 处理优惠字段
-  if (fieldKey === '_directDiscount') directDiscount.value = val || 0
-  if (fieldKey === '_couponDiscount') couponDiscount.value = val || 0
-  if (fieldKey === '_promoDiscount') promoDiscount.value = val || 0
-  // 更新找零
+  if (fieldKey === 'customerName' && val) {
+    // 客户变更时，如果不是散客则尝试匹配会员
+  }
   updateChangeAmount()
 }
 
@@ -434,13 +520,53 @@ function handleCellChange(record: any, fieldKey: string, value: any) {
       record.itemCode = p.code || ''
       record.barcode = p.barcode || ''
       record.unit = p.unit || ''
+      record.availableStock = p.stock || 0
       record.unitPrice = p.retailPrice || p.salePrice || p.price || 0
     }
   }
 }
 
+function handleProductSearch() {
+  if (!productSearchText.value.trim()) return
+  const keyword = productSearchText.value.trim().toLowerCase()
+  const product = optionRefs.products.find((p: any) =>
+    (p.name || '').toLowerCase().includes(keyword) ||
+    (p.code || '').toLowerCase().includes(keyword) ||
+    (p.barcode || '').toLowerCase().includes(keyword)
+  )
+  if (product) {
+    // 找到空行或追加
+    const emptyIdx = formData.products.findIndex((p: any) => !p.productId && !p.productName)
+    if (emptyIdx >= 0) {
+      const row = formData.products[emptyIdx]
+      row.productId = product.id
+      row.productName = product.name
+      row.itemCode = product.code || ''
+      row.barcode = product.barcode || ''
+      row.unit = product.unit || ''
+      row.availableStock = product.stock || 0
+      row.unitPrice = product.retailPrice || product.salePrice || product.price || 0
+    } else {
+      handleAddProduct()
+      const lastIdx = formData.products.length - 1
+      const row = formData.products[lastIdx]
+      row.productId = product.id
+      row.productName = product.name
+      row.itemCode = product.code || ''
+      row.barcode = product.barcode || ''
+      row.unit = product.unit || ''
+      row.availableStock = product.stock || 0
+      row.unitPrice = product.retailPrice || product.salePrice || product.price || 0
+    }
+    productSearchText.value = ''
+    message.success(`已添加：${product.name}`)
+  } else {
+    message.warning('未找到匹配商品')
+  }
+}
+
 function handleSearchBtn(fieldKey: string, _btnText: string) {
-  if (fieldKey === 'customerName' || fieldKey === 'memberCardNo') {
+  if (fieldKey === 'customerName') {
     showMemberSearch.value = true
     memberSearchKeyword.value = ''
     memberSearchResults.value = []
@@ -469,12 +595,11 @@ function confirmMemberSelect() {
     const m = selectedMember.value
     formData.customerId = m.id
     formData.customerName = m.partyName || m.name || '会员'
-    formData.memberCardNo = m.memberCardNo || m.member_card_no || ''
+    formData.memberCardNo = m.memberCardNo || ''
     formData.memberName = m.partyName || m.name || ''
     prevPoints.value = m.points || 0
     message.success(`已选择会员：${formData.customerName}`)
   } else {
-    // 未选择，保持散客
     formData.customerId = undefined
     formData.customerName = '散客'
     formData.memberCardNo = ''
@@ -505,11 +630,26 @@ function handleProductSelectConfirm(products: any[]) {
       row.itemCode = p.code || ''
       row.barcode = p.barcode || ''
       row.unit = p.unit || ''
+      row.availableStock = p.stock || 0
       row.unitPrice = p.retailPrice || p.salePrice || p.price || 0
     }
   })
   showProductSelect.value = false
   message.success(`已选择 ${products.length} 个商品`)
+}
+
+// ═══ 收款按钮点击 ═══
+function focusPayment(type: string) {
+  if (type === 'cash') {
+    if (cashAmount.value === 0) cashAmount.value = payableAmount.value
+  } else if (type === 'card') {
+    if (cardAmount.value === 0) cardAmount.value = payableAmount.value
+  } else if (type === 'prepaid') {
+    if (prepaidAmount.value === 0) prepaidAmount.value = Math.min(payableAmount.value, formData.prepaidBalance || 0)
+  } else if (type === 'transfer') {
+    if (transferAmount.value === 0) transferAmount.value = payableAmount.value
+  }
+  updateChangeAmount()
 }
 
 // ═══ 挂单（F3）═══════
@@ -529,13 +669,6 @@ function handleSettle() {
 
 function handleAction(actionKey: string, _parentKey?: string) {
   switch (actionKey) {
-    case 'history':
-      router.push('/sales/retail')
-      break
-    case 'print-receipt':
-    case 'print-summary':
-      message.info('打印功能开发中')
-      break
     case 'copy-order':
     case 'export':
       message.info(`${actionKey} 功能开发中`)
@@ -558,54 +691,119 @@ onMounted(async () => {
       formData.customerName = walkin.partyName || '散客'
     }
   } catch {
-    // 获取散客失败，使用默认
     formData.customerName = '散客'
   }
 
   if (formData.products.length === 0) {
-    for (let i = 0; i < 20; i++) handleAddProduct()
+    for (let i = 0; i < 12; i++) handleAddProduct()
   }
   nextTick(() => {
-    tableMaxHeight.value = Math.max(200, window.innerHeight - 420)
+    tableMaxHeight.value = Math.max(200, window.innerHeight - 440)
   })
 })
 </script>
 
 <style scoped>
+.retail-form-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ═══ 商品搜索行 ══ */
+.product-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-bottom: none;
+  padding-left: 12px;
+}
+.search-label {
+  font-size: 13px;
+  color: #595959;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.product-search-input {
+  width: 260px;
+}
+
+/* ═══ 操作按钮 ═══ */
 .action-add-btn {
   color: #1890ff;
   padding: 0;
   font-size: 14px;
 }
-
 .action-del-btn {
   color: #ff4d4f;
   padding: 0;
   font-size: 14px;
 }
 
-.remark-section {
-  padding: 4px 0;
+/* ═══ 底部左右布局 ═══ */
+.retail-bottom-layout {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0 0;
+}
+.retail-bottom-left {
+  flex: 1;
+  min-width: 0;
+}
+.retail-payment-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fafbfc;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 12px;
 }
 
+/* ═══ 优惠行 ═══ */
+.discount-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.discount-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.discount-label {
+  font-size: 12px;
+  color: #595959;
+  white-space: nowrap;
+}
+.discount-value {
+  font-size: 13px;
+  color: #262626;
+  min-width: 40px;
+}
+
+/* ═══ 备注 ═══ */
 .remark-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
-
 .remark-label {
   font-size: 12px;
   color: #595959;
   white-space: nowrap;
   min-width: 60px;
 }
-
 .remark-input {
   flex: 1;
 }
 
+/* ═══ 单据信息 ═══ */
 .doc-info-row {
   display: flex;
   align-items: center;
@@ -615,12 +813,123 @@ onMounted(async () => {
   color: #8c8c8c;
   border-top: 1px solid #f0f0f0;
 }
-
 .doc-info-link {
   color: #1890ff;
   font-size: 12px;
 }
 
+/* ═══ 收款面板 ═══ */
+.payment-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 10px;
+}
+.payment-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.pay-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 52px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  transition: all 0.2s;
+  padding: 4px;
+}
+.pay-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.pay-btn.active {
+  border-color: #262626;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+}
+.pay-btn-icon {
+  font-size: 18px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.pay-btn-cash {
+  background: #fa8c16;
+}
+.pay-btn-card {
+  background: #faad14;
+}
+.pay-btn-prepaid {
+  background: #1890ff;
+}
+.pay-btn-transfer-green {
+  background: #52c41a;
+}
+.pay-btn-transfer-blue {
+  background: #1890ff;
+}
+.combined-payment-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #595959;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+/* ══ 收款明细 ═══ */
+.payment-details {
+  margin-top: 8px;
+  border-top: 1px solid #e8e8e8;
+  padding-top: 8px;
+}
+.payment-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.payment-detail-label {
+  color: #8c8c8c;
+  min-width: 60px;
+}
+.payment-detail-value {
+  color: #262626;
+  font-weight: 500;
+  text-align: right;
+  min-width: 60px;
+}
+.payment-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.payment-input-label {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+.payment-input-value {
+  font-size: 12px;
+  color: #262626;
+}
+.payment-input-unit {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ═══ 辅助样式 ═══ */
+.text-red {
+  color: #ff4d4f !important;
+}
 .member-selected {
   background: #e6f7ff;
 }

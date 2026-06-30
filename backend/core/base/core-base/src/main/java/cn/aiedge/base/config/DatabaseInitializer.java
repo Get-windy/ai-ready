@@ -1210,6 +1210,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 9006, 9000, "价格层级", "PricingTiers", 1, "erp/pricing/tiers", "erp/pricing/tiers/index", "PullRequestOutlined", 6);
         appendMenu(sql, 9007, 9000, "批量价格", "PriceBatch", 1, "erp/product/price-batch", "erp/product/price-batch", "DollarOutlined", 7);
         appendMenu(sql, 9008, 9000, "库存模式", "InventoryMode", 1, "erp/product/inventory-mode", "erp/product/inventory-mode", "SettingOutlined", 8);
+        appendMenu(sql, 9009, 9000, "价格等级", "ProductGrade", 1, "erp/product/grade", "erp/product/grade", "CrownOutlined", 9);
 
         // ═══════════════ 固定资产 ═══════════════
         appendMenu(sql, 10000, 0, "固定资产", "FixedAsset", 0, "fixed-asset", null, "BankOutlined", 90);

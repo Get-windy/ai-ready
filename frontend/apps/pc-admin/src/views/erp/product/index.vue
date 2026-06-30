@@ -29,12 +29,6 @@
             <a-button type="primary" class="btn-add" @click="handleAdd">
               <PlusOutlined /> 新增
             </a-button>
-            <a-button size="small" @click="handleImport">
-              <UploadOutlined /> 导入
-            </a-button>
-            <a-button size="small" @click="handleCloudImport">
-              <CloudUploadOutlined /> 云导入
-            </a-button>
           </a-space>
         </template>
 
@@ -43,9 +37,6 @@
           <a-space>
             <a-button size="small" @click="refreshAll">
               <ReloadOutlined /> 刷新
-            </a-button>
-            <a-button size="small" @click="handlePrint">
-              <PrinterOutlined /> 打印(F8)
             </a-button>
             <a-button size="small" @click="handleExport">
               <DownloadOutlined /> 导出
@@ -442,6 +433,8 @@ const detailColumns = computed<DetailColumnConfig[]>(() => [
   { key: 'imageUrl', title: '图片', type: 'slot', slotName: 'imageCell', width: 60 },
   { key: 'productName', title: '商品名称', type: 'slot', slotName: 'productNameCell', width: 200, sortable: true },
   { key: 'productCodeAlias', title: '商品货号', type: 'input', width: 120, sortable: true },
+  { key: 'categoryName', title: '分类', type: 'input', width: 110, sortable: true },
+  { key: 'gradeName', title: '等级', type: 'input', width: 80 },
   { key: 'industryCategory', title: '所属行业类别', type: 'input', width: 120, sortable: true },
   { key: 'barcode', title: '条码', type: 'input', width: 140, sortable: true },
   { key: 'spec', title: '规格', type: 'input', width: 120, sortable: true },
@@ -570,7 +563,7 @@ function handleDelete(row: any) {
 }
 
 function handleCopy(row: any) {
-  message.info('复制功能开发中')
+  router.push(`/erp/product/create?copyFrom=${row.id}`)
 }
 
 function handleImport() {
@@ -609,7 +602,26 @@ function handleBatchPrice() {
 }
 
 function handleBatchStatus() {
-  message.info('批量改状态功能开发中')
+  if (selectedRows.value.length === 0) {
+    message.warning('请先选择商品')
+    return
+  }
+  Modal.confirm({
+    title: '批量改状态',
+    content: `确定要将选中的 ${selectedRows.value.length} 个商品切换启用/停用状态吗？`,
+    onOk: async () => {
+      try {
+        await Promise.all(selectedRows.value.map((row: any) => {
+          const newStatus = row.status === 'ENABLED' ? 'DISABLED' : 'ENABLED'
+          return productApi.updateStatus(row.id, newStatus)
+        }))
+        message.success('批量改状态成功')
+        fetchProducts()
+      } catch {
+        message.error('批量改状态失败')
+      }
+    },
+  })
 }
 
 function handleBatchDelete() {

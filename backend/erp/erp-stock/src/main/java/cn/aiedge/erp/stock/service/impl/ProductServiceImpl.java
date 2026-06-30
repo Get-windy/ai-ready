@@ -2,12 +2,15 @@ package cn.aiedge.erp.stock.service.impl;
 
 import cn.aiedge.erp.stock.dto.BatchPriceUpdateDTO;
 import cn.aiedge.erp.stock.entity.Product;
+import cn.aiedge.erp.stock.entity.ProductCategory;
+import cn.aiedge.erp.stock.mapper.ProductCategoryMapper;
 import cn.aiedge.erp.stock.mapper.ProductMapper;
 import cn.aiedge.erp.stock.service.ProductService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +27,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> implements ProductService {
+
+    private final ProductCategoryMapper productCategoryMapper;
 
     @Override
     public List<Product> getProductList() {
@@ -44,9 +50,14 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         QueryWrapper<Product> wrapper = new QueryWrapper<Product>();
 
-        // 分类筛选
+        // 分类筛选（包含所有子分类）
         if (categoryId != null && categoryId > 0) {
-            wrapper.eq("p.category_id", categoryId);
+            List<Long> categoryIds = collectDescendantCategoryIds(categoryId);
+            if (categoryIds.size() == 1) {
+                wrapper.eq("p.category_id", categoryIds.get(0));
+            } else {
+                wrapper.in("p.category_id", categoryIds);
+            }
         }
 
         // 关键字搜索(编码/名称/规格/条码)
@@ -110,6 +121,13 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         if (product.getProductType() == null) {
             product.setProductType("SINGLE");
         }
+        // 验证分类是否存在
+        if (product.getCategoryId() != null && product.getCategoryId() > 0) {
+            ProductCategory category = productCategoryMapper.selectById(product.getCategoryId());
+            if (category == null || category.getDeleted() != 0) {
+                throw new RuntimeException("所属分类不存在或已删除");
+            }
+        }
         return save(product);
     }
 
@@ -134,7 +152,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
                 .eq("deleted", 0);
 
         if (categoryId != null && categoryId > 0) {
-            wrapper.eq("category_id", categoryId);
+            List<Long> categoryIds = collectDescendantCategoryIds(categoryId);
+            wrapper.in("category_id", categoryIds);
         }
 
         if (StringUtils.hasText(keyword)) {
@@ -179,5 +198,23 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         }
         log.info("[批量价格] 批量更新 {} 条记录", batch.size());
         return updateBatchById(batch);
+    }
+
+    /**
+     * 递归收集分类及其所有子孙分类的ID列表
+     */
+    private List<Long> collectDescendantCategoryIds(Long parentId) {
+        List<Long> ids = new ArrayList<>();
+        ids.add(parentId);
+        List<ProductCategory> children = productCategoryMapper.selectList(
+                new QueryWrapper<ProductCategory>()
+                        .eq("parent_id", parentId)
+                        .eq("deleted", 0)
+                        .select("id")
+        );
+        for (ProductCategory child : children) {
+            ids.addAll(collectDescendantCategoryIds(child.getId()));
+        }
+        return ids;
     }
 }

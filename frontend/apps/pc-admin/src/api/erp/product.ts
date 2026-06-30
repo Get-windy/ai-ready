@@ -240,6 +240,23 @@ export interface ProductUnit {
   conversionRate: number
   barcode: string
   sortOrder: number
+  unitType?: string
+  presetPurchasePrice?: number
+  referenceCost?: number
+  recentPurchasePrice?: number
+  wholesalePrice?: number
+  retailPrice?: number
+  minSalePrice?: number
+  minDiscount?: number
+  /** 8个等级价格（与erp_product_grade对应，用户可自定义等级名称） */
+  gradePrice1?: number
+  gradePrice2?: number
+  gradePrice3?: number
+  gradePrice4?: number
+  gradePrice5?: number
+  gradePrice6?: number
+  gradePrice7?: number
+  gradePrice8?: number
 }
 
 export const productUnitApi = {
