@@ -50,6 +50,9 @@ public class SyncDataSourceConfig {
     /** 同步单据类型列表 (JSON) */
     private String billTypes;
 
+    /** 同步方向: inbound=外部→系统, outbound=系统→外部, bidirectional=双向 */
+    private String syncDirection;
+
     /** 状态: 0=禁用, 1=启用 */
     private Integer status;
 

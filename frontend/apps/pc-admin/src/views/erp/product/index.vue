@@ -520,11 +520,11 @@ function handleAdd() {
 }
 
 function handleEdit(row: any) {
-  router.push(`/erp/product/${row.id}`)
+  router.push(`/erp/product/form/${row.id}`)
 }
 
 function handleView(row: any) {
-  router.push(`/erp/product/${row.id}`)
+  router.push(`/erp/product/form/${row.id}`)
 }
 
 function handleToggleStatus(row: any) {

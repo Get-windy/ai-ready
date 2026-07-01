@@ -242,7 +242,7 @@
         </vxe-column>
         <vxe-column title="操作" width="80" fixed="right">
           <template #default="{ row }">
-            <a-button v-permission="'erp:product:edit'" type="link" size="small" @click="debounceClick('edit_' + row.id, () => router.push(`/erp/product/${row.id}`))">编辑</a-button>
+            <a-button v-permission="'erp:product:edit'" type="link" size="small" @click="debounceClick('edit_' + row.id, () => router.push(`/erp/product/form/${row.id}`))">编辑</a-button>
           </template>
         </vxe-column>
       </vxe-table>

@@ -47,7 +47,6 @@ interface MenuItem {
 
 const componentMap: Record<string, () => Promise<any>> = {
   'erp/product/index': () => import('@/views/erp/product/index.vue'),
-  'erp/product/detail': () => import('@/views/erp/product/detail.vue'),
   'erp/product/create': () => import('@/views/erp/product/form.vue'),
   'erp/product/form': () => import('@/views/erp/product/form.vue'),
   'erp/product/price-batch': () => import('@/views/erp/product/price-batch.vue'),
@@ -1140,16 +1139,16 @@ export async function loadDynamicRoutes(router?: Router): Promise<RouteRecordRaw
 function getRequiredRoutes(): RouteRecordRaw[] {
   return [
     {
-      path: 'erp/product/:id',
-      name: 'ErpProductDetail',
-      component: () => import('@/views/erp/product/detail.vue'),
-      meta: { title: '产品详情', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
-    },
-    {
       path: 'erp/product/create',
       name: 'ErpProductCreate',
       component: () => import('@/views/erp/product/form.vue'),
       meta: { title: '新增商品', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
+    },
+    {
+      path: 'erp/product/form/:id',
+      name: 'ErpProductFormEdit',
+      component: () => import('@/views/erp/product/form.vue'),
+      meta: { title: '编辑商品', icon: 'FileTextOutlined', keepAlive: false, requiresAuth: true, hidden: true }
     },
     {
       path: 'erp/product/price-batch',

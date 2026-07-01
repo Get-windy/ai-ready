@@ -90,6 +90,7 @@ public class SyncConfigServiceImpl implements SyncConfigService {
         if (config.getBillTypes() == null) config.setBillTypes("[\"601\",\"604\",\"504\",\"801\"]");
         if (config.getBaseUrl() == null) config.setBaseUrl("https://www.ql361.com");
         if (config.getStatus() == null) config.setStatus(1);
+        if (config.getSyncDirection() == null) config.setSyncDirection("inbound");
         if (config.getDisplayName() == null) {
             config.setDisplayName(getSourceDisplayName(config.getSourceType()));
         }
@@ -120,6 +121,7 @@ public class SyncConfigServiceImpl implements SyncConfigService {
         if (config.getHeartbeatInterval() != null) existing.setHeartbeatInterval(config.getHeartbeatInterval());
         if (config.getBillTypes() != null) existing.setBillTypes(config.getBillTypes());
         if (config.getRemark() != null) existing.setRemark(config.getRemark());
+        if (config.getSyncDirection() != null) existing.setSyncDirection(config.getSyncDirection());
 
         existing.setUpdateBy(getCurrentUserId());
         existing.setUpdateTime(LocalDateTime.now());
