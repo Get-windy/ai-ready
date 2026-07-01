@@ -1115,7 +1115,6 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 2009, 2000, "系统日志", "SystemLog", 1, "system/log", "system/log/index", "FileTextOutlined", 9);
         appendMenu(sql, 2010, 2000, "租户管理", "SystemTenant", 1, "system/tenant", "system/tenant/index", "TeamOutlined", 10);
         appendMenu(sql, 2011, 2000, "租户审批", "SystemTenantApproval", 1, "system/tenant-approval", "system/tenant-approval/index", "SafetyOutlined", 11);
-        appendMenu(sql, 2012, 2000, "数据导入", "DataImport", 1, "system/data-import", "system/data-import/index", "ImportOutlined", 12);
         appendMenu(sql, 2013, 2000, "数据权限范围", "DataScope", 1, "system/data-scope", "system/data-scope/index", "SafetyOutlined", 13);
         appendMenu(sql, 2014, 2000, "字段级权限", "FieldPermission", 1, "system/field-permission", "system/field-permission/index", "LockOutlined", 14);
         appendMenu(sql, 2015, 2000, "职责分离规则", "SodRule", 1, "system/sod-rule", "system/sod-rule/index", "AuditOutlined", 15);
@@ -1266,6 +1265,23 @@ public class DatabaseInitializer implements CommandLineRunner {
         appendMenu(sql, 15100, 0, "个人中心", "Profile", 1, "profile", "profile/index", "UserOutlined", 150);
         appendMenu(sql, 15200, 0, "图表", "Charts", 1, "charts", "charts/index", "BarChartOutlined", 160);
         appendMenu(sql, 15300, 0, "订单中心", "OrderCenter", 1, "order-center", "order-center/index", "ShoppingCartOutlined", 170);
+
+        // ═══════════════ 租户设置（非系统级，租户可自助管理） ═══════════════
+        appendMenu(sql, 16000, 0, "设置", "TenantSettings", 0, "set", null, "ToolOutlined", 175);
+        appendMenu(sql, 16001, 16000, "数据录入", "DataEntry", 0, "set/data-entry", null, "DatabaseOutlined", 1);
+        appendMenu(sql, 16002, 16001, "期初库存", "InitialStock", 1, "set/initial-stock", "set/initial-stock/index", "AppstoreOutlined", 1);
+        appendMenu(sql, 16003, 16001, "期初财务", "InitialFinance", 1, "set/initial-finance", "set/initial-finance/index", "DollarOutlined", 2);
+        appendMenu(sql, 16004, 16001, "数据导入", "DataImport", 1, "system/data-import", "system/data-import/index", "ImportOutlined", 3);
+        appendMenu(sql, 16005, 16000, "系统重建", "SetRebuild", 1, "set/rebuild", "set/rebuild/index", "ToolOutlined", 2);
+        appendMenu(sql, 16006, 16000, "系统任务", "SetSystemTask", 1, "set/system-task", "set/system-task/index", "ScheduleOutlined", 3);
+        appendMenu(sql, 16007, 16000, "会计期间", "SetAccountingPeriod", 1, "set/accounting-period", "set/accounting-period/index", "CalendarOutlined", 4);
+        appendMenu(sql, 16008, 16000, "操作日志", "SetOperationLog", 1, "set/operation-log", "set/operation-log/index", "FileTextOutlined", 5);
+        appendMenu(sql, 16009, 16000, "系统参数", "SetSysParams", 1, "set/sys-params", "set/sys-params/index", "SettingOutlined", 6);
+        appendMenu(sql, 16010, 16000, "企业信息", "SetCompanyInfo", 1, "set/company-info", "set/company-info/index", "BankOutlined", 7);
+        appendMenu(sql, 16011, 16000, "菜单配置", "SetMenuConfig", 1, "set/menu-config", "set/menu-config/index", "MenuOutlined", 8);
+        appendMenu(sql, 16012, 16000, "审批配置", "SetAuditConfig", 1, "set/audit-config", "set/audit-config/index", "AuditOutlined", 9);
+        appendMenu(sql, 16013, 16000, "支付配置", "SetPaymentConfig", 1, "set/payment-config", "set/payment-config/index", "PayCircleOutlined", 10);
+        appendMenu(sql, 16014, 16000, "应用中心", "SetAppCenter", 1, "set/app-center", "set/app-center/index", "AppstoreOutlined", 11);
 
         // 移除末尾逗号
         sql.setLength(sql.length() - 1);
