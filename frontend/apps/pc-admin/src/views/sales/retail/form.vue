@@ -359,7 +359,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
 
 defineOptions({ name: 'RetailForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -368,6 +368,7 @@ import {
   PlusCircleOutlined,
   MinusCircleOutlined,
   SearchOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
