@@ -236,7 +236,6 @@
         提示：不选择会员则按散客下账
       </div>
     </a-modal>
-  </div>
 
   <!-- ═══ POS收银模式全屏覆盖层 ═══ -->
   <Teleport to="body">
@@ -356,10 +355,11 @@
       </div>
     </div>
   </Teleport>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 
 defineOptions({ name: 'RetailForm' })
 import { useRouter, useRoute } from 'vue-router'
@@ -369,6 +369,7 @@ import {
   MinusCircleOutlined,
   SearchOutlined,
   SettingOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import BillFormPage from '@/components/BillFormPage/index.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
@@ -399,8 +400,26 @@ const selectedMemberId = ref<number | null>(null)
 const selectedMember = ref<any>(null)
 
 // ═══ POS 模式 ═══
-const posMode = ref(true)
+const posMode = ref(false)
 const simpleMode = ref(false)
+const posSelectedRow = ref(0)
+
+// POS 显示行数（确保至少15行）
+const posDisplayRows = computed(() => {
+  const rows = formData.products || []
+  const minRows = 15
+  if (rows.length >= minRows) return rows
+  return [...rows, ...Array.from({ length: minRows - rows.length }, () => ({
+    id: `pos-empty-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    productId: undefined,
+    productName: '',
+    barcode: '',
+    availableStock: 0,
+    quantity: 0,
+    unitPrice: 0,
+    _isEmptyRow: true,
+  }))]
+})
 
 // ═══ 支付金额 ═══
 const cashAmount = ref(0)
@@ -531,7 +550,7 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   orderNo: formData.orderNo || formData.retailNo,
   showAttachment: true,
   actions: [
-    { key: 'pos-mode', label: 'POS收银模式', icon: 'ThunderboltOutlined' },
+    { key: 'pos-mode', label: 'POS收银模式', icon: ThunderboltOutlined },
     { key: 'simple-mode', label: simpleMode.value ? '关闭简易' : '简易模式' },
     { key: 'keyboard', label: '键盘' },
     { key: 'settings', label: '设置' },
@@ -791,8 +810,98 @@ function handleSettle() {
   handleSubmit()
 }
 
+// ═══ POS 模式切换 ═══
+function enterPosMode() {
+  posMode.value = true
+}
+
+function exitPosMode() {
+  posMode.value = false
+}
+
+function handleOverlayClick(e: MouseEvent) {
+  // 点击非交互区域不退出
+}
+
+function handlePosProductSelect(rowIndex: number) {
+  currentSelectRowIndex.value = rowIndex
+  showProductSelect.value = true
+}
+
+// ═══ 键盘快捷键 ══
+function handleKeyDown(e: KeyboardEvent) {
+  if (!posMode.value) return
+
+  // Shift+Esc: 退出 POS 模式
+  if (e.shiftKey && e.key === 'Escape') {
+    e.preventDefault()
+    exitPosMode()
+    return
+  }
+
+  // F2: 零售单历史
+  if (e.key === 'F2') {
+    e.preventDefault()
+    message.info('零售单历史开发中')
+    return
+  }
+
+  // F3: 挂单
+  if (e.key === 'F3') {
+    e.preventDefault()
+    handleHoldOrder()
+    return
+  }
+
+  // F6: 会员卡号搜索
+  if (e.key === 'F6') {
+    e.preventDefault()
+    showMemberSearch.value = true
+    return
+  }
+
+  // F10: 快捷键面板
+  if (e.key === 'F10') {
+    e.preventDefault()
+    message.info('快捷键面板开发中')
+    return
+  }
+
+  // 空格键: 收款
+  if (e.key === ' ' && !e.target || (e.target instanceof HTMLElement && !['INPUT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName))) {
+    e.preventDefault()
+    handleSettle()
+    return
+  }
+
+  // ↑↓: 切换选中行
+  if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    posSelectedRow.value = Math.max(0, posSelectedRow.value - 1)
+    return
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    posSelectedRow.value = Math.min(posDisplayRows.value.length - 1, posSelectedRow.value + 1)
+    return
+  }
+}
+
 function handleAction(actionKey: string, _parentKey?: string) {
   switch (actionKey) {
+    case 'pos-mode':
+      enterPosMode()
+      break
+    case 'simple-mode':
+      simpleMode.value = !simpleMode.value
+      message.info(simpleMode.value ? '简易模式已开启' : '简易模式已关闭')
+      break
+    case 'keyboard':
+      message.info('快捷键面板开发中')
+      break
+    case 'settings':
+      message.info('设置面板开发中')
+      break
     case 'copy-order':
     case 'export':
       message.info(`${actionKey} 功能开发中`)
@@ -824,6 +933,13 @@ onMounted(async () => {
   nextTick(() => {
     tableMaxHeight.value = Math.max(200, window.innerHeight - 440)
   })
+
+  // 键盘快捷键监听
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
@@ -1050,11 +1166,449 @@ onMounted(async () => {
   color: #8c8c8c;
 }
 
-/* ═══ 辅助样式 ═══ */
+/* ═══ 辅助样式 ══ */
 .text-red {
   color: #ff4d4f !important;
 }
 .member-selected {
   background: #e6f7ff;
+}
+
+/* ══ POS 按钮样式（header 第一个按钮）═══════ */
+:deep(.bill-header .header-right .ant-btn:first-child) {
+  background: #ff4d4f !important;
+  color: #fff !important;
+  border-color: #ff4d4f !important;
+  font-weight: 600;
+}
+
+:deep(.bill-header .header-right .ant-btn:first-child:hover) {
+  background: #ff7875 !important;
+  border-color: #ff7875 !important;
+  color: #fff !important;
+}
+
+/* ═══════════════════════════════════════
+   POS 收银模式全屏覆盖层（暗色主题）
+   ═══════════════════════════════════════ */
+.pos-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+/* POS 顶部栏 */
+.pos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
+}
+
+.pos-exit-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ff4d4f;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pos-exit-btn:hover {
+  background: #ff7875;
+}
+
+.pos-exit-icon {
+  font-size: 14px;
+}
+
+.pos-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+  text-align: center;
+}
+
+.pos-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pos-shortcut-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.pos-shortcut-btn:hover {
+  opacity: 0.85;
+}
+
+.pos-shortcut-f10 {
+  background: #5b6abf;
+  color: #fff;
+}
+
+.pos-shortcut-f2 {
+  background: #52c41a;
+  color: #fff;
+}
+
+/* POS 商品表格 */
+.pos-table-container {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.pos-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.pos-table thead th {
+  background: #2d2d2d;
+  color: #ccc;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 6px;
+  border-bottom: 2px solid #444;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.pos-th-settings {
+  width: 36px;
+  text-align: center;
+  color: #888;
+}
+
+.pos-th-action {
+  width: 70px;
+}
+
+.pos-th-product {
+  width: 25%;
+}
+
+.pos-th-barcode {
+  width: 12%;
+}
+
+.pos-th-stock {
+  width: 8%;
+}
+
+.pos-th-qty {
+  width: 8%;
+}
+
+.pos-th-price {
+  width: 10%;
+}
+
+.pos-th-amount {
+  width: 12%;
+  color: #ff7a45;
+}
+
+.pos-tr {
+  transition: background 0.15s;
+}
+
+.pos-tr-first {
+  background: #e8a87c !important;
+}
+
+.pos-tr-first .pos-td {
+  color: #262626;
+  font-weight: 500;
+}
+
+.pos-tr-selected {
+  background: #c97b4f !important;
+}
+
+.pos-tr-selected .pos-td {
+  color: #fff;
+}
+
+.pos-tr-empty {
+  opacity: 0.5;
+}
+
+.pos-tr-empty:hover {
+  background: #3a3a3a;
+  opacity: 1;
+}
+
+.pos-tr:not(.pos-tr-first):not(.pos-tr-selected):not(.pos-tr-empty):hover {
+  background: #333;
+}
+
+.pos-td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #3a3a3a;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.pos-td-action {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pos-action-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+
+.pos-action-btn:hover {
+  transform: scale(1.15);
+}
+
+.pos-action-add {
+  background: #52c41a;
+  color: #fff;
+}
+
+.pos-action-del {
+  background: #ff4d4f;
+  color: #fff;
+}
+
+.pos-td-product {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pos-product-name {
+  color: #e0e0e0;
+}
+
+.pos-empty-cell {
+  color: #666;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.pos-empty-cell:hover {
+  color: #aaa;
+}
+
+.pos-input {
+  width: 60px;
+  background: #3a3a3a;
+  border: 1px solid #555;
+  color: #e0e0e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.pos-input:focus {
+  border-color: #ff7a45;
+  outline: none;
+}
+
+.pos-td-qty input {
+  width: 50px;
+}
+
+.pos-td-price,
+.pos-td-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* POS 表格合计行 */
+.pos-tr-total {
+  background: #2d2d2d;
+  border-top: 2px solid #555;
+}
+
+.pos-tr-total .pos-td {
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.pos-td-footer-label {
+  color: #e0e0e0;
+  font-weight: 700;
+}
+
+.pos-td-total-val {
+  text-align: right;
+  color: #ff7a45;
+  font-weight: 700;
+}
+
+.pos-td-total-amount {
+  font-size: 15px;
+  color: #ff7a45;
+}
+
+/* POS 底部栏 */
+.pos-bottom-bar {
+  display: flex;
+  align-items: stretch;
+  background: #2d2d2d;
+  border-top: 1px solid #444;
+  flex-shrink: 0;
+  min-height: 70px;
+}
+
+.pos-bottom-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 16px;
+  gap: 4px;
+}
+
+.pos-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.pos-info-label {
+  color: #888;
+  min-width: 80px;
+}
+
+.pos-info-value {
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.pos-info-placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+.pos-info-points {
+  margin-left: auto;
+  color: #888;
+  font-size: 12px;
+}
+
+.pos-points-value {
+  color: #ff7a45;
+}
+
+.pos-info-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+}
+
+.pos-info-btn:hover {
+  color: #fff;
+}
+
+.pos-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.pos-action-btn-large {
+  border: none;
+  padding: 12px 28px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.3;
+  transition: opacity 0.2s;
+  min-width: 100px;
+  height: 70px;
+}
+
+.pos-action-btn-large:hover {
+  opacity: 0.9;
+}
+
+.pos-btn-hold {
+  background: #faad14;
+  color: #fff;
+}
+
+.pos-btn-settle {
+  background: #ff7a45;
+  color: #fff;
+}
+
+.pos-shortcut-text {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.pos-total-display {
+  display: flex;
+  align-items: baseline;
+  background: #ff7a45;
+  color: #fff;
+  padding: 0 24px;
+  height: 70px;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.pos-total-symbol {
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.pos-total-amount {
+  font-size: 32px;
+  font-weight: 700;
 }
 </style>
