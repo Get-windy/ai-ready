@@ -3,7 +3,6 @@ package cn.aiedge.erp.party.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -48,10 +47,6 @@ public class PartyDTO {
 
     private String bankAccount;
 
-    private String registeredAddress;
-
-    private String businessAddress;
-
     private String phone;
 
     private String fax;
@@ -63,22 +58,6 @@ public class PartyDTO {
     private String legalPerson;
 
     private String legalPersonPhone;
-
-    private String businessContact;
-
-    private String businessContactPhone;
-
-    private String financeContact;
-
-    private String financeContactPhone;
-
-    private LocalDate firstTradeDate;
-
-    private LocalDate lastTradeDate;
-
-    private Integer tradeCount;
-
-    private BigDecimal tradeAmount;
 
     private Integer status;
 

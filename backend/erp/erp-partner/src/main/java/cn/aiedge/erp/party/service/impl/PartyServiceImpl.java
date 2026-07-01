@@ -131,21 +131,11 @@ public class PartyServiceImpl extends ServiceImpl<PartyMapper, Party> implements
         if (StringUtils.hasText(settleType)) {
             wrapper.eq(Party::getSettlementType, "挂账".equals(settleType) ? 1 : 0);
         }
-        if (StringUtils.hasText(address)) {
-            wrapper.and(w -> w.like(Party::getRegisteredAddress, address)
-                    .or().like(Party::getBusinessAddress, address));
-        }
         if (createTimeStart != null) {
             wrapper.ge(Party::getCreateTime, createTimeStart.atStartOfDay());
         }
         if (createTimeEnd != null) {
             wrapper.le(Party::getCreateTime, createTimeEnd.plusDays(1).atStartOfDay());
-        }
-        if (lastTradeStart != null) {
-            wrapper.ge(Party::getLastTradeDate, lastTradeStart);
-        }
-        if (lastTradeEnd != null) {
-            wrapper.le(Party::getLastTradeDate, lastTradeEnd);
         }
 
         wrapper.orderByDesc(Party::getCreateTime);

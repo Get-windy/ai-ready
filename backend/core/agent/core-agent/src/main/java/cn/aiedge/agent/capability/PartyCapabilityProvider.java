@@ -343,18 +343,10 @@ public class PartyCapabilityProvider {
         map.put("taxNumber", party.getTaxNumber());
         map.put("bankName", party.getBankName());
         map.put("bankAccount", party.getBankAccount());
-        map.put("registeredAddress", party.getRegisteredAddress());
-        map.put("businessAddress", party.getBusinessAddress());
         map.put("phone", party.getPhone());
         map.put("fax", party.getFax());
         map.put("email", party.getEmail());
         map.put("legalPerson", party.getLegalPerson());
-        map.put("businessContact", party.getBusinessContact());
-        map.put("financeContact", party.getFinanceContact());
-        map.put("firstTradeDate", party.getFirstTradeDate());
-        map.put("lastTradeDate", party.getLastTradeDate());
-        map.put("tradeCount", party.getTradeCount());
-        map.put("tradeAmount", party.getTradeAmount());
         map.put("status", party.getStatus());
         return map;
     }

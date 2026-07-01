@@ -18,6 +18,8 @@ public class Party {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    private Long tenantId;
+
     private String partyCode;
 
     private String partyName;
@@ -48,10 +50,6 @@ public class Party {
 
     private String bankAccount;
 
-    private String registeredAddress;
-
-    private String businessAddress;
-
     private String phone;
 
     private String fax;
@@ -63,22 +61,6 @@ public class Party {
     private String legalPerson;
 
     private String legalPersonPhone;
-
-    private String businessContact;
-
-    private String businessContactPhone;
-
-    private String financeContact;
-
-    private String financeContactPhone;
-
-    private LocalDate firstTradeDate;
-
-    private LocalDate lastTradeDate;
-
-    private Integer tradeCount;
-
-    private BigDecimal tradeAmount;
 
     private Integer status;
 
