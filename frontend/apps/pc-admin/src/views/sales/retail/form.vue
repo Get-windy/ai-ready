@@ -237,6 +237,125 @@
       </div>
     </a-modal>
   </div>
+
+  <!-- ═══ POS收银模式全屏覆盖层 ═══ -->
+  <Teleport to="body">
+    <div v-if="posMode" class="pos-overlay">
+      <!-- POS 顶部栏 -->
+      <div class="pos-header">
+        <button class="pos-exit-btn" @click="exitPosMode">
+          <span class="pos-exit-icon"></span> 退出POS收银模式(Shift+Esc)
+        </button>
+        <h1 class="pos-title">POS收银模式</h1>
+        <div class="pos-header-actions">
+          <button class="pos-shortcut-btn pos-shortcut-f10" @click="message.info('快捷键面板开发中')">
+            ⌨ 快捷键(F10)
+          </button>
+          <button class="pos-shortcut-btn pos-shortcut-f2" @click="message.info('零售单历史开发中')">
+            🕐 零售单历史(F2)
+          </button>
+        </div>
+      </div>
+
+      <!-- POS 商品表格 -->
+      <div class="pos-table-container">
+        <table class="pos-table">
+          <thead>
+            <tr>
+              <th class="pos-th-settings"><SettingOutlined /></th>
+              <th class="pos-th-action">操作</th>
+              <th class="pos-th-product">商品名称</th>
+              <th class="pos-th-barcode">条码</th>
+              <th class="pos-th-stock">可用库存</th>
+              <th class="pos-th-qty">数量</th>
+              <th class="pos-th-price">单价</th>
+              <th class="pos-th-amount">金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, idx) in posDisplayRows"
+              :key="idx"
+              class="pos-tr"
+              :class="{
+                'pos-tr-first': idx === 0,
+                'pos-tr-selected': idx === posSelectedRow,
+                'pos-tr-empty': !row.productId && !row.productName
+              }"
+              @click="posSelectedRow = idx"
+              @dblclick="handlePosProductSelect(idx)"
+            >
+              <td class="pos-td">{{ idx + 1 }}</td>
+              <td class="pos-td pos-td-action">
+                <button class="pos-action-btn pos-action-add" @click.stop="handleInsertProduct(idx)"></button>
+                <button class="pos-action-btn pos-action-del" @click.stop="handleRemoveProduct(idx)">✕</button>
+              </td>
+              <td class="pos-td pos-td-product">
+                <span v-if="row.productId || row.productName" class="pos-product-name">{{ row.productName || '未选择' }}</span>
+                <span v-else class="pos-empty-cell" @click.stop="handlePosProductSelect(idx)">双击选择商品</span>
+              </td>
+              <td class="pos-td">{{ row.barcode || '' }}</td>
+              <td class="pos-td">{{ row.availableStock != null ? row.availableStock : '' }}</td>
+              <td class="pos-td pos-td-qty">
+                <input
+                  v-if="row.productId"
+                  type="number"
+                  class="pos-input"
+                  :value="row.quantity || 0"
+                  @change="(e: any) => { row.quantity = Number(e.target.value); updateChangeAmount() }"
+                  min="0"
+                  step="1"
+                />
+                <span v-else class="pos-empty-cell"></span>
+              </td>
+              <td class="pos-td pos-td-price">{{ row.unitPrice != null ? row.unitPrice.toFixed(2) : '' }}</td>
+              <td class="pos-td pos-td-amount">{{ ((row.quantity || 0) * (row.unitPrice || 0)).toFixed(2) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="pos-tr pos-tr-total">
+              <td class="pos-td pos-td-footer-label" colspan="2">合计</td>
+              <td class="pos-td"></td>
+              <td class="pos-td"></td>
+              <td class="pos-td pos-td-total-val">{{ totalQuantity }}</td>
+              <td class="pos-td pos-td-total-val">{{ totalAmount.toFixed(2) }}</td>
+              <td class="pos-td"></td>
+              <td class="pos-td pos-td-total-val pos-td-total-amount">{{ totalAmount.toFixed(2) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- POS 底部栏 -->
+      <div class="pos-bottom-bar">
+        <div class="pos-bottom-info">
+          <div class="pos-info-row">
+            <span class="pos-info-label">客户名称：</span>
+            <span class="pos-info-value">{{ formData.customerName || '散客' }}</span>
+            <button class="pos-info-btn" @click="showMemberSearch = true" title="详情">详</button>
+            <button class="pos-info-btn" @click="showMemberSearch = true" title="搜索"></button>
+          </div>
+          <div class="pos-info-row">
+            <span class="pos-info-label">会员卡号：</span>
+            <span class="pos-info-placeholder">F6 输入卡号/电话号码</span>
+            <span class="pos-info-points">此前积分：<span class="pos-points-value">{{ prevPoints }}</span></span>
+          </div>
+        </div>
+        <div class="pos-bottom-actions">
+          <button class="pos-action-btn-large pos-btn-hold" @click="handleHoldOrder">
+            挂单<br/><span class="pos-shortcut-text">(F3)</span>
+          </button>
+          <button class="pos-action-btn-large pos-btn-settle" @click="handleSettle">
+            收款<br/><span class="pos-shortcut-text">(空格键)</span>
+          </button>
+          <div class="pos-total-display">
+            <span class="pos-total-symbol">¥</span>
+            <span class="pos-total-amount">{{ payableAmount.toFixed(0) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -411,6 +530,10 @@ const headerConfig = computed<BillHeaderConfig>(() => ({
   orderNo: formData.orderNo || formData.retailNo,
   showAttachment: true,
   actions: [
+    { key: 'pos-mode', label: 'POS收银模式', icon: 'ThunderboltOutlined' },
+    { key: 'simple-mode', label: simpleMode.value ? '关闭简易' : '简易模式' },
+    { key: 'keyboard', label: '键盘' },
+    { key: 'settings', label: '设置' },
     { key: 'more', label: '更多', children: [
       { key: 'copy-order', label: '复制零售单' },
       { key: 'export', label: '导出' },

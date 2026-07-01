@@ -275,7 +275,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   'erp/stock-in/form': () => import('@/views/erp/stock-in/form.vue'),
   'erp/stocktake/form': () => import('@/views/erp/stocktake/form.vue'),
   'erp/purchase/form': () => import('@/views/erp/purchase/form.vue'),
-  'erp/purchase-exchange/form': () => import('@/views/erp/purchase-exchange/form.vue'),
 
   // ── displayMode=1 表单页路由（Phase 2 WMS 仓储执行） ──
   'wms/receipt/form': () => import('@/views/wms/receipt/form.vue'),
