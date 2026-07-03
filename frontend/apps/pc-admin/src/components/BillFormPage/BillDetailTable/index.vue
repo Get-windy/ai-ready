@@ -11,7 +11,7 @@
       <div v-if="!loading && dataSource.length === 0 && !minRows" class="table-empty-text">
         暂无数据
       </div>
-      <table v-else class="ss-grid">
+      <table v-else class="ss-grid" :style="gridTableStyle">
         <thead>
           <tr>
             <th
@@ -19,6 +19,7 @@
               :key="col.key"
               :style="getColStyle(col)"
               :class="getColClass(col)"
+              :data-filler="col.key === '__filler__' || undefined"
             >
               <!-- ═══ rowNo 列：内嵌齿轮设置图标 ═══ -->
               <template v-if="col.type === 'rowNo'">
@@ -80,8 +81,12 @@
               :class="getCellClass(col)"
               :style="{ width: col.width ? col.width + 'px' : 'auto' }"
             >
-              <!-- 空行 -->
-              <template v-if="record._isEmptyRow">
+              <!-- 填充列：空白 -->
+              <template v-if="col.key === '__filler__'">
+                <span class="ss-empty-cell"></span>
+              </template>
+              <!-- 空行（与填充列互斥） -->
+              <template v-else-if="record._isEmptyRow">
                 <span class="ss-empty-cell"></span>
               </template>
               <!-- 行号 -->
@@ -187,7 +192,10 @@
               :class="getSummaryCellClass(col)"
               :style="{ width: col.width ? col.width + 'px' : 'auto' }"
             >
-              <template v-if="col.type === 'rowNo'">
+              <template v-if="col.key === '__filler__'">
+                <span></span>
+              </template>
+              <template v-else-if="col.type === 'rowNo'">
                 <span class="summary-total-label">合计</span>
               </template>
               <template v-else>
@@ -197,6 +205,14 @@
           </tr>
         </tfoot>
       </table>
+
+      <!-- ═══ 底部展开/收起（在滚动容器内，sticky 到底部） ═══ -->
+      <div class="detail-expand">
+        <a-button type="link" size="small" @click="toggleExpand">
+          <FullscreenOutlined />
+          {{ expanded ? '表格收起显示' : '表格展开显示' }}
+        </a-button>
+      </div>
     </div>
 
     <!-- ═══ 列设置面板（Modal 形式） ═══ -->
@@ -251,13 +267,17 @@
       </div>
     </a-modal>
 
-    <!-- ═══ 底部展开/收起 ══ -->
-    <div class="detail-expand">
-      <a-button type="link" size="small" @click="toggleExpand">
-        <FullscreenOutlined />
-        {{ expanded ? '表格收起显示' : '表格展开显示' }}
-      </a-button>
-    </div>
+
+    <!-- 分页器 -->
+    <StandardPagination
+      v-if="showPagination"
+      v-model:current="currentPage"
+      v-model:page-size="currentPageSize"
+      :total="total"
+      :page-size-options="pageSizeOptions"
+      :hide-on-single-page="false"
+      @change="onPageChange"
+    />
   </div>
 </template>
 
@@ -267,6 +287,7 @@ import { SettingOutlined, FullscreenOutlined, CaretUpOutlined, CaretDownOutlined
 import { Modal, Button, Checkbox, Select, InputNumber } from 'ant-design-vue'
 import type { DetailColumnConfig, ColumnSetting } from './types'
 import SearchSelect from '@/components/SearchSelect/index.vue'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 
 defineOptions({ name: 'BillDetailTable' })
 
@@ -285,12 +306,33 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   /** 最小显示行数（不足时用空行填充） */
   minRows?: number
+  /** 列配置存储键名（不同表格使用不同键，避免冲突） */
+  storageKey?: string
+  /** 填充模式：右侧生成空白列占满剩余宽度 */
+  fillMode?: boolean
+  /** 是否显示分页器 */
+  showPagination?: boolean
+  /** 当前页码 */
+  current?: number
+  /** 每页大小 */
+  pageSize?: number
+  /** 总条数 */
+  total?: number
+  /** 每页显示条数选项 */
+  pageSizeOptions?: number[]
 }>(), {
   viewMode: false,
   maxHeight: 0,
   summaryColumns: () => [],
   loading: false,
   minRows: 20,
+  storageKey: 'product-unit-columns-config',
+  fillMode: false,
+  showPagination: false,
+  current: 1,
+  pageSize: 20,
+  total: 0,
+  pageSizeOptions: () => [10, 20, 50, 100]
 })
 
 const emit = defineEmits<{
@@ -305,6 +347,10 @@ const emit = defineEmits<{
   'sort-change': [key: string | null, order: 'asc' | 'desc' | null]
   /** 打开选择弹窗（空关键字回车时触发） */
   'openSelectModal': [record: any, rowIndex: number, fieldKey: string]
+  /** 分页变化 */
+  'update:current': [number]
+  'update:pageSize': [number]
+  'page-change': [{ page: number; pageSize: number }]
 }>()
 
 // ═══ 状态 ═══
@@ -327,6 +373,27 @@ const sortState = reactive<{
 const checkedRows = ref<Set<number>>(new Set())
 const checkedRecords = ref<any[]>([])
 
+// 分页相关状态
+const currentPage = ref(props.current)
+const currentPageSize = ref(props.pageSize)
+
+// 同步 props 变化
+watch(() => props.current, (val) => {
+  currentPage.value = val
+})
+
+watch(() => props.pageSize, (val) => {
+  currentPageSize.value = val
+})
+
+// 分页事件处理
+function onPageChange(page: number, pageSize: number) {
+  // 触发父组件更新
+  emit('update:current', page)
+  emit('update:pageSize', pageSize)
+  emit('page-change', { page, pageSize })
+}
+
 const isViewMode = computed(() => props.viewMode)
 
 /** 表格容器样式
@@ -337,8 +404,9 @@ const isViewMode = computed(() => props.viewMode)
  *    推荐：在 flex 布局中不要传 maxHeight，让组件自适应。
  */
 const spreadsheetTableStyle = computed(() => {
-  if (expanded.value) return { maxHeight: '70vh' }
-  if (props.maxHeight > 0) return { maxHeight: props.maxHeight + 'px' }
+  // 不再使用 maxHeight 约束，让 flex 布局自然处理高度
+  // maxHeight 会创建独立滚动容器导致 sticky 表头失效
+  if (!expanded.value && props.maxHeight > 0) return { maxHeight: props.maxHeight + 'px' }
   return {}
 })
 
@@ -465,9 +533,9 @@ const defaultSettings = computed<ColumnSetting[]>(() =>
 const columnSettings = reactive<ColumnSetting[]>([...defaultSettings.value])
 
 // 从本地存储加载列配置
-const STORAGE_KEY = 'sale-order-item-columns-config'
+const STORAGE_KEY = computed(() => props.storageKey || 'product-unit-columns-config')
 try {
-  const stored = localStorage.getItem(STORAGE_KEY)
+  const stored = localStorage.getItem(STORAGE_KEY.value)
   if (stored) {
     const parsed = JSON.parse(stored)
     // 合并存储的配置与当前可用列
@@ -508,11 +576,11 @@ watch(() => props.columns, (newCols) => {
   columnSettings.splice(0, columnSettings.length, ...newSettings)
 }, { deep: true })
 
-/** 可见列（过滤隐藏 + 按设置顺序 + 应用冻结） */
+/** 可见列（过滤隐藏 + 按设置顺序 + 应用冻结 + 可选填充列） */
 const visibleColumns = computed<DetailColumnConfig[]>(() => {
   const colMap = new Map(props.columns.map(c => [c.key, c]))
-  return columnSettings
-    .filter(s => s.visible)
+  const cols = columnSettings
+    .filter(s => s.visible && s.key !== '__filler__')
     .map(s => {
       const col = colMap.get(s.key)!
       return {
@@ -521,6 +589,27 @@ const visibleColumns = computed<DetailColumnConfig[]>(() => {
         fixed: s.fixed as 'left' | 'right' | undefined,
       }
     })
+  // 填充模式：在尾部追加空白列占满剩余空间
+  if (props.fillMode) {
+    cols.push({ key: '__filler__', title: '', type: '__filler__', width: undefined } as any)
+  }
+  return cols
+})
+
+// 计算所有可见列的总宽度（不含填充列）
+const totalContentWidth = computed(() => {
+  return visibleColumns.value.reduce((sum, col) => {
+    if (col.key === '__filler__') return sum
+    return sum + (col.width || 80)
+  }, 0)
+})
+
+// 表格动态样式：宽度 100%，最小宽度为列宽总和
+// — 列宽不足容器宽时，表格 100% 填充（配合填充列占满剩余空间）
+// — 列宽超出容器时，表格按列宽撑开，外层 overflow:auto 产生横向滚动
+const gridTableStyle = computed(() => {
+  if (totalContentWidth.value === 0) return { width: '100%' }
+  return { width: '100%', minWidth: totalContentWidth.value + 'px' }
 })
 
 // ═══ 合计值 ═══
@@ -533,6 +622,9 @@ function getSummaryValue(key: string): string {
 
 // ═══ 样式辅助 ═══
 function getColStyle(col: DetailColumnConfig) {
+  if (col.key === '__filler__') {
+    return { minWidth: '0' }
+  }
   return {
     width: col.width ? col.width + 'px' : 'auto',
     minWidth: col.width ? col.width + 'px' : '80px',
@@ -540,6 +632,9 @@ function getColStyle(col: DetailColumnConfig) {
 }
 
 function getColClass(col: DetailColumnConfig) {
+  if (col.key === '__filler__') {
+    return { 'ss-filler-col': true }
+  }
   return {
     'ss-fixed-left': col.fixed === 'left',
     'ss-fixed-right': col.fixed === 'right',
@@ -720,7 +815,14 @@ function onDrop(_index: number) {
  *      maxHeight 只在展开模式（70vh）或外部显式传入 > 0 时才应用。
  */
 .spreadsheet-table {
-  flex: 1;
+  /* ⚠️ 必须用 height:0 + flex-grow:1，不能用 flex:1。
+   * flex:1 的 flex-basis:0% 在某些浏览器中不能可靠地创建
+   * 有界高度，导致 overflow:auto 无法触发滚动（展开时尤其明显）。
+   * height:0 强制元素从零高度开始，flex-grow:1 增长填满可用空间，
+   * 保证高度始终等于 flex 分配的空间 → overflow:auto 产生滚动。
+   */
+  height: 0;
+  flex-grow: 1;
   overflow: auto;          /* 唯一的滚动容器，sticky th 相对它定位 */
   border: 1px solid #e8e8e8;
   border-bottom: none;
@@ -757,15 +859,16 @@ function onDrop(_index: number) {
 .ss-grid th {
   background: #fafafa;
   border-right: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;   /* th 的底边框 = 表头与表体的分隔线，吸顶时跟着 th 走 */
+  border-bottom: 2px solid #b0b0b0;
   padding: 0 6px;
   text-align: center;
   font-weight: 600;
   color: #262626;
   font-size: 13px;
   height: 32px;
+  box-sizing: border-box;
   position: sticky;
-  top: 0;          /* ⚠️ 必须是 0，不能是 -1px！-1px 会导致滚动时表头跳动 1px */
+  top: 0;
   z-index: 10;
   white-space: nowrap;
   vertical-align: middle;
@@ -781,9 +884,22 @@ function onDrop(_index: number) {
 }
 
 /* 最后一列不画右边线，容器提供右边框 */
-.ss-grid th:last-child,
-.ss-grid td:last-child {
+.ss-grid th:last-child:not(.ss-filler-col),
+.ss-grid td:last-child:not(.ss-filler-col) {
   border-right: none;
+}
+
+/* 填充列：th 保留底边框和背景色，仅移除右边框 */
+.ss-grid th.ss-filler-col {
+  border-right: none !important;
+  background: #fafafa;
+}
+/* 填充列：td 完全无边框 */
+.ss-grid td.ss-filler-col {
+  border: none !important;
+  padding: 0 !important;
+  cursor: default;
+  min-width: 0;
 }
 
 /* 左对齐列：左侧 5px 间距 */
@@ -1058,6 +1174,9 @@ function onDrop(_index: number) {
   border: 1px solid #e8e8e8;
   border-top: none;
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .detail-expand :deep(.ant-btn-link) {
@@ -1067,13 +1186,13 @@ function onDrop(_index: number) {
 
 /* ═══ 展开模式：隐藏边框，可滚动 ═══ */
 .table-expanded {
-  overflow-y: auto;
+  /* 不添加 overflow-y: auto，保持 .spreadsheet-table 为唯一滚动容器
+     这样 sticky thead 才能正常工作 */
   min-height: auto;
 }
 
 .table-expanded .spreadsheet-table {
   border: none;
-  flex: none;
 }
 
 .table-expanded .detail-expand {
@@ -1206,5 +1325,28 @@ function onDrop(_index: number) {
 .col-settings-panel-modal {
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* 分页器样式（继承自 ColumnConfigTable） */
+.standard-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0;
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+  margin-top: -1px;
+  z-index: 1;
+  flex-shrink: 0; /* 防止在 flex 布局中被压缩 */
+}
+
+.standard-pagination :deep(.ant-pagination) {
+  margin-right: 16px;
+}
+
+.standard-pagination .pagination-info {
+  color: #999;
+  font-size: 13px;
+  margin-left: 16px;
 }
 </style>

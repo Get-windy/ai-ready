@@ -53,15 +53,15 @@
 
     <!-- 内容行：左侧分类树 + 右侧表格 -->
     <div class="content-row">
-      <!-- 左侧分类面板 -->
-      <div v-if="showCategoryPanel" class="category-panel">
+      <!-- 左侧分类面板（直通页面底部） -->
+      <div v-if="!categoryCollapsed && showCategoryPanel" class="category-panel">
         <div class="category-header">
           <span class="category-title">{{ categoryTitle }}</span>
           <div class="category-header-actions">
-            <a-button v-if="categoryEditable" type="link" size="small" @click="$emit('category-add')">
+            <a-button v-if="categoryEditable" type="link" size="small" @click="$emit('category-add')" title="新增分类">
               <PlusOutlined />
             </a-button>
-            <a-button v-if="categoryCollapsible" type="link" size="small" @click="$emit('category-collapse')">
+            <a-button type="link" size="small" @click="toggleCollapse" title="折叠分类树">
               <MenuFoldOutlined />
             </a-button>
           </div>
@@ -88,6 +88,7 @@
             <a-tree
               v-else-if="!categoryLoading"
               :tree-data="categoryTreeData"
+              :field-names="{ key: 'id', title: 'categoryName', children: 'children' }"
               :selected-keys="[selectedCategoryId]"
               :expanded-keys="categoryExpandedKeys"
               show-icon
@@ -99,57 +100,43 @@
                 <span>{{ categoryName }}</span>
                 <span v-if="productCount !== undefined" class="cat-count">({{ productCount }})</span>
               </template>
-              <template #icon="{ status }">
-                <FolderOutlined v-if="status !== 0" style="color: #faad14" />
-                <FolderOpenOutlined v-else />
+              <template #icon="{ expanded }">
+                <FolderOpenOutlined v-if="expanded" style="color: #faad14" />
+                <FolderOutlined v-else style="color: #faad14" />
               </template>
             </a-tree>
           </a-spin>
         </div>
+        <!-- 底部路径 -->
+        <div class="category-breadcrumb">
+          <span class="breadcrumb-text">当前路径：</span>
+          <span class="breadcrumb-path">{{ currentPath }}</span>
+        </div>
       </div>
 
-      <!-- 右侧表格区域 -->
+      <!-- 折叠状态：显示展开拉手 -->
+      <div v-else-if="categoryCollapsed && showCategoryPanel" class="category-collapse-bar">
+        <a-button type="text" class="collapse-toggle-btn" @click="toggleCollapse" title="展开分类树">
+          <MenuUnfoldOutlined />
+        </a-button>
+      </div>
+
+      <!-- 右侧表格区域（直通页面底部） -->
       <div class="table-panel">
         <div class="table-section">
           <slot name="table" />
         </div>
-      </div>
-    </div>
-
-    <!-- 底部分页 -->
-    <div class="pagination-section">
-      <div class="pagination-left">
-        <span class="breadcrumb-text">{{ currentPath }}</span>
-      </div>
-      <div class="pagination-right">
-        <a-pagination
-          :current="paginationCurrent"
-          :pageSize="paginationPageSize"
-          :total="paginationTotal"
-          :show-size-changer="true"
-          :show-quick-jumper="true"
-          :page-size-options="pageSizeOptions"
-          size="small"
-          @change="(page: number, size: number) => $emit('page-change', page, size)"
-        />
-        <span class="total-text">共 {{ paginationTotal }} 条记录</span>
-        <span class="page-size-text">每页显示</span>
-        <a-select
-          :value="paginationPageSize"
-          size="small"
-          style="width: 60px"
-          @change="(size: number) => $emit('page-change', paginationCurrent, size)"
-        >
-          <a-select-option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</a-select-option>
-        </a-select>
-        <span class="page-size-text">行</span>
+        <!-- 表格底部插槽（放分页器等） -->
+        <div v-if="showTableFooter && $slots['table-footer']" class="table-footer-section">
+          <slot name="table-footer" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import {
   PlusOutlined,
   ReloadOutlined,
@@ -157,10 +144,11 @@ import {
   FolderOpenOutlined,
   InboxOutlined,
   MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons-vue'
 import { Input, Select, DatePicker, Checkbox } from 'ant-design-vue'
 
-// ── Types ──
+// ─ Types ──
 export interface TabItem {
   key: string
   label: string
@@ -176,18 +164,17 @@ export interface SearchField {
   value?: any
 }
 
-// ── Props ─
+// ── Props ──
 const props = withDefaults(defineProps<{
   // 分类面板
   showCategoryPanel?: boolean
   categoryTitle?: string
   categoryEditable?: boolean
-  categoryCollapsible?: boolean
   categoryTreeData?: any[]
   categoryLoading?: boolean
   categoryError?: boolean
-  selectedCategoryId?: number
-  categoryExpandedKeys?: number[]
+  selectedCategoryId?: string | number
+  categoryExpandedKeys?: (string | number)[]
 
   // Tab
   tabs?: TabItem[]
@@ -198,57 +185,50 @@ const props = withDefaults(defineProps<{
   showHierarchyToggle?: boolean
   showHierarchy?: boolean
 
-  // 分页
-  paginationCurrent?: number
-  paginationPageSize?: number
-  paginationTotal?: number
-  pageSizeOptions?: string[]
-
   // 路径
   currentPath?: string
+
+  // 表格底部插槽显示控制
+  showTableFooter?: boolean
 }>(), {
   showCategoryPanel: true,
   categoryTitle: '分类',
   categoryEditable: true,
-  categoryCollapsible: false,
   categoryTreeData: () => [],
   categoryLoading: false,
   categoryError: false,
-  selectedCategoryId: 0,
+  selectedCategoryId: '0',
   categoryExpandedKeys: () => [],
   tabs: () => [],
   activeTab: '',
   searchFields: () => [],
   showHierarchyToggle: false,
   showHierarchy: false,
-  paginationCurrent: 1,
-  paginationPageSize: 20,
-  paginationTotal: 0,
-  pageSizeOptions: () => ['10', '20', '50', '100'],
   currentPath: '',
+  showTableFooter: true,
 })
 
 // ── Emits ──
 defineEmits<{
-  // 分类事件
   'category-add': []
-  'category-collapse': []
   'category-retry': []
-  'category-select': [keys: number[]]
-  'category-expand': [keys: number[]]
+  'category-select': [keys: (string | number)[]]
+  'category-expand': [keys: (string | number)[]]
 
-  // Tab事件
   'tab-change': [key: string]
 
-  // 搜索事件
   'search': []
   'hierarchy-change': [checked: boolean]
-
-  // 分页事件
-  'page-change': [page: number, pageSize: number]
 }>()
 
-// ── Methods
+// ── 折叠状态 ──
+const categoryCollapsed = ref(false)
+
+function toggleCollapse() {
+  categoryCollapsed.value = !categoryCollapsed.value
+}
+
+// ── Methods ──
 function getSearchComponent(field: SearchField) {
   const map: Record<string, any> = {
     input: Input,
@@ -276,19 +256,13 @@ function getSearchProps(field: SearchField) {
 </script>
 
 <style scoped>
-/* ── 整体布局：垂直堆叠 ──
- * ⚠️ overflow:hidden 必须加！
- * 不加的话页面级滚动会影响 BillDetailTable 的 sticky 表头定位，
- * 导致表头与表格顶部出现 1px 缝隙透底。
- * 与 BillFormPage 的 .bill-form-page 保持一致。
- */
+/* ── 整体布局：垂直堆叠 ── */
 .category-list-layout {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   background: #f0f2f5;
-  padding-top: 5px;
   overflow: hidden;
 }
 
@@ -334,7 +308,6 @@ function getSearchProps(field: SearchField) {
   margin-bottom: -1px;
   z-index: 2;
 }
-/* 底部开口：::before/::after 延伸底部横线保持边框连续 */
 .tab-item.active::before,
 .tab-item.active::after {
   content: '';
@@ -344,14 +317,10 @@ function getSearchProps(field: SearchField) {
   height: 1px;
   background: rgba(255, 255, 255, 0.15);
 }
-.tab-item.active::before {
-  right: 100%;
-}
-.tab-item.active::after {
-  left: 100%;
-}
+.tab-item.active::before { right: 100%; }
+.tab-item.active::after { left: 100%; }
 
-/* ─ 工具栏 ── */
+/* ── 工具栏 ── */
 .toolbar-section {
   display: flex;
   justify-content: space-between;
@@ -364,7 +333,6 @@ function getSearchProps(field: SearchField) {
   position: relative;
   z-index: 2;
 }
-
 .toolbar-left,
 .toolbar-right {
   display: flex;
@@ -381,43 +349,38 @@ function getSearchProps(field: SearchField) {
   position: relative;
   z-index: 2;
 }
-
 .search-row {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-
 .search-row.second-row {
   margin-top: 8px;
 }
-
 .search-item {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .search-label {
   font-size: 13px;
   color: #666;
   white-space: nowrap;
 }
-
 .btn-search {
   margin-left: 8px;
 }
 
-/* ── 内容行：分类树 + 表格 左右分栏 ── */
+/* ─ 内容行：分类树 + 表格（两者均直通页面底部） ── */
 .content-row {
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: 0;
+  overflow: hidden;
 }
 
-/* ── 左侧分类面板 ── */
+/* ── 左侧分类面板（直通页面底部） ── */
 .category-panel {
   width: 220px;
   min-width: 180px;
@@ -436,13 +399,12 @@ function getSearchProps(field: SearchField) {
   padding: 10px 12px;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
+  background: #fafafa;
 }
-
 .category-header-actions {
   display: flex;
   align-items: center;
 }
-
 .category-title {
   font-weight: 600;
   font-size: 14px;
@@ -453,6 +415,7 @@ function getSearchProps(field: SearchField) {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+  min-height: 0;
 }
 
 .cat-count {
@@ -464,7 +427,6 @@ function getSearchProps(field: SearchField) {
 .category-error {
   padding: 12px;
 }
-
 .category-empty {
   display: flex;
   flex-direction: column;
@@ -472,20 +434,54 @@ function getSearchProps(field: SearchField) {
   padding: 24px 12px;
   text-align: center;
 }
-
 .category-empty-icon {
   font-size: 36px;
   color: #d9d9d9;
   margin-bottom: 8px;
 }
-
 .category-empty-text {
   font-size: 13px;
   color: #999;
   margin: 0 0 8px 0;
 }
 
-/* ── 右侧表格面板 ── */
+/* 分类面板底部路径 */
+.category-breadcrumb {
+  padding: 8px 12px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #888;
+}
+.breadcrumb-text {
+  color: #888;
+}
+.breadcrumb-path {
+  color: #409eff;
+}
+
+/* ── 分类折叠状态：窄条拉手 ── */
+.category-collapse-bar {
+  width: 28px;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+.collapse-toggle-btn {
+  padding: 2px 4px;
+  font-size: 14px;
+  color: #999;
+}
+.collapse-toggle-btn:hover {
+  color: #409eff;
+}
+
+/* ─ 右侧表格面板（直通页面底部） ─ */
 .table-panel {
   flex: 1;
   min-width: 0;
@@ -495,11 +491,6 @@ function getSearchProps(field: SearchField) {
   overflow: hidden;
 }
 
-/* ⚠️ 必须 display:flex + flex-direction:column，
- * 否则内部 BillDetailTable 的 flex:1 不生效，高度无约束，
- * 导致 sticky 表头在滚动时跳动/出现缝隙。
- * 与 BillFormPage 的 .bill-table-section 保持一致。
- */
 .table-section {
   flex: 1;
   min-height: 0;
@@ -508,37 +499,56 @@ function getSearchProps(field: SearchField) {
   flex-direction: column;
 }
 
-/* ── 底部分页 ── */
-.pagination-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background: #fafafa;
-  border-top: 1px solid #e8e8e8;
+/* ── 表格底部区域（分页器） ── */
+.table-footer-section {
   flex-shrink: 0;
 }
 
-.pagination-left {
+/* ── 分页栏（表格面板底部，居中） ── */
+.pagination-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-top: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  gap: 24px;
+}
+
+.pagination-center {
   display: flex;
   align-items: center;
 }
 
-.breadcrumb-text {
-  font-size: 13px;
-  color: #666;
-}
-
-.pagination-right {
+.pagination-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .total-text,
-.page-size-text {
+.page-size-label {
   font-size: 13px;
   color: #666;
+}
+
+/* ── a-tree 选中节点高亮（橙色） ── */
+:deep(.ant-tree-node-selected) {
+  background: #fff3e0 !important;
+}
+:deep(.ant-tree-node-selected:hover) {
+  background: #ffe0b2 !important;
+}
+
+/* ── a-tree 节点基础样式 ── */
+:deep(.ant-tree-node-content-wrapper) {
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+:deep(.ant-tree-node-content-wrapper:hover) {
+  background: #f5f7fa;
 }
 
 /* ── 紧凑尺寸 ── */

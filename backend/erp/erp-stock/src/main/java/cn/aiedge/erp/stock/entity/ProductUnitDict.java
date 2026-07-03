@@ -6,19 +6,16 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
- * 产品分类实体
- *
- * @author AI-Ready Team
- * @since 1.5.0
+ * 商品单位字典实体（简单的单位名称列表）
  */
 @Data
 @Accessors(chain = true)
-@TableName("erp_product_category")
-public class ProductCategory {
+@TableName("erp_product_unit_dict")
+public class ProductUnitDict {
 
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
@@ -28,33 +25,26 @@ public class ProductCategory {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long tenantId;
 
-    /** 分类编码 */
-    private String categoryCode;
+    /** 单位名称 */
+    private String unitName;
 
-    /** 分类名称 */
-    private String categoryName;
+    /** 助记码(拼音首字母) */
+    private String mnemonicCode;
 
-    /** 父级ID(0=根节点) */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long parentId;
+    /** 单位类型 */
+    private String unitType;
 
-    /** 层级(1/2/3...) */
-    private Integer categoryLevel;
+    /** 换算率（相对于基本单位） */
+    private BigDecimal conversionRate;
+
+    /** 备注 */
+    private String remark;
 
     /** 排序 */
     private Integer sortOrder;
 
-    /** 图标 */
-    private String icon;
-
     /** 状态: 1启用 0停用 */
     private Integer status;
-
-    /** 描述 */
-    private String description;
-
-    /** 备注 */
-    private String remark;
 
     /** 是否删除 */
     @TableLogic
@@ -71,14 +61,4 @@ public class ProductCategory {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
-
-    // ── 非持久化字段 ──
-
-    /** 子分类列表(树形结构用) */
-    @TableField(exist = false)
-    private List<ProductCategory> children;
-
-    /** 产品数量(统计用) */
-    @TableField(exist = false)
-    private Integer productCount;
 }

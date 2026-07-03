@@ -145,6 +145,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0; /* flex 子项收缩所需 */
+  padding-top: 5px; /* 与顶部保持5px间隙，同 CategoryListLayout 一致 */
 }
 
 /* ---- 底部栏 ---- */

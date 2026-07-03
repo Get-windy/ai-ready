@@ -492,6 +492,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   'md/product-price/index': () => import('@/views/md/product-price/index.vue'),
   'md/product-aux': () => import('@/views/md/product-aux/index.vue'),
   'md/product-aux/index': () => import('@/views/md/product-aux/index.vue'),
+  'md/product-supplement': () => import('@/views/md/product-supplement/index.vue'),
+  'md/product-supplement/index': () => import('@/views/md/product-supplement/index.vue'),
   'md/image': () => import('@/views/md/image/index.vue'),
   'md/image/index': () => import('@/views/md/image/index.vue'),
   'md/linked-account': () => import('@/views/md/linked-account/index.vue'),

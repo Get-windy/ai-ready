@@ -1,6 +1,7 @@
 <template>
   <ErrorBoundary @error="handleError">
     <PageContainer full-height>
+      <!-- 分类列表布局 -->
       <CategoryListLayout
         :show-category-panel="true"
         category-title="商品分类"
@@ -11,17 +12,14 @@
         :category-expanded-keys="expandedKeys"
         :tabs="tabs"
         :active-tab="activeTab"
-        :pagination-current="pagination.current"
-        :pagination-page-size="pagination.pageSize"
-        :pagination-total="pagination.total"
-        current-path="当前路径：全部商品"
+        :current-path="currentCategoryPath"
+        :show-table-footer="!tableExpanded"
         @category-add="showCategoryModal(null)"
         @category-retry="fetchCategoryTree"
         @category-select="onCategorySelect"
         @category-expand="onExpand"
         @tab-change="(key: string) => activeTab = key"
         @search="handleSearch"
-        @page-change="handlePageChange"
       >
         <!-- 工具栏左侧 -->
         <template #toolbar-left>
@@ -173,8 +171,10 @@
             :data-source="tableData"
             :loading="loading"
             :view-mode="true"
+            :fill-mode="true"
             @checkbox-change="handleCheckboxChange"
             @checkbox-all="handleCheckboxAll"
+            @expand-change="onTableExpand"
           >
             <!-- 自定义：操作列 -->
             <template #actionCell="{ record, index }">
@@ -213,6 +213,17 @@
             </template>
           </BillDetailTable>
         </template>
+
+        <!-- 表格底部：分页器（只在右侧表格区域下方，不跨到分类树下） -->
+        <template #table-footer>
+          <StandardPagination
+            :current="pagination.current"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-size-options="[10, 20, 50, 100]"
+            @change="handlePageChange"
+          />
+        </template>
       </CategoryListLayout>
 
       <!-- 分类新增/编辑弹窗 -->
@@ -233,8 +244,12 @@
           <a-form-item label="分类名称" name="categoryName">
             <a-input v-model:value="categoryForm.categoryName" placeholder="请输入分类名称" size="small" />
           </a-form-item>
-          <a-form-item label="分类编码" name="categoryCode">
-            <a-input v-model:value="categoryForm.categoryCode" placeholder="请输入分类编码" size="small" />
+          <a-form-item label="分类编码">
+            <a-input
+              v-model:value="categoryForm.categoryCode"
+              placeholder="留空则系统自动生成"
+              size="small"
+            />
           </a-form-item>
           <a-form-item label="上级分类">
             <a-tree-select
@@ -276,6 +291,7 @@ import ErrorBoundary from '@/components/ErrorBoundary/ErrorBoundary.vue'
 import CategoryListLayout from '@/components/CategoryListLayout/CategoryListLayout.vue'
 import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
 import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
+import StandardPagination from '@/components/Pagination/Pagination.vue'
 import { productApi, productCategoryApi } from '@/api/erp/product'
 import type { ProductCategory } from '@/api/erp/product'
 import request from '@/utils/request'
@@ -305,10 +321,27 @@ const industryCategoryOptions = ref([
 const categoryLoading = ref(false)
 const categoryError = ref(false)
 const categoryTree = ref<any[]>([])
-const selectedCategoryId = ref<number>(0)
-const expandedKeys = ref<number[]>([])
+const selectedCategoryId = ref<string>('0')
+const expandedKeys = ref<string[]>([])
 
 const categoryTreeData = computed(() => categoryTree.value)
+
+// 计算当前选中分类的路径
+const currentCategoryPath = computed(() => {
+  if (selectedCategoryId.value === '0' || !categoryTree.value.length) return '全部商品'
+  const path: string[] = []
+  function find(nodes: any[], target: string): boolean {
+    for (const node of nodes) {
+      path.push(node.categoryName)
+      if (String(node.id) === target) return true
+      if (node.children?.length && find(node.children, target)) return true
+      path.pop()
+    }
+    return false
+  }
+  find(categoryTree.value, selectedCategoryId.value)
+  return path.length ? path.join(' / ') : '全部商品'
+})
 
 async function fetchCategoryTree() {
   categoryLoading.value = true
@@ -316,9 +349,11 @@ async function fetchCategoryTree() {
   try {
     const data = await productCategoryApi.getTree()
     categoryTree.value = Array.isArray(data) ? data : []
-    const firstLevel = categoryTree.value.map(n => n.id)
+    const firstLevel = categoryTree.value.map(n => String(n.id))
     if (firstLevel.length > 0) {
-      expandedKeys.value = [...firstLevel]
+      const existingSet = new Set(expandedKeys.value)
+      const merged = new Set([...firstLevel, ...existingSet])
+      expandedKeys.value = [...merged]
     }
   } catch (e) {
     console.error('[商品分类] 加载分类树失败', e)
@@ -328,13 +363,14 @@ async function fetchCategoryTree() {
   }
 }
 
-function onCategorySelect(keys: number[]) {
-  selectedCategoryId.value = keys[0] || 0
+function onCategorySelect(keys: (string | number)[]) {
+  const key = keys[0]
+  selectedCategoryId.value = key != null ? String(key) : '0'
   fetchProducts()
 }
 
-function onExpand(keys: number[]) {
-  expandedKeys.value = keys
+function onExpand(keys: (string | number)[]) {
+  expandedKeys.value = keys.map(String)
 }
 
 // ── 分类弹窗 ──
@@ -345,12 +381,11 @@ const categoryFormRef = ref<any>(null)
 const categoryForm = reactive({
   categoryName: '',
   categoryCode: '',
-  parentId: undefined as number | undefined,
+  parentId: undefined as string | undefined,
   sortOrder: 0,
 })
 const categoryRules = {
   categoryName: [{ required: true, message: '请输入分类名称' }],
-  categoryCode: [{ required: true, message: '请输入分类编码' }],
 }
 
 function showCategoryModal(category: ProductCategory | null) {
@@ -366,7 +401,7 @@ function showCategoryModal(category: ProductCategory | null) {
     Object.assign(categoryForm, {
       categoryName: '',
       categoryCode: '',
-      parentId: selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined,
+      parentId: selectedCategoryId.value !== '0' ? selectedCategoryId.value : undefined,
       sortOrder: 0,
     })
   }
@@ -374,6 +409,8 @@ function showCategoryModal(category: ProductCategory | null) {
 }
 
 async function handleCategoryOk() {
+  // 记住创建时的父ID，用于创建后展开
+  const parentIdForExpand = categoryForm.parentId ? String(categoryForm.parentId) : null
   try {
     await categoryFormRef.value?.validate()
     categoryModalLoading.value = true
@@ -392,6 +429,12 @@ async function handleCategoryOk() {
     }
     categoryModalVisible.value = false
     await fetchCategoryTree()
+    // 确保新创建子分类的父节点处于展开状态
+    if (parentIdForExpand) {
+      const keySet = new Set(expandedKeys.value)
+      keySet.add(parentIdForExpand)
+      expandedKeys.value = [...keySet]
+    }
     await fetchProducts()
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'errorFields' in e) return
@@ -424,6 +467,11 @@ const loading = ref(false)
 const tableData = ref<any[]>([])
 const selectedRows = ref<any[]>([])
 const tableRef = ref<any>(null)
+const tableExpanded = ref(false)
+
+function onTableExpand(expanded: boolean) {
+  tableExpanded.value = expanded
+}
 
 // 表格列配置
 const detailColumns = computed<DetailColumnConfig[]>(() => [
@@ -455,7 +503,7 @@ async function fetchProducts() {
       pageNum: pagination.current,
       pageSize: pagination.pageSize,
     }
-    if (selectedCategoryId.value > 0) {
+    if (selectedCategoryId.value && selectedCategoryId.value !== '0') {
       params.categoryId = selectedCategoryId.value
     }
     if (searchForm.keyword) {
@@ -735,5 +783,12 @@ onUnmounted(() => {
 
 :deep(.ss-row:hover td) {
   background: #e6f7ff !important;
+}
+
+/* 让 CategoryListLayout 用 flex 而非固定高度，底部面板消失时空间自动回收 */
+:deep(.category-list-layout) {
+  flex: 1;
+  min-height: 0;
+  height: auto !important;
 }
 </style>

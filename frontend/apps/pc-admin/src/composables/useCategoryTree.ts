@@ -9,10 +9,10 @@ import { message } from 'ant-design-vue'
 import type { ComputedRef, Ref } from 'vue'
 
 export interface CategoryNode {
-  id: number
+  id: string
   categoryName: string
   categoryCode?: string
-  parentId?: number
+  parentId?: string
   productCount?: number
   children?: CategoryNode[]
   [key: string]: any
@@ -26,7 +26,7 @@ export interface CategoryPanelProps {
   /** 加载失败状态 */
   error?: boolean
   /** 选中的分类ID */
-  selectedId?: number
+  selectedId?: string
   /** 面板标题 */
   title?: string
 }
@@ -35,12 +35,12 @@ export function useCategoryTree(
   categoryApi: {
     getTree: () => Promise<CategoryNode[]>
     create: (data: Partial<CategoryNode>) => Promise<boolean>
-    update: (id: number, data: Partial<CategoryNode>) => Promise<boolean>
-    delete: (id: number) => Promise<boolean>
+    update: (id: string, data: Partial<CategoryNode>) => Promise<boolean>
+    delete: (id: string) => Promise<boolean>
   },
   options: {
     /** 选中的分类ID */
-    selectedId: Ref<number>
+    selectedId: Ref<string>
     /** 数据刷新回调 */
     onDataRefresh?: () => void
   }
@@ -48,7 +48,7 @@ export function useCategoryTree(
   const categoryLoading = ref(false)
   const categoryError = ref(false)
   const categoryTree = ref<CategoryNode[]>([])
-  const expandedKeys = ref<number[]>([])
+  const expandedKeys = ref<string[]>([])
   const categorySearch = ref('')
   const categoryModalVisible = ref(false)
   const categoryModalLoading = ref(false)
@@ -63,7 +63,6 @@ export function useCategoryTree(
   })
   const categoryRules = {
     categoryName: [{ required: true, message: '请输入分类名称' }],
-    categoryCode: [{ required: true, message: '请输入分类编码' }],
   }
 
   /** 过滤后的分类树 */
@@ -107,13 +106,14 @@ export function useCategoryTree(
     fetchCategoryTree()
   }
 
-  function onCategorySelect(keys: number[]) {
-    options.selectedId.value = keys[0] || 0
+  function onCategorySelect(keys: (string | number)[]) {
+    const key = keys[0]
+    options.selectedId.value = key != null ? String(key) : '0'
     options.onDataRefresh?.()
   }
 
-  function onExpand(keys: number[]) {
-    expandedKeys.value = keys
+  function onExpand(keys: (string | number)[]) {
+    expandedKeys.value = keys.map(String)
   }
 
   function showCategoryModal(category: CategoryNode | null) {
@@ -129,7 +129,7 @@ export function useCategoryTree(
       categoryForm.value = {
         categoryName: '',
         categoryCode: '',
-        parentId: options.selectedId.value > 0 ? options.selectedId.value : undefined,
+        parentId: options.selectedId.value !== '0' ? options.selectedId.value : undefined,
         sortOrder: 0,
       }
     }

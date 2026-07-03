@@ -77,7 +77,7 @@
             <a-tree
               v-if="categoryTree.length"
               :tree-data="categoryTree"
-              :selected-keys="selectedCategoryId ? [selectedCategoryId] : []"
+              :selected-keys="selectedCategoryId !== '0' ? [selectedCategoryId] : []"
               :field-names="{ children: 'children', title: 'categoryName', key: 'id' }"
               @select="onCategorySelect"
               block-node
@@ -246,7 +246,7 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const list = ref<Partner[]>([])
 const selectedType = ref('ALL')
-const selectedCategoryId = ref<number>(0)
+const selectedCategoryId = ref<string>('0')
 const categoryTree = ref<any[]>([])
 
 const statistics = ref<StatSummary>({ total: 0, enabled: 0, disabled: 0, creditTotal: 0 })
@@ -324,7 +324,7 @@ async function fetchPartners() {
       pageSize: pagination.pageSize,
     }
     if (selectedType.value !== 'ALL') params.partnerType = selectedType.value
-    if (selectedCategoryId.value > 0) params.categoryId = selectedCategoryId.value
+    if (selectedCategoryId.value && selectedCategoryId.value !== '0') params.categoryId = selectedCategoryId.value
 
     const res = await partnerApi.page(params)
     list.value = res.records || []
@@ -396,7 +396,8 @@ function onTypeSelect(keys: (string | number)[]) {
 }
 
 function onCategorySelect(keys: (string | number)[]) {
-  selectedCategoryId.value = (keys[0] as number) || 0
+  const key = keys[0]
+  selectedCategoryId.value = key != null ? String(key) : '0'
   pagination.current = 1
   fetchPartners()
 }
@@ -477,7 +478,7 @@ async function handleExport() {
         keyword: searchKeyword.value || undefined,
         status: searchStatus.value || undefined,
         partnerType: selectedType.value !== 'ALL' ? selectedType.value : undefined,
-        categoryId: selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined,
+        categoryId: selectedCategoryId.value !== '0' ? selectedCategoryId.value : undefined,
       },
       responseType: 'blob',
     })

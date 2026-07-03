@@ -56,28 +56,23 @@ public class ProductUnit {
     /** 最低折扣(%) */
     private BigDecimal minDiscount;
 
-    /** 价格等级1 */
+    // ── 以下字段映射 erp_product_unit 表的 grade_price_1~8 列 ──
+    // 列名由 V8.1.0 创建、V9.23.0 重命名而来，MyBatis-Plus 下划线转驼峰自动映射
+
     private BigDecimal gradePrice1;
 
-    /** 价格等级2 */
     private BigDecimal gradePrice2;
 
-    /** 价格等级3 */
     private BigDecimal gradePrice3;
 
-    /** 价格等级4 */
     private BigDecimal gradePrice4;
 
-    /** 价格等级5 */
     private BigDecimal gradePrice5;
 
-    /** 价格等级6 */
     private BigDecimal gradePrice6;
 
-    /** 价格等级7 */
     private BigDecimal gradePrice7;
 
-    /** 价格等级8 */
     private BigDecimal gradePrice8;
 
     @TableLogic

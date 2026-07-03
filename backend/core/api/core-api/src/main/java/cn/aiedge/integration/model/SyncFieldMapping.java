@@ -1,6 +1,8 @@
 package cn.aiedge.integration.model;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -17,12 +19,15 @@ import java.time.LocalDateTime;
 public class SyncFieldMapping {
 
     @TableId(type = IdType.AUTO)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /** 租户ID */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long tenantId;
 
     /** 关联的同步配置ID */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long sourceConfigId;
 
     /** 单据类型编码（601=客户, 604=供应商 等） */

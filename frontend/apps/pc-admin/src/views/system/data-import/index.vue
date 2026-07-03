@@ -257,6 +257,87 @@
             </div>
           </div>
         </a-tab-pane>
+
+        <a-tab-pane key="history" tab="同步历史">
+          <div class="master-detail-layout">
+            <!-- 左侧平台列表 -->
+            <div class="sidebar">
+              <div class="sidebar-header">
+                <span class="sidebar-title">已配置平台</span>
+              </div>
+              <a-menu
+                v-model:selectedKeys="selectedHistoryConfigKeys"
+                mode="inline"
+                @click="onHistoryConfigMenuClick"
+              >
+                <a-menu-item v-for="cfg in configs" :key="cfg.id">
+                  <div class="menu-item-content">
+                    <CloudOutlined />
+                    <span class="menu-item-text">{{ cfg.displayName || getSystemName(cfg.sourceType) }}</span>
+                  </div>
+                </a-menu-item>
+              </a-menu>
+              <a-empty v-if="configs.length === 0" description="暂无配置" />
+            </div>
+
+            <!-- 右侧同步历史 -->
+            <div class="detail-panel">
+              <a-empty v-if="!selectedHistoryConfig" description="请在左侧选择一个平台查看同步历史" />
+              <div v-else class="history-detail">
+                <div class="detail-header">
+                  <h3>{{ selectedHistoryConfig.displayName || getSystemName(selectedHistoryConfig.sourceType) }} — 同步历史</h3>
+                  <a-button size="small" :loading="historyLoading" @click="loadSyncHistory">
+                    <template #icon><ReloadOutlined /></template>
+                    刷新
+                  </a-button>
+                </div>
+                <a-table
+                  :columns="historyColumns"
+                  :data-source="historyRows"
+                  :pagination="false"
+                  :scroll="{ y: 500 }"
+                  size="small"
+                  row-key="id"
+                  :loading="historyLoading"
+                >
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'status'">
+                      <a-tag :color="historyStatusColor(record.status)">
+                        {{ historyStatusLabel(record.status) }}
+                      </a-tag>
+                    </template>
+                    <template v-if="column.key === 'syncType'">
+                      <a-tag>{{ record.syncType === 'full' ? '全量' : '增量' }}</a-tag>
+                    </template>
+                    <template v-if="column.key === 'billType'">
+                      {{ getBillTypeLabel(record.billType) }}
+                    </template>
+                    <template v-if="column.key === 'triggerType'">
+                      {{ record.triggerType === 'cron' ? '定时' : '手动' }}
+                    </template>
+                    <template v-if="column.key === 'duration'">
+                      {{ record.durationMs ? (record.durationMs / 1000).toFixed(1) + 's' : '-' }}
+                    </template>
+                    <template v-if="column.key === 'records'">
+                      <span v-if="record.status === 'running'">执行中...</span>
+                      <span v-else>
+                        共{{ record.recordsTotal || 0 }}条，
+                        成功<span style="color: #52c41a">{{ record.recordsSynced || 0 }}</span>，
+                        失败<span style="color: #f5222d">{{ record.recordsFailed || 0 }}</span>
+                      </span>
+                    </template>
+                    <template v-if="column.key === 'errorMessage'">
+                      <a-tooltip v-if="record.errorMessage" :title="record.errorMessage">
+                        <span class="error-text">{{ record.errorMessage }}</span>
+                      </a-tooltip>
+                      <span v-else>-</span>
+                    </template>
+                  </template>
+                </a-table>
+              </div>
+            </div>
+          </div>
+        </a-tab-pane>
       </a-tabs>
 
       <!-- 新建/编辑配置抽屉 -->
@@ -612,7 +693,7 @@ const mappingColumns = [
 async function loadConfigs() {
   try {
     const res = await request.get('/v1/sync-config')
-    configs.value = res.data || []
+    configs.value = Array.isArray(res) ? res : []
     if (configs.value.length > 0 && !selectedConfig.value) {
       selectedConfigKeys.value = [configs.value[0].id]
       selectedConfig.value = configs.value[0]
@@ -625,7 +706,7 @@ async function loadConfigs() {
 async function loadSources() {
   try {
     const res = await request.get('/v1/sync-config/sources')
-    sourceOptions.value = (res.data || []).map((s: any) => ({
+    sourceOptions.value = (Array.isArray(res) ? res : []).map((s: any) => ({
       label: s.systemName,
       value: s.systemCode,
     }))
@@ -635,7 +716,7 @@ async function loadSources() {
 async function loadBillTypes() {
   try {
     const res = await dictItemApi.getByDictCode('BILL_TYPE')
-    billTypeItems.value = res.data || []
+    billTypeItems.value = Array.isArray(res) ? res : []
   } catch (e) { console.error(e) }
 }
 
@@ -758,7 +839,7 @@ async function loadFieldMappings() {
     const res = await request.get(
       `/v1/sync-config/${selectedMappingConfig.value.id}/field-mappings/${selectedBillType.value}`
     )
-    mappingRows.value = (res.data || []).map((m: any) => ({
+    mappingRows.value = (Array.isArray(res) ? res : []).map((m: any) => ({
       id: m.id,
       sourceField: m.sourceField || '',
       sourceLabel: m.sourceLabel || '',
@@ -845,7 +926,7 @@ async function batchSaveMappings() {
       payload
     )
     message.success('保存成功')
-    mappingRows.value = (res.data || []).map((m: any) => ({
+    mappingRows.value = (Array.isArray(res) ? res : []).map((m: any) => ({
       id: m.id,
       sourceField: m.sourceField || '',
       sourceLabel: m.sourceLabel || '',
@@ -871,7 +952,7 @@ async function initFromTemplate() {
       { params: { billType: selectedBillType.value } }
     )
     message.success('已从模板初始化')
-    mappingRows.value = (res.data || []).map((m: any) => ({
+    mappingRows.value = (Array.isArray(res) ? res : []).map((m: any) => ({
       id: m.id,
       sourceField: m.sourceField || '',
       sourceLabel: m.sourceLabel || '',
@@ -888,6 +969,50 @@ async function initFromTemplate() {
 }
 
 function handleError(err: any) { console.warn('[ErrorBoundary]', err) }
+
+// ── 同步历史 ──
+const selectedHistoryConfigKeys = ref<string[]>([])
+const selectedHistoryConfig = ref<any>(null)
+const historyRows = ref<any[]>([])
+const historyLoading = ref(false)
+
+const historyColumns = [
+  { title: '同步时间', dataIndex: 'startTime', key: 'startTime', width: 160 },
+  { title: '同步类型', key: 'syncType', width: 80, align: 'center' as const },
+  { title: '数据类别', key: 'billType', width: 100 },
+  { title: '触发方式', key: 'triggerType', width: 80, align: 'center' as const },
+  { title: '状态', key: 'status', width: 90, align: 'center' as const },
+  { title: '耗时', key: 'duration', width: 80, align: 'center' as const },
+  { title: '同步结果', key: 'records', width: 200 },
+  { title: '错误信息', key: 'errorMessage', width: 200, ellipsis: true },
+]
+
+function onHistoryConfigMenuClick({ key }: any) {
+  const cfg = configs.value.find(c => c.id === key)
+  selectedHistoryConfig.value = cfg
+  loadSyncHistory()
+}
+
+async function loadSyncHistory() {
+  if (!selectedHistoryConfig.value) return
+  historyLoading.value = true
+  try {
+    const res = await request.get(`/v1/sync-history/config/${selectedHistoryConfig.value.id}`)
+    historyRows.value = Array.isArray(res) ? res : []
+  } catch (e) {
+    historyRows.value = []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+function historyStatusLabel(status: string): string {
+  return status === 'success' ? '成功' : status === 'failed' ? '失败' : status === 'partial' ? '部分成功' : '执行中'
+}
+
+function historyStatusColor(status: string): string {
+  return status === 'success' ? 'green' : status === 'failed' ? 'red' : status === 'partial' ? 'orange' : 'blue'
+}
 
 onMounted(async () => {
   await loadSources()
@@ -978,4 +1103,22 @@ onMounted(async () => {
   color: #333;
   white-space: nowrap;
 }
+
+.error-text {
+  color: #f5222d;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+  display: inline-block;
+}
+
+.history-detail .detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.history-detail .detail-header h3 { margin: 0; font-size: 18px; }
 </style>

@@ -71,8 +71,12 @@ public class ProductController {
     @SaCheckPermission("erp:product:view")
     @GetMapping("/{id}/form")
     public Result<ProductFormDTO> getFormById(@PathVariable Long id) {
+        Product product = productService.getProductDetail(id);
+        if (product == null) {
+            return Result.fail("商品不存在或已删除");
+        }
         ProductFormDTO dto = new ProductFormDTO();
-        dto.setProduct(productService.getProductDetail(id));
+        dto.setProduct(product);
         dto.setUnits(productUnitService.getByProductId(id));
         dto.setRecommends(productRecommendService.getByProductId(id));
         return Result.ok(dto);

@@ -43,8 +43,8 @@
           <!-- ==================== TAB 1: 基本信息 ==================== -->
           <a-tab-pane key="basic" tab="基本信息">
             <div class="tab-content">
-              <!-- 快速新增 -->
-              <a-card class="create-card" size="small" :bordered="false">
+              <!-- 快速新增（仅新增模式显示） -->
+              <a-card v-if="!isEdit" class="create-card" size="small" :bordered="false">
                 <a-row :gutter="12" align="middle">
                   <a-col><span class="field-label" style="white-space:nowrap;">快速新增</span></a-col>
                   <a-col flex="auto">
@@ -165,61 +165,36 @@
               <a-card title="商品单位" class="create-card" size="small" :bordered="false">
                 <template #extra>
                   <a-space>
-                    <a-button type="link" size="small" @click="showUnitGroupDialog">
+                    <a-button type="primary" size="small" @click="showUnitGroupDialog">
                       <ApartmentOutlined /> 选择单位组
                     </a-button>
                     <a-button type="link" size="small" @click="openGradeManage">
                       <CrownOutlined /> 管理价格等级
                     </a-button>
                     <a-button size="small" @click="batchCalcPrice">
-                      <CalculatorOutlined /> 批量计算价格
+                      <CalculatorOutlined /> 批量价格计算
                     </a-button>
                   </a-space>
                 </template>
-                <vxe-table
-                  ref="unitTableRef"
-                  :data="unitList"
-                  border
-                  size="small"
-                  align="center"
-                  max-height="400"
-                  :edit-config="{ trigger: 'click', mode: 'row' }"
-                  :row-config="{ keyField: 'id' }"
+                <BillDetailTable
+                  :columns="unitColumns"
+                  :data-source="unitList"
+                  :min-rows="3"
+                  storage-key="product-unit-col-config"
+                  @cell-change="onUnitCellChange"
                 >
-                  <vxe-column type="seq" title="序号" width="50" />
-                  <vxe-column field="unitType" title="类型" width="90" :edit-render="{ name: 'select', options: unitTypeOptions, props: { placeholder: '选择类型' } }" />
-                  <vxe-column field="unitName" title="单位名称" min-width="80" :edit-render="{ name: 'input', props: { placeholder: '如: 袋/箱/件' } }" />
-                  <vxe-column field="isBaseUnit" title="单位关系" width="90">
-                    <template #default="{ row }">
-                      <a-tag v-if="row.isBaseUnit" color="blue">基本单位</a-tag>
-                      <span v-else>换算单位</span>
-                    </template>
-                  </vxe-column>
-                  <vxe-column field="conversionRate" title="换算关系" width="90" :edit-render="({ name: 'input', type: 'number', props: { precision: 6, min: 0.000001 } } as any)" />
-                  <vxe-column field="barcode" title="条码" width="120" :edit-render="{ name: 'input' }" />
-                  <vxe-column field="presetPurchasePrice" title="预设进价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="referenceCost" title="参考成本" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="recentPurchasePrice" title="最近进价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="wholesalePrice" title="批发价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="retailPrice" title="零售价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="minSalePrice" title="最低售价" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)" />
-                  <vxe-column field="minDiscount" title="最低折扣(%)" width="100" :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0, max: 100 } } as any)" />
-                  <vxe-column
-                    v-for="g in gradePriceColumns"
-                    :key="g.field"
-                    :field="g.field"
-                    :title="g.title"
-                    width="90"
-                    :edit-render="({ name: 'input', type: 'number', props: { precision: 2, min: 0 } } as any)"
-                  />
-                  <vxe-column title="操作" width="60" fixed="right">
-                    <template #default="{ rowIndex }">
-                      <a-button type="link" size="small" danger @click="removeUnitRow(rowIndex)">删除</a-button>
-                    </template>
-                  </vxe-column>
-                </vxe-table>
+                  <template #isBaseUnitCell="{ record }">
+                    <a-tag v-if="record.isBaseUnit" color="blue">基本单位</a-tag>
+                    <span v-else style="color:#999">换算单位</span>
+                  </template>
+                  <template #actionCell="{ record, index }">
+                    <a-button type="link" size="small" danger @click="removeUnitRow(index)" title="删除此行">
+                      <CloseOutlined />
+                    </a-button>
+                  </template>
+                </BillDetailTable>
                 <div class="unit-actions">
-                  <a-button size="small" type="dashed" @click="addUnitRow">
+                  <a-button size="small" type="dashed" @click="addSingleUnitRow">
                     <PlusOutlined /> 新增行
                   </a-button>
                 </div>
@@ -228,27 +203,48 @@
                 <a-row :gutter="16">
                   <a-col :span="8">
                     <a-form-item label="销售常用单位" required>
-                      <a-select v-model:value="form.defaultSalesUnitId" placeholder="请选择" size="small">
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id">{{ u.unitName }}</a-select-option>
+                      <a-select v-model:value="form.defaultSalesUnitId" placeholder="请选择" size="small" allow-clear>
+                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
                       </a-select>
                     </a-form-item>
                   </a-col>
                   <a-col :span="8">
                     <a-form-item label="采购常用单位" required>
-                      <a-select v-model:value="form.defaultPurchaseUnitId" placeholder="请选择" size="small">
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id">{{ u.unitName }}</a-select-option>
+                      <a-select v-model:value="form.defaultPurchaseUnitId" placeholder="请选择" size="small" allow-clear>
+                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
                       </a-select>
                     </a-form-item>
                   </a-col>
                   <a-col :span="8">
                     <a-form-item label="库存单位" required>
-                      <a-select v-model:value="form.defaultStockUnitId" placeholder="请选择" size="small">
-                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id">{{ u.unitName }}</a-select-option>
+                      <a-select v-model:value="form.defaultStockUnitId" placeholder="请选择" size="small" allow-clear>
+                        <a-select-option v-for="u in unitList" :key="u.id" :value="u.id" :disabled="!u.unitName">{{ u.unitName || '未命名' }}</a-select-option>
                       </a-select>
                     </a-form-item>
                   </a-col>
                 </a-row>
               </a-card>
+
+              <!-- ═══ 选择单位组弹窗 ═══ -->
+              <a-modal
+                v-model:open="unitGroupModalVisible"
+                title="选择单位组"
+                width="480px"
+                @ok="applyUnitGroup"
+              >
+                <p style="color:#888;font-size:13px;margin-bottom:12px;">从单位字典中选择要添加的单位，已存在的单位不会重复添加。</p>
+                <a-checkbox-group v-model:value="selectedUnitDictIds" style="display:flex;flex-direction:column;gap:8px;">
+                  <a-checkbox
+                    v-for="dict in unitDictList"
+                    :key="dict.id"
+                    :value="dict.id"
+                  >
+                    {{ dict.unitName }}
+                    <span v-if="dict.conversionRate && dict.conversionRate !== 1" style="color:#999;font-size:12px;">(换算率: {{ dict.conversionRate }})</span>
+                  </a-checkbox>
+                </a-checkbox-group>
+                <a-empty v-if="unitDictList.length === 0" description="单位字典暂无数据，请先在辅助资料中添加单位" />
+              </a-modal>
             </div>
           </a-tab-pane>
 
@@ -462,16 +458,20 @@ import {
   productFormApi,
   productRecommendApi,
   productGradeApi,
+  productUnitDictApi,
   mallTagApi,
   type Product,
   type ProductCategory,
   type ProductUnit,
   type ProductGrade,
   type ProductRecommend,
+  type ProductUnitDict,
   type MallTag
 } from '@/api/erp/product'
 import request from '@/utils/request'
-import type { VxeTableInstance } from 'vxe-table'
+
+import BillDetailTable from '@/components/BillFormPage/BillDetailTable/index.vue'
+import type { DetailColumnConfig } from '@/components/BillFormPage/BillDetailTable/types'
 
 import { useTabsStore } from '@/stores/tabs'
 
@@ -608,7 +608,6 @@ async function handleDeleteTag(tag: MallTag) {
 }
 
 // ── 单位表格 ─
-const unitTableRef = ref<VxeTableInstance>()
 const unitTypeOptions = [
   { label: '大单位', value: 'LARGE' },
   { label: '中单位', value: 'MEDIUM' },
@@ -632,25 +631,113 @@ const gradePriceColumns = computed(() => {
 
 async function loadGrades() {
   try {
-    gradeList.value = await productGradeApi.list()
+    const list = await productGradeApi.list()
+    if (list && list.length > 0) {
+      gradeList.value = list
+    } else {
+      // API 返回空数据时使用默认等级名称
+      gradeList.value = buildDefaultGrades()
+    }
   } catch {
-    gradeList.value = []
+    // API 调用失败时使用默认等级名称
+    gradeList.value = buildDefaultGrades()
   }
+}
+
+/** 构建默认8个等级（当API无数据时使用） */
+function buildDefaultGrades(): ProductGrade[] {
+  const defaultNames = ['餐饮店', '食堂团餐', '外围餐饮店', '自助vip', '大团餐', '重点vip01', '价格等级7', '价格等级8']
+  return defaultNames.map((name, i) => ({
+    id: i + 1,
+    gradeCode: `GRADE_${i + 1}`,
+    gradeName: name,
+    gradeLevel: i + 1,
+    sortOrder: i + 1,
+    status: 1,
+  }))
+}
+
+// ── 单位字典（选择单位组） ──
+const unitDictList = ref<ProductUnitDict[]>([])
+const unitGroupModalVisible = ref(false)
+const selectedUnitDictIds = ref<string[]>([])
+
+async function loadUnitDictList() {
+  try {
+    unitDictList.value = await productUnitDictApi.list()
+  } catch {
+    unitDictList.value = []
+  }
+}
+
+async function showUnitGroupDialog() {
+  await loadUnitDictList()
+  // 预选已有的单位名称
+  selectedUnitDictIds.value = unitList.value
+    .filter(u => u.unitName)
+    .map(u => {
+      const match = unitDictList.value.find(d => d.unitName === u.unitName)
+      return match?.id || ''
+    })
+    .filter(Boolean)
+  unitGroupModalVisible.value = true
+}
+
+function applyUnitGroup() {
+  const selectedDicts = unitDictList.value.filter(d => selectedUnitDictIds.value.includes(d.id))
+  if (selectedDicts.length === 0) {
+    message.warning('请至少选择一个单位')
+    return
+  }
+  // 按字典中的单位名称填充单位列表
+  const existingNames = new Set(unitList.value.map(u => u.unitName))
+  const typeOrder = ['SMALL', 'MEDIUM', 'LARGE']
+
+  selectedDicts.forEach((dict, idx) => {
+    if (existingNames.has(dict.unitName)) return // 已存在则跳过
+    unitList.value.push({
+      id: 0,
+      productId: 0,
+      unitName: dict.unitName,
+      isBaseUnit: idx === 0 && unitList.value.filter(u => u.isBaseUnit).length === 0 ? 1 : 0,
+      conversionRate: dict.conversionRate || 1,
+      barcode: '',
+      sortOrder: unitList.value.length + 1,
+      unitType: typeOrder[idx] || '',
+    } as any)
+    existingNames.add(dict.unitName)
+  })
+
+  // 确保第一行是基本单位
+  if (unitList.value.length > 0 && unitList.value[0].isBaseUnit !== 1) {
+    unitList.value[0].isBaseUnit = 1
+  }
+
+  unitGroupModalVisible.value = false
+  message.success(`已加载 ${selectedDicts.length} 个单位`)
 }
 
 const unitList = ref<ProductUnit[]>([])
 
 function addUnitRow() {
-  unitList.value.push({
-    id: 0,
-    productId: 0,
-    unitName: '',
-    isBaseUnit: unitList.value.length === 0 ? 1 : 0,
-    conversionRate: 1,
-    barcode: '',
-    sortOrder: unitList.value.length + 1,
-    unitType: unitList.value.length === 0 ? 'SMALL' : '',
-  } as any)
+  // 新增模式：默认创建小/中/大 3行
+  const types: Array<{ unitType: string; isBase: number }> = [
+    { unitType: 'SMALL', isBase: 1 },
+    { unitType: 'MEDIUM', isBase: 0 },
+    { unitType: 'LARGE', isBase: 0 },
+  ]
+  types.forEach((t, i) => {
+    unitList.value.push({
+      id: 0,
+      productId: 0,
+      unitName: '',
+      isBaseUnit: t.isBase,
+      conversionRate: i === 0 ? 1 : undefined,
+      barcode: '',
+      sortOrder: unitList.value.length + 1,
+      unitType: t.unitType,
+    } as any)
+  })
 }
 
 function removeUnitRow(index: number) {
@@ -659,8 +746,62 @@ function removeUnitRow(index: number) {
   unitList.value.forEach((u, i) => { u.sortOrder = i + 1 })
 }
 
-function showUnitGroupDialog() {
-  message.info('单位组配置功能开发中，暂可手动添加单位')
+/** 新增单行（按钮触发的新增行） */
+function addSingleUnitRow() {
+  unitList.value.push({
+    id: 0,
+    productId: 0,
+    unitName: '',
+    isBaseUnit: 0,
+    conversionRate: 1,
+    barcode: '',
+    sortOrder: unitList.value.length + 1,
+    unitType: '',
+  } as any)
+}
+
+/** 列定义（BillDetailTable 格式） */
+const unitColumns = computed<DetailColumnConfig[]>(() => {
+  const baseColumns: DetailColumnConfig[] = [
+    { key: 'rowNo', type: 'rowNo', title: '序号', width: 50, fixed: 'left' },
+    { key: 'unitType', type: 'select', title: '类型', width: 90, options: unitTypeOptions, placeholder: '选择类型' },
+    { key: 'unitName', type: 'input', title: '单位名称', width: 100, placeholder: '如: 袋/箱/件' },
+    { key: 'isBaseUnit', type: 'slot', title: '单位关系', width: 100, slotName: 'isBaseUnitCell' },
+    { key: 'conversionRate', type: 'number', title: '换算关系', width: 100, precision: 6, min: 0.000001 },
+    { key: 'barcode', type: 'input', title: '条码', width: 120 },
+    { key: 'presetPurchasePrice', type: 'number', title: '预设进价', width: 100, precision: 2, min: 0 },
+    { key: 'referenceCost', type: 'number', title: '参考成本', width: 100, precision: 2, min: 0 },
+    { key: 'recentPurchasePrice', type: 'number', title: '最近进价', width: 100, precision: 2, min: 0 },
+    { key: 'wholesalePrice', type: 'number', title: '批发价', width: 100, precision: 2, min: 0 },
+    { key: 'retailPrice', type: 'number', title: '零售价', width: 100, precision: 2, min: 0 },
+    { key: 'minSalePrice', type: 'number', title: '最低售价', width: 100, precision: 2, min: 0 },
+    { key: 'minDiscount', type: 'number', title: '最低折扣(%)', width: 110, precision: 2, min: 0, max: 100 },
+  ]
+  // 等级价格列
+  const gradeCols: DetailColumnConfig[] = gradePriceColumns.value.map(g => ({
+    key: g.field,
+    title: g.title,
+    type: 'number' as const,
+    width: 100,
+    precision: 2,
+    min: 0,
+  }))
+  // 操作列
+  const actionCol: DetailColumnConfig = {
+    key: 'action',
+    type: 'action',
+    title: '操作',
+    width: 50,
+    fixed: 'right',
+    slotName: 'actionCell',
+  }
+  return [...baseColumns, ...gradeCols, actionCol]
+})
+
+/** 单元格变更回调（BillDetailTable 已直接修改 record，仅用于触发响应式） */
+function onUnitCellChange(_record: any, _fieldKey: string, _value: any) {
+  // 触发 unitList 的响应式更新
+  unitList.value = [...unitList.value]
 }
 
 function openGradeManage() {
@@ -856,7 +997,6 @@ async function init() {
       loadGrades()
     ])
     categoryTree.value = cats
-
     if (isEdit.value && productId.value) {
       await loadProduct(productId.value)
     } else {

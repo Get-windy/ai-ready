@@ -6,10 +6,10 @@ import type { PageQuery, PageResult } from '@/api/erp'
 
 // ── 产品分类 ──
 export interface ProductCategory {
-  id: number
+  id: string
   categoryCode: string
   categoryName: string
-  parentId: number
+  parentId: string
   categoryLevel: number
   sortOrder: number
   status: number
@@ -21,22 +21,22 @@ export const productCategoryApi = {
   getTree(): Promise<ProductCategory[]> {
     return request.get('/erp/product-category/tree')
   },
-  getChildren(parentId: number): Promise<ProductCategory[]> {
+  getChildren(parentId: string): Promise<ProductCategory[]> {
     return request.get(`/erp/product-category/children/${parentId}`)
   },
-  getById(id: number): Promise<ProductCategory> {
+  getById(id: string): Promise<ProductCategory> {
     return request.get(`/erp/product-category/${id}`)
   },
   create(data: Partial<ProductCategory>): Promise<boolean> {
     return request.post('/erp/product-category', data)
   },
-  update(id: number, data: Partial<ProductCategory>): Promise<boolean> {
+  update(id: string, data: Partial<ProductCategory>): Promise<boolean> {
     return request.put(`/erp/product-category/${id}`, data)
   },
-  updateSort(id: number, data: Partial<ProductCategory>): Promise<boolean> {
+  updateSort(id: string, data: Partial<ProductCategory>): Promise<boolean> {
     return request.put(`/erp/product-category/${id}/sort`, data)
   },
-  delete(id: number): Promise<boolean> {
+  delete(id: string): Promise<boolean> {
     return request.delete(`/erp/product-category/${id}`)
   }
 }
@@ -260,16 +260,16 @@ export interface ProductUnit {
 }
 
 export const productUnitApi = {
-  getByProduct(productId: number): Promise<ProductUnit[]> {
+  getByProduct(productId: string): Promise<ProductUnit[]> {
     return request.get(`/erp/product/units/${productId}`)
   },
   create(data: Partial<ProductUnit>): Promise<boolean> {
     return request.post('/erp/product/units', data)
   },
-  update(id: number, data: Partial<ProductUnit>): Promise<boolean> {
+  update(id: string, data: Partial<ProductUnit>): Promise<boolean> {
     return request.put(`/erp/product/units/${id}`, data)
   },
-  delete(id: number): Promise<boolean> {
+  delete(id: string): Promise<boolean> {
     return request.delete(`/erp/product/units/${id}`)
   }
 }
@@ -461,7 +461,7 @@ export const productRecommendApi = {
 
 // ── 商城标签 ──
 export interface MallTag {
-  id?: number
+  id?: string
   tagName: string
   sortOrder?: number
 }
@@ -473,8 +473,77 @@ export const mallTagApi = {
   create(data: Partial<MallTag>): Promise<boolean> {
     return request.post('/erp/mall-tag', data)
   },
-  delete(id: number): Promise<boolean> {
+  update(id: string, data: Partial<MallTag>): Promise<boolean> {
+    return request.put(`/erp/mall-tag/${id}`, data)
+  },
+  delete(id: string): Promise<boolean> {
     return request.delete(`/erp/mall-tag/${id}`)
+  }
+}
+
+// ── 商品品牌 ──
+export interface ProductBrand {
+  id?: string
+  brandName: string
+  mnemonicCode?: string
+  remark?: string
+  sortOrder?: number
+  status?: number
+}
+
+export interface PageResult<T> {
+  records: T[]
+  total: number
+  size: number
+  current: number
+  pages: number
+}
+
+export const productBrandApi = {
+  page(params: { keyword?: string; pageNum?: number; pageSize?: number }): Promise<PageResult<ProductBrand>> {
+    return request.get('/erp/product-brand/page', params)
+  },
+  list(): Promise<ProductBrand[]> {
+    return request.get('/erp/product-brand/list')
+  },
+  create(data: Partial<ProductBrand>): Promise<boolean> {
+    return request.post('/erp/product-brand', data)
+  },
+  update(id: string, data: Partial<ProductBrand>): Promise<boolean> {
+    return request.put(`/erp/product-brand/${id}`, data)
+  },
+  delete(id: string): Promise<boolean> {
+    return request.delete(`/erp/product-brand/${id}`)
+  }
+}
+
+// ── 商品单位字典 ──
+export interface ProductUnitDict {
+  id?: string
+  unitName: string
+  mnemonicCode?: string
+  unitType?: string
+  conversionRate?: number
+  remark?: string
+  sortOrder?: number
+  status?: number
+}
+
+export const productUnitDictApi = {
+  page(params: { keyword?: string; pageNum?: number; pageSize?: number }): Promise<PageResult<ProductUnitDict>> {
+    return request.get('/erp/product-unit-dict/page', params)
+  },
+  list(): Promise<ProductUnitDict[]> {
+    return request.get('/erp/product-unit-dict/list')
+  },
+  create(data: Partial<ProductUnitDict>): Promise<boolean> {
+    return request.post('/erp/product-unit-dict', data)
+  },
+  update(id: string, data: Partial<ProductUnitDict>): Promise<boolean> {
+    return request.put(`/erp/product-unit-dict/${id}`, data)
+  },
+  delete(id: string): Promise<boolean> {
+    return request.delete(`/erp/product-unit-dict/${id}`)
   }
 }
 
@@ -488,7 +557,7 @@ export interface ProductFormData {
 
 export const productFormApi = {
   getById(id: number): Promise<ProductFormData> {
-    return request.get(`/erp/product/form/${id}`)
+    return request.get(`/erp/product/${id}/form`)
   },
   batchUpdate(productId: number, data: {
     product: Partial<Product>
@@ -496,7 +565,7 @@ export const productFormApi = {
     recommends: any[]
     mallTags?: string[]
   }): Promise<boolean> {
-    return request.put(`/erp/product/form/${productId}`, data)
+    return request.put(`/erp/product/${productId}`, data)
   },
   batchCreate(data: {
     product: Partial<Product>
@@ -504,6 +573,6 @@ export const productFormApi = {
     recommends: any[]
     mallTags?: string[]
   }): Promise<boolean> {
-    return request.post('/erp/product/form', data)
+    return request.post('/erp/product', data)
   }
 }

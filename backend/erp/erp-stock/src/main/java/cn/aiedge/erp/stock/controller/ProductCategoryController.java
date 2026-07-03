@@ -44,14 +44,22 @@ public class ProductCategoryController {
     @Operation(summary = "新增分类")
     @PostMapping
     public Result<Boolean> create(@RequestBody ProductCategory category) {
-        return Result.ok(productCategoryService.createCategory(category));
+        try {
+            return Result.ok(productCategoryService.createCategory(category));
+        } catch (RuntimeException e) {
+            return Result.fail(e.getMessage());
+        }
     }
 
     @Operation(summary = "编辑分类")
     @PutMapping("/{id}")
     public Result<Boolean> update(@PathVariable Long id, @RequestBody ProductCategory category) {
         category.setId(id);
-        return Result.ok(productCategoryService.updateCategory(category));
+        try {
+            return Result.ok(productCategoryService.updateCategory(category));
+        } catch (RuntimeException e) {
+            return Result.fail(e.getMessage());
+        }
     }
 
     @Operation(summary = "更新排序(拖拽)")
